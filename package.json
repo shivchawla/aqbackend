@@ -1,0 +1,25 @@
+{
+  "name": "aims-quant-api",
+  "version": "1.0.0",
+  "description": "Aims Quant api publisher",
+  "main": "index.js",
+  "scripts": {
+    "prestart": "npm install",
+    "start": "node index.js"
+  },
+  "keywords": [
+    "aimsquant"
+  ],
+  "license": "Apache-2.0",
+  "private": true,
+  "dependencies": {
+    "bluebird": "^3.4.1",
+    "express": "^4.14.0",
+    "js-yaml": "^3.3.0",
+    "mongoose": "^4.5.8",
+    "swagger-tools": "0.10.1"
+  },
+  "devDependencies": {
+    "eslint": "^3.2.2"
+  }
+}
