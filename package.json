@@ -16,6 +16,8 @@
     "bluebird": "^3.4.1",
     "express": "^4.14.0",
     "js-yaml": "^3.3.0",
+    "jsonwebtoken": "^7.1.7",
+    "moment": "^2.14.1",
     "mongoose": "^4.5.8",
     "swagger-tools": "0.10.1"
   },
