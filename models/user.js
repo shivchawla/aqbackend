@@ -5,11 +5,11 @@ const User = new Schema({
         type: String,
         require: true
     },
-    firstname: {
+    firstName: {
         type: String,
         require: true
     },
-    lastname: {
+    lastName: {
         type: String,
         require: true
     },
