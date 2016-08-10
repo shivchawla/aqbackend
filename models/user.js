@@ -1,9 +1,12 @@
+'use strict';
 const mongoose = require('./index');
 const Schema = mongoose.Schema;
 const User = new Schema({
     email: {
         type: String,
-        require: true
+        require: true,
+        index: true,
+        unique: true
     },
     firstName: {
         type: String,
@@ -31,6 +34,12 @@ const User = new Schema({
     updatedAt: Date
 });
 
+User.index({
+    email: 1
+}, {
+    unique: true
+});
+
 User.statics.saveUser = function(userDetails) {
     const user = new this(userDetails);
     return user.save();
@@ -51,4 +60,5 @@ User.statics.updateUser = function(userDetails) {
     });
 };
 
-module.exports = mongoose.model('User', User, 'user');
+const userModel = mongoose.model('User', User, 'users');
+module.exports = userModel;
