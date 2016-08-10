@@ -2,14 +2,7 @@
 const UserModel = require('../models/user');
 const jwtUtil = require('../utils/jwttoken');
 const hashUtil = require('../utils/hashUtil');
-
-exports.logoutUser = function(args, res, next) {
-    /**
-     * parameters expected in the args:
-     **/
-    // no response value expected for this operation
-    res.end();
-};
+const sendEmail = require('../email').sendMail;
 
 exports.regiteruser = function(args, res, next) {
     const user = {
@@ -25,7 +18,8 @@ exports.regiteruser = function(args, res, next) {
         })
         .then(function(userDetails) {
             delete userDetails.password;
-            res.status(200).json(userDetails);
+            sendEmail(res);
+            // res.status(200).json(userDetails);
         })
         .catch(err => {
             next(err);

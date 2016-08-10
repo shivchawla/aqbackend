@@ -36,6 +36,8 @@ swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
     // load models
     require('./models');
 
+    // set up email service
+    require('./email').config(app);
     // Start the server
     app.listen(serverPort, function() {
         console.log('Your server is listening on port %d (http://localhost:%d)', serverPort, serverPort);
