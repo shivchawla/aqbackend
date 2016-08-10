@@ -7,7 +7,7 @@
         "transportMethod": "SMTP",
         "auth": {
             "user": "javascriptes6@gmail.com",
-            "pass": "xxxxxx"
+            "pass": "xxxxx"
         }
     }
 }

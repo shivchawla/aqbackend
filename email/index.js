@@ -14,10 +14,11 @@ module.exports.sendMail = function(res, userDetails) {
     appGbl.mailer.send('activate', {
         // REQUIRED. This can be a comma delimited string just like a normal email to field.
         to: 'sudhirbitsgoa@gmail.com',
-        subject: 'Test Email', // REQUIRED.
+        subject: 'Thank you for signing up', // REQUIRED.
         // All additional properties are also passed to the template as local variables.
         firstName: userDetails.firstName,
-        lastName: userDetails.lastName
+        lastName: userDetails.lastName,
+        url: 'http://localhost:8000/api/v2/user/activate?code=' + userDetails.code
     }, function(err) {
         if (err) {
             // handle error

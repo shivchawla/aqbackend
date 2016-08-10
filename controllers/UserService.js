@@ -38,6 +38,9 @@ exports.userlogin = function(args, res, next) {
     })
     .then(function(userM) {
         const userDetails = userM.toObject();
+        if (!userDetails.active) {
+            return Promise.reject('Please validate your email');
+        }
         return [hashUtil.comparePassword(userDetails.password, user.password), userDetails];
     })
     .spread(function(resp, userDetails) {

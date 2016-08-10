@@ -83,6 +83,26 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "User"
+  /user/forgotpassword:
+    get:
+      tags:
+      - "user"
+      summary: ask for email as parameter
+      description: forgot password api
+      produces:
+      - application/json
+      operationId: forgotPassword
+      parameters:
+      - in: query
+        name: email
+        required: true
+        type: string
+        format: email
+      x-swagger-router-controller: "User"
+      responses:
+        200:
+          description: OK
+
 
 definitions:
   User:
