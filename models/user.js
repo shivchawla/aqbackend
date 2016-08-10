@@ -28,7 +28,12 @@ const User = new Schema({
     },
     active: {
         type: Boolean,
+        default: false,
         require: true
+    },
+    code: {
+        type: String,
+        required: true
     },
     createAt: Date,
     updatedAt: Date
@@ -51,7 +56,7 @@ User.statics.fetchUser = function(query) {
 
 User.statics.updateUser = function(userDetails) {
     return this.findOne({
-        id: userDetails.id
+        code: userDetails.code
     }).then(function(user) {
         if (user) {
             user.active = true;

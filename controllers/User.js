@@ -3,8 +3,8 @@
 const User = require('./UserService');
 
 
-module.exports.logoutUser = function logoutUser(req, res, next) {
-    User.logoutUser(req.swagger.params, res, next);
+module.exports.activateUser = function activateUser (req, res, next) {
+    User.activateUser(req.swagger.params, res, next);
 };
 
 module.exports.regiteruser = function regiteruser(req, res, next) {

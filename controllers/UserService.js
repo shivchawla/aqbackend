@@ -3,13 +3,15 @@ const UserModel = require('../models/user');
 const jwtUtil = require('../utils/jwttoken');
 const hashUtil = require('../utils/hashUtil');
 const sendEmail = require('../email').sendMail;
+const uuid = require('node-uuid');
 
 exports.regiteruser = function(args, res, next) {
     const user = {
         email: args.body.value.email,
         firstName: args.body.value.firstName,
         lastName: args.body.value.lastName,
-        password: args.body.value.password
+        password: args.body.value.password,
+        code: uuid.v4()
     };
     hashUtil.genHash(user.password)
         .then(function(hash) {
@@ -18,7 +20,7 @@ exports.regiteruser = function(args, res, next) {
         })
         .then(function(userDetails) {
             delete userDetails.password;
-            sendEmail(res);
+            sendEmail(res, userDetails);
             // res.status(200).json(userDetails);
         })
         .catch(err => {
@@ -50,5 +52,17 @@ exports.userlogin = function(args, res, next) {
     })
     .catch(function(err) {
         next(err);
+    });
+};
+
+exports.activateUser = function(args, res) {
+    UserModel.updateUser({
+        code: args.code.value
+    })
+    .then(function() {
+        res.status(200).json('user is activated');
+    })
+    .catch((err) => {
+        res.status(400).json(err);
     });
 };

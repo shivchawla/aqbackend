@@ -10,14 +10,14 @@ module.exports.config = function(app) {
     app.set('view engine', 'jade');
 };
 
-module.exports.sendMail = function(res) {
+module.exports.sendMail = function(res, userDetails) {
     appGbl.mailer.send('activate', {
         // REQUIRED. This can be a comma delimited string just like a normal email to field.
         to: 'sudhirbitsgoa@gmail.com',
         subject: 'Test Email', // REQUIRED.
         // All additional properties are also passed to the template as local variables.
-        firstName: 'ss',
-        lastName: 'ss'
+        firstName: userDetails.firstName,
+        lastName: userDetails.lastName
     }, function(err) {
         if (err) {
             // handle error

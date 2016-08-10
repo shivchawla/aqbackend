@@ -67,21 +67,23 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "User"
-  /user/logout:
+  /user/activate:
     get:
       tags:
       - "user"
-      summary: "Logs out current logged in user session"
-      description: ""
-      operationId: "logoutUser"
-      produces:
-      - "application/xml"
-      - "application/json"
-      parameters: []
+      summary: activate user
+      description: activate user
+      operationId: activateUser
+      parameters:
+      - in: query
+        name: code
+        type: string
+        required: true
       responses:
-        default:
-          description: "successful operation"
+        200:
+          description: OK
       x-swagger-router-controller: "User"
+
 definitions:
   User:
     type: "object"

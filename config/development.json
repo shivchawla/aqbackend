@@ -1,13 +1,13 @@
 {
     "mail": {
-        "from": "xxxxx",
+        "from": "javascriptes6@gmail.com",
         "host": "smtp.gmail.com",
         "secureConnection": true,
         "port": 465,
         "transportMethod": "SMTP",
         "auth": {
-            "user": "xxxx",
-            "pass": "xxx"
+            "user": "javascriptes6@gmail.com",
+            "pass": "xxxxxx"
         }
     }
 }
