@@ -1,13 +1,13 @@
 {
     "mail": {
-        "from": "javascriptes6@gmail.com",
-        "host": "smtp.gmail.com",
+        "from": "testserver@aimsquant.com",
+        "host": "webmail.aimsquant.com",
         "secureConnection": true,
         "port": 465,
         "transportMethod": "SMTP",
         "auth": {
-            "user": "javascriptes6@gmail.com",
-            "pass": "xxxxx"
+            "user": "testserver@aimsquant.com",
+            "pass": "sudhirbaru"
         }
     }
 }
