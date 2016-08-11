@@ -14,3 +14,11 @@ module.exports.regiteruser = function regiteruser(req, res, next) {
 module.exports.userlogin = function userlogin(req, res, next) {
     User.userlogin(req.swagger.params, res, next);
 };
+
+module.exports.forgotPassword = function forgotPassword (req, res, next) {
+    User.forgotPassword(req.swagger.params, res, next);
+};
+
+module.exports.resetPassword = function resetPassword (req, res, next) {
+    User.resetPassword(req.swagger.params, res, next);
+};

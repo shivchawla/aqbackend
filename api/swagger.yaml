@@ -102,6 +102,25 @@ paths:
       responses:
         200:
           description: OK
+  /user/setpassword:
+    post:
+      tags:
+      - "user"
+      summary: reset password by validating with the code
+      description: reset password
+      operationId: resetPassword
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/resetpassword'
+      x-swagger-router-controller: "User"
+      responses:
+        200:
+          description: OK
+        400:
+          description: code is not valid
 
 
 definitions:
@@ -133,6 +152,20 @@ definitions:
         type: "string"
       password:
         type: "string"
+  resetpassword:
+    type: object
+    required:
+    - password1
+    - password2
+    - code
+    properties:
+      password1:
+        type: "string"
+      password2:
+        type: "string"
+      code:
+        type: "string"
+        format: "uuid"
   Error:
     type: "object"
     properties:

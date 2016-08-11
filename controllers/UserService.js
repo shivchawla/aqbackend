@@ -58,14 +58,49 @@ exports.userlogin = function(args, res, next) {
     });
 };
 
+exports.forgotPassword = function(args, res, next) {
+    UserModel.updateCode({
+        email: args.email.value
+    }, uuid.v4())
+    .then(function(userDetails) {
+        delete userDetails.password;
+        sendEmail(res, userDetails);
+        // res.status(200).json(userDetails);
+    })
+    .catch(err => {
+        next(err);
+    });
+};
+
 exports.activateUser = function(args, res) {
     UserModel.updateUser({
         code: args.code.value
-    })
+    }, true)
     .then(function() {
         res.status(200).json('user is activated');
     })
     .catch((err) => {
         res.status(400).json(err);
     });
+};
+
+exports.resetPassword = function(args, res, next) {
+    const code = args.body.value.code;
+    hashUtil.genHash(args.body.value.password1)
+        .then(function(hash) {
+            return UserModel.updatePassword({
+                code: code
+            }, hash);
+        })
+        .then(function(userDetails) {
+            if (userDetails) {
+                delete userDetails.password;
+                sendEmail(res, userDetails);
+            }
+            Promise.reject('Not valid code');
+            // res.status(200).json(userDetails);
+        })
+        .catch(err => {
+            next(err);
+        });
 };

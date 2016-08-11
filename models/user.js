@@ -54,15 +54,34 @@ User.statics.fetchUser = function(query) {
     return this.findOne(query);
 };
 
-User.statics.updateUser = function(userDetails) {
-    return this.findOne({
-        code: userDetails.code
-    }).then(function(user) {
-        if (user) {
-            user.active = true;
-            return user.save();
-        }
-    });
+User.statics.updateUser = function(query, status) {
+    return this.findOne(query)
+        .then(function(user) {
+            if (user) {
+                user.active = status;
+                return user.save();
+            }
+        });
+};
+
+User.statics.updateCode = function(query, code) {
+    return this.findOne(query)
+        .then(function(user) {
+            if (user) {
+                user.code = code;
+                return user.save();
+            }
+        });
+};
+
+User.statics.updatePassword = function(query, hash) {
+    return this.findOne(query)
+        .then(function(user) {
+            if (user) {
+                user.password = hash;
+                return user.save();
+            }
+        });
 };
 
 const userModel = mongoose.model('User', User, 'users');
