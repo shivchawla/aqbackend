@@ -163,7 +163,66 @@ paths:
       responses:
         200:
           description: OK
-
+  /thread/{threadId}/like:
+    post:
+      tags:
+      - 'thread'
+      summary: like a thread
+      description: like a thread
+      operationId: likeThread
+      parameters:
+      - in: path
+        name: threadId
+        type: string
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/userId'
+      responses:
+        200:
+          description: OK
+  /thread/{threadId}/view:
+    post:
+      tags:
+      - 'thread'
+      summary: view a thread
+      description: view a thread
+      operationId: viewThread
+      parameters:
+      - in: path
+        name: threadId
+        type: string
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/userId'
+      responses:
+        200:
+          description: OK
+  /thread/{threadId}/follow:
+    post:
+      tags:
+      - 'thread'
+      summary: like a thread
+      description: like a thread
+      operationId: followThread
+      parameters:
+      - in: path
+        name: threadId
+        type: string
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/userId'
+      responses:
+        200:
+          description: OK
 
 definitions:
   User:
@@ -225,6 +284,14 @@ definitions:
       code:
         type: "string"
         format: "uuid"
+  userId:
+    type: object
+    required:
+    - userId
+    properties:
+      userId:
+        type: string
+        format: uuid
   Error:
     type: "object"
     properties:
