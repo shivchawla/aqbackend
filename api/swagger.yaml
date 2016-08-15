@@ -143,6 +143,27 @@ paths:
           description: OK
         400:
           description: 'Invalid input'
+  /thread/{threadId}:
+    post:
+      tags:
+      - thread
+      summary: reply to a thread
+      description: reply to a thread
+      operationId: reply to a thread
+      parameters:
+      - in: path
+        name: threadId
+        type: string
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/Thread'
+      responses:
+        200:
+          description: OK
+
 
 definitions:
   User:
