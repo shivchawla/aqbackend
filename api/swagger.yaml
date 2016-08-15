@@ -15,11 +15,15 @@ basePath: "/api/v2"
 tags:
 - name: "user"
   description: "Operations about user"
+- name: "thread"
+  description: "operations about thread"
   externalDocs:
     description: "Find out more about us"
     url: "http://aimsquant.io"
 schemes:
 - "http"
+produces:
+- "application/json"
 paths:
   /user:
     post:
@@ -121,7 +125,24 @@ paths:
           description: OK
         400:
           description: code is not valid
-
+  /thread:
+    post:
+      tags:
+      - thread
+      summary: post a thread
+      description: post a new thread
+      operationId: createThread
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/Thread'
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
 
 definitions:
   User:
@@ -152,6 +173,23 @@ definitions:
         type: "string"
       password:
         type: "string"
+  Thread:
+    type: object
+    required:
+    - user
+    - category
+    - title
+    - markdownText
+    properties:
+      user:
+        type: string
+        format: uuid
+      category:
+        type: string
+      title:
+        type: string
+      markdownText:
+        type: string
   resetpassword:
     type: object
     required:
