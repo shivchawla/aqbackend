@@ -132,7 +132,14 @@ paths:
       summary: post a thread
       description: post a new thread
       operationId: createThread
+      security:
+      - api_key: []
       parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
       - in: body
         name: body
         required: true
@@ -143,14 +150,22 @@ paths:
           description: OK
         400:
           description: 'Invalid input'
+      x-swagger-router-controller: "Thread"
   /thread/{threadId}:
     post:
       tags:
       - thread
       summary: reply to a thread
       description: reply to a thread
-      operationId: reply to a thread
+      operationId: replyToThread
+      security:
+      - api_key: []
       parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
       - in: path
         name: threadId
         type: string
@@ -163,6 +178,7 @@ paths:
       responses:
         200:
           description: OK
+      x-swagger-router-controller: "Thread"
   /thread/{threadId}/like:
     post:
       tags:
@@ -170,7 +186,14 @@ paths:
       summary: like a thread
       description: like a thread
       operationId: likeThread
+      security:
+      - api_key: []
       parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
       - in: path
         name: threadId
         type: string
@@ -183,6 +206,7 @@ paths:
       responses:
         200:
           description: OK
+      x-swagger-router-controller: "Thread"
   /thread/{threadId}/view:
     post:
       tags:
@@ -190,7 +214,14 @@ paths:
       summary: view a thread
       description: view a thread
       operationId: viewThread
+      security:
+      - api_key: []
       parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
       - in: path
         name: threadId
         type: string
@@ -203,6 +234,7 @@ paths:
       responses:
         200:
           description: OK
+      x-swagger-router-controller: "Thread"
   /thread/{threadId}/follow:
     post:
       tags:
@@ -210,7 +242,14 @@ paths:
       summary: like a thread
       description: like a thread
       operationId: followThread
+      security:
+      - api_key: []
       parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
       - in: path
         name: threadId
         type: string
@@ -223,7 +262,12 @@ paths:
       responses:
         200:
           description: OK
-
+      x-swagger-router-controller: "Thread"
+securityDefinitions:
+  api_key:
+    type: apiKey
+    name: aimsquant-token
+    in: header
 definitions:
   User:
     type: "object"
