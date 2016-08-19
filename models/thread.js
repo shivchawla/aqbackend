@@ -39,6 +39,11 @@ const Thread = new Schema({
         require: true,
         ref: 'User'
     }],
+    likes: [{
+        type: Schema.Types.ObjectId,
+        require: true,
+        ref: 'User'
+    }],
     views: {
         type: String,
         require: true,
@@ -69,12 +74,23 @@ Thread.statics.fetchThread = function(query) {
     return this.findOne(query);
 };
 
-Thread.statics.updateThread = function(query, userId) {
+Thread.statics.updateThreadFollowers = function(query, userId) {
     const id = userId.toString();
     return this.findOne(query)
         .then(function(thread) {
             if (thread) {
                 thread.followers.addToSet(id);
+                return thread.save();
+            }
+        });
+};
+
+Thread.statics.updateThreadLikes = function(query, userId) {
+    const id = userId.toString();
+    return this.findOne(query)
+        .then(function(thread) {
+            if (thread) {
+                thread.likes.addToSet(id);
                 return thread.save();
             }
         });

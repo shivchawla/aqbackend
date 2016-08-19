@@ -21,7 +21,7 @@ exports.createThread = function(args, res, next) {
 
 exports.followThread = function(args, res, next) {
     const user = args.user;
-    ThreadModel.updateThread({
+    ThreadModel.updateThreadFollowers({
         _id: args.threadId.value
     }, user._id)
     .then(thread => {
@@ -33,13 +33,16 @@ exports.followThread = function(args, res, next) {
 };
 
 exports.likeThread = function(args, res, next) {
-    /**
-     * parameters expected in the args:
-     * threadId (String)
-     * body (UserId)
-     **/
-    // no response value expected for this operation
-    res.end();
+    const user = args.user;
+    ThreadModel.updateThreadLikes({
+        _id: args.threadId.value
+    }, user._id)
+    .then(thread => {
+        return res.status(200).json(thread);
+    })
+    .catch(err => {
+        next(err);
+    });
 }
 
 exports.replyToThread = function(args, res, next) {
