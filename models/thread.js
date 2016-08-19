@@ -14,11 +14,12 @@ const EmbedThread = new Schema({
     createAt: Date,
     updatedAt: Date
 });
+
 const Thread = new Schema({
     category: {
         type: String,
         require: true,
-        enum: ['Finance', 'Stocks']
+        enum: ['Share your idea', 'Questions and answers', 'News and announcements']
     },
     user: {
         type: Schema.Types.ObjectId,
@@ -49,7 +50,7 @@ const Thread = new Schema({
         ref: 'User'
     },
     replies: [EmbedThread],
-    createAt: Date,
+    createdAt: Date,
     updatedAt: Date
 });
 
@@ -68,11 +69,12 @@ Thread.statics.fetchThread = function(query) {
     return this.findOne(query);
 };
 
-Thread.statics.updateThread = function(query, status) {
+Thread.statics.updateThread = function(query, userId) {
+    const id = userId.toString();
     return this.findOne(query)
         .then(function(thread) {
             if (thread) {
-                thread.active = status;
+                thread.followers.addToSet(id);
                 return thread.save();
             }
         });

@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
 const Promise = require('bluebird');
+const moment = require('moment');
 const pub = fs.readFileSync(path.join(__dirname, '../', 'pub.pem'));
 const priv = fs.readFileSync(path.join(__dirname, '../', 'priv.pem'));
 
@@ -15,7 +16,7 @@ function signToken(payload) {
             issuer: 'aimsquant',
             jwtid: 'jwtid',
             algorithm: 'RS256',
-            expiresIn: '30d'
+            expiresIn: parseInt(moment().add(30, 'days').format('x'), 10)
         },
         function(err, token) {
             if (err) {

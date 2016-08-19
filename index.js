@@ -4,7 +4,8 @@ const app = require('express')();
 const swaggerTools = require('swagger-tools');
 const jsyaml = require('js-yaml');
 const fs = require('fs');
-const serverPort = 8000;
+const authMiddleware = require('./auth/auth');
+const serverPort = 3000;
 
 // swaggerRouter configuration
 const options = {
@@ -26,6 +27,13 @@ swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
 
     // Validate Swagger requests
     app.use(middleware.swaggerValidator());
+
+    // authentication middleware
+    app.use(middleware.swaggerSecurity({
+        api_key: function(req, authOrSecDef, scopesOrApiKey, cb) {
+            authMiddleware(req, cb);
+        }
+    }));
 
     // Route validated requests to appropriate controller
     app.use(middleware.swaggerRouter(options));

@@ -10,7 +10,7 @@ info:
   license:
     name: "Apache 2.0"
     url: "http://www.apache.org/licenses/LICENSE-2.0.html"
-host: "localhost:8000"
+host: "localhost:3000"
 basePath: "/api/v2"
 tags:
 - name: "user"
@@ -254,11 +254,6 @@ paths:
         name: threadId
         type: string
         required: true
-      - in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/userId'
       responses:
         200:
           description: OK
@@ -300,16 +295,16 @@ definitions:
   Thread:
     type: object
     required:
-    - user
     - category
     - title
     - markdownText
     properties:
-      user:
-        type: string
-        format: uuid
       category:
         type: string
+        enum:
+        - "Share your idea"
+        - "Questions and answers"
+        - "News and announcements"
       title:
         type: string
       markdownText:
