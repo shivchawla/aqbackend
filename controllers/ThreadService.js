@@ -53,14 +53,17 @@ exports.replyToThread = function(args, res, next) {
      **/
     // no response value expected for this operation
     res.end();
-}
+};
 
 exports.viewThread = function(args, res, next) {
-    /**
-     * parameters expected in the args:
-     * threadId (String)
-     * body (UserId)
-     **/
-    // no response value expected for this operation
-    res.end();
-}
+    const user = args.user;
+    ThreadModel.updateViews({
+        _id: args.threadId.value
+    }, user._id)
+    .then(thread => {
+        return res.status(200).json(thread);
+    })
+    .catch(err => {
+        next(err);
+    });
+};

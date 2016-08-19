@@ -45,7 +45,7 @@ const Thread = new Schema({
         ref: 'User'
     }],
     views: {
-        type: String,
+        type: Number,
         require: true,
         default: 0
     },
@@ -96,12 +96,12 @@ Thread.statics.updateThreadLikes = function(query, userId) {
         });
 };
 
-Thread.statics.updateCode = function(query, code) {
+Thread.statics.updateViews = function(query) {
     return this.findOne(query)
         .then(function(thread) {
             if (thread) {
-                thread.code = code;
-                return Thread.save();
+                return thread.update({$inc: {views: 1}});
+                // return thread.save();
             }
         });
 };
