@@ -5,7 +5,7 @@ exports.createThread = function(args, res, next) {
     const thread = {
         user: user._id,
         category: args.body.value.category,
-        markdownText: args.body.value.markdown,
+        markdownText: args.body.value.markdownText,
         title: args.body.value.title,
         createdAt: Date.now(),
         updatedAt: Date.now()
@@ -46,13 +46,22 @@ exports.likeThread = function(args, res, next) {
 }
 
 exports.replyToThread = function(args, res, next) {
-    /**
-     * parameters expected in the args:
-     * threadId (String)
-     * body (Thread)
-     **/
-    // no response value expected for this operation
-    res.end();
+    const user = args.user;
+    const embedThread = {
+        user: user._id,
+        mardownText: args.body.value.markdownText,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    };
+    ThreadModel.saveReply({
+        _id: args.threadId.value
+    }, embedThread)
+    .then(thread => {
+        return res.status(200).json(thread);
+    })
+    .catch(err => {
+        next(err);
+    });
 };
 
 exports.viewThread = function(args, res, next) {

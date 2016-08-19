@@ -198,11 +198,6 @@ paths:
         name: threadId
         type: string
         required: true
-      - in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/userId'
       responses:
         200:
           description: OK
@@ -226,11 +221,6 @@ paths:
         name: threadId
         type: string
         required: true
-      - in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/userId'
       responses:
         200:
           description: OK

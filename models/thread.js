@@ -65,6 +65,18 @@ Thread.index({
     unique: false
 });
 
+Thread.statics.saveReply = function(query, replyDetails) {
+    return this.findOne(query)
+        .then(function(thread) {
+            if (thread) {
+                thread.replies.push(replyDetails);
+                thread.updatedAt = new Date();
+                thread.lastCommentedUser = replyDetails.user;
+                return thread.save();
+            }
+        });
+};
+
 Thread.statics.saveThread = function(ThreadDetails) {
     const thread = new this(ThreadDetails);
     return thread.save();
@@ -102,16 +114,6 @@ Thread.statics.updateViews = function(query) {
             if (thread) {
                 return thread.update({$inc: {views: 1}});
                 // return thread.save();
-            }
-        });
-};
-
-Thread.statics.updatePassword = function(query, hash) {
-    return this.findOne(query)
-        .then(function(thread) {
-            if (thread) {
-                thread.password = hash;
-                return Thread.save();
             }
         });
 };
