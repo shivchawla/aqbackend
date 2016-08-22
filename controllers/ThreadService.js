@@ -43,13 +43,13 @@ exports.likeThread = function(args, res, next) {
     .catch(err => {
         next(err);
     });
-}
+};
 
 exports.replyToThread = function(args, res, next) {
     const user = args.user;
     const embedThread = {
         user: user._id,
-        mardownText: args.body.value.markdownText,
+        markdownText: args.body.value.markdownText,
         createdAt: new Date(),
         updatedAt: new Date()
     };

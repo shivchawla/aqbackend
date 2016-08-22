@@ -47,6 +47,7 @@ exports.userlogin = function(args, res, next) {
         if (resp) {
             return [jwtUtil.signToken(userDetails), userDetails];
         }
+        return Promise.reject('Password did not match');
     })
     .spread(function(token, userDetails) {
         userDetails.token = token;

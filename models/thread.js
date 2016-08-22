@@ -7,11 +7,11 @@ const EmbedThread = new Schema({
         require: true,
         ref: 'User'
     },
-    mardownText: {
+    markdownText: {
         type: String,
         require: true
     },
-    createAt: Date,
+    createdAt: Date,
     updatedAt: Date
 });
 
@@ -30,7 +30,7 @@ const Thread = new Schema({
         type: String,
         require: true
     },
-    mardownText: {
+    markdownText: {
         type: String,
         require: true
     },
