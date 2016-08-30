@@ -9,5 +9,6 @@
             "user": "testserver@aimsquant.com",
             "pass": "sudhirbaru"
         }
-    }
+    },
+    "mongo_url": "mongodb://localhost:27017/aimsquant_dev"
 }
