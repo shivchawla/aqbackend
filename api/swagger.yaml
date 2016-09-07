@@ -1,7 +1,7 @@
 ---
 swagger: "2.0"
 info:
-  description: "Aims Quant api publisher"
+  description: "Aimsquant api publisher"
   version: "1.0.0"
   title: "AimsQuant api"
   termsOfService: "http://aimsquant.io/terms/"
@@ -335,6 +335,59 @@ paths:
           description: "Not Authorized"
           schema:
             $ref: "#/definitions/Error"
+  /strategy/{id}/exec:
+    post:
+      summary: executes the strategy and outputs the data
+      description: execute the strategy
+      tags:
+      - strategy
+      operationId: execStrategy
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: id
+        in: path
+        required: true
+        type: string
+      responses:
+        200:
+          description: "created strategy"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+  /strategy/{id}/backtests:
+    get:
+      tags:
+      - strategy
+      summary: get all backtest results of a strategy
+      description: backtest of a strategy
+      operationId: getBackTest
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: id
+        in: path
+        required: true
+        type: string
+      responses:
+        200:
+          description: "created strategy"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+
 securityDefinitions:
   api_key:
     type: apiKey
