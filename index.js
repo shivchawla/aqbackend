@@ -5,7 +5,8 @@ const swaggerTools = require('swagger-tools');
 const jsyaml = require('js-yaml');
 const fs = require('fs');
 const authMiddleware = require('./auth/auth');
-const serverPort = 3000;
+const serverPort = 3002;
+const cors = require('cors');
 
 // swaggerRouter configuration
 const options = {
@@ -24,7 +25,7 @@ swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
     // Interpret Swagger resources and attach metadata to request - must be first
     // in swagger-tools middleware chain
     app.use(middleware.swaggerMetadata());
-
+    app.use(cors());
     // Validate Swagger requests
     app.use(middleware.swaggerValidator());
 

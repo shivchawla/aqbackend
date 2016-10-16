@@ -10,7 +10,7 @@ info:
   license:
     name: "Apache 2.0"
     url: "http://www.apache.org/licenses/LICENSE-2.0.html"
-host: "localhost:3000"
+host: 'localhost:3002'
 basePath: "/api/v2"
 tags:
 - name: "user"
@@ -34,7 +34,7 @@ paths:
       summary: "Register user"
       description: "User registration api."
       operationId: "regiteruser"
-      produces:
+      consumes:
       - "application/json"
       parameters:
       - in: "body"

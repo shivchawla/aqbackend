@@ -18,7 +18,7 @@ module.exports.sendMail = function(res, userDetails) {
         // All additional properties are also passed to the template as local variables.
         firstName: userDetails.firstName,
         lastName: userDetails.lastName,
-        url: 'http://localhost:8000/api/v2/user/activate?code=' + userDetails.code
+        url: 'http://localhost:3002/api/v2/user/activate?code=' + userDetails.code
     }, function(err) {
         if (err) {
             // handle error

@@ -29,7 +29,7 @@ pyshell.stdout.on('data', message => {
                 });
             }
         } catch (e) {
-            console.log(e);
+            //
         }
     });
 });
