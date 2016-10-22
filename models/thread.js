@@ -83,11 +83,11 @@ Thread.statics.saveThread = function(ThreadDetails) {
 };
 
 Thread.statics.fetchThread = function(query) {
-    return this.findOne(query);
+    return this.findOne(query).populate('replies.user').populate('user');
 };
 
 Thread.statics.fetchThreads = function(query) {
-    return this.find(query).populate('user');
+    return this.find(query).populate('user').populate('replies.user');
 };
 
 Thread.statics.updateThreadFollowers = function(query, userId) {
