@@ -7,6 +7,14 @@ module.exports.createThread = function createThread (req, res, next) {
     Thread.createThread(req.swagger.params, res, next);
 };
 
+module.exports.getThread = function (req, res, next) {
+    Thread.getThread(req.swagger.params, res, next);
+};
+
+module.exports.getThreads = function(req, res, next) {
+    Thread.getThreads(req.swagger.params, res, next);
+};
+
 module.exports.followThread = function followThread (req, res, next) {
     Thread.followThread(req.swagger.params, res, next);
 };

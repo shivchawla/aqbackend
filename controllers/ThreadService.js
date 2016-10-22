@@ -19,6 +19,29 @@ exports.createThread = function(args, res, next) {
         });
 };
 
+exports.getThreads = function(args, res, next) {
+    ThreadModel.fetchThread({})
+      .then((threads) => {
+          return res.status(200).json(threads);
+      })
+      .catch(err => {
+          next(err);
+      });
+};
+
+exports.getThread = function(args, res, next) {
+    const threadId = args.threadId.value;
+    ThreadModel.fetchThread({
+        _id: threadId
+    })
+      .then((threads) => {
+          return res.status(200).json(threads);
+      })
+      .catch(err => {
+          next(err);
+      });
+};
+
 exports.followThread = function(args, res, next) {
     const user = args.user;
     ThreadModel.updateThreadFollowers({
