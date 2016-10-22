@@ -197,7 +197,11 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/Thread'
+          type: object
+          properties:
+            markdownText:
+              type: string
+              default: 'reply'
       responses:
         200:
           description: OK
