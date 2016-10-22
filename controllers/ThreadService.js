@@ -20,7 +20,7 @@ exports.createThread = function(args, res, next) {
 };
 
 exports.getThreads = function(args, res, next) {
-    ThreadModel.fetchThread({})
+    ThreadModel.fetchThreads({})
       .then((threads) => {
           return res.status(200).json(threads);
       })

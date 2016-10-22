@@ -86,6 +86,10 @@ Thread.statics.fetchThread = function(query) {
     return this.findOne(query);
 };
 
+Thread.statics.fetchThreads = function(query) {
+    return this.find(query).populate('user');
+};
+
 Thread.statics.updateThreadFollowers = function(query, userId) {
     const id = userId.toString();
     return this.findOne(query)
