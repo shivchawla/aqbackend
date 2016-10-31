@@ -51,7 +51,7 @@ User.statics.saveUser = function(userDetails) {
 };
 
 User.statics.fetchUser = function(query) {
-    return this.findOne(query);
+    return this.findOne(query).execAsync();
 };
 
 User.statics.updateUser = function(query, status) {
