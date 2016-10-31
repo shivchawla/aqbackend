@@ -25,6 +25,7 @@
     "moment": "^2.14.1",
     "mongodb": "^2.2.8",
     "mongoose": "^4.5.8",
+    "mongoose-text-search": "0.0.2",
     "node-uuid": "^1.4.7",
     "swagger-tools": "0.10.1"
   },

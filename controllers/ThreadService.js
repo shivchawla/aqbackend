@@ -1,5 +1,6 @@
 'use strict';
 const ThreadModel = require('../models/thread');
+
 exports.createThread = function(args, res, next) {
     const user = args.user;
     const thread = {
@@ -20,9 +21,34 @@ exports.createThread = function(args, res, next) {
 };
 
 exports.getThreads = function(args, res, next) {
-    ThreadModel.fetchThreads({})
+    const skip = args.skip.value;
+    const limit = args.limit.value;
+    const order = args.order.value;
+    const text = args.q.value;
+    const order_param = args.order_param.value;
+    const personal = args.personal.value;
+    const category = args.category.value;
+    const query = { };
+    if (personal) {
+        query.user = args.user._id;
+    }
+    if (text) {
+        query.$text = {
+            $search: text
+        };
+    }
+    if (category) {
+        query.category = category;
+    }
+    const options = {};
+    options.limit = limit;
+    options.skip = skip;
+    options.order_param = order_param || 'createdAt';
+    options.order = order || 1;
+
+    ThreadModel.fetchThreads(query, options)
       .then((threads) => {
-          return res.status(200).json(threads);
+          return res.status(200).send(threads);
       })
       .catch(err => {
           next(err);

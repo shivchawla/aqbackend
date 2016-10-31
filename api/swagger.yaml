@@ -167,12 +167,49 @@ paths:
         description: "auth token"
         type: "string"
         required: true
+      - name: q
+        in: query
+        description: search term
+        required: false
+        type: string
+      - name: category
+        in: query
+        description: this search by category
+        required: false
+        type: string
+      - name: personal
+        in: query
+        required: false
+        type: boolean
+        default: false
+      - name: skip
+        in: query
+        description: skip number of records
+        required: true
+        default: 0
+        type: number
+      - name: limit
+        type: number
+        required: true
+        in: query
+        default: 10
+      - name: order_param
+        type: string
+        required: true
+        in: query
+        default: createdAt
+      - name: order
+        type: number
+        required: true
+        in: query
+        default: 0
       responses:
         200:
           description: OK
         400:
           description: 'Invalid input'
       x-swagger-router-controller: "Thread"
+
 
   /thread/{threadId}:
     post:

@@ -1,4 +1,5 @@
 'use strict';
+
 const mongoose = require('./index');
 const Schema = mongoose.Schema;
 const EmbedThread = new Schema({
@@ -65,6 +66,11 @@ Thread.index({
     unique: false
 });
 
+// Thread.plugin(textSearch);
+Thread.index({
+    markdownText: 'text'
+});
+
 Thread.statics.saveReply = function(query, replyDetails) {
     return this.findOne(query)
         .then(function(thread) {
@@ -82,12 +88,28 @@ Thread.statics.saveThread = function(ThreadDetails) {
     return thread.save();
 };
 
-Thread.statics.fetchThread = function(query) {
-    return this.findOne(query).populate('replies.user').populate('user');
+Thread.statics.fetchThreads = function(query, options) {
+    return this.find(query)
+        .skip(options.skip)
+        .limit(options.limit)
+        .sort({
+            [options.order_param]: options.order
+        })
+        .populate('replies.user').populate('user')
+        .execAsync()
+        .then((threads) => {
+            return this.count(query)
+                .then((count) => {
+                    return {
+                        threads: threads,
+                        count: count
+                    };
+                });
+        });
 };
 
-Thread.statics.fetchThreads = function(query) {
-    return this.find(query).populate('user').populate('replies.user');
+Thread.statics.fetchThread = function(query) {
+    return this.findOne(query).populate('user').populate('replies.user');
 };
 
 Thread.statics.updateThreadFollowers = function(query, userId) {
@@ -116,7 +138,11 @@ Thread.statics.updateViews = function(query) {
     return this.findOne(query)
         .then(function(thread) {
             if (thread) {
-                return thread.update({$inc: {views: 1}});
+                return thread.update({
+                    $inc: {
+                        views: 1
+                    }
+                });
                 // return thread.save();
             }
         });
