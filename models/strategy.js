@@ -1,122 +1,72 @@
 'use strict';
 const mongoose = require('./index');
 const Schema = mongoose.Schema;
-const EmbedThread = new Schema({
-    user: {
-        type: Schema.Types.ObjectId,
-        require: true,
-        ref: 'User'
-    },
-    markdownText: {
-        type: String,
-        require: true
-    },
-    createdAt: Date,
-    updatedAt: Date
-});
-
-const Thread = new Schema({
-    category: {
+const Strategy = new Schema({
+    name: {
         type: String,
         require: true,
-        enum: ['Share your idea', 'Questions and answers', 'News and announcements']
+        index: true,
+        unique: true
     },
     user: {
         type: Schema.Types.ObjectId,
         require: true,
         ref: 'User'
     },
-    title: {
+    type: {
         type: String,
         require: true
     },
-    markdownText: {
+    language: {
         type: String,
         require: true
     },
-    followers: [{
-        type: Schema.Types.ObjectId,
-        require: true,
-        ref: 'User'
-    }],
-    likes: [{
-        type: Schema.Types.ObjectId,
-        require: true,
-        ref: 'User'
-    }],
-    views: {
-        type: Number,
-        require: true,
-        default: 0
+    description: {
+        type: String,
+        require: true
     },
-    lastCommentedUser: {
-        type: Schema.Types.ObjectId,
-        require: true,
-        ref: 'User'
+    code: {
+        type: String,
+        require: true
     },
-    replies: [EmbedThread],
+    settings: {
+        start: Date,
+        end: Date,
+        capital: Number,
+        plan: String
+    },
     createdAt: Date,
     updatedAt: Date
 });
 
-Thread.index({
-    user: 1
+Strategy.index({
+    name: 1
 }, {
-    unique: false
+    unique: true
 });
 
-Thread.statics.saveReply = function(query, replyDetails) {
+Strategy.statics.saveStrategy = function(strategyDetails) {
+    const strategy = new this(strategyDetails);
+    return strategy.saveAsync();
+};
+
+Strategy.statics.fetchStrategy = function(query) {
+    return this.findOne(query).execAsync();
+};
+
+Strategy.statics.fetchStrategys = function(query) {
+    return this.find(query).execAsync();
+};
+
+Strategy.statics.updateStrategy = function(query, status) {
     return this.findOne(query)
-        .then(function(thread) {
-            if (thread) {
-                thread.replies.push(replyDetails);
-                thread.updatedAt = new Date();
-                thread.lastCommentedUser = replyDetails.user;
-                return thread.save();
+        .then(function(strategy) {
+            if (strategy) {
+                strategy.active = status;
+                return strategy.save();
             }
         });
 };
 
-Thread.statics.saveThread = function(ThreadDetails) {
-    const thread = new this(ThreadDetails);
-    return thread.save();
-};
-
-Thread.statics.fetchThread = function(query) {
-    return this.findOne(query);
-};
-
-Thread.statics.updateThreadFollowers = function(query, userId) {
-    const id = userId.toString();
-    return this.findOne(query)
-        .then(function(thread) {
-            if (thread) {
-                thread.followers.addToSet(id);
-                return thread.save();
-            }
-        });
-};
-
-Thread.statics.updateThreadLikes = function(query, userId) {
-    const id = userId.toString();
-    return this.findOne(query)
-        .then(function(thread) {
-            if (thread) {
-                thread.likes.addToSet(id);
-                return thread.save();
-            }
-        });
-};
-
-Thread.statics.updateViews = function(query) {
-    return this.findOne(query)
-        .then(function(thread) {
-            if (thread) {
-                return thread.update({$inc: {views: 1}});
-                // return thread.save();
-            }
-        });
-};
-
-const ThreadModel = mongoose.model('Thread', Thread, 'Threads');
-module.exports = ThreadModel;
+const strategyModel = mongoose.model('Strategy', Strategy, 'strategys');
+module.exports = strategyModel;

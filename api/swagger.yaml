@@ -367,12 +367,13 @@ paths:
           description: "Not Authorized"
           schema:
             $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Strategy"
     get:
       tags:
       - strategy
       summary: get strategy
       description:  get strategies of user
-      operationId: getStrategy
+      operationId: getStrategys
       security:
       - api_key: []
       parameters:
@@ -388,7 +389,34 @@ paths:
           description: "Not Authorized"
           schema:
             $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Strategy"
   /strategy/{id}:
+    get:
+      tags:
+      - strategy
+      summary: get strategy
+      description:  get strategies of user
+      operationId: getStrategy
+      security:
+      - api_key: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        type: string
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      responses:
+        200:
+          description: "strategies"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Strategy"
     put:
       tags:
       - strategy
@@ -421,6 +449,7 @@ paths:
           description: "Not Authorized"
           schema:
             $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Strategy"
   /strategy/{id}/exec:
     post:
       summary: executes the strategy and outputs the data
@@ -447,13 +476,14 @@ paths:
           description: "Not Authorized"
           schema:
             $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Strategy"
   /strategy/{id}/backtests:
     get:
       tags:
       - strategy
       summary: get all backtest results of a strategy
       description: backtest of a strategy
-      operationId: getBackTest
+      operationId: getBackTests
       security:
       - api_key: []
       parameters:
@@ -473,6 +503,7 @@ paths:
           description: "Not Authorized"
           schema:
             $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Strategy"
 
 securityDefinitions:
   api_key:
@@ -562,8 +593,9 @@ definitions:
     - name
     - type
     - language
-    - parameters
-    - strategyCode
+    - description
+    - code
+    - settings
     properties:
       name:
         type: string
@@ -572,12 +604,31 @@ definitions:
       language:
         type: string
         enum: ['python', 'nodejs', 'java']
-      strategyCode:
+      description:
         type: string
-      parameters:
-        type: array
-        items:
-          type: string
+      code:
+        type: string
+      settings:
+        $ref: "#/definitions/Setting"
+
+  Setting:
+    type: object
+    required:
+    - start
+    - end
+    - capital
+    - plan
+    properties:
+      start:
+        type: string
+        format: date-time
+      end:
+        type: string
+        format: date-time
+      capital:
+        type: number
+      plan:
+        type: string
 
 externalDocs:
   description: "Find out more about Swagger"
