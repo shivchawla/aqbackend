@@ -51,11 +51,11 @@ Strategy.statics.saveStrategy = function(strategyDetails) {
 };
 
 Strategy.statics.fetchStrategy = function(query) {
-    return this.findOne(query).execAsync();
+    return this.findOne(query).populate('user', '_id firstName lastName').execAsync();
 };
 
 Strategy.statics.fetchStrategys = function(query) {
-    return this.find(query).execAsync();
+    return this.find(query).populate('user', '_id firstName lastName').execAsync();
 };
 
 Strategy.statics.updateStrategy = function(query, status) {

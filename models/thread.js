@@ -95,7 +95,7 @@ Thread.statics.fetchThreads = function(query, options) {
         .sort({
             [options.order_param]: options.order
         })
-        .populate('replies.user').populate('user')
+        .populate('replies.user', '_id firstName lastName').populate('user', '_id firstName lastName')
         .execAsync()
         .then((threads) => {
             return this.count(query)
