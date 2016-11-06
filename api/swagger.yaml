@@ -19,6 +19,8 @@ tags:
   description: "operations about thread"
 - name: "strategy"
   description: "operation about strategy"
+- name: backtest
+  description: operations on backtest
   externalDocs:
     description: "Find out more about us"
     url: "http://aimsquant.io"
@@ -469,6 +471,11 @@ paths:
         in: path
         required: true
         type: string
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: "#/definitions/Backtest"
       responses:
         200:
           description: "created strategy"
@@ -478,9 +485,44 @@ paths:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
   /strategy/{id}/backtests:
+#    post:
+#      tags:
+#      - "backtest"
+#      summary: create a new strategy
+#      description: create a new financial strategy
+#      consumes:
+#      - "application/json"
+#      produces:
+#      - "application/json"
+#      operationId: createBacktest
+#      security:
+#      - api_key: []
+#      parameters:
+#      - name: "aimsquant-token"
+#        in: "header"
+#        description: "auth token"
+#        type: "string"
+#        required: true
+#      - name: id
+#        in: path
+#        required: true
+#        type: string
+#      - name: body
+#        in: body
+#        required: true
+#        schema:
+#          $ref: "#/definitions/Backtest"
+#      responses:
+#        200:
+#          description: "created backtest"
+#        400:
+#          description: "Not Authorized"
+#          schema:
+#            $ref: "#/definitions/Error"
+#      x-swagger-router-controller: "Backtest"
     get:
       tags:
-      - strategy
+      - backtest
       summary: get all backtest results of a strategy
       description: backtest of a strategy
       operationId: getBackTests
@@ -503,7 +545,7 @@ paths:
           description: "Not Authorized"
           schema:
             $ref: "#/definitions/Error"
-      x-swagger-router-controller: "Strategy"
+      x-swagger-router-controller: "Backtest"
 
 securityDefinitions:
   api_key:
@@ -594,8 +636,6 @@ definitions:
     - type
     - language
     - description
-    - code
-    - settings
     properties:
       name:
         type: string
@@ -608,16 +648,15 @@ definitions:
         type: string
       code:
         type: string
-      settings:
-        $ref: "#/definitions/Setting"
+#      settings:
+#        $ref: "#/definitions/Setting"
 
-  Setting:
+  Backtest:
     type: object
     required:
     - start
     - end
     - capital
-    - plan
     properties:
       start:
         type: string

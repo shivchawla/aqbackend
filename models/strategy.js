@@ -27,13 +27,7 @@ const Strategy = new Schema({
     },
     code: {
         type: String,
-        require: true
-    },
-    settings: {
-        start: Date,
-        end: Date,
-        capital: Number,
-        plan: String
+        require: false
     },
     createdAt: Date,
     updatedAt: Date
@@ -58,11 +52,14 @@ Strategy.statics.fetchStrategys = function(query) {
     return this.find(query).populate('user', '_id firstName lastName').execAsync();
 };
 
-Strategy.statics.updateStrategy = function(query, status) {
+Strategy.statics.updateStrategy = function(query, updates) {
     return this.findOne(query)
         .then(function(strategy) {
             if (strategy) {
-                strategy.active = status;
+                const keys = Object.keys(updates);
+                keys.forEach(key => {
+                    strategy[key] = updates[key];
+                })
                 return strategy.save();
             }
         });

@@ -1,6 +1,6 @@
 'use strict';
 const StrategyModel = require('../models/strategy');
-
+const BacktestService = require('./BacktestService');
 exports.createStrategy = function(args, res, next) {
     const user = args.user;
     const values = args.body.value;
@@ -11,7 +11,6 @@ exports.createStrategy = function(args, res, next) {
         language: values.language,
         description: values.description,
         code: values.code,
-        settings: values.settings,
         createdAt: new Date()
     };
     StrategyModel.saveStrategy(Strategy)
@@ -24,12 +23,16 @@ exports.createStrategy = function(args, res, next) {
 };
 
 exports.execStrategy = function(args, res, next) {
-    // this should create new back test
-    next('Not implemented');
-};
-
-exports.getBackTests = function(args, res, next) {
-    next();
+    const user = args.user;
+    const id = args.id.value;
+    const values = args.body.value;
+    StrategyModel.fetchStrategy({
+        user: user._id,
+        _id: id
+    })
+    .then(strategy => {
+        BacktestService.createBacktest(strategy, values, res, next);
+    });
 };
 
 exports.getStrategys = function(args, res, next) {
@@ -61,5 +64,14 @@ exports.getStrategy = function(args, res, next) {
 };
 
 exports.updateStrategy = function(args, res, next) {
-    next();
+    const query = {
+        _id: args.id.value
+    };
+    StrategyModel.updateStrategy(query, args.body.value)
+      .then(str => {
+          res.status(200).json(str);
+      })
+      .catch(err => {
+          next(err);
+      });
 };
