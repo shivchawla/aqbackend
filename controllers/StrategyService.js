@@ -75,3 +75,16 @@ exports.updateStrategy = function(args, res, next) {
           next(err);
       });
 };
+
+exports.deleteStrategy = function (args, res, next) {
+    const query = {
+        _id: args.id.value
+    };
+    StrategyModel.deleteStrategy(query)
+      .then(() => {
+          res.status(200).json({message: 'deleted'});
+      })
+      .catch(err => {
+          next(err);
+      });
+};

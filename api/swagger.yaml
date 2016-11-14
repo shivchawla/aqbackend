@@ -452,6 +452,32 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
+    delete:
+      tags:
+      - strategy
+      summary: get strategy
+      description:  get strategies of user
+      operationId: deleteStrategy
+      security:
+      - api_key: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        type: string
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      responses:
+        200:
+          description: "strategies"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Strategy"
   /strategy/{id}/exec:
     post:
       summary: executes the strategy and outputs the data

@@ -25,3 +25,7 @@ module.exports.getStrategy = function getStrategy (req, res, next) {
 module.exports.updateStrategy = function updateStrategy (req, res, next) {
     Strategy.updateStrategy(req.swagger.params, res, next);
 };
+
+module.exports.deleteStrategy = function deleteStrategy (req, res, next) {
+    Strategy.deleteStrategy(req.swagger.params, res, next);
+};
