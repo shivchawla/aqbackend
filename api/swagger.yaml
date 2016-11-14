@@ -384,6 +384,11 @@ paths:
         description: "auth token"
         type: "string"
         required: true
+      - name: search
+        in: query
+        description: search strategy by name or description
+        type: string
+        required: false
       responses:
         200:
           description: "strategies"

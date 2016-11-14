@@ -59,7 +59,7 @@ Strategy.statics.updateStrategy = function(query, updates) {
                 const keys = Object.keys(updates);
                 keys.forEach(key => {
                     strategy[key] = updates[key];
-                })
+                });
                 return strategy.save();
             }
         });
@@ -67,7 +67,7 @@ Strategy.statics.updateStrategy = function(query, updates) {
 
 Strategy.statics.deleteStrategy = function(query) {
     return this.removeAsync(query);
-}
+};
 
 const strategyModel = mongoose.model('Strategy', Strategy, 'strategys');
 module.exports = strategyModel;

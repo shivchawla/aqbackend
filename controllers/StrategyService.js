@@ -37,9 +37,20 @@ exports.execStrategy = function(args, res, next) {
 
 exports.getStrategys = function(args, res, next) {
     const user = args.user;
-    StrategyModel.fetchStrategys({
+    const query = {
         user: user._id
-    })
+    };
+    if (args.search.value) {
+        query.$or = [
+            {
+                name: {$regex: args.search.value, $options: 'i'}
+            },
+            {
+                description: {$regex: args.search.value, $options: 'i'}
+            }
+        ];
+    }
+    StrategyModel.fetchStrategys(query)
     .then(strategy => {
         res.status(200).json(strategy);
     })
