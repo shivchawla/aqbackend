@@ -577,7 +577,39 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Backtest"
-
+  /strategy/code/{id}:
+    post:
+      summary: Upload file having code
+      description: Upload strategy code
+      tags:
+      - "strategy"
+      consumes:
+      - multipart/form-data
+      - application/x-www-form-urlencoded
+      operationId: uploadStrategyCode
+      security:
+      - api_key: []
+      parameters:
+      - name: file
+        in: formData
+        description: The uploaded file data
+        required: true
+        type: file
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: id
+        in: path
+        required: true
+        type: string
+      responses:
+        200:
+          description: OK
+        400:
+          description: code is not valid
+      x-swagger-router-controller: "Strategy"
 securityDefinitions:
   api_key:
     type: apiKey

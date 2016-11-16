@@ -1,0 +1,95 @@
+{
+	"outputtype":"backtest",
+	"equity":{
+			"columns":["Date", "Strategy", "Benchmark"],
+			"values":[["2014-01-01",10000.0, 10000.0],
+		  				["2014-01-02",10050.0, 10025.0],
+			  			["2014-01-03",10100.0, 10050.0],
+			  			["2014-01-04",10075.0, 10100.0],
+			  			["2014-01-05",10200.0, 10050.0]]},
+	"returns":{
+			"type":"daily",
+			"columns":["Date","Strategy", "Benchmark"],	
+			"values":[["2014-01-01",0.0, 0.0],
+			  			["2014-01-02",0.0005, 0.00025],
+			  			["2014-01-03",0.0005, 0.00025],
+			  			["2014-01-04",0.00025, 0.005],
+			  			["2014-01-05",0.00075, -0.0001]]},
+
+	"analytics":[{
+					"type":"rolling",
+					"window":252,
+					"maxdrawdown":0.2837,
+			   		"annualreturn":-16.377,
+				    "sharperatio":-9.31,
+				    "annualstandarddeviation":1.92,
+				    "annualvariance":3.68,
+				    "drawdown":0.28,
+				    "totalreturn":-0.28,
+				    "leverage":0.33,
+				    "informationratio":-9.3
+				},
+
+				{
+					"type":"fixed",
+					"year":2014,
+					"month":0,
+					"quarter":0,
+					"maxdrawdown":0.2837,
+			   		"annualreturn":-16.377,
+				    "sharperatio":-9.31,
+				    "annualstandarddeviation":1.92,
+				    "annualvariance":3.68,
+				    "drawdown":0.28,
+				    "totalreturn":-0.28,
+				    "leverage":0.33,
+				    "informationratio":-9.3
+				},
+
+				{
+					"type":"fixed",
+					"year":2014,
+					"month":1,
+					"quarter":0,
+					"maxdrawdown":0.2837,
+			   		"annualreturn":-16.377,
+				    "sharperatio":-9.31,
+				    "annualstandarddeviation":1.92,
+				    "annualvariance":3.68,
+				    "drawdown":0.28,
+				    "totalreturn":-0.28,
+				    "leverage":0.33,
+				    "informationratio":-9.3
+				},
+
+				{
+					"type":"fixed",
+					"year":2014,
+					"month":0,
+					"quarter":1,
+					"maxdrawdown":0.2837,
+			   		"annualreturn":-16.377,
+				    "sharperatio":-9.31,
+				    "annualstandarddeviation":1.92,
+				    "annualvariance":3.68,
+				    "drawdown":0.28,
+				    "totalreturn":-0.28,
+				    "leverage":0.33,
+				    "informationratio":-9.3
+				}],
+
+	"portfolio":{
+					"columns": ["Date","Ticker", "Quantity", "Avg. Price", "Last Price"],
+					"values":[["2014-01-01", "CNX_BANK", 26, 18024.50, 18026.50],
+							["2014-01-02", "CNX_BANK", 26, 18024.50, 18072.50],
+							["2014-01-03", "CNX_BANK", 26, 18024.50, 18000.00],
+							["2014-01-04", "CNX_BANK", 26, 18024.50, 18046.00]]
+				},
+
+	"transactions":
+				{
+					"columns": ["Date","Ticker", "Quantity", "Avg. Price"],
+					"values":[["2014-01-01", "CNX_BANK", 26, 18024.50]]
+				}
+
+}
