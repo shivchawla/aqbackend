@@ -49,8 +49,11 @@ Backtest.statics.fetchBacktests = function(query) {
 };
 
 Backtest.statics.findCount = function(query) {
-    //console.log('query', query);
     return this.countAsync(query);
+};
+
+Backtest.statics.removeAllBack = function(query) {
+    return this.removeAsync(query);
 };
 
 Backtest.statics.updateBacktest = function(query, status) {
