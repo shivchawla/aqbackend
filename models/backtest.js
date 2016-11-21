@@ -48,6 +48,11 @@ Backtest.statics.fetchBacktests = function(query) {
     return this.find(query).populate('user', '_id firstName lastName').execAsync();
 };
 
+Backtest.statics.findCount = function(query) {
+    //console.log('query', query);
+    return this.countAsync(query);
+};
+
 Backtest.statics.updateBacktest = function(query, status) {
     return this.findOne(query)
         .then(function(backtest) {

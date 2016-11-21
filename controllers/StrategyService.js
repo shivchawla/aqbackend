@@ -1,6 +1,9 @@
 'use strict';
 const StrategyModel = require('../models/strategy');
 const BacktestService = require('./BacktestService');
+const BacktestModel = require('../models/backtest');
+const Promise = require('bluebird');
+
 exports.createStrategy = function(args, res, next) {
     const user = args.user;
     const values = args.body.value;
@@ -52,7 +55,23 @@ exports.getStrategys = function(args, res, next) {
     }
     StrategyModel.fetchStrategys(query)
     .then(strategy => {
-        res.status(200).json(strategy);
+        const strategies = [];
+        strategy.forEach(str => {
+            strategies.push(str.toObject());
+        });
+        return Promise.map(strategies, function(str) {
+            //const stra = str.toObject();
+            return BacktestModel.findCount({
+                strategy: str._id
+            })
+            .then(c => {
+                str.backtests = c;
+                return str;
+            });
+        });
+    })
+    .then(strata => {
+        res.status(200).json(strata);
     })
     .catch(err => {
         next(err);
