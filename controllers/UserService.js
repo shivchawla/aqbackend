@@ -105,3 +105,11 @@ exports.resetPassword = function(args, res, next) {
             next(err);
         });
 };
+
+exports.getProfile = function (args, res, next) {
+    const user = args.user;
+    if (!user) {
+        return next('NO USER');
+    }
+    res.status(200).json(user);
+};

@@ -75,6 +75,30 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "User"
+  /me:
+    get:
+      tags:
+      - 'user'
+      summary: 'get profile of user'
+      operationId: getProfile
+      consumes:
+      - application/json
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      security:
+      - api_key: []
+      responses:
+        200:
+          description: "successful login"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "User"
   /user/activate:
     get:
       tags:

@@ -22,3 +22,7 @@ module.exports.forgotPassword = function forgotPassword (req, res, next) {
 module.exports.resetPassword = function resetPassword (req, res, next) {
     User.resetPassword(req.swagger.params, res, next);
 };
+
+module.exports.getProfile = function getProfile(req, res, next) {
+    User.getProfile(req.swagger.params, res, next);
+};
