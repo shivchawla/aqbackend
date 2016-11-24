@@ -53,3 +53,29 @@ exports.getBackTests = function(args, res, next) {
         next(err);
     });
 };
+
+exports.getBackTest = function(args, res, next) {
+    const id = args.id.value;
+    BacktestModel.fetchBacktest({
+        _id: id
+    })
+    .then(bt => {
+        res.status(200).json(bt);
+    })
+    .catch(err => {
+        next(err);
+    });
+};
+
+exports.deleteBackTest = function(args, res, next) {
+    const id = args.id.value;
+    BacktestModel.removeAllBack({
+        _id: id
+    })
+    .then(() => {
+        res.status(200).json({id: id});
+    })
+    .catch(err => {
+        next(err);
+    });
+};

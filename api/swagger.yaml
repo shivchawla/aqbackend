@@ -601,6 +601,59 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Backtest"
+  /backtest/{id}:
+    get:
+      tags:
+      - backtest
+      summary: get the backtest
+      operationId: getBackTest
+      security:
+      - api_key: []
+      parameters:
+      - name: aimsquant-token
+        in: header
+        description: auth token
+        type: string
+        required:  true
+      - name: id
+        type: string
+        required: true
+        in: path
+      responses:
+        200:
+          description: backtest object
+          schema:
+            $ref: '#/definitions/Backtest'
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Backtest"
+    delete:
+      tags:
+      - backtest
+      summary: delete the backtest
+      operationId: deleteBackTest
+      security:
+      - api_key: []
+      parameters:
+      - name: aimsquant-token
+        in: header
+        description: auth token
+        type: string
+        required:  true
+      - name: id
+        type: string
+        required: true
+        in: path
+      responses:
+        200:
+          description: 'deleted'
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Backtest"
   /strategy/code/{id}:
     post:
       summary: Upload file having code
