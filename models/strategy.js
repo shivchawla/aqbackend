@@ -69,5 +69,5 @@ Strategy.statics.deleteStrategy = function(query) {
     return this.removeAsync(query);
 };
 
-const strategyModel = mongoose.model('Strategy', Strategy, 'strategys');
+const strategyModel = mongoose.model('Strategy', Strategy, 'strategy');
 module.exports = strategyModel;

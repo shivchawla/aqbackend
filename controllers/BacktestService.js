@@ -79,3 +79,46 @@ exports.deleteBackTest = function(args, res, next) {
         next(err);
     });
 };
+
+exports.shareBackTest = function(args, res, next) {
+    const id = args.id.value;
+    BacktestModel.fetchBacktest({
+        _id: id
+    })
+    .then(bt => {
+        return StrategyModel.fetchStrategy({
+            name: 'Community'
+        })
+        .then(strat => {
+            const strategy = strat.toObject();
+            const backTest = bt.toObject();
+            delete backTest._id;
+            backTest.strategy = strategy._id;
+            return BacktestModel.saveBacktest(backTest);
+        })
+        .then(bacTe => {
+            res.status(200).json(bacTe);
+        });
+    })
+    .catch(err => {
+        next(err);
+    });
+};
+
+exports.getCommunityBackTest = function(args, res, next) {
+    StrategyModel.fetchStrategy({
+        name: 'Community'
+    })
+    .then(strat => {
+        const strategy = strat.toObject();
+        return BacktestModel.fetchBacktests({
+            strategy: strategy._id
+        });
+    })
+    .then(data => {
+        res.status(200).json(data);
+    })
+    .catch(err => {
+        next(err);
+    });
+};

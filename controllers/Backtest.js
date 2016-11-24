@@ -17,3 +17,11 @@ module.exports.getBackTest = function getBackTest (req, res, next) {
 module.exports.deleteBackTest = function deleteBackTest (req, res, next) {
     Backtest.deleteBackTest(req.swagger.params, res, next);
 };
+
+module.exports.shareBackTest = function shareBackTest(req, res, next) {
+    Backtest.shareBackTest(req.swagger.params, res, next);
+};
+
+module.exports.getCommunityBackTest = function getCommunityBackTest(req, res, next) {
+    Backtest.getCommunityBackTest(req.swagger.params, res, next);
+}
