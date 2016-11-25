@@ -7,13 +7,15 @@ const fs = require('fs');
 const authMiddleware = require('./auth/auth');
 const serverPort = 3002;
 const cors = require('cors');
-
+const webSocket = require('ws').Server;
+const server = require('http').createServer(app);
+let ws;
 // swaggerRouter configuration
 const options = {
     swaggerUi: '/swagger.json',
     controllers: './controllers',
     useStubs: process.env.NODE_ENV === 'development' ? true : false
-    // Conditionally turn on stubs (mock mode)
+        // Conditionally turn on stubs (mock mode)
 };
 
 // The Swagger document (require it, build it programmatically, fetch it from a URL, ...)
@@ -54,8 +56,19 @@ swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
         next(err);
     });
 
-    app.listen(serverPort, function() {
+    server.listen(serverPort, function() {
         console.log('Your server is listening on port %d (http://localhost:%d)', serverPort, serverPort);
         console.log('Swagger-ui is available on http://localhost:%d/docs', serverPort);
     });
+
+      ws = new webSocket({
+        server: server,
+
+        // Firefox 7 alpha has a bug that drops the
+        // connection on large fragmented messages
+        fragmentOutgoingMessages: false
+    });
 });
+
+exports.app = app;
+exports.ws = ws;

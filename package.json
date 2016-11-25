@@ -4,7 +4,7 @@
   "description": "Aims Quant api publisher",
   "main": "index.js",
   "scripts": {
-    "seed" : "mongo seed.js",
+    "seed": "mongo seed.js",
     "prestart": "npm install",
     "start": "node index.js"
   },
@@ -28,7 +28,9 @@
     "mongoose": "^4.5.8",
     "mongoose-text-search": "0.0.2",
     "node-uuid": "^1.4.7",
-    "swagger-tools": "0.10.1"
+    "stream-splitter": "^0.3.2",
+    "swagger-tools": "0.10.1",
+    "ws": "^1.1.1"
   },
   "devDependencies": {
     "eslint": "^3.2.2"
