@@ -655,7 +655,7 @@ paths:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Backtest"
   /backtest/share/{id}:
-    get:
+    post:
       tags:
       - backtest
       summary: get the backtest
@@ -672,6 +672,11 @@ paths:
         type: string
         required: true
         in: path
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Share'
       responses:
         200:
           description: backtest object
@@ -859,6 +864,13 @@ definitions:
       capital:
         type: number
       plan:
+        type: string
+  Share:
+    type: object
+    required:
+    - thread_id
+    properties:
+      thread_id:
         type: string
 
 externalDocs:

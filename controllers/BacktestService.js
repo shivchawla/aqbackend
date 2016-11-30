@@ -1,5 +1,6 @@
 'use strict';
 const BacktestModel = require('../models/backtest');
+const Community_backtest = require('../models/community_backtest');
 const StrategyModel = require('../models/strategy');
 const Promise = require('bluebird');
 const fs = Promise.promisifyAll(require('fs'));
@@ -94,7 +95,7 @@ exports.shareBackTest = function(args, res, next) {
             const backTest = bt.toObject();
             delete backTest._id;
             backTest.strategy = strategy._id;
-            return BacktestModel.saveBacktest(backTest);
+            return Community_backtest.saveBacktest(backTest);
         })
         .then(bacTe => {
             res.status(200).json(bacTe);

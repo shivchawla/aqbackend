@@ -31,6 +31,11 @@ const Thread = new Schema({
         type: String,
         require: true
     },
+    backtest: {
+        type: Schema.Types.ObjectId,
+        require: false,
+        ref: 'Backtest'
+    },
     markdownText: {
         type: String,
         require: true
