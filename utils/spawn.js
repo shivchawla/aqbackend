@@ -5,6 +5,13 @@ const ws = require('../index').ws;
 let res;
 ws.on('connection', function connection(cli) {
     res = cli;
+    res.on('message', function(message) {
+        if (message === 'rl_open') {
+            res.rl_open = true;
+        } else if (message === 'rl_close') {
+            res.rl_open = false;
+        }
+    });
 });
 // child.stdout.setEncoding('utf8');
 exports = module.exports = function(file, cb) {
@@ -25,7 +32,9 @@ exports = module.exports = function(file, cb) {
             if (dataJSON.outputtype === 'backtest') {
                 backtestData = dataJSON;
             } else {
-                res.send(token.toString());
+                if (res.rl_open) {
+                    res.send(token.toString());
+                }
             }
         } catch (e) {
             cb(data, e);
@@ -44,7 +53,7 @@ exports = module.exports = function(file, cb) {
             } catch (e) {
                 cb(e);
             } finally {
-                ws.close();
+                // ws.close();
             }
         }
     });
