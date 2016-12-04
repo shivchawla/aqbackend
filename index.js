@@ -16,7 +16,6 @@ const options = {
     useStubs: process.env.NODE_ENV === 'development' ? true : false
         // Conditionally turn on stubs (mock mode)
 };
-let ws;
 
 // The Swagger document (require it, build it programmatically, fetch it from a URL, ...)
 const spec = fs.readFileSync('./api/swagger.yaml', 'utf8');

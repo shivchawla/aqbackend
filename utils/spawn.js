@@ -2,19 +2,9 @@
 const spawn = require('child_process').spawn;
 const StreamSplitter = require('stream-splitter');
 const ws = require('../index').ws;
-let res;
-ws.on('connection', function connection(cli) {
-    res = cli;
-    res.on('message', function(message) {
-        if (message === 'rl_open') {
-            res.rl_open = true;
-        } else if (message === 'rl_close') {
-            res.rl_open = false;
-        }
-    });
-});
-// child.stdout.setEncoding('utf8');
-exports = module.exports = function(file, cb) {
+const jwtUtil = require('../utils/jwttoken');
+
+function exec(file, res, cb) {
     const child = spawn('julia', ['test.jl'], {
         cwd: './utils'
     });
@@ -32,9 +22,7 @@ exports = module.exports = function(file, cb) {
             if (dataJSON.outputtype === 'backtest') {
                 backtestData = dataJSON;
             } else {
-                if (res.rl_open) {
-                    res.send(token.toString());
-                }
+                res.send(token.toString());
             }
         } catch (e) {
             cb(data, e);
@@ -57,4 +45,38 @@ exports = module.exports = function(file, cb) {
             }
         }
     });
-};
+}
+
+ws.on('connection', function connection(res) {
+    res.on('message', function(message) {
+        let msg;
+        try {
+            msg = JSON.parse(message);
+        } catch (e) {
+            console.log(e);
+            return res.send('not valid json');
+        }
+        if (!msg['aimsquant-token']) {
+            return res.send({
+                'aimsquant-token': 'aaa',
+                action: 'exec-backtest',
+                backtest_id: 'afd'
+            });
+        }
+        jwtUtil.verifyToken(msg['aimsquant-token'])
+            .then(decoded => {
+                if (decoded.exp <= Date.now()) {
+                    res.send('token expired');
+                    return;
+                }
+                if (msg.action === 'exec-backtest') {
+                    return exec('', res, () => {
+                        // need to update the backtest here
+                    });
+                } else if (message === 'rl_close') {
+                    return res.send('Not implemented');
+                }
+            });
+    });
+});
+// child.stdout.setEncoding('utf8');
