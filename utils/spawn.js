@@ -3,8 +3,9 @@ const spawn = require('child_process').spawn;
 const StreamSplitter = require('stream-splitter');
 const ws = require('../index').ws;
 const jwtUtil = require('../utils/jwttoken');
+const BacktestModel = require('../models/backtest');
 
-function exec(file, res, cb) {
+function exec(msg, res, cb) {
     const child = spawn('julia', ['test.jl'], {
         cwd: './utils'
     });
@@ -12,20 +13,19 @@ function exec(file, res, cb) {
     // child.stdout.setEncoding('utf8');
     const splitter = child.stdout.pipe(StreamSplitter('\n'));
     // child.stdout.on('data', function(data) {
-
     splitter.on('token', function(token) {
         let data;
         try {
             data = token.toString();
             const dataJSON = JSON.parse(data);
-
+            dataJSON.backtest_id = msg.backtest_id;
             if (dataJSON.outputtype === 'backtest') {
                 backtestData = dataJSON;
             } else {
-                res.send(token.toString());
+                res.send(JSON.stringify(dataJSON));
             }
         } catch (e) {
-            cb(data, e);
+            console.log(e);
         }
     });
 
@@ -47,6 +47,13 @@ function exec(file, res, cb) {
     });
 }
 
+function updateBactestResult(result, msg) {
+    console.log('this is called ', result);
+    BacktestModel.updateBacktest({
+        _id: msg.backtest_id
+    }, result);
+}
+
 ws.on('connection', function connection(res) {
     res.on('message', function(message) {
         let msg;
@@ -56,9 +63,10 @@ ws.on('connection', function connection(res) {
             console.log(e);
             return res.send('not valid json');
         }
-        if (!msg['aimsquant-token']) {
+
+        if (!msg || !msg['aimsquant-token']) {
             return res.send({
-                'aimsquant-token': 'aaa',
+                'aimsquant-token': '',
                 action: 'exec-backtest',
                 backtest_id: 'afd'
             });
@@ -70,8 +78,9 @@ ws.on('connection', function connection(res) {
                     return;
                 }
                 if (msg.action === 'exec-backtest') {
-                    return exec('', res, () => {
+                    return exec(msg, res, (err, data) => {
                         // need to update the backtest here
+                        updateBactestResult(data, msg);
                     });
                 } else if (message === 'rl_close') {
                     return res.send('Not implemented');

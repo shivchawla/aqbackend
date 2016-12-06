@@ -56,11 +56,11 @@ Backtest.statics.removeAllBack = function(query) {
     return this.removeAsync(query);
 };
 
-Backtest.statics.updateBacktest = function(query, status) {
+Backtest.statics.updateBacktest = function(query, result) {
     return this.findOne(query)
         .then(function(backtest) {
             if (backtest) {
-                backtest.active = status;
+                backtest.output = result;
                 return backtest.save();
             }
         });
