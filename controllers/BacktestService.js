@@ -8,10 +8,12 @@ const StrategyModel = require('../models/strategy');
 exports.createBacktest = function(strategy, values, res, next) {
     const backtest = {
         strategy: strategy._id,
-        start: values.date,
-        end: values.date,
-        capital: values.capital,
-        plan: values.plan,
+        settings: {
+            start: new Date(values.start),
+            end: new Date(values.end),
+            capital: values.capital,
+            plan: values.plan
+        },
         code: strategy.code
     };
     return BacktestModel.saveBacktest(backtest)

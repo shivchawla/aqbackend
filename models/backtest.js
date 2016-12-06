@@ -7,19 +7,21 @@ const Backtest = new Schema({
         require: true,
         ref: 'Strategy'
     },
-    start: {
-        type: Date,
-        require: true
+    settings: {
+        start: {
+            type: Date,
+            require: true
+        },
+        end: {
+            type: Date,
+            require: true
+        },
+        capital: {
+            type: Number,
+            require: true
+        },
+        plan: String
     },
-    end: {
-        type: Date,
-        require: true
-    },
-    capital: {
-        type: Number,
-        require: true
-    },
-    plan: String,
     code: {
         type: String,
         require: false
