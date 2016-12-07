@@ -47,11 +47,11 @@ function exec(msg, res, cb) {
     });
 }
 
-function updateBactestResult(result, msg) {
-    console.log('this is called ', result);
-    BacktestModel.updateBacktest({
+function updateBactestResult(updateData, msg) {
+    console.log('this is called ', updateData);
+    BacktestModel.updateBacktestUpdated({
         _id: msg.backtest_id
-    }, result);
+    }, updateData);
 }
 
 ws.on('connection', function connection(res) {
@@ -79,8 +79,13 @@ ws.on('connection', function connection(res) {
                 }
                 if (msg.action === 'exec-backtest') {
                     return exec(msg, res, (err, data) => {
-                        // need to update the backtest here
-                        updateBactestResult(data, msg);
+                        var updateData;
+                        if(err){
+                            updateData = {status : 'exception'}
+                        }else{
+                            updateData = {output : data, status : 'complete'}
+                        }
+                        updateBactestResult(updateData, msg);
                     });
                 } else if (message === 'rl_close') {
                     return res.send('Not implemented');

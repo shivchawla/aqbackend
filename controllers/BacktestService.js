@@ -15,7 +15,7 @@ exports.createBacktest = function(strategy, values, res, next) {
             plan: values.plan
         },
         code: strategy.code,
-        status : 'Active',
+        status : 'active',
         createdAt : new Date()
     };
     return BacktestModel.saveBacktest(backtest)

@@ -51,7 +51,7 @@ Backtest.statics.fetchBacktest = function(query) {
 };
 
 Backtest.statics.fetchBacktests = function(query) {
-    return this.find(query).populate('user', '_id firstName lastName').execAsync();
+    return this.find(query).sort( { createdAt: -1 } ).populate('user', '_id firstName lastName').execAsync();
 };
 
 Backtest.statics.findCount = function(query) {
@@ -67,7 +67,17 @@ Backtest.statics.updateBacktest = function(query, result) {
         .then(function(backtest) {
             if (backtest) {
                 backtest.output = result;
+                backtest.status = 'complete';
                 return backtest.save();
+            }
+        });
+};
+
+Backtest.statics.updateBacktestUpdated = function(query, updateData) {
+    return this.update(query,updateData)
+        .then(function(backtest) {
+            if (backtest) {
+                console.log("Update successful")
             }
         });
 };
