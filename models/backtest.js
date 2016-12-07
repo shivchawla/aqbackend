@@ -32,6 +32,10 @@ const Backtest = new Schema({
         avgAnnualReturn: Number,
         avgAnnualVolatility: Number
     },
+    status: {
+        type : String,
+        require : false
+    },
     output: Schema.Types.Mixed,
     createdAt: Date,
     updatedAt: Date

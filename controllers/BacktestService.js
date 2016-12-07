@@ -14,13 +14,17 @@ exports.createBacktest = function(strategy, values, res, next) {
             capital: values.capital,
             plan: values.plan
         },
-        code: strategy.code
+        code: strategy.code,
+        status : 'Active',
+        createdAt : new Date()
     };
     return BacktestModel.saveBacktest(backtest)
     .then(backtst => {
+        //console.log(backtst)
         res.status(200).json(backtst);
     })
     .catch(err => {
+        console.log(err);
         next(err);
     });
 };
