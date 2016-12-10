@@ -2,7 +2,7 @@
 const UserModel = require('../models/user');
 const jwtUtil = require('../utils/jwttoken');
 const hashUtil = require('../utils/hashUtil');
-const sendEmail = require('../email').sendMail;
+const sendEmail = require('../email');
 const uuid = require('node-uuid');
 
 exports.regiteruser = function(args, res, next) {
@@ -20,8 +20,7 @@ exports.regiteruser = function(args, res, next) {
         })
         .then(function(userDetails) {
             delete userDetails.password;
-            sendEmail(res, userDetails);
-            // res.status(200).json(userDetails);
+            sendEmail.sendEmail(res, userDetails);
         })
         .catch(err => {
             next(err);
@@ -112,4 +111,13 @@ exports.getProfile = function (args, res, next) {
         return next('NO USER');
     }
     res.status(200).json(user);
+};
+
+exports.sendFeedback = function (args, res, next) {
+    var feedback =  args.body.value;
+    sendEmail.sendInvite(res, args);
+};
+
+exports.sendInvite = function (args, res, next) {
+    sendEmail.sendInvite(res, args);
 };

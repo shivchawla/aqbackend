@@ -26,3 +26,11 @@ module.exports.resetPassword = function resetPassword (req, res, next) {
 module.exports.getProfile = function getProfile(req, res, next) {
     User.getProfile(req.swagger.params, res, next);
 };
+
+module.exports.sendFeedback = function sendFeedback(req, res, next) {
+    User.sendFeedback(req.swagger.params, res, next);
+};
+
+module.exports.sendInvite = function sendInvite(req, res, next) {
+    User.sendInvite(req.swagger.params, res, next);
+};

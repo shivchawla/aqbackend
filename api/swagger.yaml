@@ -153,6 +153,59 @@ paths:
           description: OK
         400:
           description: code is not valid
+  /user/sendFeedback:
+    post:
+      tags:
+      - "user"
+      summary: send feedback to the admin
+      description: send feedback
+      operationId: sendFeedback
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+           $ref: '#/definitions/Feedback'
+      x-swagger-router-controller: "User"
+      responses:
+        200:
+          description: OK
+        400:
+          description: code is not valid
+  /user/sendInvite:
+    post:
+      tags:
+      - "user"
+      summary: send Invite to list of email
+      description: send Invite
+      operationId: sendInvite
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+           $ref: '#/definitions/invite'
+      x-swagger-router-controller: "User"
+      responses:
+        200:
+          description: OK
+        400:
+          description: code is not valid
+          
   /thread:
     post:
       tags:
@@ -864,6 +917,23 @@ definitions:
       capital:
         type: number
       plan:
+        type: string
+  Feedback:
+    type: object
+    required:
+    - feedback
+    - subject
+    properties:
+      feedback:
+        type: string
+      subject:
+        type : string
+  invite:
+    type: object
+    required:
+    - email_list
+    properties:
+      email_list:
         type: string
   Share:
     type: object
