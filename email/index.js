@@ -61,6 +61,7 @@ module.exports.sendInvite = function(res, args) {
         bcc: args.body.value.email_list,
         email_id : args.user.email,
         firstName: args.user.firstName
+        subject : "Invite to join AimsQuant.com"
     }
 
     console.log(email_json);
