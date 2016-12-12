@@ -115,7 +115,7 @@ exports.getProfile = function (args, res, next) {
 
 exports.sendFeedback = function (args, res, next) {
     var feedback =  args.body.value;
-    sendEmail.sendInvite(res, args);
+    sendEmail.sendFeedbackEmail(res, args);
 };
 
 exports.sendInvite = function (args, res, next) {
