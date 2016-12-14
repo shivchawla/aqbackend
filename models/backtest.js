@@ -26,6 +26,14 @@ const Backtest = new Schema({
         type: String,
         require: false
     },
+    referenced : {
+        type : Boolean,
+        require : false
+    },
+    deleted : {
+        type : Boolean,
+        require : false
+    },
     analytics: {
         datapoints: [],
         totalRevenue: Number,
@@ -36,6 +44,7 @@ const Backtest = new Schema({
         type : String,
         require : false
     },
+
     output: Schema.Types.Mixed,
     createdAt: Date,
     updatedAt: Date

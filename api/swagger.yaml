@@ -178,7 +178,7 @@ paths:
         200:
           description: OK
         400:
-          description: code is not valid
+          description: Error sending email
   /user/sendInvite:
     post:
       tags:
@@ -204,7 +204,7 @@ paths:
         200:
           description: OK
         400:
-          description: code is not valid
+          description: Error Sending Email
           
   /thread:
     post:
@@ -318,6 +318,8 @@ paths:
             markdownText:
               type: string
               default: 'reply'
+            backtest_id:
+              type: string
       responses:
         200:
           description: OK
@@ -847,6 +849,8 @@ definitions:
       title:
         type: string
       markdownText:
+        type: string
+      backtest_id:
         type: string
   resetpassword:
     type: object

@@ -12,6 +12,11 @@ const EmbedThread = new Schema({
         type: String,
         require: true
     },
+    backtest: {
+        type: Schema.Types.ObjectId,
+        require: false,
+        ref: 'Backtest'
+    },
     createdAt: Date,
     updatedAt: Date
 });
@@ -83,6 +88,7 @@ Thread.statics.saveReply = function(query, replyDetails) {
                 thread.replies.push(replyDetails);
                 thread.updatedAt = new Date();
                 thread.lastCommentedUser = replyDetails.user;
+
                 return thread.save();
             }
         });
@@ -114,7 +120,9 @@ Thread.statics.fetchThreads = function(query, options) {
 };
 
 Thread.statics.fetchThread = function(query) {
-    return this.findOne(query).populate('user').populate('replies.user');
+
+
+    return this.findOne(query).populate('user').populate('backtest','output.summary').populate('replies.user').populate('replies.backtest','output.summary');
 };
 
 Thread.statics.updateThreadFollowers = function(query, userId) {

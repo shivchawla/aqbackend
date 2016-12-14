@@ -64,15 +64,32 @@ exports.getBackTest = function(args, res, next) {
 
 exports.deleteBackTest = function(args, res, next) {
     const id = args.id.value;
-    BacktestModel.removeAllBack({
-        _id: id
-    })
-    .then(() => {
-        res.status(200).json({id: id});
-    })
-    .catch(err => {
+    BacktestModel.fetchBacktest({_id : id, referenced : true}).then((bacttestObj)=>{
+        if(bacttestObj){
+            BacktestModel.updateBacktestUpdated({_id: id},{deleted : true})
+            .then(obj => {
+                console.log("Soft delete")
+                res.status(200).json({id: id});
+            })
+            .catch(err => {
+                next(err);
+            });
+        }else{
+            BacktestModel.removeAllBack({
+                _id: id
+            })
+            .then(obj => {
+                console.log("Hard Delete")
+                res.status(200).json({id: id});
+            })
+            .catch(err => {
+                next(err);
+            });
+        }
+    }).catch(err=>{
         next(err);
-    });
+    })
+    
 };
 
 exports.shareBackTest = function(args, res, next) {

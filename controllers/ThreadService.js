@@ -1,5 +1,6 @@
 'use strict';
 const ThreadModel = require('../models/thread');
+const BacktestModel = require('../models/backtest');
 
 exports.createThread = function(args, res, next) {
     const user = args.user;
@@ -8,12 +9,18 @@ exports.createThread = function(args, res, next) {
         category: args.body.value.category,
         markdownText: args.body.value.markdownText,
         title: args.body.value.title,
+        backtest : args.body.value.backtest_id,
         createdAt: Date.now(),
         updatedAt: Date.now()
     };
+    var backtestQuery = {_id : args.body.value.backtest_id}
+
     ThreadModel.saveThread(thread)
         .then(function(threadSaved) {
-            return res.status(200).json(threadSaved);
+            BacktestModel.updateBacktestUpdated(backtestQuery,{referenced : true})
+            .then(function(updateData){
+                return res.status(200).json(threadSaved);
+            })
         })
         .catch(err => {
             next(err);
@@ -99,14 +106,19 @@ exports.replyToThread = function(args, res, next) {
     const embedThread = {
         user: user._id,
         markdownText: args.body.value.markdownText,
+        backtest : args.body.value.backtest_id,
         createdAt: new Date(),
         updatedAt: new Date()
     };
+    var backtestQuery = {_id : args.body.value.backtest_id}
     ThreadModel.saveReply({
         _id: args.threadId.value
     }, embedThread)
     .then(thread => {
-        return res.status(200).json(thread);
+        BacktestModel.updateBacktestUpdated(backtestQuery,{referenced : true})
+            .then(function(updateData){
+                return res.status(200).json(thread);
+            })
     })
     .catch(err => {
         next(err);
