@@ -122,7 +122,7 @@ Thread.statics.fetchThreads = function(query, options) {
 Thread.statics.fetchThread = function(query) {
 
 
-    return this.findOne(query).populate('user').populate('backtest','output.summary').populate('replies.user').populate('replies.backtest','output.summary');
+    return this.findOne(query).populate('user').populate('backtest').populate('replies.user').populate('replies.backtest');
 };
 
 Thread.statics.updateThreadFollowers = function(query, userId) {
