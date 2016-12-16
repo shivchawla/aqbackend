@@ -121,8 +121,20 @@ Thread.statics.fetchThreads = function(query, options) {
 
 Thread.statics.fetchThread = function(query) {
 
+    return this.findOne(query).populate('user', '_id firstName lastName').populate('backtest').populate('replies.user', '_id firstName lastName').populate('replies.backtest');
+};
 
-    return this.findOne(query).populate('user').populate('backtest').populate('replies.user').populate('replies.backtest');
+
+Thread.statics.getFollowers = function(query) {
+    return this.find(query,{followers : 1})
+        .populate('followers', '_id firstName lastName')
+        .execAsync()
+        .then((thread) => {
+            return {
+                thread: thread,
+                count: thread[0].followers.length
+            };
+        });
 };
 
 Thread.statics.updateThreadFollowers = function(query, userId) {
