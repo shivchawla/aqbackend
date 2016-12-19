@@ -20,7 +20,7 @@ exports.regiteruser = function(args, res, next) {
         })
         .then(function(userDetails) {
             delete userDetails.password;
-            sendEmail.sendEmail(res, userDetails);
+            sendEmail(res, userDetails);
         })
         .catch(err => {
             next(err);
@@ -59,6 +59,7 @@ exports.userlogin = function(args, res, next) {
 };
 
 exports.forgotPassword = function(args, res, next) {
+    
     UserModel.updateCode({
         email: args.email.value
     }, uuid.v4())

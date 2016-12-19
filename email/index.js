@@ -10,10 +10,30 @@ module.exports.config = function(app) {
     app.set('view engine', 'jade');
 };
 
-module.exports.sendMail = function(res, userDetails) {
+module.exports.sendActivationEmail = function(res, userDetails) {
     appGbl.mailer.send('activate', {
         // REQUIRED. This can be a comma delimited string just like a normal email to field.
-        to: 'sudhirbitsgoa@gmail.com',
+        to: userDetails.email,
+        subject: 'Thank you for signing up', // REQUIRED.
+        // All additional properties are also passed to the template as local variables.
+        firstName: userDetails.firstName,
+        lastName: userDetails.lastName,
+        url: 'http://localhost:3002/api/v2/user/activate?code=' + userDetails.code
+    }, function(err) {
+        if (err) {
+            // handle error
+            // console.log(err);
+            res.send('There was an error sending the email');
+            return;
+        }
+        res.send('Email Sent');
+    });
+};
+
+module.exports.sendForgotEmail = function(res, userDetails) {
+    appGbl.mailer.send('activate', {
+        // REQUIRED. This can be a comma delimited string just like a normal email to field.
+        to: userDetails.email,
         subject: 'Thank you for signing up', // REQUIRED.
         // All additional properties are also passed to the template as local variables.
         firstName: userDetails.firstName,
