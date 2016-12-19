@@ -11,6 +11,10 @@ module.exports.getThread = function (req, res, next) {
     Thread.getThread(req.swagger.params, res, next);
 };
 
+module.exports.listFollowers = function listFollowers (req, res, next) {
+    Thread.listFollowers(req.swagger.params, res, next);
+};
+
 module.exports.getThreads = function(req, res, next) {
     Thread.getThreads(req.swagger.params, res, next);
 };

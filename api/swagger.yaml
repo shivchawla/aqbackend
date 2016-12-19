@@ -256,6 +256,17 @@ paths:
         description: this search by category
         required: false
         type: string
+      - name: following
+        in: query
+        description: to get all the posts that i follow 
+        required: false
+        type: boolean
+        default: false
+      - name: userId
+        in: query
+        description: posts that the given userId following
+        required: false
+        type: string
       - name: personal
         in: query
         required: false
@@ -288,8 +299,6 @@ paths:
         400:
           description: 'Invalid input'
       x-swagger-router-controller: "Thread"
-
-
   /thread/{threadId}:
     post:
       tags:
@@ -318,7 +327,7 @@ paths:
             markdownText:
               type: string
               default: 'reply'
-            backtest_id:
+            backtest:
               type: string
       responses:
         200:
@@ -347,6 +356,30 @@ paths:
           description: OK
         400:
           description: 'Invalid input'
+      x-swagger-router-controller: "Thread"
+
+  /thread/{threadId}/getfollowers:
+    get:
+      tags:
+      - 'thread'
+      summary: get list of followers
+      description: get list of followers
+      operationId: listFollowers
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - in: path
+        name: threadId
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
       x-swagger-router-controller: "Thread"
   /thread/{threadId}/like:
     post:
@@ -850,7 +883,7 @@ definitions:
         type: string
       markdownText:
         type: string
-      backtest_id:
+      backtest:
         type: string
   resetpassword:
     type: object
@@ -935,16 +968,16 @@ definitions:
   invite:
     type: object
     required:
-    - email_list
+    - emailList
     properties:
-      email_list:
+      emailList:
         type: string
   Share:
     type: object
     required:
-    - thread_id
+    - threadId
     properties:
-      thread_id:
+      threadId:
         type: string
 
 externalDocs:

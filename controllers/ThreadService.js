@@ -9,11 +9,11 @@ exports.createThread = function(args, res, next) {
         category: args.body.value.category,
         markdownText: args.body.value.markdownText,
         title: args.body.value.title,
-        backtest : args.body.value.backtest_id,
+        backtest : args.body.value.backtest,
         createdAt: Date.now(),
         updatedAt: Date.now()
     };
-    var backtestQuery = {_id : args.body.value.backtest_id}
+    var backtestQuery = {_id : args.body.value.backtest}
 
     ThreadModel.saveThread(thread)
         .then(function(threadSaved) {
@@ -34,10 +34,20 @@ exports.getThreads = function(args, res, next) {
     const text = args.q.value;
     const order_param = args.order_param.value;
     const personal = args.personal.value;
+    const following = args.following.value;
     const category = args.category.value;
     const query = { };
     if (personal) {
         query.user = args.user._id;
+    }
+    if (following) {
+        query.followers = {'$elemMatch':{'$eq': args.user._id }}
+    }
+    if(args.userId.value){
+        query.followers = {'$elemMatch':{'$eq': args.userId.value}}
+    }
+    if(args.userId.value && following){
+        query.followers = {'$elemMatch':{'$eq': args.user._id , '$eq': args.userId.value }}
     }
     if (text) {
         query.$text = {
@@ -65,6 +75,20 @@ exports.getThreads = function(args, res, next) {
 exports.getThread = function(args, res, next) {
     const threadId = args.threadId.value;
     ThreadModel.fetchThread({
+        _id: threadId
+    })
+      .then((threads) => {
+          return res.status(200).json(threads);
+      })
+      .catch(err => {
+          next(err);
+      });
+};
+
+exports.listFollowers = function(args, res, next) {
+    const threadId = args.threadId.value;
+
+    ThreadModel.getFollowers({
         _id: threadId
     })
       .then((threads) => {
@@ -106,11 +130,11 @@ exports.replyToThread = function(args, res, next) {
     const embedThread = {
         user: user._id,
         markdownText: args.body.value.markdownText,
-        backtest : args.body.value.backtest_id,
+        backtest : args.body.value.backtest,
         createdAt: new Date(),
         updatedAt: new Date()
     };
-    var backtestQuery = {_id : args.body.value.backtest_id}
+    var backtestQuery = {_id : args.body.value.backtest}
     ThreadModel.saveReply({
         _id: args.threadId.value
     }, embedThread)
