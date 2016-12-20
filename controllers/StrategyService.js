@@ -43,6 +43,7 @@ exports.getStrategys = function(args, res, next) {
     const query = {
         user: user._id
     };
+    const fetchDeleted = false;
     if (args.search.value) {
         query.$or = [
             {
@@ -63,7 +64,7 @@ exports.getStrategys = function(args, res, next) {
             //const stra = str.toObject();
             return BacktestModel.findCount({
                 strategy: str._id
-            })
+            },fetchDeleted)
             .then(c => {
                 str.backtests = c;
                 return str;
