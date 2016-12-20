@@ -100,6 +100,7 @@ Thread.statics.saveThread = function(ThreadDetails) {
 };
 
 Thread.statics.fetchThreads = function(query, options) {
+    
     return this.find(query)
         .skip(options.skip)
         .limit(options.limit)
@@ -121,7 +122,7 @@ Thread.statics.fetchThreads = function(query, options) {
 
 Thread.statics.fetchThread = function(query) {
 
-    return this.findOne(query).populate('user', '_id firstName lastName').populate('backtest').populate('replies.user', '_id firstName lastName').populate('replies.backtest');
+    return this.findOne(query).populate('user', '_id firstName lastName').populate('replies.user', '_id firstName lastName');
 };
 
 
