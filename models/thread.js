@@ -25,7 +25,7 @@ const Thread = new Schema({
     category: {
         type: String,
         require: true,
-        enum: ['Share your idea', 'Questions and answers', 'News and announcements']
+        enum: ['Share your Idea', 'Questions and Answers', 'News and Announcements']
     },
     user: {
         type: Schema.Types.ObjectId,

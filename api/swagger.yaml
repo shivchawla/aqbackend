@@ -876,9 +876,9 @@ definitions:
       category:
         type: string
         enum:
-        - "Share your idea"
-        - "Questions and answers"
-        - "News and announcements"
+        - "Share your Idea"
+        - "Questions and Answers"
+        - "News and Announcements"
       title:
         type: string
       markdownText:
