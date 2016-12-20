@@ -9,17 +9,17 @@ exports.createThread = function(args, res, next) {
         category: args.body.value.category,
         markdownText: args.body.value.markdownText,
         title: args.body.value.title,
-        backtest : args.body.value.backtest,
+        backtestId : args.body.value.backtestId,
         createdAt: Date.now(),
         updatedAt: Date.now()
     };
-    var backtestQuery = {_id : args.body.value.backtest}
+    var backtestQuery = {_id : args.body.value.backtestId}
 
     ThreadModel.saveThread(thread)
         .then(function(threadSaved) {
             BacktestModel.updateBacktestUpdated(backtestQuery,{referenced : true})
             .then(function(updateData){
-                return res.status(200).json(threadSaved);
+                return res.status(200).json({_id : threadSaved._id});
             })
         })
         .catch(err => {
@@ -130,11 +130,11 @@ exports.replyToThread = function(args, res, next) {
     const embedThread = {
         user: user._id,
         markdownText: args.body.value.markdownText,
-        backtest : args.body.value.backtest,
+        backtestId : args.body.value.backtestId,
         createdAt: new Date(),
         updatedAt: new Date()
     };
-    var backtestQuery = {_id : args.body.value.backtest}
+    var backtestQuery = {_id : args.body.value.backtestId}
     ThreadModel.saveReply({
         _id: args.threadId.value
     }, embedThread)

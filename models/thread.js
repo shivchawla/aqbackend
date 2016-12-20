@@ -12,7 +12,7 @@ const EmbedThread = new Schema({
         type: String,
         require: true
     },
-    backtest: {
+    backtestId: {
         type: Schema.Types.ObjectId,
         require: false,
         ref: 'Backtest'
@@ -36,7 +36,7 @@ const Thread = new Schema({
         type: String,
         require: true
     },
-    backtest: {
+    backtestId: {
         type: Schema.Types.ObjectId,
         require: false,
         ref: 'Backtest'

@@ -327,7 +327,7 @@ paths:
             markdownText:
               type: string
               default: 'reply'
-            backtest:
+            backtestId:
               type: string
       responses:
         200:
@@ -883,7 +883,7 @@ definitions:
         type: string
       markdownText:
         type: string
-      backtest:
+      backtestId:
         type: string
   resetpassword:
     type: object
