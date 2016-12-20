@@ -32,10 +32,11 @@ exports.createBacktest = function(strategy, values, res, next) {
 exports.getBackTests = function(args, res, next) {
     const user = args.user;
     const id = args.id.value;
+    const fetchDeleted = false;
     StrategyModel.fetchStrategy({
         user: user._id,
         _id: id
-    })
+    },fetchDeleted)
     .then(strategy => {
         return BacktestModel.fetchBacktests({
             strategy: strategy._id

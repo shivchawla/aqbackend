@@ -32,7 +32,7 @@ const Backtest = new Schema({
     },
     deleted : {
         type : Boolean,
-        require : false
+        require : false,
     },
     analytics: {
         datapoints: [],
@@ -59,14 +59,18 @@ Backtest.statics.fetchBacktest = function(query) {
     return this.findOne(query).populate('user', '_id firstName lastName').execAsync();
 };
 
-Backtest.statics.fetchBacktests = function(query) {
+Backtest.statics.fetchBacktests = function(query,fetchDeleted) {
     var project = { strategy : 1,code : 1, status : 1, createdAt : 1,settings :1, 'output.summary' : 1} ;
-    query.deleted = false;
+    if(!fetchDeleted){
+        query.deleted = { "$exists" : false } ;
+    }
     return this.find(query,project).sort( { createdAt: -1 } ).populate('user', '_id firstName lastName').execAsync();
 };
 
-Backtest.statics.findCount = function(query) {
-    query.deleted = false;
+Backtest.statics.findCount = function(query,fetchDeleted) {
+    if(!fetchDeleted){
+        query.deleted = { "$exists" : false } ;
+    }
     return this.countAsync(query);
 };
 
