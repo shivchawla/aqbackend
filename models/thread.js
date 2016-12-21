@@ -143,7 +143,10 @@ Thread.statics.updateThreadFollowers = function(query, userId) {
     return this.findOne(query)
         .then(function(thread) {
             if (thread) {
-                thread.followers.addToSet(id);
+                if(thread.followers.indexOf(id)== -1)
+                    thread.followers.addToSet(id);
+                else
+                     thread.followers.pull(id);
                 return thread.save();
             }
         });
