@@ -30,23 +30,38 @@ module.exports.sendActivationEmail = function(res, userDetails) {
     });
 };
 
-module.exports.sendForgotEmail = function(res, userDetails) {
-    appGbl.mailer.send('activate', {
-        // REQUIRED. This can be a comma delimited string just like a normal email to field.
+module.exports.resetSuccessEmail = function(res, userDetails) {
+    appGbl.mailer.send('resetSuccess', {
+        
         to: userDetails.email,
-        subject: 'Thank you for signing up', // REQUIRED.
-        // All additional properties are also passed to the template as local variables.
+        subject: 'Password Reset Success', 
+        
         firstName: userDetails.firstName,
         lastName: userDetails.lastName,
-        url: 'http://localhost:3002/api/v2/user/activate?code=' + userDetails.code
     }, function(err) {
         if (err) {
-            // handle error
-            // console.log(err);
+            console.log("Error in mail"+err)
+            return;
+        }
+        console.log("Success in mail")
+    });
+};
+
+module.exports.sendForgotEmail = function(res, userDetails) {
+    console.log("Inside Emailer "+userDetails.email)
+    appGbl.mailer.send('forgotPassword', {
+        to: userDetails.email,
+        subject: 'Forgot Password Mail', 
+        firstName: userDetails.firstName,
+        lastName: userDetails.lastName,
+        url: 'http://localhost:3002/api/v2/user/resetpage?code=' + userDetails.code
+    }, function(err) {
+        console.log("Inside response ")
+        if (err) {
             res.send('There was an error sending the email');
             return;
         }
-        res.send('Email Sent');
+        res.send('Email Sent with a link to reset your Password');
     });
 };
 

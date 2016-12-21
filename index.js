@@ -1,6 +1,7 @@
 'use strict';
-
+const express = require('express');
 const app = require('express')();
+var path = require('path');
 const swaggerTools = require('swagger-tools');
 const jsyaml = require('js-yaml');
 const fs = require('fs');
@@ -38,7 +39,13 @@ swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
     }));
 
     // Route validated requests to appropriate controller
+
+    app.set('views', path.join(__dirname, 'views'));
+    app.set('view engine', 'jade');
+
     app.use(middleware.swaggerRouter(options));
+
+    app.use(express.static(path.join(__dirname, 'public')));
 
     // Serve the Swagger documents and Swagger UI
     app.use(middleware.swaggerUi());

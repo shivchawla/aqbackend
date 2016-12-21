@@ -115,6 +115,50 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "User"
+  /user/resetpage:
+    get:
+      tags:
+      - "user"
+      summary: Reset api accessed from email
+      description: Reset api accessed from email
+      operationId: resetEmailLink
+      parameters:
+      - in: query
+        name: code
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "User"
+  /user/resetpasswordcall:
+    post:
+      tags:
+      - "user"
+      summary: Reset password and save new one
+      description: Reset password and save new one
+      operationId: resetpasswordcall
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: Request body to reset password"
+        required: true
+        schema:
+          type: object
+          properties:
+            code:
+              type: string
+              default: 'reply'
+            newpassword:
+              type: string
+            password:
+              type: string
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "User"
   /user/forgotpassword:
     get:
       tags:

@@ -7,6 +7,13 @@ module.exports.activateUser = function activateUser (req, res, next) {
     User.activateUser(req.swagger.params, res, next);
 };
 
+module.exports.resetEmailLink = function activateUser (req, res, next) {
+    User.resetEmailLink(req.swagger.params, res, next);
+};
+
+module.exports.resetpasswordcall = function activateUser (req, res, next) {
+    User.resetPassword(req.swagger.params, res, next);
+};
 module.exports.regiteruser = function regiteruser(req, res, next) {
     User.regiteruser(req.swagger.params, res, next);
 };

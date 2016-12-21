@@ -20,7 +20,7 @@ exports.regiteruser = function(args, res, next) {
         })
         .then(function(userDetails) {
             delete userDetails.password;
-            sendEmail(res, userDetails);
+            sendEmail.sendActivationEmail(res, userDetails);
         })
         .catch(err => {
             next(err);
@@ -65,8 +65,7 @@ exports.forgotPassword = function(args, res, next) {
     }, uuid.v4())
     .then(function(userDetails) {
         delete userDetails.password;
-        sendEmail(res, userDetails);
-        // res.status(200).json(userDetails);
+         sendEmail.sendForgotEmail(res, userDetails);
     })
     .catch(err => {
         next(err);
@@ -85,21 +84,46 @@ exports.activateUser = function(args, res) {
     });
 };
 
+exports.resetEmailLink = function(args, res) {
+
+        var data_email = {};
+
+        data_email['code'] = args.code.value;
+
+        res.render('resetPassword', {data: data_email})
+};
+
 exports.resetPassword = function(args, res, next) {
+
     const code = args.body.value.code;
-    hashUtil.genHash(args.body.value.password1)
+
+    if(args.body.value.newpassword != args.body.value.password){
+
+        res.send({status :200 , statusMessage : "Passwords do not match"});
+        return;
+    }
+    if(args.body.value.newpassword.length < 8){
+
+        res.send({status :200 , statusMessage : "Password length too short"});
+        return;
+    }
+    hashUtil.genHash(args.body.value.newpassword)
         .then(function(hash) {
             return UserModel.updatePassword({
                 code: code
             }, hash);
         })
         .then(function(userDetails) {
+            console.log(userDetails)
             if (userDetails) {
                 delete userDetails.password;
-                sendEmail(res, userDetails);
+                console.log("Reset success")
+                sendEmail.resetSuccessEmail(res, userDetails);
+                res.send('Password Successfully reset');
+            }else{
+                console.log("Reset Error")
+                res.send('Not a valid code')
             }
-            Promise.reject('Not valid code');
-            // res.status(200).json(userDetails);
         })
         .catch(err => {
             next(err);
