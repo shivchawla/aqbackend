@@ -9,4 +9,5 @@ COPY . /src
 RUN cd /src; npm install
 EXPOSE  3002
 ENV NODE_ENV=staging
-CMD ["forever", "/src/index.js"]
+WORKDIR /src
+CMD ["forever", "./index.js"]

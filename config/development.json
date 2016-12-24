@@ -9,6 +9,6 @@
             "user": "testserver@aimsquant.com",
             "pass": "testserver"
         }
-    },
-    "mongo_url": "mongodb://localhost:27017/aimsquant_dev"
+    },  
+    "mongo_url": "mongodb://aimsquanttesting:qwerty@ds145158.mlab.com:45158/aimsquanttesting"
 }
