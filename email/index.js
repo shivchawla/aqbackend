@@ -5,7 +5,16 @@ let appGbl;
 
 module.exports.config = function(app) {
     appGbl = app;
-    mailer.extend(app, config.get('mail'));
+    mailer.extend(app, {
+        "from": "testserver@aimsquant.com",
+        "host": "sg2plcpnl0089.prod.sin2.secureserver.net",
+        "secureConnection": true,
+        "port": 465,
+        "transportMethod": "SMTP",
+        "auth": {
+            "user": "testserver@aimsquant.com",
+            "pass": "testserver"
+        }});
     app.set('views', __dirname + '/..' + '/views');
     app.set('view engine', 'jade');
 };
