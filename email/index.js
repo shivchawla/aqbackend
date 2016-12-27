@@ -3,18 +3,12 @@ const config = require('config');
 const mailer = require('express-mailer');
 let appGbl;
 
+
+var hostname = config.get('hostname');
+
 module.exports.config = function(app) {
     appGbl = app;
-    mailer.extend(app, {
-        "from": "testserver@aimsquant.com",
-        "host": "sg2plcpnl0089.prod.sin2.secureserver.net",
-        "secureConnection": true,
-        "port": 465,
-        "transportMethod": "SMTP",
-        "auth": {
-            "user": "testserver@aimsquant.com",
-            "pass": "testserver"
-        }});
+    mailer.extend(app, config.get('mail'));
     app.set('views', __dirname + '/..' + '/views');
     app.set('view engine', 'jade');
 };
@@ -27,7 +21,7 @@ module.exports.sendActivationEmail = function(res, userDetails) {
         // All additional properties are also passed to the template as local variables.
         firstName: userDetails.firstName,
         lastName: userDetails.lastName,
-        url: 'http://localhost:3002/api/v2/user/activate?code=' + userDetails.code
+        url: hostname + '/api/v2/user/activate?code=' + userDetails.code
     }, function(err) {
         if (err) {
             // handle error
@@ -63,7 +57,7 @@ module.exports.sendForgotEmail = function(res, userDetails) {
         subject: 'Forgot Password Mail', 
         firstName: userDetails.firstName,
         lastName: userDetails.lastName,
-        url: 'http://localhost:3002/api/v2/user/resetpage?code=' + userDetails.code
+        url: hostname + '/api/v2/user/resetpage?code=' + userDetails.code
     }, function(err) {
         console.log("Inside response ")
         if (err) {

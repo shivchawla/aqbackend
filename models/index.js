@@ -1,7 +1,8 @@
+const config = require('config');
 const mongoose = require('mongoose');
 const Promise = require('bluebird');
 Promise.promisifyAll(mongoose);
-mongoose.connect('mongodb://aimsquanttesting:qwerty@ds145158.mlab.com:45158/aimsquanttesting');
+mongoose.connect(config.get('mongo_url'));
 mongoose.set('debug', true);
 // var db = mongoose.connection;
 // db.on('error', console.error.bind(console, 'connection error:'));

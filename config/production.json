@@ -1,0 +1,15 @@
+{
+    "hostname":"https://service.aimsquant.com",
+    "mail": {
+        "from": "team@aimsquant.com",
+        "host": "sg2plcpnl0089.prod.sin2.secureserver.net",
+        "secureConnection": true,
+        "port": 465,
+        "transportMethod": "SMTP",
+        "auth": {
+            "user": "team@aimsquant.com",
+            "pass": "team"
+        }
+    },  
+    "mongo_url": "mongodb://aimsquanttesting:qwerty@ds145158.mlab.com:45158/aimsquanttesting"
+}

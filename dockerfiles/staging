@@ -8,6 +8,6 @@ RUN npm install -g forever
 COPY . /src
 RUN cd /src; npm install
 EXPOSE  3002
-ENV NODE_ENV=staging
 WORKDIR /src
+ENV NODE_ENV=staging
 CMD ["forever", "./index.js"]

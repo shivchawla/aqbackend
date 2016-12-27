@@ -1,5 +1,5 @@
 {
-    "hostname":"http://localhost:3002",
+    "hostname":"https://service-staging.aimsquant.com",
     "mail": {
         "from": "testserver@aimsquant.com",
         "host": "sg2plcpnl0089.prod.sin2.secureserver.net",
@@ -11,5 +11,5 @@
             "pass": "testserver"
         }
     },  
-    "mongo_url": "mongodb://localhost:27017/aimsquant_dev"
+    "mongo_url": "mongodb://aimsquanttesting:qwerty@ds145158.mlab.com:45158/aimsquanttesting"
 }
