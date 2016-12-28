@@ -10,6 +10,9 @@ const serverPort = 3002;
 const cors = require('cors');
 const WebSocket = require('ws').Server;
 const server = require('http').createServer(app);
+const config = require('config');
+
+const hostname = config.get('hostname');
 // swaggerRouter configuration
 const options = {
     swaggerUi: '/swagger.json',
@@ -21,6 +24,10 @@ const options = {
 // The Swagger document (require it, build it programmatically, fetch it from a URL, ...)
 const spec = fs.readFileSync('./api/swagger.yaml', 'utf8');
 const swaggerDoc = jsyaml.safeLoad(spec);
+
+if (process.env.NODE_ENV === 'staging') {
+  swaggerDoc.host = 'service-staging.aimsquant.com' 
+}
 
 // Initialize the Swagger middleware
 swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
