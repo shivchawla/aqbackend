@@ -105,7 +105,7 @@ exports.followThread = function(args, res, next) {
         _id: args.threadId.value
     }, user._id)
     .then(thread => {
-        return res.status(200).json(thread);
+        return res.status(200).json(thread.followers);
     })
     .catch(err => {
         next(err);
@@ -155,7 +155,7 @@ exports.viewThread = function(args, res, next) {
         _id: args.threadId.value
     }, user._id)
     .then(thread => {
-        return res.status(200).json(thread);
+        return res.status(200).json(thread.views);
     })
     .catch(err => {
         next(err);
