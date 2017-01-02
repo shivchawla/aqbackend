@@ -8,19 +8,8 @@ const Backtest = new Schema({
         ref: 'Strategy'
     },
     settings: {
-        start: {
-            type: Date,
-            require: true
-        },
-        end: {
-            type: Date,
-            require: true
-        },
-        capital: {
-            type: Number,
-            require: true
-        },
-        plan: String
+        type: Schema.Types.Mixed,
+        require: true,
     },
     code: {
         type: String,
@@ -33,12 +22,6 @@ const Backtest = new Schema({
     deleted : {
         type : Boolean,
         require : false,
-    },
-    analytics: {
-        datapoints: [],
-        totalRevenue: Number,
-        avgAnnualReturn: Number,
-        avgAnnualVolatility: Number
     },
     status: {
         type : String,

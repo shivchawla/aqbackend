@@ -662,7 +662,7 @@ paths:
         in: body
         required: true
         schema:
-          $ref: "#/definitions/Backtest"
+          $ref: "#/definitions/BacktestSettings"
       responses:
         200:
           description: "created strategy"
@@ -974,31 +974,41 @@ definitions:
         type: string
       language:
         type: string
-        enum: ['python', 'nodejs', 'java']
+        enum: ['julia', 'python', 'nodejs', 'java']
       description:
         type: string
       code:
         type: string
-#      settings:
-#        $ref: "#/definitions/Setting"
 
+  
+  BacktestSettings:
+    type: object
+    required:
+      - startDate
+      - endDate
+      - initialCash
+    properties:
+      startDate:
+        type: string
+      endDate:
+        type: string
+      initialCash:
+        type: number
+        format: long
+      universe:
+        type: string
+      advanced:
+        type: string  
+
+  
   Backtest:
     type: object
     required:
-    - start
-    - end
-    - capital
+      - settings
     properties:
-      start:
-        type: string
-        format: date-time
-      end:
-        type: string
-        format: date-time
-      capital:
-        type: number
-      plan:
-        type: string
+      settings:
+        $ref: "#/definitions/BacktestSettings"
+
   Feedback:
     type: object
     required:

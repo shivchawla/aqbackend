@@ -18,7 +18,7 @@ function exec(msg, res, cb) {
         try {
             data = token.toString();
             const dataJSON = JSON.parse(data);
-            dataJSON.backtest_id = msg.backtest_id;
+            dataJSON.backtestId = msg.backtest_id;
             if (dataJSON.outputtype === 'backtest') {
                 backtestData = dataJSON;
             } else {
