@@ -2,6 +2,7 @@
 const StrategyModel = require('../models/strategy');
 const BacktestService = require('./BacktestService');
 const BacktestModel = require('../models/backtest');
+var constants = require('../utils/Constants.js');
 const Promise = require('bluebird');
 
 exports.createStrategy = function(args, res, next) {
@@ -13,7 +14,7 @@ exports.createStrategy = function(args, res, next) {
         type: values.name,
         language: values.language,
         description: values.description,
-        code: values.code,
+        code: CryptoJS.AES.encrypt(values.code, constants.encoding_key),
         createdAt: new Date()
     };
     StrategyModel.saveStrategy(Strategy)
@@ -34,6 +35,7 @@ exports.execStrategy = function(args, res, next) {
         _id: id
     })
     .then(strategy => {
+        strategy.code = CryptoJS.AES.decrypt(strategy.code, constants.encoding_key);
         BacktestService.createBacktest(strategy, values, res, next);
     });
 };
@@ -58,6 +60,7 @@ exports.getStrategys = function(args, res, next) {
     .then(strategy => {
         const strategies = [];
         strategy.forEach(str => {
+            str.code = CryptoJS.AES.decrypt(str.code, constants.encoding_key);
             strategies.push(str.toObject());
         });
         return Promise.map(strategies, function(str) {
@@ -87,6 +90,7 @@ exports.getStrategy = function(args, res, next) {
         _id: id
     })
     .then(strategy => {
+        strategy.code = CryptoJS.AES.decrypt(strategy.code, constants.encoding_key);
         res.status(200).json(strategy);
     })
     .catch(err => {
@@ -98,6 +102,10 @@ exports.updateStrategy = function(args, res, next) {
     const query = {
         _id: args.id.value
     };
+
+    if(args.body.value){
+        args.body.value = CryptoJS.AES.decrypt(args.body.value, constants.encoding_key);
+    }
     StrategyModel.updateStrategy(query, args.body.value)
       .then(str => {
           res.status(200).json(str);
