@@ -33,6 +33,7 @@ if (process.env.NODE_ENV === 'staging') {
 swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
     // Interpret Swagger resources and attach metadata to request - must be first
     // in swagger-tools middleware chain
+    console.log("inside initialize");
     app.use(middleware.swaggerMetadata());
     app.use(cors());
     // Validate Swagger requests
@@ -61,7 +62,7 @@ swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
     require('./models');
 
     // set up email service
-    require('./email').config(app);
+    //require('./email').config(app);
     // Start the server
 
     app.use((err, req, res, next) => {

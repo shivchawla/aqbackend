@@ -5,41 +5,61 @@ let appGbl;
 var jade = require('jade');
 var fs = require('fs');
 var constants = require('../utils/Constants.js');
-var sendgrid = require('sendgrid')(constants.sendgrid_key);
-
-
+var sg = require('sendgrid')(constants.sendgrid_key);
 var hostname = config.get('hostname');
 
-module.exports.config = function(app) {
-    appGbl = app;
-    mailer.extend(app, config.get('mail'));
-    app.set('views', __dirname + '/..' + '/views');
-    app.set('view engine', 'jade');
-};
+var replaceAll = function(str, find, replace) {
+    return str.replace(new RegExp(find, 'g'), replace);
+}
+
+//module.exports.config = function(app) {
+//    appGbl = app;
+//    mailer.extend(app, config.get('mail'));
+//    app.set('views', __dirname + '/..' + '/views');
+//    app.set('view engine', 'jade');
+//};
 
 module.exports.sendActivationEmail = function(res, userDetails) {
-
-    var email = new sendgrid.Email();
-    email.replyto = "contact@aimsquant.com";
-    email.setTo(userDetails.email);
-    email.setFrom("contact@aimsquant.com");
-    email.setFromName("Aimsquant");
-    //email.setCcs(ccEmail);
-    //email.setBccs(bccEmail);
-    email.setSubject('Thank you for signing up');
-
-    var template = fs.readFileSync(hostname + '/api/v2/user/activate?code=' + userDetails.code)
-    email.setHtml(template);
-    email.setHeaders({
-        "Reply-To": "contact@aimsquant.com"
+    var template = fs.readFileSync(__dirname + '/..' + '/views/ActivationEmail.html').toString();
+    template = template.replace('userFullName', userDetails.firstName + ' '+userDetails.lastName);
+    template = template.replace('activationUrl', constants.account_activation_url);
+    var request = sg.emptyRequest({
+        method: 'POST',
+        path: '/v3/mail/send',
+        body: {
+            personalizations: [
+                {
+                    to: [
+                        {
+                            email: userDetails.email,
+                            name:userDetails.firstName + ' '+userDetails.lastName
+                        },
+                    ],
+                    subject: 'Thank you for signing up',
+                },
+            ],
+            from: {
+                email: 'contact@aimsquant.com',
+            },
+            "reply_to": {
+                "email": "contact@aimsquant.com",
+                "name": "Aimsquant"
+            },
+            content: [
+                {
+                    type: 'text/html',
+                    value: template,
+                },
+            ],
+        },
     });
-
-    sendgrid.send(email, function (err, json) {
+    sg.API(request, function(err, response) {
         if (err) {
             console.log("mail sent error : " + err);
             return res.send('There was an error sending the email');
         }
-        res.send('Email Sent');
+        console.log("mail sent : " + response);
+        res.send(userDetails);
     });
 
     //appGbl.mailer.send('activate', {
@@ -62,58 +82,58 @@ module.exports.sendActivationEmail = function(res, userDetails) {
 };
 
 module.exports.resetSuccessEmail = function(res, userDetails) {
-    var email = new sendgrid.Email();
-    email.replyto = "contact@aimsquant.com";
-    email.setTo(userDetails.email);
-    email.setFrom("contact@aimsquant.com");
-    email.setFromName("Aimsquant");
-    email.setSubject('Password Reset Success');
+    appGbl.mailer.send('resetSuccess', {
 
-    var template = fs.readFileSync(hostname + '/api/v2/user/activate?code=' + userDetails.code)
-    email.setHtml(template);
-    email.setHeaders({
-        "Reply-To": "contact@aimsquant.com"
-    });
+        to: userDetails.email,
+        subject: 'Password Reset Success',
 
-    sendgrid.send(email, function (err, json) {
+        firstName: userDetails.firstName,
+        lastName: userDetails.lastName,
+    }, function(err) {
         if (err) {
-            console.log("mail sent error : " + err);
+            console.log("Error in mail"+err)
             return;
         }
         console.log("Success in mail")
     });
-
-    //appGbl.mailer.send('resetSuccess', {
-    //
-    //    to: userDetails.email,
-    //    subject: 'Password Reset Success',
-    //
-    //    firstName: userDetails.firstName,
-    //    lastName: userDetails.lastName,
-    //}, function(err) {
-    //    if (err) {
-    //        console.log("Error in mail"+err)
-    //        return;
-    //    }
-    //    console.log("Success in mail")
-    //});
 };
 
 module.exports.sendForgotEmail = function(res, userDetails) {
-    var email = new sendgrid.Email();
-    email.replyto = "contact@aimsquant.com";
-    email.setTo(userDetails.email);
-    email.setFromName("Aimsquant");
-    email.setFrom("contact@aimsquant.com");
-    email.setSubject('Forgot Password Mail');
-
-    var template = fs.readFileSync(hostname + '/api/v2/user/resetpage?code=' + userDetails.code)
-    email.setHtml(template);
-    email.setHeaders({
-        "Reply-To": "contact@aimsquant.com"
+    var template = fs.readFileSync(__dirname + '/../views/forgotpwdemail.html').toString();
+    template = template.replace('userFullName', userDetails.firstName + ' '+userDetails.lastName);
+    template = template.replace('userEmailAddress', userDetails.email);
+    template = template.replace( 'resetPwdUrl', constants.reset_password_url);
+    var request = sg.emptyRequest({
+        method: 'POST',
+        path: '/v3/mail/send',
+        body: {
+            personalizations: [
+                {
+                    to: [
+                        {
+                            email: userDetails.email,
+                            name:userDetails.firstName + ' '+userDetails.lastName
+                        },
+                    ],
+                    subject: 'Forgot Password Mail',
+                },
+            ],
+            from: {
+                email: 'contact@aimsquant.com',
+            },
+            "reply_to": {
+                "email": "contact@aimsquant.com",
+                "name": "Aimsquant"
+            },
+            content: [
+                {
+                    type: 'text/html',
+                    value: template,
+                },
+            ],
+        },
     });
-
-    sendgrid.send(email, function (err, json) {
+    sg.API(request, function(err, response) {
         if (err) {
             res.send('There was an error sending the email');
             return;
@@ -164,24 +184,78 @@ module.exports.sendFeedbackEmail = function(res, args) {
 };
 
 module.exports.sendInvite = function(res, args) {
-   
-  var email_json =  {
-        bcc: args.body.value.email_list,
-        email_id : args.user.email,
-        firstName: args.user.firstName,
-        subject : "Invite to join AimsQuant.com"
-    }
 
-    console.log(email_json);
+    var template = fs.readFileSync(__dirname + '/../views/InviteFriendEmail.html').toString();
+    template = template.replace('userFullName', args.user.firstName + ' '+args.user.lastName);
+    template = template.replace('invitationUrl', constants.user_invitation_url);
 
-    appGbl.mailer.send('invite', email_json, function(err,data) {
+    /**
+     * bcc email array should be in the form: [
+     {
+         "email": "sam.doe@example.com",
+         "name": "Sam Doe"
+     }
+     ]
+     * @type {*|SendGrid.Rest.Request}
+     */
+    var request = sg.emptyRequest({
+        method: 'POST',
+        path: '/v3/mail/send',
+        body: {
+            personalizations: [
+                {
+                    to: [
+                        {
+                            email: args.user.email,
+                            name:args.user.firstName + ' '+args.user.lastName
+                        },
+                    ],
+                    subject: 'Invite to join AimsQuant.com',
+                    "bcc": args.body.value.email_list
+                },
+            ],
+            from: {
+                email: 'contact@aimsquant.com',
+            },
+            "reply_to": {
+                "email": "contact@aimsquant.com",
+                "name": "Aimsquant"
+            },
+            content: [
+                {
+                    type: 'text/html',
+                    value: template,
+                },
+            ],
+        },
+    });
+    sg.API(request, function(err, response) {
         if (err) {
             console.log("Error" + err);
             res.send('There was an error sending the email');
             return;
         }
-        console.log("Email Sent: " + data)
+        console.log("Email Sent: " + response)
         res.send('Email Sent');
     });
+   
+  //var email_json =  {
+  //      bcc: args.body.value.email_list,
+  //      email_id : args.user.email,
+  //      firstName: args.user.firstName,
+  //      subject : "Invite to join AimsQuant.com"
+  //  }
+  //
+  //  console.log(email_json);
+  //
+  //  appGbl.mailer.send('invite', email_json, function(err,data) {
+  //      if (err) {
+  //          console.log("Error" + err);
+  //          res.send('There was an error sending the email');
+  //          return;
+  //      }
+  //      console.log("Email Sent: " + data)
+  //      res.send('Email Sent');
+  //  });
 };
 
