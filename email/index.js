@@ -23,6 +23,8 @@ module.exports.sendActivationEmail = function(res, userDetails) {
     var template = fs.readFileSync(__dirname + '/..' + '/views/ActivationEmail.html').toString();
     template = template.replace('userFullName', userDetails.firstName + ' '+userDetails.lastName);
     template = template.replace('activationUrl', constants.account_activation_url);
+
+    console.log(template)
     var request = sg.emptyRequest({
         method: 'POST',
         path: '/v3/mail/send',
@@ -82,27 +84,68 @@ module.exports.sendActivationEmail = function(res, userDetails) {
 };
 
 module.exports.resetSuccessEmail = function(res, userDetails) {
-    appGbl.mailer.send('resetSuccess', {
-
-        to: userDetails.email,
-        subject: 'Password Reset Success',
-
-        firstName: userDetails.firstName,
-        lastName: userDetails.lastName,
-    }, function(err) {
+    var request = sg.emptyRequest({
+        method: 'POST',
+        path: '/v3/mail/send',
+        body: {
+            personalizations: [
+                {
+                    to: [
+                        {
+                            email: userDetails.email,
+                            name:userDetails.firstName + ' '+userDetails.lastName
+                        },
+                    ],
+                    subject: 'Password Reset Success',
+                },
+            ],
+            from: {
+                email: 'contact@aimsquant.com',
+            },
+            "reply_to": {
+                "email": "contact@aimsquant.com",
+                "name": "Aimsquant"
+            },
+            content: [
+                {
+                    type: 'text/html',
+                    value: 'resetSuccess',
+                },
+            ],
+        },
+    });
+    sg.API(request, function(err, response) {
         if (err) {
             console.log("Error in mail"+err)
             return;
         }
         console.log("Success in mail")
     });
+
+    //appGbl.mailer.send('resetSuccess', {
+    //
+    //    to: userDetails.email,
+    //    subject: 'Password Reset Success',
+    //
+    //    firstName: userDetails.firstName,
+    //    lastName: userDetails.lastName,
+    //}, function(err) {
+    //    if (err) {
+    //        console.log("Error in mail"+err)
+    //        return;
+    //    }
+    //    console.log("Success in mail")
+    //});
 };
 
 module.exports.sendForgotEmail = function(res, userDetails) {
     var template = fs.readFileSync(__dirname + '/../views/forgotpwdemail.html').toString();
     template = template.replace('userFullName', userDetails.firstName + ' '+userDetails.lastName);
     template = template.replace('userEmailAddress', userDetails.email);
+    template = template.replace('userEmailAddress', userDetails.email);
     template = template.replace( 'resetPwdUrl', constants.reset_password_url);
+
+    //console.log(template)
     var request = sg.emptyRequest({
         method: 'POST',
         path: '/v3/mail/send',
@@ -138,6 +181,7 @@ module.exports.sendForgotEmail = function(res, userDetails) {
             res.send('There was an error sending the email');
             return;
         }
+        console.log(response);
         res.send('Email Sent with a link to reset your Password');
     });
 
@@ -161,26 +205,63 @@ module.exports.sendForgotEmail = function(res, userDetails) {
 
 
 module.exports.sendFeedbackEmail = function(res, args) {
-   
-  var email_json =  {
-        to: 'arunfrom92@gmail.com',
-        subject:  args.body.value.subject, 
-        firstName: args.user.firstName,
-        feedback : args.body.value.feedback,
-        'email_id': args.user.email
-    }
-
-    console.log(email_json)
-
-    appGbl.mailer.send('feedback', email_json, function(err,data) {
+    var request = sg.emptyRequest({
+        method: 'POST',
+        path: '/v3/mail/send',
+        body: {
+            personalizations: [
+                {
+                    to: [
+                        {
+                            email: 'contact@aimsquant.com'
+                        },
+                    ],
+                    subject: args.body.value.subject,
+                },
+            ],
+            from: {
+                email: 'contact@aimsquant.com',
+            },
+            "reply_to": {
+                "email": args.user.email,
+                "name": args.user.firstName
+            },
+            content: [
+                {
+                    type: 'text/html',
+                    value: args.body.value.feedback,
+                },
+            ],
+        },
+    });
+    sg.API(request, function(err, response) {
         if (err) {
-            console.log("Error" + err);
             res.send('There was an error sending the email');
             return;
         }
-        console.log("Email Sent: " + data)
-        res.send('Email Sent');
+        console.log(response);
+        res.send('Email Sent with a link to reset your Password');
     });
+
+  //var email_json =  {
+  //      to: 'arunfrom92@gmail.com',
+  //      subject:  args.body.value.subject,
+  //      firstName: args.user.firstName,
+  //      feedback : args.body.value.feedback,
+  //      'email_id': args.user.email
+  //  }
+  //
+  //  console.log(email_json)
+  //
+  //  appGbl.mailer.send('feedback', email_json, function(err,data) {
+  //      if (err) {
+  //          console.log("Error" + err);
+  //          res.send('There was an error sending the email');
+  //          return;
+  //      }
+  //      console.log("Email Sent: " + data)
+  //      res.send('Email Sent');
+  //  });
 };
 
 module.exports.sendInvite = function(res, args) {

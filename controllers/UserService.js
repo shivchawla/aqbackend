@@ -59,7 +59,7 @@ exports.userlogin = function(args, res, next) {
 };
 
 exports.forgotPassword = function(args, res, next) {
-    
+
     UserModel.updateCode({
         email: args.email.value
     }, uuid.v4())
@@ -75,7 +75,7 @@ exports.forgotPassword = function(args, res, next) {
 exports.activateUser = function(args, res) {
     UserModel.updateUser({
         code: args.code.value
-    }, true)
+    }, {active:true})
     .then(function() {
         res.status(200).json('user is activated');
     })
@@ -111,7 +111,7 @@ exports.resetPassword = function(args, res, next) {
         .then(function(hash) {
             return UserModel.updatePassword({
                 code: code
-            }, hash);
+            },hash);
         })
         .then(function(userDetails) {
             console.log(userDetails)
@@ -135,6 +135,7 @@ exports.getProfile = function (args, res, next) {
     if (!user) {
         return next('NO USER');
     }
+    delete user.password;
     res.status(200).json(user);
 };
 

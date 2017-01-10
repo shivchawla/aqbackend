@@ -4,21 +4,24 @@ const BacktestService = require('./BacktestService');
 const BacktestModel = require('../models/backtest');
 var constants = require('../utils/Constants.js');
 const Promise = require('bluebird');
+var CryptoJS = require("crypto-js");
 
 exports.createStrategy = function(args, res, next) {
     const user = args.user;
     const values = args.body.value;
+    var encoded_code= CryptoJS.AES.encrypt(values.code, constants.encoding_key);
     const Strategy = {
         name: values.name,
         user: user._id,
         type: values.name,
         language: values.language,
         description: values.description,
-        code: CryptoJS.AES.encrypt(values.code, constants.encoding_key),
+        code: encoded_code,
         createdAt: new Date()
     };
     StrategyModel.saveStrategy(Strategy)
         .then(strategy => {
+             strategy.code = CryptoJS.AES.decrypt(strategy.code, constants.encoding_key).toString(CryptoJS.enc.Utf8);
             return res.status(200).json(strategy);
         })
         .catch(err => {
@@ -35,7 +38,7 @@ exports.execStrategy = function(args, res, next) {
         _id: id
     })
     .then(strategy => {
-        strategy.code = CryptoJS.AES.decrypt(strategy.code, constants.encoding_key);
+        strategy.code = CryptoJS.AES.decrypt(strategy.code, constants.encoding_key).toString(CryptoJS.enc.Utf8);
         BacktestService.createBacktest(strategy, values, res, next);
     });
 };
@@ -60,7 +63,7 @@ exports.getStrategys = function(args, res, next) {
     .then(strategy => {
         const strategies = [];
         strategy.forEach(str => {
-            str.code = CryptoJS.AES.decrypt(str.code, constants.encoding_key);
+            str.code = CryptoJS.AES.decrypt(str.code, constants.encoding_key).toString(CryptoJS.enc.Utf8);
             strategies.push(str.toObject());
         });
         return Promise.map(strategies, function(str) {
@@ -90,7 +93,7 @@ exports.getStrategy = function(args, res, next) {
         _id: id
     })
     .then(strategy => {
-        strategy.code = CryptoJS.AES.decrypt(strategy.code, constants.encoding_key);
+        strategy.code = CryptoJS.AES.decrypt(strategy.code, constants.encoding_key).toString(CryptoJS.enc.Utf8);
         res.status(200).json(strategy);
     })
     .catch(err => {
@@ -104,7 +107,7 @@ exports.updateStrategy = function(args, res, next) {
     };
 
     if(args.body.value){
-        args.body.value = CryptoJS.AES.decrypt(args.body.value, constants.encoding_key);
+        args.body.value = CryptoJS.AES.decrypt(args.body.value, constants.encoding_key).toString(CryptoJS.enc.Utf8);
     }
     StrategyModel.updateStrategy(query, args.body.value)
       .then(str => {
