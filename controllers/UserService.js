@@ -36,6 +36,9 @@ exports.userlogin = function(args, res, next) {
         email: user.email
     })
     .then(function(userM) {
+        if(!userM){
+            return Promise.reject('User not found')
+        }
         const userDetails = userM.toObject();
         if (!userDetails.active) {
             return Promise.reject('Please validate your email');
