@@ -27,6 +27,7 @@ exports.createStrategy = function(args, res, next) {
         })
         .catch(err => {
             next(err);
+
         });
 };
 

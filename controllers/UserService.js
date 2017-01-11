@@ -23,7 +23,12 @@ exports.regiteruser = function(args, res, next) {
             sendEmail.sendActivationEmail(res, userDetails);
         })
         .catch(err => {
-            next(err);
+            //next(err);
+            if(err.code === 11000){
+                return res.status(401).send('User already registered, please login to continue');
+            }else{
+                return res.status(500).send('Internal server error');
+            }
         });
 };
 
@@ -57,7 +62,8 @@ exports.userlogin = function(args, res, next) {
         res.status(200).json(userDetails);
     })
     .catch(function(err) {
-        next(err);
+        //next(err);
+            return Promise.reject('Internal server error');
     });
 };
 
