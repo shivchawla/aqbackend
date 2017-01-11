@@ -106,9 +106,11 @@ exports.updateStrategy = function(args, res, next) {
         _id: args.id.value
     };
 
-    if(args.body.value){
-        args.body.value = CryptoJS.AES.decrypt(args.body.value, constants.encoding_key).toString(CryptoJS.enc.Utf8);
+     if(args.body.value && args.body.value.code){
+        var str = args.body.value.code; 
+        args.body.value.code = CryptoJS.AES.encrypt(str, constants.encoding_key);
     }
+
     StrategyModel.updateStrategy(query, args.body.value)
       .then(str => {
           res.status(200).json(str);
