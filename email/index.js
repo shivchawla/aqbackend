@@ -31,10 +31,10 @@ module.exports.sendActivationEmail = function(res, userDetails) {
                 },
             ],
             from: {
-                email: 'contact@aimsquant.com',
+                email: 'admin@aimsquant.com',
             },
             "reply_to": {
-                "email": "contact@aimsquant.com",
+                "email": "admin@aimsquant.com",
                 "name": "Aimsquant"
             },
             content: [
@@ -72,10 +72,10 @@ module.exports.resetSuccessEmail = function(res, userDetails) {
                 },
             ],
             from: {
-                email: 'contact@aimsquant.com',
+                email: 'admin@aimsquant.com',
             },
             "reply_to": {
-                "email": "contact@aimsquant.com",
+                "email": "admin@aimsquant.com",
                 "name": "Aimsquant"
             },
             content: [
@@ -119,10 +119,10 @@ module.exports.sendForgotEmail = function(res, userDetails) {
                 },
             ],
             from: {
-                email: 'contact@aimsquant.com',
+                email: 'admin@aimsquant.com',
             },
             "reply_to": {
-                "email": "contact@aimsquant.com",
+                "email": "admin@aimsquant.com",
                 "name": "Aimsquant"
             },
             content: [
@@ -152,14 +152,14 @@ module.exports.sendFeedbackEmail = function(res, args) {
                 {
                     to: [
                         {
-                            email: 'contact@aimsquant.com'
+                            email: 'admin@aimsquant.com'
                         },
                     ],
                     subject: args.body.value.subject,
                 },
             ],
             from: {
-                email: 'contact@aimsquant.com',
+                email: 'admin@aimsquant.com',
             },
             "reply_to": {
                 "email": args.user.email,
@@ -215,10 +215,10 @@ module.exports.sendInvite = function(res, args) {
                 },
             ],
             from: {
-                email: 'contact@aimsquant.com',
+                email: 'admin@aimsquant.com',
             },
             "reply_to": {
-                "email": "contact@aimsquant.com",
+                "email": "admin@aimsquant.com",
                 "name": "Aimsquant"
             },
             content: [
