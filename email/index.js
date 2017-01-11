@@ -5,7 +5,7 @@ let appGbl;
 var jade = require('jade');
 var fs = require('fs');
 var constants = require('../utils/Constants.js');
-var sg = require('sendgrid')(constants.sendgrid_key);
+var sg = require('sendgrid')(config.get('sendgrid_key'));
 var hostname = config.get('hostname');
 
 var replaceAll = function(str, find, replace) {
@@ -22,7 +22,7 @@ var replaceAll = function(str, find, replace) {
 module.exports.sendActivationEmail = function(res, userDetails) {
     var template = fs.readFileSync(__dirname + '/..' + '/views/ActivationEmail.html').toString();
     template = template.replace('userFullName', userDetails.firstName + ' '+userDetails.lastName);
-    template = template.replace('activationUrl', constants.account_activation_url);
+    template = template.replace('activationUrl', config.get('account_activation_url'));
 
     console.log(template)
     var request = sg.emptyRequest({
@@ -143,7 +143,7 @@ module.exports.sendForgotEmail = function(res, userDetails) {
     template = template.replace('userFullName', userDetails.firstName + ' '+userDetails.lastName);
     template = template.replace('userEmailAddress', userDetails.email);
     template = template.replace('userEmailAddress', userDetails.email);
-    template = template.replace( 'resetPwdUrl', constants.reset_password_url);
+    template = template.replace( 'resetPwdUrl', config.get('reset_password_url'));
 
     //console.log(template)
     var request = sg.emptyRequest({
@@ -268,7 +268,7 @@ module.exports.sendInvite = function(res, args) {
 
     var template = fs.readFileSync(__dirname + '/../views/InviteFriendEmail.html').toString();
     template = template.replace('userFullName', args.user.firstName + ' '+args.user.lastName);
-    template = template.replace('invitationUrl', constants.user_invitation_url);
+    template = template.replace('invitationUrl', config.get('user_invitation_url'));
 
     /**
      * bcc email array should be in the form: [
