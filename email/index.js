@@ -164,7 +164,7 @@ module.exports.welcomeEmail = function(res, userDetails) {
             },
             "reply_to": {
                 "email": "admin@aimsquant.com",
-                "name": "Aimsquant"
+                "name": "AimsQuant"
             },
             content: [
                 {
