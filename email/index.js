@@ -246,12 +246,10 @@ module.exports.sendInvite = function(res, args) {
                 {
                     to: [
                         {
-                            email: args.user.email,
-                            name:args.user.firstName + ' '+args.user.lastName
+                            email: args.body.value.emailList
                         },
                     ],
                     subject: 'Invite to join AimsQuant.com',
-                    "bcc": args.body.value.email_list
                 },
             ],
             from: {
