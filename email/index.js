@@ -12,9 +12,8 @@ var replaceAll = function(str, find, replace) {
 module.exports.sendActivationEmail = function(res, userDetails) {
     var template = fs.readFileSync(__dirname + '/..' + '/views/ActivationEmail.html').toString();
     template = template.replace('userFullName', userDetails.firstName + ' '+userDetails.lastName);
-    template = template.replace('activationUrl', config.get('account_activation_url'));
+    template = template.replace('activationUrl', config.get('account_activation_api_url') + userDetails.code);
 
-    //console.log(template)
     var request = sg.emptyRequest({
         method: 'POST',
         path: '/v3/mail/send',
@@ -27,11 +26,12 @@ module.exports.sendActivationEmail = function(res, userDetails) {
                             name:userDetails.firstName + ' '+userDetails.lastName
                         },
                     ],
-                    subject: 'Thank you for signing up',
+                    subject: 'Activate your account',
                 },
             ],
             from: {
                 email: 'admin@aimsquant.com',
+                name: 'AimsQuant',
             },
             "reply_to": {
                 "email": "admin@aimsquant.com",
@@ -47,10 +47,8 @@ module.exports.sendActivationEmail = function(res, userDetails) {
     });
     sg.API(request, function(err, response) {
         if (err) {
-            console.log("mail sent error : " + err);
             return res.send('There was an error sending the email');
         }
-        console.log("mail sent : " + response);
         res.send(userDetails);
     });
 };
@@ -73,10 +71,11 @@ module.exports.resetSuccessEmail = function(res, userDetails) {
             ],
             from: {
                 email: 'admin@aimsquant.com',
+                name: 'AimsQuant'
             },
             "reply_to": {
                 "email": "admin@aimsquant.com",
-                "name": "Aimsquant"
+                "name": "AimsQuant"
             },
             content: [
                 {
@@ -88,10 +87,8 @@ module.exports.resetSuccessEmail = function(res, userDetails) {
     });
     sg.API(request, function(err, response) {
         if (err) {
-            console.log("Error in mail"+err)
             return;
         }
-        console.log("Success in mail")
     });
 };
 
@@ -100,9 +97,8 @@ module.exports.sendForgotEmail = function(res, userDetails) {
     template = template.replace('userFullName', userDetails.firstName + ' '+userDetails.lastName);
     template = template.replace('userEmailAddress', userDetails.email);
     template = template.replace('userEmailAddress', userDetails.email);
-    template = template.replace( 'resetPwdUrl', config.get('reset_password_url'));
+    template = template.replace( 'resetPwdUrl', config.get('reset_password_api_url') + userDetails.code);
 
-    console.log(template)
     var request = sg.emptyRequest({
         method: 'POST',
         path: '/v3/mail/send',
@@ -115,11 +111,56 @@ module.exports.sendForgotEmail = function(res, userDetails) {
                             name:userDetails.firstName + ' '+userDetails.lastName
                         },
                     ],
-                    subject: 'Forgot Password Mail',
+                    subject: 'Reset your password',
                 },
             ],
             from: {
                 email: 'admin@aimsquant.com',
+                name: 'AimsQuant',
+            },
+            "reply_to": {
+                "email": "admin@aimsquant.com",
+                "name": "AimsQuant"
+            },
+            content: [
+                {
+                    type: 'text/html',
+                    value: template,
+                },
+            ],
+        },
+    });
+    sg.API(request, function(err, response) {
+        if (err) {
+            res.send('There was an error sending the email');
+            return;
+        }
+        res.send('Email Sent with a link to reset your Password');
+    });
+};
+
+module.exports.welcomeEmail = function(res, userDetails) {
+    var template = fs.readFileSync(__dirname + '/../views/WelcomeEmail.html').toString();
+    template = template.replace('userFullName', userDetails.firstName + ' '+userDetails.lastName);
+  
+    var request = sg.emptyRequest({
+        method: 'POST',
+        path: '/v3/mail/send',
+        body: {
+            personalizations: [
+                {
+                    to: [
+                        {
+                            email: userDetails.email,
+                            name:userDetails.firstName + ' '+userDetails.lastName
+                        },
+                    ],
+                    subject: 'Welcome to AimsQuant',
+                },
+            ],
+            from: {
+                email: 'admin@aimsquant.com',
+                name: 'AimsQuant'
             },
             "reply_to": {
                 "email": "admin@aimsquant.com",
@@ -138,8 +179,8 @@ module.exports.sendForgotEmail = function(res, userDetails) {
             res.send('There was an error sending the email');
             return;
         }
-        console.log(response);
-        res.send('Email Sent with a link to reset your Password');
+
+        res.redirect(config.get('activation_url'));
     });
 };
 
@@ -159,7 +200,7 @@ module.exports.sendFeedbackEmail = function(res, args) {
                 },
             ],
             from: {
-                email: 'admin@aimsquant.com',
+                email: args.user.email,
             },
             "reply_to": {
                 "email": args.user.email,
@@ -178,7 +219,6 @@ module.exports.sendFeedbackEmail = function(res, args) {
             res.send('There was an error sending the email');
             return;
         }
-        console.log(response);
         res.send('Email Sent with a link to reset your Password');
     });
 };
@@ -216,6 +256,7 @@ module.exports.sendInvite = function(res, args) {
             ],
             from: {
                 email: 'admin@aimsquant.com',
+                name:'AimsQuant',
             },
             "reply_to": {
                 "email": "admin@aimsquant.com",
@@ -231,11 +272,9 @@ module.exports.sendInvite = function(res, args) {
     });
     sg.API(request, function(err, response) {
         if (err) {
-            console.log("Error" + err);
             res.send('There was an error sending the email');
             return;
         }
-        console.log("Email Sent: " + response)
         res.send('Email Sent');
     });
 };

@@ -4,6 +4,7 @@ const jwtUtil = require('../utils/jwttoken');
 const hashUtil = require('../utils/hashUtil');
 const sendEmail = require('../email');
 const uuid = require('node-uuid');
+const config = require('config');
 
 exports.regiteruser = function(args, res, next) {
     const user = {
@@ -25,7 +26,7 @@ exports.regiteruser = function(args, res, next) {
         .catch(err => {
             //next(err);
             if(err.code === 11000){
-                return res.status(401).send('User already registered, please login to continue');
+                return res.status(401).send('Email already registered, please login to continue');
             }else{
                 return res.status(500).send('Internal server error');
             }
@@ -42,7 +43,7 @@ exports.userlogin = function(args, res, next) {
     })
     .then(function(userM) {
         if(!userM){
-            return Promise.reject('User not found')
+            return Promise.reject('Email is not registered, please sign up to continue')
         }
         const userDetails = userM.toObject();
         if (!userDetails.active) {
@@ -62,8 +63,7 @@ exports.userlogin = function(args, res, next) {
         res.status(200).json(userDetails);
     })
     .catch(function(err) {
-        //next(err);
-            return Promise.reject('Internal server error');
+        return res.status(401).json(err); 
     });
 };
 
@@ -85,8 +85,8 @@ exports.activateUser = function(args, res) {
     UserModel.updateUser({
         code: args.code.value
     }, {active:true})
-    .then(function() {
-        res.status(200).json('user is activated');
+    .then(function(userDetails) {
+        sendEmail.welcomeEmail(res, userDetails);
     })
     .catch((err) => {
         res.status(400).json(err);
@@ -94,12 +94,8 @@ exports.activateUser = function(args, res) {
 };
 
 exports.resetEmailLink = function(args, res) {
-
-        var data_email = {};
-
-        data_email['code'] = args.code.value;
-
-        res.render('resetPassword', {data: data_email})
+    var code = args.code.value;
+    res.redirect(config.get('reset_password_url') + code);
 };
 
 exports.resetPassword = function(args, res, next) {
