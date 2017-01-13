@@ -122,11 +122,8 @@ exports.resetPassword = function(args, res, next) {
             console.log(userDetails)
             if (userDetails) {
                 delete userDetails.password;
-                console.log("Reset success")
                 sendEmail.resetSuccessEmail(res, userDetails);
-                res.send('Password Successfully reset');
             }else{
-                console.log("Reset Error")
                 res.send('Not a valid code')
             }
         })
