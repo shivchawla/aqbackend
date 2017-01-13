@@ -4,9 +4,79 @@ const StreamSplitter = require('stream-splitter');
 const ws = require('../index').ws;
 const jwtUtil = require('../utils/jwttoken');
 const BacktestModel = require('../models/backtest');
+const StrategyModel = require('../models/strategy');
 
 function exec(msg, res, cb) {
-    const child = spawn('julia', ['test.jl'], {
+
+    var argArray = [];
+    var backtestId = msg.backtest_id;
+
+    BacktestModel.fetchBacktest({
+        _id: backtestId
+    })
+    .then(bt => {
+        if(bt) {
+
+            console.log(bt);
+
+            var settings = bt.settings;
+            argArray.concat(['--capital', settings.initialCash]);
+            argArray.concat(['--startdate', settings.startDate]);
+            argArray.concat(['--enddate', settings.endDate]);
+            argArray.concat(['--universe', settings.universe]);
+            
+            var advanced = JSON.parse(settings.advanced);
+
+            console.log(advanced);
+
+            if(advanced.exclude) {
+                argArray.concat(['--exclude', advanced.exclude]);    
+            }
+
+            if(advanced.investmentplan) {
+                argArray.concat(['--investmentplan', advanced.investmentPlan]);
+            }
+
+            if(advanced.rebalance) {
+                argArray.concat(['--rebalance', advanced.rebalance]);
+            }
+            
+            if(advanced.cancelpolicy) {
+                argArray.concat(['--cancelpolicy', advanced.cancelPolicy]);
+            }
+            
+            if(advanced.resolution) {
+                argArray.concat(['--resolution', advanced.resolution]);
+            }
+            
+            if(advanced.commission) {
+                argArray.concat(['--commission', advanced.commission]);
+            }
+            
+            if(advanced.slippage) {
+                argArray.concat(['--slippage', advanced.slippage]);
+            }
+
+            var strategyId = bt.strategy;
+
+            StrategyModel.fetchStrategy({
+                _id: strategyId
+            }).then(strategyObj => {
+                if(strategyObj) {
+                    argArray.concat(['--code', strategyObj.code]);
+                }
+            });
+        }
+    })
+    .catch(err => {
+        console.log(err);
+        cb(err);
+        return;
+    });
+
+    console.log(argArray);
+
+    const child = spawn('julia', ["C:/Users/schawla/Documents/raftaar/Util/justrun.jl"].concat(argArray), {
         cwd: './utils'
     });
     let backtestData = '';
@@ -48,7 +118,7 @@ function exec(msg, res, cb) {
 }
 
 function updateBactestResult(updateData, msg) {
-    console.log('this is called ', updateData);
+    //console.log('this is called ', updateData);
     BacktestModel.updateBacktestUpdated({
         _id: msg.backtest_id
     }, updateData);
@@ -81,6 +151,7 @@ ws.on('connection', function connection(res) {
                     return exec(msg, res, (err, data) => {
                         var updateData;
                         if(err){
+                            console.log(err);
                             updateData = {status : 'exception'}
                         }else{
                             updateData = {output : data, status : 'complete'}
