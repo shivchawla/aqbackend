@@ -4,51 +4,129 @@ const StreamSplitter = require('stream-splitter');
 const ws = require('../index').ws;
 const jwtUtil = require('../utils/jwttoken');
 const BacktestModel = require('../models/backtest');
+const StrategyModel = require('../models/strategy');
 
 function exec(msg, res, cb) {
-    const child = spawn('julia', ['test.jl'], {
-        cwd: './utils'
-    });
+
+    var backtestId = msg.backtest_id;
+    let child = '';
+    let splitter = '';
     let backtestData = '';
-    // child.stdout.setEncoding('utf8');
-    const splitter = child.stdout.pipe(StreamSplitter('\n'));
-    // child.stdout.on('data', function(data) {
-    splitter.on('token', function(token) {
-        let data;
-        try {
-            data = token.toString();
-            const dataJSON = JSON.parse(data);
-            dataJSON.backtestId = msg.backtest_id;
-            if (dataJSON.outputtype === 'backtest') {
-                backtestData = dataJSON;
-            } else {
-                res.send(JSON.stringify(dataJSON));
+    
+    console.log('Exec is called too');    
+    
+    BacktestModel.fetchBacktest({
+        _id: backtestId
+    })
+    .then(bt => {
+        var args = [];
+   
+        if(bt) {
+            
+            args = args.concat(['--code', bt.code]);
+
+            //console.log(bt.code);
+
+            var settings = bt.settings;
+            args = args.concat(['--capital', settings.initialCash]);
+            args = args.concat(['--startdate', settings.startDate]);
+            args = args.concat(['--enddate', settings.endDate]);
+            args = args.concat(['--universe', settings.universe]);
+            
+            var advanced = JSON.parse(settings.advanced);
+        
+            if(advanced.exclude) {
+                args = args.concat(['--exclude', advanced.exclude]);    
             }
-        } catch (e) {
-            console.log(e);
+
+            if(advanced.investmentPlan) {
+                args = args.concat(['--investmentplan', advanced.investmentPlan]);
+            }
+
+            if(advanced.rebalance) {
+                args = args.concat(['--rebalance', advanced.rebalance]);
+            }
+            
+            if(advanced.cancelPolicy) {
+                args = args.concat(['--cancelpolicy', advanced.cancelPolicy]);
+            }
+            
+            if(advanced.resolution) {
+                args = args.concat(['--resolution', advanced.resolution]);
+            }
+            
+            if(advanced.commission) {
+                var commission = advanced.commission.model + ',' + advanced.commission.value.toString();
+                args = args.concat(['--commission', commission]);
+            }
+            
+            if(advanced.slippage) {
+                var slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
+                args = args.concat(['--slippage', slippage]);
+            }
+
         }
-    });
 
-    child.stderr.setEncoding('utf8');
-    child.stderr.on('data', function(data) {
-        cb(data.trim());
-    });
+        return args;
+    })
+    .then(argArray => {
 
-    child.on('close', function(code) {
-        if (code === 0) {
+        for(var i=0;i<argArray.length;i++){
+            console.log(argArray[i]);
+        }
+
+        child = spawn('/Applications/Julia-0.5.app/Contents/Resources/julia/bin/julia', ["/users/shivkumarchawla/Raftaar/Util/justrun.jl"].concat(argArray), {
+            cwd: './utils'
+        });
+
+        splitter = child.stdout.pipe(StreamSplitter('\n'));
+
+        splitter.on('token', function(token) {
+            let data;
             try {
-                cb(null, backtestData);
+                
+                data = token.toString();
+                console.log(data)
+                const dataJSON = JSON.parse(data);
+                dataJSON.backtestId = msg.backtest_id;
+                
+                if (dataJSON.outputtype === 'backtest') {
+                    backtestData = dataJSON;
+                } else {
+                    res.send(JSON.stringify(dataJSON));
+                }
             } catch (e) {
-                cb(e);
-            } finally {
-                // ws.close();
+                //console.log("Parsing Error");
             }
-        }
+        });
+
+        child.stderr.setEncoding('utf8');
+        
+        child.stderr.on('data', function(data) {
+            console.log(data.trim())
+            //cb(data.trim());
+        });
+
+        child.on('close', function(code) {
+            if (code === 0) {
+                try {
+                    cb(null, backtestData);
+                } catch (e) {
+                    cb(e);
+                }
+            }
+        });
+    })
+    .catch(err => {
+        console.log("Outside");
+        console.log(err);
+        cb(err);
+        return;
     });
 }
 
 function updateBactestResult(updateData, msg) {
-    console.log('this is called ', updateData);
+    console.log('this is called');
     BacktestModel.updateBacktestUpdated({
         _id: msg.backtest_id
     }, updateData);
@@ -77,14 +155,23 @@ ws.on('connection', function connection(res) {
                     res.send('token expired');
                     return;
                 }
+
                 if (msg.action === 'exec-backtest') {
                     return exec(msg, res, (err, data) => {
                         var updateData;
+                        
                         if(err){
-                            updateData = {status : 'exception'}
-                        }else{
-                            updateData = {output : data, status : 'complete'}
+                            updateData = {status : 'exception'};
+                        } else {
+                            
+                            if(data=='') {
+                                 updateData = {status : 'exception'};
+                            } else {
+                                updateData = {output : data, status:'complete'};    
+                            }
+                            
                         }
+
                         updateBactestResult(updateData, msg);
                     });
                 } else if (message === 'rl_close') {

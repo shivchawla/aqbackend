@@ -54,6 +54,13 @@ module.exports.sendActivationEmail = function(res, userDetails) {
 };
 
 module.exports.resetSuccessEmail = function(res, userDetails) {
+    
+    var template = fs.readFileSync(__dirname + '/../views/ResetPasswordEmail.html').toString();
+    template = template.replace('userFullName', userDetails.firstName + ' '+userDetails.lastName);
+    template = template.replace('userEmailAddress', userDetails.email);
+    template = template.replace('userEmailAddress', userDetails.email);
+    template = template.replace('userEmailAddress', userDetails.email);
+   
     var request = sg.emptyRequest({
         method: 'POST',
         path: '/v3/mail/send',
@@ -80,7 +87,7 @@ module.exports.resetSuccessEmail = function(res, userDetails) {
             content: [
                 {
                     type: 'text/html',
-                    value: 'resetSuccess',
+                    value: template,
                 },
             ],
         },
@@ -89,12 +96,15 @@ module.exports.resetSuccessEmail = function(res, userDetails) {
         if (err) {
             return;
         }
+
+        res.send('Password reset successfuly}');
     });
 };
 
 module.exports.sendForgotEmail = function(res, userDetails) {
     var template = fs.readFileSync(__dirname + '/../views/forgotpwdemail.html').toString();
     template = template.replace('userFullName', userDetails.firstName + ' '+userDetails.lastName);
+    template = template.replace('userEmailAddress', userDetails.email);
     template = template.replace('userEmailAddress', userDetails.email);
     template = template.replace('userEmailAddress', userDetails.email);
     template = template.replace( 'resetPwdUrl', config.get('reset_password_api_url') + userDetails.code);
