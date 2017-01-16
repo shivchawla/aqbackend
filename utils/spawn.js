@@ -8,117 +8,125 @@ const StrategyModel = require('../models/strategy');
 
 function exec(msg, res, cb) {
 
-    var argArray = [];
     var backtestId = msg.backtest_id;
-
+    let child = '';
+    let splitter = '';
+    let backtestData = '';
+    
+    console.log('Exec is called too');    
+    
     BacktestModel.fetchBacktest({
         _id: backtestId
     })
     .then(bt => {
+        var args = [];
+   
         if(bt) {
+            
+            args = args.concat(['--code', bt.code]);
 
-            console.log(bt);
+            //console.log(bt.code);
 
             var settings = bt.settings;
-            argArray.concat(['--capital', settings.initialCash]);
-            argArray.concat(['--startdate', settings.startDate]);
-            argArray.concat(['--enddate', settings.endDate]);
-            argArray.concat(['--universe', settings.universe]);
+            args = args.concat(['--capital', settings.initialCash]);
+            args = args.concat(['--startdate', settings.startDate]);
+            args = args.concat(['--enddate', settings.endDate]);
+            args = args.concat(['--universe', settings.universe]);
             
             var advanced = JSON.parse(settings.advanced);
-
-            console.log(advanced);
-
+        
             if(advanced.exclude) {
-                argArray.concat(['--exclude', advanced.exclude]);    
+                args = args.concat(['--exclude', advanced.exclude]);    
             }
 
-            if(advanced.investmentplan) {
-                argArray.concat(['--investmentplan', advanced.investmentPlan]);
+            if(advanced.investmentPlan) {
+                args = args.concat(['--investmentplan', advanced.investmentPlan]);
             }
 
             if(advanced.rebalance) {
-                argArray.concat(['--rebalance', advanced.rebalance]);
+                args = args.concat(['--rebalance', advanced.rebalance]);
             }
             
-            if(advanced.cancelpolicy) {
-                argArray.concat(['--cancelpolicy', advanced.cancelPolicy]);
+            if(advanced.cancelPolicy) {
+                args = args.concat(['--cancelpolicy', advanced.cancelPolicy]);
             }
             
             if(advanced.resolution) {
-                argArray.concat(['--resolution', advanced.resolution]);
+                args = args.concat(['--resolution', advanced.resolution]);
             }
             
             if(advanced.commission) {
-                argArray.concat(['--commission', advanced.commission]);
+                var commission = advanced.commission.model + ',' + advanced.commission.value.toString();
+                args = args.concat(['--commission', commission]);
             }
             
             if(advanced.slippage) {
-                argArray.concat(['--slippage', advanced.slippage]);
+                var slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
+                args = args.concat(['--slippage', slippage]);
             }
 
-            var strategyId = bt.strategy;
-
-            StrategyModel.fetchStrategy({
-                _id: strategyId
-            }).then(strategyObj => {
-                if(strategyObj) {
-                    argArray.concat(['--code', strategyObj.code]);
-                }
-            });
         }
+
+        return args;
+    })
+    .then(argArray => {
+
+        for(var i=0;i<argArray.length;i++){
+            console.log(argArray[i]);
+        }
+
+        child = spawn('/Applications/Julia-0.5.app/Contents/Resources/julia/bin/julia', ["/users/shivkumarchawla/Raftaar/Util/justrun.jl"].concat(argArray), {
+            cwd: './utils'
+        });
+
+        splitter = child.stdout.pipe(StreamSplitter('\n'));
+
+        splitter.on('token', function(token) {
+            let data;
+            try {
+                
+                data = token.toString();
+                console.log(data)
+                const dataJSON = JSON.parse(data);
+                dataJSON.backtestId = msg.backtest_id;
+                
+                if (dataJSON.outputtype === 'backtest') {
+                    backtestData = dataJSON;
+                } else {
+                    res.send(JSON.stringify(dataJSON));
+                }
+            } catch (e) {
+                //console.log("Parsing Error");
+            }
+        });
+
+        child.stderr.setEncoding('utf8');
+        
+        child.stderr.on('data', function(data) {
+            console.log(data.trim())
+            //cb(data.trim());
+        });
+
+        child.on('close', function(code) {
+            if (code === 0) {
+                try {
+                    cb(null, backtestData);
+                } catch (e) {
+                    cb(e);
+                }
+            }
+        });
     })
     .catch(err => {
+        console.log("Outside");
         console.log(err);
         cb(err);
         return;
     });
-
-    console.log(argArray);
-
-    const child = spawn('julia', ["C:/Users/schawla/Documents/raftaar/Util/justrun.jl"].concat(argArray), {
-        cwd: './utils'
-    });
-    let backtestData = '';
-    // child.stdout.setEncoding('utf8');
-    const splitter = child.stdout.pipe(StreamSplitter('\n'));
-    // child.stdout.on('data', function(data) {
-    splitter.on('token', function(token) {
-        let data;
-        try {
-            data = token.toString();
-            const dataJSON = JSON.parse(data);
-            dataJSON.backtestId = msg.backtest_id;
-            if (dataJSON.outputtype === 'backtest') {
-                backtestData = dataJSON;
-            } else {
-                res.send(JSON.stringify(dataJSON));
-            }
-        } catch (e) {
-            console.log(e);
-        }
-    });
-
-    child.stderr.setEncoding('utf8');
-    child.stderr.on('data', function(data) {
-        cb(data.trim());
-    });
-
-    child.on('close', function(code) {
-        if (code === 0) {
-            try {
-                cb(null, backtestData);
-            } catch (e) {
-                cb(e);
-            } finally {
-                // ws.close();
-            }
-        }
-    });
 }
 
 function updateBactestResult(updateData, msg) {
-    //console.log('this is called ', updateData);
+    console.log('this is called');
     BacktestModel.updateBacktestUpdated({
         _id: msg.backtest_id
     }, updateData);
@@ -147,15 +155,23 @@ ws.on('connection', function connection(res) {
                     res.send('token expired');
                     return;
                 }
+
                 if (msg.action === 'exec-backtest') {
                     return exec(msg, res, (err, data) => {
                         var updateData;
+                        
                         if(err){
-                            console.log(err);
-                            updateData = {status : 'exception'}
-                        }else{
-                            updateData = {output : data, status : 'complete'}
+                            updateData = {status : 'exception'};
+                        } else {
+                            
+                            if(data=='') {
+                                 updateData = {status : 'exception'};
+                            } else {
+                                updateData = {output : data, status:'complete'};    
+                            }
+                            
                         }
+
                         updateBactestResult(updateData, msg);
                     });
                 } else if (message === 'rl_close') {
