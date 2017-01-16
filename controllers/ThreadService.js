@@ -10,6 +10,7 @@ exports.createThread = function(args, res, next) {
         markdownText: args.body.value.markdownText,
         title: args.body.value.title,
         backtestId : args.body.value.backtestId,
+        followers : [user._id],
         createdAt: Date.now(),
         updatedAt: Date.now()
     };
@@ -32,6 +33,7 @@ exports.getThreads = function(args, res, next) {
     const limit = args.limit.value;
     const order = args.order.value;
     const text = args.q.value;
+    const search_text = args.search.value;
     const order_param = args.order_param.value;
     const personal = args.personal.value;
     const following = args.following.value;
@@ -53,6 +55,9 @@ exports.getThreads = function(args, res, next) {
         query.$text = {
             $search: text
         };
+    }
+    if(search_text){
+        query.title = { "$regex": search_text, "$options": "i" }
     }
     if (category) {
         query.category = category;
@@ -87,10 +92,12 @@ exports.getThread = function(args, res, next) {
 
 exports.listFollowers = function(args, res, next) {
     const threadId = args.threadId.value;
+    const skip = args.skip.value;
+    const limit = args.limit.value;
 
     ThreadModel.getFollowers({
         _id: threadId
-    })
+    }, limit, skip)
       .then((threads) => {
           return res.status(200).json(threads);
       })

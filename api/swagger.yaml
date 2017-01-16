@@ -306,6 +306,11 @@ paths:
         required: false
         type: boolean
         default: false
+      - name: search
+        in: query
+        description: title search term
+        required: false
+        type: string
       - name: userId
         in: query
         description: posts that the given userId following
@@ -421,6 +426,17 @@ paths:
         name: threadId
         type: string
         required: true
+      - name: skip
+        in: query
+        description: skip number of records
+        required: true
+        default: 0
+        type: number
+      - name: limit
+        type: number
+        required: true
+        in: query
+        default: 10
       responses:
         200:
           description: OK
@@ -545,6 +561,12 @@ paths:
         description: search strategy by name or description
         type: string
         required: false
+      - name: sort
+        in: query
+        description: sort criteria
+        type: string
+        required: false
+        enum: ['name', 'type', 'language', 'updatedAt asc', 'updatedAt desc']
       responses:
         200:
           description: "strategies"
@@ -725,6 +747,17 @@ paths:
         in: path
         required: true
         type: string
+      - name: skip
+        in: query
+        description: skip number of records
+        required: true
+        default: 0
+        type: number
+      - name: limit
+        type: number
+        required: true
+        in: query
+        default: 10
       responses:
         200:
           description: "created strategy"
@@ -833,6 +866,17 @@ paths:
         description: auth token
         type: string
         required:  true
+      - name: skip
+        in: query
+        description: skip number of records
+        required: true
+        default: 0
+        type: number
+      - name: limit
+        type: number
+        required: true
+        in: query
+        default: 10
       responses:
         200:
           description: backtest object

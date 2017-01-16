@@ -10,6 +10,8 @@ exports.createBacktest = function(strategy, values, res, next) {
         strategy: strategy._id,
         settings: values, 
         code: strategy.code,
+        name: strategy.name,
+        strategy_name: strategy.strategy_name,
         status : 'active',
         createdAt : new Date()
     };
@@ -25,6 +27,8 @@ exports.createBacktest = function(strategy, values, res, next) {
 };
 
 exports.getBackTests = function(args, res, next) {
+    const skip = args.skip.value;
+    const limit = args.limit.value;
     const user = args.user;
     const id = args.id.value;
     const fetchDeleted = false;
@@ -35,7 +39,7 @@ exports.getBackTests = function(args, res, next) {
     .then(strategy => {
         return BacktestModel.fetchBacktests({
             strategy: strategy._id
-        });
+        }, limit, skip);
     })
     .then(backtests => {
         res.status(200).json(backtests);
@@ -114,6 +118,8 @@ exports.shareBackTest = function(args, res, next) {
 };
 
 exports.getCommunityBackTest = function(args, res, next) {
+    const skip = args.skip.value;
+    const limit = args.limit.value;
     StrategyModel.fetchStrategy({
         name: 'Community'
     })
@@ -121,7 +127,7 @@ exports.getCommunityBackTest = function(args, res, next) {
         const strategy = strat.toObject();
         return BacktestModel.fetchBacktests({
             strategy: strategy._id
-        });
+        }, limit, skip);
     })
     .then(data => {
         res.status(200).json(data);

@@ -48,8 +48,11 @@ Strategy.statics.fetchStrategy = function(query) {
     return this.findOne(query).populate('user', '_id firstName lastName').execAsync();
 };
 
-Strategy.statics.fetchStrategys = function(query) {
-    return this.find(query).populate('user', '_id firstName lastName').execAsync();
+Strategy.statics.fetchStrategys = function(query, sort_criteria) {
+    if(sort_criteria)
+        return this.find(query).sort(sort_criteria).populate('user', '_id firstName lastName').execAsync();
+    else
+        return this.find(query).populate('user', '_id firstName lastName').execAsync();
 };
 
 Strategy.statics.updateStrategy = function(query, updates) {

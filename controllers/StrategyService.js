@@ -61,7 +61,7 @@ exports.getStrategys = function(args, res, next) {
             }
         ];
     }
-    StrategyModel.fetchStrategys(query)
+    StrategyModel.fetchStrategys(query, args.sort.value)
     .then(strategy => {
         const strategies = [];
         strategy.forEach(str => {

@@ -126,8 +126,8 @@ Thread.statics.fetchThread = function(query) {
 };
 
 
-Thread.statics.getFollowers = function(query) {
-    return this.find(query,{followers : 1})
+Thread.statics.getFollowers = function(query, limit, skip) {
+    return this.find(query,{followers : 1}, { skip: skip, limit: limit })
         .populate('followers', '_id firstName lastName')
         .execAsync()
         .then((thread) => {
