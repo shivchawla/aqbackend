@@ -18,7 +18,8 @@ exports.createStrategy = function(args, res, next) {
         language: values.language,
         description: values.description,
         code: encoded_code,
-        createdAt: new Date()
+        createdAt: new Date(),
+        updatedAt: new Date()
     };
     StrategyModel.saveStrategy(Strategy)
         .then(strategy => {

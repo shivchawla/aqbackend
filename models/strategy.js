@@ -63,6 +63,7 @@ Strategy.statics.updateStrategy = function(query, updates) {
                 keys.forEach(key => {
                     strategy[key] = updates[key];
                 });
+                strategy.updatedAt= new Date();
                 return strategy.save();
             }
         });
