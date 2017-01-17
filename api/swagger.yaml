@@ -510,6 +510,29 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Thread"
+  /thread/{threadId}/addtag:
+    post:
+      tags:
+      - 'thread'
+      summary: like a tag to thread
+      description: like a tag to thread
+      operationId: addTagToThread
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - in: path
+        name: threadId
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Thread"
   /strategy:
     post:
       tags:
@@ -694,41 +717,6 @@ paths:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
   /strategy/{id}/backtests:
-#    post:
-#      tags:
-#      - "backtest"
-#      summary: create a new strategy
-#      description: create a new financial strategy
-#      consumes:
-#      - "application/json"
-#      produces:
-#      - "application/json"
-#      operationId: createBacktest
-#      security:
-#      - api_key: []
-#      parameters:
-#      - name: "aimsquant-token"
-#        in: "header"
-#        description: "auth token"
-#        type: "string"
-#        required: true
-#      - name: id
-#        in: path
-#        required: true
-#        type: string
-#      - name: body
-#        in: body
-#        required: true
-#        schema:
-#          $ref: "#/definitions/Backtest"
-#      responses:
-#        200:
-#          description: "created backtest"
-#        400:
-#          description: "Not Authorized"
-#          schema:
-#            $ref: "#/definitions/Error"
-#      x-swagger-router-controller: "Backtest"
     get:
       tags:
       - backtest

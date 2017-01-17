@@ -119,6 +119,19 @@ exports.followThread = function(args, res, next) {
     });
 };
 
+exports.addTagToThread = function(args, res, next) {
+    const tag = args.tag.value;
+    ThreadModel.updateTags({
+        _id: args.threadId.value
+    }, tag)
+        .then(thread => {
+        return res.status(200).json(thread.tags);
+})
+.catch(err => {
+    next(err);
+});
+};
+
 exports.likeThread = function(args, res, next) {
     const user = args.user;
     ThreadModel.updateThreadLikes({

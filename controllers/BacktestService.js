@@ -3,7 +3,8 @@ require('../utils/spawn');
 const BacktestModel = require('../models/backtest');
 const Community_backtest = require('../models/community_backtest');
 const StrategyModel = require('../models/strategy');
-// const exec = require('../utils/spawn');
+var CryptoJS = require("crypto-js");
+const config = require('config');
 
 exports.createBacktest = function(strategy, values, res, next) {
     const backtest = {
@@ -11,7 +12,7 @@ exports.createBacktest = function(strategy, values, res, next) {
         settings: values, 
         code: strategy.code,
         name: strategy.name,
-        strategy_name: strategy.strategy_name,
+        strategy_name: strategy.name,
         status : 'active',
         createdAt : new Date()
     };
@@ -42,6 +43,9 @@ exports.getBackTests = function(args, res, next) {
         }, limit, skip);
     })
     .then(backtests => {
+        for(var i=0; i<backtests.length; i++){
+            backtests[i].code = CryptoJS.AES.decrypt(backtests[i].code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+        }
         res.status(200).json(backtests);
     })
     .catch(err => {
@@ -55,6 +59,7 @@ exports.getBackTest = function(args, res, next) {
         _id: id
     })
     .then(bt => {
+        bt.code = CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
         res.status(200).json(bt);
     })
     .catch(err => {

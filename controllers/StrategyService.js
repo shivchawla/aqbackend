@@ -41,7 +41,6 @@ exports.execStrategy = function(args, res, next) {
         _id: id
     })
     .then(strategy => {
-        strategy.code = CryptoJS.AES.decrypt(strategy.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
         BacktestService.createBacktest(strategy, values, res, next);
     });
 };
