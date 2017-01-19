@@ -129,7 +129,8 @@ exports.deleteStrategy = function (args, res, next) {
     StrategyModel.deleteStrategy(query)
       .then(() => {
           BacktestModel.removeAllBack({
-              strategy: query._id
+              strategy: query._id,
+              shared : false
           });
           res.status(200).json({id: args.id.value});
       })

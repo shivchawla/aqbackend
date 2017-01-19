@@ -69,7 +69,7 @@ exports.getBackTest = function(args, res, next) {
 
 exports.deleteBackTest = function(args, res, next) {
     const id = args.id.value;
-    BacktestModel.fetchBacktest({_id : id, referenced : true}).then((bacttestObj)=>{
+    BacktestModel.fetchBacktest({_id : id, shared : true}).then((bacttestObj)=>{
         if(bacttestObj){
             BacktestModel.updateBacktestUpdated({_id: id},{deleted : true})
             .then(obj => {
@@ -81,7 +81,8 @@ exports.deleteBackTest = function(args, res, next) {
             });
         }else{
             BacktestModel.removeAllBack({
-                _id: id
+                _id: id,
+                shred:false
             })
             .then(obj => {
                 console.log("Hard Delete")

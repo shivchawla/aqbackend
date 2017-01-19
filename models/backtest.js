@@ -23,7 +23,7 @@ const Backtest = new Schema({
         type: String,
         require: false
     },
-    referenced : {
+    shared : {
         type : Boolean,
         require : false
     },
