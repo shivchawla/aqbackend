@@ -73,7 +73,7 @@ exports.deleteBackTest = function(args, res, next) {
         }else{
             BacktestModel.removeAllBack({
                 _id: id,
-                shred:false
+                shared:false
             })
             .then(obj => {
                 console.log("Hard Delete")
