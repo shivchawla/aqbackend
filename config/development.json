@@ -7,5 +7,7 @@
     "reset_password_url":"http://localhost:8080/user/resetpassword?resetcode=",
     "reset_password_api_url":"http://localhost:3002/api/v2/user/resetpage?code=",
     "user_invitation_url":"http://localhost:8080",
-    "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv"
+    "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv",
+    "redis_port":6379,
+    "redis_path":"localhost"
 }

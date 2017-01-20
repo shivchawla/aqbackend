@@ -3,6 +3,7 @@ const spawn = require('child_process').spawn;
 const StreamSplitter = require('stream-splitter');
 const ws = require('../index').ws;
 const jwtUtil = require('../utils/jwttoken');
+const redisUtils = require('../utils/RedisUtils');
 const BacktestModel = require('../models/backtest');
 const StrategyModel = require('../models/strategy');
 
@@ -12,17 +13,17 @@ function exec(msg, res, cb) {
     let child = '';
     let splitter = '';
     let backtestData = '';
-    
-    console.log('Exec is called too');    
-    
+
+    console.log('Exec is called too');
+
     BacktestModel.fetchBacktest({
         _id: backtestId
     })
     .then(bt => {
         var args = [];
-   
+
         if(bt) {
-            
+
             args = args.concat(['--code', bt.code]);
 
             //console.log(bt.code);
@@ -32,11 +33,11 @@ function exec(msg, res, cb) {
             args = args.concat(['--startdate', settings.startDate]);
             args = args.concat(['--enddate', settings.endDate]);
             args = args.concat(['--universe', settings.universe]);
-            
+
             var advanced = JSON.parse(settings.advanced);
-        
+
             if(advanced.exclude) {
-                args = args.concat(['--exclude', advanced.exclude]);    
+                args = args.concat(['--exclude', advanced.exclude]);
             }
 
             if(advanced.investmentPlan) {
@@ -46,20 +47,20 @@ function exec(msg, res, cb) {
             if(advanced.rebalance) {
                 args = args.concat(['--rebalance', advanced.rebalance]);
             }
-            
+
             if(advanced.cancelPolicy) {
                 args = args.concat(['--cancelpolicy', advanced.cancelPolicy]);
             }
-            
+
             if(advanced.resolution) {
                 args = args.concat(['--resolution', advanced.resolution]);
             }
-            
+
             if(advanced.commission) {
                 var commission = advanced.commission.model + ',' + advanced.commission.value.toString();
                 args = args.concat(['--commission', commission]);
             }
-            
+
             if(advanced.slippage) {
                 var slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
                 args = args.concat(['--slippage', slippage]);
@@ -84,24 +85,41 @@ function exec(msg, res, cb) {
         splitter.on('token', function(token) {
             let data;
             try {
-                
+
                 data = token.toString();
                 console.log(data)
                 const dataJSON = JSON.parse(data);
                 dataJSON.backtestId = msg.backtest_id;
-                
+
                 if (dataJSON.outputtype === 'backtest') {
                     backtestData = dataJSON;
                 } else {
-                    res.send(JSON.stringify(dataJSON));
-                }
+                    redisUtils.getValue(dataJSON.backtestId + '-data', function (err, data) {
+                        if (err || !data) {
+                            redisUtils.insertKeyValue(dataJSON.backtestId + '-data', JSON.stringify(dataJSON));
+                            /**
+                             * expiry in 1 hr
+                             */
+                            redisUtils.setDataExpiry(dataJSON.backtestId + '-data', 3600);
+                            res.send(JSON.stringify(dataJSON));
+                        } else {
+                            data = JSON.parse(data);
+                            data.push(dataJSON);
+                            redisUtils.insertKeyValue(dataJSON.backtestId + '-data', JSON.stringify(data));
+                            /**
+                             * update expiry time
+                             */
+                            redisUtils.setDataExpiry(dataJSON.backtestId + '-data', 3600);
+                            res.send(JSON.stringify(data));
+                        }
+                    }
             } catch (e) {
                 //console.log("Parsing Error");
             }
         });
 
         child.stderr.setEncoding('utf8');
-        
+
         child.stderr.on('data', function(data) {
             console.log(data.trim())
             //cb(data.trim());
@@ -135,6 +153,7 @@ function updateBactestResult(updateData, msg) {
 ws.on('connection', function connection(res) {
     res.on('message', function(message) {
         let msg;
+        console.log(message);
         try {
             msg = JSON.parse(message);
         } catch (e) {
@@ -156,26 +175,47 @@ ws.on('connection', function connection(res) {
                     return;
                 }
 
-                if (msg.action === 'exec-backtest') {
-                    return exec(msg, res, (err, data) => {
-                        var updateData;
-                        
-                        if(err){
-                            updateData = {status : 'exception'};
-                        } else {
-                            
-                            if(data=='') {
-                                 updateData = {status : 'exception'};
-                            } else {
-                                updateData = {output : data, status:'complete'};    
-                            }
-                            
+                redisUtils.getValue(msg['aimsquant-token'] + '-process-count', function (err, data) {
+                     if (err || !data) {
+                        redisUtils.insertKeyValue(msg['aimsquant-token'] + '-process-count', '1');
+                        execProcess(1);
+                    } else {
+                        var count = parseInt(data);
+                        if(count===3){
+                            res.send('exceeded the concurrent process limit');
+                            return;
+                        }else{
+                            redisUtils.insertKeyValue(msg['aimsquant-token'] + '-process-count', count+1);
+                            execProcess(count+1);
                         }
+                    }
+                }
 
+                function execProcess(processCount) {
+                    if (msg.action === 'exec-backtest') {
+                        return exec(msg, res, (err, data) = > {
+                        var updateData;
+
+                        if (err) {
+                            updateData = {status: 'exception'};
+                        } else {
+
+                            if (data == '') {
+                                updateData = {status: 'exception'};
+                            } else {
+                                updateData = {output: data, status: 'complete'};
+                            }
+
+                        }
+                        if(processCount>0)
+                            redisUtils.insertKeyValue(msg['aimsquant-token'] + '-process-count', processCount-1);
                         updateBactestResult(updateData, msg);
                     });
-                } else if (message === 'rl_close') {
-                    return res.send('Not implemented');
+                    }
+
+                    else if (message === 'rl_close') {
+                        return res.send('Not implemented');
+                    }
                 }
             });
     });

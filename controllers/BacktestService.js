@@ -14,11 +14,13 @@ exports.createBacktest = function(strategy, values, res, next) {
         name: strategy.name,
         strategy_name: strategy.name,
         status : 'active',
-        createdAt : new Date()
+        createdAt : new Date(),
+        shared:false,
+        deleted:false,
     };
     return BacktestModel.saveBacktest(backtest)
     .then(backtst => {
-        //console.log(backtst)
+        console.log(backtst)
         res.status(200).json(backtst);
     })
     .catch(err => {
@@ -36,7 +38,7 @@ exports.getBackTests = function(args, res, next) {
     StrategyModel.fetchStrategy({
         user: user._id,
         _id: id
-    },fetchDeleted)
+    }, fetchDeleted)
     .then(strategy => {
         return BacktestModel.fetchBacktests({
             strategy: strategy._id
@@ -136,6 +138,9 @@ exports.getCommunityBackTest = function(args, res, next) {
         }, limit, skip);
     })
     .then(data => {
+        for(var i=0; i<data.length; i++){
+            data[i].code = CryptoJS.AES.decrypt(data[i].code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+        }
         res.status(200).json(data);
     })
     .catch(err => {

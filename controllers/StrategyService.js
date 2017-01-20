@@ -10,7 +10,7 @@ const config = require('config');
 exports.createStrategy = function(args, res, next) {
     const user = args.user;
     const values = args.body.value;
-    var encoded_code= CryptoJS.AES.encrypt(values.code, config.get('encoding_key'));
+    var encoded_code = CryptoJS.AES.encrypt(values.code, config.get('encoding_key'));
     const Strategy = {
         name: values.name,
         user: user._id,
@@ -50,7 +50,7 @@ exports.getStrategys = function(args, res, next) {
     const query = {
         user: user._id
     };
-    const fetchDeleted = false;
+    //const fetchDeleted = false;
     if (args.search.value) {
         query.$or = [
             {
@@ -71,8 +71,9 @@ exports.getStrategys = function(args, res, next) {
         return Promise.map(strategies, function(str) {
             //const stra = str.toObject();
             return BacktestModel.findCount({
-                strategy: str._id
-            },fetchDeleted)
+                strategy: str._id,
+                deleted: false,
+            })
             .then(c => {
                 str.backtests = c;
                 return str;
