@@ -17,7 +17,7 @@ exports.createThread = function(args, res, next) {
 
     ThreadModel.saveThread(thread)
         .then(function(threadSaved) {
-            BacktestModel.updateBacktestUpdated(backtestQuery,{referenced : true})
+            BacktestModel.updateBacktestUpdated(backtestQuery, {shared : true})
             .then(function(updateData){
                 return res.status(200).json({_id : threadSaved._id});
             })

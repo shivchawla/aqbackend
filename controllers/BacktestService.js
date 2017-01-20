@@ -11,11 +11,13 @@ exports.createBacktest = function(strategy, values, res, next) {
         settings: values, 
         code: strategy.code,
         status : 'active',
-        createdAt : new Date()
+        createdAt : new Date(),
+        shared:false,
+        deleted:false,
     };
     return BacktestModel.saveBacktest(backtest)
     .then(backtst => {
-        //console.log(backtst)
+        console.log(backtst)
         res.status(200).json(backtst);
     })
     .catch(err => {
@@ -31,7 +33,7 @@ exports.getBackTests = function(args, res, next) {
     StrategyModel.fetchStrategy({
         user: user._id,
         _id: id
-    },fetchDeleted)
+    }, fetchDeleted)
     .then(strategy => {
         return BacktestModel.fetchBacktests({
             strategy: strategy._id
