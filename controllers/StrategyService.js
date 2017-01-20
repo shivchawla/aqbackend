@@ -40,7 +40,6 @@ exports.execStrategy = function(args, res, next) {
         _id: id
     })
     .then(strategy => {
-        strategy.code = CryptoJS.AES.decrypt(strategy.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
         BacktestService.createBacktest(strategy, values, res, next);
     });
 };
@@ -50,7 +49,7 @@ exports.getStrategys = function(args, res, next) {
     const query = {
         user: user._id
     };
-    const fetchDeleted = false;
+    //const fetchDeleted = false;
     if (args.search.value) {
         query.$or = [
             {
@@ -73,7 +72,7 @@ exports.getStrategys = function(args, res, next) {
             return BacktestModel.findCount({
                 strategy: str._id,
                 deleted: false,
-            }, fetchDeleted)
+            })
             .then(c => {
                 str.backtests = c;
                 return str;

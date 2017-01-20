@@ -3,7 +3,8 @@ require('../utils/spawn');
 const BacktestModel = require('../models/backtest');
 const Community_backtest = require('../models/community_backtest');
 const StrategyModel = require('../models/strategy');
-// const exec = require('../utils/spawn');
+var CryptoJS = require("crypto-js");
+const config = require('config');
 
 exports.createBacktest = function(strategy, values, res, next) {
     const backtest = {
@@ -40,6 +41,9 @@ exports.getBackTests = function(args, res, next) {
         });
     })
     .then(backtests => {
+        for(var i=0; i<backtests.length; i++){
+            backtests[i].code = CryptoJS.AES.decrypt(backtests[i].code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+        }
         res.status(200).json(backtests);
     })
     .catch(err => {
@@ -53,6 +57,7 @@ exports.getBackTest = function(args, res, next) {
         _id: id
     })
     .then(bt => {
+        bt.code = CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
         res.status(200).json(bt);
     })
     .catch(err => {
@@ -127,6 +132,9 @@ exports.getCommunityBackTest = function(args, res, next) {
         });
     })
     .then(data => {
+        for(var i=0; i<data.length; i++){
+            data[i].code = CryptoJS.AES.decrypt(data[i].code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+        }
         res.status(200).json(data);
     })
     .catch(err => {

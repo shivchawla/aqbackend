@@ -139,7 +139,7 @@ exports.replyToThread = function(args, res, next) {
         _id: args.threadId.value
     }, embedThread)
     .then(thread => {
-        BacktestModel.updateBacktestUpdated(backtestQuery,{referenced : true})
+        BacktestModel.updateBacktestUpdated(backtestQuery,{shared : true})
             .then(function(updateData){
                 return res.status(200).json(thread);
             })
