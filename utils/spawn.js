@@ -175,23 +175,25 @@ ws.on('connection', function connection(res) {
                     return;
                 }
 
-                redisUtils.getValue(msg['aimsquant-token'] + '-process-count', function (err, data) {
+                redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
                      if (err || !data) {
-                        redisUtils.insertKeyValue(msg['aimsquant-token'] + '-process-count', '1');
-                        execProcess(1);
+                        redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify([{data:msg, in_process:true}]));
+                        execProcess(msg);
                     } else {
-                        var count = parseInt(data);
-                        if(count===3){
-                            res.send('exceeded the concurrent process limit');
-                            return;
+                        var queue = JSON.parse(data);
+
+                        if(queue.length<3){
+                            queue.push({data:msg, in_process:true});
+                            execProcess(msg);
                         }else{
-                            redisUtils.insertKeyValue(msg['aimsquant-token'] + '-process-count', count+1);
-                            execProcess(count+1);
+                            queue.push({data:msg, in_process:false});
                         }
+                         redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify(queue));
+                     }
                     }
                 }
 
-                function execProcess(processCount) {
+                function execProcess(msg) {
                     if (msg.action === 'exec-backtest') {
                         return exec(msg, res, (err, data) = > {
                         var updateData;
@@ -207,9 +209,27 @@ ws.on('connection', function connection(res) {
                             }
 
                         }
-                        if(processCount>0)
-                            redisUtils.insertKeyValue(msg['aimsquant-token'] + '-process-count', processCount-1);
-                        updateBactestResult(updateData, msg);
+
+                        redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
+                            if (data) {
+                                var queue = JSON.parse(data);
+                                for(var i=0; i<queue.length; i++){
+                                    if(queue[i].data === msg){
+                                        queue.splice(i,1);
+                                        break;
+                                    }
+                                }
+                                for(var i=0; i<queue.length; i++){
+                                    if(queue[i].in_process === false){
+                                        execProcess(queue[i].data);
+                                        queue[i].in_process === true;
+                                        break;
+                                    }
+                                }
+                                redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify(queue));
+                            }
+                            updateBactestResult(updateData, msg);
+                        }
                     });
                     }
 

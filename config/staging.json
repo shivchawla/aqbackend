@@ -7,5 +7,7 @@
     "reset_password_url":"http://staging.aimsquant.com/user/resetpassword?resetcode=",
     "reset_password_api_url":"http://stagingapi.aimsquant.com/api/v2/user/resetpage?code=",
     "user_invitation_url":"http://staging.aimsquant.com",
-    "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv"
+    "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv",
+    "redis_port":6379,
+    "redis_path":"cache.axsomh.0001.aps1.cache.amazonaws.com"
 }
