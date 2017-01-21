@@ -7,5 +7,10 @@
     "reset_password_url":"http://staging.aimsquant.com/user/resetpassword?resetcode=",
     "reset_password_api_url":"http://stagingapi.aimsquant.com/api/v2/user/resetpage?code=",
     "user_invitation_url":"http://staging.aimsquant.com",
-    "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv"
+    "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv",
+
+    "mongo_user":"root",
+    "mongo_pass":"f8kxpR25JTLl",
+    "mongo_path":"35.154.134.30",
+    "mongo_port":27017
 }

@@ -1,11 +1,16 @@
 {
     "hostname":"http://localhost:3002",
-    "mongo_url": "mongodb://localhost:27017/aimsquant_dev",
+//    "mongo_url": "mongodb://localhost:27017/aimsquant_dev",
     "sendgrid_key":"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",
     "activation_url":"http://localhost:8080/user/authMessage?mode=activationComplete",
     "account_activation_api_url":"http://localhost:3002/api/v2/user/activate?code=",
     "reset_password_url":"http://localhost:8080/user/resetpassword?resetcode=",
     "reset_password_api_url":"http://localhost:3002/api/v2/user/resetpage?code=",
     "user_invitation_url":"http://localhost:8080",
-    "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv"
+    "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv",
+
+    "mongo_user":"",
+    "mongo_pass":"",
+    "mongo_path":"localhost",
+    "mongo_port":27017
 }
