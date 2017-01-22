@@ -5,10 +5,13 @@ const ws = require('../index').ws;
 const jwtUtil = require('../utils/jwttoken');
 const BacktestModel = require('../models/backtest');
 const StrategyModel = require('../models/strategy');
+var CryptoJS = require("crypto-js");
+const config = require('config');
+
 
 function exec(msg, res, cb) {
 
-    var backtestId = msg.backtest_id;
+    var backtestId = msg.backtestId;
     let child = '';
     let splitter = '';
     let backtestData = '';
@@ -20,12 +23,14 @@ function exec(msg, res, cb) {
     })
     .then(bt => {
         var args = [];
-   
+
+        if(!bt){
+            throw "InValid Backtest";
+        }
+
         if(bt) {
             
-            args = args.concat(['--code', bt.code]);
-
-            //console.log(bt.code);
+            args = args.concat(['--code', CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
 
             var settings = bt.settings;
             args = args.concat(['--capital', settings.initialCash]);
@@ -71,11 +76,7 @@ function exec(msg, res, cb) {
     })
     .then(argArray => {
 
-        for(var i=0;i<argArray.length;i++){
-            console.log(argArray[i]);
-        }
-
-        child = spawn('/Applications/Julia-0.5.app/Contents/Resources/julia/bin/julia', ["/users/shivkumarchawla/Raftaar/Util/justrun.jl"].concat(argArray), {
+        child = spawn('julia', ["../../raftaar/util/justrun.jl"].concat(argArray), {
             cwd: './utils'
         });
 
@@ -86,9 +87,7 @@ function exec(msg, res, cb) {
             try {
                 
                 data = token.toString();
-                console.log(data)
-                const dataJSON = JSON.parse(data);
-                dataJSON.backtestId = msg.backtest_id;
+                dataJSON.backtestId = msg.backtestId;
                 
                 if (dataJSON.outputtype === 'backtest') {
                     backtestData = dataJSON;
@@ -103,7 +102,6 @@ function exec(msg, res, cb) {
         child.stderr.setEncoding('utf8');
         
         child.stderr.on('data', function(data) {
-            console.log(data.trim())
             //cb(data.trim());
         });
 
@@ -118,8 +116,6 @@ function exec(msg, res, cb) {
         });
     })
     .catch(err => {
-        console.log("Outside");
-        console.log(err);
         cb(err);
         return;
     });
@@ -128,7 +124,7 @@ function exec(msg, res, cb) {
 function updateBactestResult(updateData, msg) {
     console.log('this is called');
     BacktestModel.updateBacktestUpdated({
-        _id: msg.backtest_id
+        _id: msg.backtestId
     }, updateData);
 }
 
@@ -146,7 +142,7 @@ ws.on('connection', function connection(res) {
             return res.send({
                 'aimsquant-token': '',
                 action: 'exec-backtest',
-                backtest_id: 'afd'
+                backtestId: 'afd'
             });
         }
         jwtUtil.verifyToken(msg['aimsquant-token'])
