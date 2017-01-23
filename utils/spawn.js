@@ -81,6 +81,8 @@ function exec(msg, res, cb) {
         });
 
         splitter = child.stdout.pipe(StreamSplitter('\n'));
+        var outputData =[];
+        var time = new Date();
 
         splitter.on('token', function(token) {
             let data;
@@ -94,26 +96,34 @@ function exec(msg, res, cb) {
                 if (dataJSON.outputtype === 'backtest') {
                     backtestData = dataJSON;
                 } else {
-                    redisUtils.getValue(dataJSON.backtestId + '-data', function (err, data) {
-                        if (err || !data) {
-                            redisUtils.insertKeyValue(dataJSON.backtestId + '-data', JSON.stringify(dataJSON));
-                            /**
-                             * expiry in 1 hr
-                             */
-                            redisUtils.setDataExpiry(dataJSON.backtestId + '-data', 3600);
-                            res.send(JSON.stringify(dataJSON));
-                        } else {
-                            data = JSON.parse(data);
-                            data.push(dataJSON);
-                            redisUtils.insertKeyValue(dataJSON.backtestId + '-data', JSON.stringify(data));
-                            /**
-                             * update expiry time
-                             */
-                            redisUtils.setDataExpiry(dataJSON.backtestId + '-data', 3600);
-                            res.send(JSON.stringify(data));
-                        }
+                    outputData.push(dataJSON);
+                    /**
+                     * send complete data in every 500 ms
+                     */
+                    if (new Date() > (time + 500)) {
+                        time = new Date();
+                        redisUtils.getValue(dataJSON.backtestId + '-data', function (err, data) {
+                            if (err || !data) {
+                                redisUtils.insertKeyValue(dataJSON.backtestId + '-data', JSON.stringify(outputData));
+                                /**
+                                 * expiry in 10 min
+                                 */
+                                redisUtils.setDataExpiry(dataJSON.backtestId + '-data', 600);
+                                res.send(JSON.stringify(outputData));
+                            } else {
+                                data = JSON.parse(data);
+                                data = data.concat(outputData);
+                                redisUtils.insertKeyValue(dataJSON.backtestId + '-data', JSON.stringify(data));
+                                /**
+                                 * update expiry time
+                                 */
+                                redisUtils.setDataExpiry(dataJSON.backtestId + '-data', 600);
+                                res.send(JSON.stringify(data));
+                            }
+                        });
                     }
-            } catch (e) {
+                }
+            }catch (e) {
                 //console.log("Parsing Error");
             }
         });
@@ -190,8 +200,8 @@ ws.on('connection', function connection(res) {
                         }
                          redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify(queue));
                      }
-                    }
-                }
+
+                });
 
                 function execProcess(msg) {
                     if (msg.action === 'exec-backtest') {
@@ -229,9 +239,10 @@ ws.on('connection', function connection(res) {
                                 redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify(queue));
                             }
                             updateBactestResult(updateData, msg);
-                        }
+
                     });
                     }
+                }
 
                     else if (message === 'rl_close') {
                         return res.send('Not implemented');

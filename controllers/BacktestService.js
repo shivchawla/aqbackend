@@ -41,7 +41,8 @@ exports.getBackTests = function(args, res, next) {
     }, fetchDeleted)
     .then(strategy => {
         return BacktestModel.fetchBacktests({
-            strategy: strategy._id
+            strategy: strategy._id,
+            deleted:false,
         }, limit, skip);
     })
     .then(backtests => {
