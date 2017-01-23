@@ -18,7 +18,6 @@ exports.createBacktest = function(strategy, values, res, next) {
     };
     return BacktestModel.saveBacktest(backtest)
     .then(backtst => {
-        console.log(backtst)
         res.status(200).json(backtst);
     })
     .catch(err => {
