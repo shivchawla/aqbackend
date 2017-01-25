@@ -76,7 +76,7 @@ function exec(msg, res, cb) {
     })
     .then(argArray => {
 
-        child = spawn('julia', ["../../raftaar/util/justrun.jl"].concat(argArray), {
+        child = spawn('julia', ["../../raftaar/Util/justrun.jl"].concat(argArray), {
             cwd: './utils'
         });
 
@@ -102,8 +102,8 @@ function exec(msg, res, cb) {
 
         child.stderr.setEncoding('utf8');
         
-        child.stderr.on('data', function(data) {
-            //cb(data.trim());
+        child.stderr.on('data', function(data) {  
+            cb(data.trim());
         });
 
         child.on('close', function(code) {
@@ -123,7 +123,6 @@ function exec(msg, res, cb) {
 }
 
 function updateBactestResult(updateData, msg) {
-    console.log('this is called');
     BacktestModel.updateBacktestUpdated({
         _id: msg.backtestId
     }, updateData);
@@ -135,7 +134,6 @@ ws.on('connection', function connection(res) {
         try {
             msg = JSON.parse(message);
         } catch (e) {
-            console.log(e);
             return res.send('not valid json');
         }
 
@@ -158,10 +156,12 @@ ws.on('connection', function connection(res) {
                         var updateData;
                         
                         if(err){
+                            res.send(JSON.stringify({backtestId:msg.backtestId, outputtype:"log", message:"Internal Exception", messagetype:"ERROR"}));
                             updateData = {status : 'exception'};
                         } else {
                             
                             if(data=='') {
+                                 res.send(JSON.stringify({backtestId:msg.backtestId, outputtype:"log", message:"Internal Exception", messagetype:"ERROR"}));   
                                  updateData = {status : 'exception'};
                             } else {
                                 updateData = {output : data, status:'complete'};    
