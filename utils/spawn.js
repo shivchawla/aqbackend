@@ -87,6 +87,7 @@ function exec(msg, res, cb) {
             try {
                 
                 data = token.toString();
+                const dataJSON = JSON.parse(data);
                 dataJSON.backtestId = msg.backtestId;
                 
                 if (dataJSON.outputtype === 'backtest') {

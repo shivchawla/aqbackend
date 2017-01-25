@@ -57,8 +57,13 @@ exports.getBackTest = function(args, res, next) {
         _id: id
     })
     .then(bt => {
-        bt.code = CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
-        res.status(200).json(bt);
+
+        if(bt) {
+            bt.code = CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+            res.status(200).json(bt);
+        } else {
+            res.status(400).json({id:id, message:"BacktestId doesn't exist"});
+        }
     })
     .catch(err => {
         next(err);
