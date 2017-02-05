@@ -76,7 +76,7 @@ function exec(msg, res, cb) {
     })
     .then(argArray => {
 
-        child = spawn('julia', ["../../raftaar/Util/justrun.jl"].concat(argArray), {
+        child = spawn('/Applications/Julia-0.5.app/Contents/Resources/julia/bin/julia', ["../../raftaar/Util/justrun.jl"].concat(argArray), {
             cwd: './utils'
         });
 
@@ -96,14 +96,15 @@ function exec(msg, res, cb) {
                     res.send(JSON.stringify(dataJSON));
                 }
             } catch (e) {
-                //console.log("Parsing Error");
+                //console.log(e);
             }
         });
 
         child.stderr.setEncoding('utf8');
         
         child.stderr.on('data', function(data) {  
-            cb(data.trim());
+            console.log(data.trim());
+            //cb(data.trim());
         });
 
         child.on('close', function(code) {
@@ -118,11 +119,12 @@ function exec(msg, res, cb) {
     })
     .catch(err => {
         cb(err);
-        return;
     });
 }
 
 function updateBactestResult(updateData, msg) {
+    
+    console.log("Updating");
     BacktestModel.updateBacktestUpdated({
         _id: msg.backtestId
     }, updateData);
@@ -159,11 +161,11 @@ ws.on('connection', function connection(res) {
                             res.send(JSON.stringify({backtestId:msg.backtestId, outputtype:"log", message:"Internal Exception", messagetype:"ERROR"}));
                             updateData = {status : 'exception'};
                         } else {
-                            
                             if(data=='') {
                                  res.send(JSON.stringify({backtestId:msg.backtestId, outputtype:"log", message:"Internal Exception", messagetype:"ERROR"}));   
                                  updateData = {status : 'exception'};
                             } else {
+                                console.log("Updating  - 1");
                                 updateData = {output : data, status:'complete'};    
                             }
                             

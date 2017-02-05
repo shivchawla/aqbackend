@@ -70,8 +70,14 @@ Backtest.statics.updateBacktestUpdated = function(query, updateData) {
     return this.update(query,updateData)
         .then(function(backtest) {
             if (backtest) {
-                console.log("Update successful")
-            }
+                console.log("Update successful");
+            } else {
+                console.log("Backtest not found");
+            } 
+
+        })
+        .catch(err => {
+            console.log(err);
         });
 };
 
