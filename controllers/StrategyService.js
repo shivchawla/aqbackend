@@ -109,13 +109,13 @@ exports.getStrategys = function(args, res, next) {
             Promise.all([
                 StrategyModel.createStrategy(user, "Sample Strategy", "A quick tutorial", "sample.txt"),
                 StrategyModel.createStrategy(user, "NIFTY-50 Stock Reversal", "Invest in least performing stocks based on 22 days returns", "reversal.txt"),
-            ]).then(([str1, str2]) => {
-                
-                str1.code = CryptoJS.AES.decrypt(str1.code,config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
-                strategies.push(str1.toObject());
-
-                str2.code = CryptoJS.AES.decrypt(str2.code,config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
-                strategies.push(str2.toObject());
+            ]).then(strs => {
+                strs.forEach(str => {
+                    str.code = CryptoJS.AES.decrypt(str.code,config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+                    strategies.push(str.toObject());
+                });
+                //str2.code = CryptoJS.AES.decrypt(str2.code,config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+                //strategies.push(str2.toObject());
 
                 Promise.resolve(p);
             });

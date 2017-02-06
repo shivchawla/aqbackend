@@ -5,8 +5,6 @@ const Strategy = new Schema({
     name: {
         type: String,
         require: true,
-        index: true,
-        unique: true
     },
     user: {
         type: Schema.Types.ObjectId,
@@ -34,7 +32,8 @@ const Strategy = new Schema({
 });
 
 Strategy.index({
-    name: 1
+    name: 1,
+    user:1,
 }, {
     unique: true
 });
