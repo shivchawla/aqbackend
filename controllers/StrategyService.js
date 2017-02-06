@@ -6,11 +6,21 @@ var constants = require('../utils/Constants.js');
 const Promise = require('bluebird');
 var CryptoJS = require("crypto-js");
 const config = require('config');
+var fs = require('fs');
+var path = require("path");    
+const fname = "../examples/template.txt";
 
 exports.createStrategy = function(args, res, next) {
     const user = args.user;
     const values = args.body.value;
-    var encoded_code = CryptoJS.AES.encrypt(values.code, config.get('encoding_key'));
+    var code = values.code;
+    
+    if(code=="") {   
+        console.log(path.resolve(path.join(__dirname, fname)));
+        code = fs.readFileSync(path.resolve(path.join(__dirname, fname)), 'utf8');
+    }
+
+    var encoded_code = CryptoJS.AES.encrypt(code, config.get('encoding_key'));
     const Strategy = {
         name: values.name,
         user: user._id,
@@ -22,7 +32,7 @@ exports.createStrategy = function(args, res, next) {
     };
     StrategyModel.saveStrategy(Strategy)
         .then(strategy => {
-             strategy.code = CryptoJS.AES.decrypt(strategy.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+            strategy.code = CryptoJS.AES.decrypt(strategy.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
             return res.status(200).json(strategy);
         })
         .catch(err => {
@@ -60,31 +70,60 @@ exports.getStrategys = function(args, res, next) {
             }
         ];
     }
+
+    const strategies = [];
+
+    var p = { then: function(resolve) {
+            return Promise.map(strategies, function(str) {
+                return BacktestModel.findCount({
+                    strategy: str._id,
+                    deleted: false,
+                })
+                .then(c => {
+                    str.backtests = c;
+                    return str;
+                });
+            })
+            .then(strata => {
+                res.status(200).json(strata);
+            })
+            .catch(err => {
+                next(err);
+            });
+        }
+    };
+
     StrategyModel.fetchStrategys(query)
     .then(strategy => {
-        const strategies = [];
-        strategy.forEach(str => {
-            str.code = CryptoJS.AES.decrypt(str.code,config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
-            strategies.push(str.toObject());
-        });
-        return Promise.map(strategies, function(str) {
-            //const stra = str.toObject();
-            return BacktestModel.findCount({
-                strategy: str._id,
-                deleted: false,
-            })
-            .then(c => {
-                str.backtests = c;
-                return str;
+    
+        if(strategy.length > 0) {          
+            strategy.forEach(str => {
+                str.code = CryptoJS.AES.decrypt(str.code,config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+                strategies.push(str.toObject());
             });
-        });
-    })
-    .then(strata => {
-        res.status(200).json(strata);
-    })
-    .catch(err => {
-        next(err);
+
+            Promise.resolve(p);
+            
+        } else {
+
+            Promise.all([
+                StrategyModel.createStrategy(user, "Sample Strategy", "A quick tutorial", "sample.txt"),
+                StrategyModel.createStrategy(user, "NIFTY-50 Stock Reversal", "Invest in least performing stocks based on 22 days returns", "reversal.txt"),
+            ]).then(([str1, str2]) => {
+                
+                str1.code = CryptoJS.AES.decrypt(str1.code,config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+                strategies.push(str1.toObject());
+
+                str2.code = CryptoJS.AES.decrypt(str2.code,config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+                strategies.push(str2.toObject());
+
+                Promise.resolve(p);
+            });
+            
+        }
     });
+
+
 };
 
 exports.getStrategy = function(args, res, next) {

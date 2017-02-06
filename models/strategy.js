@@ -39,6 +39,31 @@ Strategy.index({
     unique: true
 });
 
+var CryptoJS = require("crypto-js");
+var fs = require('fs');
+var path = require('path');
+const config = require('config');
+
+Strategy.statics.createStrategy = function(user, name, desc, fname) { 
+    var fname = "../examples/" + fname;
+
+    var code = fs.readFileSync(path.resolve(path.join(__dirname, fname)), 'utf8');
+    var encoded_code = CryptoJS.AES.encrypt(code, config.get('encoding_key'));
+    const detail = {
+        name: name,
+        user: user._id,
+        type: 'NA',
+        language: 'julia',
+        description: desc,
+        code: encoded_code,
+        createdAt: new Date()
+    };
+
+    const strategy = new this(detail);
+    return strategy.saveAsync();
+        
+};
+
 Strategy.statics.saveStrategy = function(strategyDetails) {
     const strategy = new this(strategyDetails);
     return strategy.saveAsync();
