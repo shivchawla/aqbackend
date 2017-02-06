@@ -23,7 +23,7 @@ function ondata(data, state)
 	# Set the holding in all stock in universe to 100 shares
 	for stock in universe
 		# Function is called every Day/Week/Month based on rebalance frequency
-		setholdingshares(stock, 100)
+		setholdingpct(stock, 1.0)
 	end
 	# Track the portfolio value
 	track("portfoliovalue", state.account.netvalue)

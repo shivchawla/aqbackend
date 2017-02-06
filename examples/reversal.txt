@@ -72,7 +72,7 @@ function ondata(data, state)
 
 	# Create momemtum portfolio
 	for stock in topnames
-		setholdingpct(stock, 0.1)
+		setholdingpct(stock, 0.2)
 	end
 	
 	# Track the portfolio value
