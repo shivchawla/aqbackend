@@ -10,8 +10,8 @@
     "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv",
 
     "mongo_db":"aimsquant_staging",
-    "mongo_user":"appserver_staging",
-    "mongo_pass":"pwd_appserver_staging",
+    "mongo_user":"app_server_staging",
+    "mongo_pass":"pwd_app_server_staging",
     "mongo_path":"35.154.134.30",
     "mongo_port":27017,
     "mongo_debug":true,
