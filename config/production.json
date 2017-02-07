@@ -9,8 +9,10 @@
     "user_invitation_url":"http://www.aimsquant.com",
     "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv",
 
-    "mongo_user":"admin",
-    "mongo_pass":"aimsquant05!",
+    "mongo_db":"aimsquant_prod",
+    "mongo_user":"appserver_prod",
+    "mongo_pass":"pwd_appserver_prod",
     "mongo_path":"35.154.134.30",
-    "mongo_port":27017
+    "mongo_port":27017,
+    "mongo_debug":false,
 }

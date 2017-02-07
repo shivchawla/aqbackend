@@ -2,7 +2,7 @@ const config = require('config');
 const mongoose = require('mongoose');
 const Promise = require('bluebird');
 Promise.promisifyAll(mongoose);
-//mongoose.connect(config.get('mongo_url'));
+
 var opt = {
     user: config.get('mongo_user'),
     pass: config.get('mongo_pass'),
@@ -11,9 +11,9 @@ var opt = {
     }
 };
 
-mongoose.connect(config.get('mongo_path'), 'aimsquant', config.get('mongo_port'), opt);
+mongoose.connect(config.get('mongo_path'), config.get('mongo_db'), config.get('mongo_port'), opt);
 
-mongoose.set('debug', true);
+mongoose.set('debug', config.get("mongo_debug"));
 // var db = mongoose.connection;
 // db.on('error', console.error.bind(console, 'connection error:'));
 // db.once('open', function() {
