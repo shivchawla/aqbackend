@@ -1,5 +1,5 @@
-# Every strategy requires two manadatory functions
-# 1. initialize(): Function to initialize the initial settings and 
+# Every strategy requires two mandatory functions
+# 1. initialize(): Function to initialize settings and 
 #    user defined parameters
 # 2. ondata(): Function to define strategy logic 
 
