@@ -8,9 +8,21 @@ const fs = require('fs');
 const authMiddleware = require('./auth/auth');
 const serverPort = 3002;
 const cors = require('cors');
-const WebSocket = require('ws').Server;
-const server = require('http').createServer(app);
 const config = require('config');
+const WebSocket = require('ws').Server;
+
+var server = '';
+if(process.env.NODE_ENV === 'development') {
+    server = require('http').createServer(app);
+} else {
+   
+    var serverOptions = {
+      key: fs.readFileSync(config.get('privkey')),
+      cert: fs.readFileSync(config.get('cert'))
+    };
+    
+    server = require('https').createServer(serverOptions, app);
+}
 
 const hostname = config.get('hostname');
 // swaggerRouter configuration
