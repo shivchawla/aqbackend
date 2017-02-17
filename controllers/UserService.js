@@ -95,7 +95,7 @@ exports.activateUser = function(args, res) {
 
 exports.resetEmailLink = function(args, res) {
     var code = args.code.value;
-    res.redirect(config.get('reset_password_url') + code);
+    res.redirect(eval('`' + config.get('reset_password_url') + '`'));
 };
 
 exports.resetPassword = function(args, res, next) {
