@@ -306,6 +306,11 @@ paths:
         required: false
         type: boolean
         default: false
+      - name: search
+        in: query
+        description: title search term
+        required: false
+        type: string
       - name: userId
         in: query
         description: posts that the given userId following
@@ -421,6 +426,17 @@ paths:
         name: threadId
         type: string
         required: true
+      - name: skip
+        in: query
+        description: skip number of records
+        required: true
+        default: 0
+        type: number
+      - name: limit
+        type: number
+        required: true
+        in: query
+        default: 10
       responses:
         200:
           description: OK
@@ -494,6 +510,29 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Thread"
+  /thread/{threadId}/addtag:
+    post:
+      tags:
+      - 'thread'
+      summary: like a tag to thread
+      description: like a tag to thread
+      operationId: addTagToThread
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - in: path
+        name: threadId
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Thread"
   /strategy:
     post:
       tags:
@@ -545,6 +584,12 @@ paths:
         description: search strategy by name or description
         type: string
         required: false
+      - name: sort
+        in: query
+        description: sort criteria
+        type: string
+        required: false
+        enum: ['name', 'type', 'language', 'updatedAt asc', 'updatedAt desc']
       responses:
         200:
           description: "strategies"
@@ -672,41 +717,6 @@ paths:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
   /strategy/{id}/backtests:
-#    post:
-#      tags:
-#      - "backtest"
-#      summary: create a new strategy
-#      description: create a new financial strategy
-#      consumes:
-#      - "application/json"
-#      produces:
-#      - "application/json"
-#      operationId: createBacktest
-#      security:
-#      - api_key: []
-#      parameters:
-#      - name: "aimsquant-token"
-#        in: "header"
-#        description: "auth token"
-#        type: "string"
-#        required: true
-#      - name: id
-#        in: path
-#        required: true
-#        type: string
-#      - name: body
-#        in: body
-#        required: true
-#        schema:
-#          $ref: "#/definitions/Backtest"
-#      responses:
-#        200:
-#          description: "created backtest"
-#        400:
-#          description: "Not Authorized"
-#          schema:
-#            $ref: "#/definitions/Error"
-#      x-swagger-router-controller: "Backtest"
     get:
       tags:
       - backtest
@@ -725,6 +735,17 @@ paths:
         in: path
         required: true
         type: string
+      - name: skip
+        in: query
+        description: skip number of records
+        required: true
+        default: 0
+        type: number
+      - name: limit
+        type: number
+        required: true
+        in: query
+        default: 10
       responses:
         200:
           description: "created strategy"
@@ -833,6 +854,17 @@ paths:
         description: auth token
         type: string
         required:  true
+      - name: skip
+        in: query
+        description: skip number of records
+        required: true
+        default: 0
+        type: number
+      - name: limit
+        type: number
+        required: true
+        in: query
+        default: 10
       responses:
         200:
           description: backtest object

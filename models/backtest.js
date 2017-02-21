@@ -11,6 +11,14 @@ const Backtest = new Schema({
         type: Schema.Types.Mixed,
         require: true,
     },
+    name: {
+        type: String,
+        require: false
+    },
+    strategy_name: {
+        type: String,
+        require: false
+    },
     code: {
         type: String,
         require: false
@@ -42,9 +50,10 @@ Backtest.statics.fetchBacktest = function(query) {
     return this.findOne(query).populate('user', '_id firstName lastName').execAsync();
 };
 
-Backtest.statics.fetchBacktests = function(query) {
+Backtest.statics.fetchBacktests = function(query, limit, skip) {
     var project = { strategy : 1,code : 1, status : 1, createdAt : 1,settings :1, 'output.summary' : 1} ;
-    return this.find(query,project).sort( { createdAt: -1 } ).populate('user', '_id firstName lastName').execAsync();
+    return this.find(query,project, { skip: skip, limit: limit })
+        .sort( { createdAt: -1 } ).populate('user', '_id firstName lastName').execAsync();
 };
 
 Backtest.statics.findCount = function(query) {

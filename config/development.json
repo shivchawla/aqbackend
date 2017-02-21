@@ -9,8 +9,16 @@
     "user_invitation_url":"http://localhost:8080",
     "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv",
 
+    "mongo_db":"aimsquant_dev",
     "mongo_user":"",
     "mongo_pass":"",
     "mongo_path":"localhost",
-    "mongo_port":27017
+    "mongo_port":27017,
+    "mongo_debug":true,
+
+    "redis_port":6379,
+    "redis_path":"localhost",
+    
+    "max_num_julia_process" : 3,
+    "time_interval_realtime_output":3000,
 }

@@ -18,5 +18,11 @@
 
     "privkey":"/etc/letsencrypt/live/aimsquant.com/privkey.pem",
     "cert":"/etc/letsencrypt/live/aimsquant.com/cert.pem",
+
+    "redis_port":6379,
+    "redis_path":"localhost",
+    
+    "max_num_julia_process" : 3,
+    "time_interval_realtime_output":3000,
     
 }

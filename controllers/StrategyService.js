@@ -28,7 +28,8 @@ exports.createStrategy = function(args, res, next) {
         language: values.language,
         description: values.description,
         code: encoded_code,
-        createdAt: new Date()
+        createdAt: new Date(),
+        updatedAt: new Date()
     };
     StrategyModel.saveStrategy(Strategy)
         .then(strategy => {
@@ -93,7 +94,7 @@ exports.getStrategys = function(args, res, next) {
         }
     };
 
-    StrategyModel.fetchStrategys(query)
+    StrategyModel.fetchStrategys(query, args.sort.value)
     .then(strategy => {
     
         if(strategy.length > 0) {          
@@ -119,10 +120,9 @@ exports.getStrategys = function(args, res, next) {
 
                 Promise.resolve(p);
             });
-            
+
         }
     });
-
 
 };
 
