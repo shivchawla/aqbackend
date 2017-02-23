@@ -21,4 +21,11 @@
     
     "max_num_julia_process" : 3,
     "time_interval_realtime_output":3000,
+
+
+    "machines" : [{"host": "127.0.0.1", "port":2000},
+                    {"host": "127.0.0.1", "port":2001},]
+                    //{"host": "127.0.0.1", "port":2002},
+                    //{"host": "127.0.0.1", "port":2003}]
+
 }

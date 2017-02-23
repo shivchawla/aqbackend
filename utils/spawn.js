@@ -8,8 +8,33 @@ const BacktestModel = require('../models/backtest');
 const StrategyModel = require('../models/strategy');
 var CryptoJS = require("crypto-js");
 const config = require('config');
+var net = require('net');
+const WebSocket = require('ws');   
+
+var isopen = {};
+
+// Initialzie map for status of each connection
+// Our Julia server can only accept one connection per process
+for(var machine of config.get('machines')) {
+    var conn = 'ws://' + machine.host + ":" + machine.port;
+    isopen[conn] = false
+}
 
 var outputData = {};
+var subscribed = {};
+
+function debounce(fn, delay) {
+  var timer = null;
+  return function () {
+    var context = this, args = arguments;
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      fn.apply(context, args);
+    }, delay);
+  };
+}
+
+
 function exec(msg, res, cb) {
 
     var backtestId = msg.backtestId;
@@ -70,86 +95,122 @@ function exec(msg, res, cb) {
                 var slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
                 args = args.concat(['--slippage', slippage]);
             }
-
         }
 
         return args;
     })
     .then(argArray => {
-
-        child = spawn('/Applications/Julia-0.5.app/Contents/Resources/julia/bin/julia', ["../../raftaar/Util/justrun.jl"].concat(argArray), {
-            cwd: './utils'
-        });
-
-        splitter = child.stdout.pipe(StreamSplitter('\n'));
         
-        outputData[msg.backtestId] = []; 
+        // TO DO: Progressively try to make connections with open julia process
+        // create a string to bool dictioanry
+        let wsClient;
+        let conn;
+        let backtestData = '';
+        var backtestId = msg.backtestId;
 
-        setTimeout(function(){sendData(res, msg.backtestId);}, 
+        outputData[backtestId] = [];
+        
+        var isconnected = false;
+
+        for (var connection in isopen){
+            if (!isopen[connection]) {
+                conn = connection;
+                wsClient = new WebSocket(connection);
+                isconnected = true;
+                break;
+            }
+        }
+
+        if (!isconnected) {
+            return cb(null, {status:"pending"})
+        }
+
+        wsClient.on('open', function open() {
+            console.log('Connection Open');
+            console.log(conn);
+            isopen[conn] = true;
+            
+            wsClient.send(argArray.join("??##"));
+
+            subscribed[msg.backtestId] = true;
+
+            redisUtils.insertKeyValue(msg.backtestId + '-data', JSON.stringify(outputData[backtestId]));
+            
+            setTimeout(function(){sendData(res, msg.backtestId);}, 
                     config.get('time_interval_realtime_output'));
         
-        splitter.on('token', function(token) {
-            let data;
+        });
+
+        wsClient.on('message', function(data) {
+            // CHECK DATA: IF REQUEST WAS REJECTED, TRY WITH ANOTHER JULIA PROCESS 
+            // Handled by checking the pendng status
+            var backtestId = msg.backtestId;
+
             try {
-
-                data = token.toString();
-
                 const dataJSON = JSON.parse(data);
-                dataJSON.backtestId = msg.backtestId;
+                dataJSON.backtestId = backtestId;
                 
                 if (dataJSON.outputtype === 'backtest') {
                     backtestData = dataJSON;
+
                 } else {
-                    outputData[msg.backtestId].push(dataJSON);
+                    outputData[backtestId].push(dataJSON);
                 }
+                
             } catch (e) {
                 console.log(e);
             }
         });
 
-        child.stderr.setEncoding('utf8');
+        wsClient.on('close', function close(code) {
+            console.log('Connection Closed');
+            console.log(conn);
+            isopen[conn] = false;
 
-        child.stderr.on('data', function(data) {  
-            console.log(data.trim());
-            //cb(data.trim());
-        });
-
-        child.on('close', function(code) {
+            // Update the connection status
             if (code === 0) {
                 try {
-                    cb(null, backtestData);
+                    // If success and no data was generated => PENDING 
+                    if(backtestData!='') {
+                        cb(null, {output: backtestData, status:"complete"});
+                    } else {
+                        cb(null, {status:"pending"});
+                    }
                 } catch (e) {
-                    cb(e);
+                    cb(e, {status:"exception"});
                 }
             }
         });
+
     })
     .catch(err => {
-        cb(err);
+        cb(err, {status:"exception"});
     });
 }
 
-function sendData(res, backtestId, oData) {
+function sendData(res, backtestId) {
+       
+    var dataArray = outputData[backtestId];
     
-    if(!oData){
-        oData = outputData[backtestId];
+    if (dataArray) {
+        if(dataArray.length) {
+            redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(dataArray));
+
+            //Check if subscription is TRUE for the backtestId
+            if (subscribed[backtestId]) {
+                // Check if connection is OPEN
+                if (res.readyState === WebSocket.OPEN) {
+                    res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));
+                } else {
+                    console.log("WebSocket is closed");
+                }
+            }
+        }
+
+        setTimeout(function(){sendData(res, backtestId);}, 
+            config.get('time_interval_realtime_output'));
     }
-    
-    if (oData) {    
-        redisUtils.getValue(backtestId + '-data', function (err, data) {
 
-            console.log("lshdhshdshkshdkshdkshd");
-            redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(oData));
-
-            //expiry in 10 min
-            redisUtils.setDataExpiry(backtestId + '-data', 600);
-            res.send(JSON.stringify({backtestId:backtestId, data:oData}));
-
-            setTimeout(function(){sendData(res, backtestId);}, 
-                        config.get('time_interval_realtime_output'));
-
-        });
-    }
 }
 
 
@@ -185,66 +246,110 @@ ws.on('connection', function connection(res) {
                 return;
             }
 
-            redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
-                if (err || !data) {
-                    redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify([{data:msg, in_process:true}]));
-                    execProcess(msg, res);
-                } else {
-                    var queue = JSON.parse(data);
+            // Call function based on action type
+            // Action Types: 
+            // 1. exec-backtest
+            // 2. subscribe-backtest
+            if(msg.action === 'subscribe-backtest') {
+               execSubscription(msg, res); 
+            } else if(msg.action === 'exec-backtest') {
+                redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
+                    if (err || !data) {
+                        redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify([{data:msg, in_process:true}]));
+                        execBacktest(msg, res);
 
-                    if(queue.length < config.get('max_num_julia_process')){
-                        queue.push({data:msg, in_process:true});
-                        execProcess(msg, res);
                     } else {
-                        queue.push({data:msg, in_process:false});
-                    }
-                      
-                    redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify(queue));
-                }
+                        var queue = JSON.parse(data);
 
-            });
+                        if(queue.length < config.get('max_num_julia_process')){
+                            queue.push({data:msg, in_process:true});
+                            execBacktest(msg, res);
+                        } else {
+                            queue.push({data:msg, in_process:false});
+                        }
+                          
+                        redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify(queue));
+                    }
+
+                });
+            }
         });
     });
 });
 
-function execProcess(msg, res) {
+//Function to subscribe WS data from backend to UI
+function execSubscription(msg, res) {
+    var backtestId = msg.backtestId;
+    //Call send data 
+    //Send data automaticaly stops or reject the call ig backtest has completed
+    subscribed[backtestId] = false;
+    sendData(res, backtestId);
+}
+
+//Function to unsubscribe WS data from backend to UI
+function execUnsubscription(msg, res) {
+    var backtestId = msg.backtestId;
+    //Call send data 
+    //Send data automaticaly stops or reject the call ig backtest has completed
+    subscribed[backtestId] = true;
+}
+
+//Function to execute backtest.
+//Pass comandline arguments to free Julia process
+//Collect the output, send realtime updates and save the final output to the DB
+function execBacktest(msg, res) {
     if (msg.action === 'exec-backtest') {
-        return exec(msg, res, (err, data) => {
-            var updateData;
+        return exec(msg, res, (err, updateData) => {
+            var status = updateData.status;
 
             if(err){
                 res.send(JSON.stringify({backtestId:msg.backtestId, outputtype:"log", message:"Internal Exception", messagetype:"ERROR"}));
-                updateData = {status : 'exception'};
-
             } else {
-                if(data=='') {
+                if(status == 'exception') {
                     res.send(JSON.stringify({backtestId:msg.backtestId, outputtype:"log", message:"Internal Exception", messagetype:"ERROR"}));   
-                    updateData = {status : 'exception'};
-                } else {
-                    updateData = {output: data, status: 'complete'};
-                }
 
+                } else if(status != "pending") {
+                    // Send the complete data one last time && delete the data from variable
+                    sendData(res, msg.backtestId);
+                }
             }
 
-            // Send the complete data one last time
-            sendData(res, msg.backtestId, outputData[msg.backtestId]); 
-            // Remove data from global variable
+            updateBacktestResult(updateData, msg);
+
+            // Set expiry for data in redis - 10s
+            console.log("Setting Expiry");
+            redisUtils.setDataExpiry(msg.backtestId + '-data', 10);
+ 
+            //Remove backtestId key from outputData    
             delete outputData[msg.backtestId];
 
             redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
                 if (data) {
+                    
                     var queue = JSON.parse(data);
+                    
                     for(var i=0; i<queue.length; i++) {
+                        
                         var queueMsg = queue[i].data; 
+                        
                         if(queueMsg.backtestId === msg.backtestId && queueMsg.action === msg.action) {
-                            queue.splice(i,1);
+                            
+                            // If request was not completed, update in-process to FALSE
+                            if(status == 'pending') {
+                                queue[i].in_process = false;
+                            } else {
+                                // If request was completed (successfuly of with error)
+                                // dequeue the request
+                                queue.splice(i,1);
+                            }
+
                             break;
                         }
                     }
 
                     for(var i=0; i<queue.length; i++){
                         if(queue[i].in_process === false){
-                            execProcess(queue[i].data, res);
+                            execBacktest(queue[i].data, res);
                             queue[i].in_process === true;
                             break;
                         }
@@ -252,8 +357,6 @@ function execProcess(msg, res) {
 
                     redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify(queue));
                 }
-                
-               updateBacktestResult(updateData, msg);
 
             });
         

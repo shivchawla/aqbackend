@@ -9,7 +9,20 @@ const authMiddleware = require('./auth/auth');
 const serverPort = 3002;
 const cors = require('cors');
 const config = require('config');
-const WebSocket = require('ws').Server;
+const WebSocketServer = require('ws').Server;
+const spawn = require('child_process').spawn;
+
+
+for(var machine of config.get('machines')) {
+    var conn = 'ws://' + machine.host + ":" + machine.port;
+    console.log("Starting Julia server at " + conn);
+    spawn('/Applications/Julia-0.5.app/Contents/Resources/julia/bin/julia', 
+                    ["../raftaar/Util/server.jl", machine.port, machine.host]);
+
+}
+
+//var juliaserver = spawn('/Applications/Julia-0.5.app/Contents/Resources/julia/bin/julia', 
+  //                  ["../raftaar/Util/server.jl", 2000, "localhost"]);
 
 var server = '';
 if(process.env.NODE_ENV === 'development') {
@@ -87,7 +100,7 @@ swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
         console.log('Swagger-ui is available on http://localhost:%d/docs', serverPort);
     });
 });
-exports.ws = new WebSocket({
+exports.ws = new WebSocketServer({
     server: server,
 
     // Firefox 7 alpha has a bug that drops the
