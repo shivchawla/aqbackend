@@ -9,6 +9,8 @@
     "user_invitation_url":"http://localhost:8080",
     "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv",
 
+    "max_advices_per_advisor": 5,
+
     "mongo_db":"aimsquant_dev",
     "mongo_user":"",
     "mongo_pass":"",

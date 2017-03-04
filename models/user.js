@@ -1,7 +1,8 @@
 'use strict';
 const mongoose = require('./index');
 const Schema = mongoose.Schema;
-const User = new Schema({
+const User = new Schema({    
+
     email: {
         type: String,
         require: true,
@@ -35,8 +36,30 @@ const User = new Schema({
         type: String,
         required: true
     },
-    createdAt: Date,
-    updatedAt: Date
+    createdAt: {
+        type: Date,
+        //required: true,
+    },
+    updatedAt: Date,
+
+    investor: {
+        type: Schema.Types.ObjectId,
+        ref: 'Investor'
+    },
+    
+    advisor: {
+        type: Schema.Types.ObjectId,
+        ref: 'Advisor'
+    },
+
+    isInvestor: {
+        type: Boolean
+    },
+
+    isAdvisor: { 
+        type: Boolean,
+    },
+
 });
 
 User.index({
@@ -54,11 +77,36 @@ User.statics.fetchUser = function(query) {
     return this.findOne(query).execAsync();
 };
 
-User.statics.updateUser = function(query, status) {
+User.statics.updateStatus = function(query, status) {
     return this.findOne(query)
         .then(function(user) {
             if (user) {
                 user.active = status;
+                return user.save();
+            }
+        });
+};
+
+User.statics.updateAdvisor = function(query, advisorId) {
+    return this.findOne(query)
+        .then(function(user) {
+            if (user) {
+                console.log(user);
+                user.advisor = advisorId;
+                user.isAdvisor = true;
+                return user.save();
+            }
+        });
+};
+
+User.statics.updateInvestor = function(query, investorId) {
+    return this.findOne(query)
+        .then(function(user) {
+            if (user) {
+                console.log(user);
+                user.investor = investorId;
+                user.isInvestor = true;
+                console.log(user);
                 return user.save();
             }
         });
