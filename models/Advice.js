@@ -2,16 +2,27 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-03-05 00:07:51
+* @Last Modified time: 2017-03-08 22:51:34
 */
 'use strict';
 
 const Portfolio = require('./Portfolio')
-const Performance = require('./Performance')
+const Security = require('./Security')
+
 const Promise = require('bluebird');
 
 const mongoose = require('./index');
 const Schema = mongoose.Schema;
+
+const PortfolioMetrics  = new Schema({
+	date: Date,
+	performance: Schema.Types.Mixed,
+	rating: {
+		type: Number,
+		default: 0.0
+	},
+});
+
 const Advice = new Schema({
 
 	advisor: {
@@ -20,21 +31,39 @@ const Advice = new Schema({
         ref: 'Advisor'
     },
 
-	adviceHistory:[{
-		date: Date,
-		advice: {
-			type: Schema.Types.ObjectId,
-        	require: true,
-        	ref: 'Advice'	
-		}
-	}],
+    benchmark: Security,
 
-    portfolio: {
-        type: Portfolio,
-        require: true,
+    currentPortfolio: {
+    	startDate: Date,
+    	endDate: Date,
+    	lastUpdatedDate:Date,
+    	portfolio: Portfolio, 
+    	metrics: [PortfolioMetrics],
+
+    	netValue: [{
+	    	date: Date,
+	    	value: Number,
+	    }],
     },
 
-    createdDate:{
+    netValue: [{
+    	date: Date,
+    	value: Number,
+    }],
+
+    metrics: {
+    	lastUpatedDate: Date,
+    	values: [PortfolioMetrics],
+	},
+
+    portfolioHistory: {
+    	startDate: Date,
+    	endDate: Date,
+    	portfolio: Portfolio, 
+    	metrics: [PortfolioMetrics]
+    },
+
+    createdDate: {
     	type: Date,
     	require: true,
     },
@@ -44,39 +73,25 @@ const Advice = new Schema({
     	require: true,
     },
 
-    startDate: {
-    	type: Date,
-    	require: true,
-	},
-
-    endDate: {
-    	type: Date,
-    	require: true,
+    approved: {
+    	type:Boolean,
+    	default: false
     },
+
+    approvedDate: Date,
 
     deleted: {
     	type: Boolean,
-    	default: false,
+    	default: false
     },
 
-    deletedDate:{
-    	type: Date,
-    },
+    deletedDate: Date,
 
-    performance: [{
-    	date:Date,
-    	value: Performance,
+    subscribers: [{
+	    type: Schema.Types.ObjectId,
+        require: true,
+        ref: 'Investor'
     }],
-
-    rating: {
-    	value: Number,
-    	default: 0,
-    },
-
-    ratingHistory:[{
-    	date: Date,
-	 	value: Number,
- 	}],
     	
 	subscribersHistory: [{
 		startDate: Date, 
@@ -86,12 +101,6 @@ const Advice = new Schema({
 	        require: true,
 	        ref: 'Investor'
         }
-    }],
-
-    subscribers: [{
-	    type: Schema.Types.ObjectId,
-        require: true,
-        ref: 'Investor'
     }],
 
 	followers: [{
@@ -105,6 +114,7 @@ Advice.statics.saveAdvice = function(adviceDetails) {
     const advice = new this(adviceDetails);
     return advice.save();
 };
+
 
 Advice.statics.getAdvices = function(query, options) {
   	var q = this.find(query)
@@ -145,18 +155,15 @@ Advice.statics.updateAdvice = function(query, updates) {
         .then(advice => {
             if (advice) {
                 
-            	//Copy the advice 
-                const copy = new this(advice);
-                copy._id = mongoose.Types.ObjectId();
-                copy.isNew =  true;
-                copy.adviceHistory = [];
+                if(updates.portfolio) {
+                	var entry = {startDate: advice.updatedDate, endDate: new Date(), portfolio:advice.portfolio};
+                	if(updates.portfolioHistory) {
+            			advice.portfolioHistory.push(entry);
+        			} else {
+        				advice.portfolioHistory = [entry];
+        			}
+    			}
 
-                return Promise.all([copy.save(), advice]);
-            }
-        })
-    	.then(([savedCopy, advice]) => {
-    		if(savedCopy && advice) {
-	            advice.adviceHistory.push(savedCopy._id);
 	            //Now update
 	            const keys = Object.keys(updates);
 	            keys.forEach(key => {
@@ -168,6 +175,47 @@ Advice.statics.updateAdvice = function(query, updates) {
             }
         });
 };
+
+Advice.statics.updateCurrentPortfolioPerformance = function(query, performance) {
+    return this.findOne(query)
+        .then(advice => {
+            if (advice) {
+            	console.log("dsdsdsd");
+				
+				if (advice.currentPortfolio.metrics.map(x => x.date).indexOf(performance.date) == -1) {			            
+					advice.currentPortfolio.metrics.push({date: performance.date, performance: performance.value})
+	            	advice.currentPortfolio.lastUpdatedDate = performance.date;
+            	}
+	            
+	            // Separately add netvalue of current portfolio
+	            if(advice.currentPortfolio.netValue.map(x => x.date).indexOf(performance.date) == -1) {
+	            	advice.currentPortfolio.netValue.push({date: performance.date, value: performance.netValue})
+	            }
+	            
+	            // Separately add netvalue of current portfolio to advice net value
+	            if(advice.netValue.map(x => x.date).indexOf(performance.date) == -1) {
+	            	advice.netValue.push({date: performance.date, value: performance.netValue})
+	            }
+	            return advice.save();
+            }
+        });
+};
+
+
+Advice.statics.updateAdvicePerformance = function(query, performance) {
+    return this.findOne(query)
+        .then(advice => {
+            if (advice) {
+            	
+            	if(advice.metrics.map(x => x.date).indexOf(performance.date) == -1) {
+	            	advice.metrics.values.push({date: performance.date, performance: performance.value});
+            	}
+            	
+            	return advice.save();
+            }
+        });
+};
+
 
 Advice.statics.deleteAdvice = function(query) {
 	return this.findOne(query)
@@ -201,26 +249,6 @@ Advice.statics.updateFollowers = function(query, investorId) {
 
             return advice.save();
         }
-            
-            /*var idx = advice.followers.map(x => x.investor).lastIndexOf(investorId);
-            
-            if(idx == -1) {
-            	//Insert the investor
-            	advice.followers.push({startdate: new Date(), enddate: farfuture(), investor:investorId});
-            } else {
-            	// Get the enddate
-            	var endTime = advice.followers[idx].enddate.getTime();
-            	// Check if already following
-            	if (endTime == farfuture().getTime()) {
-            		//Set end date as NOW
-            		advice.followers[idx].enddate = new Date();
-            	} else {
-            		advice.followers.push({startdate: new Date(), enddate: farfuture(), investor:investorId});
-            	}
-            }
-        }
-        
-        return advice.save();*/
         
     });
 };

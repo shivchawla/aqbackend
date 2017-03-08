@@ -2,13 +2,12 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-03-03 15:49:16
+* @Last Modified time: 2017-03-08 22:52:20
 */
 'use strict';
 
 const mongoose = require('./index');
 const Schema = mongoose.Schema;
-const Performance = require('./Performance');
 
 const Advisor = new Schema({
     user: {
@@ -27,11 +26,13 @@ const Advisor = new Schema({
     	require: true,
     }, 
 
-    approved :{
+    approved: {
 		type: Boolean,
     	require: true,
     	default: false,
     },
+
+    approvedDate: Date,  
 
     advices: [{
 		type: Schema.Types.ObjectId,
@@ -60,12 +61,14 @@ const Advisor = new Schema({
     }],
 
     performance: {
-    	type: Performance,
+    	type: Schema.Types.Mixed,
     },
 
     performanceHistory: [{
     	date: Date,
-    	performance: Performance
+    	performance: {
+    		type: Schema.Types.Mixed,
+    	}
     }],
 
     rating:{
@@ -89,40 +92,6 @@ Advisor.statics.saveAdvisor = function(advisorDetails) {
     const advisor = new this(advisorDetails);
     return advisor.save();
 };
-
-//Update the followers list
-//Keeps a history of followers
-//Adds if not following.
-//Updates enddate if already following
-/*Advisor.statics.updateFollowers = function(query, investorId) {
- 	const investorId = investorId.value;
-    
-    return this.findOne(query)
-    .then(advisor => {
-        if (advisor) {
-            
-            var idx = advisor.followers.map(x => x.user).lasIndexOf(investorId);
-            
-            if(idx == -1) {
-            	//Insert the investor
-            	advisor.followers.push({startdate: now(), enddate: farfuture(), investor:investorId});
-            } else {
-            	// Get the enddate
-            	var endTime = advisor.followers[idx].enddate.getTime();
-            	// Check if already following
-            	if (endTime == farfuture().getTime()) {
-            		//Set end date as NOW
-            		advisor.followers[idx].enddate = new Date();
-            	} else {
-            		advisor.followers.push({startdate: now(), enddate: farfuture(), investor:investorId});
-            	}
-            }
-        }
-        
-        return advisor.save();
-        
-    });
-}*/
 
 //Update the followers list
 //Keeps a history of followers
@@ -263,7 +232,7 @@ Advisor.statics.addAdvice = function(query, adviceId) {
 		return advisor.save();
 	})
 	.then(advisor => {
-		return {user: advisor.user, advice: advisor.advices};
+		return {addedAdvice: adviceId, advices: advisor.advices};
 	})
 	
 };

@@ -1634,6 +1634,7 @@ definitions:
     required:
       - security
       - quantity
+      - avgPrice
     properties:
       security:
         $ref: '#/definitions/Security'
@@ -1641,6 +1642,10 @@ definitions:
         type: number
         format: long
         default: 0
+      avgPrice:
+        type: number
+        format: float
+        default: 0.0
 
 #Portfolio
   Portfolio:
@@ -1657,6 +1662,7 @@ definitions:
     required:
       - startDate
       - endDate
+      - benchmark
       - portfolio
     properties:
       startDate:
@@ -1665,8 +1671,10 @@ definitions:
       endDate:
         type: string
         format: date
+      benchmark:
+        $ref: '#/definitions/Security'
       portfolio:
-          $ref: "#/definitions/Portfolio"
+        $ref: '#/definitions/Portfolio'
 
 #Investor
   Investor:

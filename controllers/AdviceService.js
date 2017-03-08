@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-03-04 23:23:25
+* @Last Modified time: 2017-03-08 21:54:38
 */
 
 'use strict';
@@ -12,6 +12,8 @@ const AdviceModel = require('../models/advice');
 const UserModel = require('../models/user');
 const Promise = require('bluebird');
 const config = require('config');
+const WebSocket = require('ws');   
+const defaultFields = 
 
 exports.createAdvice = function(args, res, next) {
 	const advisorId = args.advisorId.value;
@@ -33,76 +35,85 @@ exports.createAdvice = function(args, res, next) {
 	.then(advisor => {
 		if(advisor.advices) {
 			var advices = advisor.advices;
+
 			if(advices.length < config.get('max_advices_per_advisor')) {
+
 				const advice = {
 			        advisor: advisorId,
-			       	startDate: args.body.value.startDate,
-			       	endDate: args.body.value.endDate,
+			       	currentPortfolio: {
+			       		startDate: args.body.value.startDate,
+			       		endDate: args.body.value.endDate,
+			       		portfolio: args.body.value.portfolio
+		       		},
+		       		benchmark: args.body.value.benchmark,
 			       	createdDate: new Date(),
 			       	updatedDate: new Date(),
-			       	portfolio: args.body.value.portfolio
+			       	
 			    };
-			
-			    return AdviceModel.saveAdvice(advice);
-
+						
+				return _validateAndSaveAdvice(advice);
 			} else {
 				return res.status(400).json({advisorId: advisorId, message:"Cannot add more advices", errorCode: 5});
 			}
 		}
 	})
     .then(advice => {
+    	console.log(advice);
+    	console.log("here already");
     	if(advice) {
 			return AdvisorModel.addAdvice({
         		_id: advisorId
 			}, advice._id);
+		} else {
+			return res.status(400).json({message: "Invalid Portfolio"});
 		}		
     })
     .then(advice => {
     	return res.status(200).json(advice);
     })
-    .catch(err => {
+	.catch(err => {
     	next(err);
     });
-
 };
 
 exports.updateAdvice = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const advisorId = args.advisorId.value;
 
-	const user = args.user;
+	const userId = args.user._id;
 
 	const updates = args.body.value;
 	updates.updatedDate = new Date();
 
 	//Only author/advisor can update the advice
-	UserModel.fetchUser({_id:user_id})
+	UserModel.fetchUser({_id:userId})
 	.then(user => {
 		if(user) {
 			if(user.isAdvisor && user.advisor == advisorId ) {
 				return AdvisorModel.getAdvisor({_id: advisorId}, {fields:'advices'})
-			} else {
+					
+			} else { 
 				return res.status(400).json({advisorId: advisorId, message:"Not Authorized", errorCode: 1});
-			}
+			} 
 		} else {
 			return res.status(400).json({userId: userId, message:"User not found"}); 
 		}
 	})
 	.then(output => {
 		if(output.advices) {
-			var ids = output.advices;
-			if(ids.indexOf(adviceId) != -1) {
-				return AdviceModel.updateAdvice({_id: adviceId}, updates)
+			var adviceIds = output.advices;
+			if(adviceIds.indexOf(adviceId) != -1) {
+				return _updateAdvice(adviceId, updates);	
 			}
 		}
 
 		return res.status(400).json({advisorId:advisorId, message:"No Advice found"});
 	})
-    .then(advice => {
-    	if(advice) {	
-    		return res.status(200).json(advice);
+	.then(advice => {
+		if(advice) {	
+			return res.status(200).json(advice);
 		}
-    })
+	})
     .catch(err => {
     	next(err);
     });
@@ -114,6 +125,10 @@ exports.getAdvices = function(args, res, next) {
     
 	const options = {};
     options.fields = args.fields.value;
+
+    if (!options.fields) {
+    	options.fields = 'advisor metrics netValue createdDate updatedDate approved';
+    }
 
     //Only the investor and author can see the advice history
     UserModel.fetchUser({_id:userId})
@@ -144,7 +159,7 @@ exports.getAdvices = function(args, res, next) {
 	  		return advices;
 	  	} else {
 	  		
-	  		// Filter advices if user is not the advisor himself or if not subssribed
+	  		// Filter advices if user is not the advisor himself or if not subscribed
 			// If user in an investor, he must first subscribe to the idea
 	  		var advicesForInvestor = [];
 	  		advices.forEach(advice => {
@@ -161,7 +176,6 @@ exports.getAdvices = function(args, res, next) {
         	});
 
 	  		return advicesForInvestor;
-
 	  	}
 
 	  	return res.status(400).json({message:"No advices found"});
@@ -182,7 +196,16 @@ exports.getAdvice = function(args, res, next) {
 
 	const options = {};
     options.fields = args.fields.value;
-    
+
+    if (!options.fields) {
+    	options.fields = 'advisor currentPortfolio metrics netValue createdDate updatedDate approved';
+    } else {
+    	options.fields = options.fields.replace(',',' ');
+    	if(options.fields.indexOf('approved') == -1) {
+    		options.fields.concat(' approved');
+    	}
+    }
+
     //Only the investor and author can see the advice history
     UserModel.fetchUser({_id:userId})
     .then(user => {
@@ -205,10 +228,9 @@ exports.getAdvice = function(args, res, next) {
 				return Promise.all([AdviceModel.getAdvice({_id: adviceId}, options),
 		  						UserModel.fetchUser({_id: userId})]);
 		  	} 
-	  	}
-		
-		return res.status(400).json({advisorId: advisorId, adviceId: adviceId, message:"No Advice found"});
-	
+	  	} else {
+			return res.status(400).json({advisorId: advisorId, adviceId: adviceId, message:"No Advice found"});
+		}
   	})
   	.then(([advice, user]) => {
 	  	if(advice && user) {
@@ -223,10 +245,26 @@ exports.getAdvice = function(args, res, next) {
 	            //************
 	            //TODO: create seprate set of options for subscribed and unsubscribed investor
 	            //************
-	            if (subscribers.indexOf(user.investor) != -1) {
-	            	return advice;
+	            
+	            if(advice.approved) {
+		            if (subscribers.indexOf(user.investor) != -1) {
+		            	return advice;
+		            } else {
+		            	//filter and send only the performance
+		            	var keys = ['advisor', 'metrics', 'netValue', 'createdDate', 'updatedDate', 'approved'];
+		            	
+		            	var filteredAdvice = {};
+		            	keys.forEach(key => {
+		            		if(advice[key]) {
+		            			filteredAdvice[key] = advice[key];
+	            			}
+		            	});
+
+		            	return filteredAdvice;	
+		            	
+		            }
 	            } else {
-	            	return advice;
+	            	return res.status(400).json({advisorId:advisorId, adviceId: adviceId, message:"Advice not approved"});
 	            }
 		  	}
 	  	}
@@ -235,12 +273,30 @@ exports.getAdvice = function(args, res, next) {
 
   	})
   	.then(advice => {
-		return res.status(200).json(advice);
+
+  		if (advice) {
+
+  			if (options.fields.indexOf('metrics') != -1 || options.fields.indexOf('currentPortfolio') != -1) {
+  				
+  				if (options.fields.indexOf('metrics') != -1) {
+  					return _updateAdviceWithPerformance(advice);
+				} else {
+					return _updateAdviceWithCurrentPortfolioPerformance(advice);
+				}
+			}
+		
+			return advice;	 
+		
+		} else {
+			return res.status(400).json({message:'No advice found'});
+		}
+	})	
+	.then(advice => {
+		return res.status(200).json({advice});
 	})
   	.catch(err => {
     	next(err);
-    });
-	
+    });	
 };
 
 exports.getAdviceHistory = function(args, res, next) {
@@ -250,6 +306,10 @@ exports.getAdviceHistory = function(args, res, next) {
 
 	const options = {};
     options.fields = args.fields.value;
+
+    if (!options.fields) {
+    	options.fields = 'advisor portfolioHistory performanceHistory ratingHistory';
+    }
     
     //Only the investor and author can see the advice history
     UserModel.fetchUser({_id:userId})
@@ -268,27 +328,11 @@ exports.getAdviceHistory = function(args, res, next) {
 		if(output.advices) {
 			var ids = output.advices;
 			if(ids.indexOf(adviceId) != -1) {
-				return AdviceModel.getAdvice({_id:adviceId}, "adviceHistory")
+				return AdviceModel.getAdvice({_id:adviceId}, options)
 			} 
-		} 
-
-		return res.status(400).json({advisorId:advisorId, adviceId:adviceId, message:"No Advice found"});
-
-	})
-	.then(adviceHistoryIds => {
-		if(adviceHistoryIds) {
-			var advices = [];
-			adviceHistoryIds.forEach(id => {
-
-				//TODO: update optins is requested by an investor
-
-				advices.push(AdviceModel.getAdvice({_id: id}, options));
-			});
-
-			return Promise.all(advices);
+		} else { 
+			return res.status(400).json({advisorId:advisorId, adviceId:adviceId, message:"No Advice found"});
 		}
-
-		return res.status(400).json({advisorId:advisorId, adviceId:adviceId, message:"No Advice found"});
 	})
 	.then(adviceHistory => {
 		if(adviceHistory) {
@@ -421,5 +465,267 @@ exports.subscribeAdvice = function(args, res, next) {
         next(err);
     });
 };
+
+function _updateAdvice(adviceId, updates) {
+	
+	return new Promise(function(resolve, reject) {
+
+	if(updates.portfolio) {
+		//validate the portfolio
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
+
+		wsClient.on('open', function open() {
+            console.log('Connection Open');
+            console.log(connection);
+            var msg = JSON.stringify({action:"validate_portfolio", 
+            				portfolio: updates.portfolio});
+
+            console.log(msg);
+
+         	wsClient.send(msg);
+        });
+
+
+        wsClient.on('message', function(msg) {
+        	console.log('On validation message');
+        	console.log(msg);
+
+        	var data = JSON.parse(msg);
+			
+			console.log(data);
+        	
+        	wsClient.close();
+
+        	if (data["valid"] == true) {
+        		resolve(AdviceModel.updateAdvice({_id: adviceId}, updates));
+        		
+		    }
+	    });
+	} else {
+		resolve(AdviceModel.updateAdvice({_id: adviceId}, updates));
+	}
+
+	});
+	
+}
+
+function _validateAndSaveAdvice(advice) {
+
+	return new Promise(function(resolve, reject) {
+
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
+
+		wsClient.on('open', function open() {
+            console.log('Connection Open');
+            console.log(connection);
+            var msg = JSON.stringify({action:"validate_portfolio", 
+            				portfolio: advice.currentPortfolio.portfolio});
+
+         	wsClient.send(msg);
+        });
+
+        wsClient.on('message', function(msg) {
+        	console.log('On validation message');
+        	console.log(msg);
+
+        	var data = JSON.parse(msg);
+			
+			console.log(data);
+        	
+        	wsClient.close();
+
+        	if (data["valid"] == true) {
+			    resolve(AdviceModel.saveAdvice(advice))
+		    } else {
+		    	reject();
+		    }
+	    });
+    });
+}
+
+
+function _updateAdviceWithCurrentPortfolioPerformance(advice) {
+	
+	var needPerformanceUpdate = false;
+	var endDate = new Date();
+
+	if (advice.currentPortfolio.lastUpdatedDate) {
+		
+		var lastUpdatedDate = advice.currentPortfolio.lastUpdatedDate;
+		//lastUpdatedDate.setHours(0, 0, 0, 0);
+
+		console.log(lastUpdatedDate.getTime());
+		console.log(advice.currentPortfolio.endDate.getTime());
+
+		if (lastUpdatedDate.getTime() < advice.currentPortfolio.endDate.getTime()) {
+
+			lastUpdatedDate.setDate(lastUpdatedDate.getDate() + 1);
+
+			var today = new Date();
+			today.setHours(0, 0, 0, 0);
+
+			if(today.getTime() > lastUpdatedDate.getTime()) {
+				needPerformanceUpdate = true;
+			}
+		}
+
+	} else {
+		console.log("Hola");
+		needPerformanceUpdate = true;
+		endDate = advice.currentPortfolio.endDate;
+	}
+
+
+	return new Promise(function(resolve, reject) {
+		if(needPerformanceUpdate) {
+
+			var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+			var wsClient = new WebSocket(connection);
+
+			wsClient.on('open', function open() {
+		        console.log('Connection Open');
+		        console.log(connection);
+		        var msg = JSON.stringify({action:"compute_portfolio_performance", 
+		        				portfolio: advice.currentPortfolio.portfolio, startDate:advice.currentPortfolio.startDate, endDate:endDate});
+
+		     	wsClient.send(msg);
+		    });
+
+		    wsClient.on('message', function(msg) {
+		    	var data = JSON.parse(msg);
+		    	wsClient.close();
+
+		    	if(data['error'] == '' && data['performance']) {
+		    		
+		    		console.log(data);
+
+		    		// reformat date to JS
+		    		data['performance'].date = new Date(data['performance'].date);
+	    			resolve(AdviceModel.updateCurrentPortfolioPerformance(advice._id, data['performance']));
+		    		
+				} else {
+					resolve(advice);
+				}
+			});
+		} else {
+			return resolve(advice);
+		}
+	});
+}
+
+
+/*function _updateAdvicePortfolioValue(advice) {
+	var needPeformanceoUpdate = false;
+	var endDate = new Date();
+
+	if (advice.metrics && advice.metrics.length > 0) {
+		var length = advice.metrics.length;
+
+		var lastPerformanceDate = advice.metrics[length - 1].date;
+		lastPerformanceDate.setHours(0, 0, 0, 0);
+		lastPerformanceDate.setDate(lastPerformanceDate.getDate() + 1);
+
+		var today = new Date()
+		today.setHours(0, 0, 0, 0);
+
+		if(today.getTime() > lastPerformanceDate.getTime()) {
+			needPerformanceUpdate = true;
+		}
+
+	} else {
+		needPerformanceUpdate = true;
+	}
+
+
+
+}*/
+
+function _updateAdviceWithAdvicePerformance(advice) {
+			
+	var needPerformanceUpdate = false;
+	var endDate = new Date();
+
+	if (advice.metrics.lastUpdatedDate) {
+		
+		var lastUpdatedDate = advice.metrics.lastUpdatedDate;
+		lastUpdatedDate.setDate(lastUpdatedDate.getDate() + 1);
+
+		var today = new Date();
+		today.setHours(0, 0, 0, 0);
+
+		if(today.getTime() > lastUpdatedDate.getTime()) {
+			needPerformanceUpdate = true;
+		}
+
+	} else {
+		needPerformanceUpdate = true;
+	}
+					
+	
+	return new Promise(function(resolve, reject) {
+		if (needPerformanceUpdate) {
+		// Create websocket connection and 
+		// ask Julia process to compute the 
+		// performance
+		
+			var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+			var wsClient = new WebSocket(connection);
+
+			wsClient.on('open', function open() {
+		        console.log('Connection Open');
+		        console.log(connection);
+
+		        console.log(advice);
+		        console.log(advice.netValue);
+		        console.log(typeof(advice.netValue));
+
+		        var msg = JSON.stringify({action:"compute_performance_netvalue", 
+	        							data: {netvalue: advice.netValue.map(x => x.value), 
+		        								dates: advice.netValue.map(x => x.date), benchmark: advice.benchmark}
+	        							});
+
+		     	wsClient.send(msg);
+		    });
+
+		    wsClient.on('message', function(msg) {
+		    	var data = JSON.parse(msg);
+		    	wsClient.close();
+
+		    	if(data['error'] == '' && data['performance']) {
+		    		
+		    		console.log(data);
+		    		if(data['performance'].date.getTime() > advice.metrics.lastUpdatedDate.getTime()) {
+		    			resolve(AdviceModel.updateAdvicePerformance(advice._id, data['performance']));
+		    		} else {
+		    			resolve(advice)
+		    		}		
+		    		
+				} else {
+					resolve(advice);
+				}
+			});
+		
+		} else {
+			resolve(advice);
+		}
+	});
+} 
+
+function _updateAdviceWithPerformance(advice) {
+
+	return _updateAdviceWithCurrentPortfolioPerformance(advice)
+	.then(advice => {
+		return _updateAdviceWithAdvicePerformance(advice);
+	})
+}
+
+
+
+
+
+
+
 
 
