@@ -10,6 +10,7 @@ function validate_portfolio(portfolio)
   return true
 end
 
+include("portfolio.jl")
 include("performance.jl")
 
 port = 6000
@@ -93,30 +94,75 @@ wsh = WebSocketHandler() do req, client
 
               performance = JSON.parse(JSON.json(performance))
 
-              parsemsg["performance"] = Dict("date" => endDate, "netValue" => performance["portfoliostats"]["netvalue"], "value" => performance)
+              parsemsg["performance"] = Dict("date" => endDate, "value" => performance)
               parsemsg["error"] = error
 
             elseif action == "compute_performance_netvalue"
               performance = Dict{String, Any}()
               
-              lastdate = DateTime() 
-
               try
-                data = parsemsg["data"]
-                lastdate = data["dates"][end]
-                println(data)
-              
-                performance = compute_performance(data["netvalue"], data["dates"], data["benchmark"])
-                #println(JSON.json(performance))
+                
+                netValue = convert(Vector{Float64}, parsemsg["netValue"])
+                benchmark = parsemsg["benchmark"]["ticker"]
+                dates = parsemsg["dates"]
+
+                endDate = dates[end]
+
+                dates = [Date(DateTime(date[1:end-1])) for date in dates]
+
+                println(netValue)
+                println(benchmark)
+                println(dates)
+
+                performance = compute_performance(netValue, dates, benchmark)
+                
+                performance = JSON.parse(JSON.json(performance))
+                parsemsg["performance"] = Dict("date" => endDate, "value" => performance)
+                error = ""
+                
               catch err
                 println(err)
                 error = "error"
               end
   
-              parsemsg["performance"] = Dict("date" => lastdate, "value" => JSON.parse(JSON.json(performance)))
               parsemsg["error"] = error
 
-            elseif action == "compute_portfoliovalue"
+            elseif action == "compute_portfolio_value_history"
+
+              try
+                portfolioHistory = parsemsg["portfolioHistory"]
+
+                println(portfolioHistory)
+
+                println(typeof(portfolioHistory))
+
+                (netValue, dates) = compute_portfolio_value_history(portfolioHistory)
+
+                parsemsg["netValue"] = Dict("dates" => dates, "values" => netValue)
+                parsemsg["error"] = ""
+
+              catch err
+                println(err)
+                error = "error"
+              end
+
+            elseif action == "compute_portfolio_value_period"
+               
+              try
+                portfolio = parsemsg["portfolio"]
+                startDate = parsemsg["startDate"]
+                endDate = parsemsg["endDate"]
+                
+                (netValue, dates) = compute_portfolio_value_period(portfolio, startDate, endDate)
+                parsemsg["netValue"] = Dict("dates" => dates, "values" => netValue)
+                parsemsg["error"] = ""
+                
+              catch err
+                println(err)
+                error = "error"
+              end
+
+            elseif action == "compute_portfolio_value_date"
                
                netvalue = 0.0
                lastdate = DateTime()
@@ -127,25 +173,28 @@ wsh = WebSocketHandler() do req, client
                 println(data)
               
                 netvalue = compute_portfoliovalue(portfolio, date)
-                #println(JSON.json(performance))
+                if (lastdate == DateTime())
+                  parsemsg["netvalue"] = Dict("date" => lastdate, "value" => netvalue)
+                  parsemsg["error"] = ""
+                end
+
               catch err
+              
                 println(err)
                 error = "error"
+              
               end
               
-              if (lastdate == DateTime())
-                parsemsg["netvalue"] = Dict("date" => lastdate, "value" => netvalue)
-              end
-
               parsemsg["error"] = error
- 
 
             elseif action == "compute_attribution"
-            
+              
+
+
             else
 
               parsemsg["error"] = "Invalid action"
-
+            
             end
 
             #println(parsemsg)

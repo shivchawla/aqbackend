@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:53:13
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-03-08 22:53:01
+* @Last Modified time: 2017-03-09 13:14:20
 */
 
 'use strict';
@@ -68,12 +68,12 @@ const Investor = new Schema({
     }],
 
     performance: {
-    	type: Performance 
+    	type: Schema.Types.Mixed,
     },
 
     performanceHistory: [{
     	date: Date,
-    	performance: Performance
+    	performance: Schema.Types.Mixed,
     	
     }],
 });

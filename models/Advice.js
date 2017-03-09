@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-03-08 22:51:34
+* @Last Modified time: 2017-03-09 22:03:25
 */
 'use strict';
 
@@ -14,13 +14,15 @@ const Promise = require('bluebird');
 const mongoose = require('./index');
 const Schema = mongoose.Schema;
 
-const PortfolioMetrics  = new Schema({
+const PerformanceMetrics  = new Schema({
 	date: Date,
 	performance: Schema.Types.Mixed,
-	rating: {
-		type: Number,
-		default: 0.0
-	},
+	rating: Number,
+});
+
+const PortfolioStats  = new Schema({
+	date: Date,
+	netValue: Number,
 });
 
 const Advice = new Schema({
@@ -36,32 +38,19 @@ const Advice = new Schema({
     currentPortfolio: {
     	startDate: Date,
     	endDate: Date,
-    	lastUpdatedDate:Date,
-    	portfolio: Portfolio, 
-    	metrics: [PortfolioMetrics],
-
-    	netValue: [{
-	    	date: Date,
-	    	value: Number,
-	    }],
+    	portfolio: Portfolio,
+    	performanceMetrics: [PerformanceMetrics],
+    	portfolioStats: [PortfolioStats] 
     },
 
-    netValue: [{
-    	date: Date,
-    	value: Number,
-    }],
+	performanceMetrics: [PerformanceMetrics], // this is difficult (depends on)
+	portfolioStats: [PortfolioStats],
 
-    metrics: {
-    	lastUpatedDate: Date,
-    	values: [PortfolioMetrics],
-	},
-
-    portfolioHistory: {
+    portfolioHistory: [{
     	startDate: Date,
     	endDate: Date,
     	portfolio: Portfolio, 
-    	metrics: [PortfolioMetrics]
-    },
+    }],
 
     createdDate: {
     	type: Date,
@@ -112,6 +101,9 @@ const Advice = new Schema({
 
 Advice.statics.saveAdvice = function(adviceDetails) {
     const advice = new this(adviceDetails);
+
+    advice.portfolioHistory.push(adviceDetails.currentPortfolio);
+
     return advice.save();
 };
 
@@ -182,33 +174,80 @@ Advice.statics.updateCurrentPortfolioPerformance = function(query, performance) 
             if (advice) {
             	console.log("dsdsdsd");
 				
-				if (advice.currentPortfolio.metrics.map(x => x.date).indexOf(performance.date) == -1) {			            
-					advice.currentPortfolio.metrics.push({date: performance.date, performance: performance.value})
-	            	advice.currentPortfolio.lastUpdatedDate = performance.date;
+				if(advice.currentPortfolio.performanceMetrics.map(x => x.date).indexOf(performance.date) == -1) {
+	            	advice.currentPortfolio.performanceMetrics.push({date: performance.date, performance: performance.value, rating:0.0});
             	}
-	            
-	            // Separately add netvalue of current portfolio
-	            if(advice.currentPortfolio.netValue.map(x => x.date).indexOf(performance.date) == -1) {
-	            	advice.currentPortfolio.netValue.push({date: performance.date, value: performance.netValue})
-	            }
-	            
-	            // Separately add netvalue of current portfolio to advice net value
-	            if(advice.netValue.map(x => x.date).indexOf(performance.date) == -1) {
-	            	advice.netValue.push({date: performance.date, value: performance.netValue})
-	            }
+            	
 	            return advice.save();
             }
         });
 };
 
+Advice.statics.updateAdvicePortfolioStats = function(query, portfolioStats) {
+    return this.findOne(query)
+        .then(advice => {
+            if (advice) {
+            	
+            	portfolioStats.values = portfolioStats.values[0];
+            	console.log(portfolioStats.values);
+            	console.log(typeof(portfolioStats.values));
+
+            	if(portfolioStats.values.length > 0) {
+            		// if new portfolioStats has new length
+            		if (portfolioStats.values.length > advice.portfolioStats.length) {
+	            		advice.portfolioStats = [];
+	            		
+	            		if (portfolioStats.values.length == portfolioStats.dates.length) {
+	            			var n = portfolioStats.values.length;
+	            			for(var i=0;i<n;i++){
+	            				advice.portfolioStats.push({date: new Date(portfolioStats.dates[i]),
+	            										netValue: portfolioStats.values[i]});
+	            			}	
+	            		}
+            		}
+        		}
+
+            	return advice.save();
+            }
+        });
+};
+
+Advice.statics.updateCurrentPortfolioPortfolioStats = function(query, portfolioStats) {
+    return this.findOne(query)
+        .then(advice => {
+            if (advice) {
+            	
+            	portfolioStats.values = portfolioStats.values[0];
+            	console.log(portfolioStats.values);
+            	console.log(typeof(portfolioStats.values));
+
+            	if(portfolioStats.values.length > 0) {
+            		// if new portfolioStats has new length
+            		if (portfolioStats.values.length > advice.currentPortfolio.portfolioStats.length) {
+	            		advice.currentPortfolio.portfolioStats = [];
+	            		
+	            		if (portfolioStats.values.length == portfolioStats.dates.length) {
+	            			var n = portfolioStats.values.length;
+	            			for(var i=0;i<n;i++){
+	            				advice.currentPortfolio.portfolioStats.push({date: new Date(portfolioStats.dates[i]),
+	            										netValue: portfolioStats.values[i]});
+	            			}	
+	            		}
+            		}
+        		}
+
+            	return advice.save();
+            }
+        });
+};
 
 Advice.statics.updateAdvicePerformance = function(query, performance) {
     return this.findOne(query)
         .then(advice => {
             if (advice) {
             	
-            	if(advice.metrics.map(x => x.date).indexOf(performance.date) == -1) {
-	            	advice.metrics.values.push({date: performance.date, performance: performance.value});
+            	if(advice.performanceMetrics.map(x => x.date).indexOf(performance.date) == -1) {
+	            	advice.performanceMetrics.push({date: performance.date, performance: performance.value, rating: 0.0});
             	}
             	
             	return advice.save();
@@ -293,6 +332,13 @@ Advice.statics.updateSubscribers = function(query, investorId) {
 
 function farfuture() {
 	return new Date(2200, 1, 1);
+}
+
+function _comparedates(d1, d2) {
+	t1 = d1.getTime();
+	t2 = d1.getTime();
+
+	return (t1 < t2) ? -1 : (t1 == t2) ? 0 : 1;
 }
 
 const AdviceModel = mongoose.model('Advice', Advice);

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-03-08 21:54:38
+* @Last Modified time: 2017-03-09 22:53:07
 */
 
 'use strict';
@@ -198,7 +198,7 @@ exports.getAdvice = function(args, res, next) {
     options.fields = args.fields.value;
 
     if (!options.fields) {
-    	options.fields = 'advisor currentPortfolio metrics netValue createdDate updatedDate approved';
+    	options.fields = 'advisor portfolioHistory currentPortfolio portfolioStats performanceMetrics createdDate updatedDate approved';
     } else {
     	options.fields = options.fields.replace(',',' ');
     	if(options.fields.indexOf('approved') == -1) {
@@ -251,7 +251,7 @@ exports.getAdvice = function(args, res, next) {
 		            	return advice;
 		            } else {
 		            	//filter and send only the performance
-		            	var keys = ['advisor', 'metrics', 'netValue', 'createdDate', 'updatedDate', 'approved'];
+		            	var keys = ['advisor' , 'portfolioStats', 'performanceMetrics', 'createdDate', 'updatedDate', 'approved'];
 		            	
 		            	var filteredAdvice = {};
 		            	keys.forEach(key => {
@@ -276,9 +276,9 @@ exports.getAdvice = function(args, res, next) {
 
   		if (advice) {
 
-  			if (options.fields.indexOf('metrics') != -1 || options.fields.indexOf('currentPortfolio') != -1) {
+  			if (options.fields.indexOf('performanceMetrics') != -1 || options.fields.indexOf('currentPortfolio') != -1) {
   				
-  				if (options.fields.indexOf('metrics') != -1) {
+  				if (options.fields.indexOf('performanceMetrics') != -1) {
   					return _updateAdviceWithPerformance(advice);
 				} else {
 					return _updateAdviceWithCurrentPortfolioPerformance(advice);
@@ -548,27 +548,39 @@ function _validateAndSaveAdvice(advice) {
 
 function _updateAdviceWithCurrentPortfolioPerformance(advice) {
 	
+	console.log("_updateAdviceWithCurrentPortfolioPerformance(advice)");
+
 	var needPerformanceUpdate = false;
 	var endDate = new Date();
 
-	if (advice.currentPortfolio.lastUpdatedDate) {
+	if (advice.currentPortfolio.performanceMetrics) {
+
+		var nMetrics = advice.currentPortfolio.performanceMetrics.length;
+
+		if(nMetrics > 0) {
+			var lastUpdatedDate = advice.currentPortfolio.performanceMetrics[nMetrics -1].date;
 		
-		var lastUpdatedDate = advice.currentPortfolio.lastUpdatedDate;
-		//lastUpdatedDate.setHours(0, 0, 0, 0);
+			//TODO : FINANCIAL Calendar
 
-		console.log(lastUpdatedDate.getTime());
-		console.log(advice.currentPortfolio.endDate.getTime());
+			if (lastUpdatedDate.getTime() < advice.currentPortfolio.endDate.getTime()) {
 
-		if (lastUpdatedDate.getTime() < advice.currentPortfolio.endDate.getTime()) {
+				lastUpdatedDate.setDate(lastUpdatedDate.getDate() + 1);
 
-			lastUpdatedDate.setDate(lastUpdatedDate.getDate() + 1);
+				var today = new Date();
+				today.setHours(0, 0, 0, 0);
 
-			var today = new Date();
-			today.setHours(0, 0, 0, 0);
-
-			if(today.getTime() > lastUpdatedDate.getTime()) {
-				needPerformanceUpdate = true;
+				if(today.getTime() > lastUpdatedDate.getTime()) {
+					needPerformanceUpdate = true;
+					if(advice.currentPortfolio.endDate.getTime() > today.getTime()) {
+						endDate = today;
+					} else {
+						endDate = advice.currentPortfolio.endDate;
+					}
+				}
 			}
+		} else {
+			needPerformanceUpdate = true;
+			endDate = advice.currentPortfolio.endDate;
 		}
 
 	} else {
@@ -587,7 +599,8 @@ function _updateAdviceWithCurrentPortfolioPerformance(advice) {
 			wsClient.on('open', function open() {
 		        console.log('Connection Open');
 		        console.log(connection);
-		        var msg = JSON.stringify({action:"compute_portfolio_performance", 
+		        console.log("khf:: compute_portfolio_value");
+		        var msg = JSON.stringify({action:"compute_portfolio_value_period", 
 		        				portfolio: advice.currentPortfolio.portfolio, startDate:advice.currentPortfolio.startDate, endDate:endDate});
 
 		     	wsClient.send(msg);
@@ -597,13 +610,16 @@ function _updateAdviceWithCurrentPortfolioPerformance(advice) {
 		    	var data = JSON.parse(msg);
 		    	wsClient.close();
 
-		    	if(data['error'] == '' && data['performance']) {
+		    	//console.log("result");
+		    	//console.log(data);
+
+		    	if(data['error'] == '' && data['netValue']) {
 		    		
-		    		console.log(data);
+		    		//console.log("mohammad");
+		    		//console.log(data);
 
 		    		// reformat date to JS
-		    		data['performance'].date = new Date(data['performance'].date);
-	    			resolve(AdviceModel.updateCurrentPortfolioPerformance(advice._id, data['performance']));
+		    		resolve(AdviceModel.updateCurrentPortfolioPortfolioStats(advice._id, data['netValue']));
 		    		
 				} else {
 					resolve(advice);
@@ -612,60 +628,77 @@ function _updateAdviceWithCurrentPortfolioPerformance(advice) {
 		} else {
 			return resolve(advice);
 		}
+	})
+	.then(advice => {
+		return new Promise(function(resolve, reject) {
+			var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+			var wsClient = new WebSocket(connection);
+
+			wsClient.on('open', function open() {
+		        console.log('Connection Open');
+		        console.log(connection);
+		        var msg = JSON.stringify({action:"compute_performance_netvalue", 
+		        				netValue: advice.currentPortfolio.portfolioStats.map(x=>x.netValue),
+		        				dates: advice.currentPortfolio.portfolioStats.map(x=>x.date),
+		        				benchmark: advice.benchmark});
+
+		     	wsClient.send(msg);
+		    });
+
+		    wsClient.on('message', function(msg) {
+		    	var data = JSON.parse(msg);
+		    	wsClient.close();
+
+		    	//console.log("dfdfd");
+		    	//console.log(data);
+
+		    	if(data['error'] == '' && data['performance']) {
+		    		
+		    		//console.log(data);
+
+		    		// reformat date to JS
+		    		resolve(AdviceModel.updateCurrentPortfolioPerformance(advice._id, data['performance']));
+		    		
+				} else {
+					resolve(advice);
+				}
+			});
+			 
+		});
 	});
 }
 
-
-/*function _updateAdvicePortfolioValue(advice) {
-	var needPeformanceoUpdate = false;
-	var endDate = new Date();
-
-	if (advice.metrics && advice.metrics.length > 0) {
-		var length = advice.metrics.length;
-
-		var lastPerformanceDate = advice.metrics[length - 1].date;
-		lastPerformanceDate.setHours(0, 0, 0, 0);
-		lastPerformanceDate.setDate(lastPerformanceDate.getDate() + 1);
-
-		var today = new Date()
-		today.setHours(0, 0, 0, 0);
-
-		if(today.getTime() > lastPerformanceDate.getTime()) {
-			needPerformanceUpdate = true;
-		}
-
-	} else {
-		needPerformanceUpdate = true;
-	}
-
-
-
-}*/
-
 function _updateAdviceWithAdvicePerformance(advice) {
-			
-	var needPerformanceUpdate = false;
-	var endDate = new Date();
-
-	if (advice.metrics.lastUpdatedDate) {
 		
-		var lastUpdatedDate = advice.metrics.lastUpdatedDate;
-		lastUpdatedDate.setDate(lastUpdatedDate.getDate() + 1);
+	console.log("Here");		
+	var needPortfolioValueUpdate = false;
+	
+	if (advice.portfolioStats) {
+		
+		var nPortfolioStats = advice.portfolioStats.length;
+		if (nPortfolioStats > 0) {
+			var lastUpdatedDate = advice.portfolioStats[nPortfolioStats - 1].date;
+			lastUpdatedDate.setDate(lastUpdatedDate.getDate() + 1);
 
-		var today = new Date();
-		today.setHours(0, 0, 0, 0);
+			var today = new Date();
+			today.setHours(0, 0, 0, 0);
 
-		if(today.getTime() > lastUpdatedDate.getTime()) {
-			needPerformanceUpdate = true;
+			if(today.getTime() > lastUpdatedDate.getTime()) {
+				needPortfolioValueUpdate = true;
+			}
+		} else {
+			needPortfolioValueUpdate = true;
 		}
 
 	} else {
-		needPerformanceUpdate = true;
+		needPortfolioValueUpdate = true
 	}
+
+	//console.log("Shivaaaaa");
+	//console.log(needPortfolioValueUpdate);
 					
-	
 	return new Promise(function(resolve, reject) {
-		if (needPerformanceUpdate) {
+		if (needPortfolioValueUpdate) {
 		// Create websocket connection and 
 		// ask Julia process to compute the 
 		// performance
@@ -677,14 +710,44 @@ function _updateAdviceWithAdvicePerformance(advice) {
 		        console.log('Connection Open');
 		        console.log(connection);
 
-		        console.log(advice);
-		        console.log(advice.netValue);
-		        console.log(typeof(advice.netValue));
+		        var msg = JSON.stringify({action:"compute_portfolio_value_history", 
+	        								portfolioHistory: advice.portfolioHistory}); 
+
+		     	wsClient.send(msg);
+		    });
+
+		    wsClient.on('message', function(msg) {
+		    	var data = JSON.parse(msg);
+		    	wsClient.close();
+
+		    	if(data['error'] == '' && data['netValue']) {
+		    		
+		    		console.log(data);
+	    			resolve(AdviceModel.updateAdvicePortfolioStats(advice._id, data['netValue']));
+		    		
+				} else {
+					resolve(advice);
+				}
+			});
+		
+		} else {
+			resolve(advice);
+		}
+	})
+	.then(advice => {
+		return new Promise(function(resolve, reject) {
+
+			var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+			var wsClient = new WebSocket(connection);
+
+			wsClient.on('open', function open() {
+		        console.log('Connection Open');
+		        console.log(connection);
 
 		        var msg = JSON.stringify({action:"compute_performance_netvalue", 
-	        							data: {netvalue: advice.netValue.map(x => x.value), 
-		        								dates: advice.netValue.map(x => x.date), benchmark: advice.benchmark}
-	        							});
+	        								netValue: advice.portfolioStats.map(x=>x.netValue),
+	        								dates: advice.portfolioStats.map(x=>x.date),
+	        								benchmark: advice.benchmark}); 
 
 		     	wsClient.send(msg);
 		    });
@@ -695,21 +758,16 @@ function _updateAdviceWithAdvicePerformance(advice) {
 
 		    	if(data['error'] == '' && data['performance']) {
 		    		
-		    		console.log(data);
-		    		if(data['performance'].date.getTime() > advice.metrics.lastUpdatedDate.getTime()) {
-		    			resolve(AdviceModel.updateAdvicePerformance(advice._id, data['performance']));
-		    		} else {
-		    			resolve(advice)
-		    		}		
+		    		//console.log(data);
+
+	    			resolve(AdviceModel.updateAdvicePerformance(advice._id, data['performance']));
 		    		
 				} else {
 					resolve(advice);
 				}
 			});
-		
-		} else {
-			resolve(advice);
-		}
+
+		});
 	});
 } 
 
@@ -718,7 +776,7 @@ function _updateAdviceWithPerformance(advice) {
 	return _updateAdviceWithCurrentPortfolioPerformance(advice)
 	.then(advice => {
 		return _updateAdviceWithAdvicePerformance(advice);
-	})
+	});
 }
 
 
