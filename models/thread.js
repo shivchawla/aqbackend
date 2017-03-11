@@ -82,7 +82,8 @@ Thread.index({
 
 // Thread.plugin(textSearch);
 Thread.index({
-    markdownText: 'text'
+    markdownText: 'text',
+    title: 'text'
 });
 
 Thread.statics.saveReply = function(query, replyDetails) {
@@ -124,9 +125,10 @@ Thread.statics.fetchThreads = function(query, options) {
         });
 };
 
-Thread.statics.fetchThread = function(query) {
-
-    return this.findOne(query).populate('user', '_id firstName lastName').populate('replies.user', '_id firstName lastName');
+Thread.statics.fetchThread = function(query, options) {
+    return this.findOne(query, {replies: {$slice: [options.skip, options.limit]}})
+        .populate('user', '_id firstName lastName')
+        .populate('replies.user','_id firstName lastName');
 };
 
 

@@ -64,19 +64,22 @@ Backtest.statics.removeAllBack = function(query) {
     return this.removeAsync(query);
 };
 
-Backtest.statics.updateBacktest = function(query, result) {
+Backtest.statics.updateBacktest = function(query, updates) {
     return this.findOne(query)
-        .then(function(backtest) {
+        .then(backtest => {
             if (backtest) {
-                backtest.output = result;
-                backtest.status = 'complete';
+                
+                updates.forEach(key => {
+                    backtest.key = updates[key];
+                });
+                
                 return backtest.save();
             }
         });
 };
 
-Backtest.statics.updateBacktestUpdated = function(query, updateData) {
-    return this.update(query,updateData)
+Backtest.statics.updateBacktestUpdated = function(query, updates) {
+    return this.update(query, updates)
         .then(function(backtest) {
             if (backtest) {
                 console.log("Update successful");

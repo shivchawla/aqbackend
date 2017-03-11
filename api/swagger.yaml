@@ -407,6 +407,17 @@ paths:
         name: threadId
         type: string
         required: true
+      - name: skip
+        in: query
+        description: skip number of records
+        required: true
+        default: 0
+        type: number
+      - name: limit
+        type: number
+        required: true
+        in: query
+        default: 10
       responses:
         200:
           description: OK

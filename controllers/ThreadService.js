@@ -4,28 +4,41 @@ const BacktestModel = require('../models/backtest');
 
 exports.createThread = function(args, res, next) {
     const user = args.user;
+  
     const thread = {
         user: user._id,
         category: args.body.value.category,
         markdownText: args.body.value.markdownText,
         title: args.body.value.title,
-        backtestId : args.body.value.backtestId,
         followers : [user._id],
         createdAt: Date.now(),
         updatedAt: Date.now()
     };
-    var backtestQuery = {_id : args.body.value.backtestId}
+
+    if (args.body.value.backtestId) {
+        thread.backtestId = args.body.value.backtestId;
+    }
+
+    if (args.body.value.tags) {
+        thread.tags = args.body.value.tags;
+    }
+   
+    var backtestQuery = {_id : thread.backtestId};
 
     ThreadModel.saveThread(thread)
-        .then(function(threadSaved) {
-            BacktestModel.updateBacktestUpdated(backtestQuery, {shared : true})
-            .then(function(updateData){
-                return res.status(200).json({_id : threadSaved._id});
-            })
-        })
-        .catch(err => {
-            next(err);
-        });
+    .then(threadSaved => {
+        return Promise.all(
+                [threadSaved._id,
+                    BacktestModel.updateBacktestUpdated(backtestQuery, {shared : true})
+                ]);
+                
+    })
+    .then(([threadId, message]) => {
+        return res.status(200).json({_id : threadId});
+    })
+    .catch(err => {
+        next(err);
+    });
 };
 
 exports.getThreads = function(args, res, next) {
@@ -51,13 +64,9 @@ exports.getThreads = function(args, res, next) {
         query.followers = {'$elemMatch':{'$eq': args.user._id , '$eq': args.userId.value }}
     }
     if (text) {
-        query.$text = {
-            $search: text
-        };
+        query.$text = { $search: text};
     }
-    if(text){
-        query.title = { "$regex": text, "$options": "i" }
-    }
+    
     if (category) {
         query.category = category;
     }
@@ -78,15 +87,23 @@ exports.getThreads = function(args, res, next) {
 
 exports.getThread = function(args, res, next) {
     const threadId = args.threadId.value;
+    
+    const limit = args.limit.value;
+    const skip = args.skip.value;
+
+    const options = {};
+    options.limit = limit;
+    options.skip = skip;
+    
     ThreadModel.fetchThread({
         _id: threadId
+    }, options)
+    .then((threads) => {
+        return res.status(200).json(threads);
     })
-      .then((threads) => {
-          return res.status(200).json(threads);
-      })
-      .catch(err => {
-          next(err);
-      });
+    .catch(err => {
+      next(err);
+    });
 };
 
 exports.listFollowers = function(args, res, next) {
