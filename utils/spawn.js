@@ -8,7 +8,6 @@ const BacktestModel = require('../models/backtest');
 const StrategyModel = require('../models/strategy');
 var CryptoJS = require("crypto-js");
 const config = require('config');
-var net = require('net');
 const WebSocket = require('ws');   
 
 var isopen = {};
@@ -23,18 +22,6 @@ for(var machine of config.get('machines')) {
 var outputData = {};
 var subscribed = {};
 
-function debounce(fn, delay) {
-  var timer = null;
-  return function () {
-    var context = this, args = arguments;
-    clearTimeout(timer);
-    timer = setTimeout(function () {
-      fn.apply(context, args);
-    }, delay);
-  };
-}
-
-
 function exec(msg, res, cb) {
 
     var backtestId = msg.backtestId;
@@ -46,7 +33,7 @@ function exec(msg, res, cb) {
 
     BacktestModel.fetchBacktest({
         _id: backtestId
-    })
+    }, {})
     .then(bt => {
         var args = [];
 
@@ -167,14 +154,15 @@ function exec(msg, res, cb) {
             console.log(conn);
             isopen[conn] = false;
 
+            let backtestData = outputData[backtestId];
             // Update the connection status
-            if (code === 0) {
+            if (code === 1000) {
                 try {
                     // If success and no data was generated => PENDING 
-                    if(backtestData!='') {
+                    if(Object.keys(backtestData).length > 0) {
                         cb(null, {output: backtestData, status:"complete"});
                     } else {
-                        cb(null, {status:"pending"});
+                        cb(null, {status:"exception"});
                     }
                 } catch (e) {
                     cb(e, {status:"exception"});
@@ -210,15 +198,14 @@ function sendData(res, backtestId) {
         setTimeout(function(){sendData(res, backtestId);}, 
             config.get('time_interval_realtime_output'));
     }
-
 }
 
 
-function updateBacktestResult(updateData, msg) {
+function updateBacktestResult(data, msg) {
     console.log("Updating Backtest");
-    BacktestModel.updateBacktestUpdated({
+    BacktestModel.updateBacktest({
         _id: msg.backtestId
-    }, updateData);
+    }, data);
 }
 
 ws.on('connection', function connection(res) {
@@ -250,59 +237,96 @@ ws.on('connection', function connection(res) {
             // Action Types: 
             // 1. exec-backtest
             // 2. subscribe-backtest
-            if(msg.action === 'subscribe-backtest') {
-               execSubscription(msg, res); 
-            } else if(msg.action === 'exec-backtest') {
-                redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
-                    if (err || !data) {
-                        redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify([{data:msg, in_process:true}]));
-                        execBacktest(msg, res);
-
-                    } else {
-                        var queue = JSON.parse(data);
-
-                        if(queue.length < config.get('max_num_julia_process')){
-                            queue.push({data:msg, in_process:true});
-                            execBacktest(msg, res);
-                        } else {
-                            queue.push({data:msg, in_process:false});
-                        }
-                          
-                        redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify(queue));
-                    }
-
-                });
-            }
+            console.log(msg);
+            handleAction(msg, res);
+            
         });
     });
 });
 
-//Function to subscribe WS data from backend to UI
-function execSubscription(msg, res) {
-    var backtestId = msg.backtestId;
-    //Call send data 
-    //Send data automaticaly stops or reject the call ig backtest has completed
-    subscribed[backtestId] = false;
-    sendData(res, backtestId);
+function handleAction(msg, res) {
+    if(msg.action === 'subscribe-backtest') {
+        handleExecSubscription(msg, res); 
+    } else if(msg.action === 'exec-backtest') {
+
+        let userQueue;
+        let commonQueue;
+           
+        redisUtils.getValue('common-request-queue', function (err, data) {
+        //redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
+            if (err || !data) {          
+                //var stringfiedMessage = JSON.stringify([{data:msg, in_process:true}]);
+                commonQueue = [];
+                redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));//stringfiedMessage );
+                //handleExecBacktest(msg, res);
+            } else {
+                commonQueue = JSON.parse(data);
+            }
+
+            redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
+                if (err || !data) {
+                    userQueue = [];
+                    redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify(userQueue));
+                } else {
+                    userQueue = JSON.parse(data);
+                }
+            
+                let commonQueueMsg;
+                let userQueueMsg = msg;
+                if(commonQueue.length < config.get('max_num_julia_process_total')){
+                    commonQueueMsg = {data:msg, in_process:true};
+                    
+                    //update both the queues
+                    commonQueue.push(commonQueueMsg);
+                    userQueue.push(userQueueMsg);
+
+                    // Execute the backtest 
+                    handleExecBacktest(msg, res);
+             
+                } else {
+                    console.log("Queueing request");
+                    commonQueueMsg = {data:msg, in_process:false};
+                    commonQueue.push(commonQueueMsg);
+                    userQueue.push(userQueueMsg);
+                }
+
+
+                redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
+                redisUtils.insertKeyValue(msg['aimsquant-token'] +'-request-queue', JSON.stringify(userQueue));
+
+            });
+
+        });
+       
+    }
 }
 
-//Function to unsubscribe WS data from backend to UI
-function execUnsubscription(msg, res) {
+//Function to subscribe WS data from backend to UI
+function handleExecSubscription(msg, res) {
     var backtestId = msg.backtestId;
     //Call send data 
     //Send data automaticaly stops or reject the call ig backtest has completed
     subscribed[backtestId] = true;
+    sendData(res, backtestId);
+}
+
+//Function to unsubscribe WS data from backend to UI
+function handleExecUnsubscription(msg, res) {
+    var backtestId = msg.backtestId;
+    //Call send data 
+    //Send data automaticaly stops or reject the call ig backtest has completed
+    subscribed[backtestId] = false;
 }
 
 //Function to execute backtest.
 //Pass comandline arguments to free Julia process
 //Collect the output, send realtime updates and save the final output to the DB
-function execBacktest(msg, res) {
+function handleExecBacktest(msg, res) {
     if (msg.action === 'exec-backtest') {
         return exec(msg, res, (err, updateData) => {
             var status = updateData.status;
 
-            if(err){
+            if(err) {
                 res.send(JSON.stringify({backtestId:msg.backtestId, outputtype:"log", message:"Internal Exception", messagetype:"ERROR"}));
             } else {
                 if(status == 'exception') {
@@ -323,43 +347,69 @@ function execBacktest(msg, res) {
             //Remove backtestId key from outputData    
             delete outputData[msg.backtestId];
 
-            redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
-                if (data) {
-                    
-                    var queue = JSON.parse(data);
-                    
-                    for(var i=0; i<queue.length; i++) {
-                        
-                        var queueMsg = queue[i].data; 
-                        
-                        if(queueMsg.backtestId === msg.backtestId && queueMsg.action === msg.action) {
-                            
-                            // If request was not completed, update in-process to FALSE
-                            if(status == 'pending') {
-                                queue[i].in_process = false;
-                            } else {
-                                // If request was completed (successfuly of with error)
-                                // dequeue the request
-                                queue.splice(i,1);
-                            }
-
-                            break;
-                        }
-                    }
-
-                    for(var i=0; i<queue.length; i++){
-                        if(queue[i].in_process === false){
-                            execBacktest(queue[i].data, res);
-                            queue[i].in_process === true;
-                            break;
-                        }
-                    }
-
-                    redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify(queue));
+            redisUtils.getValue('common-request-queue', function (err, data) {
+                
+                let commonQueue;
+                let userQueue;
+                if (data) {          
+                    commonQueue = JSON.parse(data);
                 }
+                
+                // now get user specific queue
+                redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
+                    if (data) {
+                        userQueue = JSON.parse(data);
+                    }
+                    
+                    // find the backtestId in the commonQueue
+                    var commonQueueIdx = commonQueue.map(x => x.data.backtestId).indexOf(msg.backtestId); 
+                    let commonQueueMsg;
 
-            });
+                    if(commonQueueIdx !=-1 ) {
+                        commonQueueMsg = commonQueue[commonQueueIdx]
+                    }
+
+                    var userQueueIdx = userQueue.map(x=>x.backtestId).indexOf(msg.backtestId);
+                    let userQueueMsg;
+
+                    if(userQueueIdx != -1) {
+                        userQueueMsg = userQueue[userQueueIdx]; 
+                    }
+
+                    if (commonQueueMsg && userQueueMsg) {
+                        // If request was not completed, update in-process to FALSE
+                        if(status == 'pending') {
+                            commonQueue[commonQueueIdx].in_process = false;
+                        } else {
+                            // If request was completed (successfuly or with error)
+                            // dequeue the request
+                            commonQueue.splice(commonQueueIdx, 1);
+                            userQueue.splice(userQueueIdx, 1)
+                        }
+                        
+                        // Now find pending request in common queue
+                        for(var i=0; i<commonQueue.length; i++){
+                            if(commonQueue[i].in_process === false) {
+                                execBacktest(commonQueue[i].data, res);
+                                commonQueue[i].in_process === true;
+                                break;
+                            }
+                        }
+
+                        // TODO: Add logic to transfer request from user to common queue.
+                        // With this logic, a user can add mutliple request and not JAM the 
+                        // coomon request queue if user request exceed the size
+
+                    } else {
+                        console.log("This is a problem. This should never happen");
+                    }
+
+                    redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
+                    redisUtils.insertKeyValue(msg['aimsquant-token']+'-request-queue', JSON.stringify(userQueue));
+                
+                });
         
+            });
         });
     } else if (message === 'rl_close') {
         return res.send('Not implemented');

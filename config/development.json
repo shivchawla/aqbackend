@@ -21,7 +21,8 @@
     "redis_port":6379,
     "redis_path":"localhost",
     
-    "max_num_julia_process" : 3,
+    "max_num_julia_process_user": 1,
+    "max_num_julia_process_total": 2,
     "time_interval_realtime_output":3000,
 
     "julia_server_host" : "127.0.0.1",

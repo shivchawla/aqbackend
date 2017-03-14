@@ -9,6 +9,7 @@ const config = require('config');
 var fs = require('fs');
 var path = require("path");    
 const fname = "../examples/template.txt";
+const RedisUtils = require('../utils/RedisUtils');
 
 exports.createStrategy = function(args, res, next) {
     const user = args.user;
@@ -31,28 +32,51 @@ exports.createStrategy = function(args, res, next) {
         createdAt: new Date(),
         updatedAt: new Date()
     };
-    StrategyModel.saveStrategy(Strategy)
-        .then(strategy => {
-            strategy.code = CryptoJS.AES.decrypt(strategy.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
-            return res.status(200).json(strategy);
-        })
-        .catch(err => {
-            next(err);
 
-        });
+    StrategyModel.saveStrategy(Strategy)
+    .then(strategy => {
+        strategy.code = CryptoJS.AES.decrypt(strategy.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+        return res.status(200).json(strategy);
+    })
+    .catch(err => {
+        next(err);
+
+    });
 };
 
 exports.execStrategy = function(args, res, next) {
-    const user = args.user;
-    const id = args.id.value;
+    const userId = args.user._id;
+    const strategyId = args.strategyId.value;
     const values = args.body.value;
-    StrategyModel.fetchStrategy({
-        user: user._id,
-        _id: id
+    const token  = args['aimsquant-token'].value.toString();   
+    
+    return new Promise(function(resolve, reject) {
+        RedisUtils.getValue(token + '-request-queue', (err, data) => {
+            if (data) {
+                var queue = JSON.parse(data);
+                if (queue.length >= config.get('max_num_julia_process_user')) {
+                     return reject(new Error("Can't execute"));
+                } 
+            } 
+            
+            return resolve(true);
+              
+        });
+    })
+    .then(flag => {
+
+        if(flag) {  
+            return StrategyModel.fetchStrategy({
+                    user: userId, _id: strategyId}, {});
+        } 
     })
     .then(strategy => {
         BacktestService.createBacktest(strategy, values, res, next);
+    })
+    .catch(err => {
+        res.status(400).json(err);
     });
+
 };
 
 exports.getStrategys = function(args, res, next) {
@@ -128,11 +152,11 @@ exports.getStrategys = function(args, res, next) {
 
 exports.getStrategy = function(args, res, next) {
     const user = args.user;
-    const id = args.id.value;
+    const strategyId = args.strategyId.value;
     StrategyModel.fetchStrategy({
         user: user._id,
-        _id: id
-    })
+        _id: strategyId
+    }, {})
     .then(strategy => {
         strategy.code = CryptoJS.AES.decrypt(strategy.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
         res.status(200).json(strategy);
@@ -143,11 +167,15 @@ exports.getStrategy = function(args, res, next) {
 };
 
 exports.updateStrategy = function(args, res, next) {
+    const strategyId = args.strategyId.value;
+    const userId = args.user._id;
+
     const query = {
-        _id: args.id.value
+        _id: strategyId,
+        user: userId
     };
 
-     if(args.body.value && args.body.value.code){
+    if(args.body.value && args.body.value.code){
         var str = args.body.value.code; 
         args.body.value.code = CryptoJS.AES.encrypt(str, config.get('encoding_key'));
     }
@@ -162,16 +190,22 @@ exports.updateStrategy = function(args, res, next) {
 };
 
 exports.deleteStrategy = function (args, res, next) {
+    const strategyId = args.strategyId.value;
+    const userId = args.user._id;
+
     const query = {
-        _id: args.id.value
+        _id: strategyId,
+        user: userId
     };
+
     StrategyModel.deleteStrategy(query)
       .then(() => {
-          BacktestModel.removeAllBack({
-              strategy: query._id,
-              shared : false
-          });
-          res.status(200).json({id: args.id.value});
+          return BacktestModel.removeAllBack({
+              strategy: strategyId,
+              shared : false});
+      })
+      .then(() => {    
+          res.status(200).json({id: strategyId});
       })
       .catch(err => {
           next(err);

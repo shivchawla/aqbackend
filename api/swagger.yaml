@@ -616,7 +616,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
-  /strategy/{id}:
+  /strategy/{strategyId}:
     get:
       tags:
       - strategy
@@ -626,7 +626,7 @@ paths:
       security:
       - api_key: []
       parameters:
-      - name: id
+      - name: strategyId
         in: path
         required: true
         type: string
@@ -659,7 +659,7 @@ paths:
         description: "auth token"
         type: "string"
         required: true
-      - name: id
+      - name: strategyId
         in: path
         required: true
         type: string
@@ -685,7 +685,7 @@ paths:
       security:
       - api_key: []
       parameters:
-      - name: id
+      - name: strategyId
         in: path
         required: true
         type: string
@@ -702,7 +702,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
-  /strategy/{id}/exec:
+  /strategy/{strategyId}/exec:
     post:
       summary: executes the strategy and outputs the data
       description: execute the strategy
@@ -717,7 +717,7 @@ paths:
         description: "auth token"
         type: "string"
         required: true
-      - name: id
+      - name: strategyId
         in: path
         required: true
         type: string
@@ -734,7 +734,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
-  /strategy/{id}/backtests:
+  /strategy/{strategyId}/backtests:
     get:
       tags:
       - backtest
@@ -749,7 +749,7 @@ paths:
         description: "auth token"
         type: "string"
         required: true
-      - name: id
+      - name: strategyId
         in: path
         required: true
         type: string
@@ -764,6 +764,14 @@ paths:
         required: true
         in: query
         default: 10
+      - name: select
+        type: string
+        required: false
+        in: query
+      - name: sort
+        type: string
+        required: false
+        in: query
       responses:
         200:
           description: "created strategy"
@@ -772,7 +780,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Backtest"
-  /backtest/{id}:
+  /backtest/{backtestId}:
     get:
       tags:
       - backtest
@@ -786,10 +794,14 @@ paths:
         description: auth token
         type: string
         required:  true
-      - name: id
+      - name: backtestId
         type: string
         required: true
         in: path
+      - name: select
+        type: string
+        required: false
+        in: query
       responses:
         200:
           description: backtest object
@@ -813,7 +825,7 @@ paths:
         description: auth token
         type: string
         required:  true
-      - name: id
+      - name: backtestId
         type: string
         required: true
         in: path
@@ -825,12 +837,11 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Backtest"
-  /backtest/share/{id}:
-    post:
+    put:
       tags:
       - backtest
-      summary: get the backtest
-      operationId: shareBackTest
+      summary: update the backtest
+      operationId: updateBacktest
       security:
       - api_key: []
       parameters:
@@ -839,94 +850,25 @@ paths:
         description: auth token
         type: string
         required:  true
-      - name: id
+      - name: backtestId
         type: string
         required: true
         in: path
-      - name: body
-        in: body
-        required: true
-        schema:
-          $ref: '#/definitions/Share'
+      - name: name
+        type: string
+        required: false
+        in: query
+      - name: notes
+        type: string
+        required: false
+        in: query
       responses:
         200:
-          description: backtest object
-          schema:
-            $ref: '#/definitions/Backtest'
+          description: 'updated'
         400:
           description: "Not Authorized"
           schema:
             $ref: "#/definitions/Error"
-      x-swagger-router-controller: "Backtest"
-  /backtest/share:
-    get:
-      tags:
-      - backtest
-      summary: get the backtest
-      operationId: getCommunityBackTest
-      security:
-      - api_key: []
-      parameters:
-      - name: aimsquant-token
-        in: header
-        description: auth token
-        type: string
-        required:  true
-      - name: skip
-        in: query
-        description: skip number of records
-        required: true
-        default: 0
-        type: number
-      - name: limit
-        type: number
-        required: true
-        in: query
-        default: 10
-      responses:
-        200:
-          description: backtest object
-          schema:
-            $ref: '#/definitions/Backtest'
-        400:
-          description: "Not Authorized"
-          schema:
-            $ref: "#/definitions/Error"
-      x-swagger-router-controller: "Backtest"
-  /strategy/code/{id}:
-    post:
-      summary: Upload file having code
-      description: Upload strategy code
-      tags:
-      - "strategy"
-      consumes:
-      - multipart/form-data
-      - application/x-www-form-urlencoded
-      operationId: uploadStrategyCode
-      security:
-      - api_key: []
-      parameters:
-      - name: file
-        in: formData
-        description: The uploaded file data
-        required: true
-        type: file
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: id
-        in: path
-        required: true
-        type: string
-      responses:
-        200:
-          description: OK
-        400:
-          description: code is not valid
-      x-swagger-router-controller: "Strategy"
-  
   /advisors:
     post:
       tags:

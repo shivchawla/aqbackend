@@ -29,7 +29,7 @@ exports.createThread = function(args, res, next) {
     .then(threadSaved => {
         return Promise.all(
                 [threadSaved._id,
-                    BacktestModel.updateBacktestUpdated(backtestQuery, {shared : true})
+                    BacktestModel.updateBacktest(backtestQuery, {shared : true})
                 ]);
                 
     })
@@ -66,7 +66,6 @@ exports.getThreads = function(args, res, next) {
     if (text) {
         query.$text = { $search: text};
     }
-    
     if (category) {
         query.category = category;
     }
@@ -175,7 +174,7 @@ exports.replyToThread = function(args, res, next) {
         _id: args.threadId.value
     }, embedThread)
     .then(thread => {
-        BacktestModel.updateBacktestUpdated(backtestQuery,{shared : true})
+        BacktestModel.updateBacktest(backtestQuery,{shared : true})
             .then(function(updateData){
                 return res.status(200).json(thread);
             })
@@ -189,7 +188,7 @@ exports.viewThread = function(args, res, next) {
     const user = args.user;
     ThreadModel.updateViews({
         _id: args.threadId.value
-    }, user._id)
+    })
     .then(thread => {
         return res.status(200).json(thread.views);
     })
