@@ -42,24 +42,6 @@ const User = new Schema({
     },
     updatedAt: Date,
 
-    investor: {
-        type: Schema.Types.ObjectId,
-        ref: 'Investor'
-    },
-    
-    advisor: {
-        type: Schema.Types.ObjectId,
-        ref: 'Advisor'
-    },
-
-    isInvestor: {
-        type: Boolean
-    },
-
-    isAdvisor: { 
-        type: Boolean,
-    },
-
 });
 
 User.index({
@@ -82,31 +64,6 @@ User.statics.updateStatus = function(query, status) {
         .then(function(user) {
             if (user) {
                 user.active = status;
-                return user.save();
-            }
-        });
-};
-
-User.statics.updateAdvisor = function(query, advisorId) {
-    return this.findOne(query)
-        .then(function(user) {
-            if (user) {
-                console.log(user);
-                user.advisor = advisorId;
-                user.isAdvisor = true;
-                return user.save();
-            }
-        });
-};
-
-User.statics.updateInvestor = function(query, investorId) {
-    return this.findOne(query)
-        .then(function(user) {
-            if (user) {
-                console.log(user);
-                user.investor = investorId;
-                user.isInvestor = true;
-                console.log(user);
                 return user.save();
             }
         });
