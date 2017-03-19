@@ -84,6 +84,8 @@ exports.getStrategys = function(args, res, next) {
     const query = {
         user: user._id
     };
+    
+    let hasSearchParam;
     //const fetchDeleted = false;
     if (args.search.value) {
         query.$or = [
@@ -94,6 +96,8 @@ exports.getStrategys = function(args, res, next) {
                 description: {$regex: args.search.value, $options: 'i'}
             }
         ];
+
+        hasSearchParam = true;
     }
 
     const strategies = [];
@@ -129,7 +133,7 @@ exports.getStrategys = function(args, res, next) {
 
             Promise.resolve(p);
             
-        } else {
+        } else if (!hasSearchParam) {
 
             Promise.all([
                 StrategyModel.createStrategy(user, "Sample Strategy", "A quick tutorial", "sample.txt"),
@@ -145,6 +149,8 @@ exports.getStrategys = function(args, res, next) {
                 Promise.resolve(p);
             });
 
+        } else {
+            Promise.resolve(p);
         }
     });
 
