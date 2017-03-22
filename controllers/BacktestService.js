@@ -11,14 +11,17 @@ exports.createBacktest = function(strategy, values, res, next) {
         strategy: strategy._id,
         settings: values, 
         code: strategy.code,
+        name: strategy.name,
+        strategy_name: strategy.name,
         status : 'active',
         createdAt : new Date(),
         shared:false,
         deleted:false,
     };
-    return BacktestModel.saveBacktest(backtest)
-    .then(backtst => {
-        res.status(200).json(backtst);
+
+    BacktestModel.saveBacktest(backtest)
+    .then(bt => {
+        res.status(200).json(bt);
     })
     .catch(err => {
         console.log(err);
@@ -27,18 +30,27 @@ exports.createBacktest = function(strategy, values, res, next) {
 };
 
 exports.getBackTests = function(args, res, next) {
-    const user = args.user;
-    const id = args.id.value;
+    
+    const userId = args.user._id;
+    const strategyId = args.strategyId.value;
     const fetchDeleted = false;
-    StrategyModel.fetchStrategy({
-        user: user._id,
-        _id: id
-    }, fetchDeleted)
+
+    const options = {};
+    options.skip = args.skip.value;
+    options.limit = args.limit.value;
+
+    options.sort = args.sort.value;
+    options.select = args.select.value;
+
+    StrategyModel.fetchStrategy({user:userId, _id: strategyId}, {select:'user'})
     .then(strategy => {
-        return BacktestModel.fetchBacktests({
-            strategy: strategy._id,
-            deleted:false,
-        });
+        if(strategy) {
+            return BacktestModel.fetchBacktests({
+                strategy: strategy._id,
+                deleted:false}, options)
+        } else {
+            return new Error("Not Authorized");
+        }
     })
     .then(backtests => {
         for(var i=0; i<backtests.length; i++){
@@ -52,17 +64,27 @@ exports.getBackTests = function(args, res, next) {
 };
 
 exports.getBackTest = function(args, res, next) {
-    const id = args.id.value;
-    BacktestModel.fetchBacktest({
-        _id: id
-    })
-    .then(bt => {
+    const backtestId = args.backtestId.value;
+    const userId = args.user._id;
 
-        if(bt) {
+    const options = {};
+    options.select = args.select.value;
+
+    if (options.select) {
+        if (options.select.indexOf('strategy') == -1) {
+            options.select.append(',strategy');
+        }
+    }
+
+    BacktestModel.fetchBacktest({
+        _id: backtestId,
+    }, options)
+    .then(bt => {
+        if(bt.shared || bt.strategy.user.toString() == userId.toString()) {
             bt.code = CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
             res.status(200).json(bt);
         } else {
-            res.status(400).json({id:id, message:"BacktestId doesn't exist"});
+            res.status(400).json({id:backtestId, message:"BacktestId doesn't exist for the user"});
         }
     })
     .catch(err => {
@@ -70,79 +92,67 @@ exports.getBackTest = function(args, res, next) {
     });
 };
 
+
+//How to make this linear and NOT nested
 exports.deleteBackTest = function(args, res, next) {
-    const id = args.id.value;
-    BacktestModel.fetchBacktest({_id : id, shared : true}).then((bacttestObj)=>{
-        if(bacttestObj){
-            BacktestModel.updateBacktestUpdated({_id: id},{deleted : true})
+    const backtestId = args.backtestId.value;
+    const userId = args.user._id;
+
+    BacktestModel.fetchBacktest({_id : backtestId, shared : true}, {})
+    .then(backtest => {
+        if(backtest && backtest.strategy.user == userId){
+            BacktestModel.updateBacktest({_id: backtestId}, {deleted : true})
             .then(obj => {
                 console.log("Soft delete")
-                res.status(200).json({id: id});
+                res.status(200).json({backtestId: backtestId, message:"Successfly deleted"});
             })
             .catch(err => {
                 next(err);
             });
-        }else{
+        } else {
             BacktestModel.removeAllBack({
-                _id: id,
+                _id: backtestId,
                 shared:false
             })
             .then(obj => {
                 console.log("Hard Delete")
-                res.status(200).json({id: id});
+                res.status(200).json({backtestId: backtestId, message:"Successfly deleted"});
             })
             .catch(err => {
                 next(err);
             });
         }
-    }).catch(err=>{
-        next(err);
     })
+    .catch(err=>{
+        next(err);
+    });
+};
+
+exports.updateBacktest = function(args, res, next) {
+    const backtestId = args.backtestId.value;
+    const userId = args.user._id;
+
+    const updates = {};
     
-};
+    if(args.name.value) {
+        updates.name = args.name.value;
+    }
 
-exports.shareBackTest = function(args, res, next) {
-    const id = args.id.value;
-    BacktestModel.fetchBacktest({
-        _id: id
-    })
-    .then(bt => {
-        return StrategyModel.fetchStrategy({
-            name: 'Community'
-        })
-        .then(strat => {
-            const strategy = strat.toObject();
-            const backTest = bt.toObject();
-            delete backTest._id;
-            backTest.strategy = strategy._id;
-            return Community_backtest.saveBacktest(backTest);
-        })
-        .then(bacTe => {
-            res.status(200).json(bacTe);
-        });
-    })
-    .catch(err => {
-        next(err);
-    });
-};
+    if(args.notes.value) {
+        updates.notes = args.notes.value;
+    }
 
-exports.getCommunityBackTest = function(args, res, next) {
-    StrategyModel.fetchStrategy({
-        name: 'Community'
-    })
-    .then(strat => {
-        const strategy = strat.toObject();
-        return BacktestModel.fetchBacktests({
-            strategy: strategy._id
-        });
-    })
-    .then(data => {
-        for(var i=0; i<data.length; i++){
-            data[i].code = CryptoJS.AES.decrypt(data[i].code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+    BacktestModel.updateBacktest({user: userId, _id: backtestId}, updates)
+    .then(obj => {
+        if(obj) {
+            return res.status(200).json(obj);
         }
-        res.status(200).json(data);
     })
-    .catch(err => {
+    .catch(err=>{
         next(err);
     });
+
 };
+
+
+

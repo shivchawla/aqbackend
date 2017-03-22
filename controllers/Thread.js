@@ -23,6 +23,10 @@ module.exports.followThread = function followThread (req, res, next) {
     Thread.followThread(req.swagger.params, res, next);
 };
 
+module.exports.addTagToThread = function addTagToThread (req, res, next) {
+    Thread.addTagToThread(req.swagger.params, res, next);
+};
+
 module.exports.likeThread = function likeThread (req, res, next) {
     Thread.likeThread(req.swagger.params, res, next);
 };

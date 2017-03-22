@@ -1,7 +1,8 @@
 'use strict';
 const mongoose = require('./index');
 const Schema = mongoose.Schema;
-const User = new Schema({
+const User = new Schema({    
+
     email: {
         type: String,
         require: true,
@@ -35,8 +36,12 @@ const User = new Schema({
         type: String,
         required: true
     },
-    createdAt: Date,
-    updatedAt: Date
+    createdAt: {
+        type: Date,
+        //required: true,
+    },
+    updatedAt: Date,
+
 });
 
 User.index({
@@ -54,7 +59,7 @@ User.statics.fetchUser = function(query) {
     return this.findOne(query).execAsync();
 };
 
-User.statics.updateUser = function(query, status) {
+User.statics.updateStatus = function(query, status) {
     return this.findOne(query)
         .then(function(user) {
             if (user) {

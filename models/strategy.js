@@ -28,7 +28,12 @@ const Strategy = new Schema({
         require: false
     },
     createdAt: Date,
-    updatedAt: Date
+    updatedAt: Date,
+    
+    deleted: {
+        type: Boolean,
+        value: false,
+    },
 });
 
 Strategy.index({
@@ -68,12 +73,27 @@ Strategy.statics.saveStrategy = function(strategyDetails) {
     return strategy.saveAsync();
 };
 
-Strategy.statics.fetchStrategy = function(query) {
-    return this.findOne(query).populate('user', '_id firstName lastName').execAsync();
+Strategy.statics.fetchStrategy = function(query, options) {
+    
+    var q = this.findOne(query);
+    
+    if(options.select) {
+        if(options.select.indexOf('user') == -1) {
+            options.select.concat(',user');
+        }
+
+        options.select.replace(',', ' ');
+        q = q.select(options.select);
+    }
+
+    return q.populate('user', '_id firstName lastName').execAsync();
 };
 
-Strategy.statics.fetchStrategys = function(query) {
-    return this.find(query).populate('user', '_id firstName lastName').execAsync();
+Strategy.statics.fetchStrategys = function(query, sort_criteria) {
+    if(sort_criteria)
+        return this.find(query).sort(sort_criteria).populate('user', '_id firstName lastName').execAsync();
+    else
+        return this.find(query).populate('user', '_id firstName lastName').execAsync();
 };
 
 Strategy.statics.updateStrategy = function(query, updates) {
@@ -84,6 +104,7 @@ Strategy.statics.updateStrategy = function(query, updates) {
                 keys.forEach(key => {
                     strategy[key] = updates[key];
                 });
+                strategy.updatedAt= new Date();
                 return strategy.save();
             }
         });

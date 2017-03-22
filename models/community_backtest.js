@@ -44,8 +44,8 @@ Backtest.statics.fetchBacktest = function(query) {
     return this.findOne(query).populate('user', '_id firstName lastName').execAsync();
 };
 
-Backtest.statics.fetchBacktests = function(query) {
-    return this.find(query).populate('user', '_id firstName lastName').execAsync();
+Backtest.statics.fetchBacktests = function(query, limit, skip) {
+    return this.find(query, { skip: skip, limit: limit }).populate('user', '_id firstName lastName').execAsync();
 };
 
 Backtest.statics.findCount = function(query) {

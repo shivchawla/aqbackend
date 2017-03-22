@@ -55,6 +55,10 @@ const Thread = new Schema({
         require: true,
         ref: 'User'
     }],
+    tags: [{
+        type: String,
+        require: true
+    }],
     views: {
         type: Number,
         require: true,
@@ -78,7 +82,8 @@ Thread.index({
 
 // Thread.plugin(textSearch);
 Thread.index({
-    markdownText: 'text'
+    markdownText: 'text',
+    title: 'text'
 });
 
 Thread.statics.saveReply = function(query, replyDetails) {
@@ -120,14 +125,15 @@ Thread.statics.fetchThreads = function(query, options) {
         });
 };
 
-Thread.statics.fetchThread = function(query) {
-
-    return this.findOne(query).populate('user', '_id firstName lastName').populate('replies.user', '_id firstName lastName');
+Thread.statics.fetchThread = function(query, options) {
+    return this.findOne(query, {replies: {$slice: [options.skip, options.limit]}})
+        .populate('user', '_id firstName lastName')
+        .populate('replies.user','_id firstName lastName');
 };
 
 
-Thread.statics.getFollowers = function(query) {
-    return this.find(query,{followers : 1})
+Thread.statics.getFollowers = function(query, limit, skip) {
+    return this.find(query,{followers : 1}, { skip: skip, limit: limit })
         .populate('followers', '_id firstName lastName')
         .execAsync()
         .then((thread) => {
@@ -147,6 +153,19 @@ Thread.statics.updateThreadFollowers = function(query, userId) {
                     thread.followers.addToSet(id);
                 else
                      thread.followers.pull(id);
+                return thread.save();
+            }
+        });
+};
+
+Thread.statics.updateTags = function(query, tag) {
+    return this.findOne(query)
+        .then(function(thread) {
+            if (thread) {
+                if(thread.tags.indexOf(tag)== -1)
+                    thread.tags.addToSet(tag);
+                else
+                    thread.tags.pull(tag);
                 return thread.save();
             }
         });
