@@ -2,7 +2,6 @@
 
 const User = require('./UserService');
 
-
 module.exports.activateUser = function activateUser (req, res, next) {
     User.activateUser(req.swagger.params, res, next);
 };

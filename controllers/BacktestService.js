@@ -47,7 +47,7 @@ exports.getBackTests = function(args, res, next) {
         if(strategy) {
             return BacktestModel.fetchBacktests({
                 strategy: strategy._id,
-                deleted:false}, options)
+                deleted: false}, options)
         } else {
             return new Error("Not Authorized");
         }
@@ -100,7 +100,7 @@ exports.deleteBackTest = function(args, res, next) {
 
     BacktestModel.fetchBacktest({_id : backtestId, shared : true}, {})
     .then(backtest => {
-        if(backtest && backtest.strategy.user == userId){
+        if(backtest && backtest.strategy.user.toString() == userId){
             BacktestModel.updateBacktest({_id: backtestId}, {deleted : true})
             .then(obj => {
                 console.log("Soft delete")
