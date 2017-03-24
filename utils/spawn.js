@@ -154,12 +154,11 @@ function exec(msg, res, cb) {
             console.log(conn);
             isopen[conn] = false;
 
-            let backtestData = outputData[backtestId];
             // Update the connection status
             if (code === 1000) {
                 try {
                     // If success and no data was generated => PENDING 
-                    if(Object.keys(backtestData).length > 0) {
+                    if(backtestData && Object.keys(backtestData).length > 0) {
                         cb(null, {output: backtestData, status:"complete"});
                     } else {
                         cb(null, {status:"exception"});
