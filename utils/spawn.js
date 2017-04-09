@@ -389,7 +389,7 @@ function handleExecBacktest(msg, res) {
                         // Now find pending request in common queue
                         for(var i=0; i<commonQueue.length; i++){
                             if(commonQueue[i].in_process === false) {
-                                execBacktest(commonQueue[i].data, res);
+                                handleAction(commonQueue[i].data, res);
                                 commonQueue[i].in_process === true;
                                 break;
                             }
