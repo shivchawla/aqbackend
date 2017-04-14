@@ -21,12 +21,6 @@ tags:
   description: "operation about strategy"
 - name: backtest
   description: operations on backtest
-- name: "advisor"
-  description: "operations on advisors"
-- name: "investor"
-  description: "operations on investor"
-- name: "advice"
-  description: "operations on advice"
 
   externalDocs:
     description: "Find out more about us"
@@ -884,8 +878,6 @@ definitions:
     - lastName
     - email
     - password
-    - isAdvisor
-    - isInvestor
     properties:
       firstName:
         type: "string"
@@ -905,10 +897,6 @@ definitions:
         type: "string"
       profession:
         type: "string"
-      isAdvisor:
-        type: boolean
-      isInvestor:
-        type: boolean
 
   Login:
     type: "object"
