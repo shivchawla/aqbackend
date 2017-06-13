@@ -1,7 +1,6 @@
 'use strict';
 require('../utils/spawn');
 const BacktestModel = require('../models/backtest');
-const Community_backtest = require('../models/community_backtest');
 const StrategyModel = require('../models/strategy');
 var CryptoJS = require("crypto-js");
 const config = require('config');
