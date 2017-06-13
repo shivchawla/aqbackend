@@ -42,6 +42,16 @@ const User = new Schema({
     },
     updatedAt: Date,
 
+    investor: {
+        type: Schema.Types.ObjectId,
+        ref: 'Investor'
+    },
+    
+    advisor: {
+        type: Schema.Types.ObjectId,
+        ref: 'Advisor'
+    },
+
 });
 
 User.index({
@@ -68,6 +78,20 @@ User.statics.updateStatus = function(query, status) {
             }
         });
 };
+
+User.statics.updateUser = function(query, updates) {
+    return this.findOne(query)
+    .then(function(user) {
+        if (user) {
+            Object.keys(updates).forEach(updateKey => {
+                user[updateKey] = updates[updateKey];
+            }};
+            
+            return user.save();
+        }
+    });
+};
+
 
 User.statics.updateCode = function(query, code) {
     return this.findOne(query)

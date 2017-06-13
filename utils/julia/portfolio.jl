@@ -1,10 +1,43 @@
 using YRead
-using Raftaar: Security, Portfolio, Position
+using Raftaar: Security, Portfolio, Position, OrderFill
 using Raftaar: Performance, PortfolioStats 
 using Raftaar: calculateperformance
+using Raftaar: updateportfolio_fill!
+
 import Base: convert
 using TimeSeries
 
+
+function _get_security(security::Dict{String, Any})                
+    
+    ticker = haskey(security, "ticker") ? security["ticker"] : ""
+    println(ticker)
+    
+    securitytype = haskey(security, "securitytype") ? security["securitytype"] : "EQ"
+    println(securitytype)
+    
+    exchange = haskey(security, "exchange") ? security["exchange"] : "NSE"
+    println(exchange)
+    
+    country = haskey(security, "country") ? security["country"] : "IN"
+    println(country)
+    
+    # Fetch security from the database 
+    return getsecurity(ticker, securitytype, exchange, country)
+
+end
+
+function convert(::Type{OrderFill}, transaction::Dict{String, Any})
+    
+    security = _get_security(transaction["security"])
+
+    qty = haskey(transaction, "quantity") ? pos["quantity"] : 0
+    price = haskey(transaction, "price") ? pos["price"] : 0.0
+    fee = haskey(transaction, "fee") ? pos["fee"] : 0.0
+
+    return OrderFill(security.symbol, price, qty, fee)
+
+end
 
 function convert(::Type{Portfolio}, port::Dict{String, Any})
 
@@ -15,26 +48,15 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
 
         for pos in positions
             if haskey(pos, "security")
-                println(pos)
-                sec = pos["security"]
-                
-                ticker = haskey(sec, "ticker") ? sec["ticker"] : ""
-                println(ticker)
-                securitytype = haskey(sec, "securitytype") ? sec["securitytype"] : "EQ"
-                println(securitytype)
-                exchange = haskey(sec, "exchange") ? sec["exchange"] : "NSE"
-                println(exchange)
-                country = haskey(sec, "country") ? sec["country"] : "IN"
-                println(country)
                 # Fetch security from the database 
-                security = getsecurity(ticker, securitytype, exchange, country)
-
-                qty = haskey(pos, "quantity") ? pos["quantity"] : 0
-                price = haskey(pos, "price") ? pos["price"] : 0.0
+                security = _get_security(pos["security"])
 
                 println(security)
                 println(security.symbol)
                 
+                qty = haskey(pos, "quantity") ? pos["quantity"] : 0
+                price = haskey(pos, "price") ? pos["price"] : 0.0
+
                 # Append to position dictionary
                 portfolio.positions[security.symbol] = Position(security.symbol, qty, price, 0.0)
             end
@@ -44,7 +66,14 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
     return portfolio
 end
 
-function compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime, cash::Float64)
+
+
+
+function _update_portfolio(portfolio::Portfolio, fill::OrderFill)
+
+end
+
+function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime, cash::Float64)
     # Get the list of ticker
     secids = [sym.id for sym in keys(portfolio.positions)]    
 
@@ -78,7 +107,11 @@ function compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_
     return TimeArray(ts, portfolio_value, ["Portfolio"])
 end
 
-function compute_portfoliovalue(port::Dict{String, Any}, date::DateTime)
+#=
+Compute portfolio value on a given date
+OUTPUT: portfolio value
+=#
+function _compute_portfoliovalue(port::Dict{String, Any}, date::DateTime)
     
     portfolio = convert(Raftaar.Portfolio, port)
 
@@ -90,11 +123,15 @@ function compute_portfoliovalue(port::Dict{String, Any}, date::DateTime)
     return portfolio_value.values[1]
 end
 
-function compute_portfolio_value_history(collections)
+#=
+Compute portfolio value based on portfolio history for a given period
+OUTPUT: Vector of portfolio value
+=#
+function compute_portfolio_value_history(portfolioHistory)
     
     ts = Vector{TimeArray}()
 
-    for collection in collections
+    for collection in portfolioHistory
 
         port = collection["portfolio"]
 
@@ -108,9 +145,10 @@ function compute_portfolio_value_history(collections)
         println(startDate)
         println(endDate)
 
-        portfolio_value = compute_portfoliovalue(portfolio, startDate, endDate, cash)
+        # Compute portfolio value timed array
+        portfolio_value_ta = _compute_portfoliovalue(portfolio, startDate, endDate, cash)
 
-        push!(ts, portfolio_value)
+        push!(ts, portfolio_value_ta)
     end
 
     f_ts = ts[1]
@@ -122,6 +160,10 @@ function compute_portfolio_value_history(collections)
     return (f_ts.values, f_ts.timestamp)
 end
 
+#=
+Compute portfolio value for a given period (start and end date)
+OUTPUT: Vector of portfolio value
+=#
 function compute_portfolio_value_period(port, startDate, endDate)
 
     startDate = DateTime(startDate[1:end-1])
@@ -131,8 +173,25 @@ function compute_portfolio_value_period(port, startDate, endDate)
     cash = haskey(port, "cash") ? port["cash"] : 0.0
     cash = convert(Float64, cash)
 
-    portfolio_value = compute_portfoliovalue(portfolio, startDate, endDate, cash)
+    portfolio_value = _compute_portfoliovalue(portfolio, startDate, endDate, cash)
 
     return (portfolio_value.values, portfolio_value.timestamp)
+end
+
+function compute_updated_portfolio(port::Dict{String, Any}, transactions::Vector{Any})
+    portfolio = convert(Raftaar.Portfolio, port)
+
+    cash = haskey(port, "cash") ? port["cash"] : 0.0
+    cash = convert(Float64, cash)
+    
+    fills = Vector{OrderFill}()
+    for transaction in transactions
+        fill = convert(Raftaar.OrderFill, transaction)
+        push!(fills, fill)
+    end
+
+    cash += Raftaar.updateportfolio_fills!(portfolio, fills)
+
+    return (cash, portfolio)
 end
 

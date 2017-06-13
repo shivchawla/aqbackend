@@ -1,4 +1,7 @@
-
+#=
+Compute Portfolio Performance for a portfolio over a period (start and end dates)
+OUTPUT: performance
+=#
 function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_date::DateTime)
 
     portfolio = convert(Raftaar.Portfolio, port)

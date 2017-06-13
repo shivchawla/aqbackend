@@ -5,7 +5,9 @@ using WebSockets
 using JSON
 
 using Raftaar: Performance, Returns, Drawdown, Ratios, Deviation, PortfolioStats
+using Raftaar: serialize
 
+#TO BE COMPLETED
 function validate_portfolio(portfolio)
   return true
 end
@@ -187,9 +189,17 @@ wsh = WebSocketHandler() do req, client
               
               parsemsg["error"] = error
 
-            elseif action == "compute_attribution"
-              
+            elseif action == "compute_updated_portfolio"
+                portfolio = parsemsg["portfolio"]
+                transactions = parsemsg["transactions"]
+                
+                (cash, updated_portfolio) = compute_updated_portfolio(portfolio, transactions)
+                
+                portfolio = Raftaar.serialize(updated_portfolio)
+                
+                portfolio["cash"] = cash
 
+                parsemsg["portfolio"] = portfolio
 
             else
 
@@ -197,7 +207,7 @@ wsh = WebSocketHandler() do req, client
             
             end
 
-            #println(parsemsg)
+            println(parsemsg)
 
             write(client, JSON.json(parsemsg))  
 
