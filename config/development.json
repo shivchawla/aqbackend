@@ -26,9 +26,13 @@
     "julia_server_host" : "127.0.0.1",
     "julia_server_port" : 6000,
 
-    "machines" : [{"host": "127.0.0.1", "port":2000},
-                    {"host": "127.0.0.1", "port":2001},]
+    "max_advices_per_advisor":5
+
+    //"machines": [], //[//{"host": "127.0.0.1", "port":2000},
+                    //{"host": "127.0.0.1", "port":2001},],
                     //{"host": "127.0.0.1", "port":2002},
                     //{"host": "127.0.0.1", "port":2003}]
+
+    
 
 }

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-03-02 18:26:29
+* @Last Modified time: 2017-06-29 14:59:16
 */
 
 'use strict';
@@ -16,8 +16,12 @@ module.exports.getAdvisors = function getAdvisors(req, res, next) {
     Advisor.getAdvisors(req.swagger.params, res, next);
 };
 
-module.exports.getAdvisor = function getAdvisor(req, res, next) {
-    Advisor.getAdvisor(req.swagger.params, res, next);
+module.exports.getAdvisorSummary = function getAdvisor(req, res, next) {
+    Advisor.getAdvisorSummary(req.swagger.params, res, next);
+};
+
+module.exports.getAdvisorDetail = function getAdvisor(req, res, next) {
+    Advisor.getAdvisorDetail(req.swagger.params, res, next);
 };
 
 module.exports.followAdvisor = function followAdvisor(req, res, next) {
@@ -50,6 +54,10 @@ module.exports.updateAdvice = function updateAdvice(req, res, next) {
 
 module.exports.followAdvice = function followAdvice(req, res, next) {
     Advisor.followAdvice(req.swagger.params, res, next);
+};
+
+module.exports.deleteAdvice = function deleteAdvice(req, res, next) {
+    Advisor.deleteAdvice(req.swagger.params, res, next);
 };
 
 module.exports.subscribeAdvice = function subscribeAdvice(req, res, next) {

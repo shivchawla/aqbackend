@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-22 14:19:01
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-05-22 14:20:35
+* @Last Modified time: 2017-06-23 13:29:18
 */
 
 'use strict';
@@ -11,8 +11,7 @@ const Schema = mongoose.Schema;
 
 const PerformanceMetrics  = new Schema({
     date: Date,
-    performance: Schema.Types.Mixed,
-    rating: Number,
+    detail: Schema.Types.Mixed,
 });
 
 module.exports = PerformanceMetrics;

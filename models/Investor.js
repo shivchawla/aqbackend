@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:53:13
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-05-22 14:25:49
+* @Last Modified time: 2017-07-01 12:05:07
 */
 
 'use strict';
@@ -13,115 +13,138 @@ const Schema = mongoose.Schema;
 
 const Portfolio = require('./Portfolio');
 const Transaction = require('./Transaction');
-const PortfolioStats = require('./PortfolioStats');
-const PerformanceMetrics = require('./PerformanceMetrics');
+const Performance = require('./Performance');
+const Advice = require('./Advice');
 
 const Investor = new Schema({
+    
     user: {
         type: Schema.Types.ObjectId,
-        require: true,
-        ref: 'User'
+        ref:'User',
     },
 
-    active: {
-    	type: Boolean,
-    	require: true
-    },
-
-	startDate: {
-    	type: Date,
-    	require: true
-    },    
-
-    portfolio: {
+    defaultPortfolio: {
         type: Schema.Types.ObjectId,
         ref: 'Portfolio'
     },
 
-    performance: {
-        lastUpdated: Date,
-        portfolioStats: [PortfolioStats],
-        metrics: [PerformanceMetrics]
-    },
-
-    stockTransactions: [Transaction],
-
-    adviceTransactions:[{
-        date: Date,
-        advice: {
-            type: Schema.Types.ObjectId,
-            ref: 'Advice'
-        },
+    portfolios: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Portfolio'
     }],
 
-    portfolioHistory: [{
-    	date: Date,
+    performance: [{
         portfolio: {
             type: Schema.Types.ObjectId,
             ref: 'Portfolio'
-        }
+        },
+
+        value: Performance
     }],
 
     subscribedAdvices:[{
-		type: Schema.Types.ObjectId,
-    	ref: 'Advice'
-    }],
+        advice: {
+	       type: Schema.Types.ObjectId,
+	       ref: 'Advice'
+       },
 
-    subscriptionHistory:[{
-    	startDate: Date,
-    	endDate: Date, 
-    	advice: {
-    		type: Schema.Types.ObjectId,
-        	ref: 'Advice'
-    	}
+       updatedDate: Date,
+
+       active: {
+            type: Boolean,
+            default: true,
+       }
     }],
    	
     followingAdvices: [{
-	    type: Schema.Types.ObjectId,
-        ref: 'Advice'
+
+        advice: {
+	       type: Schema.Types.ObjectId,
+            ref: 'Advice'
+        },
+
+        updatedDate: Date,
+
+        active: {
+            type: Boolean,
+            default: true,
+       }
+
     }],
 
     followingAdvisors: [{
-        type: Schema.Types.ObjectId,
-        ref: 'Advisor'
+
+        advisor: {
+            type: Schema.Types.ObjectId,
+            ref: 'Advisor'
+        },
+
+        updatedDate: Date,
+
+        active: {
+            type: Boolean,
+            default: true,
+        }
     }],
 
-    /*performanceHistory: [{
-    	date: Date,
-    	performance: Schema.Types.Mixed,
-    	
-    }],*/
 });
+
+/*Investor.statics.saveInvestor = function(investorDetails) {
+    const investor = new this(investorDetails);
+    return investor.save();
+};*/
 
 Investor.statics.saveInvestor = function(investorDetails) {
     const investor = new this(investorDetails);
     return investor.save();
 };
 
-Investor.statics.getInvestor = function(query, options) {
-	
-    var q = this.findOne(query)
-			.populate('user', 'firstName lastName');
-
-	if(options.fields) {
-		options.fields = options.fields.replace(',',' ');
+Investor.statics.fetchInvestor = function(query, options) {
+	console.log(options);
+    console.log(options.fields);
+    var q = this.findOne(query);
+			
+	if(options.fields) {   
 		q = q.select(options.fields);
 	}
+    console.log(options.fields);
 
-	if((options.fields && options.fields.indexOf('portfolio')) || !options.fields) {
-		q = q.populate('portfolio', null, { _id: { $ne: null }})
-	}
+    if((options.fields && options.fields.indexOf('defaultPortfolio')) || !options.fields) {
+        q = q.populate('defaultPortfolio', null, { _id: { $ne: null }});
+    }
 
-	/*if((options.fields && options.fields.indexOf('followingAdvices')) || !options.fields) {
+	/*if((options.fields && options.fields.indexOf('portfolios')) || !options.fields) {
+		q = q.populate('portfolios', null, { _id: { $ne: null }});
+	}*/
+
+	if((options.fields && options.fields.indexOf('followingAdvices')) || !options.fields) {
 		q = q.populate('followingAdvices', null, { _id: { $ne: null }})
 	}
 
 	if((options.fields && options.fields.indexOf('followingAdvisors')) || !options.fields) {
-		q = q.populate('followingAdvisors._id', null, { _id: { $ne: null }})
-	}*/
+		q = q.populate('followingAdvisors', null, { _id: { $ne: null }})
+	}
 
+    console.log("end");
+
+    //console.log(q);
 	return q.execAsync();
 	 	
+};
+
+Investor.statics.updateInvestorPerformance = function(query, portfolioId, performance) {
+    return this.findOne(query)
+    .then(investor => {
+        var idx = investor.performance.map(item => item.portfolio.valueOf()).indexOf(portfolioId);
+        if(idx !=-1) {
+            investor.performance[idx].value = performance;
+        } else {
+            investor.performance.push({portfolio: portfolioId, value: performance});
+        }
+
+        console.log("Saving Investor");
+        return investor.save();
+    });
 };
 
 Investor.statics.updateFollowing = function(query, id, type) {
@@ -154,8 +177,6 @@ Investor.statics.updateFollowing = function(query, id, type) {
 	        
 	    });
 };
-
-
 
 Investor.statics.updateSubscription = function(query, adviceId) {
 	var adviceId = adviceId.toString(); 
@@ -196,8 +217,76 @@ Investor.statics.updateSubscription = function(query, adviceId) {
     });
 };
 
-Investor.statics.updatePortfolioHistory = function(query, portfolioId) {
+Investor.statics.updatePortfolioHistory = function(query, portfolioId, cloneId) {
+    return this.findOne(query)
+    .select('historicalPortfolio')
+    .then(investor => {
+        
+        if(investor && investor.historicalPortfolio) {
+            var idx = investor.historicalPortfolio.map(item =>item.refPortfolio).equals(portfolioId)
+            if(idx !=- 1) {
+                investor.historicalPortfolio[idx].history.push(cloneId);
+            }
+        }
 
+        return investor.save();
+        
+    });
+};
+
+Investor.statics.addTransactions = function(query, transactions) {
+    this.findOne(query)
+    .select('transactions')
+    .then(investor => {
+        if(investor && investor.transactions) {
+            transactions.forEach(transaction => {
+                //transaction["portfolio"] = portfolioId;
+                investor.transactions.push(transaction);
+            })
+        }
+
+        return investor.save();
+    });
+};
+
+Investor.statics.addAdviceTransactions = function(query, adviceId) {
+    return this.findOne(query)
+    .select('adviceTransactions')
+    .then(investor => {
+        if(investor && investor.adviceTransactions) {
+            
+            var idx = adviceTransactions.indexOf(item => {item.advice.equals(adviceId)});
+            
+            if(idx == -1) {
+                investor.adviceTransactions.push({date: new Date, advice: adviceId});
+            }
+        }
+
+        return investor.save();
+    });
+};
+
+Investor.statics.addPortfolio = function(query, portfolioId){
+    return this.findOne(query)
+    .select('portfolios')
+    .then(investor => {
+        if(investor.portfolios) {
+            investor.portfolios.push(portfolioId);
+        } else {
+            investor.defaultPortfolio = portfolioId;
+            investor.portfolios = [portfolioId];
+        }
+        return investor.save();
+    });
+};
+
+Investor.statics.removePortfolio = function(query, portfolioId){
+    return this.findOne(query)
+    .select('portfolios')
+    .then(investor => {
+        investor.portfolios.splice(portfolioId, 1);
+        return investor.save();
+    });
 };
 
 function farfuture() {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 14:59:47
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-05-11 13:12:58
+* @Last Modified time: 2017-06-22 08:16:35
 */
 
 'use strict';
@@ -26,6 +26,10 @@ module.exports.updatePortfolio = function updatePortfolio(req, res, next) {
 
 module.exports.addPosition = function addPosition(req, res, next) {
     Portfolio.addPosition(req.swagger.params, res, next);
+};
+
+module.exports.addAdvice = function addAdvice(req, res, next) {
+    Portfolio.addAdvice(req.swagger.params, res, next);
 };
 
 module.exports.updatePosition = function updatePosition(req, res, next) {

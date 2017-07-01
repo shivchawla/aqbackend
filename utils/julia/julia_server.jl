@@ -7,10 +7,6 @@ using JSON
 using Raftaar: Performance, Returns, Drawdown, Ratios, Deviation, PortfolioStats
 using Raftaar: serialize
 
-#TO BE COMPLETED
-function validate_portfolio(portfolio)
-  return true
-end
 
 include("portfolio.jl")
 include("performance.jl")
@@ -51,21 +47,36 @@ wsh = WebSocketHandler() do req, client
         #println(msg)
         parsemsg = JSON.parse(msg)
 
-        #println(parsemsg)
+        println("Namaste")
+        println(parsemsg)
 
         if haskey(parsemsg, "action") 
 
             action = parsemsg["action"]
             error = ""
 
-            if action == "validate_portfolio"
+            if action == "validate_advice"
                
               valid = false
 
+              println(parsemsg["advice"])
+
+              try 
+                valid = _validate_advice(parsemsg["advice"]) 
+              catch err
+                println(err)
+                error = "Error"
+              end
+
+              parsemsg["valid"] = valid
+              parsemsg["error"] = error
+            
+            elseif action == "validate_portfolio"
+              valid = false  
               println(parsemsg["portfolio"])
 
               try 
-                valid = validate_portfolio(parsemsg["portfolio"]) 
+                valid = _validate_portfolio(parsemsg["portfolio"]) 
               catch err
                 println(err)
                 error = "Error"
@@ -74,7 +85,29 @@ wsh = WebSocketHandler() do req, client
               parsemsg["valid"] = valid
               parsemsg["error"] = error
 
-                
+            
+            elseif action == "compute_performance_portfolio_history"
+                portfolioHistory = parsemsg["portfolioHistory"]
+                benchmark = parsemsg["benchmark"]["ticker"];
+
+                (netValues, dates) = compute_portfolio_value_history(portfolioHistory)
+                println(netValues)
+                println(dates)
+
+                performance = compute_performance(netValues, dates, benchmark)
+
+                println(performance)
+
+                nVDict = Vector{Dict{String, Any}}()
+
+                for i = 1:length(netValues)
+                    push!(nVDict, Dict{String, Any}("date" => dates[i], "netValue" => netValues[i]))
+                end
+
+                parsemsg["performance"] = Dict{String, Any}("detail" => serialize(performance), 
+                                            "portfolioStats" => nVDict)
+                parsemsg["error"] = error
+
             elseif action == "compute_portfolio_performance"
               
               performance = Dict{String, Any}()
@@ -193,13 +226,22 @@ wsh = WebSocketHandler() do req, client
                 portfolio = parsemsg["portfolio"]
                 transactions = parsemsg["transactions"]
                 
+
+                # TODO: update function to compute portfolio stats etc.
+                # TODO: if price is not give (or zero price), assume EOD price for the day
                 (cash, updated_portfolio) = compute_updated_portfolio(portfolio, transactions)
                 
-                portfolio = Raftaar.serialize(updated_portfolio)
-                
-                portfolio["cash"] = cash
+                #Update, the positions to match the object structure in Node
+                #portfolio = Raftaar.serialize(updated_portfolio)
 
-                parsemsg["portfolio"] = portfolio
+                updated_portfolio = convert_to_node_portfolio(updated_portfolio)
+                
+                updated_portfolio["cash"] = cash
+                #updated_portfolio["updatedDate"] = string(now())
+
+                println("Portfolio: $(updated_portfolio)")
+
+                parsemsg["portfolio"] = updated_portfolio
 
             else
 
@@ -207,7 +249,7 @@ wsh = WebSocketHandler() do req, client
             
             end
 
-            println(parsemsg)
+            #println(parsemsg)
 
             write(client, JSON.json(parsemsg))  
 

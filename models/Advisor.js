@@ -2,29 +2,24 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-05-26 23:21:40
+* @Last Modified time: 2017-06-29 15:02:22
 */
 'use strict';
 
 const mongoose = require('./index');
 const Schema = mongoose.Schema;
 
+const PerformanceMetrics = require('./PerformanceMetrics');
+const PortfolioStats = require('./PortfolioStats');
+const Performance = require('./Performance');
+const User = require('./User');
+
 const Advisor = new Schema({
-    user: {
+   
+   	user: {
         type: Schema.Types.ObjectId,
-        require: true,
-        ref: 'User'
+        ref:'User',
     },
-
-    startDate: {
-    	type:Date,
-    	require: true,
-    },
-
-    /*active: {
-    	type: Boolean,
-    	require: true,
-    },*/ 
 
     approved: {
 		type: Boolean,
@@ -35,61 +30,38 @@ const Advisor = new Schema({
     approvedDate: Date,  
 
     advices: [{
-		type: Schema.Types.ObjectId,
-		ref: 'Advice'
-	}],
-
-	deletedAdvices: [{
-		type: Schema.Types.ObjectId,
-		ref: 'Advice'
-	}],
+    	type: Schema.Types.ObjectId,
+    	ref: 'Advice',
+    }],
 
     followers: [{
-        type: Schema.Types.ObjectId,
-        require: true,
-        ref: 'Investor'
+    	user: {
+	        type: Schema.Types.ObjectId,
+	        ref: 'User'
+        },
+
+        active: {
+        	type: Boolean,
+        	default: true,
+        },
+
+        updatedDate: Date
     }],
        
-   	followersHistory: [{
-   		startDate: Date,
-   		endDate:Date,
-   		investor: {
-	        type: Schema.Types.ObjectId,
-	        require: true,
-	        ref: 'Investor'
-        },
-    }],
+    performance: Performance,
 
-    performance: {
-    	type: Schema.Types.Mixed,
-    },
-
-    performanceHistory: [{
-    	date: Date,
-    	performance: {
-    		type: Schema.Types.Mixed,
-    	}
-    }],
-
-    rating:{
-    	type: Number,
-        require: true,
-        default: 0
-    },
-
-    ratingHistory: [{
+    rating: [{
     	date: Date,
     	rating: {
     		type: Number,
-        	require: true,
         	default: 0
     	}
     }]
 });
 
 
-Advisor.statics.saveAdvisor = function(advisorDetails) {
-    const advisor = new this(advisorDetails);
+Advisor.statics.saveAdvisor = function(advisorDetail) {
+    const advisor = new this(advisorDetail);
     return advisor.save();
 };
 
@@ -97,8 +69,8 @@ Advisor.statics.saveAdvisor = function(advisorDetails) {
 //Keeps a history of followers
 //Adds if not following.
 //Updates enddate if already following
-Advisor.statics.updateFollowers = function(query, investorId) {
-	const id = investorId.toString();
+Advisor.statics.updateFollowers = function(query, userId) {
+	const id = userId.toString();
 
     return this.findOne(query)
     .then(advisor => {
@@ -106,13 +78,14 @@ Advisor.statics.updateFollowers = function(query, investorId) {
             var idx = advisor.followers.indexOf(id)
            
             if(idx == -1) {
-        		advisor.followers.addToSet(id);
+        		advisor.followers.addToSet({user: id, updatedDate:new Date()});
             } else {
-            	advisor.followers.pull(id);
+            	advisor.followers[idx].active = false;
+            	advisor.followers[idx].updatedDate = new Date();
             }
             
             //Now update history
-            var followersHistory = advisor.followersHistory;
+            /*var followersHistory = advisor.followersHistory;
             idx = followersHistory.map(x => x.investor.toString()).lastIndexOf(id);
             
             if(idx == -1) {
@@ -128,37 +101,13 @@ Advisor.statics.updateFollowers = function(query, investorId) {
             	} else {
             		followersHistory.addToSet({startDate: new Date(), endDate: farfuture(), investor:id});
             	}
-            }
+            }*/
         
         	return advisor.save();
     	}
         
     });
 };
-
-/*Advisor.statics.getFollowers = function(query) {
-	return this.find(query)
-	.populate('followers.user','firstName lastName')
-	.select('followers')
-	.execAsync();*/
-
-	/*return this.aggregate([
-    	{$match: query},
-    	{$project: {
-	        followers: {
-	        	$filter: {
-		            input: '$followers',
-		            as: 'item',
-		            cond: {$eq: ['$$item.endDate', farfuture().toISOString()]}
-	        	}
-	        }
-    	}
-    	}
-	])*/
-	//.populate('followers.user','firstName lastName')
-	//.select('followers')
-	//.execAsync()
-//}
 
 Advisor.statics.getAllAdvisors = function(query, options) {	
 	var q = this.find(query)
@@ -173,20 +122,16 @@ Advisor.statics.getAllAdvisors = function(query, options) {
 	}			
 	
 	if(options.fields) {
-		options.fields = options.fields.replace(',',' ');
+		//options.fields = options.fields.replace(',',' ');
 		q = q.select(options.fields);
 	}
 
 	if((options.fields && options.fields.indexOf('advices')) || !options.fields) {
-		q = q.populate('advices._id', null, { _id: { $ne: null }})
+		q = q.populate('advices', null, { _id: { $ne: null }})
 	}
 
 	if((options.fields && options.fields.indexOf('followers')) || !options.fields) {
-		q = q.populate('followers', 'firstName lastName', { _id: { $ne: null }})
-	}
-
-	if((options.fields && options.fields.indexOf('followersHistory')) || !options.fields) {
-		q = q.populate('followersHistory.user', 'firstName lastName', { _id: { $ne: null }})
+		q = q.populate('followers.user', 'firstName lastName', { _id: { $ne: null }})
 	}
 
 	if(options.sort) {
@@ -197,12 +142,12 @@ Advisor.statics.getAllAdvisors = function(query, options) {
 	return q.execAsync();
 };
 
-Advisor.statics.getAdvisor = function(query, options) {
+Advisor.statics.fetchAdvisor = function(query, options) {
 	var q = this.findOne(query)
 			.populate('user', 'firstName lastName');
 
 	if(options.fields) {
-		options.fields = options.fields.replace(',',' ');
+		//options.fields = options.fields.replace(',',' ');
 		q = q.select(options.fields);
 	}
 
@@ -211,19 +156,19 @@ Advisor.statics.getAdvisor = function(query, options) {
 	}
 	
 	if((options.fields && options.fields.indexOf('followers')) || !options.fields) {
-		q = q.populate('followers', 'firstName lastName', { _id: { $ne: null }})
+		q = q.populate('followers.user', 'firstName lastName', { _id: { $ne: null }})
 	}
 
-	if((options.fields && options.fields.indexOf('followersHistory')) || !options.fields) {
+	/*if((options.fields && options.fields.indexOf('followersHistory')) || !options.fields) {
 		q = q.populate('followersHistory.user', 'firstName lastName', { _id: { $ne: null }})
-	}
+	}*/
 
 	return q.execAsync();
 };
 
 Advisor.statics.addAdvice = function(query, adviceId) {
 	return this.findOne(query)
-	.populate('user')
+	.select('advices')
 	.then(advisor => {
 		if(advisor) {
 			advisor.advices.push(adviceId);
@@ -239,14 +184,14 @@ Advisor.statics.addAdvice = function(query, adviceId) {
 
 Advisor.statics.removeAdvice = function(query, adviceId) {
 	return this.findOne(query)
-		.then(advisor => {
-			if(advisor) {
-				advisor.advices.pull(adviceId);
-				advisor.deletedAdvices.push(adviceId);
-			}
-
+	.then(advisor => {
+		if(advisor) {
+			advisor.advices.pull(adviceId);
 			return advisor.save();
-		})	
+		} else {
+			throw new Error("Advisor not found. Advice can't be removed");
+		}
+	});
 };
 
 Advisor.statics.updatePerformance = function(query, performance) {

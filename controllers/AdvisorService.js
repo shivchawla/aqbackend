@@ -2,128 +2,38 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-03-04 13:18:40
+* @Last Modified time: 2017-06-29 17:45:17
 */
 
 'use strict';
 const AdvisorModel = require('../models/advisor');
 const InvestorModel = require('../models/investor');
 const UserModel = require('../models/user');
+const AdviceModel = require('../models/advice');
+const APIError = require('../utils/error');
 const Promise = require('bluebird');
 
 exports.createAdvisor = function(args, res, next) {
     const userId = args.user._id;
 
-    const advisor = {
-        user: userId,
-       	startdate: new Date(),
-       	active: false,
-    };
-
-	UserModel.fetchUser({_id: userId})
-	.then(user => {
-		if (user) {
-			if(!user.isInvestor && !user.isAdvisor) {
-				return AdvisorModel.saveAdvisor(advisor);
-			} else if (user.isInvestor) {
-				return res.status(400).json({_id: userId, message:"User is an Investor"});
-			} else {
-				return res.status(400).json({_id: userId, message:"User is already an Advisor"});
-			}
+    AdvisorModel.fetchAdvisor({user:userId}, {})
+	.then(advisor => {
+		if(!advisor) {
+			return AdvisorModel.saveAdvisor({user:userId}, {user: userId})
 		} else {
-			return res.status(400).json({_id: userId, message: "No user found "});
-		}
+			APIError.throwJsonError({userId: userId, message:"Advisor already exists"});
+		}	
 	})
 	.then(advisor => {
 		if(advisor) {
-			return UserModel.updateAdvisor({_id: advisor.user}, advisor._id)
+			return res.status(200).json(advisor);
 		} else {
-			return res.status(400).json({userId: userId, message:"Advisor can't be created"});
-		}
-	})
-	.then(user => {
-		if(user) {
-			return res.status(200).json({advisorId: user.advisor});
-		} else {
-			return res.status(400).json({userId: arg.userId, message: "No user found "});
+			APIError.throwJsonError({userId: userId, message:"Advisor can't be created"});
 		}
 	})
 	.catch(err => {
-		next(err);
+		return res.status(400).send(err.message);
 	});
-};
-
-exports.followAdvisor = function(args, res, next) {
-    const user = args.user;
-  	const advisorId = args.advisorId.value;
-
-  	UserModel.fetchUser({_id: user._id})
-  	.then(user => {
-  		if(user) {
-  			if (user.isInvestor) {
-
-	    		const investorId = user.investor; 
-
-	    		return Promise.all([AdvisorModel.updateFollowers({
-	    						_id: advisorId}, investorId),
-
-							InvestorModel.updateFollowing({
-				    			_id: investorId}, advisorId, "advisor"
-							    		)]
-				);
-			} else {
-				return res.status(400).json({userId: user._id, message: "User is not an Investor"});
-			}
-		} else {
-			return res.status(400).json({userId: user._id, message: "User not found"});
-		}
-	})
-	.then(([advisor, investor]) => {
-		if (advisor && investor) {
-			return res.status(200).json({followers:advisor.followers, count: advisor.followers.length}); 
-		} else if(!investor) {
-			return res.status(400).json({userId:user._id, message: "No Investor found"});
-		} else if(!advisor){
-			return res.status(400).json({advisorId: advisorId, message: "No Advisor found"});
-		}
-	})
-    .catch(err => {
-        next(err);
-    });
-};
-
-exports.getFollowers = function(args, res, next) {
-	
-	//TODO: send relevant information about the followers (PUBLIC profile)
-	const userId = args.user._id;
-
-	UserModel.fetchUser({_id: userId})
-  	.then(user => {
-  		if(user) {
-  			if (user.isInvestor) {
-			    return AdvisorModel.getAdvisor({
-			        _id: args.advisorId.value
-			    }, {fields: 'followers'});
-		    } else {
-		    	return res.status(400).json({userId: userId, message: "User is not an Investor"});
-		    }
-	    } else {
-	    	return res.status(400).json({userId: userId, message: "User not found"});
-    	}
-    })
-    .then(output => {
-    	if(output) {
-    		if(output.followers){
-	    		return res.status(200).json({followers:output.followers, count:output.followers.length});
-    		} else{
-    			return res.status(200).json({followers:[], count:0});
-    		}	
-    	}
-        
-    })
-    .catch(err => {
-        next(err);
-    });
 };
 
 exports.getAdvisors = function(args, res, next) {
@@ -135,67 +45,121 @@ exports.getAdvisors = function(args, res, next) {
     options.sort = args.sort.value;
     const userId = args.user._id;
 
-    UserModel.fetchUser({_id: userId})
-    .then(user => {
-    	if(user) {
-    		if (user.isInvestor) {
-    			return AdvisorModel.getAllAdvisors({}, options);
-			} else {
-				return res.status(400).json({userId: userId, message: "User is not an investor"});	
-			}
-		} else {
-			return res.status(400).json({userId: userId, message: "User not found"});
-		}
-	})
+    AdvisorModel.getAllAdvisors({}, options)
     .then(advisors => {
     	if(advisors) {
     		return res.status(200).json(advisors);
     	} else {
-    		return res.status(400).json({message:"No advisors found"});
+    		APIError.throwJsonError({message:"No advisors found"});
     	}
     })
     .catch(err => {
-        next(err);
+    	res.status(400).send(err.message);
     });
 };
 
-exports.getAdvisor = function(args, res, next) {
+exports.getAdvisorSummary = function(args, res, next) {
+	const advisorId = args.advisorId.value;
+   
+    //TODO: options when user is investor/advisor
+    const options = {};
+    options.fields = 'user performance rating subscribers advices'
+    
+ 	AdvisorModel.fetchAdvisor({_id: advisorId}, options)
+  	.then(advisor => {
+  		if(advisor) {
+  			return res.status(200).json(advisor);
+ 		} else {
+ 			APIError.throwJsonError({advisorId: advisorId, msg: "Advisor not found"});
+ 		}
+  	})
+  	.catch(err => {
+      	return res.status(400).send(err.message);
+  	});
+};
+
+exports.getAdvisorDetail = function(args, res, next) {
 	const advisorId = args.advisorId.value;
     const userId = args.user._id;
 
+    //TODO: options when user is investor/advisor
     const options = {};
     options.fields = args.fields.value;
     
-    UserModel.fetchUser({_id:userId})
-    .then(user => {
-    	if(user) {
-    		console.log("Is Advisor: "+ user.isAdvisor);
-    		console.log(user.advisor);
-    		console.log("Is Investor" + user.isInvestor);
-    		console.log(user.investor);
-
-    		//TODO: options when user is investor/advisor
-	    	if(user.isInvestor) {
-			 	return AdvisorModel.getAdvisor({
-			        _id: advisorId
-			    }, options);
-		    } else if(user.isAdvisor && user.advisor == advisorId) {
-		    	return AdvisorModel.getAdvisor({
-			        _id: advisorId
-			    }, options);
-		    } else {
-		    	return res.status(400).json({userId: userId, message: "User is neither an investor nor an advisor"});
-		    }
-	    } else {
-	    	return res.status(400).json({userId: userId, message: "User not found"});
-	    }
-    })
+	AdvisorModel.fetchAdvisor({user: userId, _id: advisorId}, options)
   	.then(advisor => {
-  		return res.status(200).json(advisor);
+  		if(advisor) {
+  			return res.status(200).json(advisor);
+		} else {
+			APIError.throwJsonError({msg:"Advisor not found or not authorized"});
+		}
   	})
   	.catch(err => {
-      	next(err);
+      	return res.status(400).send(err.message);
   	});
+};
+
+exports.followAdvisor = function(args, res, next) {
+    const userId = args.user._id;
+  	const advisorId = args.advisorId.value;
+
+  	Promise.all([AdvisorModel.fetchAdvisor({_id: advisorId},{fields:'_id'}),
+  					InvestorModel.fetchInvestor({user:userId}, {fields:'_id'})])
+  	.then(([advisor, investor]) => {
+  		if(advisor && investor) {
+    		const investorId = investor._id; 
+    		return Promise.all([AdvisorModel.updateFollowers({
+    						_id: advisorId}, investorId),
+
+						InvestorModel.updateFollowing({
+			    			_id: investorId}, advisorId, "advisor"
+						    		)]
+			);
+		} else {
+			if(!investor) {
+				APIError.throwJsonError({userId: userId, message: "Investor not found"});
+			} else if(!advisor) {
+				APIError.throwJsonError({userId: userId, message: "Advisor not found"});
+			}
+		}
+	})
+	.then(([advisor, investor]) => {
+		if (advisor && investor) {
+			return res.status(200).json({followers:advisor.followers, count: advisor.followers.length}); 
+		} else if(!investor) {
+			APIError.throwJsonError({userId:userId, message: "Advisor can't be updated"});
+			
+		} else if(!advisor) {
+			APIError.throwJsonError({advisorId: advisorId, message: "Investor can't be updated"});
+			
+		}
+	})
+    .catch(err => {
+    	return res.status(400).send(err.message);
+    });
+};
+
+exports.getFollowers = function(args, res, next) {
+	
+	//TODO: send relevant information about the followers (PUBLIC profile)
+	const userId = args.user._id;
+	const advisorId = args.advisorId.value;
+	
+	AdvisorModel.fetchAdvisor({user: userId, _id: advisorId}, {fields:'followers'})
+    .then(advisor => {
+    	if(advisor) {
+    		if(advisor.followers) {
+	    		return res.status(200).json({followers:output.followers, count:output.followers.length});
+    		} else{
+    			return res.status(200).json({followers:[], count:0});
+    		}	
+    	} else {
+    		APIError.throwJsonError({msg:"No advisor found"});
+    	}
+    })
+    .catch(err => {
+    	return res.status(400).send(err.message);
+    });
 };
 
 function farfuture() {

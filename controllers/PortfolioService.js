@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-09 13:41:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-05-22 14:06:06
+* @Last Modified time: 2017-06-23 23:52:49
 */
 
 'use strict';
@@ -13,7 +13,8 @@ const PortfolioModel = require('../models/portfolio');
 const UserModel = require('../models/user');
 const Promise = require('bluebird');
 const config = require('config');
-const WebSocket = require('ws');   
+const WebSocket = require('ws');
+const APIError = require('../utils/error');
 
 exports.createPortfolio = function(args, res, next) {
 	const userId = args.user._id;
@@ -24,7 +25,8 @@ exports.createPortfolio = function(args, res, next) {
 		if(user) {
 			return InvestorModel.getInvestor({_id: investorId}, {fields:'currentPortfolio'})
 		} else {
-			return res.status(400).json({userId: userId, message:"User not found"}); 
+			throw new Error({userId: userId, message:"User not found"});
+			//return res.status(400).json(); 
 		}
 	})
 	.then(investor => {
@@ -45,7 +47,8 @@ exports.createPortfolio = function(args, res, next) {
 						
 			return _validateAndSavePortfolio(advice);
 		} else {
-			return res.status(400).json({investorId: investorId, message:"Cannot add more advices", errorCode: 5});
+			throw new Error({investorId: investorId, message:"Cannot add more advices", errorCode: 5});
+			//return res.status(400).json();
 		}
 		
 	})
@@ -57,14 +60,16 @@ exports.createPortfolio = function(args, res, next) {
         		_id: investorId
 			}, advice._id);
 		} else {
-			return res.status(400).json({message: "Invalid Portfolio"});
+			throw new Error({message: "Invalid Portfolio"});
+			//return res.status(400).json();
 		}		
     })
     .then(advice => {
     	return res.status(200).json(advice);
     })
 	.catch(err => {
-    	next(err);
+    	return res.status(400).json(err);
+    	//next(err);
     });
 };
 
@@ -85,19 +90,23 @@ exports.updatePortfolio = function(args, res, next) {
 				return InvestorModel.getInvestor({_id: investorId}, {fields:'portfolio'})
 					
 			} else { 
-				return res.status(400).json({invetorId: investorId, message:"Not Authorized", errorCode: 1});
+				throw new Error({invetorId: investorId, message:"Not Authorized", errorCode: 1});
+				//return res.status(400).json();
 			} 
 		} else {
-			return res.status(400).json({userId: userId, message:"User not found"}); 
+			throw new Error({userId: userId, message:"User not found"});
+			//return res.status(400).json(); 
 		}
 	})
 	.then(investor => {
 		if(investor.portfolio) {
 			var portfolioId = investor.portfolio._id;
 			return _updatePortfolio(portfolioId, updates);	
+		} else {
+			throw new Error({investorId:investorId, message:"No Portfolio found"});
 		}
 
-		return res.status(400).json({investorId:investorId, message:"No Portfolio found"});
+		//return res.status(400).json();
 	})
 	.then(portfolio => {
 		if(portfolio) {	
@@ -105,7 +114,8 @@ exports.updatePortfolio = function(args, res, next) {
 		}
 	})
     .catch(err => {
-    	next(err);
+    	return res.status(400).json(err);
+    	//next(err);
     });
 };
 
@@ -119,19 +129,22 @@ exports.getPortfolio = function(args, res, next) {
     	if(user) {
 			return InvestorModel.getInvestor({_id: user.investor}, {fields:'portfolio'});
 		} else {
-			return res.status(400).json({userId: userId, message:"User not found"}); 
+			APIError.thowJsonError({userId: userId, message:"User not found"});
+			
 		}
 	})
-	.then(portfolio => {
-		if(portfolio == portfolioId) {
-			return PortfolioModel.getPortfolio({_id: portfolioId});
-		} else {
-			return res.status(400).json({userId: userId, message:"Not Authorized"}); 	
+	.then(portfolios => {
+		if(portfolios) {
+			if (portfolios.indexOf(portfolioId) != -1) {
+				return PortfolioModel.getPortfolio({_id: portfolioId});
+			} else {
+				APIError.thowJsonError({userId: userId, portfolioIdmessage:"Not Authorized"});
+			}
 		}
 	})
-	.then(portfolio)
   	.catch(err => {
-    	next(err);
+    	return res.status(400).json(err);
+    	//next(err);
     });	
 };
 
@@ -155,51 +168,32 @@ exports.getPositionDetail = function(args, res, next) {
 	const positionSymbol = args.symbol.value;
 };
 
-exports.getAdviceHistory = function(args, res, next) {
-	const investorId = args.investorId.value;
-	const adviceId = args.adviceId.value;
+exports.getPortfolioStockTransactions = function(args, res, next) {
+	const portfolioId = args.portfolioId;
 	const userId = args.user._id;
+	const investorId = args.user.investor;
 
-	const options = {};
-    options.fields = args.fields.value;
+	UserModel.fetchUser({_id:userId})
+	.then(user => {
+		if(user) {
+			return InvestorModel.getInvestor({_id: investorId}, 'portfolio');
+		} else {
+			APIError.thowJsonError({msg: "User not found"})
+		}
+	})
+	.then(portfolios => {
+		if(portfolios) {
+			if(portfolio.indexOf(portfolioId) != -1) {
 
-    if (!options.fields) {
-    	options.fields = 'advisor portfolioHistory performanceHistory ratingHistory';
-    }
-    
-    //Only the investor and author can see the advice history
-    UserModel.fetchUser({_id:userId})
-    .then(user => {
-    	if(user){
-    		if(user.isInvestor || (user.isInvestor && user.advisor == investorId)){
-				return InvestorModel.getInvestor({_id: investorId}, {fields:'advices'});
 			} else {
-				return res.status(400).json({message:"Not authorized"});
+				APIError.thowJsonError({userId: userId, portfolioId:portfolioId, msg: "Not Authorized to view"});
 			}
 		} else {
-			return res.status(400).json({userId: userId, message:"User not found"}); 
+			APIError.thowJsonError({userId: userId, msg: "No portfolios found"});
 		}
 	})
-	.then(output => {
-		if(output.advices) {
-			var ids = output.advices;
-			if(ids.indexOf(adviceId) != -1) {
-				return AdviceModel.getAdvice({_id:adviceId}, options)
-			} 
-		} else { 
-			return res.status(400).json({investorId:investorId, adviceId:adviceId, message:"No Advice found"});
-		}
-	})
-	.then(adviceHistory => {
-		if(adviceHistory) {
-			return res.status(200).json(adviceHistory);
-		} else {
-			return res.status(400).json({investorId:investorId, adviceId:adviceId, message:"No Advice found"});
-		}
-	})
-  	.catch(err => {
-    	next(err);
-    });
+
+	
 };
 
 exports.deleteAdvice = function(args, res, next) {
@@ -213,10 +207,12 @@ exports.deleteAdvice = function(args, res, next) {
 			if (user.isInvestor && user.advisor == investorId) {
 				return InvestorModel.getInvestor({_id: investorId}, {fields:'advices'})
 			} else {
-				return res.status(400).json({message:"Not authorized"});
+				throw new Error({message:"Not authorized"});
+				//return res.status(400).json();
 			}
 		} else {
-			return res.status(400).json({userId: userId, message:"User not found"}); 
+			throw new Error({userId: userId, message:"User not found"});
+			//return res.status(400).json(); 
 		}
 	})
 	.then(output => {
@@ -225,10 +221,10 @@ exports.deleteAdvice = function(args, res, next) {
 			if(ids.indexOf(adviceId) != -1) {
 				return InvestorModel.removeAdvice({_id:investorId}, adviceId);
 			} 
+		} else {
+			throw new Error({investorId:investorId, adviceId:adviceId, message:"No Advice found"});
+			//return res.status(400).json();
 		}
-
-		return res.status(400).json({investorId:investorId, adviceId:adviceId, message:"No Advice found"});
-
 	})
 	.then(advisor => {
 		if(advisor){
@@ -242,7 +238,8 @@ exports.deleteAdvice = function(args, res, next) {
 		}
 	})
   	.catch(err => {
-    	next(err);
+    	return res.status(400).json(err);
+    	//next(err);
     });
 };
 
@@ -253,7 +250,7 @@ exports.followAdvice = function(args, res, next) {
   	UserModel.fetchUser({_id: userId})
   	.then(user => {
   		if(user) {
-  			if (user.isInvestor) {
+  			if (user.investor) {
 	    		
 	    		const investorId = user.investor; 
 	    		
@@ -280,7 +277,8 @@ exports.followAdvice = function(args, res, next) {
 		}
 	})
     .catch(err => {
-        next(err);
+        return res.status(400).json(err);
+        //next(err);
     });
 };
 
@@ -318,7 +316,8 @@ exports.subscribeAdvice = function(args, res, next) {
 		}
 	})
     .catch(err => {
-        next(err);
+        return res.status(400).json(err);
+        //next(err);
     });
 };
 

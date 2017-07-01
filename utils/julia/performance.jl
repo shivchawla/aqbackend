@@ -1,6 +1,6 @@
 #=
 Compute Portfolio Performance for a portfolio over a period (start and end dates)
-OUTPUT: performance
+OUTPUT: Performance object
 =#
 function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_date::DateTime)
 
@@ -45,6 +45,10 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
     return performance
 end
 
+#=
+Compute Portfolio Performance based on NET-VALUE over a period (start and end dates)
+OUTPUT: Performance object
+=#
 function compute_performance(netvalue::Vector{Float64}, dates::Vector{Date}, benchmark::String)
 
     if length(netvalue) < 2
@@ -90,5 +94,17 @@ function compute_performance(netvalue::Vector{Float64}, dates::Vector{Date}, ben
 
     return performance
 end
+
+
+#=function compute_performance_portfolio_history(portfolioHistory, benchmark)
+    (netValues, dates) = compute_portfolio_value_history(portfolioHistory)
+
+    performance = compute_performance(netValues, dates, benchmark)
+
+    performance = JSON.parse(JSON.json(performance))
+
+    
+
+end=#
 
 

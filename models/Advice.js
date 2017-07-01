@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-05-26 13:36:42
+* @Last Modified time: 2017-06-30 14:53:09
 */
 'use strict';
 const mongoose = require('./index');
@@ -11,133 +11,198 @@ const Schema = mongoose.Schema;
 const Portfolio = require('./Portfolio');
 const Security = require('./Security');
 const Transaction = require('./Transaction');
-const PerformanceMetrics = require('./PerformanceMetrics');
-const PortfolioStats = require('./PortfolioStats');
+const Performance = require('./Performance');
+const Advisor = require('./Advisor');
+const HelperFunctions = require("./helper");
 
-const Promise = require('bluebird');
+//const Promise = require('bluebird');
 
 const Advice = new Schema({
-    user: {
+    advisor: {
         type: Schema.Types.ObjectId,
         require: true,
-        ref: 'User'
+        ref: 'Advisor'
     },
 
-    benchmark: Security,
-
-    currentPortfolio: {
-        type: Schema.Types.ObjectId,
-        ref: 'Portfolio'
+    name: {
+        type: String,
+        require: true
     },
 
-    currentPerformance: {
-        lastUpdated: Date,
-        portfolioStats: [PortfolioStats],        
-        metrics: [PerformanceMetrics],
+    description: {
+        type: String,
+        require: true
     },
-
-    /*currentPortfolioStats: [PortfolioStats],
-    currentPerformanceMetrics: [PerformanceMetrics],*/
-
-    performance: {
-        lastUpdated: Date,
-        portfolioStats: [PortfolioStats],
-        metrics: [PerformanceMetrics], // this is difficult (depends on)
-    },
-
-	/*performanceMetrics: [PerformanceMetrics], // this is difficult (depends on)
-	portfolioStats: [PortfolioStats],*/
-
-    portfolioHistory: [{
-    	startDate: Date,
-    	endDate: Date,
-    	portfolio: {
-            type: Schema.Types.ObjectId,
-            ref: 'Portfolio'
-        }
-    }],
 
     createdDate: {
-    	type: Date,
-    	require: true,
+        type: Date,
+        require: true,
     },
 
     updatedDate:{
-    	type: Date,
-    	require: true,
+        type: Date,
+        require: true,
+    },
+
+    public: {
+        type: Boolean,
+        default: false,
     },
 
     approved: {
-    	type:Boolean,
-    	default: false
+        type:Boolean,
+        default: false
     },
 
     approvedDate: Date,
 
     deleted: {
-    	type: Boolean,
-    	default: false
+        type: Boolean,
+        default: false
     },
 
     deletedDate: Date,
 
-    subscribers: [{
-	    type: Schema.Types.ObjectId,
+    benchmark: {
+        type: Security,
         require: true,
-        ref: 'Investor'
-    }],
-    	
-	subscribersHistory: [{
-		startDate: Date, 
-		endDate: Date, 
-		subscriber: {
-	        type: Schema.Types.ObjectId,
-	        require: true,
-	        ref: 'Investor'
-        }
-    }],
+    },
 
-	followers: [{
+    portfolio: {
         type: Schema.Types.ObjectId,
         require: true,
-        ref: 'Investor'
+        ref: 'Portfolio'
+    },
+
+    rating: [{
+        value: {
+            type: Number,
+            default: 0
+        },
+
+        date: Date,
+
+    }],
+
+    advicePerformance: Performance,
+
+    subscribers: [{
+        user:{
+    	    type: Schema.Types.ObjectId,
+            require: true,
+            ref: 'User'
+        },
+
+        active: {
+            type: Boolean,
+            default: true
+        },
+
+        dateUpdated: Date,
+
+    }],
+    	
+	followers: [{
+        user: {
+            type: Schema.Types.ObjectId,
+            require: true,
+            ref: 'User'
+        },
+
+        active: {
+            type: Boolean,
+            default: true
+        },
+
+        dateUpdated: Date,
+
     }],
 });
 
 Advice.statics.saveAdvice = function(adviceDetails) {
+    console.log(adviceDetails);
     const advice = new this(adviceDetails);
-
-    advice.portfolioHistory.push(adviceDetails.currentPortfolio);
-
     return advice.save();
 };
 
-
-Advice.statics.getAdvices = function(query, options) {
+Advice.statics.fetchAdvices = function(query, options) {
   	var q = this.find(query)
-			
+                .skip(options.skip)
+                .limit(options.limit);
+
 	if(options.fields) {
-		options.fields = options.fields.replace(',',' ');
+		//options.fields = options.fields.replace(',',' ');
 		q = q.select(options.fields);
 	}
+
+    if(options.fields && options.fields.indexOf('advisor') != -1) {
+        q = q.populate({path:'advisor', 
+                        populate:{path: 'user', 
+                                    select:'_id firstName lastName'}
+                        });
+        // null, { _id: { $ne: null }});
+    } 
+    //{path : 'userId', populate : {path : 'reviewId'}}
 
 	return q.execAsync();
 };
 
-Advice.statics.getAdvice = function(query, options) {
-  	var q = this.findOne(query)
-			
-	if(options.fields) {
-		options.fields = options.fields.replace(',',' ');
-		q = q.select(options.fields);
+Advice.statics.fetchAdvice = function(query, options) {
+  	var q = this.findOne(query);
+	           
+    if(options.fields) {
+        //if(options.fields.indexOf('advicePerformance' != -1)) {
+		  q = q.select(options.fields);
+          //q = q.select(options.fields.concat(' portfolio benchmark'));
+          //q = q.populate('portfolio', null, { _id: { $ne: null }});
+        /*} else {
+            q = q.select(options.fields);
+        }*/
 	}
 
+    if(options.fields && options.fields.indexOf('portfolio') != -1) {
+        q = q.populate('portfolio', null, { _id: { $ne: null }});
+    }
+
 	return q.execAsync();
+    /*then(advice => {
+        console.log(advice);
+        var update = false;
+
+        if(options.fields.indexOf('advicePerformance')) {
+            //check if advice Performance is tha latest
+            if(advice.advicePerformance) {
+                var performance = advice.advicePerformance;
+
+                if(getDate(performance.updatedDate) < getDate(new Date())) {
+                    update = true;
+                } 
+
+            } else {
+                update = true;
+            }
+        }
+
+        if(update) {
+             return Promise.all([true, HelperFunctions.calculatePerformanceAndUpdateAdvice(advice)]);
+        } else {
+            return [false, advice];
+        }
+
+    })
+    .then(([updated, advice]) => {
+        if(updated) {
+            return q.select(options.fields).execAsync();
+        } else {
+            return advice;
+        }
+    });*/
+   
 };
 
 Advice.statics.getAdviceHistory = function(query, options) {
   	var q = this.findOne(query)
-			
+            
 	if(options.fields) {
 		options.fields = options.fields.replace(',',' ');
 		q = q.select(options.fields);
@@ -149,28 +214,18 @@ Advice.statics.getAdviceHistory = function(query, options) {
 
 Advice.statics.updateAdvice = function(query, updates) {
     return this.findOne(query)
-        .then(advice => {
-            if (advice) {
-                
-                if(updates.portfolio) {
-                	var entry = {startDate: advice.updatedDate, endDate: new Date(), portfolio:advice.portfolio};
-                	if(updates.portfolioHistory) {
-            			advice.portfolioHistory.push(entry);
-        			} else {
-        				advice.portfolioHistory = [entry];
-        			}
-    			}
+    .then(advice => {
+        if (advice) {
+            console.log(updates);
+            //Now update
+            const keys = Object.keys(updates);
+            keys.forEach(key => {
+                advice[key] = updates[key];
+            });
 
-	            //Now update
-	            const keys = Object.keys(updates);
-	            keys.forEach(key => {
-	                advice[key] = updates[key];
-	            });
-
-	            advice.updatedDate = new Date();
-	            return advice.save();
-            }
-        });
+            return advice.save();
+        }
+    });
 };
 
 Advice.statics.updateCurrentPortfolioPerformance = function(query, performance) {
@@ -263,14 +318,20 @@ Advice.statics.updateAdvicePerformance = function(query, performance) {
 
 Advice.statics.deleteAdvice = function(query) {
 	return this.findOne(query)
-		.then(advice => {
-			if(advice){
-				advice.deleted = true;
-				advice.deletedDate = new Date();
-			}
-
-			return advice.save();
-		});
+	.then(advice => {
+		if(advice){
+			
+            if(!advice.deleted) {
+                advice.deleted = true;
+                advice.deletedDate = new Date();
+	            return advice.save(); 
+            } else {
+                throw new Error("Advice already deleted");
+            }
+        } else {
+            throw new Error("Advice not found");
+        }
+	});
 };
 
 //Update the followers list
@@ -279,7 +340,7 @@ Advice.statics.deleteAdvice = function(query) {
 //Updates enddate if already following
 Advice.statics.updateFollowers = function(query, investorId) {
  	
-    return this.findOne(query)
+    return this.findOne(query, {fields: 'followers'})
     .then(advice => {
         if (advice) {
 
@@ -300,7 +361,7 @@ Advice.statics.updateFollowers = function(query, investorId) {
 
 Advice.statics.updateSubscribers = function(query, investorId) {
  	
-    return this.findOne(query)
+    return this.findOne(query, {fields:'subscribers subscribersHistory'})
 	.then(advice => {
         if (advice) {
 
