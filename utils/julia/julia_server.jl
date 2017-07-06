@@ -3,6 +3,7 @@ import Mongo: MongoClient
 using HttpServer
 using WebSockets
 using JSON
+using TimeSeries
 
 using Raftaar: Performance, Returns, Drawdown, Ratios, Deviation, PortfolioStats
 using Raftaar: serialize
@@ -84,7 +85,6 @@ wsh = WebSocketHandler() do req, client
 
               parsemsg["valid"] = valid
               parsemsg["error"] = error
-
             
             elseif action == "compute_performance_portfolio_history"
                 portfolioHistory = parsemsg["portfolioHistory"]
@@ -199,28 +199,105 @@ wsh = WebSocketHandler() do req, client
 
             elseif action == "compute_portfolio_value_date"
                
-               netvalue = 0.0
-               lastdate = DateTime()
+                netvalue = 0.0
+                lastdate = DateTime()
 
-               try
-                portfolio = parsemsg["portfolio"]
-                date = data["date"]
-                println(data)
-              
-                netvalue = compute_portfoliovalue(portfolio, date)
-                if (lastdate == DateTime())
-                  parsemsg["netvalue"] = Dict("date" => lastdate, "value" => netvalue)
-                  parsemsg["error"] = ""
+                try
+                  portfolio = parsemsg["portfolio"]
+                  date = data["date"]
+                  println(data)
+                
+                  netvalue = compute_portfoliovalue(portfolio, date)
+                  if (lastdate == DateTime())
+                    parsemsg["netvalue"] = Dict("date" => lastdate, "value" => netvalue)
+                    parsemsg["error"] = ""
+                  end
+                catch err
+                  println(err)
+                  error = "error"
                 end
+              
+                parsemsg["error"] = error
 
-              catch err
+            elseif action == "compute_stock_price_history"
+                
+                println(parsemsg)
+
+                try
+                  security = convert(Raftaar.Security, parsemsg["security"])
+                  println(security)
+                  
+                  (ts, prices) = get_stock_price_history(security)
+
+                  println(prices)
+                  history = Dict{String, Float64}()
+                  for i=1:length(ts)
+                    history[string(Date(ts[i]))] = prices[i]
+                  end
+
+                  parsemsg["priceHistory"] = history
+
+                catch err
+                  println(err)
+                  error = "error"
+                end
               
-                println(err)
-                error = "error"
+                parsemsg["error"] = error
+            elseif action == "compute_stock_rolling_performance"
+                
+                println(parsemsg)
+
+                try
+                  security = convert(Raftaar.Security, parsemsg["security"])
+                  println(security)
+                  
+                  rolling_performances = compute_stock_rolling_performance(security)
+
+                  rolling_performance_dict = Dict{String, Any}()
+                  for (k,v) in rolling_performances
+                      rolling_performance_dict[k] = serialize(v)
+                  end
+
+                  parsemsg["performance"] = rolling_performance_dict
+                catch err
+                  println(err)
+                  error = "error"
+                end
               
-              end
+                parsemsg["error"] = error
+
+            elseif action == "compute_stock_static_performance"
+                
+                println(parsemsg)
+
+                try
+                  security = convert(Raftaar.Security, parsemsg["security"])
+                  println(security)
+                  
+                  static_performance = compute_stock_static_performance(security)
+
+                  static_performance_dict = Dict{String, Any}()
+                  static_performance_dict["yearly"] = Dict{String, Any}()
+                  static_performance_dict["monthly"] = Dict{String, Any}()                  
+
+                  for (k,v) in static_performance["yearly"]
+                      static_performance_dict["yearly"][k] = serialize(v)
+                  end
+
+                  for (k,v) in static_performance["monthly"]
+                      static_performance_dict["monthly"][k] = serialize(v)
+                  end
+
+                  parsemsg["performance"] = static_performance_dict
+
+                  println(parsemsg)
+
+                catch err
+                  println(err)
+                  error = "error"
+                end
               
-              parsemsg["error"] = error
+                parsemsg["error"] = error
 
             elseif action == "compute_updated_portfolio"
                 portfolio = parsemsg["portfolio"]

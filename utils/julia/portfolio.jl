@@ -8,7 +8,7 @@ import Base: convert
 using TimeSeries
 
 
-function _get_security(security::Dict{String, Any})                
+function convert(::Type{Security}, security::Dict{String, Any})                
     
     ticker = haskey(security, "ticker") ? security["ticker"] : ""
     println(ticker)
@@ -29,7 +29,7 @@ end
 
 function convert(::Type{OrderFill}, transaction::Dict{String, Any})
     
-    security = _get_security(transaction["security"])
+    security = convert(Raftaar.Security, transaction["security"])
 
     qty = haskey(transaction, "quantity") ? convert(Int64,transaction["quantity"]) : 0
     price = haskey(transaction, "price") ? convert(Float64, transaction["price"]) : 0.0
@@ -52,7 +52,7 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
         for pos in positions
             if haskey(pos, "security")
                 
-                security = _get_security(pos["security"])
+                security = convert(Raftaar.Security, pos["security"])
                 println(security)
                 println(security.symbol)
 
@@ -82,7 +82,7 @@ function _validate_advice(advice::Dict{String, Any})
     #c. benchmark
 
     if haskey(advice, "benchmark")
-        benchmark = _get_security(advice["benchmark"])
+        benchmark = convert(Raftaar.Security, advice["benchmark"])
         
         if benchmark == Security()
             println("benchmark")

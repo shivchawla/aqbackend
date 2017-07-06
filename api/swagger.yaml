@@ -607,7 +607,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
-  /strategy/{id}:
+  /strategy/{strategyId}:
     get:
       tags:
       - strategy
@@ -617,7 +617,7 @@ paths:
       security:
       - api_key: []
       parameters:
-      - name: id
+      - name: strategyId
         in: path
         required: true
         type: string
@@ -650,7 +650,7 @@ paths:
         description: "auth token"
         type: "string"
         required: true
-      - name: id
+      - name: strategyId
         in: path
         required: true
         type: string
@@ -676,7 +676,7 @@ paths:
       security:
       - api_key: []
       parameters:
-      - name: id
+      - name: strategyId
         in: path
         required: true
         type: string
@@ -693,7 +693,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
-  /strategy/{id}/exec:
+  /strategy/{strategyId}/exec:
     post:
       summary: executes the strategy and outputs the data
       description: execute the strategy
@@ -708,7 +708,7 @@ paths:
         description: "auth token"
         type: "string"
         required: true
-      - name: id
+      - name: strategyId
         in: path
         required: true
         type: string
@@ -725,7 +725,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
-  /strategy/{id}/backtests:
+  /strategy/{strategyId}/backtests:
     get:
       tags:
       - backtest
@@ -740,7 +740,7 @@ paths:
         description: "auth token"
         type: "string"
         required: true
-      - name: id
+      - name: strategyId
         in: path
         required: true
         type: string
@@ -763,7 +763,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Backtest"
-  /backtest/{id}:
+  /backtest/{backtestId}:
     get:
       tags:
       - backtest
@@ -777,7 +777,7 @@ paths:
         description: auth token
         type: string
         required:  true
-      - name: id
+      - name: backtestId
         type: string
         required: true
         in: path
@@ -804,7 +804,7 @@ paths:
         description: auth token
         type: string
         required:  true
-      - name: id
+      - name: backtestId
         type: string
         required: true
         in: path
@@ -816,7 +816,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Backtest"
-  /backtest/share/{id}:
+  /backtest/share/{backtestId}:
     post:
       tags:
       - backtest
@@ -830,7 +830,7 @@ paths:
         description: auth token
         type: string
         required:  true
-      - name: id
+      - name: backtestId
         type: string
         required: true
         in: path
@@ -1517,8 +1517,8 @@ paths:
     get:
       tags:
       - investor
-      summary: get all portfolio for investor
-      description: get all portfolio for investor
+      summary: get all portfolios for investor
+      description: get all portfolios for investor
       operationId: getInvestorPortfolios
       security:
       - api_key: []
@@ -1550,13 +1550,13 @@ paths:
           description: 'Invalid input'
       x-swagger-router-controller: "Investor"
 
-  /investor/{investorId}/portfolio/{portfolioId}/stock:
+  /investor/{investorId}/portfolio/{portfolioId}/update:
     put:
       tags:
       - investor
       summary: update the portfolio with transactions
-      description: Updates the portfolio with stock transactions
-      operationId: updateInvestorPortfolioForStock
+      description: Updates the portfolio with transactions
+      operationId: updateInvestorPortfolio
       security:
       - api_key: []
       parameters:
@@ -1573,9 +1573,19 @@ paths:
         in: path
         type: string
         required: true
+      - name: type
+        in: query
+        type: string
+        required: true
+        description: transaction type (stock or advice)
+      - name: adviceId
+        in: query
+        type: string
+        required: false
+        description: advice to transact
       - name: body
         in: body
-        required: true
+        required: false
         schema:
           type: array
           items:
@@ -1587,7 +1597,45 @@ paths:
           description: 'Invalid input'
       x-swagger-router-controller: "Investor"
 
-
+  /investor/{investorId}/portfolio/{portfolioId}/stock:
+    get:
+      tags:
+      - investor
+      summary: get the detail of position in portfolio
+      description: get the detail of position in portfolio
+      operationId: getInvestorPortfolioPosition
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        type: string
+        required: true
+      - name: portfolioId
+        in: path
+        type: string
+        required: true
+      - name: ticker
+        in: query
+        required: true
+        type: string
+        description: stock ticker
+      - name: exchange
+        in: query
+        required: true
+        type: string
+        description: stock exchange      
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Investor"
   
   /investor/{investorId}/portfolio/{portfolioId}/performance:
     get:
@@ -1611,41 +1659,6 @@ paths:
       - name: portfolioId
         in: path
         type: string
-        required: true
-      responses:
-        200:
-          description: OK
-        400:
-          description: 'Invalid input'
-      x-swagger-router-controller: "Investor"
-
-  /investor/{investorId}/portfolio/{portfolioId}/advice:
-    put:
-      tags:
-      - investor
-      summary: update the portfolio with advice transactions
-      description: Updates the portfolio with advice transaction
-      operationId: updateInvestorPortfolioForAdvice
-      security:
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: investorId
-        in: path
-        type: string
-        required: true
-      - name: portfolioId
-        in: path
-        type: string
-        required: true
-      - name: advice
-        in: query
-        type: string
-        format: uuid
         required: true
       responses:
         200:
@@ -1793,13 +1806,13 @@ paths:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Investor"
 
-  /stock/performance:
+  /stock:
     get:
       tags:
       - stock
-      summary: get stock performance
-      description: get stock performance
-      operationId: getStockPerformance
+      summary: get stock history and/or performance detail
+      description: get stock history and/or performance detail
+      operationId: getStockDetail
       security:
       - api_key: []
       parameters:
@@ -1831,6 +1844,13 @@ paths:
         required: false
         default: "EQ"
         description: security type
+      - name: field
+        in: query
+        type: string
+        required: true
+        default: "priceHistory"
+        enum: ['priceHistory', 'staticPerformance', 'rollingPerformance']
+
       responses:
         200:
           description: "get stock performance detail"

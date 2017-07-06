@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-06-29 17:45:17
+* @Last Modified time: 2017-07-03 16:05:11
 */
 
 'use strict';
@@ -160,6 +160,61 @@ exports.getFollowers = function(args, res, next) {
     .catch(err => {
     	return res.status(400).send(err.message);
     });
+};
+
+exports.getAdvisorAdvicesWithStock = function(args, res, next) {
+	const userId = args.user._id;
+
+	const ticker = ags.ticker.value;
+	const exchange = args.exchange.value;
+	const securityType = args.securityType.value;
+	const country = args.country.value;
+
+	const security = {ticker: ticker, 
+						exchange: exchange, 
+						securityType: securityType,
+						country: country};
+
+	return AdvisorModel.fetchAdvisor({user: userId},{fields:'advices'})
+	.then(advisor => {
+		if(advisor) {
+			if(advisor.advices) {
+				return Promise.all([advisor.advices.forEach(advice => {
+						return AdviceModel.fetchAdvice({_id: advice._id}, {fields: 'portfolio'})
+					})]);
+			} else {
+				APIError.throwJsonError({msg: "No advices found"});
+			}
+		} else {
+			APIError.throwJsonError({userId: userId, msg: "No advisor found"})
+		}
+	})
+	.then(([advices])=> {
+		if(advices) {
+			var advicesWithStock = [];
+			advices.forEach(advice => {
+				var idx = advice.portfolio.positions.map(item => item.security).indexOf(security);
+				
+				if (idx != -1) {
+					advicesWithStock.push({
+							_id: advice._id,
+							name: advice.name,
+							description: advice.description,
+							position: advice.portfolio.positions[idx]
+						});
+				}
+
+			});
+
+			return res.status(200).json(advicesWithStock);
+
+		} else {
+			APIError.throwJsonError({msg: "No advices found"});
+		}
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})    
 };
 
 function farfuture() {

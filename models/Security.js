@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-06-27 15:39:06
+* @Last Modified time: 2017-07-05 12:53:55
 */
 
 'use strict';
@@ -38,6 +38,4 @@ const Security = new Schema({
 
 });
 
-//const SecurityModel = mongoose.model('Security', Security);
-//module.exports = SecurityModel;
 module.exports = Security;

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-07-01 14:17:37
+* @Last Modified time: 2017-07-03 17:45:56
 */
 
 'use strict';
@@ -312,7 +312,7 @@ exports.getInvestorPortfoliosWithStock = function(args, res, next) {
 	//GET all advices of user with stock in it. 
 	//GET all portfolios of investors with stock in it
 
-	return InvestorModel.fetchInvestor({user: userId},{fields: 'portfolios'})
+	return InvestorModel.fetchInvestor({user: userId}, {fields: 'portfolios'})
 	.then(investor => {
 		if (investor) {
 			if(investor.portfolios){
@@ -384,6 +384,49 @@ exports.updateInvestorPortfolioForStock = function(args, res, next) {
 	})
 };
 
+// Common function to transact advice or stock
+exports.updateInvestorPortfolio = function(args, res, next) {
+	const userId = args.user._id;
+	const transactions = args.body.value;
+	const investorId = args.investorId.value;
+	const portfolioId = args.portfolioId.value;
+
+	const type = args.type.value;
+	const adviceId = args.adviceId.value;
+
+	InvestorModel.fetchInvestor({user: userId, _id: investorId}, {fields:'portfolios'})
+	.then(investor => {
+
+		if(investor && investor.portfolios) {
+			
+			if(investor.portfolios.indexOf(portfolioId) != -1) {
+				
+				if(type == "stock" && transactions) {
+					return HelperFunctions.updatePortfolioForStockTransactions({_id: portfolioId}, transactions);
+				} else if (type == "advice" && adviceId) {
+					return HelperFunctions.updatePortfolioForAdviceTransactions({_id: portfolioId}, adviceId);	
+				} else {
+					APIError.throwJsonError({msg: "Invalid transaction type or value"});
+				}
+			} else {
+				APIError.throwJsonError({portfolioId:portfolioId, msg: "Portfolio not found"})
+			}
+		} else {
+			APIError.throwJsonError({investorId:investorId, msg: "Investor or Portfolios not found"})
+		}
+	})
+	.then(portfolio => {
+		if(portfolio) {
+			return res.status(200).json(portfolio); 
+		} else {
+			APIError.throwJsonError({msg: "Can't update portfolio for transactions"});
+		}	
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
+};
+
 //TO FIX THE  LOGIC
 exports.updateInvestorPortfolioForAdvice = function(args, res, next) {
 	const userId = args.user._id;
@@ -411,6 +454,60 @@ exports.updateInvestorPortfolioForAdvice = function(args, res, next) {
 	.catch(err => {
 		return res.status(200).send(err.message);
 	})	
+};
+
+exports.getInvestorPortfolioPosition = function(args, res, next) {
+	const userId = args.user._id;
+	const portfolioId = args.portfolioId.value;
+
+	const ticker = ags.ticker.value;
+	const exchange = args.exchange.value;
+	const securityType = args.securityType.value;
+	const country = args.country.value;
+
+	const security = {ticker: ticker, 
+						exchange: exchange, 
+						securityType: securityType,
+						country: country};
+	//GET STOCK CHART
+	//GET all advices of user with stock in it. 
+	//GET all portfolios of investors with stock in it
+
+	return InvestorModel.fetchInvestor({user: userId}, {fields: 'portfolios'})
+	.then(investor => {
+		if (investor) {
+			if(investor.portfolios){
+				var idx = investor.portfolios.indexOf(portfolioId);
+				if(idx !=-1) {
+					return PortfolioModel.fetchPortfolio({_id: portfolioId},{});
+				}
+			} else {
+				APIError.throwJsonError({portfolioId: portfolioId, msg:"Portfolio not found"});
+			}
+		} else {
+			APIError.throwJsonError({userId: userId, msg: "No Investor found"});
+		}
+	})
+	.then(portfolio => {
+		if(portfolio) {
+			
+			var	positionDetail = {
+				_id: port._id,
+				name: port.name,
+				position: port.positions.filter(item =>{return item.security.equals(security);}),
+				subPositions: port.subPositions.filter(item => {return item.security.equals(security);}),
+				transactions: port.transactions.filter(item => {return item.security.equals(security);})
+			};
+
+
+			return res.status(200).json(positionDetail);
+		} else {
+			APIError.throwJsonError({userId:userId, portfolioId:portfolioId, msg: "No portfolio found"});
+		}
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
 };
 
 exports.deleteInvestorPortfolio = function(args, res, next){
