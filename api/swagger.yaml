@@ -884,8 +884,6 @@ definitions:
     - lastName
     - email
     - password
-    - isAdvisor
-    - isInvestor
     properties:
       firstName:
         type: "string"
@@ -905,10 +903,6 @@ definitions:
         type: "string"
       profession:
         type: "string"
-      isAdvisor:
-        type: boolean
-      isInvestor:
-        type: boolean
 
   Login:
     type: "object"

@@ -12,13 +12,22 @@
     "mongo_db":"aimsquant_staging",
     "mongo_user":"app_server_staging",
     "mongo_pass":"pwd_app_server_staging",
-    "mongo_path":"35.154.134.30",
+    "mongo_path":"localhost",
     "mongo_port":27017,
     "mongo_debug":true,
 
     "redis_port":6379,
     "redis_path":"localhost",
-    
-    "max_num_julia_process" : 3,
+
+    "max_num_julia_process_user": 1,
+    "max_num_julia_process_total": 2,
     "time_interval_realtime_output":3000,
+
+    "julia_server_host" : "127.0.0.1",
+    "julia_server_port" : 6000,
+
+    "machines" : [{"host": "127.0.0.1", "port":2000},
+                    {"host": "127.0.0.1", "port":2001},]
+                    //{"host": "127.0.0.1", "port":2002},
+                    //{"host": "127.0.0.1", "port":2003}]
 }

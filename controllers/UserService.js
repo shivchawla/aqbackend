@@ -82,7 +82,7 @@ exports.forgotPassword = function(args, res, next) {
 };
 
 exports.activateUser = function(args, res) {
-    UserModel.updateUser({
+    UserModel.updateStatus({
         code: args.code.value
     }, {active:true})
     .then(function(userDetails) {
