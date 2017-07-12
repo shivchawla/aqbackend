@@ -21,6 +21,10 @@ for(var machine of config.get('machines')) {
     isopen[conn] = false
 }
 
+// Connection for forward tests
+// Will have to add forward testing server details (host:port) in the config file
+var ftConnection = 'ws://' + fmachine.host + ":" + fmachine.port;
+
 var outputData   = {};
 var forwardTestOutputData = {};
 var subscribed   = {};
