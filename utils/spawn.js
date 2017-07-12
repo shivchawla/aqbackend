@@ -5,31 +5,248 @@ const ws = require('../index').ws;
 const jwtUtil = require('../utils/jwttoken');
 const redisUtils = require('../utils/RedisUtils');
 const BacktestModel = require('../models/backtest');
+const ForwardTestModel = require('../models/forwardtest');
 const StrategyModel = require('../models/strategy');
 var CryptoJS = require("crypto-js");
 const config = require('config');
-const WebSocket = require('ws');   
+const WebSocket = require('ws');
+var schedule = require('node-schedule');
 
 var isopen = {};
 
-// Initialzie map for status of each connection
+// Initialize map for status of each connection
 // Our Julia server can only accept one connection per process
-/*for(var machine of config.get('machines')) {
+for(var machine of config.get('machines')) {
     var conn = 'ws://' + machine.host + ":" + machine.port;
     isopen[conn] = false
-}*/
+}
 
-var outputData = {};
-var subscribed = {};
+var outputData   = {};
+var subscribed   = {};
+var jobScheduler = {};
 
-function exec(msg, res, cb) {
+ws.on('connection', function connection(res) {
+    res.on('message', function(message) {
+        let msg;
+
+        try {
+            msg = JSON.parse(message);
+        } catch (e) {
+            return res.send('not valid json');
+        }
+
+        if (!msg || !msg['aimsquant-token']) {
+            return res.send({
+                'aimsquant-token': '',
+                action: 'exec-backtest',
+                backtestId: 'afd'
+            });
+        }
+
+        jwtUtil.verifyToken(msg['aimsquant-token'])
+        .then(decoded => {
+            if (decoded.exp <= Date.now()) {
+                res.send('token expired');
+                return;
+            }
+
+            // Call function based on action type
+            // Action Types:
+            // 1. exec-backtest
+            // 2. subscribe-backtest
+            console.log(msg);
+            handleAction(msg, res);
+
+        });
+    });
+});
+
+function handleAction(msg, res) {
+    if(msg.action === 'subscribe-backtest') {
+        handleExecSubscription(msg, res);
+    } else if(msg.action === 'exec-backtest') {
+
+        let userQueue;
+        let commonQueue;
+
+        redisUtils.getValue('common-request-queue', function (err, data) {
+        //redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
+            if (err || !data) {
+                //var stringfiedMessage = JSON.stringify([{data:msg, in_process:true}]);
+                commonQueue = [];
+                redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));//stringfiedMessage );
+                //handleExecBacktest(msg, res);
+            } else {
+                commonQueue = JSON.parse(data);
+            }
+
+            redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
+                if (err || !data) {
+                    userQueue = [];
+                    redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify(userQueue));
+                } else {
+                    userQueue = JSON.parse(data);
+                }
+
+                let commonQueueMsg;
+                let userQueueMsg = msg;
+                if(commonQueue.length < config.get('max_num_julia_process_total')){
+                    commonQueueMsg = {data:msg, in_process:true};
+
+                    //update both the queues
+                    commonQueue.push(commonQueueMsg);
+                    userQueue.push(userQueueMsg);
+
+                    // Execute the backtest
+                    handleExecBacktest(msg, res);
+
+                } else {
+                    console.log("Queueing request");
+                    commonQueueMsg = {data:msg, in_process:false};
+                    commonQueue.push(commonQueueMsg);
+                    userQueue.push(userQueueMsg);
+                }
+
+
+                redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
+                redisUtils.insertKeyValue(msg['aimsquant-token'] +'-request-queue', JSON.stringify(userQueue));
+
+            });
+
+        });
+
+    } else if(msg.action === 'exec-forwardtest') {
+        var job = schedule.scheduleJob('0 0 * * *', function() {
+            // The following code will be executed at 0000 hours everyday
+            let userQueue;
+            let commonQueue;
+
+            redisUtils.getValue('common-request-queue', function (err, data) {
+            //redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
+                if (err || !data) {
+                    //var stringfiedMessage = JSON.stringify([{data:msg, in_process:true}]);
+                    commonQueue = [];
+                    redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));//stringfiedMessage );
+                    //handleExecBacktest(msg, res);
+                } else {
+                    commonQueue = JSON.parse(data);
+                }
+
+                redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
+                    if (err || !data) {
+                        userQueue = [];
+                        redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify(userQueue));
+                    } else {
+                        userQueue = JSON.parse(data);
+                    }
+
+                    let commonQueueMsg;
+                    let userQueueMsg = msg;
+                    if(commonQueue.length < config.get('max_num_julia_process_total')){
+                        commonQueueMsg = {data:msg, in_process:true};
+
+                        //update both the queues
+                        commonQueue.push(commonQueueMsg);
+                        userQueue.push(userQueueMsg);
+
+                        // Execute the backtest
+                        handleExecForwardTest(msg, res);
+
+                    } else {
+                        console.log("Queueing request");
+                        commonQueueMsg = {data:msg, in_process:false};
+                        commonQueue.push(commonQueueMsg);
+                        userQueue.push(userQueueMsg);
+                    }
+
+
+                    redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
+                    redisUtils.insertKeyValue(msg['aimsquant-token'] +'-request-queue', JSON.stringify(userQueue));
+
+                });
+
+            });
+        });
+
+        // Plug this scheduled job into a dic
+        tionary for any further reference of this job
+        jobScheduler[msg.backtestId] = job;
+
+    } else if(msg.action === 'stop-forwardtest') {
+        jobScheduler[msg.backtestId].cancel();
+    }
+}
+
+/*=====================================
+        SUBSCRIPTION CONTROL
+=====================================*/
+
+//Function to subscribe WS data from backend to UI
+function handleExecSubscription(msg, res) {
+    var backtestId = msg.backtestId;
+    //Call send data
+    //Send data automaticaly stops or reject the call ig backtest has completed
+    subscribed[backtestId] = true;
+    sendData(res, backtestId);
+}
+
+//Function to unsubscribe WS data from backend to UI
+function handleExecUnsubscription(msg, res) {
+    var backtestId = msg.backtestId;
+    //Call send data
+    //Send data automaticaly stops or reject the call ig backtest has completed
+    subscribed[backtestId] = false;
+}
+
+/*=====================================
+        BACKTEST CONTROL
+=====================================*/
+
+//Function to handle the execution of backtests.
+//Pass comandline arguments to free Julia process
+//Collect the output, send realtime updates and save the final output to the DB
+function handleExecBacktest(msg, res) {
+    if (msg.action === 'exec-backtest') {
+        return execBacktest(msg, res, (err, updateData) => {
+            var status = updateData.status;
+
+            if(err) {
+                res.send(JSON.stringify({backtestId:msg.backtestId, outputtype:"log", message:"Internal Exception", messagetype:"ERROR"}));
+            } else {
+                if(status == 'exception') {
+                    res.send(JSON.stringify({backtestId:msg.backtestId, outputtype:"log", message:"Internal Exception", messagetype:"ERROR"}));
+
+                } else if(status != "pending") {
+                    // Send the complete data one last time && delete the data from variable
+                    sendData(res, msg.backtestId);
+                }
+            }
+
+            updateBacktestResult(updateData, msg);
+
+            // Set expiry for data in redis - 10s
+            console.log("Setting Expiry");
+            redisUtils.setDataExpiry(msg.backtestId + '-data', 10);
+
+            //Remove backtestId key from outputData
+            delete outputData[msg.backtestId];
+
+            processNext(msg);
+
+        });
+    } else if (message === 'rl_close') {
+        return res.send('Not implemented');
+    }
+}
+
+function execBacktest(msg, res, cb) {
 
     var backtestId = msg.backtestId;
     let child = '';
     let splitter = '';
     let backtestData = '';
 
-    console.log('Exec is called too');
+    console.log('execBacktest is called too');
 
     BacktestModel.fetchBacktest({
         _id: backtestId
@@ -42,7 +259,7 @@ function exec(msg, res, cb) {
         }
 
         if(bt) {
-            
+
             args = args.concat(['--code', CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
 
             var settings = bt.settings;
@@ -87,7 +304,7 @@ function exec(msg, res, cb) {
         return args;
     })
     .then(argArray => {
-        
+
         // TO DO: Progressively try to make connections with open julia process
         // create a string to bool dictioanry
         let wsClient;
@@ -96,7 +313,7 @@ function exec(msg, res, cb) {
         var backtestId = msg.backtestId;
 
         outputData[backtestId] = [];
-        
+
         var isconnected = false;
 
         for (var connection in isopen){
@@ -116,34 +333,34 @@ function exec(msg, res, cb) {
             console.log('Connection Open');
             console.log(conn);
             isopen[conn] = true;
-            
+
             wsClient.send(argArray.join("??##"));
 
             subscribed[msg.backtestId] = true;
 
             redisUtils.insertKeyValue(msg.backtestId + '-data', JSON.stringify(outputData[backtestId]));
-            
-            setTimeout(function(){sendData(res, msg.backtestId);}, 
+
+            setTimeout(function(){sendData(res, msg.backtestId);},
                     config.get('time_interval_realtime_output'));
-        
+
         });
 
         wsClient.on('message', function(data) {
-            // CHECK DATA: IF REQUEST WAS REJECTED, TRY WITH ANOTHER JULIA PROCESS 
+            // CHECK DATA: IF REQUEST WAS REJECTED, TRY WITH ANOTHER JULIA PROCESS
             // Handled by checking the pendng status
             var backtestId = msg.backtestId;
 
             try {
                 const dataJSON = JSON.parse(data);
                 dataJSON.backtestId = backtestId;
-                
+
                 if (dataJSON.outputtype === 'backtest') {
                     backtestData = dataJSON;
 
                 } else {
                     outputData[backtestId].push(dataJSON);
                 }
-                
+
             } catch (e) {
                 console.log(e);
             }
@@ -157,7 +374,7 @@ function exec(msg, res, cb) {
             // Update the connection status
             if (code === 1000) {
                 try {
-                    // If success and no data was generated => PENDING 
+                    // If success and no data was generated => PENDING
                     if(backtestData && Object.keys(backtestData).length > 0) {
                         cb(null, {output: backtestData, status:"complete"});
                     } else {
@@ -176,9 +393,9 @@ function exec(msg, res, cb) {
 }
 
 function sendData(res, backtestId) {
-       
+
     var dataArray = outputData[backtestId];
-    
+
     if (dataArray) {
         if(dataArray.length) {
             redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(dataArray));
@@ -194,7 +411,7 @@ function sendData(res, backtestId) {
             }
         }
 
-        setTimeout(function(){sendData(res, backtestId);}, 
+        setTimeout(function(){sendData(res, backtestId);},
             config.get('time_interval_realtime_output'));
     }
 }
@@ -207,211 +424,86 @@ function updateBacktestResult(data, msg) {
     }, data);
 }
 
-ws.on('connection', function connection(res) {
-    res.on('message', function(message) {
-        let msg;
-        
-        try {
-            msg = JSON.parse(message);
-        } catch (e) {
-            return res.send('not valid json');
-        }
+/*=====================================
+        FORWARD TEST CONTROL
+=====================================*/
 
-        if (!msg || !msg['aimsquant-token']) {
-            return res.send({
-                'aimsquant-token': '',
-                action: 'exec-backtest',
-                backtestId: 'afd'
-            });
-        }
+// handle execution of forward tests
+function handleExecForwardTest(msg, res) {
+}
 
-        jwtUtil.verifyToken(msg['aimsquant-token'])
-        .then(decoded => {
-            if (decoded.exp <= Date.now()) {
-                res.send('token expired');
-                return;
-            }
+function execForwardTest(msg, res, cb) {
+}
 
-            // Call function based on action type
-            // Action Types: 
-            // 1. exec-backtest
-            // 2. subscribe-backtest
-            console.log(msg);
-            handleAction(msg, res);
-            
-        });
-    });
-});
+function updateForwardTestResult(data, msg) {
+}
 
-function handleAction(msg, res) {
-    if(msg.action === 'subscribe-backtest') {
-        handleExecSubscription(msg, res); 
-    } else if(msg.action === 'exec-backtest') {
+/*=====================================
+    PROCESS NEXT REQUESTS IN REDIS
+=====================================*/
 
-        let userQueue;
+function processNext(msg) {
+    redisUtils.getValue('common-request-queue', function (err, data) {
+
         let commonQueue;
-           
-        redisUtils.getValue('common-request-queue', function (err, data) {
-        //redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
-            if (err || !data) {          
-                //var stringfiedMessage = JSON.stringify([{data:msg, in_process:true}]);
-                commonQueue = [];
-                redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));//stringfiedMessage );
-                //handleExecBacktest(msg, res);
-            } else {
-                commonQueue = JSON.parse(data);
+        let userQueue;
+        if (data) {
+            commonQueue = JSON.parse(data);
+        }
+
+        // now get user specific queue
+        redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
+            if (data) {
+                userQueue = JSON.parse(data);
             }
 
-            redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
-                if (err || !data) {
-                    userQueue = [];
-                    redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify(userQueue));
-                } else {
-                    userQueue = JSON.parse(data);
-                }
-            
-                let commonQueueMsg;
-                let userQueueMsg = msg;
-                if(commonQueue.length < config.get('max_num_julia_process_total')){
-                    commonQueueMsg = {data:msg, in_process:true};
-                    
-                    //update both the queues
-                    commonQueue.push(commonQueueMsg);
-                    userQueue.push(userQueueMsg);
+            // find the backtestId in the commonQueue
+            var commonQueueIdx = commonQueue.map(x => x.data.backtestId).indexOf(msg.backtestId);
+            let commonQueueMsg;
 
-                    // Execute the backtest 
-                    handleExecBacktest(msg, res);
-             
-                } else {
-                    console.log("Queueing request");
-                    commonQueueMsg = {data:msg, in_process:false};
-                    commonQueue.push(commonQueueMsg);
-                    userQueue.push(userQueueMsg);
-                }
-
-
-                redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
-                redisUtils.insertKeyValue(msg['aimsquant-token'] +'-request-queue', JSON.stringify(userQueue));
-
-            });
-
-        });
-       
-    }
-}
-
-//Function to subscribe WS data from backend to UI
-function handleExecSubscription(msg, res) {
-    var backtestId = msg.backtestId;
-    //Call send data 
-    //Send data automaticaly stops or reject the call ig backtest has completed
-    subscribed[backtestId] = true;
-    sendData(res, backtestId);
-}
-
-//Function to unsubscribe WS data from backend to UI
-function handleExecUnsubscription(msg, res) {
-    var backtestId = msg.backtestId;
-    //Call send data 
-    //Send data automaticaly stops or reject the call ig backtest has completed
-    subscribed[backtestId] = false;
-}
-
-//Function to execute backtest.
-//Pass comandline arguments to free Julia process
-//Collect the output, send realtime updates and save the final output to the DB
-function handleExecBacktest(msg, res) {
-    if (msg.action === 'exec-backtest') {
-        return exec(msg, res, (err, updateData) => {
-            var status = updateData.status;
-
-            if(err) {
-                res.send(JSON.stringify({backtestId:msg.backtestId, outputtype:"log", message:"Internal Exception", messagetype:"ERROR"}));
-            } else {
-                if(status == 'exception') {
-                    res.send(JSON.stringify({backtestId:msg.backtestId, outputtype:"log", message:"Internal Exception", messagetype:"ERROR"}));   
-
-                } else if(status != "pending") {
-                    // Send the complete data one last time && delete the data from variable
-                    sendData(res, msg.backtestId);
-                }
+            if(commonQueueIdx !=-1 ) {
+                commonQueueMsg = commonQueue[commonQueueIdx]
             }
 
-            updateBacktestResult(updateData, msg);
+            var userQueueIdx = userQueue.map(x=>x.backtestId).indexOf(msg.backtestId);
+            let userQueueMsg;
 
-            // Set expiry for data in redis - 10s
-            console.log("Setting Expiry");
-            redisUtils.setDataExpiry(msg.backtestId + '-data', 10);
- 
-            //Remove backtestId key from outputData    
-            delete outputData[msg.backtestId];
+            if(userQueueIdx != -1) {
+                userQueueMsg = userQueue[userQueueIdx];
+            }
 
-            redisUtils.getValue('common-request-queue', function (err, data) {
-                
-                let commonQueue;
-                let userQueue;
-                if (data) {          
-                    commonQueue = JSON.parse(data);
+            if (commonQueueMsg && userQueueMsg) {
+                // If request was not completed, update in-process to FALSE
+                if(status == 'pending') {
+                    commonQueue[commonQueueIdx].in_process = false;
+                } else {
+                    // If request was completed (successfuly or with error)
+                    // dequeue the request
+                    commonQueue.splice(commonQueueIdx, 1);
+                    userQueue.splice(userQueueIdx, 1)
                 }
-                
-                // now get user specific queue
-                redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
-                    if (data) {
-                        userQueue = JSON.parse(data);
+
+                // Now find pending request in common queue
+                for(var i=0; i<commonQueue.length; i++){
+                    if(commonQueue[i].in_process === false) {
+                        handleAction(commonQueue[i].data, res);
+                        commonQueue[i].in_process === true;
+                        break;
                     }
-                    
-                    // find the backtestId in the commonQueue
-                    var commonQueueIdx = commonQueue.map(x => x.data.backtestId).indexOf(msg.backtestId); 
-                    let commonQueueMsg;
+                }
 
-                    if(commonQueueIdx !=-1 ) {
-                        commonQueueMsg = commonQueue[commonQueueIdx]
-                    }
+                // TODO: Add logic to transfer request from user to common queue.
+                // With this logic, a user can add mutliple request and not JAM the
+                // coomon request queue if user request exceed the size
 
-                    var userQueueIdx = userQueue.map(x=>x.backtestId).indexOf(msg.backtestId);
-                    let userQueueMsg;
+            } else {
+                console.log("This is a problem. This should never happen");
+            }
 
-                    if(userQueueIdx != -1) {
-                        userQueueMsg = userQueue[userQueueIdx]; 
-                    }
+            redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
+            redisUtils.insertKeyValue(msg['aimsquant-token']+'-request-queue', JSON.stringify(userQueue));
 
-                    if (commonQueueMsg && userQueueMsg) {
-                        // If request was not completed, update in-process to FALSE
-                        if(status == 'pending') {
-                            commonQueue[commonQueueIdx].in_process = false;
-                        } else {
-                            // If request was completed (successfuly or with error)
-                            // dequeue the request
-                            commonQueue.splice(commonQueueIdx, 1);
-                            userQueue.splice(userQueueIdx, 1)
-                        }
-                        
-                        // Now find pending request in common queue
-                        for(var i=0; i<commonQueue.length; i++){
-                            if(commonQueue[i].in_process === false) {
-                                handleAction(commonQueue[i].data, res);
-                                commonQueue[i].in_process === true;
-                                break;
-                            }
-                        }
-
-                        // TODO: Add logic to transfer request from user to common queue.
-                        // With this logic, a user can add mutliple request and not JAM the 
-                        // coomon request queue if user request exceed the size
-
-                    } else {
-                        console.log("This is a problem. This should never happen");
-                    }
-
-                    redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
-                    redisUtils.insertKeyValue(msg['aimsquant-token']+'-request-queue', JSON.stringify(userQueue));
-                
-                });
-        
-            });
         });
-    } else if (message === 'rl_close') {
-        return res.send('Not implemented');
-    }
+
+    });
 }
- 
