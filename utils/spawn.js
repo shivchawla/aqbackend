@@ -22,9 +22,8 @@ for(var machine of config.get('machines')) {
 }
 
 var outputData   = {};
-var outputData_forward = {};
+var forwardTestOutputData = {};
 var subscribed   = {};
-var jobScheduler = {};
 
 ws.on('connection', function connection(res) {
     res.on('message', function(message) {
@@ -117,64 +116,32 @@ function handleAction(msg, res) {
         });
 
     } else if(msg.action === 'exec-forwardtest') {
-        var job = schedule.scheduleJob('0 0 * * *', function() {
-            // The following code will be executed at 0000 hours everyday
-            let userQueue;
-            let commonQueue;
 
-            redisUtils.getValue('common-request-queue', function (err, data) {
-            //redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
-                if (err || !data) {
-                    //var stringfiedMessage = JSON.stringify([{data:msg, in_process:true}]);
-                    commonQueue = [];
-                    redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));//stringfiedMessage );
-                    //handleExecBacktest(msg, res);
-                } else {
-                    commonQueue = JSON.parse(data);
-                }
+        /* Here's the strategy for running scheduled forward tests:
+            Whenever a user puts in a request new forward test
+            we will push a request in a separate redis queue, containing all the forward tests.
+            Now, at 12 o'clock everyday, all the forward tests in the redis queue will be processed 1-by-1
+            The deserialized data (alongwith other info) will be passed as paramaters to the test
+            and when Julia returns the output, it will be saved to db.
+        */
 
-                redisUtils.getValue(msg['aimsquant-token'] + '-request-queue', function (err, data) {
-                    if (err || !data) {
-                        userQueue = [];
-                        redisUtils.insertKeyValue(msg['aimsquant-token'] + '-request-queue', JSON.stringify(userQueue));
-                    } else {
-                        userQueue = JSON.parse(data);
-                    }
+        let forwardQueue;
+        redisUtils.getValue('forward-request-queue', function (err, data) {
+            if(err || !data)
+                forwardQueue = {};
+            else
+                forwardQueue = JSON.parse(data);
 
-                    let commonQueueMsg;
-                    let userQueueMsg = msg;
-                    if(commonQueue.length < config.get('max_num_julia_process_total')){
-                        commonQueueMsg = {data:msg, in_process:true};
-
-                        //update both the queues
-                        commonQueue.push(commonQueueMsg);
-                        userQueue.push(userQueueMsg);
-
-                        // Execute the backtest
-                        handleExecForwardTest(msg, res);
-
-                    } else {
-                        console.log("Queueing request");
-                        commonQueueMsg = {data:msg, in_process:false};
-                        commonQueue.push(commonQueueMsg);
-                        userQueue.push(userQueueMsg);
-                    }
-
-
-                    redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
-                    redisUtils.insertKeyValue(msg['aimsquant-token'] +'-request-queue', JSON.stringify(userQueue));
-
-                });
-
-            });
+            forwardQueue[msg.forwardtestId] = msg;
+            redisUtils.insertKeyValue('forward-request-queue', JSON.stringify(forwardQueue));
         });
 
-        // Plug this scheduled job into a dic
-        tionary for any further reference of this job
-        jobScheduler[msg.backtestId] = job;
-
     } else if(msg.action === 'stop-forwardtest') {
-        jobScheduler[msg.backtestId].cancel();
+        let forwardQueue;
+        redisUtils.getValue('forward-request-queue', function (err, data) {
+            delete forwardQueue[msg.forwardtestId];
+            redisUtils.insertKeyValue('forward-request-queue', JSON.stringify(forwardQueue));
+        });
     }
 }
 
@@ -393,6 +360,8 @@ function execBacktest(msg, res, cb) {
     });
 }
 
+// SEND BACKTESTS STATISTICS TO FRONT-END
+
 function sendData(res, backtestId) {
 
     var dataArray = outputData[backtestId];
@@ -417,6 +386,7 @@ function sendData(res, backtestId) {
     }
 }
 
+// SAVE BACKTEST DATA TO DATABSE
 
 function updateBacktestResult(data, msg) {
     console.log("Updating Backtest");
@@ -425,193 +395,7 @@ function updateBacktestResult(data, msg) {
     }, data);
 }
 
-/*=====================================
-        FORWARD TEST CONTROL
-=====================================*/
-
-// handle execution of forward tests
-function handleExecForwardTest(msg, res) {
-    if (msg.action === 'exec-forwardtest') {
-        return execForwardTest(msg, res, (err, updateData) => {
-            var status = updateData.status;
-
-            if(err) {
-                res.send(JSON.stringify({backtestId:msg.backtestId, outputtype:"log", message:"Internal Exception", messagetype:"ERROR"}));
-            } else {
-                if(status == 'exception') {
-                    res.send(JSON.stringify({backtestId:msg.backtestId, outputtype:"log", message:"Internal Exception", messagetype:"ERROR"}));
-                }
-            }
-
-            updateForwardTestResult(updateData, msg);
-
-            //Remove backtestId key from outputData
-            delete outputData_forward[msg.backtestId];
-
-            processNext(msg);
-
-        });
-    } else if (message === 'rl_close') {
-        return res.send('Not implemented');
-    }
-}
-
-function execForwardTest(msg, res, cb) {
-
-    let backtestData = '';
-
-    console.log('execForwardTest is called too');
-
-    ForwardTestModel.fetchForwardTest({
-        backtestId: msg.backtestId
-    }, {})
-    .then(ft => {
-        var args = [];
-
-        if(!ft){
-            throw "Invalid Forward Test";
-        }
-
-        args = args.concat(['--code', CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
-
-        // If there is serialized data available then pass it as command line arg
-        // Otherwise it's a fresh start
-        if(ft.output) {
-            args = args.concat(['--data', ft.output]);
-        }
-        else {
-            var settings = ft.settings;
-            args = args.concat(['--capital', settings.initialCash]);
-            args = args.concat(['--startdate', settings.startDate]);
-            args = args.concat(['--enddate', settings.endDate]);
-            args = args.concat(['--universe', settings.universe]);
-
-            var advanced = JSON.parse(settings.advanced);
-
-            if(advanced.exclude) {
-                args = args.concat(['--exclude', advanced.exclude]);
-            }
-
-            if(advanced.investmentPlan) {
-                args = args.concat(['--investmentplan', advanced.investmentPlan]);
-            }
-
-            if(advanced.rebalance) {
-                args = args.concat(['--rebalance', advanced.rebalance]);
-            }
-
-            if(advanced.cancelPolicy) {
-                args = args.concat(['--cancelpolicy', advanced.cancelPolicy]);
-            }
-
-            if(advanced.resolution) {
-                args = args.concat(['--resolution', advanced.resolution]);
-            }
-
-            if(advanced.commission) {
-                var commission = advanced.commission.model + ',' + advanced.commission.value.toString();
-                args = args.concat(['--commission', commission]);
-            }
-
-            if(advanced.slippage) {
-                var slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
-                args = args.concat(['--slippage', slippage]);
-            }
-        }
-
-        return args;
-    })
-    .then(argArray => {
-
-        // TO DO: Progressively try to make connections with open julia process
-        // create a string to bool dictioanry
-        let wsClient;
-        let conn;
-        let forwardtestData = '';
-        var backtestId = msg.backtestId;
-
-        outputData_forward[backtestId] = [];
-
-        var isconnected = false;
-
-        for (var connection in isopen){
-            if (!isopen[connection]) {
-                conn = connection;
-                wsClient = new WebSocket(connection);
-                isconnected = true;
-                break;
-            }
-        }
-
-        if (!isconnected) {
-            return cb(null, {status:"pending"})
-        }
-
-        wsClient.on('open', function open() {
-            console.log('Connection Open');
-            console.log(conn);
-            isopen[conn] = true;
-
-            wsClient.send(argArray.join("??##"));
-        });
-
-        wsClient.on('message', function(data) {
-            // CHECK DATA: IF REQUEST WAS REJECTED, TRY WITH ANOTHER JULIA PROCESS
-            // Handled by checking the pendng status
-            var backtestId = msg.backtestId;
-
-            try {
-                const dataJSON = JSON.parse(data);
-                dataJSON.backtestId = backtestId;
-
-                if (dataJSON.outputtype === 'backtest') {
-                    forwardtestData = dataJSON;
-
-                } else {
-                    outputData_forward[backtestId].push(dataJSON);
-                }
-
-            } catch (e) {
-                console.log(e);
-            }
-        });
-
-        wsClient.on('close', function close(code) {
-            console.log('Connection Closed');
-            console.log(conn);
-            isopen[conn] = false;
-
-            // Update the connection status
-            if (code === 1000) {
-                try {
-                    // If success and no data was generated => PENDING
-                    if(forwardtestData && Object.keys(forwardtestData).length > 0) {
-                        cb(null, {output: forwardtestData, status:"complete"});
-                    } else {
-                        cb(null, {status:"exception"});
-                    }
-                } catch (e) {
-                    cb(e, {status:"exception"});
-                }
-            }
-        });
-
-    })
-    .catch(err => {
-        cb(err, {status:"exception"});
-    });
-}
-
-function updateForwardTestResult(data, msg) {
-    console.log("Updating Forward Test");
-    ForwardTestModel.updateForwardTest({
-        backtestId: msg.backtestId
-    }, data);
-}
-
-/*=====================================
-    PROCESS NEXT REQUESTS IN REDIS
-=====================================*/
+// PROCESS NEXT REQUESTS IN REDIS
 
 function processNext(msg) {
     redisUtils.getValue('common-request-queue', function (err, data) {
@@ -677,4 +461,158 @@ function processNext(msg) {
         });
 
     });
+}
+
+/*=====================================
+        FORWARD TEST CONTROL
+=====================================*/
+
+// Handle execution of forward tests
+// The following code will be executed at 0000 hours everyday
+var job = schedule.scheduleJob("0 0 * * *", function() {
+    // Load all the forward tests from redis into forwardQueue
+    let forwardQueue;
+    redisUtils.getValue('forward-request-queue', function(err, data) {
+        if(err || !data)
+            forwardQueue = {};
+        else
+            forwardQueue = JSON.parse(data);
+    });
+
+    // Now, one-by-one, process each of the forward test
+    if(forwardQueue) {
+        jobs = Object.keys(forwardQueue).map(function(key) {
+            return forwardQueue[key];
+        });
+        handleExecForwardTest(0, jobs);
+    }
+});
+
+// Forward test handler for running each forward test synchronously
+function handleExecForwardTest(counter, jobs) {
+    if(counter >= jobs.length)
+        return;
+    else {
+        currentJob = jobs[counter];
+        execForwardTest(currentJob, function(err) {
+            if(err) {
+                console.log("Error Occured:");
+                console.error(err);
+            }
+            else
+                handleExecForwardTest(counter+1, jobs);
+        });
+    }
+}
+
+// Forward test executer
+// Will start running a forward test on the Julia server
+function execForwardTest(msg, cb) {
+    console.log('execForwardTest is called');
+
+    ForwardTestModel.fetchForwardTest({
+        _id: msg.forwardtestId
+    }, {})
+    .then(ft => {
+        var args = [];
+
+        if(!ft){
+            throw "Invalid Forward Test";
+        }
+
+        args = args.concat(['--code', CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
+
+        // If there is serialized data available then pass it as command line arg
+        // Otherwise it's a fresh start
+        if(ft.output) {
+            args = args.concat(['--data', ft.output]);
+        }
+        else {
+            var settings = ft.settings;
+            args = args.concat(['--capital', settings.initialCash]);
+            args = args.concat(['--startdate', settings.startDate]);
+            args = args.concat(['--enddate', settings.endDate]);
+            args = args.concat(['--universe', settings.universe]);
+
+            var advanced = JSON.parse(settings.advanced);
+
+            if(advanced.exclude) {
+                args = args.concat(['--exclude', advanced.exclude]);
+            }
+
+            if(advanced.investmentPlan) {
+                args = args.concat(['--investmentplan', advanced.investmentPlan]);
+            }
+
+            if(advanced.rebalance) {
+                args = args.concat(['--rebalance', advanced.rebalance]);
+            }
+
+            if(advanced.cancelPolicy) {
+                args = args.concat(['--cancelpolicy', advanced.cancelPolicy]);
+            }
+
+            if(advanced.resolution) {
+                args = args.concat(['--resolution', advanced.resolution]);
+            }
+
+            if(advanced.commission) {
+                var commission = advanced.commission.model + ',' + advanced.commission.value.toString();
+                args = args.concat(['--commission', commission]);
+            }
+
+            if(advanced.slippage) {
+                var slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
+                args = args.concat(['--slippage', slippage]);
+            }
+        }
+
+        return args;
+    })
+    .then(argArray => {
+
+        var forwardtestId = msg.forwardtestId;
+        forwardTestOutputData[forwardtestId] = [];
+        ftClient = new WebSocket(ftConnection);
+
+        ftClient.on('open', function() {
+            console.log('Connection Open');
+            ftClient.send(argArray.join("??##"));
+        });
+
+        ftClient.on('message', function(data) {
+            try {
+                const dataJSON = JSON.parse(data);
+                forwardTestOutputData[forwardtestId].push(dataJSON);
+            } catch (e) {
+                console.log(e);
+            }
+        });
+
+        ftClient.on('close', function close(code) {
+            console.log('Connection Closed');
+
+            // Update the connection status
+            if (code === 1000) {
+                updateForwardTestResult({output: forwardTestOutputData[forwardtestId]}, msg);
+                cb();
+            }
+            else {
+                cb("Test could not be completed");
+            }
+        });
+
+    })
+    .catch(err => {
+        cb(err);
+    });
+}
+
+// UPDATE FORWARD TEST SERIALIZED OUTPUT TO DATABASE
+
+function updateForwardTestResult(data, msg) {
+    console.log("Updating Forward Test");
+    ForwardTestModel.updateForwardTest({
+        _id: msg.forwardtestId
+    }, data);
 }
