@@ -16,11 +16,7 @@ const ForwardTest = new Schema({
         type: Schema.Types.ObjectId,
         require: true,
         ref: 'Strategy'
-    },
-    settings: {
-        type: Schema.Types.Mixed,
-        require: true,
-    },
+    }
 
     notes :{
         type: String,
@@ -47,12 +43,9 @@ const ForwardTest = new Schema({
         type : Boolean,
         require : false,
     },
-    status: {
-        type : String,
-        require : false
-    },
 
     output: Schema.Types.Mixed,
+    serializedData: Schema.Types.Mixed,
     createdAt: Date,
     updatedAt: Date
 });

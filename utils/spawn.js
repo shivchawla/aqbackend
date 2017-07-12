@@ -492,15 +492,16 @@ var job = schedule.scheduleJob("0 0 * * *", function() {
     }
 });
 
-// Forward test handler for running each forward test synchronously
+// Forward test handler for running each forward test "synchronously"
 function handleExecForwardTest(counter, jobs) {
     if(counter >= jobs.length)
+        console.log("All forward tests done!");
         return;
     else {
         currentJob = jobs[counter];
         execForwardTest(currentJob, function(err) {
             if(err) {
-                console.log("Error Occured:");
+                console.error("Error Occured:");
                 console.error(err);
             }
             else
@@ -528,48 +529,61 @@ function execForwardTest(msg, cb) {
 
         // If there is serialized data available then pass it as command line arg
         // Otherwise it's a fresh start
-        if(ft.output) {
+        if(ft.serializedData) {
             args = args.concat(['--data', ft.output]);
         }
         else {
-            var settings = ft.settings;
-            args = args.concat(['--capital', settings.initialCash]);
-            args = args.concat(['--startdate', settings.startDate]);
-            args = args.concat(['--enddate', settings.endDate]);
-            args = args.concat(['--universe', settings.universe]);
+            // No deserialized data was found
+            // Let us lookup the backtest model for corresponding backtest
+            // To obtain the initial settings and details
 
-            var advanced = JSON.parse(settings.advanced);
+            BacktestModel.fetchBacktest({
+                _id: ft.backtestId
+            }, {})
+            .then(bt => {
+                if(!bt){
+                    throw "Corresponding Backtest not found";
+                }
 
-            if(advanced.exclude) {
-                args = args.concat(['--exclude', advanced.exclude]);
+                var settings = bt.settings;
+                args = args.concat(['--capital', settings.initialCash]);
+                args = args.concat(['--startdate', settings.startDate]);
+                args = args.concat(['--enddate', settings.endDate]);
+                args = args.concat(['--universe', settings.universe]);
+
+                var advanced = JSON.parse(settings.advanced);
+
+                if(advanced.exclude) {
+                    args = args.concat(['--exclude', advanced.exclude]);
+                }
+
+                if(advanced.investmentPlan) {
+                    args = args.concat(['--investmentplan', advanced.investmentPlan]);
+                }
+
+                if(advanced.rebalance) {
+                    args = args.concat(['--rebalance', advanced.rebalance]);
+                }
+
+                if(advanced.cancelPolicy) {
+                    args = args.concat(['--cancelpolicy', advanced.cancelPolicy]);
+                }
+
+                if(advanced.resolution) {
+                    args = args.concat(['--resolution', advanced.resolution]);
+                }
+
+                if(advanced.commission) {
+                    var commission = advanced.commission.model + ',' + advanced.commission.value.toString();
+                    args = args.concat(['--commission', commission]);
+                }
+
+                if(advanced.slippage) {
+                    var slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
+                    args = args.concat(['--slippage', slippage]);
+                }
             }
-
-            if(advanced.investmentPlan) {
-                args = args.concat(['--investmentplan', advanced.investmentPlan]);
-            }
-
-            if(advanced.rebalance) {
-                args = args.concat(['--rebalance', advanced.rebalance]);
-            }
-
-            if(advanced.cancelPolicy) {
-                args = args.concat(['--cancelpolicy', advanced.cancelPolicy]);
-            }
-
-            if(advanced.resolution) {
-                args = args.concat(['--resolution', advanced.resolution]);
-            }
-
-            if(advanced.commission) {
-                var commission = advanced.commission.model + ',' + advanced.commission.value.toString();
-                args = args.concat(['--commission', commission]);
-            }
-
-            if(advanced.slippage) {
-                var slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
-                args = args.concat(['--slippage', slippage]);
-            }
-        }
+        });
 
         return args;
     })
@@ -598,8 +612,8 @@ function execForwardTest(msg, cb) {
 
             // Update the connection status
             if (code === 1000) {
-                updateForwardTestResult({output: forwardTestOutputData[forwardtestId]}, msg);
-                cb();
+                updateForwardTestResult({serializedData: forwardTestOutputData[forwardtestId]}, msg);
+                cb(null);
             }
             else {
                 cb("Test could not be completed");
