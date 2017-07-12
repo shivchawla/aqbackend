@@ -22,6 +22,7 @@ for(var machine of config.get('machines')) {
 }
 
 var outputData   = {};
+var outputData_forward = {};
 var subscribed   = {};
 var jobScheduler = {};
 
@@ -430,12 +431,182 @@ function updateBacktestResult(data, msg) {
 
 // handle execution of forward tests
 function handleExecForwardTest(msg, res) {
+    if (msg.action === 'exec-forwardtest') {
+        return execForwardTest(msg, res, (err, updateData) => {
+            var status = updateData.status;
+
+            if(err) {
+                res.send(JSON.stringify({backtestId:msg.backtestId, outputtype:"log", message:"Internal Exception", messagetype:"ERROR"}));
+            } else {
+                if(status == 'exception') {
+                    res.send(JSON.stringify({backtestId:msg.backtestId, outputtype:"log", message:"Internal Exception", messagetype:"ERROR"}));
+                }
+            }
+
+            updateForwardTestResult(updateData, msg);
+
+            //Remove backtestId key from outputData
+            delete outputData_forward[msg.backtestId];
+
+            processNext(msg);
+
+        });
+    } else if (message === 'rl_close') {
+        return res.send('Not implemented');
+    }
 }
 
 function execForwardTest(msg, res, cb) {
+
+    let backtestData = '';
+
+    console.log('execForwardTest is called too');
+
+    ForwardTestModel.fetchForwardTest({
+        backtestId: msg.backtestId
+    }, {})
+    .then(ft => {
+        var args = [];
+
+        if(!ft){
+            throw "Invalid Forward Test";
+        }
+
+        args = args.concat(['--code', CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
+
+        // If there is serialized data available then pass it as command line arg
+        // Otherwise it's a fresh start
+        if(ft.output) {
+            args = args.concat(['--data', ft.output]);
+        }
+        else {
+            var settings = ft.settings;
+            args = args.concat(['--capital', settings.initialCash]);
+            args = args.concat(['--startdate', settings.startDate]);
+            args = args.concat(['--enddate', settings.endDate]);
+            args = args.concat(['--universe', settings.universe]);
+
+            var advanced = JSON.parse(settings.advanced);
+
+            if(advanced.exclude) {
+                args = args.concat(['--exclude', advanced.exclude]);
+            }
+
+            if(advanced.investmentPlan) {
+                args = args.concat(['--investmentplan', advanced.investmentPlan]);
+            }
+
+            if(advanced.rebalance) {
+                args = args.concat(['--rebalance', advanced.rebalance]);
+            }
+
+            if(advanced.cancelPolicy) {
+                args = args.concat(['--cancelpolicy', advanced.cancelPolicy]);
+            }
+
+            if(advanced.resolution) {
+                args = args.concat(['--resolution', advanced.resolution]);
+            }
+
+            if(advanced.commission) {
+                var commission = advanced.commission.model + ',' + advanced.commission.value.toString();
+                args = args.concat(['--commission', commission]);
+            }
+
+            if(advanced.slippage) {
+                var slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
+                args = args.concat(['--slippage', slippage]);
+            }
+        }
+
+        return args;
+    })
+    .then(argArray => {
+
+        // TO DO: Progressively try to make connections with open julia process
+        // create a string to bool dictioanry
+        let wsClient;
+        let conn;
+        let forwardtestData = '';
+        var backtestId = msg.backtestId;
+
+        outputData_forward[backtestId] = [];
+
+        var isconnected = false;
+
+        for (var connection in isopen){
+            if (!isopen[connection]) {
+                conn = connection;
+                wsClient = new WebSocket(connection);
+                isconnected = true;
+                break;
+            }
+        }
+
+        if (!isconnected) {
+            return cb(null, {status:"pending"})
+        }
+
+        wsClient.on('open', function open() {
+            console.log('Connection Open');
+            console.log(conn);
+            isopen[conn] = true;
+
+            wsClient.send(argArray.join("??##"));
+        });
+
+        wsClient.on('message', function(data) {
+            // CHECK DATA: IF REQUEST WAS REJECTED, TRY WITH ANOTHER JULIA PROCESS
+            // Handled by checking the pendng status
+            var backtestId = msg.backtestId;
+
+            try {
+                const dataJSON = JSON.parse(data);
+                dataJSON.backtestId = backtestId;
+
+                if (dataJSON.outputtype === 'backtest') {
+                    forwardtestData = dataJSON;
+
+                } else {
+                    outputData_forward[backtestId].push(dataJSON);
+                }
+
+            } catch (e) {
+                console.log(e);
+            }
+        });
+
+        wsClient.on('close', function close(code) {
+            console.log('Connection Closed');
+            console.log(conn);
+            isopen[conn] = false;
+
+            // Update the connection status
+            if (code === 1000) {
+                try {
+                    // If success and no data was generated => PENDING
+                    if(forwardtestData && Object.keys(forwardtestData).length > 0) {
+                        cb(null, {output: forwardtestData, status:"complete"});
+                    } else {
+                        cb(null, {status:"exception"});
+                    }
+                } catch (e) {
+                    cb(e, {status:"exception"});
+                }
+            }
+        });
+
+    })
+    .catch(err => {
+        cb(err, {status:"exception"});
+    });
 }
 
 function updateForwardTestResult(data, msg) {
+    console.log("Updating Forward Test");
+    ForwardTestModel.updateForwardTest({
+        backtestId: msg.backtestId
+    }, data);
 }
 
 /*=====================================
