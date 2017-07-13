@@ -1,6 +1,5 @@
 'use strict';
 const ws = require('../index').ws;
-const schedule = require('node-schedule');
 const jwtUtil = require('../utils/jwttoken');
 const redisUtils = require('../utils/RedisUtils');
 const BacktestController = require('./btControl.js');
@@ -97,7 +96,7 @@ function handleAction(msg, res) {
             and when Julia returns the output, it will be saved to db.
         */
 
-        let forwardQueue;
+        /* let forwardQueue;
         redisUtils.getValue('forward-request-queue', function (err, data) {
             if(err || !data) {
                 forwardQueue = {};
@@ -111,45 +110,11 @@ function handleAction(msg, res) {
             // Because that will be needed if we want to stop a particular forward test
             forwardQueue[msg.forwardtestId] = msg;
             redisUtils.insertKeyValue('forward-request-queue', JSON.stringify(forwardQueue));
-        });
+        }); */
+
+        // Nothing to be done here
     }
     else if(msg.action === 'stop-forwardtest') {
-        let forwardQueue;
-        redisUtils.getValue('forward-request-queue', function (err, data) {
-            if(err || !data) {
-                forwardQueue = {};
-            }
-            else {
-                forwardQueue = JSON.parse(data);
-            }
-
-            delete forwardQueue[msg.forwardtestId];
-            redisUtils.insertKeyValue('forward-request-queue', JSON.stringify(forwardQueue));
-        });
+        ForwardTestController.cancelTest(msg);
     }
 }
-
-// Schedule all the forward test jobs
-// The following code will be executed at 0000 hours everyday
-schedule.scheduleJob("0 0 * * *", function() {
-    // Load all the forward tests from redis into forwardQueue
-    let forwardQueue;
-    redisUtils.getValue('forward-request-queue', function(err, data) {
-        if(err || !data) {
-            forwardQueue = {};
-        }
-        else {
-            forwardQueue = JSON.parse(data);
-        }
-    });
-
-    // Now, one-by-one, process each of the forward test
-    if(forwardQueue) {
-        // Get all the jobs
-        let jobs = Object.keys(forwardQueue).map(function(key) {
-            return forwardQueue[key];
-        });
-        // Start executing jobs starting from job number 0 upto the number of jobs - 1
-        ForwardTestController.handleExecForwardTest(0, jobs);
-    }
-});

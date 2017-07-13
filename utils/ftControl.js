@@ -1,8 +1,8 @@
 'use strict';
-const CryptoJS = require("crypto-js");
+const CryptoJS = require('crypto-js');
 const config = require('config');
 const WebSocket = require('ws');
-const BacktestModel = require('../models/backtest');
+const schedule = require('node-schedule');
 const ForwardTestModel = require('../models/forwardtest');
 
 // Connection for forward tests
@@ -11,46 +11,75 @@ var ftmachine = config.get('ftmachines');
 var ftConnection = 'ws://' + ftmachine.host + ":" + ftmachine.port;
 
 // Forward test serialized data
-var forwardTestOutputData = {};
+var outputData = {};
 
 /* =====================================
         FORWARD TEST CONTROL
 ===================================== */
 
+// Schedule all the forward test jobs
+// The following code will be executed at 0000 hours everyday
+schedule.scheduleJob("0 0 * * *", function() {
+    // Load all the forward tests from redis into forwardQueue
+    let forwardQueue;
+    ForwardTestModel.fetchForwardTests({
+        active: true
+    }, {})
+    .then(ft => {
+        // ft will be an array consisting of all active forward tests
+        forwardQueue = ft.map(function(test) {
+            return test._id;
+        });
+    })
+    .catch(err => {
+        console.error(err);
+    });
+
+    // Now, one-by-one, process each of the forward test
+    if(forwardQueue) {
+        // Start executing jobs starting from job number 0 upto the number of jobs - 1
+        handleExecForwardTest(0, forwardQueue);
+    }
+});
+
+
 // Forward test handler for running each forward test "synchronously"
-function handleExecForwardTest(counter, jobs) {
-    if(counter >= jobs.length) {
+function handleExecForwardTest(counter, tests) {
+    if(counter >= tests.length) {
         console.log("All forward tests done!");
         return;
     }
-    let currentJob = jobs[counter];
-    execForwardTest(currentJob, function(err) {
-        if(err) {
+    let currentTestID = tests[counter];
+    execForwardTest(currentTestID, function(err, updateData) {
+        if(err||updateData.status === "exception") {
             console.error("Error Occured:");
             console.error(err);
+            updateForwardTestResult(forwardtestId, {status: "pending"});
         }
         else {
+            // Update data for successful forward test run
+            updateForwardTestResult(forwardtestId, updateData);
             // The current test is done
             // Start next forward test
-            handleExecForwardTest(counter+1, jobs);
+            handleExecForwardTest(counter+1, tests);
         }
     });
 }
 
 // Forward test executer
 // Will start running a forward test on the Julia server
-function execForwardTest(msg, cb) {
+function execForwardTest(forwardtestId, cb) {
     console.log('execForwardTest is called');
 
     ForwardTestModel.fetchForwardTest({
-        _id: msg.forwardtestId
+        _id: forwardtestId
     }, {})
     .then(ft => {
-        var args = [];
-
         if(!ft){
             throw new Error("Invalid Forward Test");
         }
+
+        let args = [];
 
         args = args.concat(['--code', CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
 
@@ -61,64 +90,54 @@ function execForwardTest(msg, cb) {
         }
         else {
             // No deserialized data was found
-            // Let us lookup the backtest model for corresponding backtest
-            // To obtain the initial settings
+            // to obtain the initial settings
 
-            BacktestModel.fetchBacktest({
-                _id: ft.backtestId
-            }, {})
-            .then(bt => {
-                if(!bt) {
-                    throw new Error("Corresponding Backtest not found");
-                }
+            let settings = ft.settings;
+            args = args.concat(['--capital', settings.initialCash]);
+            args = args.concat(['--startdate', settings.startDate]);
+            args = args.concat(['--enddate', settings.endDate]);
+            args = args.concat(['--universe', settings.universe]);
 
-                let settings = bt.settings;
-                args = args.concat(['--capital', settings.initialCash]);
-                args = args.concat(['--startdate', settings.startDate]);
-                args = args.concat(['--enddate', settings.endDate]);
-                args = args.concat(['--universe', settings.universe]);
+            let advanced = JSON.parse(settings.advanced);
 
-                let advanced = JSON.parse(settings.advanced);
+            if(advanced.exclude) {
+                args = args.concat(['--exclude', advanced.exclude]);
+            }
 
-                if(advanced.exclude) {
-                    args = args.concat(['--exclude', advanced.exclude]);
-                }
+            if(advanced.investmentPlan) {
+                args = args.concat(['--investmentplan', advanced.investmentPlan]);
+            }
 
-                if(advanced.investmentPlan) {
-                    args = args.concat(['--investmentplan', advanced.investmentPlan]);
-                }
+            if(advanced.rebalance) {
+                args = args.concat(['--rebalance', advanced.rebalance]);
+            }
 
-                if(advanced.rebalance) {
-                    args = args.concat(['--rebalance', advanced.rebalance]);
-                }
+            if(advanced.cancelPolicy) {
+                args = args.concat(['--cancelpolicy', advanced.cancelPolicy]);
+            }
 
-                if(advanced.cancelPolicy) {
-                    args = args.concat(['--cancelpolicy', advanced.cancelPolicy]);
-                }
+            if(advanced.resolution) {
+                args = args.concat(['--resolution', advanced.resolution]);
+            }
 
-                if(advanced.resolution) {
-                    args = args.concat(['--resolution', advanced.resolution]);
-                }
+            if(advanced.commission) {
+                let commission = advanced.commission.model + ',' + advanced.commission.value.toString();
+                args = args.concat(['--commission', commission]);
+            }
 
-                if(advanced.commission) {
-                    let commission = advanced.commission.model + ',' + advanced.commission.value.toString();
-                    args = args.concat(['--commission', commission]);
-                }
-
-                if(advanced.slippage) {
-                    let slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
-                    args = args.concat(['--slippage', slippage]);
-                }
-            });
+            if(advanced.slippage) {
+                let slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
+                args = args.concat(['--slippage', slippage]);
+            }
         }
 
         return args;
     })
     .then(argArray => {
 
-        let forwardtestId = msg.forwardtestId;
-        forwardTestOutputData[forwardtestId] = [];
+        outputData[forwardtestId] = [];
         let ftClient = new WebSocket(ftConnection);
+        let algorithm = '';
 
         ftClient.on('open', function() {
             console.log('Connection Open');
@@ -128,7 +147,13 @@ function execForwardTest(msg, cb) {
         ftClient.on('message', function(data) {
             try {
                 const dataJSON = JSON.parse(data);
-                forwardTestOutputData[forwardtestId].push(dataJSON);
+
+                if (dataJSON.outputtype === 'serialized-data') {
+                    algorithm = dataJSON;
+                }
+                else {
+                    outputData[forwardtestId].push(dataJSON);
+                }
             }
             catch (e) {
                 console.log(e);
@@ -140,29 +165,35 @@ function execForwardTest(msg, cb) {
 
             // Update the connection status
             if (code === 1000) {
-                updateForwardTestResult({serializedData: forwardTestOutputData[forwardtestId]}, msg);
-                cb(null);
+                cb(null, {serializedData: algorithm, output: outputData[forwardtestId], status: 'completed'});
             }
             else {
-                cb("Test could not be completed");
+                cb(new Error("Test could not be completed"), {status: 'exception'});
             }
         });
 
     })
     .catch(err => {
-        cb(err);
+        cb(err, {status: 'exception'});
     });
 }
 
-// UPDATE FORWARD TEST SERIALIZED OUTPUT TO DATABASE
+// Update foward test output data + serialized data to database
 
-function updateForwardTestResult(data, msg) {
+function updateForwardTestResult(forwardtestId, data) {
     console.log("Updating Forward Test");
     ForwardTestModel.updateForwardTest({
-        _id: msg.forwardtestId
+        _id: forwardtestId
     }, data);
 }
 
-module.exports = {
-    handleExecForwardTest
+// FUnction to cancel particular forward test
+
+function cancelTest(forwardtestId) {
+    // We will mark this forward test as inactive
+    ForwardTestModel.updateForwardTest({
+        _id: forwardtestId
+    }, {active: false});
 }
+
+module.exports = cancelTest;

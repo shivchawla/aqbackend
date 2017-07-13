@@ -2,20 +2,20 @@
 const mongoose = require('./index');
 const Schema = mongoose.Schema;
 const ForwardTest = new Schema({
-    backtestId: {
-        type: String,
-        require: true
-    },
-
-    output: {
-        type: Schema.Types.Mixed,
-        require: true
-    }
-
     strategy: {
         type: Schema.Types.ObjectId,
         require: true,
         ref: 'Strategy'
+    },
+
+    settings: {
+        type: Schema.Types.Mixed,
+        require: true,
+    },
+
+    active: {
+        type: Boolean,
+        require: true
     }
 
     notes :{
@@ -27,18 +27,22 @@ const ForwardTest = new Schema({
         type: String,
         require: false
     },
+
     strategy_name: {
         type: String,
         require: false
     },
+
     code: {
         type: String,
         require: false
     },
+
     shared : {
         type : Boolean,
         require : false
     },
+
     deleted : {
         type : Boolean,
         require : false,
