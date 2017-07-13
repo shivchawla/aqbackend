@@ -5,12 +5,19 @@ const WebSocket = require('ws');
 const schedule = require('node-schedule');
 const ForwardTestModel = require('../models/forwardtest');
 
-// Connection for forward tests
-// Will have to add forward testing server details (host:port) in the config file
-var ftmachine = config.get('ftmachines');
-var ftConnection = 'ws://' + ftmachine.host + ":" + ftmachine.port;
+var servers = [];
 
-// Forward test serialized data
+// Initialize map for status of each connection
+// Our Julia server can only accept one connection per process
+for(var machine of config.get('ftmachines')) {
+    let conn = 'ws://' + machine.host + ":" + machine.port;\
+    servers.push(conn);
+}
+// Will have to add forward testing server details (host:port) in the config file
+
+// Container for all pending forward tests
+var forwardQueue = [];
+// Forward test simulation output
 var outputData = {};
 
 /* =====================================
@@ -21,7 +28,6 @@ var outputData = {};
 // The following code will be executed at 0000 hours everyday
 schedule.scheduleJob("0 0 * * *", function() {
     // Load all the forward tests from redis into forwardQueue
-    let forwardQueue;
     ForwardTestModel.fetchForwardTests({
         active: true
     }, {})
@@ -35,16 +41,48 @@ schedule.scheduleJob("0 0 * * *", function() {
         console.error(err);
     });
 
-    // Now, one-by-one, process each of the forward test
     if(forwardQueue) {
-        // Start executing jobs starting from job number 0 upto the number of jobs - 1
-        handleExecForwardTest(0, forwardQueue);
+        // Start execution of jobs on each server
+        /* ================================================================
+            ASSUMPTION: All the servers are available for accepting tasks
+        ================================================================ */
+        servers.forEach(function(server) {
+            // Start multiple instances of handleExecForwardTest()
+            // One for each server
+            handleExecForwardTest(server);
+        });
+        // handleExecForwardTest(0, forwardQueue);
     }
 });
 
 
 // Forward test handler for running each forward test "synchronously"
-function handleExecForwardTest(counter, tests) {
+function handleExecForwardTest(connection) {
+    if(forwardQueue.length <= 0) {
+        console.log("All forward tests done!");
+        return;
+    }
+
+    // There are pending forward tests
+    forwardtestId = forwardQueue.shift();
+    execForwardTest(forwardtestId, connection, function(err, updateData) {
+        if(err||updateData.status === "exception") {
+            console.log("Forward test with id: " + forwardtestId + " could not processed");
+            console.error("Error Occured:");
+            console.error(err);
+            // We can again push this task in the forwardQueue and wait for it's turn to be processed again
+            // forwardQueue.push(forwardtestId);
+        }
+        else {
+            // Update data for successful forward test run
+            updateForwardTestResult(forwardtestId, updateData);
+        }
+        // The current test is done
+        // Start next forward test on this connection
+        handleExecForwardTest(connection);
+    });
+}
+/* function handleExecForwardTest(counter, tests) {
     if(counter >= tests.length) {
         console.log("All forward tests done!");
         return;
@@ -64,11 +102,11 @@ function handleExecForwardTest(counter, tests) {
             handleExecForwardTest(counter+1, tests);
         }
     });
-}
+} */
 
 // Forward test executer
 // Will start running a forward test on the Julia server
-function execForwardTest(forwardtestId, cb) {
+function execForwardTest(forwardtestId, connection, cb) {
     console.log('execForwardTest is called');
 
     ForwardTestModel.fetchForwardTest({
@@ -136,8 +174,8 @@ function execForwardTest(forwardtestId, cb) {
     .then(argArray => {
 
         outputData[forwardtestId] = [];
-        let ftClient = new WebSocket(ftConnection);
         let algorithm = '';
+        let ftClient = new WebSocket(connection);
 
         ftClient.on('open', function() {
             console.log('Connection Open');
@@ -165,13 +203,12 @@ function execForwardTest(forwardtestId, cb) {
 
             // Update the connection status
             if (code === 1000) {
-                cb(null, {serializedData: algorithm, output: outputData[forwardtestId], status: 'completed'});
+                cb(null, {serializedData: algorithm, output: outputData[forwardtestId]});
             }
             else {
                 cb(new Error("Test could not be completed"), {status: 'exception'});
             }
         });
-
     })
     .catch(err => {
         cb(err, {status: 'exception'});
