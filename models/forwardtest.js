@@ -8,6 +8,11 @@ const ForwardTest = new Schema({
         ref: 'Strategy'
     },
 
+    code: {
+        type: String,
+        require: false
+    },
+
     settings: {
         type: Schema.Types.Mixed,
         require: true,
@@ -29,11 +34,6 @@ const ForwardTest = new Schema({
     },
 
     strategy_name: {
-        type: String,
-        require: false
-    },
-
-    code: {
         type: String,
         require: false
     },
@@ -101,9 +101,9 @@ ForwardTest.statics.removeAllBack = function(query) {
 
 ForwardTest.statics.updateForwardTest = function(query, updates) {
     return this.update(query, updates)
-        .then(backtest => {
-            if (backtest) {
-                return ({backtestId: backtest._id, message:"Successfully updated"});
+        .then(forwardtest => {
+            if (forwardtest) {
+                return ({forwardtestId: forwardtest._id, message:"Successfully updated"});
             }
         })
         .catch(err => {
@@ -112,5 +112,5 @@ ForwardTest.statics.updateForwardTest = function(query, updates) {
         });
 };
 
-const backtestModel = mongoose.model('ForwardTest', ForwardTest, 'forwardtests');
+const forwardtestModel = mongoose.model('ForwardTest', ForwardTest, 'forwardtests');
 module.exports = forwardtestModel;
