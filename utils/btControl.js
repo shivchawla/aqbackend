@@ -70,7 +70,7 @@ function handleExecUnsubscription(msg) {
 //Function to handle the execution of backtests.
 //Pass comandline arguments to free Julia process
 //Collect the output, send realtime updates and save the final output to the DB
-function handleExecBacktest(conn, res) {
+function handleExecBacktest(connection, res) {
     // First retrieve all the backtests
     var commonQueue;
     redisUtils.getValue('common-request-queue', function (err, data) {
@@ -84,23 +84,25 @@ function handleExecBacktest(conn, res) {
 
     if(commonQueue.length > 0) {
         // There are pending backtests in queue and
-        let connection;
-        if(!conn) {
-            connection = findFreeServer();
-            if(!connection) {
+        let server;
+        if(!connection) {
+            server = findFreeServer();
+            if(!server) {
                 // No free server available
                 return;
             }
         }
         else {
-            connection = conn;
+            server = connection;
         }
 
         // Pull off the first backtest job from the head of queue
         let msg = commonQueue.shift();
+        // Update redis queue because a backtest has been popped out and sent for processing
+        redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
 
         // And deploy the backtest
-        execBacktest(msg, connection, res, function(err, newconnection, data) {
+        execBacktest(msg, server, res, function(err, conn, data) {
             // Callback function
             // This is called when one of the servers finish processing a backtest
             // and is ready to accept another backtest
@@ -115,19 +117,21 @@ function handleExecBacktest(conn, res) {
 
                 // And let's process this failed backtest again from the beginning
                 commonQueue.push(msg);
+                redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
             }
             else {
                 // Backtest successfully completed
                 // Update the db with output
                 updateBacktestResult(data, msg);
             }
-
-            // Update the redis queue
-            redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
-
             // Start off with next backtest
-            handleExecBacktest(newconnection, res);
+            handleExecBacktest(conn, res);
         });
+    }
+    else {
+        if(connection) {
+            isBusy[connection] = false;
+        }
     }
 }
 
@@ -204,7 +208,6 @@ function execBacktest(conn, msg, res, cb) {
 
         btClient.on('open', function() {
             console.log('Connection Open');
-            isBusy[conn] = true;
 
             btClient.send(argArray.join("??##"));
 
@@ -240,7 +243,6 @@ function execBacktest(conn, msg, res, cb) {
         btClient.on('close', function close(code) {
             console.log('Connection Closed');
             console.log(conn);
-            isBusy[conn] = false;
             clearInterval(poll);
 
             // Update the connection status
@@ -305,10 +307,10 @@ function updateBacktestResult(data, msg) {
 function findFreeServer() {
     for(var conn in Object.keys(isBusy)) {
         if(!isBusy[conn]) {
+            isBusy[conn] = true;
             return conn;
         }
     }
-
     // Oh no, none of the servers are free
     return null;
 }
