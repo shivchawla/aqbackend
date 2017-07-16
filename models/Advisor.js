@@ -12,7 +12,7 @@ const Schema = mongoose.Schema;
 const PerformanceMetrics = require('./PerformanceMetrics');
 const PortfolioStats = require('./PortfolioStats');
 const Performance = require('./Performance');
-const User = require('./User');
+const User = require('./user');
 
 const Advisor = new Schema({
    

@@ -8,8 +8,8 @@
 'use strict';
 const config = require('config');
 const WebSocket = require('ws'); 
-const InvestorModel = require('../../models/investor');
-const AdviceModel = require('../../models/advice');
+const InvestorModel = require('../../models/Investor');
+const AdviceModel = require('../../models/Advice');
 const Promise = require('bluebird');
 
 function computePerformance(portfolioHistory, benchmark) {

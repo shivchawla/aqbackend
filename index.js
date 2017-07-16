@@ -15,24 +15,28 @@ const spawn = require('child_process').spawn;
 var conn = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
 console.log("Starting Julia server at " + conn);
 
-/*for(var machine of config.get('machines')) {
+/*for(var machine of config.get('btmachines')) {
     conn = 'ws://' + machine.host + ":" + machine.port;
-    console.log("Starting Julia server at " + conn);
-    spawn('/Applications/Julia-0.5.app/Contents/Resources/julia/bin/julia', 
-                    ["../raftaar/Util/server.jl", machine.port, machine.host]);
-
+    console.log("Starting Backtest Julia server: " + conn);
+    spawn('julia', ["../raftaar/Util/server.jl", machine.port, machine.host]);
 }*/
+
+for(var machine of config.get('ftmachines')) {
+    conn = 'ws://' + machine.host + ":" + machine.port;
+    console.log("Starting Forward test Julia server: " + conn);
+    spawn('julia', ["../raftaar/Util/server.jl", machine.port, machine.host]);
+}
 
 var server = '';
 if(process.env.NODE_ENV === 'development') {
     server = require('http').createServer(app);
 } else {
-   
+
     var serverOptions = {
       key: fs.readFileSync(config.get('privkey')),
       cert: fs.readFileSync(config.get('cert'))
     };
-    
+
     server = require('https').createServer(serverOptions, app);
 }
 
@@ -50,7 +54,7 @@ const spec = fs.readFileSync('./api/swagger.yaml', 'utf8');
 const swaggerDoc = jsyaml.safeLoad(spec);
 
 if (process.env.NODE_ENV === 'staging') {
-  swaggerDoc.host = 'service-staging.aimsquant.com' 
+  swaggerDoc.host = 'service-staging.aimsquant.com'
 }
 
 // Initialize the Swagger middleware

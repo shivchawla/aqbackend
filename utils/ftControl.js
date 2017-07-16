@@ -5,28 +5,56 @@ const WebSocket = require('ws');
 const schedule = require('node-schedule');
 const ForwardTestModel = require('../models/forwardtest');
 
-var servers = [];
+var isBusy = {};
 
 // Initialize map for status of each connection
 // Our Julia server can only accept one connection per process
 for(var machine of config.get('ftmachines')) {
-    let conn = 'ws://' + machine.host + ":" + machine.port;\
-    servers.push(conn);
+    let conn = 'ws://' + machine.host + ":" + machine.port;
+    isBusy[conn] = false;
 }
 // Will have to add forward testing server details (host:port) in the config file
 
 // Container for all pending forward tests
 var forwardQueue = [];
-// Forward test simulation output
-var outputData = {};
 
 /* =====================================
         FORWARD TEST CONTROL
 ===================================== */
 
+// Manual trigger of a particular forward test
+function runForwardTest(msg) {
+    let forwardtestId = msg.forwardtestId;
+    for(var server in isBusy) {
+        if (isBusy.hasOwnProperty(server) && !isBusy[server]) {
+            isBusy[server] = true;
+            execForwardTest(forwardtestId, server, function(err, updateData) {
+                if(err||updateData.status === "exception") {
+                    console.log("Forward test with id: " + forwardtestId + " could not processed");
+                    console.error("Error Occured:");
+                    console.error(err);
+                    // We can again push this task in the forwardQueue and wait for it's turn to be processed again but I say nay-nay, not a good idea
+                    // forwardQueue.push(forwardtestId);
+                }
+                else {
+                    // Update data for successful forward test run
+                    updateForwardTestResult(forwardtestId, updateData);
+                }
+                isBusy[server] = false;
+                return;
+            });
+        }
+    }
+    console.log("No servers free at the moment");
+}
+
 // Schedule all the forward test jobs
 // The following code will be executed at 0000 hours everyday
 schedule.scheduleJob("0 0 * * *", function() {
+    runAllForwardTest();
+});
+
+function runAllForwardTest() {
     // Load all the forward tests from redis into forwardQueue
     ForwardTestModel.fetchForwardTests({
         active: true
@@ -36,41 +64,43 @@ schedule.scheduleJob("0 0 * * *", function() {
         forwardQueue = ft.map(function(test) {
             return test._id;
         });
+
+        if(forwardQueue.length > 0) {
+            // Start execution of jobs on each server
+            /* ================================================================
+                ASSUMPTION: All the servers are available for accepting tasks
+            ================================================================ */
+            Object.keys(isBusy).forEach(function(server) {
+                // Start multiple instances of handleExecForwardTest()
+                // One for each free server
+                if (!isBusy[server]) {
+                    isBusy[server] = true;
+                    handleExecForwardTest(server);
+                }
+            });
+            // handleExecForwardTest(0, forwardQueue);
+        }
     })
     .catch(err => {
         console.error(err);
     });
-
-    if(forwardQueue) {
-        // Start execution of jobs on each server
-        /* ================================================================
-            ASSUMPTION: All the servers are available for accepting tasks
-        ================================================================ */
-        servers.forEach(function(server) {
-            // Start multiple instances of handleExecForwardTest()
-            // One for each server
-            handleExecForwardTest(server);
-        });
-        // handleExecForwardTest(0, forwardQueue);
-    }
-});
-
+}
 
 // Forward test handler for running each forward test "synchronously"
 function handleExecForwardTest(connection) {
     if(forwardQueue.length <= 0) {
-        console.log("All forward tests done!");
+        isBusy[connection] = false;
         return;
     }
 
     // There are pending forward tests
-    forwardtestId = forwardQueue.shift();
+    let forwardtestId = forwardQueue.shift();
     execForwardTest(forwardtestId, connection, function(err, updateData) {
         if(err||updateData.status === "exception") {
             console.log("Forward test with id: " + forwardtestId + " could not processed");
             console.error("Error Occured:");
             console.error(err);
-            // We can again push this task in the forwardQueue and wait for it's turn to be processed again
+            // We can again push this task in the forwardQueue and wait for it's turn to be processed again but I say nay-nay, not a good idea
             // forwardQueue.push(forwardtestId);
         }
         else {
@@ -82,27 +112,6 @@ function handleExecForwardTest(connection) {
         handleExecForwardTest(connection);
     });
 }
-/* function handleExecForwardTest(counter, tests) {
-    if(counter >= tests.length) {
-        console.log("All forward tests done!");
-        return;
-    }
-    let currentTestID = tests[counter];
-    execForwardTest(currentTestID, function(err, updateData) {
-        if(err||updateData.status === "exception") {
-            console.error("Error Occured:");
-            console.error(err);
-            updateForwardTestResult(forwardtestId, {status: "pending"});
-        }
-        else {
-            // Update data for successful forward test run
-            updateForwardTestResult(forwardtestId, updateData);
-            // The current test is done
-            // Start next forward test
-            handleExecForwardTest(counter+1, tests);
-        }
-    });
-} */
 
 // Forward test executer
 // Will start running a forward test on the Julia server
@@ -119,12 +128,14 @@ function execForwardTest(forwardtestId, connection, cb) {
 
         let args = [];
 
-        args = args.concat(['--code', CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
+        // args = args.concat(['--code', CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
+
+        args = args.concat(['--code', 'using Raftaar\n function initialize(state)\n 	setstartdate(DateTime("21/12/2015","dd/mm/yyyy"))\n 	setenddate(DateTime("21/12/2015","dd/mmm/yyyy"))\n 	setcash(1000000.0)\n 	setresolution("Day")\n 	setcancelpolicy(CancelPolicy(EOD))\n 	setbenchmark("JBFIND")\n 	setuniverse("RANASUG")\n end\n function ondata(data, state)\n 	setholdingpct("RANASUG", 0.5)	\n 	track("portfoliovalue", state.account.netvalue)\n end\n ']);
 
         // If there is serialized data available then pass it as command line arg
         // Otherwise it's a fresh start
         if(ft.serializedData) {
-            args = args.concat(['--data', ft.serializedData]);
+            args = args.concat(['--serializedData', JSON.stringify(ft.serializedData)]);
         }
         else {
             // No deserialized data was found
@@ -136,7 +147,7 @@ function execForwardTest(forwardtestId, connection, cb) {
             args = args.concat(['--enddate', settings.endDate]);
             args = args.concat(['--universe', settings.universe]);
 
-            let advanced = JSON.parse(settings.advanced);
+            let advanced = settings.advanced;
 
             if(advanced.exclude) {
                 args = args.concat(['--exclude', advanced.exclude]);
@@ -169,33 +180,57 @@ function execForwardTest(forwardtestId, connection, cb) {
             }
         }
 
+        // And most importantly
+        args = args.concat(['--forward', 'true']);
+
         return args;
     })
     .then(argArray => {
 
-        outputData[forwardtestId] = [];
+        let outputData;
         let algorithm = '';
         let ftClient = new WebSocket(connection);
 
         ftClient.on('open', function() {
             console.log('Connection Open');
+            console.log("Connection = " + connection);
             ftClient.send(argArray.join("??##"));
         });
 
         ftClient.on('message', function(data) {
+            console.log("Incoming Message");
             try {
-                const dataJSON = JSON.parse(data);
-
-                if (dataJSON.outputtype === 'serialized-data') {
-                    algorithm = dataJSON;
-                }
-                else {
-                    outputData[forwardtestId].push(dataJSON);
-                }
+                let dataCollection = data.split("\n");
+                dataCollection.forEach(function(data) {
+                    if(!data) {
+                        return;
+                    }
+                    let x = JSON.parse(data);
+                    if (x.outputtype === 'serializedData') {
+                        algorithm = x.algorithm;
+                    }
+                    else {
+                        outputData = x;
+                    }
+                });
             }
             catch (e) {
                 console.log(e);
             }
+            /*
+            try {
+                const dataJSON = JSON.parse(data);
+
+                if (dataJSON.outputtype === 'serializedData') {
+                    algorithm = dataJSON.algorithm;
+                }
+                else {
+                    outputData = dataJSON;
+                }
+            }
+            catch (e) {
+                console.log(e);
+            }*/
         });
 
         ftClient.on('close', function close(code) {
@@ -203,7 +238,7 @@ function execForwardTest(forwardtestId, connection, cb) {
 
             // Update the connection status
             if (code === 1000) {
-                cb(null, {serializedData: algorithm, output: outputData[forwardtestId]});
+                cb(null, {serializedData: algorithm, output: outputData});
             }
             else {
                 cb(new Error("Test could not be completed"), {status: 'exception'});
@@ -233,4 +268,8 @@ function cancelTest(forwardtestId) {
     }, {active: false});
 }
 
-module.exports = cancelTest;
+module.exports = {
+    cancelTest,
+    runForwardTest,
+    runAllForwardTest
+};

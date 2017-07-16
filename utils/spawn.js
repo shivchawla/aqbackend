@@ -16,7 +16,9 @@ ws.on('connection', function connection(res) {
             return res.send('not valid json');
         }
 
-        if (!msg || !msg['aimsquant-token']) {
+        handleAction(msg, res);
+
+        /*if (!msg || !msg['aimsquant-token']) {
             return res.send({
                 'aimsquant-token': '',
                 action: 'exec-backtest',
@@ -39,7 +41,7 @@ ws.on('connection', function connection(res) {
             // 4. stop-forwardtest
             console.log(msg);
             handleAction(msg, res);
-        });
+        });*/
     });
 });
 
@@ -86,33 +88,11 @@ function handleAction(msg, res) {
             BacktestController.handleExecBacktest(null, res);
         });
     }
-    else if(msg.action === 'exec-forwardtest') {
-
-        /* Here's the strategy for running scheduled forward tests:
-            Whenever a user puts in a request new forward test
-            we will push a request in a separate redis queue, containing all the forward tests.
-            Now, at 12 o'clock everyday, all the forward tests in the redis queue will be processed 1-by-1
-            The deserialized data (alongwith other info) will be passed as paramaters to the test
-            and when Julia returns the output, it will be saved to db.
-        */
-
-        /* let forwardQueue;
-        redisUtils.getValue('forward-request-queue', function (err, data) {
-            if(err || !data) {
-                forwardQueue = {};
-            }
-            else {
-                forwardQueue = JSON.parse(data);
-            }
-
-            // Foward queue is a dictionary
-            // To help locate the exact forward test using forwardtestId
-            // Because that will be needed if we want to stop a particular forward test
-            forwardQueue[msg.forwardtestId] = msg;
-            redisUtils.insertKeyValue('forward-request-queue', JSON.stringify(forwardQueue));
-        }); */
-
-        // Nothing to be done here
+    else if(msg.action === 'run-all-forwardtest') {
+        ForwardTestController.runAllForwardTest();
+    }
+    else if(msg.action === 'run-forwardtest') {
+        ForwardTestController.runForwardTest(msg);
     }
     else if(msg.action === 'stop-forwardtest') {
         ForwardTestController.cancelTest(msg);

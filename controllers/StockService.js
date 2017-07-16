@@ -6,7 +6,7 @@
 */
 
 'use strict';
-const SecurityPerformanceModel = require('../models/securityperformance');
+const SecurityPerformanceModel = require('../models/SecurityPerformance');
 const Promise = require('bluebird');
 const config = require('config');
 const HelperFunctions = require("./helpers");
@@ -17,7 +17,7 @@ function getDate(date) {
     var m = date.getMonth() + 1;
     var y = date.getYear();
 
-    return d+"-"+m+"-"+y;  
+    return d+"-"+m+"-"+y;
 }
 
 function _checkIfStockStaticPerformanceUpdateRequired(performance) {
@@ -43,7 +43,7 @@ function _checkIfStockStaticPerformanceUpdateRequired(performance) {
         }
     } else {
     	return true;
-    } 
+    }
 
     return false;
 }
@@ -54,14 +54,14 @@ function _checkIfStockRollingPerformanceUpdateRequired(performance) {
 	}
 
 	if(performance && performance.updatedDate) {
-		
+
 		if(getDate(new Date()) <= getDate(performance.updatedDate)) {
 			return false;
 		}
 
     } else {
     	return true;
-    } 
+    }
 
     return false;
 }
@@ -77,32 +77,32 @@ function _checkIfStockPriceHistoryUpdateRequired(history) {
         }
     } else {
     	return true;
-    } 
+    }
 
     return false;
 }
 
 exports.getStockDetail = function(args, res, next) {
-	
+
 	const ticker = args.ticker.value;
 	const exchange = args.exchange.value;
 	const securityType = args.securityType.value;
 	const country = args.country.value;
 
 	const field = args.field.value;
-	const security = {ticker: ticker, 
-						exchange: exchange, 
+	const security = {ticker: ticker,
+						exchange: exchange,
 						securityType: securityType,
 						country: country};
 
 	console.log(security);
 
-	var q = {'security.ticker': ticker, 
-					'security.exchange': exchange, 
+	var q = {'security.ticker': ticker,
+					'security.exchange': exchange,
 					'security.securityType': securityType,
-					'security.country': country}; 
+					'security.country': country};
 
-	SecurityPerformanceModel.fetchSecurityPerformance(q, {fields:field}) 
+	SecurityPerformanceModel.fetchSecurityPerformance(q, {fields:field})
 	.then(securityPerformance => {
 		if(!securityPerformance) {
 			return SecurityPerformanceModel.saveSecurityPerformance({security: security})
@@ -118,17 +118,17 @@ exports.getStockDetail = function(args, res, next) {
 		} else if (field == "rollingPerformance") {
 			return getStockRollingPerformance(res, q, security);
 		}
-	});		
+	});
 };
 
-function getStockPriceHistory(res, q, security) {	
+function getStockPriceHistory(res, q, security) {
 	/*const ticker = args.ticker.value;
 	const exchange = args.exchange.value;
 	const securityType = args.securityType.value;
 	const country = args.country.value;
 
-	const security = {ticker: ticker, 
-						exchange: exchange, 
+	const security = {ticker: ticker,
+						exchange: exchange,
 						securityType: securityType,
 						country: country};
 
@@ -141,9 +141,9 @@ function getStockPriceHistory(res, q, security) {
 			return Promise.all([true, HelperFunctions.updateStockPriceHistory(q, security)]);
 		} else {
 			return [false, securityPerformance];
-		}	
+		}
 	})
-	
+
 	.then(([updated, securityPerformance]) => {
 		console.log(updated);
 		if(updated) {
@@ -162,14 +162,14 @@ function getStockPriceHistory(res, q, security) {
 
 
 function getStockRollingPerformance(res, q, security) {
-	
+
 	/*const ticker = args.ticker.value;
 	const exchange = args.exchange.value;
 	const securityType = args.securityType.value;
 	const country = args.country.value;
 
-	const security = {ticker: ticker, 
-						exchange: exchange, 
+	const security = {ticker: ticker,
+						exchange: exchange,
 						securityType: securityType,
 						country: country};
 
@@ -184,9 +184,9 @@ function getStockRollingPerformance(res, q, security) {
 			console.log("LUNDDD");
 			console.log(securityPerformance);
 			return [false, securityPerformance];
-		}	
+		}
 	})
-	
+
 	.then(([updated, securityPerformance]) => {
 		console.log(updated);
 		if(updated) {
@@ -205,14 +205,14 @@ function getStockRollingPerformance(res, q, security) {
 
 
 function getStockStaticPerformance(res, q, security) {
-	
+
 	/*const ticker = args.ticker.value;
 	const exchange = args.exchange.value;
 	const securityType = args.securityType.value;
 	const country = args.country.value;
 
-	const security = {ticker: ticker, 
-						exchange: exchange, 
+	const security = {ticker: ticker,
+						exchange: exchange,
 						securityType: securityType,
 						country: country};
 
@@ -225,9 +225,9 @@ function getStockStaticPerformance(res, q, security) {
 			return Promise.all([true, HelperFunctions.updateStockStaticPerformanceDetail(q, security)]);
 		} else {
 			return [false, securityPerformance];
-		}	
+		}
 	})
-	
+
 	.then(([updated, securityPerformance]) => {
 		if(updated) {
 			return SecurityPerformanceModel.fetchStaticPerformance(q);
@@ -242,5 +242,3 @@ function getStockStaticPerformance(res, q, security) {
 		return res.status(400).send(err.message);
 	})
 };
-
-

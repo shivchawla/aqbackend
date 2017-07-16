@@ -6,12 +6,12 @@
 */
 
 'use strict';
-const AdvisorModel = require('../../models/advisor');
-const InvestorModel = require('../../models/investor');
-const AdviceModel = require('../../models/advice');
-const PortfolioModel = require('../../models/portfolio');
+const AdvisorModel = require('../../models/Advisor');
+const InvestorModel = require('../../models/Investor');
+const AdviceModel = require('../../models/Advice');
+const PortfolioModel = require('../../models/Portfolio');
 const UserModel = require('../../models/user');
-const SecurityPerformanceModel = require('../../models/securityperformance');
+const SecurityPerformanceModel = require('../../models/SecurityPerformance');
 const APIError = require('../../utils/error');
 const config = require('config');
 const WebSocket = require('ws'); 

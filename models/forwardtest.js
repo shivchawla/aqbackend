@@ -21,7 +21,7 @@ const ForwardTest = new Schema({
     active: {
         type: Boolean,
         require: true
-    }
+    },
 
     notes :{
         type: String,

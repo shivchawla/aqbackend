@@ -9,7 +9,7 @@ var isBusy = {};
 
 // Initialize map for status of each connection
 // Our Julia server can only accept one connection per process
-for(var machine of config.get('machines')) {
+for(var machine of config.get('btmachines')) {
     let conn = 'ws://' + machine.host + ":" + machine.port;
     isBusy[conn] = false
 }
@@ -29,7 +29,6 @@ function handleExecSubscription(msg, res) {
         1. Execution of backtest is going on/will be done
         2. Backtest was already completed long time back
     */
-    var status, data;
     var backtestId = msg.backtestId;
     BacktestModel.fetchBacktest({
         _id: backtestId
@@ -38,21 +37,18 @@ function handleExecSubscription(msg, res) {
         if(!bt) {
             throw new Error("Backtest not found");
         }
-        status = bt.status;
-        data   = bt.output;
+        if(bt.status === "completed") {
+            // Backtest was already completed
+            res.send(JSON.stringify(bt.output));
+        }
+        else {
+            // Backtest is till running or will run after some time
+            subscribed[backtestId] = true;
+        }
     })
     .catch(err => {
         console.error(err);
     });
-
-    if(status === "completed") {
-        // Backtest was already completed
-        res.send(JSON.stringify(data));
-    }
-    else {
-        // Backtest is till running or will run after some time
-        subscribed[backtestId] = true;
-    }
 }
 
 //Function to unsubscribe WS data from backend to UI
@@ -72,70 +68,68 @@ function handleExecUnsubscription(msg) {
 //Collect the output, send realtime updates and save the final output to the DB
 function handleExecBacktest(connection, res) {
     // First retrieve all the backtests
-    var commonQueue;
+    var commonQueue = [];
     redisUtils.getValue('common-request-queue', function (err, data) {
-        if(err || !data) {
-            commonQueue = [];
+        if(err || !data || data == '[]') {
+            if(connection) {
+                isBusy[connection] = false;
+            }
         }
         else {
             commonQueue = JSON.parse(data);
-        }
-    });
-
-    if(commonQueue.length > 0) {
-        // There are pending backtests in queue and
-        let server;
-        if(!connection) {
-            server = findFreeServer();
-            if(!server) {
-                // No free server available
-                return;
-            }
-        }
-        else {
-            server = connection;
-        }
-
-        // Pull off the first backtest job from the head of queue
-        let msg = commonQueue.shift();
-        // Update redis queue because a backtest has been popped out and sent for processing
-        redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
-
-        // And deploy the backtest
-        execBacktest(msg, server, res, function(err, conn, data) {
-            // Callback function
-            // This is called when one of the servers finish processing a backtest
-            // and is ready to accept another backtest
-            if(err||data.status === "exception") {
-                // This particular backtest couldn't be completed
-                // Error logs
-                console.error("Error Occured:");
-                console.error(err);
-
-                // Let's put it's status to pending
-                updateBacktestResult({status: "pending"}, msg);
-
-                // And let's process this failed backtest again from the beginning
-                commonQueue.push(msg);
-                redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
+            // There are pending backtests in queue and
+            let server;
+            if(!connection) {
+                server = findFreeServer();
+                if(!server) {
+                    // No free server available
+                    return;
+                }
             }
             else {
-                // Backtest successfully completed
-                // Update the db with output
-                updateBacktestResult(data, msg);
+                server = connection;
             }
-            // Start off with next backtest
-            handleExecBacktest(conn, res);
-        });
-    }
-    else {
-        if(connection) {
-            isBusy[connection] = false;
+
+            // Pull off the first backtest job from the head of queue
+            let msg = commonQueue.shift();
+            // Update redis queue because a backtest has been popped out and sent for processing
+            redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
+
+            // And deploy the backtest
+            execBacktest(msg, server, res, function(err, conn, data) {
+                // Callback function
+                // This is called when one of the servers finish processing a backtest
+                // and is ready to accept another backtest
+                if(err) {
+                    // This particular backtest couldn't be completed
+                    // Error logs
+                    console.error("Error Occured:");
+                    console.error(err);
+
+                    // Let's put it's status to pending
+                    updateBacktestResult({status: "pending"}, msg);
+                }
+                else if(data.status === "exception") {
+                    // This particular backtest couldn't be completed
+                    // Error logs
+                    console.error("Exception in backtest occured");
+
+                    // Let's put it's status to pending
+                    updateBacktestResult({status: "exception"}, msg);
+                }
+                else {
+                    // Backtest successfully completed
+                    // Update the db with output
+                    updateBacktestResult(data, msg);
+                }
+                // Start off with next backtest
+                handleExecBacktest(conn, res);
+            });
         }
-    }
+    });
 }
 
-function execBacktest(conn, msg, res, cb) {
+function execBacktest(msg, conn, res, cb) {
 
     console.log('execBacktest is called');
 
@@ -161,7 +155,7 @@ function execBacktest(conn, msg, res, cb) {
             args = args.concat(['--enddate', settings.endDate]);
             args = args.concat(['--universe', settings.universe]);
 
-            var advanced = JSON.parse(settings.advanced);
+            var advanced = settings.advanced;
 
             if(advanced.exclude) {
                 args = args.concat(['--exclude', advanced.exclude]);
@@ -221,9 +215,27 @@ function execBacktest(conn, msg, res, cb) {
         });
 
         btClient.on('message', function(data) {
-            // CHECK DATA: IF REQUEST WAS REJECTED, TRY WITH ANOTHER JULIA PROCESS
-            // Handled by checking the pendng status
-
+            // Data is not being received in chunks?
+            console.log("Incoming Message");
+            try {
+                let dataCollection = data.split("\n");
+                dataCollection.forEach(function(data) {
+                    if(!data) {
+                        return;
+                    }
+                    let x = JSON.parse(data);
+                    if (x.outputtype === 'backtest') {
+                        backtestData = x;
+                    }
+                    else {
+                        outputData[backtestId].push(data);
+                    }
+                });
+            }
+            catch (e) {
+                console.log(e);
+            }
+            /*
             try {
                 const dataJSON = JSON.parse(data);
                 dataJSON.backtestId = backtestId;
@@ -237,7 +249,7 @@ function execBacktest(conn, msg, res, cb) {
             }
             catch (e) {
                 console.log(e);
-            }
+            }*/
         });
 
         btClient.on('close', function close(code) {
@@ -305,8 +317,8 @@ function updateBacktestResult(data, msg) {
 // Find free Julia server
 
 function findFreeServer() {
-    for(var conn in Object.keys(isBusy)) {
-        if(!isBusy[conn]) {
+    for(var conn in isBusy) {
+        if (isBusy.hasOwnProperty(conn) && !isBusy[conn]) {
             isBusy[conn] = true;
             return conn;
         }

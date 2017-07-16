@@ -6,10 +6,10 @@
 */
 
 'use strict';
-const AdvisorModel = require('../models/advisor');
-const InvestorModel = require('../models/investor');
+const AdvisorModel = require('../models/Advisor');
+const InvestorModel = require('../models/Investor');
 const UserModel = require('../models/user');
-const AdviceModel = require('../models/advice');
+const AdviceModel = require('../models/Advice');
 const APIError = require('../utils/error');
 const Promise = require('bluebird');
 
