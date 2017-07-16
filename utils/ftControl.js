@@ -23,8 +23,7 @@ var forwardQueue = [];
 ===================================== */
 
 // Manual trigger of a particular forward test
-function runForwardTest(msg) {
-    let forwardtestId = msg.forwardtestId;
+function runForwardTest(forwardtestId) {
     for(var server in isBusy) {
         if (isBusy.hasOwnProperty(server) && !isBusy[server]) {
             isBusy[server] = true;
@@ -43,6 +42,7 @@ function runForwardTest(msg) {
                 isBusy[server] = false;
                 return;
             });
+            break;
         }
     }
     console.log("No servers free at the moment");
@@ -128,9 +128,7 @@ function execForwardTest(forwardtestId, connection, cb) {
 
         let args = [];
 
-        // args = args.concat(['--code', CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
-
-        args = args.concat(['--code', 'using Raftaar\n function initialize(state)\n 	setstartdate(DateTime("21/12/2015","dd/mm/yyyy"))\n 	setenddate(DateTime("21/12/2015","dd/mmm/yyyy"))\n 	setcash(1000000.0)\n 	setresolution("Day")\n 	setcancelpolicy(CancelPolicy(EOD))\n 	setbenchmark("JBFIND")\n 	setuniverse("RANASUG")\n end\n function ondata(data, state)\n 	setholdingpct("RANASUG", 0.5)	\n 	track("portfoliovalue", state.account.netvalue)\n end\n ']);
+        args = args.concat(['--code', CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
 
         // If there is serialized data available then pass it as command line arg
         // Otherwise it's a fresh start
@@ -193,7 +191,6 @@ function execForwardTest(forwardtestId, connection, cb) {
 
         ftClient.on('open', function() {
             console.log('Connection Open');
-            console.log("Connection = " + connection);
             ftClient.send(argArray.join("??##"));
         });
 

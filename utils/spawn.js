@@ -16,9 +16,7 @@ ws.on('connection', function connection(res) {
             return res.send('not valid json');
         }
 
-        handleAction(msg, res);
-
-        /*if (!msg || !msg['aimsquant-token']) {
+        if (!msg || !msg['aimsquant-token']) {
             return res.send({
                 'aimsquant-token': '',
                 action: 'exec-backtest',
@@ -37,11 +35,12 @@ ws.on('connection', function connection(res) {
             // Action Types:
             // 1. exec-backtest
             // 2. subscribe-backtest
-            // 3. exec-forwardtest
-            // 4. stop-forwardtest
+            // 3. run-all-forwardtest
+            // 4. run-forwardtest
+            // 5. stop-forwardtest
             console.log(msg);
             handleAction(msg, res);
-        });*/
+        });
     });
 });
 
@@ -92,7 +91,7 @@ function handleAction(msg, res) {
         ForwardTestController.runAllForwardTest();
     }
     else if(msg.action === 'run-forwardtest') {
-        ForwardTestController.runForwardTest(msg);
+        ForwardTestController.runForwardTest(msg.forwardtestId);
     }
     else if(msg.action === 'stop-forwardtest') {
         ForwardTestController.cancelTest(msg);

@@ -15,11 +15,11 @@ const spawn = require('child_process').spawn;
 var conn = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
 console.log("Starting Julia server at " + conn);
 
-/*for(var machine of config.get('btmachines')) {
+for(var machine of config.get('btmachines')) {
     conn = 'ws://' + machine.host + ":" + machine.port;
     console.log("Starting Backtest Julia server: " + conn);
     spawn('julia', ["../raftaar/Util/server.jl", machine.port, machine.host]);
-}*/
+}
 
 for(var machine of config.get('ftmachines')) {
     conn = 'ws://' + machine.host + ":" + machine.port;
