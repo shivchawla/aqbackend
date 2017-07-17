@@ -215,27 +215,6 @@ function execBacktest(msg, conn, res, cb) {
         });
 
         btClient.on('message', function(data) {
-            // Data is not being received in chunks?
-            console.log("Incoming Message");
-            try {
-                let dataCollection = data.split("\n");
-                dataCollection.forEach(function(data) {
-                    if(!data) {
-                        return;
-                    }
-                    let x = JSON.parse(data);
-                    if (x.outputtype === 'backtest') {
-                        backtestData = x;
-                    }
-                    else {
-                        outputData[backtestId].push(data);
-                    }
-                });
-            }
-            catch (e) {
-                console.log(e);
-            }
-            /*
             try {
                 const dataJSON = JSON.parse(data);
                 dataJSON.backtestId = backtestId;
@@ -249,7 +228,7 @@ function execBacktest(msg, conn, res, cb) {
             }
             catch (e) {
                 console.log(e);
-            }*/
+            }
         });
 
         btClient.on('close', function close(code) {

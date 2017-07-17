@@ -185,7 +185,7 @@ function execForwardTest(forwardtestId, connection, cb) {
     })
     .then(argArray => {
 
-        let outputData;
+        let outputData = [];
         let algorithm = '';
         let ftClient = new WebSocket(connection);
 
@@ -195,26 +195,6 @@ function execForwardTest(forwardtestId, connection, cb) {
         });
 
         ftClient.on('message', function(data) {
-            console.log("Incoming Message");
-            try {
-                let dataCollection = data.split("\n");
-                dataCollection.forEach(function(data) {
-                    if(!data) {
-                        return;
-                    }
-                    let x = JSON.parse(data);
-                    if (x.outputtype === 'serializedData') {
-                        algorithm = x.algorithm;
-                    }
-                    else {
-                        outputData = x;
-                    }
-                });
-            }
-            catch (e) {
-                console.log(e);
-            }
-            /*
             try {
                 const dataJSON = JSON.parse(data);
 
@@ -222,12 +202,12 @@ function execForwardTest(forwardtestId, connection, cb) {
                     algorithm = dataJSON.algorithm;
                 }
                 else {
-                    outputData = dataJSON;
+                    outputData.push(dataJSON);
                 }
             }
             catch (e) {
                 console.log(e);
-            }*/
+            }
         });
 
         ftClient.on('close', function close(code) {

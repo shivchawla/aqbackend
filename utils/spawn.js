@@ -16,6 +16,8 @@ ws.on('connection', function connection(res) {
             return res.send('not valid json');
         }
 
+        // handleAction(msg, res);
+
         if (!msg || !msg['aimsquant-token']) {
             return res.send({
                 'aimsquant-token': '',
