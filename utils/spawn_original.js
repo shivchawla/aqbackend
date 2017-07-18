@@ -14,10 +14,10 @@ var isopen = {};
 
 // Initialzie map for status of each connection
 // Our Julia server can only accept one connection per process
-/*for(var machine of config.get('machines')) {
+for(var machine of config.get('machines')) {
     var conn = 'ws://' + machine.host + ":" + machine.port;
     isopen[conn] = false
-}*/
+}
 
 var outputData = {};
 var subscribed = {};

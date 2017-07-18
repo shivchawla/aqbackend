@@ -42,7 +42,7 @@ function runForwardTest(forwardtestId) {
                 isBusy[server] = false;
                 return;
             });
-            break;
+            return;
         }
     }
     console.log("No servers free at the moment");
@@ -61,9 +61,9 @@ function runAllForwardTest() {
     }, {})
     .then(ft => {
         // ft will be an array consisting of all active forward tests
-        forwardQueue = ft.map(function(test) {
-            return test._id;
-        });
+        forwardQueue = forwardQueue.concat(ft.map(function(test) {
+                                                return test._id;
+                                            }));
 
         if(forwardQueue.length > 0) {
             // Start execution of jobs on each server
@@ -134,6 +134,10 @@ function execForwardTest(forwardtestId, connection, cb) {
         // Otherwise it's a fresh start
         if(ft.serializedData) {
             args = args.concat(['--serializedData', JSON.stringify(ft.serializedData)]);
+
+            // Alongwith serialized data, we want configure the start and end dates for the test
+            // args = args.concat(['--run_start_date'])
+            // args = args.concat(['--run_end_date'])
         }
         else {
             // No deserialized data was found
@@ -206,7 +210,7 @@ function execForwardTest(forwardtestId, connection, cb) {
                 }
             }
             catch (e) {
-                console.log(e);
+                console.error(e);
             }
         });
 
@@ -215,7 +219,12 @@ function execForwardTest(forwardtestId, connection, cb) {
 
             // Update the connection status
             if (code === 1000) {
-                cb(null, {serializedData: algorithm, output: outputData});
+                if (algorithm != '') {
+                    cb(null, {serializedData: algorithm, output: outputData, status: 'complete'});
+                }
+                else {
+                    cb(null, {status: 'No data found'});
+                }
             }
             else {
                 cb(new Error("Test could not be completed"), {status: 'exception'});

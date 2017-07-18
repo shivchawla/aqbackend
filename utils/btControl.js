@@ -77,7 +77,7 @@ function handleExecBacktest(connection, res) {
         }
         else {
             commonQueue = JSON.parse(data);
-            // There are pending backtests in queue and
+            // There are pending backtests in queue
             let server;
             if(!connection) {
                 server = findFreeServer();
@@ -192,8 +192,6 @@ function execBacktest(msg, conn, res, cb) {
     })
     .then(argArray => {
 
-        // TO DO: Progressively try to make connections with open julia process
-        // create a string to bool dictioanry
         var btClient, backtestData = '', poll;
 
         outputData[backtestId] = [];
@@ -235,6 +233,8 @@ function execBacktest(msg, conn, res, cb) {
             console.log('Connection Closed');
             console.log(conn);
             clearInterval(poll);
+            // Send data for one last time
+            sendData(res, msg.backtestId);
 
             // Update the connection status
             if (code === 1000) {
@@ -267,20 +267,18 @@ function sendData(res, backtestId) {
 
     var dataArray = outputData[backtestId];
 
-    if (dataArray) {
-        // if(dataArray.length) {
-            redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(dataArray));
+    if (dataArray && dataArray.length > 0) {
+        redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(dataArray));
 
-            //Check if subscription is TRUE for the backtestId
-            if (subscribed[backtestId]) {
-                // Check if connection is OPEN
-                if (res.readyState === WebSocket.OPEN) {
-                    res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));
-                } else {
-                    console.log("WebSocket is closed");
-                }
+        //Check if subscription is TRUE for the backtestId
+        if (subscribed[backtestId]) {
+            // Check if connection is OPEN
+            if (res.readyState === WebSocket.OPEN) {
+                res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));
+            } else {
+                console.log("WebSocket is closed");
             }
-        // }
+        }
     }
 }
 
@@ -304,6 +302,18 @@ function findFreeServer() {
     }
     // Oh no, none of the servers are free
     return null;
+}
+
+// Function to pop out the top priority backtest from queue
+
+function getNext(arr) {
+    arr.sort(function(x, y) {
+        return x.time - y.time;
+    });
+
+    arr.sort(function(x, y) {
+        return x.date_range - y.date_range;
+    });
 }
 
 module.exports = {

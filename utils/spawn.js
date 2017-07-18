@@ -2,6 +2,8 @@
 const ws = require('../index').ws;
 const jwtUtil = require('../utils/jwttoken');
 const redisUtils = require('../utils/RedisUtils');
+const StrategyModel = require('../models/strategy');
+const BacktestModel = require('../models/backtest');
 const BacktestController = require('./btControl.js');
 const ForwardTestController = require('./ftControl.js');
 
@@ -16,9 +18,9 @@ ws.on('connection', function connection(res) {
             return res.send('not valid json');
         }
 
-        // handleAction(msg, res);
+        handleAction(msg, res);
 
-        if (!msg || !msg['aimsquant-token']) {
+        /*if (!msg || !msg['aimsquant-token']) {
             return res.send({
                 'aimsquant-token': '',
                 action: 'exec-backtest',
@@ -42,7 +44,7 @@ ws.on('connection', function connection(res) {
             // 5. stop-forwardtest
             console.log(msg);
             handleAction(msg, res);
-        });
+        });*/
     });
 });
 
@@ -85,6 +87,8 @@ function handleAction(msg, res) {
             // Push the latest backtest to the end of queue
             commonQueue.push(msg);
             redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
+
+            console.log("Starting Backtest...");
 
             BacktestController.handleExecBacktest(null, res);
         });
