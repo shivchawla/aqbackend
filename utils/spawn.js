@@ -84,13 +84,53 @@ function handleAction(msg, res) {
                 commonQueue = JSON.parse(data);
             }
 
-            // Push the latest backtest to the end of queue
-            commonQueue.push(msg);
-            redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
+            /*
+                Before starting the backtest, we want to have details like
+                    1. Time of request
+                    2. userId of the user who requested for the backtest
+                    3. Date Range (End date - Start date) for the backtest
+                using which we can prioritize the backtests
+            */
 
-            console.log("Starting Backtest...");
+            BacktestModel.fetchBacktest({
+                _id: msg.backtestId
+            }, {})
+            .then(bt => {
+                if (!bt) {
+                    return console.error("No backtest found");
+                }
 
-            BacktestController.handleExecBacktest(null, res);
+                StrategyModel.fetchStrategy({
+                    _id: bt.strategy
+                }, {})
+                .then(st => {
+                    if (!st) {
+                        return console.error("No strategy found");
+                    }
+
+                    // Append epoch time to the msg (measure for time of request)
+                    msg.time = (new Date()).getTime();
+                    // userId of the requesting user
+                    msg.userId = st.user;
+                    // What if the dates are re-specified in the code and not as settings?
+                    msg.date_range = new Date(bt.settings.endDate) - new Date(bt.settings.startDate);
+
+                    // Push the latest backtest to the end of queue
+                    commonQueue.push(msg);
+                    redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
+
+                    console.log("Starting Backtest...");
+
+                    BacktestController.handleExecBacktest(null, res);
+
+                })
+                .catch(err => {
+                    return console.error("Error occured: " + err);
+                });
+            })
+            .catch(err => {
+                return console.error("Error occured: " + err);
+            });
         });
     }
     else if(msg.action === 'run-all-forwardtest') {

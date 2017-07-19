@@ -135,9 +135,14 @@ function execForwardTest(forwardtestId, connection, cb) {
         if(ft.serializedData) {
             args = args.concat(['--serializedData', JSON.stringify(ft.serializedData)]);
 
-            // Alongwith serialized data, we want configure the start and end dates for the test
-            // args = args.concat(['--run_start_date'])
-            // args = args.concat(['--run_end_date'])
+            // Alongwith serialized data, we may want configure the start and end "RUN" dates for the test
+            if (ft.run_start_date) {
+                args = args.concat(['--startdate', ft.run_start_date])
+            }
+
+            if (ft.run_end_date) {
+                args = args.concat(['--enddate', ft.run_end_date])
+            }
         }
         else {
             // No deserialized data was found

@@ -83,6 +83,7 @@ function handleExecBacktest(connection, res) {
                 server = findFreeServer();
                 if(!server) {
                     // No free server available
+                    console.log("No available server at the moment");
                     return;
                 }
             }
@@ -91,7 +92,7 @@ function handleExecBacktest(connection, res) {
             }
 
             // Pull off the first backtest job from the head of queue
-            let msg = commonQueue.shift();
+            let msg = getNext(commonQueue);
             // Update redis queue because a backtest has been popped out and sent for processing
             redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
 
@@ -307,13 +308,39 @@ function findFreeServer() {
 // Function to pop out the top priority backtest from queue
 
 function getNext(arr) {
+    // 1. Sort on the time of request
     arr.sort(function(x, y) {
-        return x.time - y.time;
+        // Here x and y represent two different backtests
+
+        let time_elapsed_X = (new Date()).getTime() - x.time;
+        // Calculates the time elapsed since the backtest request X was made
+
+        let time_elapsed_Y = (new Date()).getTime() - y.time;
+        // Calculates the time elapsed since the backtest request Y was made
+
+        return -(time_elapsed_X - time_elapsed_Y);
+        // If time elapsed for X is more than Y then X gets higher priority
+        // That means X should appear before Y in the queue
     });
 
+    // 2. Put the first request from each user at front of the queue
+    arr.forEach(function(currentItem, index, self) {
+        for(var i = index+1; i<self.length; i++) {
+            if (currentItem.userId === self[i].userId) {
+                let temp = self.splice(i, 1);
+                self.push(temp[0]);
+            }
+        }
+    });
+    // Above algorithm is bad. O(n^2) :(
+
+    // 3. Sort on date range
     arr.sort(function(x, y) {
         return x.date_range - y.date_range;
+        // Larger the date range, lower the priority
     });
+
+    return arr.shift();
 }
 
 module.exports = {
