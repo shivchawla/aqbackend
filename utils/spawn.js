@@ -18,9 +18,7 @@ ws.on('connection', function connection(res) {
             return res.send('not valid json');
         }
 
-        handleAction(msg, res);
-
-        /*if (!msg || !msg['aimsquant-token']) {
+        if (!msg || !msg['aimsquant-token']) {
             return res.send({
                 'aimsquant-token': '',
                 action: 'exec-backtest',
@@ -44,7 +42,7 @@ ws.on('connection', function connection(res) {
             // 5. stop-forwardtest
             console.log(msg);
             handleAction(msg, res);
-        });*/
+        });
     });
 });
 
@@ -56,81 +54,45 @@ function handleAction(msg, res) {
         BacktestController.handleExecUnsubscription(msg);
     }
     else if(msg.action === 'exec-backtest') {
-        /* Here's the strategy for scheduling backtests:
-            There is a backtest trigger function namely handleExecBacktest() whose core purpose is the following
-            1. Obtain the first backtest from the head of redis queue
-            2. If there is a free server then pass this backtest for processing to the server
-            This trigger function proceses a backtest iff a free server is available
-                and there are pending requests in the queue
 
-            Now this trigger function handleExecBacktest() will have to be called in two scenarios:
-            1. When a new backtest request is created by the UI
-            2. Otherwise when a server finsihes a running backtest and is ready to accept another one
-
-            Next what we do is:
-            1. As soon as a new request is created by the UI,
-                put it in the redis queue and trigger the handleExecBacktest() function
-            2. If there is a free server available, then pass the backtest to it for processing
-                Otherwise, if not, handleExecBacktest() will be triggered again when a backtest run
-                is completed by the server.
-                In which case, this backtest request will be passed for processing
-        */
-        let commonQueue;
-        redisUtils.getValue('common-request-queue', function (err, data) {
-            if(err || !data) {
-                commonQueue = [];
-            }
-            else {
-                commonQueue = JSON.parse(data);
+        BacktestModel.fetchBacktest({
+            _id: msg.backtestId
+        }, {})
+        .then(bt => {
+            if (!bt) {
+                return console.error("No backtest found");
             }
 
-            /*
-                Before starting the backtest, we want to have details like
-                    1. Time of request
-                    2. userId of the user who requested for the backtest
-                    3. Date Range (End date - Start date) for the backtest
-                using which we can prioritize the backtests
-            */
-
-            BacktestModel.fetchBacktest({
-                _id: msg.backtestId
+            StrategyModel.fetchStrategy({
+                _id: bt.strategy
             }, {})
-            .then(bt => {
-                if (!bt) {
-                    return console.error("No backtest found");
+            .then(st => {
+                if (!st) {
+                    return console.error("No strategy found");
                 }
 
-                StrategyModel.fetchStrategy({
-                    _id: bt.strategy
-                }, {})
-                .then(st => {
-                    if (!st) {
-                        return console.error("No strategy found");
-                    }
+                // Append epoch time to the msg (measure for time of request)
+                msg.time = (new Date()).getTime();
+                // userId of the requesting user
+                msg.userId = st.user._id;
+                // What if the dates are re-specified in the code and not as settings?
+                msg.date_range = new Date(bt.settings.endDate) - new Date(bt.settings.startDate);
 
-                    // Append epoch time to the msg (measure for time of request)
-                    msg.time = (new Date()).getTime();
-                    // userId of the requesting user
-                    msg.userId = st.user;
-                    // What if the dates are re-specified in the code and not as settings?
-                    msg.date_range = new Date(bt.settings.endDate) - new Date(bt.settings.startDate);
+                // These details were appended to the corresponding backtest request for the priority function
 
-                    // Push the latest backtest to the end of queue
-                    commonQueue.push(msg);
-                    redisUtils.insertKeyValue('common-request-queue', JSON.stringify(commonQueue));
+                console.log("Starting Backtest...");
 
-                    console.log("Starting Backtest...");
+                // Save the backtest request to redis
 
-                    BacktestController.handleExecBacktest(null, res);
+                BacktestController.saveToRedis(msg, res);
 
-                })
-                .catch(err => {
-                    return console.error("Error occured: " + err);
-                });
             })
             .catch(err => {
                 return console.error("Error occured: " + err);
             });
+        })
+        .catch(err => {
+            return console.error("Error occured: " + err);
         });
     }
     else if(msg.action === 'run-all-forwardtest') {

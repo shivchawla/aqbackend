@@ -63,17 +63,18 @@ function handleExecUnsubscription(msg) {
         BACKTEST CONTROLLER
 ===================================== */
 
-function saveToRedis(msg, res) {
-    // backtest-request-queue contains key-value pairs
-    // where each key is the backtestId pointing to the corresponding backtest request
-    redisUtils.insertIntoRedis('backtest-request-queue', msg.backtestId, JSON.stringify(msg));
-
-    // Now we handle the requests
-    queueHandler(null, res);
-}
-
-function queueHandler(connection, res) {
-    // For handling availability of servers and passing backtest requests for execution
+var queue = [];
+function queueHandler(msg, connection) {
+    if (msg) {
+        queue.push(msg);
+    }
+    /* queueHandler works in the following way:
+            Obtain a free server.
+                If no free server :( then suspend everything until a server becomes free and calls the callback for taking next request.
+            Now, get all the backtest requests from redis
+                If no request found that means everything's done for now. Yayyyy!
+            Pop the highest priority request, "delete this particular request" from redis and send it for processing to execBacktest()
+    */
     let server;
     if(!connection) {
         server = findFreeServer();
@@ -88,65 +89,45 @@ function queueHandler(connection, res) {
     }
 
     // Server is available
-    // Let's retrieve everything from Redis
 
-    redisUtils.getAllFromRedis('backtest-request-queue', function(err, data) {
+    // Pop the top priority element from queue
+    if (queue.length > 0) {
+        msg = getNext(queue);
+    }
+    else {
+        isBusy[server] = false;
+        return;
+    }
+
+    // Send the backtest request for execution
+    execBacktest(msg, server, msg.response, function(err, conn, data) {
+        // Callback function
+        // This is called when one of the servers finish processing a backtest
+        // and is ready to accept another backtest
         if(err) {
-            isBusy[server] = false;
-            console.error("Error: " + err);
-            return;
+            // This particular backtest couldn't be completed
+            // Error logs
+            console.error("Error Occured:");
+            console.error(err);
+
+            // Let's put it's status to pending
+            updateBacktestResult({status: "pending"}, msg);
         }
-        if (!data) {
-            // Redis is empty
-            console.log("All backtests over!");
-            isBusy[server] = false;
-            return;
+        else if(data.status === "exception") {
+            // This particular backtest couldn't be completed
+            // Error logs
+            console.error("Exception in backtest occured");
+
+            // Let's put it's status to pending
+            updateBacktestResult({status: "exception"}, msg);
         }
-
-        // Backtest requests queue
-        let queue = Object.keys(data).map(function(x) {
-            return JSON.parse(data[x]);
-        });
-
-        // Pop the top priority element from queue
-        let msg = getNext(queue);
-
-        // Reflect this change in the redis queue
-        redisUtils.deleteFromRedis('backtest-request-queue', msg.backtestId, function(err, reply) {
-            if (err) {
-                return console.error(err);
-            }
-
-            // Send this backtest request for execution
-            execBacktest(msg, server, res, function(err, conn, data) {
-                // Callback function
-                // This is called when one of the servers finish processing a backtest
-                // and is ready to accept another backtest
-                if(err) {
-                    // This particular backtest couldn't be completed
-                    console.error("Error Occured:");
-                    console.error(err);
-
-                    // Let's put it's status to pending
-                    updateBacktestResult({status: "pending"}, msg);
-                }
-                else if(data.status === "exception") {
-                    // Some error occured in the processing of backtest
-                    // Or otherwise Julia returned an error
-                    console.error("Exception in backtest occured");
-
-                    // Let's put it's status to exception
-                    updateBacktestResult({status: "exception"}, msg);
-                }
-                else {
-                    // Backtest successfully completed
-                    // Update the db with output
-                    updateBacktestResult(data, msg);
-                }
-                // Start off with next backtest
-                queueHandler(conn, res);
-            });
-        });
+        else {
+            // Backtest successfully completed
+            // Update the db with output
+            updateBacktestResult(data, msg);
+        }
+        // Start off with next backtest
+        queueHandler(null, conn);
     });
 }
 
@@ -168,7 +149,9 @@ function execBacktest(msg, conn, res, cb) {
 
         if(bt) {
 
-            args = args.concat(['--code', CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
+            // args = args.concat(['--code', CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
+
+            args = args.concat(['--code', 'using Raftaar\n function initialize(state)\n 	setstartdate(DateTime("21/12/2015","dd/mm/yyyy"))\n 	setenddate(DateTime("21/12/2015","dd/mmm/yyyy"))\n 	setcash(1000000.0)\n 	setresolution("Day")\n 	setcancelpolicy(CancelPolicy(EOD))\n 	setbenchmark("JBFIND")\n 	setuniverse("RANASUG")\n end\n function ondata(data, state)\n 	setholdingpct("RANASUG", 0.5)	\n 	track("portfoliovalue", state.account.netvalue)\n end\n ']);
 
             var settings = bt.settings;
             args = args.concat(['--capital', settings.initialCash]);
@@ -264,6 +247,7 @@ function execBacktest(msg, conn, res, cb) {
                         cb(null, conn, {output: backtestData, status:"complete"});
                     }
                     else {
+                        console.log("BACKTEST DATA = " + backtestData);
                         cb(null, conn, {status:"exception"});
                     }
                 }
@@ -272,12 +256,14 @@ function execBacktest(msg, conn, res, cb) {
                 }
             }
             else {
+                console.log("CODE = " + code);
                 cb(null, conn, {status:"exception"});
             }
         });
 
     })
     .catch(err => {
+        console.log("WHAT ERROR IS THIS");
         cb(err, conn, {status:"exception"});
     });
 }
@@ -352,7 +338,7 @@ function getNext(arr) {
             }
         }
     });
-    // =================== Above algorithm is bad. O(n^2) :( ===================
+    // Above algorithm is bad. O(n^2) :(
 
     // 3. Sort on date range
     arr.sort(function(x, y) {
@@ -366,5 +352,5 @@ function getNext(arr) {
 module.exports = {
     handleExecSubscription,
     handleExecUnsubscription,
-    saveToRedis
+    queueHandler
 }
