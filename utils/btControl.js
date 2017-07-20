@@ -4,6 +4,7 @@ const CryptoJS = require('crypto-js');
 const config = require('config');
 const WebSocket = require('ws');
 const BacktestModel = require('../models/backtest');
+const StrategyModel = require('../models/strategy');
 
 var isBusy = {};
 
@@ -18,18 +19,20 @@ for(var machine of config.get('btmachines')) {
 var outputData   = {};
 // Subscription of test result
 var subscribed = {};
+// Response dictionary for each backtest
+var response = {};
 
 /* =====================================
         SUBSCRIPTION CONTROLLER
 ===================================== */
 
 //Function to subscribe WS data from backend to UI
-function handleExecSubscription(msg, res) {
+function handleSubscription(req, res) {
     /* Two cases :
         1. Execution of backtest is going on/will be done
         2. Backtest was already completed long time back
     */
-    var backtestId = msg.backtestId;
+    var backtestId = req.backtestId;
     BacktestModel.fetchBacktest({
         _id: backtestId
     }, {})
@@ -52,8 +55,8 @@ function handleExecSubscription(msg, res) {
 }
 
 //Function to unsubscribe WS data from backend to UI
-function handleExecUnsubscription(msg) {
-    var backtestId = msg.backtestId;
+function handleUnsubscription(req) {
+    var backtestId = req.backtestId;
     //Call send data
     //Send data automaticaly stops or reject the call if backtest has completed
     subscribed[backtestId] = false;
@@ -63,22 +66,68 @@ function handleExecUnsubscription(msg) {
         BACKTEST CONTROLLER
 ===================================== */
 
-function saveToRedis(msg, res) {
-    // backtest-request-queue contains key-value pairs
-    // where each key is the backtestId pointing to the corresponding backtest request
-    redisUtils.insertIntoRedis('backtest-request-queue', msg.backtestId, JSON.stringify(msg));
+function handleBacktest(req, res) {
+    // ===========================================
+    // 1. Append priority details to the request
+    // ===========================================
+    BacktestModel.fetchBacktest({
+        _id: req.backtestId
+    }, {})
+    .then(bt => {
+        if (!bt) {
+            return console.error("No backtest found");
+        }
 
-    // Now we handle the requests
-    queueHandler(null, res);
+        StrategyModel.fetchStrategy({
+            _id: bt.strategy
+        }, {})
+        .then(st => {
+            if (!st) {
+                return console.error("No strategy found");
+            }
+
+            // epoch time (measure for time of request)
+            req.time = (new Date()).getTime();
+            // userId of the requesting user
+            req.userId = st.user._id;
+            // Date range for the simulation
+            req.date_range = new Date(bt.settings.endDate) - new Date(bt.settings.startDate);
+
+            saveBacktest(req, res);
+        })
+        .catch(err => {
+            return console.error("Error occured: " + err);
+        });
+    })
+    .catch(err => {
+        return console.error("Error occured: " + err);
+    });
 }
 
-function queueHandler(connection, res) {
-    // For handling availability of servers and passing backtest requests for execution
-    let server;
+function saveBacktest(req, res) {
+    // ===============================
+    // 2. Save the backtest to redis
+    // ===============================
+    // backtest-request-queue contains key-value pairs
+    // where each key is the backtestId pointing to the corresponding backtest request
+    redisUtils.insertIntoRedis('backtest-request-queue', req.backtestId, JSON.stringify(req));
+    // Save the rsponse server
+    response[req.backtestId] = res;
+    // Now we handle the requests
+    processBacktest(null);
+}
+
+function processBacktest(connection) {
+    // ===================================================================
+    // 3. This step comprises of the following:
+    //    a. Get a free server
+    //    b. Pop the top priority backtest from redis
+    //    c. Send this backtest, to the server found in a., for execution
+    // ===================================================================
+    let server, req, res, backtestId;
     if(!connection) {
         server = findFreeServer();
         if(!server) {
-            // No free server available
             console.log("No available server at the moment");
             return;
         }
@@ -88,19 +137,17 @@ function queueHandler(connection, res) {
     }
 
     // Server is available
-    // Let's retrieve everything from Redis
+    // Let's retrieve pending backtest requests from Redis
 
     redisUtils.getAllFromRedis('backtest-request-queue', function(err, data) {
         if(err) {
             isBusy[server] = false;
-            console.error("Error: " + err);
-            return;
+            return console.error("Error: " + err);
         }
         if (!data) {
             // Redis is empty
-            console.log("All backtests over!");
             isBusy[server] = false;
-            return;
+            return console.log("All backtests over!");
         }
 
         // Backtest requests queue
@@ -109,52 +156,55 @@ function queueHandler(connection, res) {
         });
 
         // Pop the top priority element from queue
-        let msg = getNext(queue);
+        req = popTopPriority(queue);
+        backtestId = req.backtestId;
+        res = response[backtestId];
 
-        // Reflect this change in the redis queue
-        redisUtils.deleteFromRedis('backtest-request-queue', msg.backtestId, function(err, reply) {
-            if (err) {
-                return console.error(err);
+        // Send this backtest request for execution
+        execBacktest(backtestId, server, res, function(err, conn, data) {
+            // Callback function
+            // This is called when one of the servers finish processing a backtest
+            // and is ready to accept another backtest
+            if(err) {
+                // This particular backtest couldn't be completed
+                console.error("Error Occured:");
+                console.error(err);
+
+                // Let's put it's status to pending
+                updateBacktestResult(backtestId, {status: "pending"});
             }
+            else if(data.status === "exception") {
+                // Some error occured in the processing of backtest
+                // Or otherwise Julia returned an error
+                console.error("Exception in backtest occured");
 
-            // Send this backtest request for execution
-            execBacktest(msg, server, res, function(err, conn, data) {
-                // Callback function
-                // This is called when one of the servers finish processing a backtest
-                // and is ready to accept another backtest
-                if(err) {
-                    // This particular backtest couldn't be completed
-                    console.error("Error Occured:");
-                    console.error(err);
-
-                    // Let's put it's status to pending
-                    updateBacktestResult({status: "pending"}, msg);
+                // Let's put it's status to exception
+                updateBacktestResult(backtestId, {status: "exception"});
+            }
+            else {
+                // Backtest successfully completed
+                // Update the db with output
+                updateBacktestResult(backtestId, data);
+            }
+            // Delete this backtest from redis
+            redisUtils.deleteFromRedis('backtest-request-queue', backtestId, function(err, reply) {
+                if (err) {
+                    return console.error(err);
                 }
-                else if(data.status === "exception") {
-                    // Some error occured in the processing of backtest
-                    // Or otherwise Julia returned an error
-                    console.error("Exception in backtest occured");
-
-                    // Let's put it's status to exception
-                    updateBacktestResult({status: "exception"}, msg);
-                }
-                else {
-                    // Backtest successfully completed
-                    // Update the db with output
-                    updateBacktestResult(data, msg);
-                }
-                // Start off with next backtest
-                queueHandler(conn, res);
             });
+            delete response[backtestId];
+            // Start off with next backtest
+            processBacktest(conn);
         });
     });
 }
 
-function execBacktest(msg, conn, res, cb) {
+function execBacktest(backtestId, conn, res, cb) {
+    // ===============================
+    // 4. Start execution of backtest
+    // ===============================
 
     console.log('execBacktest is called');
-
-    var backtestId = msg.backtestId;
 
     BacktestModel.fetchBacktest({
         _id: backtestId
@@ -226,10 +276,9 @@ function execBacktest(msg, conn, res, cb) {
 
             subscribed[backtestId] = true;
 
-            redisUtils.insertKeyValue(msg.backtestId + '-data', JSON.stringify(outputData[backtestId]));
+            redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(outputData[backtestId]));
 
-            poll = setInterval(function(){sendData(res, msg.backtestId);},
-                    config.get('time_interval_realtime_output'));
+            poll = setInterval(function(){sendData(res, backtestId);}, config.get('time_interval_realtime_output'));
 
         });
 
@@ -255,7 +304,7 @@ function execBacktest(msg, conn, res, cb) {
             console.log(conn);
             clearInterval(poll);
             // Send data for one last time
-            sendData(res, msg.backtestId);
+            sendData(res, backtestId);
 
             // Update the connection status
             if (code === 1000) {
@@ -298,6 +347,7 @@ function sendData(res, backtestId) {
                 res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));
             } else {
                 console.log("WebSocket is closed");
+                subscribed[backtestId] = false;
             }
         }
     }
@@ -305,10 +355,10 @@ function sendData(res, backtestId) {
 
 // Save backtest data to databse
 
-function updateBacktestResult(data, msg) {
+function updateBacktestResult(backtestId, data) {
     console.log("Updating Backtest");
     BacktestModel.updateBacktest({
-        _id: msg.backtestId
+        _id: backtestId
     }, data);
 }
 
@@ -327,7 +377,7 @@ function findFreeServer() {
 
 // Function to pop out the top priority backtest from queue
 
-function getNext(arr) {
+function popTopPriority(arr) {
     // 1. Sort on the time of request
     arr.sort(function(x, y) {
         // Here x and y represent two different backtests
@@ -352,7 +402,7 @@ function getNext(arr) {
             }
         }
     });
-    // =================== Above algorithm is bad. O(n^2) :( ===================
+    // ================== Above algorithm is bad. O(n^2) :( ==================
 
     // 3. Sort on date range
     arr.sort(function(x, y) {
@@ -364,7 +414,7 @@ function getNext(arr) {
 }
 
 module.exports = {
-    handleExecSubscription,
-    handleExecUnsubscription,
-    saveToRedis
+    handleSubscription,
+    handleUnsubscription,
+    handleBacktest
 }

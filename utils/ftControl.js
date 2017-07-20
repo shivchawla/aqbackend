@@ -61,24 +61,18 @@ function runAllForwardTest() {
     }, {})
     .then(ft => {
         // ft will be an array consisting of all active forward tests
-        forwardQueue = forwardQueue.concat(ft.map(function(test) {
-                                                return test._id;
-                                            }));
+        forwardQueue = ft.map(function(test) {
+                            return test._id;
+                        });
 
         if(forwardQueue.length > 0) {
-            // Start execution of jobs on each server
-            /* ================================================================
-                ASSUMPTION: All the servers are available for accepting tasks
-            ================================================================ */
+            // Start execution of jobs on each free server
             Object.keys(isBusy).forEach(function(server) {
-                // Start multiple instances of handleExecForwardTest()
-                // One for each free server
                 if (!isBusy[server]) {
                     isBusy[server] = true;
                     handleExecForwardTest(server);
                 }
             });
-            // handleExecForwardTest(0, forwardQueue);
         }
     })
     .catch(err => {
@@ -215,7 +209,7 @@ function execForwardTest(forwardtestId, connection, cb) {
                 }
             }
             catch (e) {
-                console.error(e);
+                return console.error(e);
             }
         });
 
