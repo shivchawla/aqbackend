@@ -23,6 +23,8 @@
     "max_num_julia_process_total": 2,
     "time_interval_realtime_output":3000,
 
+    "julia_exe":"julia",
+
     "julia_server_host" : "127.0.0.1",
     "julia_server_port" : 6000,
 

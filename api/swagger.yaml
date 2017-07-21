@@ -4,9 +4,9 @@ info:
   description: "Aimsquant api publisher"
   version: "1.0.0"
   title: "AimsQuant api"
-  termsOfService: "http://aimsquant.io/terms/"
+  termsOfService: "http://www.aimsquant.com/terms/"
   contact:
-    email: "shiv@aimsquant.com"
+    email: "shiv.chawla@aimsquant.com"
   license:
     name: "Apache 2.0"
     url: "http://www.apache.org/licenses/LICENSE-2.0.html"
@@ -21,12 +21,6 @@ tags:
   description: "operation about strategy"
 - name: backtest
   description: operations on backtest
-- name: "advisor"
-  description: "operations on advisors"
-- name: "investor"
-  description: "operations on investor"
-- name: "advice"
-  description: "operations on advice"
 
   externalDocs:
     description: "Find out more about us"
@@ -42,7 +36,7 @@ paths:
       - "user"
       summary: "Register user"
       description: "User registration api."
-      operationId: "regiteruser"
+      operationId: "registerUser"
       consumes:
       - "application/json"
       parameters:
@@ -392,7 +386,7 @@ paths:
     get:
       tags:
       - thread
-      summary: post a thread
+      summary: get a thread
       description: get thread details
       operationId: getThread
       security:
@@ -407,17 +401,6 @@ paths:
         name: threadId
         type: string
         required: true
-      - name: skip
-        in: query
-        description: skip number of records
-        required: true
-        default: 0
-        type: number
-      - name: limit
-        type: number
-        required: true
-        in: query
-        default: 10
       responses:
         200:
           description: OK
@@ -586,7 +569,7 @@ paths:
     get:
       tags:
       - strategy
-      summary: get strategy
+      summary: get all strategies
       description:  get strategies of user
       operationId: getStrategys
       security:
@@ -679,8 +662,8 @@ paths:
     delete:
       tags:
       - strategy
-      summary: get strategy
-      description:  get strategies of user
+      summary: delete strategy
+      description:  delete a strategy of user
       operationId: deleteStrategy
       security:
       - api_key: []
@@ -753,6 +736,10 @@ paths:
         in: path
         required: true
         type: string
+      - name: select
+        in: query
+        required: false
+        type: string
       - name: skip
         in: query
         description: skip number of records
@@ -764,14 +751,11 @@ paths:
         required: true
         in: query
         default: 10
-      - name: select
-        type: string
-        required: false
-        in: query
       - name: sort
+        in: query
         type: string
         required: false
-        in: query
+        description: sort criteria
       responses:
         200:
           description: "created strategy"
@@ -799,9 +783,9 @@ paths:
         required: true
         in: path
       - name: select
-        type: string
-        required: false
         in: query
+        required: false
+        type: string
       responses:
         200:
           description: backtest object
@@ -837,11 +821,12 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Backtest"
-    put:
+  /backtest/share/{backtestId}:
+    post:
       tags:
       - backtest
-      summary: update the backtest
-      operationId: updateBacktest
+      summary: get the backtest
+      operationId: shareBackTest
       security:
       - api_key: []
       parameters:
@@ -854,23 +839,57 @@ paths:
         type: string
         required: true
         in: path
-      - name: name
-        type: string
-        required: false
-        in: query
-      - name: notes
-        type: string
-        required: false
-        in: query
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Share'
       responses:
         200:
-          description: 'updated'
+          description: backtest object
+          schema:
+            $ref: '#/definitions/Backtest'
         400:
           description: "Not Authorized"
           schema:
             $ref: "#/definitions/Error"
-  
-
+      x-swagger-router-controller: "Backtest"
+  /backtest/share:
+    get:
+      tags:
+      - backtest
+      summary: get the backtest
+      operationId: getCommunityBackTest
+      security:
+      - api_key: []
+      parameters:
+      - name: aimsquant-token
+        in: header
+        description: auth token
+        type: string
+        required:  true
+      - name: skip
+        in: query
+        description: skip number of records
+        required: true
+        default: 0
+        type: number
+      - name: limit
+        type: number
+        required: true
+        in: query
+        default: 10
+      responses:
+        200:
+          description: backtest object
+          schema:
+            $ref: '#/definitions/Backtest'
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Backtest"
+     
 securityDefinitions:
   api_key:
     type: apiKey
@@ -903,7 +922,7 @@ definitions:
         type: "string"
       profession:
         type: "string"
-
+      
   Login:
     type: "object"
     properties:
@@ -1032,7 +1051,7 @@ definitions:
     - threadId
     properties:
       threadId:
-        type: string     
+        type: string      
      
 externalDocs:
   description: "Find out more about Swagger"

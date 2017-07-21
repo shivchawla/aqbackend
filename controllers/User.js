@@ -13,8 +13,8 @@ module.exports.resetEmailLink = function activateUser (req, res, next) {
 module.exports.resetpasswordcall = function activateUser (req, res, next) {
     User.resetPassword(req.swagger.params, res, next);
 };
-module.exports.regiteruser = function regiteruser(req, res, next) {
-    User.regiteruser(req.swagger.params, res, next);
+module.exports.registerUser = function registerUser(req, res, next) {
+    User.registerUser(req.swagger.params, res, next);
 };
 
 module.exports.userlogin = function userlogin(req, res, next) {

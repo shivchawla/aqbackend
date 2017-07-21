@@ -2,6 +2,16 @@ const config = require('config');
 var redis = require('redis');
 var client = redis.createClient(config.get('redis_port'), config.get('redis_path'));
 
+function getAllFromRedis(masterKey, callback) {
+    client.hgetall(masterKey, function(err, data) {
+        if (err) {
+            callback(err)
+        } else {
+            callback(err, data);
+        }
+    });
+}
+
 function getFromRedis(masterKey, key, callback) {
     client.hget(masterKey, key, function (err, data) {
 
@@ -15,11 +25,17 @@ function getFromRedis(masterKey, key, callback) {
 }
 
 function insertIntoRedis(masterKey, key, data) {
-    client.hset(masterKey, key, JSON.stringify(data));
+    client.hset(masterKey, key, data);
 }
 
 function deleteFromRedis(masterKey, key, callback) {
-    client.hdel(masterKey, key);
+    client.hdel(masterKey, key, function(err, reply) {
+        if (err) {
+            callback(err);
+        } else {
+            callback(err, reply);
+        }
+    });
 }
 
 function setDataExpiry(key, time_in_sec) {
@@ -59,3 +75,4 @@ exports.getValue = getValue;
 exports.insertKeyValue = insertKeyValue;
 exports.deleteKey = deleteKey;
 exports.incValue = incValue;
+exports.getAllFromRedis = getAllFromRedis;

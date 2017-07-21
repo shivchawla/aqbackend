@@ -1,14 +1,14 @@
 'use strict';
 require('../utils/spawn');
-const BacktestModel = require('../models/backtest');
+const ForwardTestModel = require('../models/forwardtest');
 const StrategyModel = require('../models/strategy');
 var CryptoJS = require("crypto-js");
 const config = require('config');
 
-exports.createBacktest = function(strategy, values, res, next) {
-    const backtest = {
+exports.createForwardtest = function(strategy, values, res, next) {
+    const forwardtest = {
         strategy: strategy._id,
-        settings: values, 
+        settings: values,
         code: strategy.code,
         name: strategy.name,
         strategy_name: strategy.name,
@@ -18,9 +18,9 @@ exports.createBacktest = function(strategy, values, res, next) {
         deleted:false,
     };
 
-    BacktestModel.saveBacktest(backtest)
-    .then(bt => {
-        res.status(200).json(bt);
+    ForwardTestModel.saveForwardTest(forwardtest)
+    .then(ft => {
+        res.status(200).json(ft);
     })
     .catch(err => {
         console.log(err);
@@ -28,8 +28,8 @@ exports.createBacktest = function(strategy, values, res, next) {
     });
 };
 
-exports.getBackTests = function(args, res, next) {
-    
+exports.getForwardTests = function(args, res, next) {
+
     const userId = args.user._id;
     const strategyId = args.strategyId.value;
     const fetchDeleted = false;
@@ -44,26 +44,26 @@ exports.getBackTests = function(args, res, next) {
     StrategyModel.fetchStrategy({user:userId, _id: strategyId}, {select:'user'})
     .then(strategy => {
         if(strategy) {
-            return BacktestModel.fetchBacktests({
+            return ForwardTestModel.fetchForwardTests({
                 strategy: strategy._id,
                 deleted: false}, options)
         } else {
             return new Error("Not Authorized");
         }
     })
-    .then(backtests => {
-        for(var i=0; i<backtests.length; i++){
-            backtests[i].code = CryptoJS.AES.decrypt(backtests[i].code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+    .then(forwardtests => {
+        for(var i=0; i<forwardtests.length; i++){
+            forwardtests[i].code = CryptoJS.AES.decrypt(forwardtests[i].code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
         }
-        res.status(200).json(backtests);
+        res.status(200).json(forwardtests);
     })
     .catch(err => {
         next(err);
     });
 };
 
-exports.getBackTest = function(args, res, next) {
-    const backtestId = args.backtestId.value;
+exports.getForwardTest = function(args, res, next) {
+    const forwardtestId = args.forwardtestId.value;
     const userId = args.user._id;
 
     const options = {};
@@ -75,15 +75,15 @@ exports.getBackTest = function(args, res, next) {
         }
     }
 
-    BacktestModel.fetchBacktest({
-        _id: backtestId,
+    ForwardTestModel.fetchForwardTest({
+        _id: forwardtestId,
     }, options)
-    .then(bt => {
-        if(bt.shared || bt.strategy.user.toString() == userId.toString()) {
-            bt.code = CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
-            res.status(200).json(bt);
+    .then(ft => {
+        if(ft.shared || ft.strategy.user.toString() == userId.toString()) {
+            ft.code = CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+            res.status(200).json(ft);
         } else {
-            res.status(400).json({id:backtestId, message:"BacktestId doesn't exist for the user"});
+            res.status(400).json({id:forwardtestId, message:"forwardtestId doesn't exist for the user"});
         }
     })
     .catch(err => {
@@ -93,29 +93,29 @@ exports.getBackTest = function(args, res, next) {
 
 
 //How to make this linear and NOT nested
-exports.deleteBackTest = function(args, res, next) {
-    const backtestId = args.backtestId.value;
+exports.deleteForwardTest = function(args, res, next) {
+    const forwardtestId = args.forwardtestId.value;
     const userId = args.user._id;
 
-    BacktestModel.fetchBacktest({_id : backtestId, shared : true}, {})
-    .then(backtest => {
-        if(backtest && backtest.strategy.user.toString() == userId){
-            BacktestModel.updateBacktest({_id: backtestId}, {deleted : true})
+    ForwardTestModel.fetchForwardTest({_id : forwardtestId, shared : true}, {})
+    .then(forwardtest => {
+        if(forwardtest && forwardtest.strategy.user.toString() == userId){
+            ForwardTestModel.updateForwardTest({_id: forwardtestId}, {deleted : true})
             .then(obj => {
                 console.log("Soft delete")
-                res.status(200).json({backtestId: backtestId, message:"Successfly deleted"});
+                res.status(200).json({forwardtestId: forwardtestId, message:"Successfly deleted"});
             })
             .catch(err => {
                 next(err);
             });
         } else {
-            BacktestModel.removeAllBack({
-                _id: backtestId,
+            ForwardTestModel.removeAllBack({
+                _id: forwardtestId,
                 shared:false
             })
             .then(obj => {
                 console.log("Hard Delete")
-                res.status(200).json({backtestId: backtestId, message:"Successfly deleted"});
+                res.status(200).json({forwardtestId: forwardtestId, message:"Successfly deleted"});
             })
             .catch(err => {
                 next(err);
@@ -127,12 +127,12 @@ exports.deleteBackTest = function(args, res, next) {
     });
 };
 
-exports.updateBacktest = function(args, res, next) {
-    const backtestId = args.backtestId.value;
+exports.updateForwardTest = function(args, res, next) {
+    const forwardtestId = args.forwardtestId.value;
     const userId = args.user._id;
 
     const updates = {};
-    
+
     if(args.name.value) {
         updates.name = args.name.value;
     }
@@ -141,7 +141,7 @@ exports.updateBacktest = function(args, res, next) {
         updates.notes = args.notes.value;
     }
 
-    BacktestModel.updateBacktest({user: userId, _id: backtestId}, updates)
+    ForwardTestModel.updateForwardTest({user: userId, _id: forwardtestId}, updates)
     .then(obj => {
         if(obj) {
             return res.status(200).json(obj);
@@ -152,6 +152,3 @@ exports.updateBacktest = function(args, res, next) {
     });
 
 };
-
-
-
