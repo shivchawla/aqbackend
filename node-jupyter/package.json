@@ -1,0 +1,23 @@
+{
+  "name": "node-jupyter",
+  "version": "1.0.0",
+  "description": "Module to launch and handle jupyter notebooks from nodejs framework",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.15.3",
+    "pug": "^2.0.0-rc.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "keywords": [
+    "node",
+    "jupyter",
+    "ijulia",
+    "notebook"
+  ],
+  "author": "Kishlaya Jaiswal",
+  "license": "MIT"
+}
