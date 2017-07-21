@@ -42,7 +42,7 @@ function runForwardTest(forwardtestId) {
                 isBusy[server] = false;
                 return;
             });
-            return;
+            break;
         }
     }
     console.log("No servers free at the moment");
@@ -61,9 +61,7 @@ function runAllForwardTest() {
     }, {})
     .then(ft => {
         // ft will be an array consisting of all active forward tests
-        forwardQueue = ft.map(function(test) {
-                            return test._id;
-                        });
+        forwardQueue = ft.map(function(test) {return test._id; });
 
         if(forwardQueue.length > 0) {
             // Start execution of jobs on each free server
@@ -218,12 +216,7 @@ function execForwardTest(forwardtestId, connection, cb) {
 
             // Update the connection status
             if (code === 1000) {
-                if (algorithm != '') {
-                    cb(null, {serializedData: algorithm, output: outputData, status: 'complete'});
-                }
-                else {
-                    cb(null, {status: 'No data found'});
-                }
+                cb(null, {serializedData: algorithm, output: outputData});
             }
             else {
                 cb(new Error("Test could not be completed"), {status: 'exception'});

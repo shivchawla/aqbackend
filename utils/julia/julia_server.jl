@@ -3,12 +3,11 @@ import Mongo: MongoClient
 using HttpServer
 using WebSockets
 using JSON
+using TimeSeries
 
 using Raftaar: Performance, Returns, Drawdown, Ratios, Deviation, PortfolioStats
+using Raftaar: serialize
 
-function validate_portfolio(portfolio)
-  return true
-end
 
 include("portfolio.jl")
 include("performance.jl")
@@ -49,21 +48,22 @@ wsh = WebSocketHandler() do req, client
         #println(msg)
         parsemsg = JSON.parse(msg)
 
-        #println(parsemsg)
+        println("Namaste")
+        println(parsemsg)
 
         if haskey(parsemsg, "action") 
 
             action = parsemsg["action"]
             error = ""
 
-            if action == "validate_portfolio"
+            if action == "validate_advice"
                
               valid = false
 
-              println(parsemsg["portfolio"])
+              println(parsemsg["advice"])
 
               try 
-                valid = validate_portfolio(parsemsg["portfolio"]) 
+                valid = _validate_advice(parsemsg["advice"]) 
               catch err
                 println(err)
                 error = "Error"
@@ -71,8 +71,43 @@ wsh = WebSocketHandler() do req, client
 
               parsemsg["valid"] = valid
               parsemsg["error"] = error
+            
+            elseif action == "validate_portfolio"
+              valid = false  
+              println(parsemsg["portfolio"])
 
-                
+              try 
+                valid = _validate_portfolio(parsemsg["portfolio"]) 
+              catch err
+                println(err)
+                error = "Error"
+              end
+
+              parsemsg["valid"] = valid
+              parsemsg["error"] = error
+            
+            elseif action == "compute_performance_portfolio_history"
+                portfolioHistory = parsemsg["portfolioHistory"]
+                benchmark = parsemsg["benchmark"]["ticker"];
+
+                (netValues, dates) = compute_portfolio_value_history(portfolioHistory)
+                println(netValues)
+                println(dates)
+
+                performance = compute_performance(netValues, dates, benchmark)
+
+                println(performance)
+
+                nVDict = Vector{Dict{String, Any}}()
+
+                for i = 1:length(netValues)
+                    push!(nVDict, Dict{String, Any}("date" => dates[i], "netValue" => netValues[i]))
+                end
+
+                parsemsg["performance"] = Dict{String, Any}("detail" => serialize(performance), 
+                                            "portfolioStats" => nVDict)
+                parsemsg["error"] = error
+
             elseif action == "compute_portfolio_performance"
               
               performance = Dict{String, Any}()
@@ -164,32 +199,126 @@ wsh = WebSocketHandler() do req, client
 
             elseif action == "compute_portfolio_value_date"
                
-               netvalue = 0.0
-               lastdate = DateTime()
+                netvalue = 0.0
+                lastdate = DateTime()
 
-               try
-                portfolio = parsemsg["portfolio"]
-                date = data["date"]
-                println(data)
-              
-                netvalue = compute_portfoliovalue(portfolio, date)
-                if (lastdate == DateTime())
-                  parsemsg["netvalue"] = Dict("date" => lastdate, "value" => netvalue)
-                  parsemsg["error"] = ""
+                try
+                  portfolio = parsemsg["portfolio"]
+                  date = data["date"]
+                  println(data)
+                
+                  netvalue = compute_portfoliovalue(portfolio, date)
+                  if (lastdate == DateTime())
+                    parsemsg["netvalue"] = Dict("date" => lastdate, "value" => netvalue)
+                    parsemsg["error"] = ""
+                  end
+                catch err
+                  println(err)
+                  error = "error"
                 end
+              
+                parsemsg["error"] = error
 
-              catch err
-              
-                println(err)
-                error = "error"
-              
-              end
-              
-              parsemsg["error"] = error
+            elseif action == "compute_stock_price_history"
+                
+                println(parsemsg)
 
-            elseif action == "compute_attribution"
-              
+                try
+                  security = convert(Raftaar.Security, parsemsg["security"])
+                  println(security)
+                  
+                  (ts, prices) = get_stock_price_history(security)
 
+                  println(prices)
+                  history = Dict{String, Float64}()
+                  for i=1:length(ts)
+                    history[string(Date(ts[i]))] = prices[i]
+                  end
+
+                  parsemsg["priceHistory"] = history
+
+                catch err
+                  println(err)
+                  error = "error"
+                end
+              
+                parsemsg["error"] = error
+            elseif action == "compute_stock_rolling_performance"
+                
+                println(parsemsg)
+
+                try
+                  security = convert(Raftaar.Security, parsemsg["security"])
+                  println(security)
+                  
+                  rolling_performances = compute_stock_rolling_performance(security)
+
+                  rolling_performance_dict = Dict{String, Any}()
+                  for (k,v) in rolling_performances
+                      rolling_performance_dict[k] = serialize(v)
+                  end
+
+                  parsemsg["performance"] = rolling_performance_dict
+                catch err
+                  println(err)
+                  error = "error"
+                end
+              
+                parsemsg["error"] = error
+
+            elseif action == "compute_stock_static_performance"
+                
+                println(parsemsg)
+
+                try
+                  security = convert(Raftaar.Security, parsemsg["security"])
+                  println(security)
+                  
+                  static_performance = compute_stock_static_performance(security)
+
+                  static_performance_dict = Dict{String, Any}()
+                  static_performance_dict["yearly"] = Dict{String, Any}()
+                  static_performance_dict["monthly"] = Dict{String, Any}()                  
+
+                  for (k,v) in static_performance["yearly"]
+                      static_performance_dict["yearly"][k] = serialize(v)
+                  end
+
+                  for (k,v) in static_performance["monthly"]
+                      static_performance_dict["monthly"][k] = serialize(v)
+                  end
+
+                  parsemsg["performance"] = static_performance_dict
+
+                  println(parsemsg)
+
+                catch err
+                  println(err)
+                  error = "error"
+                end
+              
+                parsemsg["error"] = error
+
+            elseif action == "compute_updated_portfolio"
+                portfolio = parsemsg["portfolio"]
+                transactions = parsemsg["transactions"]
+                
+
+                # TODO: update function to compute portfolio stats etc.
+                # TODO: if price is not give (or zero price), assume EOD price for the day
+                (cash, updated_portfolio) = compute_updated_portfolio(portfolio, transactions)
+                
+                #Update, the positions to match the object structure in Node
+                #portfolio = Raftaar.serialize(updated_portfolio)
+
+                updated_portfolio = convert_to_node_portfolio(updated_portfolio)
+                
+                updated_portfolio["cash"] = cash
+                #updated_portfolio["updatedDate"] = string(now())
+
+                println("Portfolio: $(updated_portfolio)")
+
+                parsemsg["portfolio"] = updated_portfolio
 
             else
 

@@ -14,7 +14,7 @@
     "mongo_pass":"",
     "mongo_path":"localhost",
     "mongo_port":27017,
-    "mongo_debug":true,
+    "mongo_debug":false,
 
     "redis_port":6379,
     "redis_path":"localhost",
@@ -23,15 +23,22 @@
     "max_num_julia_process_total": 2,
     "time_interval_realtime_output":3000,
 
+    "julia_exe":"/Applications/Julia-0.5.app/Contents/Resources/julia/bin/julia",
+
     "julia_server_host" : "127.0.0.1",
     "julia_server_port" : 6000,
 
-    "btmachines" : [
-        {"host": "127.0.0.1", "port":6000}
+    "max_advices_per_advisor":5,
+
+    "btmachines": [
+	     { "host": "127.0.0.1", "port": 6001 },
+	     { "host": "127.0.0.1", "port": 6002 },
+	     { "host": "127.0.0.1", "port": 6003 }
     ],
 
-    "ftmachines" : [
-        {"host": "127.0.0.1", "port":7000}
+    "ftmachines": [
+	     { "host": "127.0.0.1", "port": 7001 },
+         { "host": "127.0.0.1", "port": 7002 },
+         { "host": "127.0.0.1", "port": 7003 }
     ]
-
 }

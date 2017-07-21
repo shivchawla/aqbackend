@@ -263,6 +263,8 @@ function execBacktest(backtestId, conn, res, cb) {
     })
     .then(argArray => {
 
+        // TO DO: Progressively try to make connections with open julia process
+        // create a string to bool dictioanry
         var btClient, backtestData = '', poll;
 
         outputData[backtestId] = [];

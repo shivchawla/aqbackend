@@ -6,7 +6,7 @@ const sendEmail = require('../email');
 const uuid = require('node-uuid');
 const config = require('config');
 
-exports.regiteruser = function(args, res, next) {
+exports.registerUser = function(args, res, next) {
     const user = {
         email: args.body.value.email,
         firstName: args.body.value.firstName,
@@ -14,23 +14,24 @@ exports.regiteruser = function(args, res, next) {
         password: args.body.value.password,
         code: uuid.v4()
     };
+
     hashUtil.genHash(user.password)
-        .then(function(hash) {
-            user.password = hash;
-            return UserModel.saveUser(user);
-        })
-        .then(function(userDetails) {
-            delete userDetails.password;
-            sendEmail.sendActivationEmail(res, userDetails);
-        })
-        .catch(err => {
-            //next(err);
-            if(err.code === 11000){
-                return res.status(401).send('Email already registered, please login to continue');
-            }else{
-                return res.status(500).send('Internal server error');
-            }
-        });
+    .then(hash => {
+        user.password = hash;
+        return UserModel.saveUser(user);
+    })
+    .then(userDetails => {
+        delete userDetails.password;
+        sendEmail.sendActivationEmail(res, userDetails);
+    })
+    .catch(err => {
+        //next(err);
+        if(err.code === 11000){
+            return res.status(401).send('Email already registered, please login to continue');
+        }else{
+            return res.status(500).send('Internal server error');
+        }
+    });
 };
 
 exports.userlogin = function(args, res, next) {
@@ -63,7 +64,7 @@ exports.userlogin = function(args, res, next) {
         res.status(200).json(userDetails);
     })
     .catch(function(err) {
-        return res.status(401).json(err); 
+        return res.status(401).json(err);
     });
 };
 
@@ -82,6 +83,7 @@ exports.forgotPassword = function(args, res, next) {
 };
 
 exports.activateUser = function(args, res) {
+
     UserModel.updateStatus({
         code: args.code.value
     }, {active:true})

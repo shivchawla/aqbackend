@@ -15,6 +15,7 @@ const spawn = require('child_process').spawn;
 /*var conn = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
 console.log("Starting Julia server at " + conn);
 
+<<<<<<< HEAD
 try {
     spawn('/Applications/Julia-0.5.app/Contents/Resources/julia/bin/julia',
                     ["./utils/julia/julia_server.jl", config.get('julia_server_port'), config.get('julia_server_host')]);
@@ -23,15 +24,15 @@ try {
 }*/
 
 for(var machine of config.get('btmachines')) {
-    conn = 'ws://' + machine.host + ":" + machine.port;
-    console.log("Starting Julia server at " + conn);
-    spawn('julia', ["../raftaar/Util/server.jl", machine.port, machine.host]);
+    var conn = 'ws://' + machine.host + ":" + machine.port;
+    console.log("Starting Backtest Julia server: " + conn);
+    spawn(config.get('julia_exe'), ["../raftaar/Util/server.jl", machine.port, machine.host], {stdio: ['pipe', 'pipe', process.stderr]});
 }
 
 for(var machine of config.get('ftmachines')) {
-    conn = 'ws://' + machine.host + ":" + machine.port;
-    console.log("Starting Julia server at " + conn);
-    spawn('julia', ["../raftaar/Util/server.jl", machine.port, machine.host]);
+    var conn = 'ws://' + machine.host + ":" + machine.port;
+    console.log("Starting Forward test Julia server: " + conn);
+    spawn(config.get('julia_exe'), ["../raftaar/Util/server.jl", machine.port, machine.host], {stdio: ['pipe', 'pipe', process.stderr]});
 }
 
 var server = '';
@@ -77,12 +78,11 @@ swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
     // authentication middleware
     app.use(middleware.swaggerSecurity({
         api_key: function(req, authOrSecDef, scopesOrApiKey, cb) {
-            authMiddleware(req, cb);
+            return authMiddleware(req, cb);
         }
     }));
 
     // Route validated requests to appropriate controller
-
     app.set('views', path.join(__dirname, 'views'));
     app.set('view engine', 'jade');
 
@@ -99,13 +99,12 @@ swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
     // set up email service
     //require('./email').config(app);
     // Start the server
-
     app.use((err, req, res, next) => {
-        res.status(400).json(err);
+        return res.status(400).json(err);
         next(err);
     });
 
-    server.listen(serverPort, function() {
+    return server.listen(serverPort, function() {
         console.log('Your server is listening on port %d (http://localhost:%d)', serverPort, serverPort);
         console.log('Swagger-ui is available on http://localhost:%d/docs', serverPort);
     });

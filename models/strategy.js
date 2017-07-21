@@ -76,7 +76,7 @@ Strategy.statics.saveStrategy = function(strategyDetails) {
 Strategy.statics.fetchStrategy = function(query, options) {
     
     var q = this.findOne(query);
-    
+        
     if(options.select) {
         if(options.select.indexOf('user') == -1) {
             options.select.concat(',user');
@@ -85,7 +85,6 @@ Strategy.statics.fetchStrategy = function(query, options) {
         options.select.replace(',', ' ');
         q = q.select(options.select);
     }
-
     return q.populate('user', '_id firstName lastName').execAsync();
 };
 

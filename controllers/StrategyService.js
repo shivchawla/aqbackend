@@ -165,7 +165,7 @@ exports.getStrategy = function(args, res, next) {
     }, {})
     .then(strategy => {
         strategy.code = CryptoJS.AES.decrypt(strategy.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
-        res.status(200).json(strategy);
+        return res.status(200).json(strategy);
     })
     .catch(err => {
         next(err);
@@ -182,17 +182,17 @@ exports.updateStrategy = function(args, res, next) {
     };
 
     if(args.body.value && args.body.value.code){
-        var str = args.body.value.code; 
+        var str = args.body.value.code;
         args.body.value.code = CryptoJS.AES.encrypt(str, config.get('encoding_key'));
     }
 
     StrategyModel.updateStrategy(query, args.body.value)
-      .then(str => {
-          res.status(200).json(str);
-      })
-      .catch(err => {
-          next(err);
-      });
+    .then(str => {
+        return res.status(200).json(str);
+    })
+    .catch(err => {
+        next(err);
+    });
 };
 
 exports.deleteStrategy = function (args, res, next) {
