@@ -4,12 +4,14 @@
   "description": "Module to launch and handle jupyter notebooks from nodejs framework",
   "main": "index.js",
   "dependencies": {
+    "body-parser": "^1.17.2",
     "express": "^4.15.3",
+    "http-proxy": "^1.16.2",
     "pug": "^2.0.0-rc.2"
   },
   "devDependencies": {},
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "prestart": "npm install",
     "start": "node index.js"
   },
   "keywords": [

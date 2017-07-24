@@ -6,9 +6,11 @@ html
         div.controller
             if running
                 p
-                    |Find your notebook
+                    |Your notebook is already running
                     a(target="_blank" href= baseUrl)  here
             else
-                p Launching your notebook
+                p
+                    |Launching your
+                    a(target="_blank" href= baseUrl)  notebook
 
             a(href="/exit?user="+ user) Exit my notebook
