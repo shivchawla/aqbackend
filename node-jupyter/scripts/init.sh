@@ -1,15 +1,7 @@
 #!/bin/bash
 
-## Utility to donwload jailkit and install it on the system
+## Utility to automate the process of installing and setting up jailkit on your system
 
-# Download jailkit
-wget https://olivier.sessink.nl/jailkit/jailkit-2.19.tar.gz 
+bash install.sh
 
-# Extract
-tar xzf jailkit-2.19.tar.gz
-cd jailkit-2.19
-
-# Install
-./configure
-make
-make install
+bash jail.sh

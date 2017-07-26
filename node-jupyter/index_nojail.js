@@ -11,11 +11,8 @@ var proxy = httpProxy.createProxyServer({});
 // Port on which express-app will run (not the notebook app)
 const app_port = 8000;
 
-// Common jail directory
-const jail_dir = '/home/jail';
-
-// Users directory where all users inside jail will be located
-const users_dir = '/home/'; // This folder is a relative path inside jail_dir
+// Users directory where all users will be located
+const users_dir = '/home/kishlaya/users/';
 
 // Default notebook for the user
 const default_notebook = 'Getting-Started.ipynb';
@@ -41,9 +38,6 @@ app.set('views', './views');
 
 // Express routes
 app.get('/', function(req, res) {
-    // res.header("Cache-Control", "no-cache, no-store, must-revalidate");
-    // res.header("Pragma", "no-cache");
-    // res.header("Expires", 0);
     res.render('index');
 });
 
@@ -64,66 +58,34 @@ app.post('/launch', function(req, res) {
         });
     }
     else {
-        // Setup notebook
-        let dir = jail_dir + users_dir + userID;
-        let start = function(userID, password) {
-            start_notebook(userID, password, function(err) {
-                if (err) {
-                    res.send('Error occured: ' + err);
-                }
-                else {
-                    // Render launch webpage
-                    res.render('notebook', {
-                        user: userID,
-                        running: false,
-                        baseUrl: 'http://' + notebook_address + ':' + notebooks[userID].port
-                    });
-                }
-            });
-        };
-
+        // Create a workplace for user
+        let dir = users_dir + userID;
 
         if (!fs.existsSync(dir)) {
-            // New user
-            // Create a workplace for user
-            newUser(userID, password, start);
+            // New user. Create a separate directory for the user
+            fs.mkdirSync(dir);
+            exec('cp ' + default_notebook + ' ' + dir, function(err, stderr, stdout) {
+                if (err) {
+                    return console.error(err);
+                }
+            });
         }
-        else {
-            // Start the notebook app
-            start(userID, password);
-        }
-    }
-});
 
-// TODO: Proxy doesn't work
-// =============================================================================
-app.get('/user/*', function(req, res) {
-    console.log("GET: " + req.url);
-    let userID = req.url.toString().split('/')[2];
-    if (notebooks.hasOwnProperty(userID)) {
-        // let url = 'http://' + notebook_address + ':' + notebooks[userID].port + '/user/' + userID + '/notebooks/' + default_notebook;
-        proxy.web(req, res, {
-            target: 'http://localhost:' + notebooks[userID].port
+        start_notebook(userID, password, function(err) {
+            if (err) {
+                res.send('Error occured: ' + err);
+            }
+            else {
+                // Render launch webpage
+                res.render('notebook', {
+                    user: userID,
+                    running: false,
+                    baseUrl: 'http://' + notebook_address + ':' + notebooks[userID].port
+                });
+            }
         });
     }
-    else {
-        res.send('User not found!');
-    }
 });
-
-app.post('/user/*', function(req, res) {
-    console.log("POST: " + req.url);
-    let userID = req.url.toString().split('/')[2];
-    if (notebooks.hasOwnProperty(userID)) {
-        proxy.web(req, res, {
-            target: 'http://localhost:' + notebooks[userID].port
-        });
-    }
-    else {
-        res.send('User not found!');
-    }
-});
-// =============================================================================
 
 app.get('/exit', function(req, res) {
     let userID = req.query.user;
@@ -156,10 +118,6 @@ var getConfig = function(userID, password, port, notebook_dir) {
         '--NotebookApp.password=' + password,
         '--NotebookApp.password_required=True',
         '--MultiKernelManager.default_kernel_name=julia-0.5',
-        // '--NotebookApp.base_url=/',
-        // '--ContentsManager.untitled_directory="Untitled Folder"',
-        // '--ContentsManager.untitled_file="untitled"',
-        // '--ContentsManager.untitled_notebook="Untitled"',
         '--no-browser'
     ];
 };
@@ -201,9 +159,7 @@ function start_notebook(userID, password, next) {
             let config = getConfig(userID, hashed_password);
 
             // Launch jupyter notebook
-            // notebooks[userID].process = spawn('jupyter', config);
-            let cmd = 'jupyter-notebook ' + config.join(' ');
-            notebooks[userID].process = spawn('sudo', ['chroot', '--userspec='+userID, jail_dir, 'bash', '-c', cmd]);
+            notebooks[userID].process = spawn('jupyter-notebook', config);
 
             // jupyter notebook logs
             notebooks[userID].process.stdout.on('data', function(data) {
@@ -214,14 +170,5 @@ function start_notebook(userID, password, next) {
             });
         }
         next(err);
-    });
-}
-
-function newUser(userID, password, next) {
-    exec('sudo bash ./scripts/user.sh ' + userID + ' ' + jail_dir + ' ' + default_notebook_path, function(err, stderr, stdout) {
-        if (err) {
-            return console.error(err);
-        }
-        next(userID, password);
     });
 }

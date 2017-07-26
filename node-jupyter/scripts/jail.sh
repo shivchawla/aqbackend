@@ -4,14 +4,21 @@
 
 ## ===== Global Variables =====
 
-jail_dir="/home/jail"
-user_name="test"
+if [[ -z $1 ]]; then
+    jail_dir="/home/jail"
+else
+    jail_dir=$1
+fi
 
 ## ===== Set up the jail directory =====
 
 # Create jail directory
 echo "CREATING JAIL DIRECTORY..."
 mkdir $jail_dir
+if [[ ! $? -eq 0 ]]; then
+    echo "CANNOT CREATE DIRECTORY. EXITING."
+    exit 1
+fi
 
 # (Optional) Chown the newly created jail directory
 # echo "CHOWNING..."
@@ -20,6 +27,10 @@ mkdir $jail_dir
 # Set up jail using jailkit
 echo "GENERATING JAIL..."
 jk_init -j $jail_dir jk_lsh ssh
+if [[ ! $? -eq 0 ]]; then
+    echo "ERROR IN JAILKIT. EXITING."
+    exit 1
+fi
 
 # Copy bash to the new jail
 jk_cp -j $jail_dir /bin/bash
