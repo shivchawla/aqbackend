@@ -2,8 +2,8 @@ html
     head
         title node-jupyter | Home
     body
-        p Enter used id to launch notebook
+        p Enter username and password to launch notebook
         form(action="/launch" method="POST")
-            input(type="text" placeholder="user-name" name="user")
+            input(type="text" placeholder="username" name="user")
             input(type="password" placeholder="password" name="password")
             input(type="submit" value="Launch")
