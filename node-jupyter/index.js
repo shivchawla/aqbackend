@@ -5,8 +5,7 @@ var bodyParser = require('body-parser');
 var fs = require('fs');
 var spawn = require('child_process').spawn;
 var exec = require('child_process').exec;
-var httpProxy = require('http-proxy');
-var proxy = httpProxy.createProxyServer({});
+var proxy = require('http-proxy-middleware');
 
 // Port on which express-app will run (not the notebook app)
 const app_port = 8000;
@@ -34,16 +33,32 @@ var notebooks = {};
 var portlist = {};
 
 // Express setings
+
+// JSON parsing for POST parameters
 app.use(bodyParser.urlencoded({ extended: false}));
 app.use(bodyParser.json());
+
+// Setting view engine to pug for delivering HTML files
 app.set('view engine', 'pug');
 app.set('views', './views');
 
+// Proxy middleware
+app.use('/user/:id/*', proxy({
+    target: 'http://localhost:8000',    // default host
+    changeOrigin: true,                 // needed for virtual hosted sites
+    // pathRewrite: {
+        // '^/user/(.)+' : '',             // rewrite path
+    // },
+    router: function(req) {
+        let userID = req.params.id;
+        if (notebooks.hasOwnProperty(userID)) {
+            return 'http://' + notebook_address + ':' + notebooks[userID].port;
+        }
+    }
+}));
+
 // Express routes
 app.get('/', function(req, res) {
-    // res.header("Cache-Control", "no-cache, no-store, must-revalidate");
-    // res.header("Pragma", "no-cache");
-    // res.header("Expires", 0);
     res.render('index');
 });
 
@@ -59,8 +74,7 @@ app.post('/launch', function(req, res) {
         // Users notebook is already running
         res.render('notebook', {
             user: userID,
-            running: true,
-            baseUrl: "http://" + notebook_address + ":" + notebooks[userID].port
+            baseUrl: 'http://localhost:' + app_port + '/user/' + userID + '/'
         });
     }
     else {
@@ -76,7 +90,7 @@ app.post('/launch', function(req, res) {
                     res.render('notebook', {
                         user: userID,
                         running: false,
-                        baseUrl: 'http://' + notebook_address + ':' + notebooks[userID].port
+                        baseUrl: 'http://localhost:' + app_port + '/user/' + userID + '/'
                     });
                 }
             });
@@ -95,36 +109,6 @@ app.post('/launch', function(req, res) {
     }
 });
 
-// TODO: Proxy doesn't work
-// =============================================================================
-app.get('/user/*', function(req, res) {
-    console.log("GET: " + req.url);
-    let userID = req.url.toString().split('/')[2];
-    if (notebooks.hasOwnProperty(userID)) {
-        // let url = 'http://' + notebook_address + ':' + notebooks[userID].port + '/user/' + userID + '/notebooks/' + default_notebook;
-        proxy.web(req, res, {
-            target: 'http://localhost:' + notebooks[userID].port
-        });
-    }
-    else {
-        res.send('User not found!');
-    }
-});
-
-app.post('/user/*', function(req, res) {
-    console.log("POST: " + req.url);
-    let userID = req.url.toString().split('/')[2];
-    if (notebooks.hasOwnProperty(userID)) {
-        proxy.web(req, res, {
-            target: 'http://localhost:' + notebooks[userID].port
-        });
-    }
-    else {
-        res.send('User not found!');
-    }
-});
-// =============================================================================
-
 app.get('/exit', function(req, res) {
     let userID = req.query.user;
     if (notebooks.hasOwnProperty(userID)) {
@@ -134,6 +118,10 @@ app.get('/exit', function(req, res) {
         delete notebooks[userID];
     }
     res.redirect('/');
+});
+
+app.get('/error', function(req, res) {
+    res.send("Error Occurred! :(";
 });
 
 app.listen(app_port, function() {
@@ -156,7 +144,7 @@ var getConfig = function(userID, password, port, notebook_dir) {
         '--NotebookApp.password=' + password,
         '--NotebookApp.password_required=True',
         '--MultiKernelManager.default_kernel_name=julia-0.5',
-        // '--NotebookApp.base_url=/',
+        '--NotebookApp.base_url=/user/' + userID,
         // '--ContentsManager.untitled_directory="Untitled Folder"',
         // '--ContentsManager.untitled_file="untitled"',
         // '--ContentsManager.untitled_notebook="Untitled"',
