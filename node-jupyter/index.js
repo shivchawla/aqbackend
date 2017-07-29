@@ -10,11 +10,8 @@ var proxy = require('http-proxy-middleware');
 // Port on which express-app will run (not the notebook app)
 const app_port = 8000;
 
-// Common jail directory
-const jail_dir = '/home/jail';
-
 // Users directory where all users inside jail will be located
-const users_dir = '/home/'; // This folder is a relative path inside jail_dir
+const users_dir = '/home/';
 
 // Default notebook for the user
 const default_notebook = 'Getting-Started.ipynb';
@@ -74,12 +71,12 @@ app.post('/launch', function(req, res) {
         // Users notebook is already running
         res.render('notebook', {
             user: userID,
-            baseUrl: 'http://localhost:' + app_port + '/user/' + userID + '/'
+            baseUrl: 'http://localhost:' + notebooks[userID].port + '/user/' + userID + '/'
         });
     }
     else {
         // Setup notebook
-        let dir = jail_dir + users_dir + userID;
+        let dir = users_dir + userID;
         let start = function(userID, password) {
             start_notebook(userID, password, function(err) {
                 if (err) {
@@ -90,7 +87,7 @@ app.post('/launch', function(req, res) {
                     res.render('notebook', {
                         user: userID,
                         running: false,
-                        baseUrl: 'http://localhost:' + app_port + '/user/' + userID + '/'
+                        baseUrl: 'http://localhost:' + notebooks[userID].port + '/user/' + userID + '/'
                     });
                 }
             });
@@ -191,7 +188,7 @@ function start_notebook(userID, password, next) {
             // Launch jupyter notebook
             // notebooks[userID].process = spawn('jupyter', config);
             let cmd = 'jupyter-notebook ' + config.join(' ');
-            notebooks[userID].process = spawn('sudo', ['chroot', '--userspec='+userID, jail_dir, 'bash', '-c', cmd]);
+            notebooks[userID].process = spawn('su', [userID, "\"" + cmd + "\""]);
 
             // jupyter notebook logs
             notebooks[userID].process.stdout.on('data', function(data) {
@@ -206,7 +203,7 @@ function start_notebook(userID, password, next) {
 }
 
 function newUser(userID, password, next) {
-    exec('sudo bash ./scripts/user.sh ' + userID + ' ' + jail_dir + ' ' + default_notebook_path, function(err, stderr, stdout) {
+    exec('sudo bash ./scripts/adduser.sh ' + userID + ' ' + default_notebook_path, function(err, stderr, stdout) {
         if (err) {
             return console.error(err);
         }

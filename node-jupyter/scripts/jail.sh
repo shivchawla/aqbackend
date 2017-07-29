@@ -1,58 +1,37 @@
 #!/bin/bash
 
-# Utility to generate the jail directory
+# GROUP SETUP
 
-## ===== Global Variables =====
+jailgroupname="jail"
 
-if [[ -z $1 ]]; then
-    jail_dir="/home/jail"
-else
-    jail_dir=$1
-fi
+# Create the jail group
+groupadd $jailgroupname
 
-## ===== Set up the jail directory =====
+# Set persmissions for jail
+setfacl -m g:$jailgroupname:--x /
+setfacl -m g:$jailgroupname:--x /*
 
-# Create jail directory
-echo "CREATING JAIL DIRECTORY..."
-mkdir $jail_dir
-if [[ ! $? -eq 0 ]]; then
-    echo "CANNOT CREATE DIRECTORY. EXITING."
-    exit 1
-fi
+setfacl -m g:$jailgroupname:--- /bin/*
+setfacl -m g:$jailgroupname:r-x /bin/sh
+setfacl -m g:$jailgroupname:r-x /bin/bash
+setfacl -m g:$jailgroupname:r-x /bin/lesspipe
 
-# (Optional) Chown the newly created jail directory
-# echo "CHOWNING..."
-# chown root:root $jail_dir
+setfacl -m g:$jailgroupname:--x /lib/*
+setfacl -m g:$jailgroupname:r-x /lib/x86_64-linux-gnu/*
 
-# Set up jail using jailkit
-echo "GENERATING JAIL..."
-jk_init -j $jail_dir jk_lsh ssh
-if [[ ! $? -eq 0 ]]; then
-    echo "ERROR IN JAILKIT. EXITING."
-    exit 1
-fi
+setfacl -Rm g:$jailgroupname:--- /lib64
+setfacl -m g:$jailgroupname:--x /lib64
 
-# Copy bash to the new jail
-jk_cp -j $jail_dir /bin/bash
+setfacl -m g:$jailgroupname:--- /home/*
 
-# Copy python3 and jupyter to the new jail
-jk_cp -k -j $jail_dir /usr/bin/python3
-jk_cp -k -j $jail_dir /usr/lib/python3
-jk_cp -k -j $jail_dir /usr/lib/python3.4
-jk_cp -k -j $jail_dir /usr/local/lib/python3.4
-jk_cp -k -j $jail_dir /usr/local/bin/jupyter*
-
-# Copy julia to the new jail
-julia_path=$(which julia)
-jk_cp -k -j $jail_dir $julia_path
-
-## ===== Create tmp directory for all users =====
-
-echo "CREATING TMP DIRECTORY..."
-temp_dir="$jail_dir/tmp"
-mkdir $temp_dir
-chmod a+rwx $temp_dir
-
-## ===== DONE =====
-
-echo "SETUP COMPLETED"
+setfacl -Rm g:$jailgroupname:--- /boot
+setfacl -Rm g:$jailgroupname:--- /cdrom
+setfacl -Rm g:$jailgroupname:--- /media
+setfacl -Rm g:$jailgroupname:--- /opt
+setfacl -Rm g:$jailgroupname:--- /proc
+setfacl -Rm g:$jailgroupname:--- /root
+setfacl -Rm g:$jailgroupname:--- /run
+setfacl -Rm g:$jailgroupname:--- /sbin
+setfacl -Rm g:$jailgroupname:--- /srv
+setfacl -Rm g:$jailgroupname:--- /sys
+setfacl -Rm g:$jailgroupname:--- /var

@@ -71,7 +71,7 @@ app.post('/launch', function(req, res) {
         // Users notebook is already running
         res.render('notebook', {
             user: userID,
-            baseUrl: 'http://localhost:' + app_port + '/user/' + userID + '/'
+            baseUrl: 'http://localhost:' + notebooks[userID].port + '/user/' + userID + '/'
         });
     }
     else {
@@ -96,7 +96,7 @@ app.post('/launch', function(req, res) {
                 // Render launch webpage
                 res.render('notebook', {
                     user: userID,
-                    baseUrl: 'http://localhost:' + app_port + '/user/' + userID + '/'
+                    baseUrl: 'http://localhost:' + notebooks[userID].port + '/user/' + userID + '/'
                 });
             }
         });
