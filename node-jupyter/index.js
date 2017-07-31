@@ -189,19 +189,20 @@ function start_notebook(userID, password, next) {
             let cmd = 'jupyter-notebook ' + config.join(' ');
             // notebooks[userID].process = spawn('su', [userID, "\"" + cmd + "\""], {shell: true});
             // notebooks[userID].process = spawn('jupyter-notebook', config, {uid: 1002});
-            notebooks[userID].process = exec("sudo -H -u " + userID + " bash -c '" + cmd + "'", function(err, stdout, stderr) {
+            /*notebooks[userID].process = exec("sudo -H -u " + userID + " bash -c '" + cmd + "'", function(err, stdout, stderr) {
                 if (err) {
                     return console.error(stderr);
                 }
-            });
+            });*/
+            notebooks[userID].process = exec("sudo -H -u " + userID + " bash -c '" + cmd + "'");
 
             // jupyter notebook logs
-            /*notebooks[userID].process.stdout.on('data', function(data) {
+            notebooks[userID].process.stdout.on('data', function(data) {
                 console.log('' + data);
             });
             notebooks[userID].process.stderr.on('data', function(data) {
                 console.error('' + data);
-            });*/
+            });
         }
         next(err);
     });
