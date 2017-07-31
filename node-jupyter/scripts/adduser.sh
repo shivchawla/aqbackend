@@ -10,10 +10,17 @@ else
 	username=$1
 fi
 
-if [ -z $1 ]; then
-	notebook='/home/kishlaya/projects/node-jupyter/Getting-Started.ipynb'
+if [ -z $2 ]; then
+	echo "Pasword not specified"
+	exit 1
 else
-	notebook=$2
+	password=$2
+fi
+
+if [ -z $3 ]; then
+	notebook='/home/cauchy/node-jupyter/Getting-Started.ipynb'
+else
+	notebook=$3
 fi
 
 # Group names
@@ -25,7 +32,7 @@ globalgroupname="global"
 useradd -m $username
 
 # Set a password for user
-passwd $username
+echo -e "$password\n$password" | passwd $username
 
 # Add the user to jail and the global groups
 usermod $username -aG $jailgroupname,$globalgroupname

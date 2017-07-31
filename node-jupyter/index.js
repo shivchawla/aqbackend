@@ -118,7 +118,7 @@ app.get('/exit', function(req, res) {
 });
 
 app.get('/error', function(req, res) {
-    res.send("Error Occurred! :(";
+    res.send("Error Occurred! :(");
 });
 
 app.listen(app_port, function() {
@@ -186,27 +186,33 @@ function start_notebook(userID, password, next) {
             let config = getConfig(userID, hashed_password);
 
             // Launch jupyter notebook
-            // notebooks[userID].process = spawn('jupyter', config);
             let cmd = 'jupyter-notebook ' + config.join(' ');
-            notebooks[userID].process = spawn('su', [userID, "\"" + cmd + "\""]);
+            // notebooks[userID].process = spawn('su', [userID, "\"" + cmd + "\""], {shell: true});
+            // notebooks[userID].process = spawn('jupyter-notebook', config, {uid: 1002});
+            notebooks[userID].process = exec("sudo -H -u " + userID + " bash -c '" + cmd + "'", function(err, stdout, stderr) {
+                if (err) {
+                    return console.error(stderr);
+                }
+            });
 
             // jupyter notebook logs
-            notebooks[userID].process.stdout.on('data', function(data) {
+            /*notebooks[userID].process.stdout.on('data', function(data) {
                 console.log('' + data);
             });
             notebooks[userID].process.stderr.on('data', function(data) {
                 console.error('' + data);
-            });
+            });*/
         }
         next(err);
     });
 }
 
 function newUser(userID, password, next) {
-    exec('sudo bash ./scripts/adduser.sh ' + userID + ' ' + default_notebook_path, function(err, stderr, stdout) {
+    exec('sudo bash ./scripts/adduser.sh ' + userID + ' ' + password, function(err, stdout, stderr) {
         if (err) {
             return console.error(err);
         }
+        console.log("ADD_USER: " + stderr);
         next(userID, password);
     });
 }
