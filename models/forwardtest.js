@@ -5,27 +5,33 @@ const ForwardTest = new Schema({
     strategy: {
         type: Schema.Types.ObjectId,
         require: true,
-        ref: 'Strategy'
+        ref: 'Strategy',
+    },
+
+    backtest: {
+        type: Schema.Types.ObjectId,
+        require: true,
+        ref: 'Backtest',
     },
 
     code: {
         type: String,
-        require: false
-    },
-
-    settings: {
-        type: Schema.Types.Mixed,
         require: true,
     },
 
     active: {
         type: Boolean,
-        require: true
+        default: true
     },
 
-    notes :{
-        type: String,
-        require: false,
+    error: {
+        type: Boolean,
+        defaut: false,
+    },
+
+    deleted: {
+        type: Boolean,
+        default: false
     },
 
     name: {
@@ -33,24 +39,12 @@ const ForwardTest = new Schema({
         require: false
     },
 
-    strategy_name: {
-        type: String,
-        require: false
-    },
-
-    shared : {
-        type : Boolean,
-        require : false
-    },
-
-    deleted : {
-        type : Boolean,
-        require : false,
-    },
-
     output: Schema.Types.Mixed,
+
     serializedData: Schema.Types.Mixed,
+
     createdAt: Date,
+
     updatedAt: Date
 });
 
@@ -63,25 +57,32 @@ ForwardTest.statics.fetchForwardTest = function(query, options) {
     var q = this.findOne(query);
 
     if(options.select) {
-        options.select.replace(',', ' ');
+        options.select = options.select.replace(',', ' ');
         q = q.select(options.select);
     }
 
-    return q.populate('strategy', 'user').execAsync();
+    return q.populate('strategy', 'user name').execAsync();
 };
 
 ForwardTest.statics.fetchForwardTests = function(query, options) {
     //var project = { strategy : 1,code : 1, status : 1, createdAt : 1,settings :1, 'output.summary' : 1} ;
+    var q = this.find(query);
+
     if (!options.select) {
         options.select = 'strategy code status createdAt settings output.summary';
     } else {
-        options.select = replace(options.select, ',',' ');
+        options.select = options.select.replace(',',' ');
     }
 
-    var q = this.find(query)
-        .select(options.select)
-        .skip(options.skip)
-        .limit(options.limit);
+    q = q.select(options.select);
+
+    if(options.skip) {
+        q = q.skip(options.skip);
+    } 
+
+    if(options.limit) {
+        q = q.limit(options.limit);
+    }   
 
     if(options.sort) {
         options.sort = options.sort.replace(',',' ');
@@ -112,5 +113,5 @@ ForwardTest.statics.updateForwardTest = function(query, updates) {
         });
 };
 
-const forwardtestModel = mongoose.model('ForwardTest', ForwardTest, 'forwardtests');
-module.exports = forwardtestModel;
+const ForwardtestModel = mongoose.model('ForwardTest', ForwardTest, 'forwardtests');
+module.exports = ForwardtestModel;

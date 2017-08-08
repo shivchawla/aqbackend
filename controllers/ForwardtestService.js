@@ -1,30 +1,39 @@
 'use strict';
 require('../utils/spawn');
-const ForwardTestModel = require('../models/forwardtest');
-const StrategyModel = require('../models/strategy');
+const ForwardtestModel = require('../models/forwardtest');
 var CryptoJS = require("crypto-js");
 const config = require('config');
 
-exports.createForwardtest = function(strategy, values, res, next) {
-    const forwardtest = {
-        strategy: strategy._id,
-        settings: values,
-        code: strategy.code,
-        name: strategy.name,
-        strategy_name: strategy.name,
-        status : 'active',
-        createdAt : new Date(),
-        shared:false,
-        deleted:false,
-    };
+exports.createForwardtest = function(args, res, next) {
+    const userId = args.user._id;
+    const backtestId = args.backtestId.value;
 
-    ForwardTestModel.saveForwardTest(forwardtest)
+    BacktestModel.fetchBacktest({_id: backtestId}, {})
+    .then(backtest => {
+        if (backtest) {
+            if(backtest.strategy.user.equals(userId)) {
+                const forwardtest = {
+                    strategy: backtest.strategy._id,
+                    backtest: backtest._id,
+                    code: backtest.code,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    active: true
+                }; 
+
+                return ForwardtestModel.saveForwardTest(forwardtest);
+            } else {
+                throw new Error("User Not authorized");
+            }
+        } else {
+            throw new Error("Backtest not found");
+        }
+    })
     .then(ft => {
-        res.status(200).json(ft);
+        return res.status(200).json(ft);
     })
     .catch(err => {
-        console.log(err);
-        next(err);
+        return res.status(400).send(err.message);
     });
 };
 
@@ -71,83 +80,82 @@ exports.getForwardTest = function(args, res, next) {
 
     if (options.select) {
         if (options.select.indexOf('strategy') == -1) {
-            options.select.append(',strategy');
+            options.select.append(' strategy');
         }
     }
 
-    ForwardTestModel.fetchForwardTest({
-        _id: forwardtestId,
+    ForwardtestModel.fetchForwardTest({
+        _id: forwardtestId, deleted: false
     }, options)
     .then(ft => {
-        if(ft.shared || ft.strategy.user.toString() == userId.toString()) {
-            ft.code = CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
-            res.status(200).json(ft);
+        if(ft) {
+            if(ft.strategy.user.equals(userId)) {
+                ft.code = CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+                return res.status(200).json(ft);
+            } else {
+                throw new Error("forwardtestId doesn't exist for the user");
+            }
         } else {
-            res.status(400).json({id:forwardtestId, message:"forwardtestId doesn't exist for the user"});
+            throw new Error("No forwardtest found");
         }
     })
     .catch(err => {
-        next(err);
+        return res.status(400).send(err.message);
     });
 };
-
 
 //How to make this linear and NOT nested
 exports.deleteForwardTest = function(args, res, next) {
     const forwardtestId = args.forwardtestId.value;
     const userId = args.user._id;
 
-    ForwardTestModel.fetchForwardTest({_id : forwardtestId, shared : true}, {})
+    ForwardtestModel.fetchForwardTest({_id:forwardtestId}, {})
     .then(forwardtest => {
-        if(forwardtest && forwardtest.strategy.user.toString() == userId){
-            ForwardTestModel.updateForwardTest({_id: forwardtestId}, {deleted : true})
-            .then(obj => {
-                console.log("Soft delete")
-                res.status(200).json({forwardtestId: forwardtestId, message:"Successfly deleted"});
-            })
-            .catch(err => {
-                next(err);
-            });
+        if(forwardtest && forwardtest.strategy.user.equals(userId)) {
+            ForwardtestModel.updateForwardTest({_id: forwardtestId}, {deleted : true})
         } else {
-            ForwardTestModel.removeAllBack({
-                _id: forwardtestId,
-                shared:false
-            })
-            .then(obj => {
-                console.log("Hard Delete")
-                res.status(200).json({forwardtestId: forwardtestId, message:"Successfly deleted"});
-            })
-            .catch(err => {
-                next(err);
-            });
+            throw new Error("User is not authorized");
         }
     })
+    .then(obj => {
+        console.log("Soft delete")
+        res.status(200).json({forwardtestId: forwardtestId, message:"Successfly deleted"});
+    })
     .catch(err=>{
+        return res.status(400).send(err.message);
         next(err);
     });
 };
 
 exports.updateForwardTest = function(args, res, next) {
+    
     const forwardtestId = args.forwardtestId.value;
     const userId = args.user._id;
 
     const updates = {};
 
-    if(args.name.value) {
-        updates.name = args.name.value;
+    if(args.active) {
+        updates.active = args.active.value;    
     }
 
-    if(args.notes.value) {
-        updates.notes = args.notes.value;
-    }
+    console.log(updates);
 
-    ForwardTestModel.updateForwardTest({user: userId, _id: forwardtestId}, updates)
+    ForwardtestModel.fetchForwardTest({_id:forwardtestId}, {})
+    .then(forwardtest => {
+        console.log(forwardtest);
+        if(forwardtest && forwardtest.strategy.user.equals(userId)) {
+            return ForwardtestModel.updateForwardTest({_id: forwardtestId}, updates);
+        } else {
+            throw new Error("User is not authorized");
+        }
+    })
     .then(obj => {
         if(obj) {
             return res.status(200).json(obj);
         }
     })
     .catch(err=>{
+        return res.status(400).send(err.message);
         next(err);
     });
 

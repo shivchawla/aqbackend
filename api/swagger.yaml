@@ -1,4 +1,3 @@
----
 swagger: "2.0"
 info:
   description: "Aimsquant api publisher"
@@ -21,6 +20,8 @@ tags:
   description: "operation about strategy"
 - name: backtest
   description: operations on backtest
+- name: forwardtest
+  description: operations on forwardtest
 - name: "advisor"
   description: "operations on advisor"
 - name: "investor"
@@ -187,6 +188,7 @@ paths:
       responses:
         200:
           description: OK
+ 
   /user/setpassword:
     post:
       tags:
@@ -206,6 +208,7 @@ paths:
           description: OK
         400:
           description: code is not valid
+  
   /user/sendFeedback:
     post:
       tags:
@@ -232,6 +235,7 @@ paths:
           description: OK
         400:
           description: Error sending email
+  
   /user/sendInvite:
     post:
       tags:
@@ -357,6 +361,7 @@ paths:
         400:
           description: 'Invalid input'
       x-swagger-router-controller: "Thread"
+  
   /thread/{threadId}:
     post:
       tags:
@@ -450,6 +455,7 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Thread"
+ 
   /thread/{threadId}/like:
     post:
       tags:
@@ -473,6 +479,7 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Thread"
+ 
   /thread/{threadId}/view:
     post:
       tags:
@@ -496,6 +503,7 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Thread"
+ 
   /thread/{threadId}/follow:
     post:
       tags:
@@ -519,6 +527,7 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Thread"
+  
   /thread/{threadId}/addtag:
     post:
       tags:
@@ -542,6 +551,7 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Thread"
+  
   /strategy:
     post:
       tags:
@@ -607,6 +617,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
+  
   /strategy/{strategyId}:
     get:
       tags:
@@ -693,9 +704,10 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
+  
   /strategy/{strategyId}/exec:
     post:
-      summary: executes the strategy and outputs the data
+      summary: executes the strategy and outputs the data (backtest)
       description: execute the strategy
       tags:
       - strategy
@@ -725,6 +737,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
+    
   /strategy/{strategyId}/backtests:
     get:
       tags:
@@ -766,12 +779,15 @@ paths:
         description: sort criteria
       responses:
         200:
-          description: "created strategy"
+          description: "get backtest"
+          schema:
+            $ref: "#/definitions/Backtest" 
         400:
           description: "Not Authorized"
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Backtest"
+  
   /backtest/{backtestId}:
     get:
       tags:
@@ -829,108 +845,127 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Backtest"
-  /backtest/share/{backtestId}:
+ 
+  /forwardtest:
     post:
+      summary: create a forward test for a corresponding backtest/strategy
+      description: create an forward test for ongoing execution
       tags:
-      - backtest
-      summary: get the backtest
-      operationId: shareBackTest
+      - forwardtest
+      operationId: execForwardtest
       security:
       - api_key: []
       parameters:
-      - name: aimsquant-token
-        in: header
-        description: auth token
-        type: string
-        required:  true
-      - name: backtestId
-        type: string
-        required: true
-        in: path
-      - name: body
-        in: body
-        required: true
-        schema:
-          $ref: '#/definitions/Share'
-      responses:
-        200:
-          description: backtest object
-          schema:
-            $ref: '#/definitions/Backtest'
-        400:
-          description: "Not Authorized"
-          schema:
-            $ref: "#/definitions/Error"
-      x-swagger-router-controller: "Backtest"
-  /backtest/share:
-    get:
-      tags:
-      - backtest
-      summary: get the backtest
-      operationId: getCommunityBackTest
-      security:
-      - api_key: []
-      parameters:
-      - name: aimsquant-token
-        in: header
-        description: auth token
-        type: string
-        required:  true
-      - name: skip
-        in: query
-        description: skip number of records
-        required: true
-        default: 0
-        type: number
-      - name: limit
-        type: number
-        required: true
-        in: query
-        default: 10
-      responses:
-        200:
-          description: backtest object
-          schema:
-            $ref: '#/definitions/Backtest'
-        400:
-          description: "Not Authorized"
-          schema:
-            $ref: "#/definitions/Error"
-      x-swagger-router-controller: "Backtest"
-  /strategy/code/{id}:
-    post:
-      summary: Upload file having code
-      description: Upload strategy code
-      tags:
-      - "strategy"
-      consumes:
-      - multipart/form-data
-      - application/x-www-form-urlencoded
-      operationId: uploadStrategyCode
-      security:
-      - api_key: []
-      parameters:
-      - name: file
-        in: formData
-        description: The uploaded file data
-        required: true
-        type: file
       - name: "aimsquant-token"
         in: "header"
         description: "auth token"
         type: "string"
         required: true
-      - name: id
-        in: path
+      - name: backtestId
+        in: query
         required: true
         type: string
+        description: Backtest Id
       responses:
         200:
-          description: OK
+          description: "created forward test"
         400:
-          description: code is not valid
-      x-swagger-router-controller: "Strategy"
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Forwardtest"
   
+  /forwardtest/{forwardtestId}:
+    get:
+      tags:
+      - forwardtest
+      summary: get the forwardtest
+      operationId: getForwardTest
+      security:
+      - api_key: []
+      parameters:
+      - name: aimsquant-token
+        in: header
+        description: auth token
+        type: string
+        required:  true
+      - name: forwardtestId
+        type: string
+        required: true
+        in: path
+      - name: select
+        type: string
+        required: false
+        in: query
+      responses:
+        200:
+          description: Forwardtest object
+          schema:
+            $ref: '#/definitions/Forwardtest'
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Forwardtest"
+
+    put:
+      tags:
+      - forwardtest
+      summary: update the forwardtest
+      operationId: updateForwardTest
+      security:
+      - api_key: []
+      parameters:
+      - name: aimsquant-token
+        in: header
+        description: auth token
+        type: string
+        required:  true
+      - name: forwardtestId
+        type: string
+        required: true
+        in: path
+      - name: active
+        type: boolean
+        required: false
+        in: query
+      responses:
+        200:
+          description: forward object
+          schema:
+            $ref: '#/definitions/Forwardtest'
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Forwardtest"
+    
+    delete:
+      tags:
+      - forwardtest
+      summary: delete the forwardtest
+      operationId: deleteForwardTest
+      security:
+      - api_key: []
+      parameters:
+      - name: aimsquant-token
+        in: header
+        description: auth token
+        type: string
+        required:  true
+      - name: forwardtestId
+        type: string
+        required: true
+        in: path
+      responses:
+        200:
+          description: forwardtest
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Forwardtest"
+
   /advisor:
     post:
       tags:
@@ -994,7 +1029,9 @@ paths:
         description: selection fields
       responses:
         200:
-          description: "get advisor"
+          description: "get advisors"
+          schema:
+            $ref: "#/definitions/Advisor"
         400:
           description: "Not Authorized"
           schema:
@@ -1014,15 +1051,18 @@ paths:
       - name: "aimsquant-token"
         in: "header"
         description: "auth token"
-        type: "string"
+        type: string
         required: true
       - name: advisorId
         in: path
         required: true
+        description: advisorId
         type: string
       responses:
         200:
-          description: "get advisor for id"
+          description: "get advisor"
+          schema:
+            $ref: "#/definitions/Advisor"
         400:
           description: "Not Authorized"
           schema:
@@ -1154,8 +1194,6 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Advisor"
-
-
   
   /advice:
     post:
@@ -1873,12 +1911,12 @@ paths:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Stock"
      
-
 securityDefinitions:
   api_key:
     type: apiKey
     name: aimsquant-token
     in: header
+
 definitions:
   User:
     type: "object"
@@ -1914,6 +1952,7 @@ definitions:
         type: "string"
       password:
         type: "string"
+  
   Thread:
     type: object
     required:
@@ -1933,6 +1972,7 @@ definitions:
         type: string
       backtestId:
         type: string
+  
   resetpassword:
     type: object
     required:
@@ -1947,6 +1987,7 @@ definitions:
       code:
         type: "string"
         format: "uuid"
+  
   userId:
     type: object
     required:
@@ -1955,6 +1996,7 @@ definitions:
       userId:
         type: string
         format: uuid
+  
   Error:
     type: "object"
     properties:
@@ -1983,7 +2025,6 @@ definitions:
         type: string
       code:
         type: string
-
   
   BacktestSettings:
     type: object
@@ -2012,6 +2053,17 @@ definitions:
       settings:
         $ref: "#/definitions/BacktestSettings"
 
+  Forwardtest:
+    type: object
+    required:
+      - strategyId
+      - backtestId
+    properties:
+      strategyId:
+        type: string
+      backtestId:
+        type: string
+
   Feedback:
     type: object
     required:
@@ -2022,6 +2074,7 @@ definitions:
         type: string
       subject:
         type : string
+  
   invite:
     type: object
     required:
@@ -2029,6 +2082,7 @@ definitions:
     properties:
       emailList:
         type: string
+  
   Share:
     type: object
     required:
@@ -2139,8 +2193,7 @@ definitions:
 #Investor
   Investor:
     type: object
-    
-      
+        
 #Performance
   Performance:
     type: object
@@ -2164,7 +2217,6 @@ definitions:
       performance:
         $ref: '#/definitions/Performance'
      
-
 # Advisor definitions
   Advisor:
     type: object
