@@ -19,6 +19,11 @@ const ForwardTest = new Schema({
         require: true,
     },
 
+    settings: {
+        type: Schema.Types.Mixed,
+        require: true,
+    },
+
     active: {
         type: Boolean,
         default: true

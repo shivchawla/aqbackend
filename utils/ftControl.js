@@ -49,23 +49,24 @@ function runForwardTest(forwardtestId) {
 }
 
 // Schedule all the forward test jobs
-// The following code will be executed at 0000 hours everyday
-schedule.scheduleJob("0 0 * * *", function() {
+// The following code will be executed at 0200 hours everyday
+schedule.scheduleJob("0 0 2 * * *", function() {
     runAllForwardTest();
 });
 
 function runAllForwardTest() {
+    console.log("Trying running all forwardtests");
     // Load all the forward tests from redis into forwardQueue
-    ForwardTestModel.fetchForwardTests({
-        active: true
-    }, {})
+    
+    ForwardTestModel.fetchForwardTests({active: true, error: false}, {})
     .then(ft => {
+
         // ft will be an array consisting of all active forward tests
-        forwardQueue = ft.map(function(test) {return test._id; });
+        forwardQueue = ft.map(item => item._id);
 
         if(forwardQueue.length > 0) {
             // Start execution of jobs on each free server
-            Object.keys(isBusy).forEach(function(server) {
+            Object.keys(isBusy).forEach(server => {
                 if (!isBusy[server]) {
                     isBusy[server] = true;
                     handleExecForwardTest(server);
@@ -111,7 +112,7 @@ function execForwardTest(forwardtestId, connection, cb) {
     console.log('execForwardTest is called');
 
     ForwardTestModel.fetchForwardTest({
-        _id: forwardtestId
+        _id: forwardtestId, active: true, error: false
     }, {})
     .then(ft => {
         if(!ft){
@@ -124,29 +125,45 @@ function execForwardTest(forwardtestId, connection, cb) {
 
         // If there is serialized data available then pass it as command line arg
         // Otherwise it's a fresh start
-        if(ft.serializedData) {
+        if(ft.serializedData && !ft.restart) {
             args = args.concat(['--serializedData', JSON.stringify(ft.serializedData)]);
 
-            // Alongwith serialized data, we may want configure the start and end "RUN" dates for the test
-            if (ft.run_start_date) {
-                args = args.concat(['--startdate', ft.run_start_date])
+            //Pick the last date + 1 from serialized data
+            var accounttracker = ft.serializedData.accounttracker;
+
+            if(accounttracker) {
+                var dates = Object.keys(accounttracker).sort();
+                var lastdate = new Date(dates[dates.length - 1]);
+
+                var cd = new Date(lastdate.setDate(lastdate.getDate() + 1));
+                var startDate = cd.getFullYear()+"-"+(cd.getMonth()+1)+"-"+cd.getDate();    
+
+                args = args.concat(['--startdate', startDate]);
+
+            } else {
+                throw new Error("WARNING: No account tracker in serialized data.");
             }
 
-            if (ft.run_end_date) {
-                args = args.concat(['--enddate', ft.run_end_date])
-            }
         }
         else {
             // No deserialized data was found
             // to obtain the initial settings
-
             let settings = ft.settings;
+
             args = args.concat(['--capital', settings.initialCash]);
-            args = args.concat(['--startdate', settings.startDate]);
-            args = args.concat(['--enddate', settings.endDate]);
+            
+            var cd = ft.createdAt; 
+            var startDate = cd.getFullYear()+"-"+(cd.getMonth()+1)+"-"+cd.getDate();    
+            
+            console.log("Start Date: " + startDate);
+
+            //?? Do we need start and end dates for the forward tests??? NO
+            args = args.concat(['--startdate', startDate]);
+            args = args.concat(['--enddate', "2017-08-07"]);
+            
             args = args.concat(['--universe', settings.universe]);
 
-            let advanced = settings.advanced;
+            let advanced = JSON.parse(settings.advanced);
 
             if(advanced.exclude) {
                 args = args.concat(['--exclude', advanced.exclude]);
@@ -203,7 +220,8 @@ function execForwardTest(forwardtestId, connection, cb) {
                     algorithm = dataJSON.algorithm;
                 }
                 else {
-                    outputData.push(dataJSON);
+                    //SKIP rest of the ouput for 
+                    //outputData.push(dataJSON);
                 }
             }
             catch (e) {
@@ -214,12 +232,12 @@ function execForwardTest(forwardtestId, connection, cb) {
         ftClient.on('close', function close(code) {
             console.log('Connection Closed');
 
-            // Update the connection status
+            //Update the connection status
             if (code === 1000) {
-                cb(null, {serializedData: algorithm, output: outputData});
+                cb(null, {serializedData: algorithm, updatedAt: new Date()});
             }
             else {
-                cb(new Error("Test could not be completed"), {status: 'exception'});
+                cb(new Error("Test could not be completed"), {error: true});
             }
         });
     })
