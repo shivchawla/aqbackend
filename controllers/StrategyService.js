@@ -182,7 +182,7 @@ exports.getStrategy = function(args, res, next) {
                             deleted: false}),
                         ForwardtestModel.fetchForwardTests({
                             strategy: strategyId,
-                            delete: false}, {select:'_id backtest createdAt updatedAt error active'})
+                            deleted: false}, {select:'_id backtest createdAt updatedAt error active'})
                     ])
     .then(([str, bc, ftests]) => {
         

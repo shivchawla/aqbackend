@@ -50,7 +50,8 @@ function runForwardTest(forwardtestId) {
 
 // Schedule all the forward test jobs
 // The following code will be executed at 0200 hours everyday
-schedule.scheduleJob("0 0 2 * * *", function() {
+var schedulerString = config.get('ft_second') + " " + config.get('ft_minute') + " "+config.get('ft_hour')+ ' * * *';
+schedule.scheduleJob(schedulerString, function() {
     runAllForwardTest();
 });
 
@@ -155,11 +156,7 @@ function execForwardTest(forwardtestId, connection, cb) {
             var cd = ft.createdAt; 
             var startDate = cd.getFullYear()+"-"+(cd.getMonth()+1)+"-"+cd.getDate();    
             
-            console.log("Start Date: " + startDate);
-
-            //?? Do we need start and end dates for the forward tests??? NO
             args = args.concat(['--startdate', startDate]);
-            args = args.concat(['--enddate', "2017-08-07"]);
             
             args = args.concat(['--universe', settings.universe]);
 

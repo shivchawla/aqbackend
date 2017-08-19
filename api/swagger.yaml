@@ -852,7 +852,7 @@ paths:
       description: create an forward test for ongoing execution
       tags:
       - forwardtest
-      operationId: execForwardtest
+      operationId: createForwardtest
       security:
       - api_key: []
       parameters:
@@ -861,10 +861,11 @@ paths:
         description: "auth token"
         type: "string"
         required: true
-      - name: backtestId
-        in: query
+      - name: body
+        in: body
         required: true
-        type: string
+        schema: 
+          $ref: '#/definitions/Forwardtest'
         description: Backtest Id
       responses:
         200:

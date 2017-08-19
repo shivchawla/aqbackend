@@ -67,8 +67,10 @@ exports.getThreads = function(args, res, next) {
         query.$text = { $search: text};
     }
     if (category) {
-        query.category = category;
+        var categories = category.split(" | ");    
+        query.category = {$in: categories};
     }
+
     const options = {};
     options.limit = limit;
     options.skip = skip;

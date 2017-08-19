@@ -1,26 +1,31 @@
 'use strict';
 require('../utils/spawn');
 const ForwardtestModel = require('../models/forwardtest');
+const BacktestModel = require('../models/backtest');
 var CryptoJS = require("crypto-js");
 const config = require('config');
 
 exports.createForwardtest = function(args, res, next) {
+
     const userId = args.user._id;
-    const backtestId = args.backtestId.value;
+
+    const backtestId = args.body.value.backtestId;
+    const strategyId = args.body.value.strategyId;
 
     BacktestModel.fetchBacktest({_id: backtestId}, {})
     .then(backtest => {
         if (backtest) {
-            if(backtest.strategy.user.equals(userId)) {
+            if(backtest.strategy._id.equals(strategyId) && backtest.strategy.user.equals(userId)) {
                 const forwardtest = {
-                    strategy: backtest.strategy._id,
-                    backtest: backtest._id,
+                    strategy: strategyId,
+                    backtest: backtestId,
+                    settings: backtest.settings,
                     code: backtest.code,
                     createdAt: new Date(),
                     updatedAt: new Date(),
-                    active: true
+                    active: true,
+                    error:false
                 }; 
-
                 return ForwardtestModel.saveForwardTest(forwardtest);
             } else {
                 throw new Error("User Not authorized");
@@ -137,8 +142,6 @@ exports.updateForwardTest = function(args, res, next) {
     if(args.active) {
         updates.active = args.active.value;    
     }
-
-    console.log(updates);
 
     ForwardtestModel.fetchForwardTest({_id:forwardtestId}, {})
     .then(forwardtest => {
