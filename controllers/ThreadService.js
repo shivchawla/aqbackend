@@ -96,14 +96,13 @@ exports.getThread = function(args, res, next) {
     options.limit = limit;
     options.skip = skip;
     
-    ThreadModel.fetchThread({
-        _id: threadId
-    }, options)
-    .then((threads) => {
-        return res.status(200).json(threads);
+    ThreadModel.fetchThread({_id: threadId}, options)
+    .then(thread => {
+        return res.status(200).json(thread);
     })
     .catch(err => {
-      next(err);
+        return res.status(400).json({msg: "No thread found for "+threadId});
+        next(err);
     });
 };
 

@@ -70,9 +70,7 @@ exports.getBackTest = function(args, res, next) {
     options.select = args.select.value;
 
     if (options.select) {
-        if (options.select.indexOf('strategy') == -1) {
-            options.select.append(',strategy');
-        }
+        options.select = options.select.concat(' strategy');
     }
 
     BacktestModel.fetchBacktest({

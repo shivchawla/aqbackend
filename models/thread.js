@@ -2,6 +2,7 @@
 
 const mongoose = require('./index');
 const Schema = mongoose.Schema;
+const Promise = require('bluebird');
 const EmbedThread = new Schema({
     user: {
         type: Schema.Types.ObjectId,
@@ -126,9 +127,40 @@ Thread.statics.fetchThreads = function(query, options) {
 };
 
 Thread.statics.fetchThread = function(query, options) {
-    return this.findOne(query, {replies: {$slice: [options.skip, options.limit]}})
+    
+    try { 
+        var queryM = {'_id': mongoose.Types.ObjectId(query._id)};
+        //console.log(queryM);
+    } catch(err) {
+        console.log(err.message);
+    }
+
+    return Promise.all([
+        //{replies: {$slice: [options.skip, options.limit]}}
+        //SEND ALL REPLIES....FIX NEEDED ON UI
+        this.findOne(query)
         .populate('user', '_id firstName lastName')
-        .populate('replies.user','_id firstName lastName');
+        .populate('replies.user','_id firstName lastName'),
+             this.aggregate([{$match: queryM}, {$project: {count: {$size: '$replies'}}}])
+        ])
+        .then(([thread, ct]) => {
+            try {
+                var thread = thread.toJSON();
+                if(ct.length > 0) {
+                    thread["nreplies"] = ct[0].count;
+                    console.log({thread: thread, nreplies:ct[0].count});
+                    return thread;
+                    //return {thread: thread, nreplies:ct[0].count};
+                } else {
+                    thread["nreplies"] = 0;
+                    //console.log({thread: thread, nreplies:ct[0].count});
+                    return thread;
+                    //return {thread: thread, nreplies:0};
+                }
+            } catch(err) {
+                console.log(err.message);
+            } 
+        });     
 };
 
 
