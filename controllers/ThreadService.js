@@ -67,8 +67,10 @@ exports.getThreads = function(args, res, next) {
         query.$text = { $search: text};
     }
     if (category) {
-        query.category = category;
+        var categories = category.split(" | ");    
+        query.category = {$in: categories};
     }
+
     const options = {};
     options.limit = limit;
     options.skip = skip;
@@ -94,14 +96,13 @@ exports.getThread = function(args, res, next) {
     options.limit = limit;
     options.skip = skip;
     
-    ThreadModel.fetchThread({
-        _id: threadId
-    }, options)
-    .then((threads) => {
-        return res.status(200).json(threads);
+    ThreadModel.fetchThread({_id: threadId}, options)
+    .then(thread => {
+        return res.status(200).json(thread);
     })
     .catch(err => {
-      next(err);
+        return res.status(400).json({msg: "No thread found for "+threadId});
+        next(err);
     });
 };
 

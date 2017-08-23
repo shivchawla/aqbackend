@@ -5,6 +5,11 @@ const config = require('config');
 const WebSocket = require('ws');
 const BacktestModel = require('../models/backtest');
 const StrategyModel = require('../models/strategy');
+const schedule = require('node-schedule');
+
+schedule.scheduleJob("0 * * * * *", function() {
+    processBacktest(null);
+});
 
 var isBusy = {};
 
@@ -19,6 +24,7 @@ for(var machine of config.get('btmachines')) {
 var outputData   = {};
 // Subscription of test result
 var subscribed = {};
+
 // Response dictionary for each backtest
 var response = {};
 
@@ -34,7 +40,7 @@ function handleSubscription(req, res) {
     */
     var backtestId = req.backtestId;
     BacktestModel.fetchBacktest({
-        _id: backtestId
+        _id: backtestId, deleted: false
     }, {})
     .then(bt => {
         if(!bt) {
@@ -65,11 +71,11 @@ function handleUnsubscription(req) {
 /* =====================================
         BACKTEST CONTROLLER
 ===================================== */
-
 function handleBacktest(req, res) {
     // ===========================================
     // 1. Append priority details to the request
     // ===========================================
+    
     BacktestModel.fetchBacktest({
         _id: req.backtestId
     }, {})
@@ -113,6 +119,7 @@ function saveBacktest(req, res) {
     redisUtils.insertIntoRedis('backtest-request-queue', req.backtestId, JSON.stringify(req));
     // Save the rsponse server
     response[req.backtestId] = res;
+
     // Now we handle the requests
     processBacktest(null);
 }
@@ -138,7 +145,6 @@ function processBacktest(connection) {
 
     // Server is available
     // Let's retrieve pending backtest requests from Redis
-
     redisUtils.getAllFromRedis('backtest-request-queue', function(err, data) {
         if(err) {
             isBusy[server] = false;
@@ -158,7 +164,12 @@ function processBacktest(connection) {
         // Pop the top priority element from queue
         req = popTopPriority(queue);
         backtestId = req.backtestId;
-        res = response[backtestId];
+
+        try {
+            res = response[backtestId];
+        } catch(err) {
+            console.log("Valid UI Websocket not available for this backtest");
+        }
 
         // Send this backtest request for execution
         execBacktest(backtestId, server, res, function(err, conn, data) {
@@ -190,11 +201,14 @@ function processBacktest(connection) {
             redisUtils.deleteFromRedis('backtest-request-queue', backtestId, function(err, reply) {
                 if (err) {
                     return console.error(err);
-                }
+                } 
+
+                // Initiate processing after aysn delete is complete 
+                // Start off with next backtest
+                delete outputData[backtestId];
+                delete response[backtestId];
+                processBacktest(conn);
             });
-            delete response[backtestId];
-            // Start off with next backtest
-            processBacktest(conn);
         });
     });
 }
@@ -267,6 +281,7 @@ function execBacktest(backtestId, conn, res, cb) {
         // create a string to bool dictioanry
         var btClient, backtestData = '', poll;
 
+        var juliaError = false;
         outputData[backtestId] = [];
 
         btClient = new WebSocket(conn);
@@ -275,16 +290,19 @@ function execBacktest(backtestId, conn, res, cb) {
             console.log('Connection Open');
 
             btClient.send(argArray.join("??##"));
-
             subscribed[backtestId] = true;
 
             redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(outputData[backtestId]));
 
-            poll = setInterval(function(){sendData(res, backtestId);}, config.get('time_interval_realtime_output'));
+            //If valid UI websocket connection
+            if(res) {
+                poll = setInterval(function(){sendData(res, backtestId);}, config.get('time_interval_realtime_output'));
+            }
 
         });
 
         btClient.on('message', function(data) {
+            
             try {
                 const dataJSON = JSON.parse(data);
                 dataJSON.backtestId = backtestId;
@@ -294,6 +312,13 @@ function execBacktest(backtestId, conn, res, cb) {
                 }
                 else {
                     outputData[backtestId].push(dataJSON);
+
+                    if(dataJSON.outputtype === 'log') {
+                        if(dataJSON.messagetype === "ERROR") {
+                            juliaError = true;
+                            //throw new Error("");
+                        }
+                    }
                 }
             }
             catch (e) {
@@ -305,14 +330,22 @@ function execBacktest(backtestId, conn, res, cb) {
             console.log('Connection Closed');
             console.log(conn);
             clearInterval(poll);
+            
             // Send data for one last time
             sendData(res, backtestId);
 
             // Update the connection status
             if (code === 1000) {
                 try {
+
+                    var status = "complete";
+                    
+                    if(juliaError) {
+                        status = "exception";
+                    }
+                    
                     if(backtestData && Object.keys(backtestData).length > 0) {
-                        cb(null, conn, {output: backtestData, status:"complete"});
+                        cb(null, conn, {output: backtestData, status:status});
                     }
                     else {
                         cb(null, conn, {status:"exception"});
@@ -325,6 +358,7 @@ function execBacktest(backtestId, conn, res, cb) {
             else {
                 cb(null, conn, {status:"exception"});
             }
+
         });
 
     })
@@ -334,29 +368,29 @@ function execBacktest(backtestId, conn, res, cb) {
 }
 
 // Send backtest output to front-end
-
 function sendData(res, backtestId) {
 
-    var dataArray = outputData[backtestId];
+    if(res) {
+        var dataArray = outputData[backtestId];
 
-    if (dataArray && dataArray.length > 0) {
-        redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(dataArray));
+        if (dataArray && dataArray.length > 0) {
+            redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(dataArray));
 
-        //Check if subscription is TRUE for the backtestId
-        if (subscribed[backtestId]) {
-            // Check if connection is OPEN
-            if (res.readyState === WebSocket.OPEN) {
-                res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));
-            } else {
-                console.log("WebSocket is closed");
-                subscribed[backtestId] = false;
+            //Check if subscription is TRUE for the backtestId
+            if (subscribed[backtestId]) {
+                // Check if connection is OPEN
+                if (res.readyState === WebSocket.OPEN) {
+                    res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));
+                } else {
+                    console.log("WebSocket is closed");
+                    subscribed[backtestId] = false;
+                }
             }
         }
     }
 }
 
 // Save backtest data to databse
-
 function updateBacktestResult(backtestId, data) {
     console.log("Updating Backtest");
     BacktestModel.updateBacktest({
@@ -365,7 +399,6 @@ function updateBacktestResult(backtestId, data) {
 }
 
 // Find free Julia server
-
 function findFreeServer() {
     for(var conn in isBusy) {
         if (isBusy.hasOwnProperty(conn) && !isBusy[conn]) {
@@ -378,7 +411,6 @@ function findFreeServer() {
 }
 
 // Function to pop out the top priority backtest from queue
-
 function popTopPriority(arr) {
     // 1. Sort on the time of request
     arr.sort(function(x, y) {

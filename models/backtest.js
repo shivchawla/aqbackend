@@ -56,7 +56,7 @@ Backtest.statics.fetchBacktest = function(query, options) {
     var q = this.findOne(query);
 
     if(options.select) {
-        options.select.replace(',', ' ');
+        options.select = options.select.replace(',', ' ');
         q = q.select(options.select);
     }
 

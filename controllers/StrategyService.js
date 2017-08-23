@@ -2,6 +2,7 @@
 const StrategyModel = require('../models/strategy');
 const BacktestService = require('./BacktestService');
 const BacktestModel = require('../models/backtest');
+const ForwardtestModel = require('../models/forwardtest');
 var constants = require('../utils/Constants.js');
 const Promise = require('bluebird');
 var CryptoJS = require("crypto-js");
@@ -104,17 +105,30 @@ exports.getStrategys = function(args, res, next) {
 
     var p = { then: function(resolve) {
             return Promise.map(strategies, function(str) {
-                return BacktestModel.findCount({
+                return Promise.all([BacktestModel.findCount({
                     strategy: str._id,
                     deleted: false,
-                })
-                .then(c => {
-                    str.backtests = c;
+                }), ForwardtestModel.fetchForwardTests({
+                    strategy: str._id,
+                    deleted: false}, {select:'_id backtest createdAt updatedAt error active'})
+                ])
+                .then(([bc, ftests]) => {
+                  
+                    str.numBacktests = bc;
+                    str.numForwardtests = ftests.length;
+                    str.forwardtest = null;
+
+                    if(str.numForwardtests == 1) {
+                        str.forwardtest = ftests[0];    
+                    } else if(str.numForwardtests > 1) {
+                        console.log("Possible Error. Can't have more than one active forward test per strategy");
+                    }
+                     
                     return str;
                 });
             })
             .then(strata => {
-                res.status(200).json(strata);
+                return res.status(200).json(strata);
             })
             .catch(err => {
                 next(err);
@@ -153,21 +167,55 @@ exports.getStrategys = function(args, res, next) {
             Promise.resolve(p);
         }
     });
-
 };
 
 exports.getStrategy = function(args, res, next) {
     const user = args.user;
     const strategyId = args.strategyId.value;
-    StrategyModel.fetchStrategy({
-        user: user._id,
-        _id: strategyId
-    }, {})
-    .then(strategy => {
-        strategy.code = CryptoJS.AES.decrypt(strategy.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
-        return res.status(200).json(strategy);
+
+    Promise.all([StrategyModel.fetchStrategy({
+                            user: user._id,
+                            _id: strategyId
+                        }, {}),  
+                        BacktestModel.findCount({
+                            strategy: strategyId,
+                            deleted: false}),
+                        ForwardtestModel.fetchForwardTests({
+                            strategy: strategyId,
+                            deleted: false}, {select:'_id backtest createdAt updatedAt error active'})
+                    ])
+    .then(([str, bc, ftests]) => {
+        
+        if(str) {
+            console.log(str);
+
+            var strategy = JSON.parse(JSON.stringify(str));
+            
+            strategy.numBacktests = bc;
+            strategy.numForwardtests = ftests.length;
+            strategy.forwardtest = null;
+
+            if(strategy.numForwardtests == 1) {
+                strategy.forwardtest = ftests[0];    
+            } else if(strategy.numForwardtests > 1) {
+                console.log("Possible Error. Can't have more than one active forward test per strategy");
+            }
+            
+            if(str.code) { 
+                strategy.code = CryptoJS.AES.decrypt(str.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+            }
+
+            console.log(strategy);
+            return strategy;
+        } else {
+            throw new Error("No Strategy Found");
+        }
+    })
+    .then(str => {
+        return res.status(200).json(str);
     })
     .catch(err => {
+        return res.status(400).json(err.message);
         next(err);
     });
 };

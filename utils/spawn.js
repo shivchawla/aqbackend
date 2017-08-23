@@ -38,7 +38,6 @@ ws.on('connection', function connection(res) {
             // 3. run-all-forwardtest
             // 4. run-forwardtest
             // 5. stop-forwardtest
-            console.log(req);
             handleAction(req, res);
         });
     });

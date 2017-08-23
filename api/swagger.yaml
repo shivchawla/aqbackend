@@ -1,4 +1,3 @@
----
 swagger: "2.0"
 info:
   description: "Aimsquant api publisher"
@@ -19,8 +18,18 @@ tags:
   description: "operations about thread"
 - name: "strategy"
   description: "operation about strategy"
-- name: backtest
+- name: "backtest"
   description: operations on backtest
+- name: "forwardtest"
+  description: operations on forwardtest
+- name: "advisor"
+  description: "operations on advisor"
+- name: "investor"
+  description: "operations on investor"
+- name: "advice"
+  description: "operations on advice"
+- name: "stock"
+  description: "operations on stock"
 
   externalDocs:
     description: "Find out more about us"
@@ -179,6 +188,7 @@ paths:
       responses:
         200:
           description: OK
+ 
   /user/setpassword:
     post:
       tags:
@@ -198,6 +208,7 @@ paths:
           description: OK
         400:
           description: code is not valid
+  
   /user/sendFeedback:
     post:
       tags:
@@ -224,6 +235,7 @@ paths:
           description: OK
         400:
           description: Error sending email
+  
   /user/sendInvite:
     post:
       tags:
@@ -349,6 +361,7 @@ paths:
         400:
           description: 'Invalid input'
       x-swagger-router-controller: "Thread"
+  
   /thread/{threadId}:
     post:
       tags:
@@ -401,6 +414,18 @@ paths:
         name: threadId
         type: string
         required: true
+      - in: query
+        name: skip 
+        type: number  
+        default: 0
+        required: false
+        description: skip number replies
+      - in: query
+        name: limit
+        type: number
+        default: 10
+        required: false
+        description: number of replies
       responses:
         200:
           description: OK
@@ -442,6 +467,7 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Thread"
+ 
   /thread/{threadId}/like:
     post:
       tags:
@@ -465,6 +491,7 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Thread"
+ 
   /thread/{threadId}/view:
     post:
       tags:
@@ -488,6 +515,7 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Thread"
+ 
   /thread/{threadId}/follow:
     post:
       tags:
@@ -511,6 +539,7 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Thread"
+  
   /thread/{threadId}/addtag:
     post:
       tags:
@@ -534,6 +563,7 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Thread"
+  
   /strategy:
     post:
       tags:
@@ -599,6 +629,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
+  
   /strategy/{strategyId}:
     get:
       tags:
@@ -685,9 +716,10 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
+  
   /strategy/{strategyId}/exec:
     post:
-      summary: executes the strategy and outputs the data
+      summary: executes the strategy and outputs the data (backtest)
       description: execute the strategy
       tags:
       - strategy
@@ -717,6 +749,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Strategy"
+    
   /strategy/{strategyId}/backtests:
     get:
       tags:
@@ -758,12 +791,15 @@ paths:
         description: sort criteria
       responses:
         200:
-          description: "created strategy"
+          description: "get backtest"
+          schema:
+            $ref: "#/definitions/Backtest" 
         400:
           description: "Not Authorized"
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Backtest"
+  
   /backtest/{backtestId}:
     get:
       tags:
@@ -821,45 +857,43 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Backtest"
-  /backtest/share/{backtestId}:
+ 
+  /forwardtest:
     post:
+      summary: create a forward test for a corresponding backtest/strategy
+      description: create an forward test for ongoing execution
       tags:
-      - backtest
-      summary: get the backtest
-      operationId: shareBackTest
+      - forwardtest
+      operationId: createForwardtest
       security:
       - api_key: []
       parameters:
-      - name: aimsquant-token
-        in: header
-        description: auth token
-        type: string
-        required:  true
-      - name: backtestId
-        type: string
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
         required: true
-        in: path
       - name: body
         in: body
         required: true
-        schema:
-          $ref: '#/definitions/Share'
+        schema: 
+          $ref: '#/definitions/Forwardtest'
+        description: Backtest Id
       responses:
         200:
-          description: backtest object
-          schema:
-            $ref: '#/definitions/Backtest'
+          description: "created forward test"
         400:
           description: "Not Authorized"
           schema:
             $ref: "#/definitions/Error"
-      x-swagger-router-controller: "Backtest"
-  /backtest/share:
+      x-swagger-router-controller: "Forwardtest"
+  
+  /forwardtest/{forwardtestId}:
     get:
       tags:
-      - backtest
-      summary: get the backtest
-      operationId: getCommunityBackTest
+      - forwardtest
+      summary: get the forwardtest
+      operationId: getForwardTest
       security:
       - api_key: []
       parameters:
@@ -868,33 +902,1033 @@ paths:
         description: auth token
         type: string
         required:  true
+      - name: forwardtestId
+        type: string
+        required: true
+        in: path
+      - name: select
+        type: string
+        required: false
+        in: query
+      responses:
+        200:
+          description: Forwardtest object
+          schema:
+            $ref: '#/definitions/Forwardtest'
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Forwardtest"
+
+    put:
+      tags:
+      - forwardtest
+      summary: update the forwardtest
+      operationId: updateForwardTest
+      security:
+      - api_key: []
+      parameters:
+      - name: aimsquant-token
+        in: header
+        description: auth token
+        type: string
+        required:  true
+      - name: forwardtestId
+        type: string
+        required: true
+        in: path
+      - name: active
+        type: boolean
+        required: false
+        in: query
+      responses:
+        200:
+          description: forward object
+          schema:
+            $ref: '#/definitions/Forwardtest'
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Forwardtest"
+    
+    delete:
+      tags:
+      - forwardtest
+      summary: delete the forwardtest
+      operationId: deleteForwardTest
+      security:
+      - api_key: []
+      parameters:
+      - name: aimsquant-token
+        in: header
+        description: auth token
+        type: string
+        required:  true
+      - name: forwardtestId
+        type: string
+        required: true
+        in: path
+      responses:
+        200:
+          description: forwardtest
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Forwardtest"
+
+  /advisor:
+    post:
+      tags:
+      - advisor
+      summary: create an advisor
+      description: create an advisor
+      operationId: createAdvisor
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/Advisor'
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Advisor"
+    get:
+      tags:
+      - advisor
+      summary: get all the advisor
+      description: get all the advisor on the platform
+      operationId: getAdvisors
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: skip
+        in: query
+        description: skip number of records
+        required: false
+        default: 0
+        type: integer
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        default: 10 
+      - name: sort
+        in: query
+        type: string
+        required: false
+        description: sort criteria
+      - name: fields
+        in: query
+        type: string
+        required: false
+        description: selection fields
+      responses:
+        200:
+          description: "get advisors"
+          schema:
+            $ref: "#/definitions/Advisor"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Advisor"
+  
+  /advisor/{advisorId}:
+    get:
+      tags:
+      - advisor
+      summary: get advisor summary
+      description: get advisor for id
+      operationId: getAdvisorSummary
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: string
+        required: true
+      - name: advisorId
+        in: path
+        required: true
+        description: advisorId
+        type: string
+      responses:
+        200:
+          description: "get advisor"
+          schema:
+            $ref: "#/definitions/Advisor"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Advisor"
+
+  /advisor/{advisorId}/detail:
+    get:
+      tags:
+      - advisor
+      summary: get advisor detail
+      description: get advisor for id
+      operationId: getAdvisorDetail
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: advisorId
+        in: path
+        required: true
+        type: string
+      - name: fields
+        in: query
+        type: string
+        required: false
+        description: selection fields
+      responses:
+        200:
+          description: "get advisor for id"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Advisor"
+  
+  /advisor/{advisorId}/follow:
+    post:
+      tags:
+      - 'advisor'
+      summary: follow an advisor
+      description: follow an advisor
+      operationId: followAdvisor
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: advisorId
+        in: path
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advisor"
+
+  /advisor/{advisorId}/followers:
+    get:
+      tags:
+      - 'advisor'
+      summary: get list of followers
+      description: get list of followers
+      operationId: getFollowers
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: advisorId
+        in: path
+        type: string
+        required: true
       - name: skip
         in: query
         description: skip number of records
         required: true
         default: 0
-        type: number
+        type: integer
       - name: limit
-        type: number
+        type: integer
         required: true
         in: query
         default: 10
       responses:
         200:
-          description: backtest object
-          schema:
-            $ref: '#/definitions/Backtest'
+          description: OK
+      x-swagger-router-controller: "Advisor"
+
+  /advisor/{advisorId}/advice:
+    get:
+      tags:
+      - advisor
+      summary: get advices of advisor
+      description: get advices of advisor
+      operationId: getAdvisorAdvices
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: advisorId
+        in: path
+        type: string
+        required: true
+      - name: ticker
+        in: query
+        description: security ticker
+        required: false
+        type: string
+      - name: exchange
+        in: query
+        type: string
+        required: false
+        default: "NSE"
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advisor"
+  
+  /advice:
+    post:
+      tags:
+      - advice
+      summary: create an advice
+      description: create an advice
+      operationId: createAdvice
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Advice'
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Advice"
+  
+    get:
+      tags:
+      - advice
+      summary: get all advice (summary only)
+      description: get advice
+      operationId: getAdvices
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: following 
+        in: query
+        type: integer
+        required: false
+        description: Followed Advices only
+      - name: subscribed 
+        in: query
+        type: integer
+        required: false
+        description: Subscribed Advices only
+      - name: personal 
+        in: query
+        type: integer
+        required: false
+        description: Self-authored Advices only
+      - name: approved
+        in: query
+        type: integer
+        required: false
+        description: only approved advices
+      - name: skip
+        in: query
+        type: integer
+        required: false
+        default: 0
+        description: skip records
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        default: 5
+        description: total number of advice
+      - name: sort
+        in: query
+        description: sort criteria
+        type: string
+        required: false
+        enum: ['name', 'rating', 'followers', 'subscribers', 'updatedAt desc']
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Advice"
+
+  /advice/{adviceId}:
+    put:
+      tags:
+      - advice
+      summary: update advice 
+      description: updates the advice 
+      consumes:
+      - application/json
+      operationId: updateAdvice
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        required: true
+        type: string
+      - name: body
+        in: body
+        required: true
+        schema: 
+          $ref: '#/definitions/Advice'
+      responses:
+        200:
+          description: "updated advice"
         400:
           description: "Not Authorized"
           schema:
             $ref: "#/definitions/Error"
-      x-swagger-router-controller: "Backtest"
+      x-swagger-router-controller: "Advice"
+  
+    delete:
+      tags:
+      - advice
+      summary: delete an advice
+      description:  delete advice 
+      operationId: deleteAdvice
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        required: true
+        type: string
+      responses:
+        200:
+          description: "advice"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Advice"
+
+    get:
+      tags:
+      - advice
+      summary: get advice summary 
+      description: Gets just the advice basic details 
+      operationId: getAdviceSummary
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Advice"
+  
+  /advice/{adviceId}/detail:    
+    get:
+      tags:
+      - advice
+      summary: get advice detail
+      description: Gets the complete advice detail
+      operationId: getAdviceDetail
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        type: string
+        required: true
+      - name: fields
+        in: query
+        type: string
+        required: false
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Advice"  
+  
+  /advice/{adviceId}/follow:
+    post:
+      tags:
+      - advice
+      summary: follow an advice
+      description: follow an advice
+      operationId: followAdvice
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advice"
+
+  /advice/{adviceId}/subscribe:
+    post:
+      tags:
+      - advice
+      summary: subscribe an advice
+      description: subscribe an advice
+      operationId: subscribeAdvice
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advice"
+
+  /investor:
+    post:
+      tags:
+      - investor
+      summary: create an investor
+      description: create an investor
+      operationId: createInvestor
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Investor'
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Investor"
+    
+  /investor/{investorId}:
+    get:
+      tags:
+      - investor
+      summary: get the summary of investor 
+      description: get investor for id
+      operationId: getInvestorSummary
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        required: true
+        type: string
+      responses:
+        200:
+          description: "get investor for id"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Investor"
+  
+  /investor/{investorId}/detail:
+    get:
+      tags:
+      - investor
+      summary: get an investor 
+      description: get investor for id
+      operationId: getInvestorDetail
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        required: true
+        type: string
+      - name: fields
+        in: query
+        type: string
+        required: false
+        description: selection fields
+      responses:
+        200:
+          description: "get investor for id"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Investor"
+
+  /investor/{investorId}/portfolio:
+    post:
+      tags:
+      - investor
+      summary: create an Investor portfolio
+      description: create an investor portfolio
+      operationId: createInvestorPortfolio
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: "#/definitions/Portfolio"
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Investor"
+  
+    get:
+      tags:
+      - investor
+      summary: get all portfolios for investor
+      description: get all portfolios for investor
+      operationId: getInvestorPortfolios
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        type: string
+        required: true
+      - name: ticker
+        in: query
+        type: string
+        required: false
+        description: stock ticker
+      - name: exchange
+        in: query
+        type: string
+        required: false
+        default: "NSE"
+        description: stock exchange
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Investor"
+
+  /investor/{investorId}/portfolio/{portfolioId}/update:
+    put:
+      tags:
+      - investor
+      summary: update the portfolio with transactions
+      description: Updates the portfolio with transactions
+      operationId: updateInvestorPortfolio
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        type: string
+        required: true
+      - name: portfolioId
+        in: path
+        type: string
+        required: true
+      - name: type
+        in: query
+        type: string
+        required: true
+        description: transaction type (stock or advice)
+      - name: adviceId
+        in: query
+        type: string
+        required: false
+        description: advice to transact
+      - name: body
+        in: body
+        required: false
+        schema:
+          type: array
+          items:
+            $ref: '#/definitions/Transaction'
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Investor"
+
+  /investor/{investorId}/portfolio/{portfolioId}/stock:
+    get:
+      tags:
+      - investor
+      summary: get the detail of position in portfolio
+      description: get the detail of position in portfolio
+      operationId: getInvestorPortfolioPosition
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        type: string
+        required: true
+      - name: portfolioId
+        in: path
+        type: string
+        required: true
+      - name: ticker
+        in: query
+        required: true
+        type: string
+        description: stock ticker
+      - name: exchange
+        in: query
+        required: true
+        type: string
+        description: stock exchange      
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Investor"
+  
+  /investor/{investorId}/portfolio/{portfolioId}/performance:
+    get:
+      tags:
+      - investor
+      summary: get portfolio's performance for investor
+      description: Gets the portfolio's performance for an investor
+      operationId: getInvestorPerformance
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        type: string
+        required: true
+      - name: portfolioId
+        in: path
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Investor"  
+  
+  /investor/{investorId}/portfolio/{portfolioId}:
+    get:
+      tags:
+      - investor
+      summary: get portfolio for investor
+      description: Gets the complete portfolio for an investor
+      operationId: getInvestorPortfolio
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        type: string
+        required: true
+      - name: portfolioId
+        in: path
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Investor"  
+  
+    delete:
+      tags:
+      - investor
+      summary: remove portfolio for investor
+      description: Removes the complete portfolio for an investor
+      operationId: deleteInvestorPortfolio
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        type: string
+        required: true
+      - name: portfolioId
+        in: path
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Investor"  
+  
+  /investor/{investorId}/followingAdvices:
+    get:
+      tags:
+      - investor
+      summary: get advice followed by investor
+      description: get advice followed by investor
+      operationId: getFollowingAdvices
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        required: true
+        type: string
+      - name: skip
+        in: query
+        type: integer
+        required: false
+        default: 0
+        description: skip records
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        default: 5
+        description: total number of advice
+      responses:
+        200:
+          description: "get advice followed by investor"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Investor"
+
+  /investor/{investorId}/followingAdvisors:
+    get:
+      tags:
+      - investor
+      summary: get advisor followed by investor
+      description: get advisor followed by investor
+      operationId: getFollowingAdvisors
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        required: true
+        type: string
+      - name: skip
+        in: query
+        type: integer
+        required: false
+        default: 0
+        description: skip records
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        default: 5
+        description: total number of advisor
+      responses:
+        200:
+          description: "get advisor followed by investor"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Investor"
+
+  /stock:
+    get:
+      tags:
+      - stock
+      summary: get stock history and/or performance detail
+      description: get stock history and/or performance detail
+      operationId: getStockDetail
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: ticker
+        in: query
+        type: string
+        required: true
+        description: security ticker
+      - name: exchange
+        in: query
+        type: string
+        required: false
+        default: "NSE"
+        description: security exchange
+      - name: country
+        in: query
+        type: string
+        required: false
+        default: "IN"
+        description: security country
+      - name: securityType
+        in: query
+        type: string
+        required: false
+        default: "EQ"
+        description: security type
+      - name: field
+        in: query
+        type: string
+        required: true
+        default: "priceHistory"
+        enum: ['priceHistory', 'staticPerformance', 'rollingPerformance']
+      responses:
+        200:
+          description: "get stock performance detail"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Stock"
      
 securityDefinitions:
   api_key:
     type: apiKey
     name: aimsquant-token
     in: header
+
 definitions:
   User:
     type: "object"
@@ -930,6 +1964,7 @@ definitions:
         type: "string"
       password:
         type: "string"
+  
   Thread:
     type: object
     required:
@@ -949,6 +1984,7 @@ definitions:
         type: string
       backtestId:
         type: string
+  
   resetpassword:
     type: object
     required:
@@ -963,6 +1999,7 @@ definitions:
       code:
         type: "string"
         format: "uuid"
+  
   userId:
     type: object
     required:
@@ -971,6 +2008,7 @@ definitions:
       userId:
         type: string
         format: uuid
+  
   Error:
     type: "object"
     properties:
@@ -999,7 +2037,6 @@ definitions:
         type: string
       code:
         type: string
-
   
   BacktestSettings:
     type: object
@@ -1028,6 +2065,17 @@ definitions:
       settings:
         $ref: "#/definitions/BacktestSettings"
 
+  Forwardtest:
+    type: object
+    required:
+      - strategyId
+      - backtestId
+    properties:
+      strategyId:
+        type: string
+      backtestId:
+        type: string
+
   Feedback:
     type: object
     required:
@@ -1038,6 +2086,7 @@ definitions:
         type: string
       subject:
         type : string
+  
   invite:
     type: object
     required:
@@ -1045,6 +2094,7 @@ definitions:
     properties:
       emailList:
         type: string
+  
   Share:
     type: object
     required:
@@ -1052,7 +2102,135 @@ definitions:
     properties:
       threadId:
         type: string      
+
+#Security
+  Security:
+    type: object
+    required:
+      - ticker
+      - securityType
+      - country
+      - exchange
+    properties:
+      ticker:
+        type: string
+      securityType: 
+        type: string
+        default: "EQ"
+      country:
+        type: string
+        default: "IN"
+      exchange:
+        type: string
+        default: "NSE"
+
+#Position
+  Position:
+    type: object
+    required:
+      - security
+      - quantity
+    properties:
+      security:
+        $ref: '#/definitions/Security'
+      quantity:
+        type: number
+        format: long
+        default: 0
+      advice:
+        type: string
+        format: uuid
+
+#Transaction
+  Transaction:
+    type: object
+    required:
+      - security
+      - quantity
+      - price
+      - date
+    properties:
+      security:
+        $ref: '#/definitions/Security'
+      quantity:
+        type: integer
+      price:
+        type: number
+      fee:
+        type: number
+      date:
+        type: string
+        format: date
+
+#Portfolio
+  Portfolio:
+    type: object
+    required:
+        - startDate
+        - endDate
+        - positions
+        - cash 
+    properties:
+      startDate:
+        type: string
+        format: date
+      endDate:
+        type: string
+        format: date
+      positions:
+        type: array
+        items:
+          $ref: '#/definitions/Position'
+      cash:
+        type: number
+
+#Advice definition
+  Advice:
+    type: object
+    required:
+      - name
+      - description
+      - benchmark
+      - portfolio
+    properties:
+      name:
+        type: string
+      description:
+        type: string
+      benchmark:
+        $ref: '#/definitions/Security'
+      portfolio:
+          $ref: "#/definitions/Portfolio"
+
+#Investor
+  Investor:
+    type: object
+        
+#Performance
+  Performance:
+    type: object
+    required:
+      - profit
+    properties:
+      profit:
+        type: number
+        format: double
+
+#Hisorical Performance
+  HistoricalPerformance:
+    type: object
+    required:
+      - date
+      - performance
+    properties:
+      date:
+        type: string
+        format: date
+      performance:
+        $ref: '#/definitions/Performance'
      
-externalDocs:
-  description: "Find out more about Swagger"
-  url: "http://swagger.io"
+# Advisor definitions
+  Advisor:
+    type: object
+      
+ 

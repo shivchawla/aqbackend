@@ -2,6 +2,9 @@
 
 const ForwardTest = require('./ForwardtestService');
 
+module.exports.createForwardtest = function createForwardtest (req, res, next) {
+    ForwardTest.createForwardtest(req.swagger.params, res, next);
+};
 module.exports.getForwardTests = function getForwardTests (req, res, next) {
     ForwardTest.getForwardTests(req.swagger.params, res, next);
 };

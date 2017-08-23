@@ -70,27 +70,28 @@ exports.getBackTest = function(args, res, next) {
     options.select = args.select.value;
 
     if (options.select) {
-        if (options.select.indexOf('strategy') == -1) {
-            options.select.append(',strategy');
-        }
+        options.select = options.select.concat(' strategy');
     }
 
     BacktestModel.fetchBacktest({
         _id: backtestId,
     }, options)
     .then(bt => {
-        if(bt.shared || bt.strategy.user.toString() == userId.toString()) {
-            bt.code = CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
-            res.status(200).json(bt);
+        if(bt) {
+            if(bt.shared || bt.strategy.user.toString() == userId.toString()) {
+                bt.code = CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+                res.status(200).json(bt);
+            } else {
+                res.status(400).json({id:backtestId, message:"BacktestId doesn't exist for the user"});
+            }
         } else {
-            res.status(400).json({id:backtestId, message:"BacktestId doesn't exist for the user"});
+            throw new Error("No Backtest Found");
         }
     })
     .catch(err => {
         next(err);
     });
 };
-
 
 //How to make this linear and NOT nested
 exports.deleteBackTest = function(args, res, next) {
@@ -150,8 +151,8 @@ exports.updateBacktest = function(args, res, next) {
     .catch(err=>{
         next(err);
     });
-
 };
+
 
 
 
