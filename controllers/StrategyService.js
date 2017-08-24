@@ -113,7 +113,7 @@ exports.getStrategys = function(args, res, next) {
                     deleted: false}, {select:'_id backtest createdAt updatedAt error active'})
                 ])
                 .then(([bc, ftests]) => {
-                  
+                    
                     str.numBacktests = bc;
                     str.numForwardtests = ftests.length;
                     str.forwardtest = null;
@@ -138,7 +138,6 @@ exports.getStrategys = function(args, res, next) {
 
     StrategyModel.fetchStrategys(query, args.sort.value)
     .then(strategy => {
-    
         if(strategy.length > 0) {          
             strategy.forEach(str => {
                 str.code = CryptoJS.AES.decrypt(str.code,config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
@@ -149,7 +148,7 @@ exports.getStrategys = function(args, res, next) {
             
         } else if (!hasSearchParam) {
 
-            Promise.all([
+            return Promise.all([
                 StrategyModel.createStrategy(user, "Sample Strategy", "A quick tutorial", "sample.txt"),
                 StrategyModel.createStrategy(user, "NIFTY-50 Stock Reversal", "Invest in least performing stocks based on 22 days returns", "reversal.txt"),
             ]).then(strs => {
@@ -187,8 +186,6 @@ exports.getStrategy = function(args, res, next) {
     .then(([str, bc, ftests]) => {
         
         if(str) {
-            console.log(str);
-
             var strategy = JSON.parse(JSON.stringify(str));
             
             strategy.numBacktests = bc;
@@ -205,7 +202,6 @@ exports.getStrategy = function(args, res, next) {
                 strategy.code = CryptoJS.AES.decrypt(str.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
             }
 
-            console.log(strategy);
             return strategy;
         } else {
             throw new Error("No Strategy Found");
