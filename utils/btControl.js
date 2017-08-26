@@ -331,7 +331,14 @@ function execBacktest(backtestId, conn, res, cb) {
             console.log(conn);
             clearInterval(poll);
             
-            // Send data for one last time
+            //If backtest stops suddenly, a message must be sent to the UI
+            //about unexpected error
+            if(!juliaError && backtestData && Object.keys(backtestData).length == 0) {
+                const dataJSON = {messagetype:"ERROR", outputtype: "log", message:"Internal Exception"};
+                outputData[backtestId].push(dataJSON);
+            }
+
+            // Send data to th UI for one last time
             sendData(res, backtestId);
 
             // Update the connection status
@@ -348,6 +355,8 @@ function execBacktest(backtestId, conn, res, cb) {
                         cb(null, conn, {output: backtestData, status:status});
                     }
                     else {
+                        // This gets triggered when no performance data comes
+                        // and backtest finishes
                         cb(null, conn, {status:"exception"});
                     }
                 }
