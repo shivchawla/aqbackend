@@ -15,7 +15,6 @@ const spawn = require('child_process').spawn;
 /*var conn = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
 console.log("Starting Julia server at " + conn);
 
-<<<<<<< HEAD
 try {
     spawn('/Applications/Julia-0.5.app/Contents/Resources/julia/bin/julia',
                     ["./utils/julia/julia_server.jl", config.get('julia_server_port'), config.get('julia_server_host')]);
@@ -36,7 +35,7 @@ for(var machine of config.get('ftmachines')) {
 }
 
 var server = '';
-if(process.env.NODE_ENV === 'development') {
+if(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging') {
     server = require('http').createServer(app);
 } else {
 

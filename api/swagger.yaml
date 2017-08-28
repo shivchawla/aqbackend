@@ -18,9 +18,9 @@ tags:
   description: "operations about thread"
 - name: "strategy"
   description: "operation about strategy"
-- name: backtest
+- name: "backtest"
   description: operations on backtest
-- name: forwardtest
+- name: "forwardtest"
   description: operations on forwardtest
 - name: "advisor"
   description: "operations on advisor"
@@ -1914,7 +1914,6 @@ paths:
         required: true
         default: "priceHistory"
         enum: ['priceHistory', 'staticPerformance', 'rollingPerformance']
-
       responses:
         200:
           description: "get stock performance detail"
@@ -2102,7 +2101,7 @@ definitions:
     - threadId
     properties:
       threadId:
-        type: string
+        type: string      
 
 #Security
   Security:
@@ -2234,7 +2233,4 @@ definitions:
   Advisor:
     type: object
       
-     
-externalDocs:
-  description: "Find out more about Swagger"
-  url: "http://swagger.io"
+ 
