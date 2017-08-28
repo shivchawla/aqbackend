@@ -12,15 +12,15 @@ const config = require('config');
 const WebSocketServer = require('ws').Server;
 const spawn = require('child_process').spawn;
 
-/*var conn = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+var conn = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
 console.log("Starting Julia server at " + conn);
-
 try {
-    spawn('/Applications/Julia-0.5.app/Contents/Resources/julia/bin/julia',
-                    ["./utils/julia/julia_server.jl", config.get('julia_server_port'), config.get('julia_server_host')]);
+    spawn(config.get('julia_exe'),
+                    ["./utils/julia/julia_server.jl", config.get('julia_server_port'), config.get('julia_server_host')],
+                        {stdio: ['pipe', 'pipe', process.stderr]});
 } catch(err) {
     console.log(err);
-}*/
+}
 
 for(var machine of config.get('btmachines')) {
     var conn = 'ws://' + machine.host + ":" + machine.port;
