@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-07-05 21:31:57
+* @Last Modified time: 2017-08-29 13:55:12
 */
 
 'use strict';
@@ -27,8 +27,12 @@ const SecurityPerformance = new Schema({
 	staticPerformance: {
 		updatedDate: Date, 
 		detail: Schema.Types.Mixed,
-	}
+	},
 
+	latestDetail :{
+		updatedDate: Date,
+		values: Schema.Types.Mixed,
+	}
 });
 
 
@@ -86,9 +90,17 @@ SecurityPerformance.statics.updateStaticPerformance = function(query, staticPerf
 	})
 };
 
+SecurityPerformance.statics.updateLatestDetail = function(query, latestDetail) {
+	return this.findOne(query)
+	.then(securityPerformance => {
+		securityPerformance["latestDetail"] = {values: latestDetail, updatedDate: new Date()};
+		return securityPerformance.save();	
+	})
+};
+
 SecurityPerformance.statics.fetchPerformance = function(query) {
 	return this.findOne(query)
-	.select('security rollingPerformance staticPerformance')
+	.select('security rollingPerformance staticPerformance latestDetail')
 	.execAsync();
 };
 
@@ -107,6 +119,12 @@ SecurityPerformance.statics.fetchRollingPerformance = function(query) {
 SecurityPerformance.statics.fetchPriceHistory = function(query) {
 	return this.findOne(query)
 	.select('security priceHistory')
+	.execAsync();
+};
+
+SecurityPerformance.statics.fetchLatestDetail = function(query) {
+	return this.findOne(query)
+	.select('security latestDetail')
 	.execAsync();
 };
 

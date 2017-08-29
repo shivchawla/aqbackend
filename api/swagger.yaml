@@ -30,6 +30,8 @@ tags:
   description: "operations on advice"
 - name: "stock"
   description: "operations on stock"
+- name: "watchlist"
+  description: "operations on watchlist"
 
   externalDocs:
     description: "Find out more about us"
@@ -1913,7 +1915,7 @@ paths:
         type: string
         required: true
         default: "priceHistory"
-        enum: ['priceHistory', 'staticPerformance', 'rollingPerformance']
+        enum: ['priceHistory', 'staticPerformance', 'rollingPerformance', 'latestDetail']
       responses:
         200:
           description: "get stock performance detail"
@@ -1922,6 +1924,120 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Stock"
+
+  /watchlist:
+    post:
+      tags:
+        - watchlist
+      summary: create a watchlist
+      description: create a watchlist
+      operationId: createWatchlist
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: header
+        description: "auth token"
+        type: string
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: "#/definitions/Watchlist"
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Watchlist"
+
+  /watchlist/{watchlistId}:
+    get:
+      tags:
+      - watchlist
+      summary: Get stock watchlist
+      description: retrieve stock watchlist
+      operationId: getWatchlist
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: string
+        required: true
+      - name: watchlistId
+        in: path
+        required: true
+        type: string
+      responses:
+        200:
+          description: "get watchlist"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Watchlist"
+    
+    put:
+      tags:
+      - watchlist
+      summary: Update stock watchlist
+      description: Update stock watchlist
+      operationId: updateWatchlist
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: string
+        required: true
+      - name: watchlistId
+        in: path
+        required: true
+        type: string
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Watchlist'
+      responses:
+        200:
+          description: "updated watchlist"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Watchlist"
+
+    delete:
+      tags:
+      - watchlist
+      summary: Delete stock watchlist
+      description: delete stock watchlist
+      operationId: deleteWatchlist
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: string
+        required: true
+      - name: watchlistId
+        in: path
+        required: true
+        type: string
+      responses:
+        200:
+          description: "delete watchlist"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Watchlist"
      
 securityDefinitions:
   api_key:
@@ -2232,5 +2348,18 @@ definitions:
 # Advisor definitions
   Advisor:
     type: object
-      
+
+# Watchlist definitions
+  Watchlist:
+    type: object
+    required:
+      - name
+      - securities
+    properties:
+      name:
+        type: string
+      securities:
+        type: array
+        items:
+          $ref: '#/definitions/Security'
  

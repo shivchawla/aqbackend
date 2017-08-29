@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-07-05 21:22:21
+* @Last Modified time: 2017-08-29 11:18:10
 */
 
 'use strict';
@@ -82,6 +82,22 @@ function _checkIfStockPriceHistoryUpdateRequired(history) {
     return false;
 }
 
+function _checkIfStockLatestDetailUpdateRequired(detail) {
+	if (!detail) {
+		return true;
+	}
+
+	if(detail && detail.updatedDate) {
+        if(getDate(new Date()) > getDate(detail.updatedDate)) {
+        	return true;
+        }
+    } else {
+    	return true;
+    }
+
+    return false;
+}
+
 exports.getStockDetail = function(args, res, next) {
 
 	const ticker = args.ticker.value;
@@ -117,7 +133,10 @@ exports.getStockDetail = function(args, res, next) {
 			return getStockStaticPerformance(res, q, security);
 		} else if (field == "rollingPerformance") {
 			return getStockRollingPerformance(res, q, security);
+		} else if (field == "latestDetail") {
+			return getStockLatestDetail(res, q, security);
 		}
+
 	});
 };
 
@@ -159,7 +178,6 @@ function getStockPriceHistory(res, q, security) {
 		return res.status(400).send(err.message);
 	})
 };
-
 
 function getStockRollingPerformance(res, q, security) {
 
@@ -203,7 +221,6 @@ function getStockRollingPerformance(res, q, security) {
 	})
 }
 
-
 function getStockStaticPerformance(res, q, security) {
 
 	/*const ticker = args.ticker.value;
@@ -231,6 +248,31 @@ function getStockStaticPerformance(res, q, security) {
 	.then(([updated, securityPerformance]) => {
 		if(updated) {
 			return SecurityPerformanceModel.fetchStaticPerformance(q);
+		} else {
+			return securityPerformance;//{security: security, staticPerformance: performance};
+		}
+	})
+	.then(securityPerformance => {
+		return res.status(200).json(securityPerformance);
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
+};
+
+function getStockLatestDetail(res, q, security) {
+	SecurityPerformanceModel.fetchLatestDetail(q)
+	.then(securityPerformance => {
+		var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
+		if(update) {
+			return Promise.all([true, HelperFunctions.updateStockLatestDetail(q, security)]);
+		} else {
+			return [false, securityPerformance];
+		}
+	})
+	.then(([updated, securityPerformance]) => {
+		if(updated) {
+			return SecurityPerformanceModel.fetchLatestDetail(q);
 		} else {
 			return securityPerformance;//{security: security, staticPerformance: performance};
 		}

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-07-05 21:03:49
+* @Last Modified time: 2017-08-29 11:48:24
 */
 
 'use strict';
@@ -677,6 +677,49 @@ exports.updateStockPriceHistory = function(q, security) {
     })
     .then(priceHistory => {
     	return SecurityPerformanceModel.updatePriceHistory(q, priceHistory);
+    });
+};
+
+exports.updateStockLatestDetail = function(q, security) {
+	return new Promise((resolve, reject) => {
+
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
+
+		wsClient.on('open', function open() {
+            console.log('Connection Open');
+            console.log(connection);
+            var msg = JSON.stringify({action:"compute_stock_price_latest", 
+            						security: security});
+
+            console.log(security);
+
+         	wsClient.send(msg);
+        });
+
+        wsClient.on('message', function(msg) {
+        	console.log('On validation message');
+        	console.log(msg);
+
+        	var data = JSON.parse(msg);
+			
+			console.log(data);
+        	
+        	wsClient.close();
+
+        	if (data["error"] == "" && data["latestDetail"]) {
+			    resolve(data["latestDetail"]);
+		    } else {
+		    	resolve(null)
+		    }
+	    });
+    })
+    .then(latestDetail => {
+    	if(latestDetail) {
+    		return SecurityPerformanceModel.updateLatestDetail(q, latestDetail);
+		} else {
+			APIError.throwJsonError({msg: "Error in computation. Stock latest detail can't be updated"});
+		}
     });
 };
 

@@ -192,6 +192,20 @@ end
                 end
               
                 parsemsg["error"] = error
+                
+            elseif action == "compute_stock_price_latest"
+                try
+                  security = convert(Raftaar.Security, parsemsg["security"])
+                  latestPriceDetail = get_stock_price_latest(security)
+                  
+                  parsemsg["latestDetail"] = latestPriceDetail
+ 
+                 catch err
+                  println(err)
+                  error = "error"
+                end
+              
+                parsemsg["error"] = error                
             elseif action == "compute_stock_rolling_performance"
                 try
                   security = convert(Raftaar.Security, parsemsg["security"])

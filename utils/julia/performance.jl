@@ -107,6 +107,33 @@ function get_stock_price_history(security::Security)
     return (stock_value[security.symbol.ticker].timestamp, stock_value[security.symbol.ticker].values) 
 end
 
+function get_stock_price_latest(security::Security)
+    end_date = Date(now())
+    start_date = end_date - Dates.Week(52)
+
+    stock_value_52w = history(security.symbol.id, ["Open","High","Low","Close"], :Day, DateTime(start_date), DateTime(end_date))
+    output = Dict{String, Any}() 
+
+    if(length(stock_value_52w.values) > 0)
+        
+        highs = stock_value_52w["High"].values
+        lows = stock_value_52w["Low"].values 
+        
+        output["High_52w"] = maximum(highs)
+        output["Low_52w"] = minimum(lows)
+
+        output["Low"] = stock_value_52w["Low"].values[end]
+        output["High"] = stock_value_52w["High"].values[end]
+        output["Open"] = stock_value_52w["Open"].values[end]
+        output["Close"] = stock_value_52w["Close"].values[end]
+        output["Date"] = string(Date(stock_value_52w.timestamp[end]))
+        output["Change"] = round(percentchange(stock_value_52w["Close"]).values[end] * 100.0, 2)
+    end
+
+    return output
+    
+end
+
 #=function compute_performance_portfolio_history(portfolioHistory, benchmark)
     (netValues, dates) = compute_portfolio_value_history(portfolioHistory)
 
