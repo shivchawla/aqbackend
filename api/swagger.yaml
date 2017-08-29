@@ -1951,6 +1951,34 @@ paths:
         400:
           description: 'Invalid input'
       x-swagger-router-controller: "Watchlist"
+    
+    get:
+      tags:
+        - watchlist
+      summary: get all watchlists for a user
+      description: get all watchlist for a user
+      operationId: getAllWatchlists
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: header
+        description: "auth token"
+        type: string
+        required: true
+      - name: name
+        in: query
+        type: string
+        required: false
+        description: "watchlist name"
+      responses:
+        200:
+          description: OK
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Watchlist"
 
   /watchlist/{watchlistId}:
     get:
@@ -2349,6 +2377,19 @@ definitions:
   Advisor:
     type: object
 
+# Security-Time (for watchlist)
+  SecurityTime:
+    type: object
+    required:
+      - updatedAt
+      - security
+    properties:
+      updatedAt:
+        type: string
+        format: date
+      security:
+        $ref: '#/definitions/Security'
+
 # Watchlist definitions
   Watchlist:
     type: object
@@ -2361,5 +2402,5 @@ definitions:
       securities:
         type: array
         items:
-          $ref: '#/definitions/Security'
- 
+          $ref: '#/definitions/SecurityTime'
+

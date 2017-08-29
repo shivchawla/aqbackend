@@ -38,6 +38,27 @@ exports.createWatchlist = function(args, res, next) {
     })
 };
 
+exports.getAllWatchlists = function(args, res, next) {
+	const userId = args.user._id;
+	var query = {user: userId, deleted: false};
+	
+	if(args.name && args.name.value) {
+		query.name = args.name.value;
+	} 
+
+	WatchlistModel.fetchAllWatchlists(query)
+	.then(watchlists => {
+		if(watchlists) {
+			return res.status(200).json(watchlists);
+		} else {
+			APIError.throwJsonError({user: userId, message:"Not authorized or not present"});
+		}
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
+};
+
 exports.getWatchlist = function(args, res, next) {
 	const userId = args.user._id;
 	const watchlistId = args.watchlistId.value;
@@ -67,7 +88,7 @@ exports.updateWatchlist = function(args, res, next) {
     })
     .then(flags => {
     	if(flags.indexOf(false) == -1) {
-			return WatchlistModel.updateWatchlist({_id: watchlistId, user: userId, deleted: false}, updates)
+			return WatchlistModel.updateWatchlist({_id: watchlistId, user: userId}, updates)
 		} else {
 			var idx = flags.indexOf(false);
     		APIError.throwJsonError({security: securities[idx], message:"Security not found"});

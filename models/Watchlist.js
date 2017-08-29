@@ -22,12 +22,17 @@ const Watchlist = new Schema({
     
     deleted: {
         type: Boolean,
-        value: false,
+        default: false
     },
 
     deletedAt: Date,
 
-    securities: [Security],
+    securities: [{updatedAt: Date, security: Security}],
+});
+
+Watchlist.index({
+    user: 1,
+    name: 1
 });
 
 Watchlist.statics.saveWatchlist = function(watchlistDetails) {
@@ -38,6 +43,10 @@ Watchlist.statics.saveWatchlist = function(watchlistDetails) {
 
 Watchlist.statics.fetchWatchlist = function(query) {
     return this.findOne(query).execAsync();
+};
+
+Watchlist.statics.fetchAllWatchlists = function(query) {
+    return this.find(query).execAsync();
 };
 
 Watchlist.statics.addWatchlist = function(query, security) {
@@ -61,7 +70,7 @@ Watchlist.statics.addWatchlist = function(query, securities) {
 Watchlist.statics.updateWatchlist = function(query, updates) {
     return this.findOne(query)
     .then(watchlist => {
-        if (watchlist) {
+        if (watchlist && !watchlist.deleted) {
             const keys = Object.keys(updates);
             keys.forEach(key => {
                 watchlist[key] = updates[key];
