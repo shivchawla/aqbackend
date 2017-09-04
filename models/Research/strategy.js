@@ -1,5 +1,5 @@
 'use strict';
-const mongoose = require('./index');
+const mongoose = require('../index');
 const Schema = mongoose.Schema;
 const Strategy = new Schema({
     name: {

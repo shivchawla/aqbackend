@@ -2,11 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-08-29 13:55:12
+* @Last Modified time: 2017-09-04 12:40:05
 */
 
 'use strict';
-const mongoose = require('./index');
+const mongoose = require('../index');
 const Schema = mongoose.Schema;
 
 const Security = require('./Security');

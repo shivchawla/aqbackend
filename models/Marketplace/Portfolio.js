@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-07-01 13:15:04
+* @Last Modified time: 2017-09-04 13:54:32
 */
 
 'use strict';
@@ -11,7 +11,7 @@ const Transaction = require('./Transaction');
 const Security = require('./Security');
 const Performance = require('./Performance');
 
-const mongoose = require('./index');
+const mongoose = require('../index');
 const Schema = mongoose.Schema;
 
 const Portfolio = new Schema({

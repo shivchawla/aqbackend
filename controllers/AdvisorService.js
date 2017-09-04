@@ -2,14 +2,14 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-07-03 16:05:11
+* @Last Modified time: 2017-09-04 12:41:03
 */
 
 'use strict';
-const AdvisorModel = require('../models/Advisor');
-const InvestorModel = require('../models/Investor');
+const AdvisorModel = require('../models/Marketplace/Advisor');
+const InvestorModel = require('../models/Marketplace/Investor');
 const UserModel = require('../models/user');
-const AdviceModel = require('../models/Advice');
+const AdviceModel = require('../models/Marketplace/Advice');
 const APIError = require('../utils/error');
 const Promise = require('bluebird');
 

@@ -2,16 +2,16 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-08-29 11:48:24
+* @Last Modified time: 2017-09-04 13:56:52
 */
 
 'use strict';
-const AdvisorModel = require('../../models/Advisor');
-const InvestorModel = require('../../models/Investor');
-const AdviceModel = require('../../models/Advice');
-const PortfolioModel = require('../../models/Portfolio');
+const AdvisorModel = require('../../models/Marketplace/Advisor');
+const InvestorModel = require('../../models/Marketplace/Investor');
+const AdviceModel = require('../../models/Marketplace/Advice');
+const PortfolioModel = require('../../models/Marketplace/Portfolio');
 const UserModel = require('../../models/user');
-const SecurityPerformanceModel = require('../../models/SecurityPerformance');
+const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
 const APIError = require('../../utils/error');
 const config = require('config');
 const WebSocket = require('ws'); 

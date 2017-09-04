@@ -2,14 +2,14 @@
 * @Author: Shiv Chawla
 * @Date:   2017-06-29 16:28:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-07-01 12:03:53
+* @Last Modified time: 2017-09-04 13:53:25
 */
 
 'use strict';
 const config = require('config');
 const WebSocket = require('ws'); 
-const InvestorModel = require('../../models/Investor');
-const AdviceModel = require('../../models/Advice');
+const InvestorModel = require('../Marketplace/Investor');
+const AdviceModel = require('../Marketplace/Advice');
 const Promise = require('bluebird');
 
 function computePerformance(portfolioHistory, benchmark) {

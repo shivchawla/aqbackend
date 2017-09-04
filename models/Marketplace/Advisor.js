@@ -2,17 +2,17 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-06-29 15:02:22
+* @Last Modified time: 2017-09-04 13:54:55
 */
 'use strict';
 
-const mongoose = require('./index');
+const mongoose = require('../index');
 const Schema = mongoose.Schema;
 
 const PerformanceMetrics = require('./PerformanceMetrics');
 const PortfolioStats = require('./PortfolioStats');
 const Performance = require('./Performance');
-const User = require('./user');
+const User = require('../user');
 
 const Advisor = new Schema({
    

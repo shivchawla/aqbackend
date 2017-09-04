@@ -63,7 +63,7 @@ function ondata(data, state)
 	topnames = sortedrets[1:5, 1]
 
 	#Liquidate from portfolio if not in bottom 5 anymore
-	for (stock, positions) in state.portfolio.positions
+	for (stock, positions) in state.account.portfolio.positions
 		if (stock.ticker in topnames)
 			continue
 		else	

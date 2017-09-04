@@ -1,6 +1,6 @@
 'use strict';
-const ThreadModel = require('../models/thread');
-const BacktestModel = require('../models/backtest');
+const ThreadModel = require('../models/Research/thread');
+const BacktestModel = require('../models/Research/backtest');
 
 exports.createThread = function(args, res, next) {
     const user = args.user;

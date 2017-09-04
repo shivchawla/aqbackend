@@ -2,11 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-08-29 11:18:10
+* @Last Modified time: 2017-09-04 12:42:14
 */
 
 'use strict';
-const SecurityPerformanceModel = require('../models/SecurityPerformance');
+const SecurityPerformanceModel = require('../models/Marketplace/SecurityPerformance');
 const Promise = require('bluebird');
 const config = require('config');
 const HelperFunctions = require("./helpers");
@@ -264,6 +264,7 @@ function getStockLatestDetail(res, q, security) {
 	SecurityPerformanceModel.fetchLatestDetail(q)
 	.then(securityPerformance => {
 		var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
+		console.log("Update Required: " + update);
 		if(update) {
 			return Promise.all([true, HelperFunctions.updateStockLatestDetail(q, security)]);
 		} else {

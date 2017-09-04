@@ -2,10 +2,10 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-06-30 14:53:09
+* @Last Modified time: 2017-09-04 13:47:04
 */
 'use strict';
-const mongoose = require('./index');
+const mongoose = require('../index');
 const Schema = mongoose.Schema;
 
 const Portfolio = require('./Portfolio');
@@ -13,7 +13,7 @@ const Security = require('./Security');
 const Transaction = require('./Transaction');
 const Performance = require('./Performance');
 const Advisor = require('./Advisor');
-const HelperFunctions = require("./helper");
+const HelperFunctions = require("../helper");
 
 //const Promise = require('bluebird');
 

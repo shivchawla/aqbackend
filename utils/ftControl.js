@@ -3,7 +3,7 @@ const CryptoJS = require('crypto-js');
 const config = require('config');
 const WebSocket = require('ws');
 const schedule = require('node-schedule');
-const ForwardTestModel = require('../models/forwardtest');
+const ForwardTestModel = require('../models/Research/forwardtest');
 
 var isBusy = {};
 

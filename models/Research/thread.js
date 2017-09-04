@@ -1,6 +1,6 @@
 'use strict';
 
-const mongoose = require('./index');
+const mongoose = require('../index');
 const Schema = mongoose.Schema;
 const Promise = require('bluebird');
 const EmbedThread = new Schema({

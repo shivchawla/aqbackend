@@ -3,8 +3,8 @@ const redisUtils = require('../utils/RedisUtils');
 const CryptoJS = require('crypto-js');
 const config = require('config');
 const WebSocket = require('ws');
-const BacktestModel = require('../models/backtest');
-const StrategyModel = require('../models/strategy');
+const BacktestModel = require('../models/Research/backtest');
+const StrategyModel = require('../models/Research/strategy');
 const schedule = require('node-schedule');
 
 schedule.scheduleJob("0 * * * * *", function() {

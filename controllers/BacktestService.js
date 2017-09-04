@@ -1,7 +1,7 @@
 'use strict';
 require('../utils/spawn');
-const BacktestModel = require('../models/backtest');
-const StrategyModel = require('../models/strategy');
+const BacktestModel = require('../models/Research/backtest');
+const StrategyModel = require('../models/Research/strategy');
 var CryptoJS = require("crypto-js");
 const config = require('config');
 

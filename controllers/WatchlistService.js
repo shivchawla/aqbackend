@@ -1,5 +1,5 @@
 
-const WatchlistModel = require('../models/watchlist');
+const WatchlistModel = require('../models/Marketplace/Watchlist');
 const Promise = require('bluebird');
 const APIError = require('../utils/error');
 
