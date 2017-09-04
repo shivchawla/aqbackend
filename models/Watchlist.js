@@ -30,10 +30,7 @@ const Watchlist = new Schema({
     securities: [{updatedAt: Date, security: Security}],
 });
 
-Watchlist.index({
-    user: 1,
-    name: 1
-});
+Watchlist.index({user: 1,name: 1}, {unique:true});
 
 Watchlist.statics.saveWatchlist = function(watchlistDetails) {
     const watchlist = new this(watchlistDetails);

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-07-03 17:45:56
+* @Last Modified time: 2017-09-04 11:45:19
 */
 
 'use strict';
@@ -217,13 +217,19 @@ exports.createInvestorPortfolio = function(args, res, next) {
 	})
 	.then(portfolio => {
 		if(portfolio) {
-			return InvestorModel.addPortfolio({_id: investorId, user:userId}, portfolio._id);
+			return Promise.all([portfolio, InvestorModel.addPortfolio({_id: investorId, user:userId}, portfolio._id)]);
 		} else {
 			APIError.throwJsonError({msg: "Unable to create Portfolio"});
 		}
 	})
-    .then(investor => {
-    	return res.status(200).json(investor);
+    .then(([portfolio, investor]) => {
+    	if(investor && portfolio) {
+    		const pf = JSON.parse(JSON.stringify(portfolio));
+    		pf["investor"] = investor._id;
+    		return res.status(200).json(pf);
+		} else {
+			APIError.throwJsonError({msg: "Could not create portfolio for investor"});
+		}
     })
 	.catch(err => {
     	return res.status(400).send(err.message);
