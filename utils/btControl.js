@@ -182,7 +182,7 @@ function processBacktest(connection) {
                 console.error(err);
 
                 // Let's put it's status to pending
-                updateBacktestResult(backtestId, {status: "pending"});
+                updateBacktestResult(backtestId, {status: "exception"});
             }
             else if(data.status === "exception") {
                 // Some error occured in the processing of backtest
@@ -339,7 +339,8 @@ function execBacktest(backtestId, conn, res, cb) {
             }
 
             // Send data to th UI for one last time
-            sendData(res, backtestId);
+            //AND REMOVE from the redis queue
+            sendLastAndRemoveData(res, backtestId);
 
             // Update the connection status
             if (code === 1000) {
@@ -397,6 +398,31 @@ function sendData(res, backtestId) {
             }
         }
     }
+}
+
+// Send backtest output to front-end
+function sendLastAndRemoveData(res, backtestId) {
+
+    if(res) {
+        var dataArray = outputData[backtestId];
+
+        if (dataArray && dataArray.length > 0) {
+            //Check if subscription is TRUE for the backtestId
+            if (subscribed[backtestId]) {
+                // Check if connection is OPEN
+                if (res.readyState === WebSocket.OPEN) {
+                    res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));
+                } else {
+                    console.log("WebSocket is closed");
+                    subscribed[backtestId] = false;
+                }
+            }
+        }
+    }
+
+    //expire key in 5 seconds
+    redisUtils.setDataExpiry(backtestId + '-data', 5);
+
 }
 
 // Save backtest data to databse

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-09-04 15:52:51
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-04 19:25:46
+* @Last Modified time: 2017-09-05 11:15:14
 */
 const Promise = require('bluebird');
 const mongoose = require('../index');
@@ -36,6 +36,10 @@ Performance.statics.savePerformance = function(perf) {
 };
 
 PortfolioHistory.statics.savePortfolioHistory = function(history) {
+    if (!history) {
+    	return null;
+    }
+
     var keys = Object.keys(history);
     var nHistory = new Array(keys.length);
     var i = 0; 
@@ -57,6 +61,10 @@ PortfolioHistory.statics.savePortfolioHistory = function(history) {
 };
 
 TransactionHistory.statics.saveTransactionHistory = function(history) {
+	if (!history) {
+    	return null;
+	}
+    
     var keys = Object.keys(history);
     var nHistory = new Array(keys.length);
     var i = 0; 
