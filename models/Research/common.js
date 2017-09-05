@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-09-04 15:52:51
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-05 11:15:14
+* @Last Modified time: 2017-09-05 16:32:27
 */
 const Promise = require('bluebird');
 const mongoose = require('../index');
@@ -25,10 +25,7 @@ const TransactionHistory = new Schema({
 });
 
 Logs.statics.saveLogs = function(logs) {
-	console.log(logs);
-	const l = new this({values:logs});
-	console.log(l);
-    return logs ? l.saveAsync() : null;
+    return logs ? (new this({values:logs})).saveAsync() : null;
 };
 
 Performance.statics.savePerformance = function(perf) {

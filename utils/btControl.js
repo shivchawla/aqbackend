@@ -206,6 +206,7 @@ function processBacktest(connection) {
                 // Initiate processing after aysn delete is complete 
                 // Start off with next backtest
                 delete outputData[backtestId];
+                //delete hasOutputDataChanged[backtestId];
                 delete response[backtestId];
                 processBacktest(conn);
             });
@@ -283,6 +284,7 @@ function execBacktest(backtestId, conn, res, cb) {
 
         var juliaError = false;
         outputData[backtestId] = [];
+        //hasOutputDataChanged[backtestId] = false;
 
         btClient = new WebSocket(conn);
 
@@ -296,7 +298,7 @@ function execBacktest(backtestId, conn, res, cb) {
 
             //If valid UI websocket connection
             if(res) {
-                poll = setInterval(function(){sendData(res, backtestId);}, config.get('time_interval_realtime_output'));
+                poll = setInterval(function(){sendData(res, backtestId, false);}, config.get('time_interval_realtime_output'));
             }
 
         });
@@ -312,6 +314,8 @@ function execBacktest(backtestId, conn, res, cb) {
                 }
                 else {
                     outputData[backtestId].push(dataJSON);
+                    //to keep a track if new data has been added
+                    //hasOutputDataChanged[backtestId] = true;
 
                     if(dataJSON.outputtype === 'log') {
                         if(dataJSON.messagetype === "ERROR") {
@@ -340,7 +344,7 @@ function execBacktest(backtestId, conn, res, cb) {
 
             // Send data to th UI for one last time
             //AND REMOVE from the redis queue
-            sendLastAndRemoveData(res, backtestId);
+            sendData(res, backtestId, true);
 
             // Update the connection status
             if (code === 1000) {
@@ -378,51 +382,52 @@ function execBacktest(backtestId, conn, res, cb) {
 }
 
 // Send backtest output to front-end
-function sendData(res, backtestId) {
+function sendData(res, backtestId, final) {
 
     if(res) {
         var dataArray = outputData[backtestId];
-
+        //&& hasOutputDataChanged[backtestId]
         if (dataArray && dataArray.length > 0) {
-            redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(dataArray));
+            
+            //Do we need to save everytime
+            //NO
+            //First get the value from the stored redis
+            //then compare it with new value
+            redisUtils.getValue(backtestId + '-data', function(err, data) {
 
-            //Check if subscription is TRUE for the backtestId
-            if (subscribed[backtestId]) {
-                // Check if connection is OPEN
-                if (res.readyState === WebSocket.OPEN) {
-                    res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));
-                } else {
-                    console.log("WebSocket is closed");
-                    subscribed[backtestId] = false;
+                var updateRequired = true;
+                if(data) {
+                    var parsedData = JSON.parse(data);
+
+                    if (parsedData.length == outputData[backtestId].length) {
+                        updateRequired = false;
+                    }
                 }
-            }
+                
+                if(updateRequired) {
+                    
+                    if(!final) {
+                        redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(dataArray));
+                    } else {
+                        redisUtils.setDataExpiry(backtestId + '-data', 5);
+                    }
+
+                    //Check if subscription is TRUE for the backtestId
+                    if (subscribed[backtestId]) {
+                        // Check if connection is OPEN
+                        if (res.readyState === WebSocket.OPEN) {
+                            updateBacktestResult(backtestId, {realtimeOutput: dataArray});
+                            //res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));
+                            res.send(JSON.stringify({update:1, backtestId: backtestId}));
+                        } else {
+                            console.log("WebSocket is closed");
+                            subscribed[backtestId] = false;
+                        }
+                    }
+                }
+            });
         }
     }
-}
-
-// Send backtest output to front-end
-function sendLastAndRemoveData(res, backtestId) {
-
-    if(res) {
-        var dataArray = outputData[backtestId];
-
-        if (dataArray && dataArray.length > 0) {
-            //Check if subscription is TRUE for the backtestId
-            if (subscribed[backtestId]) {
-                // Check if connection is OPEN
-                if (res.readyState === WebSocket.OPEN) {
-                    res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));
-                } else {
-                    console.log("WebSocket is closed");
-                    subscribed[backtestId] = false;
-                }
-            }
-        }
-    }
-
-    //expire key in 5 seconds
-    redisUtils.setDataExpiry(backtestId + '-data', 5);
-
 }
 
 // Save backtest data to databse

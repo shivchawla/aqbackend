@@ -71,6 +71,8 @@ const Backtest = new Schema({
         }],
     },
 
+    realtimeOutput: Schema.Types.Mixed,
+
     createdAt: Date,
     updatedAt: Date
 });
@@ -88,14 +90,18 @@ Backtest.statics.fetchBacktest = function(query, options) {
         q = q.select(options.select);
     }
 
-    if((options.select && options.select.indexOf('output') != -1) || !options.select) {
-            q = q.populate('output.performance')
-                .populate('output.logs')
-                .populate('output.portfolioHistory')
-                .populate('output.transactionHistory');
-        }
+    if((options.select && options.select.indexOf(' output') != -1) || !options.select) {
+        q = q.populate('output.performance')
+            .populate('output.logs')
+            .populate('output.portfolioHistory')
+            .populate('output.transactionHistory');
+    }
 
-    return q.populate('strategy', 'user').execAsync();
+    if(!(options.select && options.select.indexOf('realtimeOutput') != -1)) {
+        q = q.populate('strategy', 'user');
+    }
+
+    return q.execAsync();
 };
 
 Backtest.statics.fetchBacktests = function(query, options) {
