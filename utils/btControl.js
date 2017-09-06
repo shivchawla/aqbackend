@@ -28,6 +28,9 @@ var subscribed = {};
 // Response dictionary for each backtest
 var response = {};
 
+//Dict to record currently running backtest
+var currentlyRunning = {};
+
 /* =====================================
         SUBSCRIPTION CONTROLLER
 ===================================== */
@@ -162,14 +165,21 @@ function processBacktest(connection) {
         });
 
         // Pop the top priority element from queue
-        req = popTopPriority(queue);
-        backtestId = req.backtestId;
-
+        var topOfTheQueue = popTopPriority(queue);        
+        //If there is nothing more to run (req is NULL)
+        if(!topOfTheQueue) {
+            return;
+        }
+    
+        backtestId = topOfTheQueue.backtestId;
+        
         try {
             res = response[backtestId];
         } catch(err) {
             console.log("Valid UI Websocket not available for this backtest");
         }
+
+        currentlyRunning[backtestId] = true;
 
         // Send this backtest request for execution
         execBacktest(backtestId, server, res, function(err, conn, data) {
@@ -206,8 +216,8 @@ function processBacktest(connection) {
                 // Initiate processing after aysn delete is complete 
                 // Start off with next backtest
                 delete outputData[backtestId];
-                //delete hasOutputDataChanged[backtestId];
                 delete response[backtestId];
+                delete currentlyRunning[backtestId];
                 processBacktest(conn);
             });
         });
@@ -498,7 +508,16 @@ function popTopPriority(arr) {
         // Larger the date range, lower the priority
     });
 
-    return arr.shift();
+    var top = arr.shift();
+
+    if(!(top.backtestId in currentlyRunning)) {
+        return top;   
+    } else if (arr.length > 0) {
+        return popTopPriority(arr);
+    } else {
+        return null;
+    }
+
 }
 
 module.exports = {
