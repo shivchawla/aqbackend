@@ -416,9 +416,21 @@ function sendData(res, backtestId, final) {
                     if (subscribed[backtestId]) {
                         // Check if connection is OPEN
                         if (res.readyState === WebSocket.OPEN) {
-                            updateBacktestResult(backtestId, {realtimeOutput: dataArray});
+                            
+                            //fragment the data in chunk of 20
+                            //save only 100 days in one document
+                            var i,j,tempArray,chunk = 20;
+                            var index = 0;
+                            for (i=0,j=dataArray.length; i<j; i+=chunk) {
+                                tempArray = dataArray.slice(i,i+chunk);
+                                // do whatever
+                                res.send(JSON.stringify({data:tempArray, backtestId: backtestId, chunked:true, size: chunk, index:index++}));
+                            }
+
+
+                            //updateBacktestResult(backtestId, {realtimeOutput: dataArray});
                             //res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));
-                            res.send(JSON.stringify({update:1, backtestId: backtestId}));
+                            //res.send(JSON.stringify({update:1, backtestId: backtestId}));
                         } else {
                             console.log("WebSocket is closed");
                             subscribed[backtestId] = false;
@@ -429,6 +441,8 @@ function sendData(res, backtestId, final) {
         }
     }
 }
+
+
 
 // Save backtest data to databse
 function updateBacktestResult(backtestId, data) {
