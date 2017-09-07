@@ -86,22 +86,37 @@ Backtest.statics.fetchBacktest = function(query, options) {
     var q = this.findOne(query);
 
     if(options.select) {
-        options.select = options.select.replace(',', ' ');
-        q = q.select(options.select);
+        var select = options.select.replace(',', ' ');
+        select = select.replace('performance', 'output');
+        select = select.replace('logs', 'output');
+        select = select.replace('portfolioHistory', 'output');
+        select = select.replace('transactionHistory', 'output');
+        q = q.select(select);
     }
 
+    //by default send only the performance (as defult output)
     if((options.select && options.select.indexOf(' output') != -1) || !options.select) {
-        q = q.populate('output.performance')
-            .populate('output.logs')
-            .populate('output.portfolioHistory')
-            .populate('output.transactionHistory');
+        q = q.populate('output.performance');
     }
 
-    if(!(options.select && options.select.indexOf('realtimeOutput') != -1)) {
-        q = q.populate('strategy', 'user');
+    if((options.select && options.select.indexOf('performance') != -1)) {
+        q = q.populate('output.performance');
     }
 
-    return q.execAsync();
+    if((options.select && options.select.indexOf('logs') != -1)) {
+        q = q.populate('output.logs');
+    }
+
+    if((options.select && options.select.indexOf('portfolioHistory') != -1)) {
+        q = q.populate('output.portfolioHistory');
+    }
+
+    if((options.select && options.select.indexOf('transactionHistory') != -1)) {
+        q = q.populate('output.transactionHistory');
+    }
+  
+    return q.populate('strategy', 'user').execAsync();
+
 };
 
 Backtest.statics.fetchBacktests = function(query, options) {

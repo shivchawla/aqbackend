@@ -78,12 +78,13 @@ exports.getBackTest = function(args, res, next) {
     }, options)
     .then(bt => {
         if(bt) {
-            if(bt.shared || bt.strategy.user.toString() == userId.toString()) {
-                bt.code = CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
-                res.status(200).json(bt);
-            } else {
-                res.status(400).json({id:backtestId, message:"BacktestId doesn't exist for the user"});
-            }
+            if(bt.code) {
+                if(bt.shared || bt.strategy.user.toString() == userId.toString()) {
+                    bt.code = CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+                } 
+            } 
+            
+            return res.status(200).json(bt);
         } else {
             throw new Error("No Backtest Found");
         }
