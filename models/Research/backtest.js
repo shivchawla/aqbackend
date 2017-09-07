@@ -87,11 +87,11 @@ Backtest.statics.fetchBacktest = function(query, options) {
 
     if(options.select) {
         var select = options.select.replace(',', ' ');
-        select = select.replace('performance', 'output');
-        select = select.replace('logs', 'output');
-        select = select.replace('portfolioHistory', 'output');
-        select = select.replace('transactionHistory', 'output');
-        q = q.select(select);
+        select = select.replace('performance', 'output.performance');
+        select = select.replace('logs', 'output.logs');
+        select = select.replace('portfolioHistory', 'output.portfolioHistory');
+        select = select.replace('transactionHistory', 'output.transactionHistory');
+        q = q.select(select); // 
     }
 
     //by default send only the performance (as defult output)
