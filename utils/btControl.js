@@ -31,6 +31,9 @@ var response = {};
 //Dict to record currently running backtest
 var currentlyRunning = {};
 
+//track the timerId of the backtests
+var backtestTimerId = {};
+
 /* =====================================
         SUBSCRIPTION CONTROLLER
 ===================================== */
@@ -51,16 +54,37 @@ function handleSubscription(req, res) {
         }
         if(bt.status === "completed") {
             // Backtest was already completed
+            console.log("backtest already completed");
             res.send(JSON.stringify(bt.output));
         }
         else {
             // Backtest is till running or will run after some time
             subscribed[backtestId] = true;
+            response[backtestId] = res;
+            //clear timer before setting a new one
+            clearTimer(backtestId);
+
+            //set new timer
+            setTimer(backtestId);
         }
     })
     .catch(err => {
         console.error(err);
     });
+}
+
+function setTimer(backtestId) {
+    //Create timer function to send data to FE
+    if(!(backtestId in backtestTimerId)) {
+        backtestTimerId[backtestId] = setInterval(function(){sendData(backtestId, false);}, config.get('time_interval_realtime_output')); 
+    }
+}
+
+function clearTimer(backtestId) {
+    if(backtestId in backtestTimerId) {
+        clearInterval(backtestTimerId[backtestId]);
+        delete backtestTimerId[backtestId];
+    }
 }
 
 //Function to unsubscribe WS data from backend to UI
@@ -69,6 +93,7 @@ function handleUnsubscription(req) {
     //Call send data
     //Send data automaticaly stops or reject the call if backtest has completed
     subscribed[backtestId] = false;
+    clearTimer(backtestId);
 }
 
 /* =====================================
@@ -290,7 +315,7 @@ function execBacktest(backtestId, conn, res, cb) {
 
         // TO DO: Progressively try to make connections with open julia process
         // create a string to bool dictioanry
-        var btClient, backtestData = '', poll;
+        var btClient, backtestData = '';
 
         var juliaError = false;
         outputData[backtestId] = [];
@@ -308,7 +333,9 @@ function execBacktest(backtestId, conn, res, cb) {
 
             //If valid UI websocket connection
             if(res) {
-                poll = setInterval(function(){sendData(res, backtestId, false);}, config.get('time_interval_realtime_output'));
+                //Create timer function to send data to FE
+                setTimer(backtestId);
+                //poll = setInterval(function(){sendData(backtestId, false);}, config.get('time_interval_realtime_output'));
             }
 
         });
@@ -343,7 +370,7 @@ function execBacktest(backtestId, conn, res, cb) {
         btClient.on('close', function close(code) {
             console.log('Connection Closed');
             console.log(conn);
-            clearInterval(poll);
+            clearTimer(backtestId);
             
             //If backtest stops suddenly, a message must be sent to the UI
             //about unexpected error
@@ -354,7 +381,7 @@ function execBacktest(backtestId, conn, res, cb) {
 
             // Send data to th UI for one last time
             //AND REMOVE from the redis queue
-            sendData(res, backtestId, true);
+            sendData(backtestId, true);
 
             // Update the connection status
             if (code === 1000) {
@@ -392,9 +419,10 @@ function execBacktest(backtestId, conn, res, cb) {
 }
 
 // Send backtest output to front-end
-function sendData(res, backtestId, final) {
-
-    if(res) {
+function sendData(backtestId, final) {
+    if(backtestId in response) {
+        //Retrieve the  websocket response variable for the backtestId
+        var res = response[backtestId];
         var dataArray = outputData[backtestId];
         //&& hasOutputDataChanged[backtestId]
         if (dataArray && dataArray.length > 0) {
@@ -437,7 +465,6 @@ function sendData(res, backtestId, final) {
                                 res.send(JSON.stringify({data:tempArray, backtestId: backtestId, chunked:true, size: chunk, index:index++}));
                             }
 
-
                             //updateBacktestResult(backtestId, {realtimeOutput: dataArray});
                             //res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));
                             //res.send(JSON.stringify({update:1, backtestId: backtestId}));
@@ -449,9 +476,11 @@ function sendData(res, backtestId, final) {
                 }
             });
         }
+    } else {
+        console.log("In Send Data: No response variable");
+        clearTimer(backtestId);
     }
 }
-
 
 
 // Save backtest data to databse
