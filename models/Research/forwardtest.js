@@ -106,16 +106,14 @@ ForwardTest.statics.removeAllBack = function(query) {
 };
 
 ForwardTest.statics.updateForwardTest = function(query, updates) {
-    return this.update(query, updates)
-        .then(forwardtest => {
-            if (forwardtest) {
-                return ({forwardtestId: forwardtest._id, message:"Successfully updated"});
-            }
-        })
-        .catch(err => {
-            console.log("ForwardTest not found");
-            console.log(err);
-        });
+    return this.findOneAndUpdate(query, updates, {new:true})
+    .then(forwardtest => {
+        if (forwardtest) {
+            return ({forwardtestId: forwardtest._id, message:"Successfully updated", active: forwardtest.active});
+        } else {
+            throw new Error("Can't update");
+        }
+    });
 };
 
 const ForwardtestModel = mongoose.model('ForwardTest', ForwardTest, 'forwardtests');
