@@ -34,6 +34,10 @@ var currentlyRunning = {};
 //track the timerId of the backtests
 var backtestTimerId = {};
 
+//Can introduce sent once acnd check this flag before deleting the data
+//LATER
+
+
 /* =====================================
         SUBSCRIPTION CONTROLLER
 ===================================== */
@@ -241,6 +245,7 @@ function processBacktest(connection) {
                 // Initiate processing after aysn delete is complete 
                 // Start off with next backtest
                 delete outputData[backtestId];
+                redisUtils.setDataExpiry(backtestId + '-data', 5);
                 delete response[backtestId];
                 delete currentlyRunning[backtestId];
                 processBacktest(conn);
@@ -444,11 +449,11 @@ function sendData(backtestId, final) {
                 
                 if(updateRequired) {
                     
-                    if(!final) {
+                    ///if(!final) {
                         redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(dataArray));
-                    } else {
+                    /*} else {
                         redisUtils.setDataExpiry(backtestId + '-data', 5);
-                    }
+                    }*/
 
                     //Check if subscription is TRUE for the backtestId
                     if (subscribed[backtestId]) {
