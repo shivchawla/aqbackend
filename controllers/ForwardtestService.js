@@ -145,7 +145,6 @@ exports.updateForwardTest = function(args, res, next) {
 
     ForwardtestModel.fetchForwardTest({_id:forwardtestId}, {})
     .then(forwardtest => {
-        console.log(forwardtest);
         if(forwardtest && forwardtest.strategy.user.equals(userId)) {
             return ForwardtestModel.updateForwardTest({_id: forwardtestId}, updates);
         } else {
@@ -157,7 +156,7 @@ exports.updateForwardTest = function(args, res, next) {
             return res.status(200).json(obj);
         }
     })
-    .catch(err=>{
+    .catch(err => {
         return res.status(400).send(err.message);
         next(err);
     });

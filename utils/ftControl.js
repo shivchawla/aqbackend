@@ -231,10 +231,18 @@ function execForwardTest(forwardtestId, connection, cb) {
 
             //Update the connection status
             if (code === 1000) {
-                cb(null, {serializedData: algorithm, updatedAt: new Date()});
+                //What if algorithm is empty?
+                //this can happen for several reasons (when data connection was broken on 13092017)
+                //and contaminate already serialized data 
+                //Handle here instead in the model
+                if(algorithm && Object.keys(algorithm).length > 0) {
+                    cb(null, {serializedData: algorithm, updatedAt: new Date(), updateMessage:"Successfully updated"});
+                } else {
+                    cb(null, {updatedAt: new Date(), updateMessage: "Test couldn't complete for internal reasons"});
+                }
             }
             else {
-                cb(new Error("Test could not be completed"), {error: true});
+                cb(new Error("Test could not be completed"), {updateMessage:"Test could not be completed", error: true});
             }
         });
     })

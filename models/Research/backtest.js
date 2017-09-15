@@ -167,14 +167,16 @@ Backtest.statics.updateBacktest = function(query, updates) {
             fupdates.output.portfolioHistory = phIds;
         }
 
-        return this.update(query, fupdates)
+        return this.update(query, fupdates);
     }).then(backtest => {
         if (backtest) {
-            return ({backtestId: backtest._id, message:"Successfully updated"}); 
+            //return ({backtestId: backtest._id, message:"Backtest Successfully updated"}); 
+            return ({message:"Backtest Successfully updated"}); 
+        } else {
+            throw new Error("Not updated or not found");
         } 
     })
     .catch(err => {
-        console.log("Backtest not found");
         console.log(err);
     });
 };

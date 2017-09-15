@@ -170,17 +170,22 @@ exports.replyToThread = function(args, res, next) {
         createdAt: new Date(),
         updatedAt: new Date()
     };
-    var backtestQuery = {_id : args.body.value.backtestId}
-    ThreadModel.saveReply({
+    var backtestId = args.body.value.backtestId;
+    var backtestQuery = {_id : backtestId};
+    Promise.all([ThreadModel.saveReply({
         _id: args.threadId.value
-    }, embedThread)
-    .then(thread => {
-        BacktestModel.updateBacktest(backtestQuery,{shared : true})
-            .then(function(updateData){
-                return res.status(200).json(thread);
-            })
+    }, embedThread), (backtestId ? BacktestModel.updateBacktest(backtestQuery, {shared : true}) : true)])
+    .then(([thread, updateData]) => {
+        if(thread && updateData) {
+            return res.status(200).json(thread);
+        } else if (!thread) {
+            throw new Error("Can't add reply");
+        } else if (!updateData) {
+            throw new Error("Attached Backtest not updated");
+        }
     })
     .catch(err => {
+        return res.status(400).send(err.message);
         next(err);
     });
 };
