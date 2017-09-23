@@ -229,7 +229,7 @@ function processBacktest(connection) {
                 console.error("Exception in backtest occured");
 
                 // Let's put it's status to exception
-                updateBacktestResult(backtestId, {status: "exception"});
+                updateBacktestResult(backtestId, data);
             }
             else {
                 // Backtest successfully completed
@@ -396,7 +396,7 @@ function execBacktest(backtestId, conn, res, cb) {
                     if(juliaError) {
                         status = "exception";
                     }
-                    
+
                     if(backtestData && Object.keys(backtestData).length > 0) {
                         cb(null, conn, {output: backtestData, status:status});
                     }
