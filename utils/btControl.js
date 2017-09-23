@@ -281,8 +281,7 @@ function execBacktest(backtestId, conn, res, cb) {
             args = args.concat(['--enddate', settings.endDate]);
             args = args.concat(['--universe', settings.universe]);
 
-            var advanced = settings.advanced;
-
+            var advanced = JSON.parse(settings.advanced);
             if(advanced.exclude) {
                 args = args.concat(['--exclude', advanced.exclude]);
             }
