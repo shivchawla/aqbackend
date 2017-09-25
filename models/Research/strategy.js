@@ -49,7 +49,7 @@ var path = require('path');
 const config = require('config');
 
 Strategy.statics.createStrategy = function(user, name, desc, fname) { 
-    var fname = "../examples/" + fname;
+    var fname = "../../examples/" + fname;
 
     var code = fs.readFileSync(path.resolve(path.join(__dirname, fname)), 'utf8');
     var encoded_code = CryptoJS.AES.encrypt(code, config.get('encoding_key'));
