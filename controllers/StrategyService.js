@@ -24,7 +24,7 @@ exports.createStrategy = function(args, res, next) {
 
     var encoded_code = CryptoJS.AES.encrypt(code, config.get('encoding_key'));
     const strategy = {
-        name: values.name,
+        name: values.name.trim(),
         user: user._id,
         type: values.name,
         language: values.language,
@@ -37,9 +37,8 @@ exports.createStrategy = function(args, res, next) {
     StrategyModel.fetchStrategys({name: strategy.name, user:user._id})
     .then(strategies => {
         if(strategies.length > 0) {
-            var n = strategies.length + 1
-            strategy.suffix = `(${n})`;
-            strategy.fullName = strategy.name + strategy.suffix;
+            strategy.suffix = Math.max.apply(null, strategies.map(item => item.suffix)) + 1;
+            strategy.fullName = strategy.name + `(${strategy.suffix})`;
         } else {
             strategy.fullName = strategy.name;
         }
@@ -235,16 +234,36 @@ exports.updateStrategy = function(args, res, next) {
         user: userId
     };
 
-    if(args.body.value && args.body.value.code){
-        var str = args.body.value.code;
-        args.body.value.code = CryptoJS.AES.encrypt(str, config.get('encoding_key'));
-    }
+    const updates = args.body.value;
 
-    StrategyModel.updateStrategy(query, args.body.value)
+    if(args.body.value && args.body.value.code) {
+        var str = args.body.value.code;
+        updates.code = CryptoJS.AES.encrypt(str, config.get('encoding_key'));
+    }
+    
+    return Promise.all([StrategyModel.fetchStrategy(query, {}), StrategyModel.fetchStrategys({name: updates.name, user:userId}, null)])
+    .then(([strategy, strategies]) => {
+
+        if(strategy.name != updates.name) {
+            if(strategies.length > 0) {
+                var n = strategies.length + 1;
+                updates.suffix = `(${n})`;
+                updates.fullName = updates.name + updates.suffix;
+            } else {
+                updates.fullName = updates.name;
+            }
+        }
+
+        return updates;
+    })
+    .then(updates => {
+        return StrategyModel.updateStrategy(query, updates)
+    })
     .then(str => {
         return res.status(200).json(str);
     })
     .catch(err => {
+        return res.status(400).send(err.message);  
         next(err);
     });
 };
@@ -258,14 +277,28 @@ exports.deleteStrategy = function (args, res, next) {
         user: userId
     };
 
-    Promise.all([StrategyModel.updateStrategy(query, {deleted:true}), BacktestModel.removeAllBack({
-              strategy: strategyId,
-              shared : false})])
+    Promise.all([BacktestModel.findCount({strategy: strategyId, shared: true}),
+                    ForwardtestModel.findCount({strategy: strategyId})])
+    .then(([numBacktests, numForwardtests]) => { 
+        if(numForwardtests>0 || numBacktests>0) {
+            return Promise.all([
+                StrategyModel.updateStrategy(query, {deleted:true}),
+                BacktestModel.removeAllBack({
+                strategy: strategyId,
+                shared : false})]);
+        } else {
+            return Promise.all([
+                StrategyModel.deleteStrategy(query),
+                BacktestModel.removeAllBack({
+                strategy: strategyId,
+                shared : false})]); 
+        }
+    })
     .then(([]) => {
         res.status(200).json({id: strategyId, msg: "Successfully Deleted"});
     })
     .catch(err => {
-        res.status(400).json({id: strategyId, msg: err.message});s
+        res.status(400).json({id: strategyId, msg: err.message});
         next(err);
     });
 };

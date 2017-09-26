@@ -7,8 +7,9 @@ const Strategy = new Schema({
         require: true,
     },
 
-    nameSuffix: {
-        type: String,
+    suffix: {
+        type: Number,
+        default: 0,
     },
 
     fullName: {
@@ -63,7 +64,7 @@ Strategy.statics.createStrategy = function(user, name, desc, fname) {
     var code = fs.readFileSync(path.resolve(path.join(__dirname, fname)), 'utf8');
     var encoded_code = CryptoJS.AES.encrypt(code, config.get('encoding_key'));
     const detail = {
-        name: name,
+        name: name.trim(),
         user: user._id,
         type: 'NA',
         language: 'julia',
@@ -75,10 +76,9 @@ Strategy.statics.createStrategy = function(user, name, desc, fname) {
     return this.find({name: detail.name, user:user._id})
     .then(strategies => {
         if(strategies.length > 0) {
-
-            var n = strategies.length + 1
-            detail.suffix = `(${n})`;
-            detail.fullName = detail.name + detail.suffix;
+            
+            detail.suffix = Math.max.apply(null, strategies.map(item => item.suffix)) + 1;
+            detail.fullName = detail.name + `(${detail.suffix})`;
         } else {
             detail.fullName = detail.name;
         }
@@ -109,24 +109,26 @@ Strategy.statics.fetchStrategy = function(query, options) {
 };
 
 Strategy.statics.fetchStrategys = function(query, sort_criteria) {
+  
     if(sort_criteria)
         return this.find(query).sort(sort_criteria).populate('user', '_id firstName lastName').execAsync();
     else
         return this.find(query).populate('user', '_id firstName lastName').execAsync();
+   
 };
 
 Strategy.statics.updateStrategy = function(query, updates) {
-    return this.findOne(query)
-        .then(function(strategy) {
-            if (strategy) {
-                const keys = Object.keys(updates);
-                keys.forEach(key => {
-                    strategy[key] = updates[key];
-                });
-                strategy.updatedAt= new Date();
-                return strategy.save();
-            }
-        });
+    this.findOne(query)
+    .then(strategy => {
+        if (strategy) {
+            const keys = Object.keys(updates);
+            keys.forEach(key => {
+                strategy[key] = updates[key];
+            });
+            strategy.updatedAt= new Date();
+            return strategy.save();
+        }
+    });
 };
 
 Strategy.statics.deleteStrategy = function(query) {
