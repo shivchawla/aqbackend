@@ -23,7 +23,7 @@ exports.createStrategy = function(args, res, next) {
     }
 
     var encoded_code = CryptoJS.AES.encrypt(code, config.get('encoding_key'));
-    const Strategy = {
+    const strategy = {
         name: values.name,
         user: user._id,
         type: values.name,
@@ -34,10 +34,21 @@ exports.createStrategy = function(args, res, next) {
         updatedAt: new Date()
     };
 
-    StrategyModel.saveStrategy(Strategy)
-    .then(strategy => {
-        strategy.code = CryptoJS.AES.decrypt(strategy.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
-        return res.status(200).json(strategy);
+    StrategyModel.fetchStrategys({name: strategy.name, user:user._id})
+    .then(strategies => {
+        if(strategies.length > 0) {
+            var n = strategies.length + 1
+            strategy.suffix = `(${n})`;
+            strategy.fullName = strategy.name + strategy.suffix;
+        } else {
+            strategy.fullName = strategy.name;
+        }
+
+        return StrategyModel.saveStrategy(strategy)
+    })
+    .then(str => {
+        str.code = CryptoJS.AES.decrypt(str.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+        return res.status(200).json(str);
     })
     .catch(err => {
         next(err);

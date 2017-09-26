@@ -6,6 +6,15 @@ const Strategy = new Schema({
         type: String,
         require: true,
     },
+
+    nameSuffix: {
+        type: String,
+    },
+
+    fullName: {
+        type: String
+    },
+
     user: {
         type: Schema.Types.ObjectId,
         require: true,
@@ -32,12 +41,12 @@ const Strategy = new Schema({
     
     deleted: {
         type: Boolean,
-        value: false,
+        default: false,
     },
 });
 
 Strategy.index({
-    name: 1,
+    fullName: 1,
     user:1,
 }, {
     unique: true
@@ -63,9 +72,20 @@ Strategy.statics.createStrategy = function(user, name, desc, fname) {
         createdAt: new Date()
     };
 
-    const strategy = new this(detail);
-    return strategy.saveAsync();
-        
+    return this.find({name: detail.name, user:user._id})
+    .then(strategies => {
+        if(strategies.length > 0) {
+
+            var n = strategies.length + 1
+            detail.suffix = `(${n})`;
+            detail.fullName = detail.name + detail.suffix;
+        } else {
+            detail.fullName = detail.name;
+        }
+
+        const strategy = new this(detail);
+        return strategy.saveAsync();
+    });
 };
 
 Strategy.statics.saveStrategy = function(strategyDetails) {
