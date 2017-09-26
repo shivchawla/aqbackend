@@ -174,8 +174,7 @@ exports.getStrategy = function(args, res, next) {
 
     Promise.all([StrategyModel.fetchStrategy({
                             user: user._id,
-                            _id: strategyId
-                        }, {}),  
+                            _id: strategyId}, {}),  
                         BacktestModel.findCount({
                             strategy: strategyId,
                             deleted: false}),
@@ -248,16 +247,14 @@ exports.deleteStrategy = function (args, res, next) {
         user: userId
     };
 
-    StrategyModel.deleteStrategy(query)
-      .then(() => {
-          return BacktestModel.removeAllBack({
+    Promise.all([StrategyModel.updateStrategy(query, {deleted:true}), BacktestModel.removeAllBack({
               strategy: strategyId,
-              shared : false});
-      })
-      .then(() => {    
-          res.status(200).json({id: strategyId});
-      })
-      .catch(err => {
-          next(err);
-      });
+              shared : false})])
+    .then(([]) => {
+        res.status(200).json({id: strategyId, msg: "Successfully Deleted"});
+    })
+    .catch(err => {
+        res.status(400).json({id: strategyId, msg: err.message});s
+        next(err);
+    });
 };
