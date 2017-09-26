@@ -10,7 +10,7 @@ function initialize(state)
 	# Set Cancel policy to GTC (good till canceled)
 	setcancelpolicy(CancelPolicy(GTC))
 	# Set universe (mandatory before placing any orders)
-	setuniverse(["CNX_BANK"])
+	setuniverse(["TCS"])
 end
 
 # Define strategy logic here
