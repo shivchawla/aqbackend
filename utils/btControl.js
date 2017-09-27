@@ -102,12 +102,14 @@ function handleUnsubscription(req) {
 
 /* =====================================
         BACKTEST CONTROLLER
-===================================== */
+===================================== */ 
 function handleBacktest(req, res) {
     // ===========================================
     // 1. Append priority details to the request
     // ===========================================
-    
+
+    var backtestId = req.backtestId;
+
     BacktestModel.fetchBacktest({
         _id: req.backtestId
     }, {})
@@ -424,63 +426,74 @@ function execBacktest(backtestId, conn, res, cb) {
 
 // Send backtest output to front-end
 function sendData(backtestId, final) {
+    
+    var noreponse = false;
     if(backtestId in response) {
         //Retrieve the  websocket response variable for the backtestId
         var res = response[backtestId];
-        var dataArray = outputData[backtestId];
-        //&& hasOutputDataChanged[backtestId]
-        if (dataArray && dataArray.length > 0) {
-            
-            //Do we need to save everytime
-            //NO
-            //First get the value from the stored redis
-            //then compare it with new value
-            redisUtils.getValue(backtestId + '-data', function(err, data) {
 
-                var updateRequired = true;
-                if(data) {
-                    var parsedData = JSON.parse(data);
-
-                    if (parsedData.length == outputData[backtestId].length) {
-                        updateRequired = false;
-                    }
-                }
+        if(res) {
+            var dataArray = outputData[backtestId];
+            //&& hasOutputDataChanged[backtestId]
+            if (dataArray && dataArray.length > 0) {
                 
-                if(updateRequired) {
-                    
-                    ///if(!final) {
-                        redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(dataArray));
-                    /*} else {
-                        redisUtils.setDataExpiry(backtestId + '-data', 5);
-                    }*/
+                //Do we need to save everytime
+                //NO
+                //First get the value from the stored redis
+                //then compare it with new value
+                redisUtils.getValue(backtestId + '-data', function(err, data) {
 
-                    //Check if subscription is TRUE for the backtestId
-                    if (subscribed[backtestId]) {
-                        // Check if connection is OPEN
-                        if (res.readyState === WebSocket.OPEN) {
-                            
-                            //fragment the data in chunk of 20
-                            //save only 100 days in one document
-                            var i,j,tempArray,chunk = 20;
-                            var index = 0;
-                            for (i=0,j=dataArray.length; i<j; i+=chunk) {
-                                tempArray = dataArray.slice(i,i+chunk);
-                                // do whatever
-                                res.send(JSON.stringify({data:tempArray, backtestId: backtestId, chunked:true, size: chunk, index:index++}));
-                            }
+                    var updateRequired = true;
+                    if(data) {
+                        var parsedData = JSON.parse(data);
 
-                            //updateBacktestResult(backtestId, {realtimeOutput: dataArray});
-                            //res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));
-                            //res.send(JSON.stringify({update:1, backtestId: backtestId}));
-                        } else {
-                            console.log("WebSocket is closed");
-                            subscribed[backtestId] = false;
+                        if (parsedData.length == outputData[backtestId].length) {
+                            updateRequired = false;
                         }
                     }
-                }
-            });
+                    
+                    if(updateRequired) {
+                        
+                        ///if(!final) {
+                            redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(dataArray));
+                        /*} else {
+                            redisUtils.setDataExpiry(backtestId + '-data', 5);
+                        }*/
+
+                        //Check if subscription is TRUE for the backtestId
+                        if (subscribed[backtestId]) {
+                            // Check if connection is OPEN
+                            if (res.readyState === WebSocket.OPEN) {
+                                
+                                //fragment the data in chunk of 20
+                                //save only 100 days in one document
+                                var i,j,tempArray,chunk = 20;
+                                var index = 0;
+                                for (i=0,j=dataArray.length; i<j; i+=chunk) {
+                                    tempArray = dataArray.slice(i,i+chunk);
+                                    // do whatever
+                                    res.send(JSON.stringify({data:tempArray, backtestId: backtestId, chunked:true, size: chunk, index:index++}));
+                                }
+
+                                //updateBacktestResult(backtestId, {realtimeOutput: dataArray});
+                                //res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));
+                                //res.send(JSON.stringify({update:1, backtestId: backtestId}));
+                            } else {
+                                console.log("WebSocket is closed");
+                                subscribed[backtestId] = false;
+                            }
+                        }
+                    }
+                });
+            }
+        } else {
+            noreponse = true;
         }
     } else {
+        noreponse = true;
+    }
+
+    if(noreponse) {
         console.log("In Send Data: No response variable");
         clearTimer(backtestId);
     }

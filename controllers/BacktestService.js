@@ -4,6 +4,7 @@ const BacktestModel = require('../models/Research/backtest');
 const StrategyModel = require('../models/Research/strategy');
 var CryptoJS = require("crypto-js");
 const config = require('config');
+const spawn = require('../utils/spawn');
 
 exports.createBacktest = function(strategy, values, res, next) {
     const backtest = {
@@ -20,10 +21,19 @@ exports.createBacktest = function(strategy, values, res, next) {
 
     BacktestModel.saveBacktest(backtest)
     .then(bt => {
-        res.status(200).json(bt);
+        if(bt) {
+            var req = {action:'exec-backtest', backtestId: bt._id};
+            try {
+                spawn.handleAction(req, null);
+                console.log("Spawned");
+            } catch(err) {
+                console.log(err);
+            }
+            return res.status(200).json(bt);
+        }
     })
     .catch(err => {
-        console.log(err);
+        return res.status(400).send(err.message);
         next(err);
     });
 };

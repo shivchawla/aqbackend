@@ -17,11 +17,8 @@ ws.on('connection', function connection(res) {
         }
 
         if (!req || !req['aimsquant-token']) {
-            return res.send({
-                'aimsquant-token': '',
-                action: 'exec-backtest',
-                backtestId: 'afd'
-            });
+            console.error("Token missing");
+            return;
         }
 
         jwtUtil.verifyToken(req['aimsquant-token'])
@@ -38,28 +35,28 @@ ws.on('connection', function connection(res) {
             // 3. run-all-forwardtest
             // 4. run-forwardtest
             // 5. stop-forwardtest
-            handleAction(req, res);
+            exports.handleAction(req, res);
         });
     });
 });
 
-function handleAction(req, res) {
+exports.handleAction = function(req, res) {
     if(req.action === 'subscribe-backtest') {
-        BacktestController.handleSubscription(req, res);
+        return BacktestController.handleSubscription(req, res);
     }
     else if(req.action === 'unsubscribe-backtest') {
-        BacktestController.handleUnsubscription(req);
+        return BacktestController.handleUnsubscription(req);
     }
     else if(req.action === 'exec-backtest') {
-        BacktestController.handleBacktest(req, res);
+        return BacktestController.handleBacktest(req, res);
     }
     else if(req.action === 'run-all-forwardtest') {
-        ForwardTestController.runAllForwardTest();
+        return ForwardTestController.runAllForwardTest();
     }
     else if(req.action === 'run-forwardtest') {
-        ForwardTestController.runForwardTest(req.forwardtestId);
+        return ForwardTestController.runForwardTest(req.forwardtestId);
     }
     else if(req.action === 'stop-forwardtest') {
-        ForwardTestController.cancelTest(req.forwardtestId);
+        return ForwardTestController.cancelTest(req.forwardtestId);
     }
-}
+};
