@@ -113,40 +113,49 @@ function execForwardTest(forwardtestId, connection, cb) {
     console.log('execForwardTest is called');
 
     ForwardTestModel.fetchForwardTest({
-        _id: forwardtestId, active: true, error: false
-    }, {})
+        _id: forwardtestId, active: true, error: false}, {})
     .then(ft => {
-        if(!ft){
+        if(!ft) {
             throw new Error("Invalid Forward Test");
         }
 
         let args = [];
-
-        args = args.concat(['--code', CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
-
         // If there is serialized data available then pass it as command line arg
         // Otherwise it's a fresh start
-        if(ft.serializedData && !ft.restart) {
-            args = args.concat(['--serializedData', JSON.stringify(ft.serializedData)]);
+        var restart = false || ft.restart || !ft.serializedData;
 
-            //Pick the last date + 1 from serialized data
-            var accounttracker = ft.serializedData.accounttracker;
+        if(!restart) {
+            try {
+                args = args.concat(['--serializedData', JSON.stringify(ft.serializedData)]);
 
-            if(accounttracker) {
-                var dates = Object.keys(accounttracker).sort();
-                var lastdate = new Date(dates[dates.length - 1]);
+                //Pick the last date + 1 from serialized data
+                var accounttracker = ft.serializedData.accounttracker;
 
-                var cd = new Date(lastdate.setDate(lastdate.getDate() + 1));
-                var startDate = cd.getFullYear()+"-"+(cd.getMonth()+1)+"-"+cd.getDate();    
+                if(accounttracker) {
+                    var dates = Object.keys(accounttracker).sort();
+                    if(dates.length == 0) {
+                        throw new Error("No dates in accounttracker");
+                    }
 
-                args = args.concat(['--startdate', startDate]);
+                    var lastdate = new Date(dates[dates.length - 1]);
+                    var cd = new Date(lastdate.setDate(lastdate.getDate() + 1));
+                    var startDate = cd.getFullYear()+"-"+(cd.getMonth()+1)+"-"+cd.getDate();    
 
-            } else {
-                throw new Error("WARNING: No account tracker in serialized data.");
+                    args = args.concat(['--startdate', startDate]);
+
+                } else {
+                    throw new Error("No Account tracker in serialized data");
+                }
+            } catch (err) {
+                //reset variables 
+                args = [];
+                restart = true;
+                console.error(err.message);
             }
-
         }
-        else {
+
+        //Only when restart = true 
+        if(restart) {
             // No deserialized data was found
             // to obtain the initial settings
             let settings = ft.settings;
@@ -192,6 +201,9 @@ function execForwardTest(forwardtestId, connection, cb) {
                 args = args.concat(['--slippage', slippage]);
             }
         }
+
+        // Add Code parameter
+        args = args.concat(['--code', CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
 
         // And most importantly
         args = args.concat(['--forward', 'true']);

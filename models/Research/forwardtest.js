@@ -50,6 +50,8 @@ const ForwardTest = new Schema({
 
     serializedData: Schema.Types.Mixed,
 
+    restart: Boolean,
+
     createdAt: Date,
 
     updatedAt: Date
