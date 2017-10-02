@@ -225,6 +225,19 @@ function processBacktest(connection) {
                 // Let's put it's status to pending
                 updateBacktestResult(backtestId, {status: "exception"});
             }
+            else if(data.status === "pending") {
+                //denied connection
+                delete currentlyRunning[backtestId];
+                delete outputData[backtestId];
+                
+                console.log("Aready Busy Conection");
+                console.log("Should not happen");
+                console.log("Save back to the execution queue");
+                //Save it back to the redis queue
+                saveBacktest(topOfTheQueue, (backtestId in response ? response[backtestId] : null));
+                console.log("Returning");
+                return; 
+            }
             else if(data.status === "exception") {
                 // Some error occured in the processing of backtest
                 // Or otherwise Julia returned an error
@@ -325,14 +338,29 @@ function execBacktest(backtestId, conn, res, cb) {
 
         var juliaError = false;
         outputData[backtestId] = [];
-        //hasOutputDataChanged[backtestId] = false;
+        
+        //Flag to check whether Julia server is busy or free
+        var serverBusy = false;
 
-        btClient = new WebSocket(conn);
+        try {
+            btClient = new WebSocket(conn);
+        } catch(err) {
+            console.log("Error: Opening WS connection: "+ conn);
+            serverBusy = true;
+            cb(null, conn, {status:"pending"});
+        }
 
         btClient.on('open', function() {
             console.log('Connection Open');
 
-            btClient.send(argArray.join("??##"));
+            try { 
+                btClient.send(argArray.join("??##"));
+            } catch(err) {
+                console.log("Error: Sending message to WS connection: "+ conn);
+                serverBusy = true;
+                cb(null, conn, {status:"pending"});
+            }
+            
             subscribed[backtestId] = true;
 
             redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(outputData[backtestId]));
@@ -355,16 +383,15 @@ function execBacktest(backtestId, conn, res, cb) {
                 if (dataJSON.outputtype === 'backtest') {
                     backtestData = dataJSON;
                 }
-                else {
+                else if(dataJSON.outputtype === 'log') {
                     outputData[backtestId].push(dataJSON);
-                    //to keep a track if new data has been added
-                    //hasOutputDataChanged[backtestId] = true;
-
-                    if(dataJSON.outputtype === 'log') {
-                        if(dataJSON.messagetype === "ERROR") {
-                            juliaError = true;
-                            //throw new Error("");
-                        }
+                    if(dataJSON.messagetype === "ERROR") {
+                        juliaError = true;
+                    }
+    
+                } else if(dataJSON.outputtype === "internal") {
+                    if(dataJSON.code == 503) {
+                        serverBusy = true;
                     }
                 }
             }
@@ -377,39 +404,45 @@ function execBacktest(backtestId, conn, res, cb) {
             console.log('Connection Closed');
             console.log(conn);
             clearTimer(backtestId);
-            
+
             //If backtest stops suddenly, a message must be sent to the UI
             //about unexpected error
-            if(!juliaError && backtestData && Object.keys(backtestData).length == 0) {
+            if(!juliaError && backtestData && Object.keys(backtestData).length == 0 && !serverBusy) {
                 const dataJSON = {messagetype:"ERROR", outputtype: "log", message:"Internal Exception"};
                 outputData[backtestId].push(dataJSON);
             }
-
-            // Send data to th UI for one last time
-            //AND REMOVE from the redis queue
-            sendData(backtestId, true);
-
+        
             // Update the connection status
             if (code === 1000) {
-                try {
 
-                    var status = "complete";
-                    
-                    if(juliaError) {
-                        status = "exception";
-                    }
+                if(!serverBusy) {
+                    // Send data to th UI for one last time
+                    //AND REMOVE from the redis queue
+                    sendData(backtestId, true);
 
-                    if(backtestData && Object.keys(backtestData).length > 0) {
-                        cb(null, conn, {output: backtestData, status:status});
+                    try {
+
+                        var status = "complete";
+                        
+                        if(juliaError) {
+                            status = "exception";
+                        }
+
+                        if(backtestData && Object.keys(backtestData).length > 0) {
+                            cb(null, conn, {output: backtestData, status:status});
+                        }
+                        else {
+                            // This gets triggered when no performance data comes
+                            // and backtest finishes
+                            cb(null, conn, {status:"exception"});
+                        }
                     }
-                    else {
-                        // This gets triggered when no performance data comes
-                        // and backtest finishes
-                        cb(null, conn, {status:"exception"});
+                    catch (e) {
+                        cb(e, conn, {status:"exception"});
                     }
-                }
-                catch (e) {
-                    cb(e, conn, {status:"exception"});
+                } else {
+                    //When server busy flag is true
+                    cb(null, conn, {status:"pending"});
                 }
             }
             else {

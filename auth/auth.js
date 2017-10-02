@@ -7,21 +7,25 @@ module.exports = function(req, next) {
     if (token) {
         try {
             jwtUtil.verifyToken(token)
-                .then(function(decoded) {
-                    if (decoded.exp <= Date.now()) {
-                        next('token expired');
-                    } else {
-                        UserModel.fetchUser({
-                            _id: decoded._id
-                        }).then(function(user) {
+            .then(decoded => {
+                if (decoded.exp <= Date.now()) {
+                    next('token expired');
+                } else {
+                    UserModel.fetchUser({
+                        _id: decoded._id
+                    }).then(user => {
+                        if(user){
                             req.swagger.params.user = user.toJSON();
                             delete user.password;
                             next();
-                        });
-                    }
-                }).catch(err => {
-                    next(err);
-                });
+                        } else {
+                            next("Invalid User");
+                        }
+                    });
+                }
+            }).catch(err => {
+                next(err);
+            });
         } catch (err) {
             next(err);
         }
