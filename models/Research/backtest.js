@@ -71,6 +71,8 @@ const Backtest = new Schema({
         }],
     },
 
+    executionDetail: Schema.Types.Mixed,
+
     realtimeOutput: Schema.Types.Mixed,
 
     createdAt: Date,

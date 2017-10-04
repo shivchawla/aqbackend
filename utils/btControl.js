@@ -13,13 +13,6 @@ schedule.scheduleJob("0 * * * * *", function() {
 
 var isBusy = {};
 
-// Initialize map for status of each connection
-// Our Julia server can only accept one connection per process
-for(var machine of config.get('btmachines')) {
-    let conn = 'ws://' + machine.host + ":" + machine.port;
-    isBusy[conn] = false
-}
-
 // Backtest output data
 var outputData   = {};
 // Subscription of test result
@@ -34,8 +27,21 @@ var currentlyRunning = {};
 //track the timerId of the backtests
 var backtestTimerId = {};
 
+var serverTimer = {};
+
+//Variable to store execution detail of the backtest
+var executionDetail = {};
+
 //Can introduce sent once acnd check this flag before deleting the data
 //LATER
+
+// Initialize map for status of each connection
+// Our Julia server can only accept one connection per process
+for(var machine of config.get('btmachines')) {
+    let server = 'ws://' + machine.host + ":" + machine.port;
+    setServerFree(server);
+    //isBusy[conn] = false
+}
 
 
 /* =====================================
@@ -49,27 +55,29 @@ function handleSubscription(req, res) {
         2. Backtest was already completed long time back
     */
     var backtestId = req.backtestId;
-    BacktestModel.fetchBacktest({
-        _id: backtestId, deleted: false
-    }, {})
+    BacktestModel.fetchBacktest({_id: backtestId, deleted: false}, {})
     .then(bt => {
         if(!bt) {
             throw new Error("Backtest not found");
         }
-        if(bt.status === "completed") {
+        if(bt.status === "complete" || bt.status === "exception") {
             // Backtest was already completed
             console.log("backtest already completed");
             res.send(JSON.stringify(bt.output));
-        }
-        else {
+        } else {
             // Backtest is till running or will run after some time
             subscribed[backtestId] = true;
-            response[backtestId] = res;
-            //clear timer before setting a new one
-            clearTimer(backtestId);
 
-            //set new timer
-            setTimer(backtestId);
+            if(!res) {
+                console.log("Response Variable is null");
+            }
+
+            response[backtestId] = res;
+            
+            if (!(backtestId in backtestTimerId)) {
+                //set new timer
+                setSendDataTimer(backtestId);   
+            }
         }
     })
     .catch(err => {
@@ -77,17 +85,25 @@ function handleSubscription(req, res) {
     });
 }
 
-function setTimer(backtestId) {
+function setSendDataTimer(backtestId) {
     //Create timer function to send data to FE
+    //If valid UI websocket connection
+    //var res = (backtestId in response) ? response[backtestId] : null;
+    
     if(!(backtestId in backtestTimerId)) {
         backtestTimerId[backtestId] = setInterval(function(){sendData(backtestId, false);}, config.get('time_interval_realtime_output')); 
     }
 }
 
-function clearTimer(backtestId) {
+function clearSendDataTimer(backtestId, final) {
     if(backtestId in backtestTimerId) {
         clearInterval(backtestTimerId[backtestId]);
         delete backtestTimerId[backtestId];
+
+        //send data the last time
+        if(final) {
+            sendData(backtestId, true);
+        }
     }
 }
 
@@ -97,7 +113,7 @@ function handleUnsubscription(req) {
     //Call send data
     //Send data automaticaly stops or reject the call if backtest has completed
     subscribed[backtestId] = false;
-    clearTimer(backtestId);
+    clearSendDataTimer(backtestId);
 }
 
 /* =====================================
@@ -151,8 +167,12 @@ function saveBacktest(req, res) {
     // backtest-request-queue contains key-value pairs
     // where each key is the backtestId pointing to the corresponding backtest request
     redisUtils.insertIntoRedis('backtest-request-queue', req.backtestId, JSON.stringify(req));
+    
     // Save the rsponse server
     response[req.backtestId] = res;
+
+    //Initialize array to save execution details
+    executionDetail[req.backtestId] = [];
 
     // Now we handle the requests
     processBacktest(null);
@@ -165,7 +185,7 @@ function processBacktest(connection) {
     //    b. Pop the top priority backtest from redis
     //    c. Send this backtest, to the server found in a., for execution
     // ===================================================================
-    let server, req, res, backtestId;
+    let server, req, backtestId;
     if(!connection) {
         server = findFreeServer();
         if(!server) {
@@ -174,19 +194,24 @@ function processBacktest(connection) {
         }
     }
     else {
-        server = connection;
+        server = connection;       
     }
 
+    //Set the serber to be busy
+    setServerBusy(server);
+    
     // Server is available
     // Let's retrieve pending backtest requests from Redis
     redisUtils.getAllFromRedis('backtest-request-queue', function(err, data) {
         if(err) {
-            isBusy[server] = false;
+            //isBusy[server] = false;
+            setServerFree(server);
             return console.error("Error: " + err);
         }
         if (!data) {
             // Redis is empty
-            isBusy[server] = false;
+            //isBusy[server] = false;
+            setServerFree(server)
             return console.log("All backtests over!");
         }
 
@@ -204,53 +229,63 @@ function processBacktest(connection) {
     
         backtestId = topOfTheQueue.backtestId;
         
-        try {
-            res = response[backtestId];
-        } catch(err) {
-            console.log("Valid UI Websocket not available for this backtest");
+        if (currentlyRunning[backtestId]) {
+            console.log("Already Running: " + backtestId);
+            return;
         }
 
         currentlyRunning[backtestId] = true;
 
         // Send this backtest request for execution
-        execBacktest(backtestId, server, res, function(err, conn, data) {
+        execBacktest(backtestId, server, function(err, execDetails, data) {
             // Callback function
             // This is called when one of the servers finish processing a backtest
             // and is ready to accept another backtest
+
+            //Update Execution Detail
+            if(backtestId in executionDetail) {
+                executionDetail[backtestId].push(execDetails);
+                
+                //Add execution details to output
+                data["executionDetail"] = executionDetail[backtestId];    
+            }
+
             if(err) {
                 // This particular backtest couldn't be completed
                 console.error("Error Occured:");
                 console.error(err);
 
                 // Let's put it's status to pending
-                updateBacktestResult(backtestId, {status: "exception"});
-            }
-            else if(data.status === "pending") {
+                updateBacktestResult(backtestId, {status: "exception", executionDetail: executionDetail[backtestId]});
+            
+            } else if(data.status === "pending") {
                 //denied connection
                 delete currentlyRunning[backtestId];
                 delete outputData[backtestId];
                 
                 console.log("Aready Busy Conection");
                 console.log("Should not happen");
-                console.log("Save back to the execution queue");
                 //Save it back to the redis queue
-                saveBacktest(topOfTheQueue, (backtestId in response ? response[backtestId] : null));
+                clearSendDataTimer(backtestId);
                 console.log("Returning");
+
+                //resend the request to execute
+                processBacktest(null);
                 return; 
-            }
-            else if(data.status === "exception") {
+
+            } else if(data.status === "exception") {
                 // Some error occured in the processing of backtest
                 // Or otherwise Julia returned an error
                 console.error("Exception in backtest occured");
 
-                // Let's put it's status to exception
                 updateBacktestResult(backtestId, data);
-            }
-            else {
+            
+            } else {
                 // Backtest successfully completed
                 // Update the db with output
                 updateBacktestResult(backtestId, data);
             }
+
             // Delete this backtest from redis
             redisUtils.deleteFromRedis('backtest-request-queue', backtestId, function(err, reply) {
                 if (err) {
@@ -263,22 +298,21 @@ function processBacktest(connection) {
                 redisUtils.setDataExpiry(backtestId + '-data', 5);
                 delete response[backtestId];
                 delete currentlyRunning[backtestId];
-                processBacktest(conn);
+                processBacktest(server);
             });
         });
     });
 }
 
-function execBacktest(backtestId, conn, res, cb) {
+function execBacktest(backtestId, conn, cb) {
     // ===============================
     // 4. Start execution of backtest
     // ===============================
 
     console.log('execBacktest is called');
+    var executionDetails = {"server": conn};
 
-    BacktestModel.fetchBacktest({
-        _id: backtestId
-    }, {})
+    BacktestModel.fetchBacktest({_id: backtestId}, {})
     .then(bt => {
         var args = [];
 
@@ -331,7 +365,7 @@ function execBacktest(backtestId, conn, res, cb) {
         return args;
     })
     .then(argArray => {
-
+      
         // TO DO: Progressively try to make connections with open julia process
         // create a string to bool dictioanry
         var btClient, backtestData = '';
@@ -340,58 +374,68 @@ function execBacktest(backtestId, conn, res, cb) {
         outputData[backtestId] = [];
         
         //Flag to check whether Julia server is busy or free
-        var serverBusy = false;
+        var serverDeniedRequest = false;
 
         try {
+            executionDetails["wsOpenRequestTime"] = new Date();
             btClient = new WebSocket(conn);
         } catch(err) {
-            console.log("Error: Opening WS connection: "+ conn);
-            serverBusy = true;
-            cb(null, conn, {status:"pending"});
+            var errMsg = "Error: Opening WS connection: "+ conn;
+            executionDetails["error"] = errMsg;
+            console.log(errMsg);
+            serverDeniedRequest = true;
+            cb(null, executionDetails, {status:"pending"});
         }
+
+        btClient.on('error', function() {
+            var errMsg = "Error: Opening WS connection: "+ conn;
+            executionDetails["error"] = errMsg;
+            console.log(errMsg);
+            serverDeniedRequest = true;
+            cb(null, executionDetails, {status:"pending"});
+        });
 
         btClient.on('open', function() {
             console.log('Connection Open');
+            executionDetails["wsOpenTime"] = new Date();
 
             try { 
                 btClient.send(argArray.join("??##"));
             } catch(err) {
-                console.log("Error: Sending message to WS connection: "+ conn);
-                serverBusy = true;
-                cb(null, conn, {status:"pending"});
+                var errMsg = "Error: Sending message to WS connection: "+ conn; 
+                executionDetails["error"] = errMsg;
+                console.log(errMsg);
+                serverDeniedRequest = true;
+                cb(null, executionDetails, {status:"pending"});
             }
             
-            subscribed[backtestId] = true;
-
             redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(outputData[backtestId]));
 
-            //If valid UI websocket connection
-            if(res) {
-                //Create timer function to send data to FE
-                setTimer(backtestId);
-                //poll = setInterval(function(){sendData(backtestId, false);}, config.get('time_interval_realtime_output'));
+            //Create timer function to send data to FE
+            if(subscribed[backtestId]) {
+                setSendDataTimer(backtestId);
             }
-
+            
         });
 
         btClient.on('message', function(data) {
-            
             try {
                 const dataJSON = JSON.parse(data);
                 dataJSON.backtestId = backtestId;
 
                 if (dataJSON.outputtype === 'backtest') {
                     backtestData = dataJSON;
-                }
-                else if(dataJSON.outputtype === 'log') {
+                } else if(dataJSON.outputtype === 'log') {
                     outputData[backtestId].push(dataJSON);
                     if(dataJSON.messagetype === "ERROR") {
                         juliaError = true;
                     }
-    
+                } else if(dataJSON.outputtype === 'performance' || dataJSON.outputtype === 'labels') {
+                    outputData[backtestId].push(dataJSON);
+
                 } else if(dataJSON.outputtype === "internal") {
                     if(dataJSON.code == 503) {
-                        serverBusy = true;
+                        serverDeniedRequest = true;
                     }
                 }
             }
@@ -403,25 +447,25 @@ function execBacktest(backtestId, conn, res, cb) {
         btClient.on('close', function close(code) {
             console.log('Connection Closed');
             console.log(conn);
-            clearTimer(backtestId);
 
+            executionDetails["wsCloseTime"] = new Date();
+            
             //If backtest stops suddenly, a message must be sent to the UI
             //about unexpected error
-            if(!juliaError && backtestData && Object.keys(backtestData).length == 0 && !serverBusy) {
+            if(!juliaError && backtestData && Object.keys(backtestData).length == 0 && !serverDeniedRequest) {
                 const dataJSON = {messagetype:"ERROR", outputtype: "log", message:"Internal Exception"};
                 outputData[backtestId].push(dataJSON);
             }
-        
-            // Update the connection status
-            if (code === 1000) {
 
-                if(!serverBusy) {
-                    // Send data to th UI for one last time
-                    //AND REMOVE from the redis queue
-                    sendData(backtestId, true);
+            //Clear the timer on connection close
+            clearSendDataTimer(backtestId, true);
+
+            if(!serverDeniedRequest) {
+                
+                // Update the connection status
+                if (code === 1000) {
 
                     try {
-
                         var status = "complete";
                         
                         if(juliaError) {
@@ -429,38 +473,32 @@ function execBacktest(backtestId, conn, res, cb) {
                         }
 
                         if(backtestData && Object.keys(backtestData).length > 0) {
-                            cb(null, conn, {output: backtestData, status:status});
-                        }
-                        else {
+                            cb(null, executionDetails, {output: backtestData, status:status, executionDetail: executionDetail});
+                        } else {
                             // This gets triggered when no performance data comes
                             // and backtest finishes
-                            cb(null, conn, {status:"exception"});
+                            cb(null, executionDetails, {status:"exception"});
                         }
-                    }
-                    catch (e) {
-                        cb(e, conn, {status:"exception"});
+                    } catch (e) {
+                        cb(e, executionDetails, {status:"exception"});
                     }
                 } else {
-                    //When server busy flag is true
-                    cb(null, conn, {status:"pending"});
+                    cb(null, executionDetails, {status:"exception"});
                 }
+            } else {
+                cb(null, executionDetails, {status:"pending"});
             }
-            else {
-                cb(null, conn, {status:"exception"});
-            }
-
         });
-
     })
     .catch(err => {
-        cb(err, conn, {status:"exception"});
+        cb(err, executionDetails, {status:"exception"});
     });
 }
 
 // Send backtest output to front-end
 function sendData(backtestId, final) {
-    
-    var noreponse = false;
+    var noresponse = false;
+
     if(backtestId in response) {
         //Retrieve the  websocket response variable for the backtestId
         var res = response[backtestId];
@@ -520,18 +558,17 @@ function sendData(backtestId, final) {
                 });
             }
         } else {
-            noreponse = true;
+            noresponse = true;
         }
     } else {
-        noreponse = true;
+        noresponse = true;
     }
 
-    if(noreponse) {
+    if(noresponse) {
         console.log("In Send Data: No response variable");
-        clearTimer(backtestId);
+        clearSendDataTimer(backtestId);
     }
 }
-
 
 // Save backtest data to databse
 function updateBacktestResult(backtestId, data) {
@@ -545,12 +582,28 @@ function updateBacktestResult(backtestId, data) {
 function findFreeServer() {
     for(var conn in isBusy) {
         if (isBusy.hasOwnProperty(conn) && !isBusy[conn]) {
-            isBusy[conn] = true;
             return conn;
         }
     }
     // Oh no, none of the servers are free
     return null;
+}
+
+//Reset the server to FREE 
+function setServerFree(server) {
+    isBusy[server] = false;
+    if(server in serverTimer) {
+        clearInterval(serverTimer[server])
+        delete serverTimer[server];
+    }
+}
+
+//Set the server busy
+function setServerBusy(server) {
+    isBusy[server] = true;
+    clearInterval(serverTimer[server]);
+    //unset it to free in 30s 
+    serverTimer[server] = setInterval(function(){setServerFree(server);}, 30000)
 }
 
 // Function to pop out the top priority backtest from queue

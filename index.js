@@ -12,27 +12,27 @@ const config = require('config');
 const WebSocketServer = require('ws').Server;
 const spawn = require('child_process').spawn;
 
-var conn = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+/*var conn = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
 console.log("Starting Julia server at " + conn);
 try {
     spawn(config.get('julia_exe'),
                     ["./utils/julia/julia_server.jl", config.get('julia_server_port'), config.get('julia_server_host')],
-                        {stdio: ['pipe', 'pipe', process.stderr]});
+                        {stdio: ['pipe', process.stdout, process.stderr]});
 } catch(err) {
     console.log(err);
-}
+}*/
 
 for(var machine of config.get('btmachines')) {
     var conn = 'ws://' + machine.host + ":" + machine.port;
     console.log("Starting Backtest Julia server: " + conn);
-    spawn(config.get('julia_exe'), ["../raftaar/Util/server.jl", machine.port, machine.host], {stdio: ['pipe', 'pipe', process.stderr]});
+    spawn(config.get('julia_exe'), ["../raftaar/Util/server.jl", machine.port, machine.host], {stdio: ['pipe', process.stdout, process.stderr]});
 }
 
-for(var machine of config.get('ftmachines')) {
+/*for(var machine of config.get('ftmachines')) {
     var conn = 'ws://' + machine.host + ":" + machine.port;
     console.log("Starting Forward test Julia server: " + conn);
     spawn(config.get('julia_exe'), ["../raftaar/Util/server.jl", machine.port, machine.host], {stdio: ['pipe', 'pipe', process.stderr]});
-}
+}*/
 
 var server = '';
 if(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging') {
@@ -68,7 +68,6 @@ if (process.env.NODE_ENV === 'staging') {
 swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
     // Interpret Swagger resources and attach metadata to request - must be first
     // in swagger-tools middleware chain
-    console.log("inside initialize");
     app.use(middleware.swaggerMetadata());
     app.use(cors());
     // Validate Swagger requests
@@ -99,7 +98,8 @@ swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
     //require('./email').config(app);
     // Start the server
     app.use((err, req, res, next) => {
-        return res.status(400).json(err);
+        var statusCode = err.statusCode ? err.statusCode : 400;
+        return res.status(statusCode).json(err);
         next(err);
     });
 
