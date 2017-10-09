@@ -16,7 +16,7 @@ function signToken(payload) {
             issuer: 'aimsquant',
             jwtid: 'jwtid',
             algorithm: 'RS256',
-            expiresIn: parseInt(moment().add(24, 'hours').format('x'), 10)
+            expiresIn: '1d'
         },
         function(err, token) {
             if (err) {
