@@ -8,7 +8,8 @@ module.exports = function(req, next) {
         try {
             jwtUtil.verifyToken(token)
             .then(decoded => {
-                if (decoded.exp <= Date.now()) {
+                //BUG FIX: expiry is seconds (and not ms)
+                if (decoded.exp*1000 <= Date.now()) {
                     next('token expired');
                 } else {
                     UserModel.fetchUser({
