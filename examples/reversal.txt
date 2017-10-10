@@ -57,7 +57,6 @@ function ondata(data, state)
 
 	# Sorted returns
 	sortedrets = sortrows(rets, by=x->(x[2]))
-	info(string(sortedrets))
 	
 	# Get 5 names with lowest retursn
 	topnames = sortedrets[1:5, 1]
@@ -71,7 +70,6 @@ function ondata(data, state)
 		end
 	end
 	
-	info("$(length(topnames))")
 	# Create momemtum portfolio
 	for (i,stock) in enumerate(topnames)
 		setholdingpct(stock, 1.0/length(topnames)) 
@@ -81,6 +79,6 @@ function ondata(data, state)
 	track("Portfolio Value", state.account.netvalue)
 	
 	# Output information to console
-	info("Portofolio value = $(state.account.netvalue)")
+	Logger.info("Portofolio value = $(state.account.netvalue)")
 end
         

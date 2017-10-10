@@ -29,5 +29,7 @@ function ondata(data, state)
 	# Track the portfolio value
 	track("portfoliovalue", state.account.netvalue)
 	
+	# Log the value
+	Logger.info("Portofolio value = $(state.account.netvalue)")
 end
         
