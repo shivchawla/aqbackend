@@ -23,7 +23,7 @@ ws.on('connection', function connection(res) {
 
         jwtUtil.verifyToken(req['aimsquant-token'])
         .then(decoded => {
-            if (decoded.exp <= Date.now()) {
+            if (decoded.exp*1000 <= Date.now()) {
                 res.send('token expired');
                 return;
             }
