@@ -347,6 +347,10 @@ function execBacktest(backtestId, conn, cb) {
                 args = args.concat(['--cancelpolicy', advanced.cancelPolicy]);
             }
 
+            if(advanced.executionPolicy) {
+                args = args.concat(['--executionpolicy', advanced.executionPolicy]);
+            }
+
             if(advanced.resolution) {
                 args = args.concat(['--resolution', advanced.resolution]);
             }

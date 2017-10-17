@@ -154,7 +154,7 @@ Backtest.statics.updateBacktest = function(query, updates) {
     
     var fupdates = updates.output ? _formatUpdates(updates) : updates;
 
-    Promise.all([
+    return Promise.all([
         HelperModels.LogModel.saveLogs(fupdates.output ? fupdates.output.logs : null),
         HelperModels.PerformanceModel.savePerformance(fupdates.output ? fupdates.output.performance : null),
         HelperModels.TransactionHistoryModel.saveTransactionHistory(fupdates.output ? fupdates.output.transactionHistory : null),
@@ -170,17 +170,22 @@ Backtest.statics.updateBacktest = function(query, updates) {
         }
 
         return this.update(query, fupdates);
-    }).then(backtest => {
-        if (backtest) {
-            //return ({backtestId: backtest._id, message:"Backtest Successfully updated"}); 
+    })
+    .then(status => {
+        if(status && status.ok) {
+            return true;
+        } else {
+            return false;
+        }
+
+    });
+    /*.then(status => {
+        if (status) {
             return ({message:"Backtest Successfully updated"}); 
         } else {
-            throw new Error("Not updated or not found");
+            return new Error("Not updated or not found");
         } 
-    })
-    .catch(err => {
-        console.log(err);
-    });
+    });*/
 };
 
 function _formatUpdates(updates) {
