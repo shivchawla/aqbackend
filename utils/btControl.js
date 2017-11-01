@@ -314,7 +314,7 @@ function execBacktest(backtestId, conn, cb) {
 
     BacktestModel.fetchBacktest({_id: backtestId}, {})
     .then(bt => {
-        var args = [];
+        var args = ['--backtestid', backtestId];
 
         if(!bt){
             throw new Error("Invalid Backtest");
