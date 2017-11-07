@@ -148,14 +148,11 @@ Thread.statics.fetchThread = function(query, options) {
                 var thread = thread.toJSON();
                 if(ct.length > 0) {
                     thread["nreplies"] = ct[0].count;
-                    console.log({thread: thread, nreplies:ct[0].count});
                     return thread;
                     //return {thread: thread, nreplies:ct[0].count};
                 } else {
                     thread["nreplies"] = 0;
-                    //console.log({thread: thread, nreplies:ct[0].count});
                     return thread;
-                    //return {thread: thread, nreplies:0};
                 }
             } catch(err) {
                 console.log(err.message);

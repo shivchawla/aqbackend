@@ -6,6 +6,12 @@ const WebSocket = require('ws');
 const BacktestModel = require('../models/Research/backtest');
 const StrategyModel = require('../models/Research/strategy');
 const schedule = require('node-schedule');
+var fs = require('fs');
+var path = require("path");    
+const universeMapFile = "../documents/universe/universemap.json";
+const universeFilePath = "../documents/universe";
+var http = require('http');
+var csv = require('fast-csv'); 
 
 schedule.scheduleJob("0 * * * * *", function() {
     processBacktest(null);
@@ -328,47 +334,57 @@ function execBacktest(backtestId, conn, cb) {
             args = args.concat(['--capital', settings.initialCash]);
             args = args.concat(['--startdate', settings.startDate]);
             args = args.concat(['--enddate', settings.endDate]);
-            args = args.concat(['--universe', settings.universe]);
+            
+            console.log(settings.settings);
 
-            var advanced = JSON.parse(settings.advanced);
-            if(advanced.exclude) {
-                args = args.concat(['--exclude', advanced.exclude]);
-            }
+            return fetchUniverse(settings.universe)
+            .then(universe => {
+                console.log(universe);
+                
+                args = args.concat(['--universe', universe]);    
 
-            if(advanced.investmentPlan) {
-                args = args.concat(['--investmentplan', advanced.investmentPlan]);
-            }
+                var advanced = JSON.parse(settings.advanced);
+                if(advanced.exclude) {
+                    args = args.concat(['--exclude', advanced.exclude]);
+                }
 
-            if(advanced.rebalance) {
-                args = args.concat(['--rebalance', advanced.rebalance]);
-            }
+                if(advanced.investmentPlan) {
+                    args = args.concat(['--investmentplan', advanced.investmentPlan]);
+                }
 
-            if(advanced.cancelPolicy) {
-                args = args.concat(['--cancelpolicy', advanced.cancelPolicy]);
-            }
+                if(advanced.rebalance) {
+                    args = args.concat(['--rebalance', advanced.rebalance]);
+                }
 
-            if(advanced.executionPolicy) {
-                args = args.concat(['--executionpolicy', advanced.executionPolicy]);
-            }
+                if(advanced.cancelPolicy) {
+                    args = args.concat(['--cancelpolicy', advanced.cancelPolicy]);
+                }
 
-            if(advanced.resolution) {
-                args = args.concat(['--resolution', advanced.resolution]);
-            }
+                if(advanced.executionPolicy) {
+                    args = args.concat(['--executionpolicy', advanced.executionPolicy]);
+                }
 
-            if(advanced.commission) {
-                var commission = advanced.commission.model + ',' + advanced.commission.value.toString();
-                args = args.concat(['--commission', commission]);
-            }
+                if(advanced.resolution) {
+                    args = args.concat(['--resolution', advanced.resolution]);
+                }
 
-            if(advanced.slippage) {
-                var slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
-                args = args.concat(['--slippage', slippage]);
-            }
+                if(advanced.commission) {
+                    var commission = advanced.commission.model + ',' + advanced.commission.value.toString();
+                    args = args.concat(['--commission', commission]);
+                }
+
+                if(advanced.slippage) {
+                    var slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
+                    args = args.concat(['--slippage', slippage]);
+                }
+
+                return args;
+            });
         }
-
-        return args;
     })
     .then(argArray => {
+
+        console.log(argArray);
       
         // TO DO: Progressively try to make connections with open julia process
         // create a string to bool dictioanry
@@ -653,8 +669,67 @@ function popTopPriority(arr) {
     } else {
         return null;
     }
-
 }
+
+function fetchUniverse(universe) {
+    return new Promise(function(resolve, reject) {
+        var universeName = universe != "" ? universe : "Nifty 50"; 
+        console.log(universeName);
+
+        var universeMap = JSON.parse(fs.readFileSync(path.resolve(path.join(__dirname, universeMapFile)), 'utf8')).universe;
+        console.log(universeMap);
+
+        var idx = universeMap.findIndex(item => item.name == universeName);
+        var universeFileName = universeMap[idx!=-1?idx:0].file;
+        
+        console.log(universeFileName);
+        var dest = path.resolve(path.join(__dirname, universeFilePath, universeFileName));
+        try {
+            //universeFileContents = fs.readFileSync(dest);
+            //console.log(universeFileContents);
+
+            let csvArray=[];
+            csv.fromPath(dest, {headers: true})
+            .on("data", function(data){
+                csvArray.push(data["Symbol"].replace(/[^a-zA-Z0-9]/g,'_'));
+                //console.log(data);
+                //console.log(csvArray);
+                
+            })
+            .on("end", function(){
+                //console.log(csvArray.toString());
+                //console.log("done");
+                resolve(csvArray.toString());
+            });
+            
+            //resolve(universeFileContents);
+        } catch (err) {
+            resolve('');
+        }
+    });
+}
+
+/*function downloadFile(url, dest) {
+    console.log(url);
+    console.log(dest);
+    return new Promise(function(resolve, reject) {
+        var file = fs.createWriteStream(dest);        
+        var request = http.get(url, function(response) {
+            console.log(response);
+            response.pipe(file);
+            file.on('finish', function() {
+                file.close();  // close() is async, call cb after close completes.
+                resolve(true);
+            });
+        }).on('error', function(err) { // Handle errors
+            fs.unlink(dest); // Delete the file async. (But we don't check the result)
+            
+            console.log(err);
+            reject(err);
+        });
+    });
+}*/
+
 
 module.exports = {
     handleSubscription,
