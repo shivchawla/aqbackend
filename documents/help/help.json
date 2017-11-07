@@ -1,0 +1,262 @@
+{
+	"Help": [
+		{
+			"header":{"value":"Introduction", "size":"Big"},
+			"img_src":"",
+			"text": "<h2>Introduction</h2><p><br></p><p>AimsQuant offers an easy to use platform to research investment ideas. This platform helps in finding patterns in the stock market and testing variety of investment ideas. We provide high quality data for equity markets and computation tools like B<em>acktester and Forward Simulator&nbsp;</em>to test the historical and ongoing profitability of an investment idea. Our computation engine is written in&nbsp;<a href=\"http://localhost:8080/www.julia-lang.org\" target=\"_blank\">Julia</a>&nbsp;which allows for simple programming and super fast computations.</p><p><br></p><p>The platform displays the backtest performance as it runs (<em>realtime</em>). On successful completion, it displays broad set of analytics to discover more about profitability and overall performance of the strategy. There are no constraints in using the platform and it allows unlimited number of backtests as you test and improve your investment strategy.</p>"
+			
+		},
+		{
+			"header":{"value":"Data Sources", "size":"Big"},
+			"img_src":"",
+			"text": "<h2>Data Sources</h2><p><br></p><p>Currently, we only supports daily price data for Indian equity markets starting from year 2007. The daily data is adjusted for corporate actions like splits and dividend distributions. The&nbsp;<em>backtester</em>&nbsp;uses&nbsp;<em>exact</em>&nbsp;data for rebalancing the portfolio and adequately adjusts the portfolio and orders for any splits and dividends. However,&nbsp;<em>adjusted</em>&nbsp;(for corporate actions) data is made available for historical analysis and finding patterns with technical analysis. In the API section, there is a list of functions to fetch price data from the data stores.</p><p><br></p><p>We understand that just the price data is not sufficient to create consistently profitable investment strategies so we are working with data vendors to quickly bring to you adequate fundamental data. Also, we plan to add more history and higher frequency data as we evolve and grow.</p><p><br></p><h4>Summary</h4><ul><li>Only Equity data for Indian markets from 2007</li><li>Daily Frequency Only</li><li>Corporate actions adjusted data for analysis</li><li>Actual data (true close prices) to rebalance the portfolio</li></ul><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"What is Backtesting?", "size":"Big"},
+			"img_src":"",
+			"text": "<h2>What is Backtesting?</h2><p><br></p><p><em>Backtesting</em>&nbsp;is a testing process for trading and investment strategies. It estimates the performance of a strategy or model if employed during a past period. It helps in analyzing the profitability along with risk and return characteristics of a strategy over a period of time. It is a widely used industry practice where trading strategies are thoroughly tested before allocation of actual money. This makes it an integral part of developing an automated trading system.</p>"
+			
+		},
+		{
+			"header":{"value":"How to use the platform?", "size":"Big"},
+			"img_src":"",
+			"text": "<h2>How to use the platform?</h2><p><br></p><p>The platform is very easy to use. The platform has three major panels.&nbsp;<em>Code Editor, Editor Toolbar and Settings Panel</em></p>"	
+		},
+		{
+			"header":{"value":"Code Editor", "size":"Big"},
+			"img_src":"../../resources/src/components/help/help.jpg",
+			"text": "<ul><li><strong>Code Editor</strong></li></ul><p class=\"ql-indent-1\">The platform provides a&nbsp;<em>Code Editor</em>&nbsp;to write investment strategies. A&nbsp;<em>user</em>&nbsp;writes a&nbsp;<em>Julia</em>&nbsp;script in the code editor detailing the logic of the trading strategy. The user must create two necessary functions for a successful backtest.</p><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Editor Toolbar", "size":"Big"},
+			"img_src":"../../resources/src/components/help/help.jpg",
+			"text": "<ul><li><strong>Editor Toolbar</strong></li></ul><p class=\"ql-indent-1\">The toolbar provides quick functionalities to create, edit and save the strategy. The user can launch by pressing the Play button. The user can also visualize history of all backtests by pressing the Chart icon. Below is a descriptive picture of the editor toolbar</p><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Security Panel", "size":"Big"},
+			"img_src":"../../resources/src/components/help/help.jpg",
+			"text": "<ul><li><strong>Settings Panel</strong></li></ul><p class=\"ql-indent-1\">The panel on the right of Code Editor is called Settings Panel. The settings panel helps in easy selection of basic parameters of the trading strategy. Basic Settings include parameters like&nbsp;<em>Start and End Date</em>&nbsp;of the backtester and;&nbsp;<em>Initial Capital&nbsp;</em>of the strategy. It show Advanced Settings with parameters like Rebalance Frequency, Cancel Policy, Execution Policy, Commission, Slippage and Investment Plan. Also, a static&nbsp;<em>Universe</em>&nbsp;can be selected from the settings panel.</p><p><br></p><p class=\"ql-indent-1\"><em style=\"color: rgb(36, 41, 61);\">However, the parameters will be overwritten if redefined via the code editor in initialize()</em></p><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"API", "size":"Big"},
+			"img_src":"",
+			"text": "<h2>API</h2><h3><br></h3><h3><strong>I. API Entities</strong></h3><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Security", "size":"Big"},
+			"img_src":"",
+			"text": "<p><strong>1. Security</strong></p><p><br></p><p>Security represents a trading instrument on an exchange. In the platform, a security can be uniquely identified by it's&nbsp;<em>symbol</em>&nbsp;which is a combination of string ticker and an integer identifier. Security is a building block of an instrument universe in a trading strategy. In the platform, it is used pervasively used to fetch prices, place orders and learn about positions in the portfolio.</p><p><br></p><p><em>DEFAULT exchange is National Stock Exchange of India (identified by code \"NSE\")</em></p><p><em>DEFAULT country is India (identified by code \"IN\")</em></p><p><em>DEFAULT security type is Equity (identified by code \"EQ\")</em></p><p><code style=\"background-color: rgb(240, 240, 240);\">*</code>Currently, the platform supports only equity (\"EQ\") type securities.</p><p><br></p><pre class=\"ql-syntax\" spellcheck=\"false\">#Security Symbol: Combination of string ticker and an integer identifier\ntype SecuritySymbol\n  id::Int64\n  ticker::String\nend\n#Security Object\ntype Security\n  symbol::SecuritySymbol\n  name::String\n  exchange::String\n  country::String\n  securitytype::String\n  startdate::DateTime\n  enddate::DateTime\nend\n</pre><p><em>All security based functions accept&nbsp;</em><strong><em>Security</em></strong><em>,&nbsp;</em><strong><em>SecuritySymbol</em></strong><em>&nbsp;or a&nbsp;</em><strong><em>string ticker</em></strong><em>&nbsp;as a valid input</em>.</p><p><br></p><p><em>In case, just a&nbsp;</em><strong><em>string ticker</em></strong><em>&nbsp;is provided to a security based function, above defaults are assumed to identify the security in the AimsQuant data-stores.</em></p>"
+			
+		},
+		{
+			"header":{"value":"Universe", "size":"Big"},
+			"img_src":"",
+			"text": "<p><strong><em>2.&nbsp;</em>Universe</strong></p><p><br></p><p>This represents a collection of securities. It tracks all the securities available in a trading strategy at all times. A security must only be stored and accessed from this collection to make any changes to the trading strategy.</p>"
+			
+		},
+		{
+			"header":{"value":"Order", "size":"Big"},
+			"img_src":"",
+			"text": "<p><strong>3. Order</strong></p><p><br></p><p>It is an instruction sent to a broker to enter, exit or change a position. It helps to modify the quantity of stocks held in an instrument.</p><p>To increase the quantity in a Security A from 100 shares to 200 shares, a&nbsp;<strong><em>BUY</em></strong>&nbsp;order is placed for 100 shares. Similarly, in order to&nbsp;<em>reduce</em>&nbsp;the quantity in a Security, a&nbsp;<strong><em>SELL</em></strong>&nbsp;order is placed. A SELL order of 50 shares aims to reduce the quantity by 50 shares.</p><p><br></p><pre class=\"ql-syntax\" spellcheck=\"false\"># Order Object\ntype Order\n  id::UInt64\n  securitysymbol::SecuritySymbol\n  quantity::Int64 \n  remainingquantity::Int64\n  price::Float64\n  ordertype::OrderType\n  datetime::DateTime \n  orderstatus::OrderStatus \n  tag::String\nend\n</pre><p>Every order is identified by a unique integer identifier inside AimsQuant platform. The user can inquire about the order status by inspecting the fields mentioned. In addition to&nbsp;<strong><em>remainingquantity</em></strong>, a quick look into&nbsp;<strong><em>orderstatus</em></strong>&nbsp;tells the current stage of the order cycle.</p><p><br></p><p><em>As order quantities are signed (negative for SELL and positive for BUY), \"less\" or \"greater\" should be considered in terms of absolute values only!</em></p><p><br></p><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Order Status", "size":"Big"},
+			"img_src":"",
+			"text": "<p class=\"ql-indent-1\"><strong>List of OrderStatus:</strong></p><ol><li class=\"ql-indent-1\"><strong>Filled</strong>: When the order is complete. In this case, the&nbsp;remaining quantity&nbsp;of the order becomes 0</li><li class=\"ql-indent-1\"><strong>PartiallyFilled</strong>: When the order is not complete yet but&nbsp;remaining quantity&nbsp;is less than the original&nbsp;quantity</li><li class=\"ql-indent-1\"><strong>Pending</strong>: When order is submitted but remaining quantity is same as original quantity</li></ol><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Order Types", "size":"Big"},
+			"img_src":"",
+			"text": "<p class=\"ql-indent-1\"><strong>List of OrderType:</strong></p><ol><li class=\"ql-indent-1\"><strong><em>MarketOnOpen</em></strong>: Order is executed at the open price of the next day.</li><li class=\"ql-indent-1\"><strong><em>MarketOnClose</em></strong>: Order is executed at close price of next day.</li><li class=\"ql-indent-1\"><strong><em>Close</em></strong>: Order is executed at close of the next period. As the platform only supports daily data, this order type is same as&nbsp;<strong><em>MarketOnClose</em></strong><em>&nbsp;</em>. This is also the DEFAULT order type on the platform</li></ol><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Position", "size":"Big"},
+			"img_src":"",
+			"text": "<p><strong>4. Position</strong></p><p><br></p><p>A position tracks the value invested in an instrument. Position typically consists of&nbsp;<em>underlying security</em>,&nbsp;<em>quantity of shares</em>&nbsp;and&nbsp;<em>average price</em>&nbsp;to accumulate the quantity along with various other metrics. This is another fundamental block of any trading strategy. A trading strategy changes the position in an instrument based on various inputs.</p><p><br></p><p>To&nbsp;<em>increase the position</em>&nbsp;in an instrument, one places a BUY order and to&nbsp;<em>decrease the position</em>, a SELL order is required.</p><pre class=\"ql-syntax\" spellcheck=\"false\"># Position Object\ntype Position\n  securitysymbol::SecuritySymbol\n  quantity::Int64\n  averageprice::Float64\n  totalfees::Float64\n  lastprice::Float64\n  lasttradepnl::Float64\n  realizedpnl::Float64 \n  totaltradedvolume::Float64\nend\n</pre><p>In addition to tracking the quantity and average price, it tracks the amount of fees to accumulate the position along with any realized and unrealized profit/loss in the position. It also tracks the total volume transacted.</p>"
+			
+		},
+		{
+			"header":{"value":"Portfolio", "size":"Big"},
+			"img_src":"",
+			"text": "<p><strong>5. Portfolio</strong></p><p><br></p><p>This represents a&nbsp;<em>collection of&nbsp;</em><strong><em>Positions</em></strong>. It tracks the positions at any given time in the trading strategy and is used to compute various important metrics of a trading strategy. Any change in Position is reflected in the portfolio and related metrics.</p><p><br></p><pre class=\"ql-syntax\" spellcheck=\"false\"># Portfolio Object: All positions and aggregated metrics\ntype Portfolio\n  positions::Dict{SecuritySymbol, Position}\n  metrics::PortfolioMetrics\nend\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Portfolio Metrics", "size":"Big"},
+			"img_src":"",
+			"text": "<p><strong>6. Portfolio Metrics</strong></p><p><br></p><p>Encapsulates various types to exposures and security counts to monitor the portfolio. All the exposures are defined below.</p><pre class=\"ql-syntax\" spellcheck=\"false\"># Aggregated portfolio metrics\ntype PortfolioMetrics\n  netexposure::Float64\n  grossexposure::Float64\n  shortexposure::Float64\n  longexposure::Float64\n  shortcount::Int\n  longcount::Int\nend\n</pre><ul><li><strong>Net Exposure</strong>: Sum of all holdings in the portfolio</li><li><strong>Gross Exposure</strong>: Sum of absolute of holdings in the portfolio</li><li><strong>Short Exposure</strong>: Sum of all short holdings in the portfolio</li><li><strong>Long Exposure</strong>: Sum of all&nbsp;<em>long</em>&nbsp;holdings in the portfolio&nbsp;<em>where Holdings = Position Quantity x Last Price of Position</em></li><li><strong>Short Count</strong>: Number of Position where Holdings are&nbsp;<em>negative</em></li><li><strong>Long Count</strong>: Number of Position where Holdings are&nbsp;<em>positive</em></li></ul><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Account", "size":"Big"},
+			"img_src":"",
+			"text": "<p><strong>7. Account</strong></p><p><br></p><p>Along with&nbsp;<strong><em>available cash</em></strong>, it tracks various other metrics like&nbsp;<strong>netvalue</strong>&nbsp;and&nbsp;<strong>leverage</strong>&nbsp;which are important to check the behavior and well functioning of the trading strategy.</p><p><br></p><pre class=\"ql-syntax\" spellcheck=\"false\"># Account type\ntype Account\n  cash::Float64\n  netvalue::Float64\n  leverage::Float64\n  portfolio::Portfolio\nend\n</pre><ul><li><strong>Net Value</strong>: Net Exposure of Portfolio +&nbsp;C<em>ash</em></li><li><strong>Leverage</strong>: (Gross Exposure of Portfolio + Cash ) / Net Value</li></ul><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Algorithm State", "size":"Big"},
+			"img_src":"",
+			"text": "<p><strong>8. AlgorithmState</strong></p><p><br></p><p>This is a very useful entity as it encapsulates Account, Portfolio Performance along with a parameter dictionary. The user can use this object to directly inspect the various encapsulated entities. In addition, the parameter dictionary can be used to add parameters persistent in a strategy.</p><p><br></p><pre class=\"ql-syntax\" spellcheck=\"false\"># AlgorithmState type\ntype AlgorithmState\n  account::Account\n  performance::Performance\n  params::Dict{String, Any}\nend\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"User Defined Functions", "size":"Big"},
+			"img_src":"",
+			"text": "<h3>II.&nbsp;<strong>User Defined Functions</strong></h3><p><br></p><p>For successful investment strategy, user is required to create two mandatory functions. These two functions are building blocks of every investment strategy.</p><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"initialize()", "size":"Big"},
+			"img_src":"",
+			"text": "<p class=\"ql-indent-1\"><strong><em>a. initialize()</em></strong></p><p class=\"ql-indent-1\">Initializes basic parameters of the strategy like backtesting period, initial cash and various other settings.</p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">function initialize(state::AlgorithmState)\n  setstartdate(\"01/01/2015\") \n  setenddate(\"24/12/2015\") \n  setcash(100000.0) \n  setuniverse([\"TCS\",\"WIPRO\"]) \nend\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"ondata()", "size":"Big"},
+			"img_src":"",
+			"text": "<p class=\"ql-indent-1\"><strong><em>b. ondata()</em></strong></p><p class=\"ql-indent-1\">This function is called every time stamp or start of rebalancing period and details the logic of the investment strategy.</p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">function ondata(data::TimeArray, state::AlgorithmState)\n  #Get Universe\n  universe = getuniverse()\n\n  #get number of stocks in the universe\n  nstocks = length(universe)\n\n  #Allocate equal wealth to stock in the universe \n  for stock in universe\n      setholdingpct(stock, 1.0/nstocks)\n  end\nend\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Algorithm State and Data", "size":"Big"},
+			"img_src":"",
+			"text": "<h3><strong>III. Algorithm State and Data</strong></h3><p><br></p><p>Above in the User Defined functions, two objects are passed to convey strategy information to the user. These two entities help in inspecting the latest data for securities in the Universe as well data about the strategy in general.</p>"
+			
+		},
+		{
+			"header":{"value":"Algorithm State", "size":"Big"},
+			"img_src":"",
+			"text": "<p><strong>a. AlgorithmState</strong></p><p><br></p><p>A user can use&nbsp;AlgorithmState&nbsp;object to inspect the account, portfolio positions and portfolio metrics. It also exposes rolling performance of last 252 days along with total returns of the algorithm.&nbsp;It can also be used to set persistent user defined parameters.</p><p class=\"ql-indent-2\"><br></p><p>Below is an example that inspects the total cash in the account and adjusts a uniform portfolio to keep cash at a 5% of total portfolio value.</p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">function ondata(data::TimeArray, state::AlgorithmState)\n  cash  = state.account.cash\n  netvalue = state.account.netvalue\n  #Check if cash is less than 5% of the portfolio value\n  if(cash &lt; 0.05*netvalue)\n    universe = getuniverse()\n\n#Allocate 95% of total wealth to stocks\ntarget_port = [(stock, 0.95/nstocks) for stock in universe)] \ntargetportfolio(target_port)\n  end\nend\n</pre><p><br></p><p>Another example that sets user defined parameters in&nbsp;<strong>initialize()</strong>&nbsp;and uses it in&nbsp;<strong>ondata()</strong></p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">function initialize(state::AlgorithmState)\n  #Set maximum leverage\n  state[\"maxLeverage\"] = 0.75\n\n  #Set universe \n  setuniverse([\"TCS\"])  #Set universe\nend\nfunction ondata(data::TimeArray, state::AlgorithmState)\n  pos = state.account.portfolio[\"TCS\"]\n  posValuePct = pos.quantitypos.lastprice/state.account.netvalue\n\n  #Check if leverage exceeds maximum leverage\n  if(posValuePct &gt; state[\"maxLeverage\"]) \n      setholdingpct(\"TCS\", state[\"maxLeverage\"])\n  end\nend\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Trading Environment", "size":"Big"},
+			"img_src":"",
+			"text": "<h3>IV. Trading Environment</h3><p><br></p><p><span style=\"color: rgb(36, 41, 61);\">This section details the function to initialize the trading strategy. Most of the function described here can only be called from&nbsp;</span><em style=\"color: rgb(36, 41, 61);\">initialize()&nbsp;</em><span style=\"color: rgb(36, 41, 61);\">function.</span></p>"
+			
+		},
+		{
+			"header":{"value":"Start and End Dates", "size":"Big"},
+			"img_src":"",
+			"text": "<ol><li><strong>Set Start and End Dates</strong></li></ol><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#API function to set start date of the backtest\nsetstartdate(date::Date)\nsetstartdate(date::String, format::String = \"dd/mm/yyyy\")\n</pre><p><br></p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#API function to set end date of the backtest\nsetenddate(date::Date)\nsetenddate(date::String, format::String = \"dd/mm/yyyy\")\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Set Cancel Policy", "size":"Big"},
+			"img_src":"",
+			"text": "<p class=\"ql-indent-1\"><strong>2. Set Cancel Policy:&nbsp;</strong><strong style=\"color: rgb(36, 41, 61);\">Function to set the cancel policy of the backtest</strong></p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#API function to set cancel policy\nsetcancelpolicy(cancelpolicy::CancelPolicy)\nsetcancelpolicy(cancelpolicy::String)\n</pre><p class=\"ql-indent-1\">There are two cancel policies supported by the backtester</p><p><br></p><ul><li>GTC (Good Till Canceled): In this cancel policy, a pending order stays active unless it's canceled by the user.</li><li>EOD (End of Day): In this cancel policy, all pending orders are closed just before the market close. This is the DEFAULT cancel policy of the backtester</li></ul><p><br></p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#Example: Set the cancel policy to be Good Till Canceled\nfunction initialize()\nsetcancelpolicy(CancelPolicy(GTC))\n#OR\nsetcancelpolicy(\"GTC\")\nend\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Set Commission", "size":"Big"},
+			"img_src":"",
+			"text": "<h4 class=\"ql-indent-1\">3. Set Commission:&nbsp;<em style=\"color: rgb(36, 41, 61);\">Function to set the commission model of the backtest</em></h4><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#API function to set commission model and value\nsetcommission(commission::Tuple{CommissionModel, Float64})\nsetcommission(commission::Tuple{String,Float64})\n</pre><p class=\"ql-indent-1\"><br></p><p class=\"ql-indent-1\">There are two commission models supported by the backtester. It is called&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">CommissionModel</code>&nbsp;in the backtester</p><p><br></p><ul><li><strong>PerTrade</strong>: In this model, a fix percentage of the order value is charged as commission. If the order value is Rs. 10,000 and commission is 0.1% , then total commission for order is Rs. 10. This is the DEFAULT commission model in the backtester.</li></ul><p><br></p><ul><li><strong>PerShare</strong>: In this model, a fix value per share is charged as commision. If an order consists of 300 shares and commission is 1 Paise per share, then total commission for order is Rs 3</li></ul><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#Example: Set commission to \"PerShare\" / 5 paise per share \nsetcommission((CommissionModel(PerShare), 0.05))\n#OR\nsetcommission((\"PerShare\", 0.05))\nend\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Set Slippage", "size":"Big"},
+			"img_src":"",
+			"text": "<p class=\"ql-indent-1\"><strong>4. Set Slippage:&nbsp;Function to set the slippage model of the backtest</strong></p><p class=\"ql-indent-1\"><br></p><p class=\"ql-indent-1\">What is&nbsp;<em>Slippage</em>? - Slippage is the difference between the trade execution price and the price where the strategy signaled the entry and exit for a trade (expected price)</p><p><br></p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#API function to set slippage model and value\nsetslippage(slippage::Tuple{SlippageModel,Float64})\nsetslippage(slippage::Tuple{String,Float64})\n</pre><p class=\"ql-indent-1\"><br></p><p class=\"ql-indent-1\">There are two slippage models supported by the backtester. It is called&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">SlippageModel</code>&nbsp;in the backtester</p><p><br></p><ul><li><strong>Fixed</strong>: In this model, the difference between the model price an the execution price is a fixed value. If slippage is 0.50 and a buy order is placed at a expected price of Rs. 50, the execution price is Rs. 50.50</li></ul><p><br></p><ul><li><strong>Variable</strong>: In this model, the difference between the model price an the execution price is a percentage value of expected price. If slippage is 0.2% and a buy order is placed at a expected price of Rs. 50, the execution price is Rs. 51.00. This is the DEFAULT slippage model in the backtester.</li></ul><p><br></p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#Example: Set slippage model to \"Fixed\" / 50 paise \nsetslippage((SlippageModel(Fixed), 0.50))\n#OR\nsetslippage((\"Fixed\", 0.50))\nend\n\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Order Execution", "size":"Big"},
+			"img_src":"",
+			"text": "<h3>V. Order Execution</h3><p><br></p><p><span style=\"color: rgb(36, 41, 61);\">This section details the functions available to place orders and adjust position value depending on strategy logic</span></p>"
+			
+		},
+		{
+			"header":{"value":"Place Order", "size":"Big"},
+			"img_src":"",
+			"text": "<p class=\"ql-indent-1\"><strong>1. Place Order:&nbsp;Function to send order to a brokerage for execution</strong></p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#Functions to place order\n#There are several different variety of place order functions\nplaceorder(order::Order)\nplaceorder(ticker::String, quantity::Int)\nplaceorder(security::Security, quantity::Int)\nplaceorder(symbol::SecuritySymbol, quantity::Int)\n</pre><p class=\"ql-indent-1\">Using above function, an order can be placed for a security, a security symbol, or just the string ticker. In case of string ticker, a security is searched in data-stores (assuming defaults for exchange/country/security type)</p><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Set Holding", "size":"Big"},
+			"img_src":"",
+			"text": "<p class=\"ql-indent-1\"><strong>2. Set Holding</strong></p><p class=\"ql-indent-1\"><br></p><p class=\"ql-indent-1\">These set of functions are useful when the backtester aims to modify the position directly without doing necessary calculation. These functions call&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">placeorder</code>&nbsp;functions under the hood. There are three major set of function to directly adjust the holding of an instrument based on a target. If&nbsp;<strong><em>target holding</em></strong>&nbsp;is different from the current holding, a BUY or SELL order is automatically generated to match the difference.</p><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"setholdingpct", "size":"Big"},
+			"img_src":"",
+			"text": "<h4 class=\"ql-indent-1\">2a.&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">setholdingpct</code>:&nbsp;Function to set the holding in terms of percentage value</h4><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#To modify the holdings to 20% of the portfolio, \n#pass 0.2 as the target value\n\n\n#If the actual holdings are less than 20%, \n\n\n#BUY order is automatically placed under the hood to adjust the holding percentage.\nsetholdingpct('XYZ', 0.2)\n</pre><p><br></p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#List of all functions to set holdings in percentage\nsetholdingpct(ticker::String, target::Float64)\nsetholdingpct(symbol::SecuritySymbol, target::Float64)\nsetholdingpct(security::Security, target::Float64)\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"setholdingvalue", "size":"Big"},
+			"img_src":"",
+			"text": "<p class=\"ql-indent-1\"><strong>2b.&nbsp;</strong><strong style=\"background-color: rgb(240, 240, 240);\"><code>setholdingvalue</code></strong><strong>: Function to set the holding in terms of monetary value</strong></p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#To invest Rs. 20,000 in an instrument \nsetholdingvalue('XYZ', 20000)\n</pre><p class=\"ql-indent-1\">If the current holding is worth Rs. 10,000, it will automatically generate a BUY order worth Rs. 10,000 more under to hood to match the total value. In case, the holding is more than Rs. 20,000, a SELL order would be generated to reduce the position to the correct amount.</p><p class=\"ql-indent-1\"><br></p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#List of all functions to set holdings in exact value\nsetholdingvalue(ticker::String, target::Float64)\nsetholdingvalue(symbol::SecuritySymbol, target::Float64)\nsetholdingvalue(security::Security, target::Float64)\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"setholdingshares", "size":"Big"},
+			"img_src":"",
+			"text": "<h4 class=\"ql-indent-1\">2c.&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">setholdingshares</code>:&nbsp;<span style=\"color: rgb(36, 41, 61);\">Function to set the holdings in terms of number of shares</span></h4><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#List of all functions to set holdings in shares\nsetholdingshares(ticker::String, target::Int)\nsetholdingshares(symbol::SecuritySymbol, target::Int)\nsetholdingshares(security::Security, target::Int)\n</pre><p><br></p><p class=\"ql-indent-1\">Sample use of above functions</p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#Examples: Invest 5% of the portfolio in TATAMOTORS\nsetholdingpct('TATAMOTORS', 0.05)\n#Invest Rs. 30,000 in TATAMOTORS\nsetholdingvalue(symbol('TATAMOTORS'), 30000)\n\n#Invest worth 200 shares in TATAMOTORS\nsetholdingshares(security('TATAMOTORS'), 200)\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Liquidate Holdings", "size":"Big"},
+			"img_src":"",
+			"text": "<p class=\"ql-indent-1\"><strong>3. Liquidate Holdings</strong></p><p class=\"ql-indent-1\"><br></p><p class=\"ql-indent-1\">These set of functions are useful when the backtester quickly wants to completely square off a position. The functionality can be achieved with other listed functions but the&nbsp;names&nbsp;of these functions helps in better legibility of a trading strategy.</p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#List of all functions to liquidate a holding\n#Liquidates an instrument \nliquidate(ticker::String)\nliquidate(symbol::SecuritySymbol)\nliquidate(security::Security)\n\n#Liquidates all the holdings in a portfolio\nliquidateportfolio()\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Target Portfolio", "size":"Big"},
+			"img_src":"",
+			"text": "<p class=\"ql-indent-1\"><strong>4. Set Target Portfolio</strong></p><p class=\"ql-indent-1\"><br></p><p class=\"ql-indent-1\">To achieve a target portfolio, use this function to avoid loops and improve legibility of the trading strategy.</p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#List of all functions to set target portfolio\n#Pass portfolio as ticker or id dictionary (with weights as default values) \nsettargetportfolio(port::Dict{String, Float64}; scale = \"wts\")\nsettargetportfolio(port::Dict{SecuritySymbol, Float64}; scale = \"wts\")\n\n#Pass portfolio as Array of tuples(with weights as default values)\nsettargetportfolio(port::Vector{Tuple{String, Float64}}; scale = \"wts\")\nsettargetportfolio(port::Vector{Tuple{Int64, Float64}}; scale = \"wts\")\nsettargetportfolio(port::Vector{Tuple{SecuritySymbol, Float64}}; scale = \"wts\")\nsettargetportfolio(port::Vector{Tuple{Security, Float64}}; scale = \"wts\")\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Miscellaneous functions", "size":"Big"},
+			"img_src":"",
+			"text": "<p class=\"ql-indent-1\"><strong>5. Miscellaneous functions:</strong></p><p class=\"ql-indent-2\">a. Cancel Order: Functions to cancel order by security or cancel all orders</p><p class=\"ql-indent-2\">b. Retrieve Order: Functions to retrieve open orders by security or all open orders in a trading strategy</p><p class=\"ql-indent-2\"><br></p><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#List of all functions to cancel/retrieve orders\n#Retrieve order \ngetopenorders()\n\n#Cancel orders\n\n\n#Cancel order by security\ncancelopenorders(ticker::String)\ncancelopenorders(symbol::SecuritySymbol)\ncancelopenorders(security::Security)\n\n#Cancel all open orders across all securities\ncancelopenorders()\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Universe API", "size":"Big"},
+			"img_src":"",
+			"text": "<h3>VI. Universe API</h3><p><br></p><p><span style=\"color: rgb(36, 41, 61);\">This section details the functions related to security universe API</span></p>"
+			
+		},
+		{
+			"header":{"value":"Add Universe", "size":"Big"},
+			"img_src":"",
+			"text": "<ul><li><strong>Add Universe</strong>:&nbsp;Functions to add a security to the universe</li></ul><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#Functions to ADD security or collection of securities to already \n#existing universe\nadduniverse(ticker::String)\nadduniverse(tickers::Vector{String})\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Set Universe", "size":"Big"},
+			"img_src":"",
+			"text": "<ul><li><strong>Set Universe</strong>:&nbsp;Functions to set the universe to set collection of securities</li></ul><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#Functions to SET a security or collection of securities as the new universe\nsetuniverse(ticker::String)\nsetuniverse(tickers::Vector{String})\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Get Universe", "size":"Big"},
+			"img_src":"",
+			"text": "<ul><li><strong>Get Universe</strong>:&nbsp;Function to retrieve the security collection in the trading strategy</li></ul><pre class=\"ql-syntax ql-indent-1\" spellcheck=\"false\">#Function to GET the universe\ngetuniverse()\n</pre><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"History API", "size":"Big"},
+			"img_src":"../../resources/src/components/help/help.jpg",
+			"text": "<h3>VII. History API</h3><p><br></p><p>This API helps in retrieving&nbsp;<em>price history</em>&nbsp;for a security or collection of securities. This will make a backbone for a lot of price history based investment strategies like Momentum, Extreme Reversal, Mean Reversion amongst other.</p><p><br></p><pre class=\"ql-syntax\" spellcheck=\"false\">#Function to get price-history of stock \nhistory(tickers::Vector{String}, datatype::String, frequency::Symbol, horizon::Int)\nhistory(securityids::Vector{Int}, datatype::String, frequency::Symbol, horizon::Int)\nhistory(symbols::Vector{SecuritySymbol}, datatype::String, frequency::Symbol, horizon::Int)\nhistory(securities::Vector{Security}, datatype::String, frequency::Symbol, horizon::Int)\n</pre><p>Important Points:</p><ul><li>The above function returns TimeArray (TimeSeries) where columns names as tickers and row index as dates</li><li>Currently, the function only supports '<strong>:Day</strong>' frequency data</li><li>Supports 5 different datatypes,&nbsp;<strong>['Open', 'High', 'Low', 'Close','Volume']</strong></li><li>All the data is ADJUSTED for corporate actions</li></ul><p><br></p>"
+			
+		},
+		{
+			"header":{"value":"Utility API", "size":"Big"},
+			"img_src":"",
+			"text": "<h3>VIII. Utility API</h3><p><br></p><p>This API helps in converting price series into more useful metrics like price returns, standard deviation and beta. This can be very useful API and help in creating complex strategies quickly</p><pre class=\"ql-syntax\" spellcheck=\"false\">#Function to get metrics\n#Function to compute Returns\nprice_returns(securities::Vector{T}, series::String, frequency::Symbol; \n                        window::Int=22, total::Bool=false, rettype::Symbol=:log)\n\n#Function to compute standard deviation\nstddev(securities::Vector{T}, series::String, frequency::Symbol; \n                            window::Int = 22,&nbsp;returns=true, rettype::Symbol=:log)\n                      &nbsp;&nbsp;&nbsp;\n\n#Function to compute beta\nbeta(securities::Vector{T}, frequency::Symbol; window::Int = 252,&nbsp;\n      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;benchmark=\"CNX_NIFTY\", rettype::Symbol=:log, series::String = \"Close\")\n\nwhere T is of type Security, SecuritySymbol, ticker(String) or securityid(Int)\n\n\n</pre><p>Definitions and some optional parameters for metric functions:</p><ol><li><code style=\"background-color: rgb(240, 240, 240);\">series</code>: Type of price value. It can take one of the values in&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">[\"Open\",\"High\", \"Low\", \"Close\"]</code></li><li><code style=\"background-color: rgb(240, 240, 240);\">frequency</code>: Sampling frequency of price series. Currently only daily (<code style=\"background-color: rgb(240, 240, 240);\">:Day</code>) frequency is supported</li><li><code style=\"background-color: rgb(240, 240, 240);\">window</code>: Length of historical horizon. The platform supports historical values since 2007 for NSE (National Stock Exchange of India)</li><li><code style=\"background-color: rgb(240, 240, 240);\">rettype</code>: Type of returns series. It can take one of values in&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">[:log, :simple]</code>&nbsp;. DEFAULT is&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">:log</code>&nbsp;which denotes&nbsp;<strong>log returns</strong></li></ol><p><br></p><p>Other inputs for specific functions</p><ol><li><code style=\"background-color: rgb(240, 240, 240);\">total</code>&nbsp;in&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">price_returns</code>: If&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">true</code>, calculates the Returns of complete window and not every time stamp. DEFAULT is&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">true</code></li><li><code style=\"background-color: rgb(240, 240, 240);\">returns</code>&nbsp;in&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">stddev</code>: If&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">true</code>, calculates the standard deviation of returns (and not price). DEFAULT is&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">true</code></li><li><code style=\"background-color: rgb(240, 240, 240);\">benchmark</code>in&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">beta</code>: Security Ticker for the benchmark security. DEFAULT is NSE-50 Index denoted by&nbsp;<code style=\"background-color: rgb(240, 240, 240);\">\"CNX_NIFTY\"</code></li></ol><p><br></p>"
+			
+		}
+	]
+}
+		
