@@ -1,9 +1,9 @@
 'use strict';
-const CryptoJS = require('crypto-js');
 const config = require('config');
 const WebSocket = require('ws');
 const schedule = require('node-schedule');
 const ForwardTestModel = require('../models/Research/forwardtest');
+const SettingsParser = require('./btSettings.js');
 
 var isBusy = {};
 
@@ -158,57 +158,10 @@ function execForwardTest(forwardtestId, connection, cb) {
         if(restart) {
             // No deserialized data was found
             // to obtain the initial settings
-            let settings = ft.settings;
-
-            args = args.concat(['--capital', settings.initialCash]);
-            
-            var cd = ft.createdAt; 
-            var startDate = cd.getFullYear()+"-"+(cd.getMonth()+1)+"-"+cd.getDate();    
-            
-            args = args.concat(['--startdate', startDate]);
-            
-            args = args.concat(['--universe', settings.universe]);
-
-            let advanced = JSON.parse(settings.advanced);
-
-            if(advanced.exclude) {
-                args = args.concat(['--exclude', advanced.exclude]);
-            }
-
-            if(advanced.investmentPlan) {
-                args = args.concat(['--investmentplan', advanced.investmentPlan]);
-            }
-
-            if(advanced.rebalance) {
-                args = args.concat(['--rebalance', advanced.rebalance]);
-            }
-
-            if(advanced.cancelPolicy) {
-                args = args.concat(['--cancelpolicy', advanced.cancelPolicy]);
-            }
-
-            if(advanced.resolution) {
-                args = args.concat(['--resolution', advanced.resolution]);
-            }
-
-            if(advanced.commission) {
-                let commission = advanced.commission.model + ',' + advanced.commission.value.toString();
-                args = args.concat(['--commission', commission]);
-            }
-
-            if(advanced.slippage) {
-                let slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
-                args = args.concat(['--slippage', slippage]);
-            }
-        }
-
-        // Add Code parameter
-        args = args.concat(['--code', CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
-
-        // And most importantly
-        args = args.concat(['--forward', 'true']);
-
-        return args;
+            return SettingsParser.parseSettings(ft, true);
+        } else {
+            return args;
+        }    
     })
     .then(argArray => {
 
@@ -218,6 +171,7 @@ function execForwardTest(forwardtestId, connection, cb) {
 
         ftClient.on('open', function() {
             console.log('Connection Open');
+            console.log(argArray);
             ftClient.send(argArray.join("??##"));
         });
 
