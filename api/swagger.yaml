@@ -264,6 +264,26 @@ paths:
           description: OK
         400:
           description: Error Sending Email
+
+  /user/updateToken:
+    put:
+      tags:
+      - "user"
+      summary: Attempt to update token
+      description: Update Token
+      operationId: updateToken
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+           $ref: '#/definitions/updateToken'
+      x-swagger-router-controller: "User"
+      responses:
+        200:
+          description: OK
+        400:
+          description: Error Updating Token
           
   /thread:
     post:
@@ -2100,7 +2120,7 @@ definitions:
         type: "string"
       profession:
         type: "string"
-      
+
   Login:
     type: "object"
     properties:
@@ -2108,6 +2128,7 @@ definitions:
         type: "string"
       password:
         type: "string"
+
   
   Thread:
     type: object
@@ -2143,7 +2164,19 @@ definitions:
       code:
         type: "string"
         format: "uuid"
-  
+
+
+  updateToken:
+    type: object
+    required:
+      - token
+      - email
+    properties:
+      token:
+        type: string
+      email:
+        type: string
+    
   userId:
     type: object
     required:

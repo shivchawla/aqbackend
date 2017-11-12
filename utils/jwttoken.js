@@ -16,7 +16,7 @@ function signToken(payload) {
             issuer: 'aimsquant',
             jwtid: 'jwtid',
             algorithm: 'RS256',
-            expiresIn: '1d'
+            expiresIn: '2d'
         },
         function(err, token) {
             if (err) {
@@ -27,9 +27,9 @@ function signToken(payload) {
     });
 }
 
-function verifyToken(token) {
+function verifyToken(token, options) {
     return new Promise(function(resolve, reject) {
-        jwt.verify(token, pub, function(err, decoded) {
+        jwt.verify(token, pub, options, function(err, decoded) {
             if (err) {
                 return reject(err);
             }

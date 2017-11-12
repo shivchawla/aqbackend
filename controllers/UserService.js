@@ -75,7 +75,7 @@ exports.forgotPassword = function(args, res, next) {
     }, uuid.v4())
     .then(function(userDetails) {
         delete userDetails.password;
-         sendEmail.sendForgotEmail(res, userDetails);
+        sendEmail.sendForgotEmail(res, userDetails);
     })
     .catch(err => {
         next(err);
@@ -150,4 +150,41 @@ exports.sendFeedback = function (args, res, next) {
 
 exports.sendInvite = function (args, res, next) {
     sendEmail.sendInvite(res, args);
+};
+
+exports.updateToken = function(args, res, next) {
+    const userEmail = args.body.value.email;
+    const token = args.body.value.token;
+
+    var options = {ignoreExpiration: true};
+    jwtUtil.verifyToken(token, options)
+    .then(decoded => {
+        //Check if token expired within last 15 minute
+        if (decoded.exp*1000 <= Date.now() - 15*60*1000) {
+            throw new Error("Token Expired long back");
+        } else {
+            return UserModel.fetchUser({
+                _id: decoded._id,
+                email: userEmail});
+        }
+    })
+    .then(user => {
+        if(user) {
+            const userDetails = user.toObject();
+            if (!userDetails.active) {
+                throw new Error('User not active');
+            }
+            return [jwtUtil.signToken(userDetails), userDetails];
+        } else {
+            throw new Error("Unauthorized Access");
+        }
+    })
+    .spread(function(token, userDetails){
+        userDetails.token = token;
+        delete userDetails.password;
+        return res.status(200).json(userDetails);
+    })
+    .catch(err => {
+        return res.status(400).send(err.message);
+    })
 };
