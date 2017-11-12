@@ -40,3 +40,7 @@ module.exports.sendFeedback = function sendFeedback(req, res, next) {
 module.exports.sendInvite = function sendInvite(req, res, next) {
     User.sendInvite(req.swagger.params, res, next);
 };
+
+module.exports.updateToken = function updateToken(req, res, next) {
+    User.updateToken(req.swagger.params, res, next);
+};
