@@ -2,14 +2,15 @@
 * @Author: Shiv Chawla
 * @Date:   2017-11-08 13:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-11-10 21:49:15
+* @Last Modified time: 2017-11-15 12:31:54
 */
 const CryptoJS = require('crypto-js');
 const config = require('config');
 
-function parseSettings(bt, forward) {
+function parseSettings(bt) {
  	var args = [];
- 	args = args.concat(['--code', CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
+
+    args = args.concat(['--code', CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
 
 	var settings = bt.settings;
 	args = args.concat(['--capital', settings.initialCash]);
@@ -65,11 +66,6 @@ function parseSettings(bt, forward) {
     if(advanced.slippage) {
         var slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
         args = args.concat(['--slippage', slippage]);
-    }
-
-    if(forward) {
-	    // And most importantly
-        args = args.concat(['--forward', 'true']);
     }
 
     return args;

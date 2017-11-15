@@ -1,4 +1,5 @@
 'use strict';
+const CryptoJS = require('crypto-js');
 const config = require('config');
 const WebSocket = require('ws');
 const schedule = require('node-schedule');
@@ -126,6 +127,8 @@ function execForwardTest(forwardtestId, connection, cb) {
 
         if(!restart) {
             try {
+
+                args = args.concat(['--code', CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
                 args = args.concat(['--serializedData', JSON.stringify(ft.serializedData)]);
 
                 //Pick the last date + 1 from serialized data
@@ -158,10 +161,13 @@ function execForwardTest(forwardtestId, connection, cb) {
         if(restart) {
             // No deserialized data was found
             // to obtain the initial settings
-            return SettingsParser.parseSettings(ft, true);
-        } else {
-            return args;
-        }    
+            args = SettingsParser.parseSettings(ft);
+        }
+ 
+        // And most importantly
+        args = args.concat(['--forward', 'true']);
+
+        return args;
     })
     .then(argArray => {
 

@@ -322,7 +322,7 @@ function execBacktest(backtestId, conn, cb) {
         }
 
         if(bt) {
-            return SettingsParser.parseSettings(bt, false);
+            return SettingsParser.parseSettings(bt);
         } else {
             return args;
         }
