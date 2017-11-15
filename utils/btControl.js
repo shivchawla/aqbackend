@@ -321,11 +321,8 @@ function execBacktest(backtestId, conn, cb) {
             throw new Error("Invalid Backtest");
         }
 
-        if(bt) {
-            return SettingsParser.parseSettings(bt);
-        } else {
-            return args;
-        }
+        return SettingsParser.parseSettings(bt, false);
+        
     })
     .then(argArray => {
 

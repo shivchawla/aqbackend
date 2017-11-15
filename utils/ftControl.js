@@ -161,7 +161,7 @@ function execForwardTest(forwardtestId, connection, cb) {
         if(restart) {
             // No deserialized data was found
             // to obtain the initial settings
-            args = SettingsParser.parseSettings(ft);
+            args = SettingsParser.parseSettings(ft, true);
         }
  
         // And most importantly
