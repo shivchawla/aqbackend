@@ -2,12 +2,12 @@
 * @Author: Shiv Chawla
 * @Date:   2017-11-08 13:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-11-15 12:31:54
+* @Last Modified time: 2017-11-15 16:26:12
 */
 const CryptoJS = require('crypto-js');
 const config = require('config');
 
-function parseSettings(bt) {
+function parseSettings(bt, forward) {
  	var args = [];
 
     args = args.concat(['--code', CryptoJS.AES.decrypt(bt.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
