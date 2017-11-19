@@ -22,11 +22,11 @@ try {
     console.log(err);
 }*/
 
-for(var machine of config.get('btmachines')) {
+/*for(var machine of config.get('btmachines')) {
     var conn = 'ws://' + machine.host + ":" + machine.port;
     console.log("Starting Backtest Julia server: " + conn);
     spawn(config.get('julia_exe'), ["../raftaar/Util/Run/server.jl", machine.port, machine.host], {stdio: ['pipe', process.stdout, process.stderr]});
-}
+}*/
 
 /*for(var machine of config.get('ftmachines')) {
     var conn = 'ws://' + machine.host + ":" + machine.port;

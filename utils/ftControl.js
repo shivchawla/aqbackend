@@ -177,8 +177,8 @@ function execForwardTest(forwardtestId, connection, cb) {
 
         ftClient.on('open', function() {
             console.log('Connection Open');
-            console.log(argArray);
-            ftClient.send(argArray.join("??##"));
+            //console.log(argArray);
+            ftClient.send(JSON.stringify({args:argArray.join("??##"), requestType:"execute"}));
         });
 
         ftClient.on('message', function(data) {

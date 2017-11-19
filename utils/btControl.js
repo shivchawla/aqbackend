@@ -326,7 +326,7 @@ function execBacktest(backtestId, conn, cb) {
     })
     .then(argArray => {
 
-        console.log(argArray);
+        //console.log(argArray);
       
         // TO DO: Progressively try to make connections with open julia process
         // create a string to bool dictioanry
@@ -361,8 +361,9 @@ function execBacktest(backtestId, conn, cb) {
             console.log('Connection Open');
             executionDetails["wsOpenTime"] = new Date();
 
-            try { 
-                btClient.send(argArray.join("??##"));
+            try {
+                console.log(JSON.stringify({args:argArray.join("??##"), requestType:"execute"})); 
+                btClient.send(JSON.stringify({args:argArray.join("??##"), requestType:"execute"}));
             } catch(err) {
                 var errMsg = "Error: Sending message to WS connection: "+ conn; 
                 executionDetails["error"] = errMsg;
