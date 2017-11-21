@@ -7,6 +7,7 @@ const StrategyModel = require('../models/Research/strategy');
 const schedule = require('node-schedule');
 var fs = require('fs');
 const SettingsParser = require('./btSettings.js');
+const serverPort = require('../index').serverPort;
 
 schedule.scheduleJob("0 * * * * *", function() {
     processBacktest(null);
@@ -167,7 +168,7 @@ function saveBacktest(req, res) {
     // ===============================
     // backtest-request-queue contains key-value pairs
     // where each key is the backtestId pointing to the corresponding backtest request
-    redisUtils.insertIntoRedis('backtest-request-queue', req.backtestId, JSON.stringify(req));
+    redisUtils.insertIntoRedis(`backtest-request-queue-${serverPort}`, req.backtestId, JSON.stringify(req));
     
     // Save the rsponse server
     response[req.backtestId] = res;
@@ -203,7 +204,7 @@ function processBacktest(connection) {
     
     // Server is available
     // Let's retrieve pending backtest requests from Redis
-    redisUtils.getAllFromRedis('backtest-request-queue', function(err, data) {
+    redisUtils.getAllFromRedis(`backtest-request-queue-${serverPort}`, function(err, data) {
         if(err) {
             //isBusy[server] = false;
             setServerFree(server);
@@ -288,7 +289,7 @@ function processBacktest(connection) {
             }
 
             // Delete this backtest from redis
-            redisUtils.deleteFromRedis('backtest-request-queue', backtestId, function(err, reply) {
+            redisUtils.deleteFromRedis(`backtest-request-queue-${serverPort}`, backtestId, function(err, reply) {
                 if (err) {
                     return console.error(err);
                 } 

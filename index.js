@@ -6,12 +6,14 @@ const swaggerTools = require('swagger-tools');
 const jsyaml = require('js-yaml');
 const fs = require('fs');
 const authMiddleware = require('./auth/auth');
-const serverPort = 3002;
+const serverPort = parseInt(process.argv[2]) || 3002;
 const cors = require('cors');
 const config = require('config');
 const WebSocketServer = require('ws').Server;
 const spawn = require('child_process').spawn;
 
+
+exports.serverPort = serverPort;
 /*var conn = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
 console.log("Starting Julia server at " + conn);
 try {
