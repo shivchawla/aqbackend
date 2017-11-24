@@ -34,6 +34,10 @@ var serverTimer = {};
 //Variable to store execution detail of the backtest
 var executionDetail = {};
 
+var freshSubscription = {};
+var lastIndexSent = {};
+var lastChunkSent = {};
+
 //Can introduce sent once acnd check this flag before deleting the data
 //LATER
 
@@ -51,7 +55,7 @@ for(var machine of config.get('btmachines')) {
 ===================================== */
 
 //Function to subscribe WS data from backend to UI
-function handleSubscription(req, res) {
+function handleSubscription(req, res, fresh) {
     /* Two cases :
         1. Execution of backtest is going on/will be done
         2. Backtest was already completed long time back
@@ -68,6 +72,7 @@ function handleSubscription(req, res) {
             res.send(JSON.stringify(bt.output));
         } else {
             // Backtest is till running or will run after some time
+            freshSubscription[backtestId] = fresh ? fresh : false;
             subscribed[backtestId] = true;
 
             if(!res) {
@@ -266,7 +271,7 @@ function processBacktest(connection) {
                 delete outputData[backtestId];
                 
                 console.log("Aready Busy Conection");
-                console.log("Should not happen");
+                //console.log("Should not happen");
                 //Save it back to the redis queue
                 clearSendDataTimer(backtestId);
                 console.log("Returning");
@@ -497,18 +502,45 @@ function sendData(backtestId, final) {
 
                         //Check if subscription is TRUE for the backtestId
                         if (subscribed[backtestId]) {
+
                             // Check if connection is OPEN
                             if (res.readyState === WebSocket.OPEN) {
                                 
+                                let startIndex = 0;
+                                //Check if it's a fresh subscription
+                                startIndex = freshSubscription[backtestId] ? 0 : 
+                                                        (backtestId in lastIndexSent) ? lastIndexSent[backtestId] + 1 : 0;
+                                
+
                                 //fragment the data in chunk of 20
                                 //save only 100 days in one document
                                 var i,j,tempArray,chunk = 20;
-                                var index = 0;
-                                for (i=0,j=dataArray.length; i<j; i+=chunk) {
+                                
+                                var chunkIndex = (backtestId in lastChunkSent && !freshSubscription[backtestId]) ? lastChunkSent[backtestId] : 0;
+                                
+                                //console.log(`Chunk Index: ${chunkIndex}`);
+                                //console.log("Last Chunk Index Object");
+                                //console.log(lastChunkSent[backtestId]);
+                                //console.log(`Fresh Subscription: ${freshSubscription[backtestId]}`);
+
+                                for (i=startIndex,j=dataArray.length; i<j; i+=chunk) {
                                     tempArray = dataArray.slice(i,i+chunk);
                                     // do whatever
-                                    res.send(JSON.stringify({data:tempArray, backtestId: backtestId, chunked:true, size: chunk, index:index++}));
+                                    res.send(JSON.stringify({data:tempArray, backtestId: backtestId, chunked:true, size: chunk, index:chunkIndex++}));
+                                    lastChunkSent[backtestId] = chunkIndex;
+                                    //console.log("After sending");
+                                    //console.log(`Chunk Index: ${chunkIndex}`);
+                                    //console.log("Last Chunk Index Object");
+                                    //console.log(lastChunkSent[backtestId]);
+                          
                                 }
+
+
+                                //Update the last index sent and fresh Subscription flag
+                                //Ideally, these should stored in a common global space
+                                //Like REDIS or realtime database.. 
+                                lastIndexSent[backtestId] = dataArray.length - 1;
+                                freshSubscription[backtestId] = false;
 
                                 //updateBacktestResult(backtestId, {realtimeOutput: dataArray});
                                 //res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));

@@ -12,6 +12,7 @@ ws.on('connection', function connection(res) {
 
         try {
             req = JSON.parse(message);
+            console.log(req);
         } catch (e) {
             return res.send('not valid json');
         }
@@ -43,6 +44,9 @@ ws.on('connection', function connection(res) {
 exports.handleAction = function(req, res) {
     if(req.action === 'subscribe-backtest') {
         return BacktestController.handleSubscription(req, res);
+    }
+    else if (req.action === 'subscribe-fresh-backtest'){
+        return BacktestController.handleSubscription(req, res, true);   
     }
     else if(req.action === 'unsubscribe-backtest') {
         return BacktestController.handleUnsubscription(req);
