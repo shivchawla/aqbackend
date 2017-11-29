@@ -9,6 +9,11 @@ var fs = require('fs');
 const SettingsParser = require('./btSettings.js');
 const serverPort = require('../index').serverPort;
 
+var redis = require("redis")
+  , subscriber = redis.createClient()
+  , publisher  = redis.createClient();
+
+
 schedule.scheduleJob("0 * * * * *", function() {
     processBacktest(null);
 });
@@ -37,6 +42,7 @@ var executionDetail = {};
 var freshSubscription = {};
 var lastIndexSent = {};
 var lastChunkSent = {};
+
 
 //Can introduce sent once acnd check this flag before deleting the data
 //LATER
@@ -205,20 +211,20 @@ function processBacktest(connection) {
     }
 
     //Set the serber to be busy
-    setServerBusy(server);
+    //setServerBusy(server);
     
     // Server is available
     // Let's retrieve pending backtest requests from Redis
     redisUtils.getAllFromRedis(`backtest-request-queue-${serverPort}`, function(err, data) {
         if(err) {
             //isBusy[server] = false;
-            setServerFree(server);
+            //setServerFree(server);
             return console.error("Error: " + err);
         }
         if (!data) {
             // Redis is empty
             //isBusy[server] = false;
-            setServerFree(server)
+            //setServerFree(server)
             return console.log("All backtests over!");
         }
 
@@ -244,18 +250,18 @@ function processBacktest(connection) {
         currentlyRunning[backtestId] = true;
 
         // Send this backtest request for execution
-        execBacktest(backtestId, server, function(err, execDetails, data) {
+        execBacktest(backtestId, server, function(err, data) {
             // Callback function
             // This is called when one of the servers finish processing a backtest
             // and is ready to accept another backtest
 
             //Update Execution Detail
-            if(backtestId in executionDetail) {
+            /*if(backtestId in executionDetail) {
                 executionDetail[backtestId].push(execDetails);
                 
                 //Add execution details to output
                 data["executionDetail"] = executionDetail[backtestId];    
-            }
+            }*/
 
             if(err) {
                 // This particular backtest couldn't be completed
@@ -263,21 +269,22 @@ function processBacktest(connection) {
                 console.error(err);
 
                 // Let's put it's status to pending
-                updateBacktestResult(backtestId, {status: "exception", executionDetail: executionDetail[backtestId]});
+                updateBacktestResult(backtestId, {status: "exception"});//, executionDetail: executionDetail[backtestId]});
             
             } else if(data.status === "pending") {
                 //denied connection
                 delete currentlyRunning[backtestId];
                 delete outputData[backtestId];
                 
-                console.log("Aready Busy Conection");
+                console.log("Server Unavailable!! Will retry in 1 min")
+                //console.log("Aready Busy Conection");
                 //console.log("Should not happen");
                 //Save it back to the redis queue
                 clearSendDataTimer(backtestId);
                 console.log("Returning");
 
                 //resend the request to execute
-                processBacktest(null);
+                //processBacktest(null);
                 return; 
 
             } else if(data.status === "exception") {
@@ -305,9 +312,12 @@ function processBacktest(connection) {
                 redisUtils.setDataExpiry(backtestId + '-data', 5);
                 delete response[backtestId];
                 delete currentlyRunning[backtestId];
-                processBacktest(server);
+                //processBacktest(server);
             });
         });
+
+        //Call the next one too without waiting...
+        processBacktest(null);
     });
 }
 
@@ -321,13 +331,15 @@ function execBacktest(backtestId, conn, cb) {
 
     BacktestModel.fetchBacktest({_id: backtestId}, {})
     .then(bt => {
-        var args = ['--backtestid', backtestId];
 
         if(!bt){
             throw new Error("Invalid Backtest");
         }
 
-        return SettingsParser.parseSettings(bt, false);
+        var argsArray = SettingsParser.parseSettings(bt, false);
+        argsArray = argsArray.concat(['--backtestid', backtestId]);
+
+        return argsArray;
         
     })
     .then(argArray => {
@@ -337,6 +349,9 @@ function execBacktest(backtestId, conn, cb) {
         // TO DO: Progressively try to make connections with open julia process
         // create a string to bool dictioanry
         var btClient, backtestData = '';
+        var redis = require("redis")
+                  , subscriber = redis.createClient()
+                  , publisher  = redis.createClient();
 
         var juliaError = false;
         outputData[backtestId] = [];
@@ -352,7 +367,7 @@ function execBacktest(backtestId, conn, cb) {
             executionDetails["error"] = errMsg;
             console.log(errMsg);
             serverDeniedRequest = true;
-            cb(null, executionDetails, {status:"pending"});
+            cb(null, {status:"pending"});
         }
 
         btClient.on('error', function() {
@@ -360,7 +375,8 @@ function execBacktest(backtestId, conn, cb) {
             executionDetails["error"] = errMsg;
             console.log(errMsg);
             serverDeniedRequest = true;
-            cb(null, executionDetails, {status:"pending"});
+            cb(null, {status:"pending"});
+            clearSendDataTimer(backtestId);
         });
 
         btClient.on('open', function() {
@@ -368,8 +384,11 @@ function execBacktest(backtestId, conn, cb) {
             executionDetails["wsOpenTime"] = new Date();
 
             try {
-                console.log(JSON.stringify({args:argArray.join("??##"), requestType:"execute"})); 
+                //console.log(JSON.stringify({args:argArray.join("??##"), requestType:"execute"})); 
                 btClient.send(JSON.stringify({args:argArray.join("??##"), requestType:"execute"}));
+                subscriber.subscribe(`backtest-realtime-${backtestId}`);
+                subscriber.subscribe(`backtest-final-${backtestId}`);
+
             } catch(err) {
                 var errMsg = "Error: Sending message to WS connection: "+ conn; 
                 executionDetails["error"] = errMsg;
@@ -388,6 +407,8 @@ function execBacktest(backtestId, conn, cb) {
         });
 
         btClient.on('message', function(data) {
+            //Now only called when connection is refused
+            //Now, real-time data comes through Redis PUB/SUB
             try {
                 const dataJSON = JSON.parse(data);
                 dataJSON.backtestId = backtestId;
@@ -413,7 +434,7 @@ function execBacktest(backtestId, conn, cb) {
             }
         });
 
-        btClient.on('close', function close(code) {
+        /*btClient.on('close', function close(code) {
             console.log('Connection Closed');
             console.log(conn);
 
@@ -421,15 +442,15 @@ function execBacktest(backtestId, conn, cb) {
             
             //If backtest stops suddenly, a message must be sent to the UI
             //about unexpected error
-            if(!juliaError && backtestData && Object.keys(backtestData).length == 0 && !serverDeniedRequest) {
+            /*if(!juliaError && backtestData && Object.keys(backtestData).length == 0 && !serverDeniedRequest) {
                 const dataJSON = {messagetype:"ERROR", outputtype: "log", message:"Internal Exception"};
                 outputData[backtestId].push(dataJSON);
-            }
+            }*/
 
             //Clear the timer on connection close
-            clearSendDataTimer(backtestId, true);
+            //clearSendDataTimer(backtestId, true);
 
-            if(!serverDeniedRequest) {
+            /*if(!serverDeniedRequest) {
                 
                 // Update the connection status
                 if (code === 1000) {
@@ -457,17 +478,84 @@ function execBacktest(backtestId, conn, cb) {
             } else {
                 cb(null, executionDetails, {status:"pending"});
             }
+        });*/
+   
+        subscriber.on("message", function(channel, message) {
+          //console.log("Message '" + message + "' on channel '" + channel + "' arrived!")
+          
+            if(channel.indexOf("backtest-realtime") != -1) {     
+                var backtestId = channel.split("-")[2];
+                try {
+                    const dataJSON = JSON.parse(message);
+                    dataJSON.backtestId = backtestId;
+
+                    if (dataJSON.outputtype === 'backtest') {
+                        backtestData = dataJSON;
+                    } else if(dataJSON.outputtype === 'log') {
+                        outputData[backtestId].push(dataJSON);
+                        if(dataJSON.messagetype === "ERROR") {
+                            juliaError = true;
+                        }
+                    } else if(dataJSON.outputtype === 'performance' || dataJSON.outputtype === 'labels') {
+                        outputData[backtestId].push(dataJSON);
+
+                    } else if(dataJSON.outputtype === "internal") {
+                        
+                    }
+                }
+                catch (e) {
+                    console.log(e);
+                }
+            } else if(channel.indexOf("backtest-final") != -1) {
+                var backtestId = channel.split("-")[2];
+                
+                if(message == "backtest-final-output-ready") {
+                    //Convert concatenated message to JSON
+                    clearSendDataTimer(backtestId, true);
+                    
+                    try {
+                        backtestData = JSON.parse(backtestData);
+                    
+                        var status = "complete";
+                        
+                        if(juliaError) {
+                            status = "exception";
+                        }
+
+                        if(backtestData && Object.keys(backtestData).length > 0) {
+                            cb(null, {output: backtestData, status:status});
+                        } else {
+                            // This gets triggered when no performance data comes
+                            // and backtest finishes
+                            cb(null, {status:"exception"});
+                        }
+                    } catch (e) {
+                        console.log(e);
+                        cb(e, {status:"exception"});
+                    }    
+                } else {
+
+                    try {
+                        backtestData = backtestData.concat(message);
+                    } catch(e) {
+                        console.log(e);
+                    }
+                }
+            }
         });
+
     })
     .catch(err => {
-        cb(err, executionDetails, {status:"exception"});
+        cb(err, {status:"exception"});
     });
+
 }
 
 // Send backtest output to front-end
 function sendData(backtestId, final) {
     var noresponse = false;
 
+    console.log("In Sending");
     if(backtestId in response) {
         //Retrieve the  websocket response variable for the backtestId
         var res = response[backtestId];
@@ -511,7 +599,6 @@ function sendData(backtestId, final) {
                                 startIndex = freshSubscription[backtestId] ? 0 : 
                                                         (backtestId in lastIndexSent) ? lastIndexSent[backtestId] + 1 : 0;
                                 
-
                                 //fragment the data in chunk of 20
                                 //save only 100 days in one document
                                 var i,j,tempArray,chunk = 20;
