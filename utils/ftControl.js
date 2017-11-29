@@ -114,7 +114,7 @@ function execForwardTest(forwardtestId, connection, cb) {
     console.log('execForwardTest is called');
 
     ForwardTestModel.fetchForwardTest({
-        _id: forwardtestId, active: true, error: false}, {})
+        _id: forwardtestId, active: true, error: false, deleted: false}, {})
     .then(ft => {
         if(!ft) {
             throw new Error("Invalid Forward Test");
@@ -128,6 +128,7 @@ function execForwardTest(forwardtestId, connection, cb) {
         if(!restart) {
             try {
 
+                args = args.concat(['--backtestid', forwardtestId]);
                 args = args.concat(['--code', CryptoJS.AES.decrypt(ft.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8)]);
                 args = args.concat(['--serializedData', JSON.stringify(ft.serializedData)]);
 
@@ -162,6 +163,7 @@ function execForwardTest(forwardtestId, connection, cb) {
             // No deserialized data was found
             // to obtain the initial settings
             args = SettingsParser.parseSettings(ft, true);
+            args = args.concat(['--backtestid', forwardtestId]);
         }
  
         // And most importantly
@@ -173,58 +175,59 @@ function execForwardTest(forwardtestId, connection, cb) {
 
         let outputData = [];
         let algorithm = '';
+        let forwardData = '';
         let ftClient = new WebSocket(connection);
+        var redis = require("redis")
+                  , subscriber = redis.createClient()
+                  , publisher  = redis.createClient();
 
         ftClient.on('open', function() {
             console.log('Connection Open');
             //console.log(argArray);
             ftClient.send(JSON.stringify({args:argArray.join("??##"), requestType:"execute"}));
+            subscriber.subscribe(`backtest-final-${forwardtestId}`);
         });
 
-        ftClient.on('message', function(data) {
-            try {
-                const dataJSON = JSON.parse(data);
+        subscriber.on("message", function(channel, message) {
+            if(channel.indexOf("backtest-final") != -1) {
+                var incomingForwardtestId = channel.split("-")[2];
+                 
+                if(message == "backtest-final-output-ready") {
+                    //Convert concatenated message to JSON
+                    try {
+                        forwardData = JSON.parse(forwardData);
+                    
+                        if (forwardData.outputtype === 'serializedData') {
+                            algorithm = forwardData.algorithm;
+                        }
 
-                if (dataJSON.outputtype === 'serializedData') {
-                    algorithm = dataJSON.algorithm;
-                }
-                else {
-                    //SKIP rest of the ouput for 
-                    //outputData.push(dataJSON);
-                }
-            }
-            catch (e) {
-                return console.error(e);
-            }
-        });
+                        if(algorithm && Object.keys(algorithm).length > 0) {
+                            cb(null, {serializedData: algorithm, updatedAt: new Date(), updateMessage:"Successfully updated"});
+                        } else {
+                            cb(null, {updatedAt: new Date(), updateMessage: "Test couldn't complete for internal reasons"});
+                        }
 
-        ftClient.on('close', function close(code) {
-            console.log('Connection Closed');
-
-            //Update the connection status
-            if (code === 1000) {
-                //What if algorithm is empty?
-                //this can happen for several reasons (when data connection was broken on 13092017)
-                //and contaminate already serialized data 
-                //Handle here instead in the model
-                if(algorithm && Object.keys(algorithm).length > 0) {
-                    cb(null, {serializedData: algorithm, updatedAt: new Date(), updateMessage:"Successfully updated"});
+                    } catch (e) {
+                        console.log(e);
+                        cb(new Error("Test could not be completed"), {updateMessage:"Test could not be completed", error: true});
+                    }    
                 } else {
-                    cb(null, {updatedAt: new Date(), updateMessage: "Test couldn't complete for internal reasons"});
+  
+                    try {
+                        forwardData = forwardData.concat(message);
+                    } catch(e) {
+                        console.log(e);
+                    }
                 }
-            }
-            else {
-                cb(new Error("Test could not be completed"), {updateMessage:"Test could not be completed", error: true});
             }
         });
     })
     .catch(err => {
-        cb(err, {status: 'exception'});
+        cb(err, {updateMessage: "Test couldn't complete for internal reasons"});
     });
 }
 
 // Update foward test output data + serialized data to database
-
 function updateForwardTestResult(forwardtestId, data) {
     console.log("Updating Forward Test");
     ForwardTestModel.updateForwardTest({
@@ -232,8 +235,7 @@ function updateForwardTestResult(forwardtestId, data) {
     }, data);
 }
 
-// FUnction to cancel particular forward test
-
+// Function to cancel particular forward test
 function cancelTest(forwardtestId) {
     // We will mark this forward test as inactive
     ForwardTestModel.updateForwardTest({

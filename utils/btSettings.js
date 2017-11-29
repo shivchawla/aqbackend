@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-11-08 13:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-11-15 16:26:12
+* @Last Modified time: 2017-11-29 20:53:26
 */
 const CryptoJS = require('crypto-js');
 const config = require('config');
@@ -27,11 +27,17 @@ function parseSettings(bt, forward) {
 		args = args.concat(['--enddate', settings.endDate]);
 	}
 
-	args = args.concat(['--universe', settings.universe]); 
+    if (settings.universe && settings.universe!='') {
+	   args = args.concat(['--universe', settings.universe]); 
+    }
 
-	args = args.concat(['--index', settings.universeIndex]); 
+	if (settings.universeIndex) {
+        args = args.concat(['--index', settings.universeIndex]); 
+    }
 
-	args = args.concat(['--benchmark', settings.benchmark]); 
+	if (settings.benchmark) {
+        args = args.concat(['--benchmark', settings.benchmark]); 
+    }
 
     var advanced = JSON.parse(settings.advanced);
     if(advanced.exclude) {

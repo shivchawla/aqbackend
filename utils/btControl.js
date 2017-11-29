@@ -413,17 +413,7 @@ function execBacktest(backtestId, conn, cb) {
                 const dataJSON = JSON.parse(data);
                 dataJSON.backtestId = backtestId;
 
-                if (dataJSON.outputtype === 'backtest') {
-                    backtestData = dataJSON;
-                } else if(dataJSON.outputtype === 'log') {
-                    outputData[backtestId].push(dataJSON);
-                    if(dataJSON.messagetype === "ERROR") {
-                        juliaError = true;
-                    }
-                } else if(dataJSON.outputtype === 'performance' || dataJSON.outputtype === 'labels') {
-                    outputData[backtestId].push(dataJSON);
-
-                } else if(dataJSON.outputtype === "internal") {
+                if(dataJSON.outputtype === "internal") {
                     if(dataJSON.code == 503) {
                         serverDeniedRequest = true;
                     }
@@ -434,51 +424,6 @@ function execBacktest(backtestId, conn, cb) {
             }
         });
 
-        /*btClient.on('close', function close(code) {
-            console.log('Connection Closed');
-            console.log(conn);
-
-            executionDetails["wsCloseTime"] = new Date();
-            
-            //If backtest stops suddenly, a message must be sent to the UI
-            //about unexpected error
-            /*if(!juliaError && backtestData && Object.keys(backtestData).length == 0 && !serverDeniedRequest) {
-                const dataJSON = {messagetype:"ERROR", outputtype: "log", message:"Internal Exception"};
-                outputData[backtestId].push(dataJSON);
-            }*/
-
-            //Clear the timer on connection close
-            //clearSendDataTimer(backtestId, true);
-
-            /*if(!serverDeniedRequest) {
-                
-                // Update the connection status
-                if (code === 1000) {
-
-                    try {
-                        var status = "complete";
-                        
-                        if(juliaError) {
-                            status = "exception";
-                        }
-
-                        if(backtestData && Object.keys(backtestData).length > 0) {
-                            cb(null, executionDetails, {output: backtestData, status:status, executionDetail: executionDetail});
-                        } else {
-                            // This gets triggered when no performance data comes
-                            // and backtest finishes
-                            cb(null, executionDetails, {status:"exception"});
-                        }
-                    } catch (e) {
-                        cb(e, executionDetails, {status:"exception"});
-                    }
-                } else {
-                    cb(null, executionDetails, {status:"exception"});
-                }
-            } else {
-                cb(null, executionDetails, {status:"pending"});
-            }
-        });*/
    
         subscriber.on("message", function(channel, message) {
           //console.log("Message '" + message + "' on channel '" + channel + "' arrived!")
@@ -534,7 +479,7 @@ function execBacktest(backtestId, conn, cb) {
                         cb(e, {status:"exception"});
                     }    
                 } else {
-
+  
                     try {
                         backtestData = backtestData.concat(message);
                     } catch(e) {
