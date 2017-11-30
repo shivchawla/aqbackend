@@ -206,7 +206,7 @@ function execForwardTest(forwardtestId, cb) {
                         } else if (internalError) {
                             cb(null, {updatedAt: new Date(), updateMessage: "Test couldn't complete for internal reasons"});
                         } else if (juliaError) {
-                            cb(null, {updatedAt: new Date(), updateMessage: juliaErrorMessage, error: true});
+                            cb(null, {updatedAt: new Date(), updateMessage: juliaErrorMessage});
                         } else {
                             cb(null, {updatedAt: new Date(), updateMessage: "Test completed without error but no data was generated"});
                         }
@@ -223,11 +223,10 @@ function execForwardTest(forwardtestId, cb) {
                         console.log(e);
                     }
                 }
-            } else if(channel.indexOf("backtest-final") != -1) {
+            } else if(channel.indexOf("backtest-realtime") != -1) {
                 var incomingForwardtestId = channel.split("-")[2];
                 const dataJSON = JSON.parse(message);
-                dataJSON.backtestId = backtestId;
-
+                
                 if(dataJSON.outputtype === 'log' && dataJSON.messagetype === "ERROR") {
                     juliaError = true;
                     juliaErrorMessage = dataJSON.message;
