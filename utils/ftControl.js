@@ -1,23 +1,14 @@
 'use strict';
+const redisUtils = require('../utils/RedisUtils');
 const CryptoJS = require('crypto-js');
 const config = require('config');
 const WebSocket = require('ws');
 const schedule = require('node-schedule');
 const ForwardTestModel = require('../models/Research/forwardtest');
 const SettingsParser = require('./btSettings.js');
+const serverPort = require('../index').serverPort;
 
-var isBusy = {};
-
-// Initialize map for status of each connection
-// Our Julia server can only accept one connection per process
-for(var machine of config.get('ftmachines')) {
-    let conn = 'ws://' + machine.host + ":" + machine.port;
-    isBusy[conn] = false;
-}
-// Will have to add forward testing server details (host:port) in the config file
-
-// Container for all pending forward tests
-var forwardQueue = [];
+var numRequests = 0;
 
 /* =====================================
         FORWARD TEST CONTROL
@@ -25,72 +16,7 @@ var forwardQueue = [];
 
 // Manual trigger of a particular forward test
 function runForwardTest(forwardtestId) {
-    for(var server in isBusy) {
-        if (isBusy.hasOwnProperty(server) && !isBusy[server]) {
-            isBusy[server] = true;
-            execForwardTest(forwardtestId, server, function(err, updateData) {
-                if(err||updateData.status === "exception") {
-                    console.log("Forward test with id: " + forwardtestId + " could not processed");
-                    console.error("Error Occured:");
-                    console.error(err);
-                    // We can again push this task in the forwardQueue and wait for it's turn to be processed again but I say nay-nay, not a good idea
-                    // forwardQueue.push(forwardtestId);
-                }
-                else {
-                    // Update data for successful forward test run
-                    updateForwardTestResult(forwardtestId, updateData);
-                }
-                isBusy[server] = false;
-                return;
-            });
-            break;
-        }
-    }
-    console.log("No servers free at the moment");
-}
-
-// Schedule all the forward test jobs
-// The following code will be executed at 0200 hours everyday
-var schedulerString = config.get('ft_second') + " " + config.get('ft_minute') + " "+config.get('ft_hour')+ ' * * *';
-schedule.scheduleJob(schedulerString, function() {
-    runAllForwardTest();
-});
-
-function runAllForwardTest() {
-    console.log("Trying running all forwardtests");
-    // Load all the forward tests from redis into forwardQueue
-    
-    ForwardTestModel.fetchForwardTests({active: true, error: false}, {})
-    .then(ft => {
-
-        // ft will be an array consisting of all active forward tests
-        forwardQueue = ft.map(item => item._id);
-
-        if(forwardQueue.length > 0) {
-            // Start execution of jobs on each free server
-            Object.keys(isBusy).forEach(server => {
-                if (!isBusy[server]) {
-                    isBusy[server] = true;
-                    handleExecForwardTest(server);
-                }
-            });
-        }
-    })
-    .catch(err => {
-        console.error(err);
-    });
-}
-
-// Forward test handler for running each forward test "synchronously"
-function handleExecForwardTest(connection) {
-    if(forwardQueue.length <= 0) {
-        isBusy[connection] = false;
-        return;
-    }
-
-    // There are pending forward tests
-    let forwardtestId = forwardQueue.shift();
-    execForwardTest(forwardtestId, connection, function(err, updateData) {
+    execForwardTest(forwardtestId, server, function(err, updateData) {
         if(err||updateData.status === "exception") {
             console.log("Forward test with id: " + forwardtestId + " could not processed");
             console.error("Error Occured:");
@@ -102,16 +28,86 @@ function handleExecForwardTest(connection) {
             // Update data for successful forward test run
             updateForwardTestResult(forwardtestId, updateData);
         }
-        // The current test is done
-        // Start next forward test on this connection
-        handleExecForwardTest(connection);
+
+    });
+
+}
+
+// Schedule all the forward test jobs
+var schedulerString = config.get('ft_second') + " " + config.get('ft_minute') + " "+config.get('ft_hour')+ ' * * *';
+
+if (serverPort == config.get('ft_port')) {
+    schedule.scheduleJob(schedulerString, function() {
+        runAllForwardTest();
+    });
+}
+
+function runAllForwardTest() {
+    console.log("Trying running all forwardtests");
+    // Load all the forward tests from redis into forwardQueue
+    
+    ForwardTestModel.fetchForwardTests({active:true, error:false, deleted:false}, {})
+    .then(ft => {
+
+        ft.forEach(item => {
+            redisUtils.insertIntoRedis(`forwardtest-request-queue-${serverPort}`, item._id, 1);
+        });
+        
+        redisUtils.getAllFromRedis(`forwardtest-request-queue-${serverPort}`, function(err, data) {
+            if(err) {
+                return console.error("Error: " + err);
+            }
+            if (!data) {
+                // Redis is empty
+                return console.log("All forwardtests over!");
+            }
+
+            // Forwardtest requests queue
+            let forwardQueue = Object.keys(data);
+
+            // ft will be an array consisting of all active forward tests
+            forwardQueue.forEach(id => {
+                handleExecForwardTest(id);
+            });
+        });
+    })
+    .catch(err => {
+        console.error(err);
+    });
+}
+
+// Forward test handler for running each forward test "synchronously"
+function handleExecForwardTest(forwardtestId) {
+    
+    // There are pending forward tests
+    execForwardTest(forwardtestId, function(err, updateData) {
+        if(err || updateData.status === "exception") {
+            console.log("Forward test with id: " + forwardtestId + " could not processed");
+            console.error("Error Occured:");
+            console.error(err);
+        } else {
+            // Update data for successful forward test run
+            updateForwardTestResult(forwardtestId, updateData);
+
+            //Delete the forward test from the queue
+            redisUtils.deleteFromRedis(`forwardtest-request-queue-${serverPort}`, forwardtestId, function(err, reply) {
+                if (err) {
+                    return console.error(err);
+                } 
+            });
+        }
     });
 }
 
 // Forward test executer
 // Will start running a forward test on the Julia server
-function execForwardTest(forwardtestId, connection, cb) {
+function execForwardTest(forwardtestId, cb) {
     console.log('execForwardTest is called');
+    
+    var machines = config.get('ftmachines');
+    var machine = machines[numRequests++ % machines.length];
+    let connection = 'ws://' + machine.host + ":" + machine.port;
+    console.log(`Choosing connection: ${connection}`)
 
     ForwardTestModel.fetchForwardTest({
         _id: forwardtestId, active: true, error: false, deleted: false}, {})
@@ -173,7 +169,6 @@ function execForwardTest(forwardtestId, connection, cb) {
     })
     .then(argArray => {
 
-        let outputData = [];
         let algorithm = '';
         let forwardData = '';
         let ftClient = new WebSocket(connection);
@@ -181,11 +176,16 @@ function execForwardTest(forwardtestId, connection, cb) {
                   , subscriber = redis.createClient()
                   , publisher  = redis.createClient();
 
+        var juliaError = false;
+        var internalError = false;
+        var juliaErrorMessage = '';
+
         ftClient.on('open', function() {
             console.log('Connection Open');
             //console.log(argArray);
             ftClient.send(JSON.stringify({args:argArray.join("??##"), requestType:"execute"}));
             subscriber.subscribe(`backtest-final-${forwardtestId}`);
+            subscriber.subscribe(`backtest-realtime-${forwardtestId}`);
         });
 
         subscriber.on("message", function(channel, message) {
@@ -203,8 +203,12 @@ function execForwardTest(forwardtestId, connection, cb) {
 
                         if(algorithm && Object.keys(algorithm).length > 0) {
                             cb(null, {serializedData: algorithm, updatedAt: new Date(), updateMessage:"Successfully updated"});
-                        } else {
+                        } else if (internalError) {
                             cb(null, {updatedAt: new Date(), updateMessage: "Test couldn't complete for internal reasons"});
+                        } else if (juliaError) {
+                            cb(null, {updatedAt: new Date(), updateMessage: juliaErrorMessage, error: true});
+                        } else {
+                            cb(null, {updatedAt: new Date(), updateMessage: "Test completed without error but no data was generated"});
                         }
 
                     } catch (e) {
@@ -219,11 +223,22 @@ function execForwardTest(forwardtestId, connection, cb) {
                         console.log(e);
                     }
                 }
+            } else if(channel.indexOf("backtest-final") != -1) {
+                var incomingForwardtestId = channel.split("-")[2];
+                const dataJSON = JSON.parse(message);
+                dataJSON.backtestId = backtestId;
+
+                if(dataJSON.outputtype === 'log' && dataJSON.messagetype === "ERROR") {
+                    juliaError = true;
+                    juliaErrorMessage = dataJSON.message;
+                } else if(dataJSON.outputtype === "internal") {
+                    internalError = true; 
+                }
             }
         });
     })
     .catch(err => {
-        cb(err, {updateMessage: "Test couldn't complete for internal reasons"});
+        cb(err, {status:"exception"});
     });
 }
 
