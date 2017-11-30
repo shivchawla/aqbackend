@@ -32,7 +32,9 @@ var response = {};
 var currentlyRunning = {};
 
 //track the timerId of the backtests
-var backtestTimerId = {};
+var sendBacktestTimerId = {};
+
+var saveBacktestTimerId = {};
 
 var serverTimer = {};
 
@@ -87,7 +89,7 @@ function handleSubscription(req, res, fresh) {
 
             response[backtestId] = res;
             
-            if (!(backtestId in backtestTimerId)) {
+            if (!(backtestId in sendBacktestTimerId)) {
                 //set new timer
                 setSendDataTimer(backtestId);   
             }
@@ -98,20 +100,39 @@ function handleSubscription(req, res, fresh) {
     });
 }
 
+function setSaveDataTimer(backtestId) {
+    //Create timer function to send data to save data in Redis queue 
+    
+    if(!(backtestId in saveBacktestTimerId)) {
+        saveBacktestTimerId[backtestId] = setInterval(function(){saveData(backtestId, false);}, config.get('time_interval_realtime_output')); 
+    }
+}
+
+function clearSaveDataTimer(backtestId, final) {
+    if(backtestId in saveBacktestTimerId) {
+        clearInterval(saveBacktestTimerId[backtestId]);
+        delete saveBacktestTimerId[backtestId];
+    }
+
+    if (final) {
+        saveData(backtestId, true);
+    }
+}
+
 function setSendDataTimer(backtestId) {
     //Create timer function to send data to FE
     //If valid UI websocket connection
     //var res = (backtestId in response) ? response[backtestId] : null;
     
-    if(!(backtestId in backtestTimerId)) {
-        backtestTimerId[backtestId] = setInterval(function(){sendData(backtestId, false);}, config.get('time_interval_realtime_output')); 
+    if(!(backtestId in sendBacktestTimerId)) {
+        sendBacktestTimerId[backtestId] = setInterval(function(){sendData(backtestId, false);}, config.get('time_interval_realtime_output')); 
     }
 }
 
 function clearSendDataTimer(backtestId, final) {
-    if(backtestId in backtestTimerId) {
-        clearInterval(backtestTimerId[backtestId]);
-        delete backtestTimerId[backtestId];
+    if(backtestId in sendBacktestTimerId) {
+        clearInterval(sendBacktestTimerId[backtestId]);
+        delete sendBacktestTimerId[backtestId];
 
         //send data the last time
         if(final) {
@@ -277,22 +298,17 @@ function processBacktest(connection) {
                 delete outputData[backtestId];
                 
                 console.log("Server Unavailable!! Will retry in 1 min")
-                //console.log("Aready Busy Conection");
-                //console.log("Should not happen");
-                //Save it back to the redis queue
                 clearSendDataTimer(backtestId);
                 console.log("Returning");
 
-                //resend the request to execute
-                //processBacktest(null);
                 return; 
 
             } else if(data.status === "exception") {
                 // Some error occured in the processing of backtest
                 // Or otherwise Julia returned an error
                 console.error("Exception in backtest occured");
-
                 updateBacktestResult(backtestId, data);
+
             
             } else {
                 // Backtest successfully completed
@@ -306,13 +322,10 @@ function processBacktest(connection) {
                     return console.error(err);
                 } 
 
-                // Initiate processing after aysn delete is complete 
-                // Start off with next backtest
-                delete outputData[backtestId];
-                redisUtils.setDataExpiry(backtestId + '-data', 5);
+                clearSaveDataTimer(backtestId, true);
+                redisUtils.setDataExpiry(backtestId + '-data', 200);
                 delete response[backtestId];
                 delete currentlyRunning[backtestId];
-                //processBacktest(server);
             });
         });
 
@@ -389,6 +402,9 @@ function execBacktest(backtestId, conn, cb) {
                 subscriber.subscribe(`backtest-realtime-${backtestId}`);
                 subscriber.subscribe(`backtest-final-${backtestId}`);
 
+                redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify([]));
+                setSaveDataTimer(backtestId);
+
             } catch(err) {
                 var errMsg = "Error: Sending message to WS connection: "+ conn; 
                 executionDetails["error"] = errMsg;
@@ -396,8 +412,6 @@ function execBacktest(backtestId, conn, cb) {
                 serverDeniedRequest = true;
                 cb(null, executionDetails, {status:"pending"});
             }
-            
-            redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(outputData[backtestId]));
 
             //Create timer function to send data to FE
             if(subscribed[backtestId]) {
@@ -498,104 +512,109 @@ function execBacktest(backtestId, conn, cb) {
 
 // Send backtest output to front-end
 function sendData(backtestId, final) {
-    var noresponse = false;
+    var noresponse = !(backtestId in response);
 
-    console.log("In Sending");
-    if(backtestId in response) {
+    //console.log("In Sending");
+    if(backtestId in response && subscribed[backtestId]) {
         //Retrieve the  websocket response variable for the backtestId
         var res = response[backtestId];
 
-        if(res) {
-            var dataArray = outputData[backtestId];
-            //&& hasOutputDataChanged[backtestId]
-            if (dataArray && dataArray.length > 0) {
-                
-                //Do we need to save everytime
-                //NO
-                //First get the value from the stored redis
-                //then compare it with new value
-                redisUtils.getValue(backtestId + '-data', function(err, data) {
+        redisUtils.getValue(backtestId + '-data', function(err, data) {
 
-                    var updateRequired = true;
-                    if(data) {
-                        var parsedData = JSON.parse(data);
+            var dataArray = [];
 
-                        if (parsedData.length == outputData[backtestId].length) {
-                            updateRequired = false;
-                        }
-                    }
-                    
-                    if(updateRequired) {
-                        
-                        ///if(!final) {
-                            redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(dataArray));
-                        /*} else {
-                            redisUtils.setDataExpiry(backtestId + '-data', 5);
-                        }*/
+            if(data) {
+                dataArray = JSON.parse(data);
 
-                        //Check if subscription is TRUE for the backtestId
-                        if (subscribed[backtestId]) {
-
-                            // Check if connection is OPEN
-                            if (res.readyState === WebSocket.OPEN) {
-                                
-                                let startIndex = 0;
-                                //Check if it's a fresh subscription
-                                startIndex = freshSubscription[backtestId] ? 0 : 
-                                                        (backtestId in lastIndexSent) ? lastIndexSent[backtestId] + 1 : 0;
-                                
-                                //fragment the data in chunk of 20
-                                //save only 100 days in one document
-                                var i,j,tempArray,chunk = 20;
-                                
-                                var chunkIndex = (backtestId in lastChunkSent && !freshSubscription[backtestId]) ? lastChunkSent[backtestId] : 0;
-                                
-                                //console.log(`Chunk Index: ${chunkIndex}`);
-                                //console.log("Last Chunk Index Object");
-                                //console.log(lastChunkSent[backtestId]);
-                                //console.log(`Fresh Subscription: ${freshSubscription[backtestId]}`);
-
-                                for (i=startIndex,j=dataArray.length; i<j; i+=chunk) {
-                                    tempArray = dataArray.slice(i,i+chunk);
-                                    // do whatever
-                                    res.send(JSON.stringify({data:tempArray, backtestId: backtestId, chunked:true, size: chunk, index:chunkIndex++}));
-                                    lastChunkSent[backtestId] = chunkIndex;
-                                    //console.log("After sending");
-                                    //console.log(`Chunk Index: ${chunkIndex}`);
-                                    //console.log("Last Chunk Index Object");
-                                    //console.log(lastChunkSent[backtestId]);
-                          
-                                }
-
-
-                                //Update the last index sent and fresh Subscription flag
-                                //Ideally, these should stored in a common global space
-                                //Like REDIS or realtime database.. 
-                                lastIndexSent[backtestId] = dataArray.length - 1;
-                                freshSubscription[backtestId] = false;
-
-                                //updateBacktestResult(backtestId, {realtimeOutput: dataArray});
-                                //res.send(JSON.stringify({data:dataArray, backtestId: backtestId}));
-                                //res.send(JSON.stringify({update:1, backtestId: backtestId}));
-                            } else {
-                                console.log("WebSocket is closed");
-                                subscribed[backtestId] = false;
-                            }
-                        }
-                    }
-                });
             }
-        } else {
-            noresponse = true;
-        }
-    } else {
-        noresponse = true;
-    }
 
-    if(noresponse) {
-        console.log("In Send Data: No response variable");
-        clearSendDataTimer(backtestId);
+            if(err) {
+                console.log("No Data found in redis");
+                clearSendDataTimer(backtestId);          
+            }
+
+            noresponse = !res;
+
+            if(res && dataArray) {
+                
+                // Check if connection is OPEN
+                if(dataArray.length > 0) {
+                    if (res.readyState === WebSocket.OPEN) {
+                        
+                        let startIndex = 0;
+                        //Check if it's a fresh subscription
+                        startIndex = freshSubscription[backtestId] ? 0 : 
+                                                (backtestId in lastIndexSent) ? lastIndexSent[backtestId] + 1 : 0;
+                        
+                        //fragment the data in chunk of 20
+                        //save only 100 days in one document
+                        var i,j,tempArray,chunk = 20;
+                        
+                        var chunkIndex = (backtestId in lastChunkSent && !freshSubscription[backtestId]) ? lastChunkSent[backtestId] : 0;
+                        
+                        for (i=startIndex,j=dataArray.length; i<j; i+=chunk) {
+                            tempArray = dataArray.slice(i,i+chunk);
+                            // do whatever
+                            res.send(JSON.stringify({data:tempArray, backtestId: backtestId, chunked:true, size: chunk, index:chunkIndex++}));
+                            lastChunkSent[backtestId] = chunkIndex;
+                        }
+
+                        //Update the last index sent and fresh Subscription flag
+                        //Ideally, these should stored in a common global space
+                        //Like REDIS or realtime database.. 
+                        lastIndexSent[backtestId] = dataArray.length - 1;
+                        freshSubscription[backtestId] = false;
+                       
+                    } else {
+                        console.log("WebSocket is closed");
+                        subscribed[backtestId] = false;
+                        noresponse = true;
+                    }         
+                }      
+            }
+
+            if(noresponse) {
+                console.log("In Send Data: No response variable");
+                clearSendDataTimer(backtestId);
+            }
+        });  
     }
+}
+
+//Save data to redis queue
+function saveData(backtestId, final) {
+    
+    //console.log("In Saving");
+    var dataArray = outputData[backtestId];
+    //&& hasOutputDataChanged[backtestId]
+    if (dataArray) {
+        
+        if(dataArray.length > 0) {
+            //Do we need to save everytime
+            //NO
+            //First get the value from the stored redis
+            //then compare it with new value
+            redisUtils.getValue(backtestId + '-data', function(err, data) {
+
+                var updateRequired = true;
+                if(data) {
+                    var parsedData = JSON.parse(data);
+
+                    if (parsedData.length == dataArray.length) {
+                        updateRequired = false;
+                    }
+                }
+                
+                if(updateRequired) {
+                    redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(dataArray));
+                }
+            });
+        }
+    } 
+
+    if (final) {
+        delete outputData[backtestId];
+    }                    
 }
 
 // Save backtest data to databse
