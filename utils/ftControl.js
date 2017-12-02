@@ -219,6 +219,9 @@ function execForwardTest(forwardtestId, cb) {
                         subscriber.subscribe(`backtest-realtime-${forwardtestId}`);
                     }
                 }
+            } catch (e) {
+                console.log("Error parsing Julia server output");
+                return;
             }
         });
 
