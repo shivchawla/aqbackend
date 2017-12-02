@@ -8,7 +8,13 @@ const ForwardTestModel = require('../models/Research/forwardtest');
 const SettingsParser = require('./btSettings.js');
 const serverPort = require('../index').serverPort;
 
+var numRejections = {};
 var numRequests = 0;
+function getConnectionForFt() {
+    var machines = config.get('ftmachines');
+    var machine = machines[numRequests++ % machines.length];
+    return 'ws://' + machine.host + ":" + machine.port;
+}
 
 /* =====================================
         FORWARD TEST CONTROL
@@ -66,8 +72,9 @@ function runAllForwardTest() {
             let forwardQueue = Object.keys(data);
 
             // ft will be an array consisting of all active forward tests
-            forwardQueue.forEach(id => {
-                handleExecForwardTest(id);
+            forwardQueue.forEach(forwardtestId => {
+                numRejections[forwardtestId] = 0;
+                handleExecForwardTest(forwardtestId);
             });
         });
     })
@@ -104,9 +111,7 @@ function handleExecForwardTest(forwardtestId) {
 function execForwardTest(forwardtestId, cb) {
     console.log('execForwardTest is called');
     
-    var machines = config.get('ftmachines');
-    var machine = machines[numRequests++ % machines.length];
-    let connection = 'ws://' + machine.host + ":" + machine.port;
+    var connection = getConnectionForFt();
     console.log(`Choosing connection: ${connection}`)
 
     ForwardTestModel.fetchForwardTest({
@@ -184,8 +189,37 @@ function execForwardTest(forwardtestId, cb) {
             console.log('Connection Open');
             //console.log(argArray);
             ftClient.send(JSON.stringify({args:argArray.join("??##"), requestType:"execute"}));
-            subscriber.subscribe(`backtest-final-${forwardtestId}`);
-            subscriber.subscribe(`backtest-realtime-${forwardtestId}`);
+        });
+
+        ftClient.on('message', function(data) {
+            //Now only called when connection is refused
+            //Now, real-time data comes through Redis PUB/SUB
+            try {
+                const dataJSON = JSON.parse(data);
+
+                if(dataJSON.outputtype === "internal") {
+                    if(dataJSON.code == 503) {
+                        serverDeniedRequest = true;
+                        
+                        numRejections[forwardtestId] == numRejections[forwardtestId] + 1;
+
+                        if(numRejections[forwardtestId] % config.get('ftmachines').length != 0) {
+                            console.log(`Server: ${connection} is unavailable. Moving to next connection`);
+                            handleExecForwardTest(forwardtestId);
+                        } else {
+                            console.log("All Servers Unavailable!! Will retry in 1 minute");
+                            setTimeout(function(){handleExecForwardTest(forwardtestId)}, 60000);
+                        }
+
+                        return;
+
+                    } else if(dataJSON.code == 200) {
+                        //Request Accepted
+                        subscriber.subscribe(`backtest-final-${forwardtestId}`);
+                        subscriber.subscribe(`backtest-realtime-${forwardtestId}`);
+                    }
+                }
+            }
         });
 
         subscriber.on("message", function(channel, message) {

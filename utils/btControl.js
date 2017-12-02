@@ -9,11 +9,6 @@ var fs = require('fs');
 const SettingsParser = require('./btSettings.js');
 const serverPort = require('../index').serverPort;
 
-var redis = require("redis")
-  , subscriber = redis.createClient()
-  , publisher  = redis.createClient();
-
-
 schedule.scheduleJob("0 * * * * *", function() {
     processBacktest(null);
 });
@@ -51,10 +46,20 @@ var lastChunkSent = {};
 
 // Initialize map for status of each connection
 // Our Julia server can only accept one connection per process
-for(var machine of config.get('btmachines')) {
+/*for(var machine of config.get('btmachines')) {
     let server = 'ws://' + machine.host + ":" + machine.port;
     setServerFree(server);
     //isBusy[conn] = false
+}*/
+
+var numRejections = {};
+var numRequests = 0;
+function getConnectionForBt() {
+    var machines = config.get('btmachines');
+    var machine = machines[numRequests++ % machines.length];
+
+    console.log(`Using machine: ${machine.host}:${machine.port} for request#: ${numRequests}`);
+    return 'ws://' + machine.host + ":" + machine.port;
 }
 
 
@@ -69,7 +74,7 @@ function handleSubscription(req, res, fresh) {
         2. Backtest was already completed long time back
     */
     var backtestId = req.backtestId;
-    BacktestModel.fetchBacktest({_id: backtestId, deleted: false}, {})
+    BacktestModel.fetchBacktest({_id: backtestId, deleted: false}, {select: 'status'})
     .then(bt => {
         if(!bt) {
             throw new Error("Backtest not found");
@@ -77,7 +82,8 @@ function handleSubscription(req, res, fresh) {
         if(bt.status === "complete" || bt.status === "exception") {
             // Backtest was already completed
             console.log("backtest already completed");
-            res.send(JSON.stringify(bt.output));
+            return res.send(JSON.stringify({backtestId: backtestId, strategyId: bt.strategy, status: bt.status}));
+            //res.send(JSON.stringify(bt.output));
         } else {
             // Backtest is till running or will run after some time
             freshSubscription[backtestId] = fresh ? fresh : false;
@@ -207,61 +213,47 @@ function saveBacktest(req, res) {
 
     //Initialize array to save execution details
     executionDetail[req.backtestId] = [];
+    numRejections[req.backtestId] = 0
 
     // Now we handle the requests
     processBacktest(null);
 }
 
-function processBacktest(connection) {
+function processBacktest(backtestId) {
     // ===================================================================
     // 3. This step comprises of the following:
     //    a. Get a free server
     //    b. Pop the top priority backtest from redis
     //    c. Send this backtest, to the server found in a., for execution
     // ===================================================================
-    let server, req, backtestId;
-    if(!connection) {
-        server = findFreeServer();
-        if(!server) {
-            console.log("No available server at the moment");
-            return;
-        }
-    }
-    else {
-        server = connection;       
-    }
-
-    //Set the serber to be busy
-    //setServerBusy(server);
-    
+     
     // Server is available
     // Let's retrieve pending backtest requests from Redis
     redisUtils.getAllFromRedis(`backtest-request-queue-${serverPort}`, function(err, data) {
         if(err) {
-            //isBusy[server] = false;
-            //setServerFree(server);
             return console.error("Error: " + err);
         }
         if (!data) {
             // Redis is empty
-            //isBusy[server] = false;
-            //setServerFree(server)
-            return console.log("All backtests over!");
-        }
-
-        // Backtest requests queue
-        let queue = Object.keys(data).map(function(x) {
-            return JSON.parse(data[x]);
-        });
-
-        // Pop the top priority element from queue
-        var topOfTheQueue = popTopPriority(queue);        
-        //If there is nothing more to run (req is NULL)
-        if(!topOfTheQueue) {
             return;
         }
+
+        
+        if (!backtestId) {
+            // Backtest requests queue
+            let queue = Object.keys(data).map(function(x) {
+                return JSON.parse(data[x]);
+            });
+
+            // Pop the top priority element from queue
+            var topOfTheQueue = popTopPriority(queue);        
+            //If there is nothing more to run (req is NULL)
+            if(!topOfTheQueue) {
+                return;
+            }
     
-        backtestId = topOfTheQueue.backtestId;
+            backtestId = topOfTheQueue.backtestId;
+        }
         
         if (currentlyRunning[backtestId]) {
             console.log("Already Running: " + backtestId);
@@ -270,6 +262,8 @@ function processBacktest(connection) {
 
         currentlyRunning[backtestId] = true;
 
+        var server = getConnectionForBt();
+   
         // Send this backtest request for execution
         execBacktest(backtestId, server, function(err, data) {
             // Callback function
@@ -296,13 +290,18 @@ function processBacktest(connection) {
                 //denied connection
                 delete currentlyRunning[backtestId];
                 delete outputData[backtestId];
-                
-                console.log("Server Unavailable!! Will retry in 1 min")
                 clearSendDataTimer(backtestId);
-                console.log("Returning");
 
+                numRejections[backtestId] == numRejections[backtestId] + 1;
+
+                if(numRejections[backtestId] % config.get('btmachines').length != 0) {
+                    console.log(`Server: ${server} unavailable. Moving to next connection`);
+                    processBacktest(backtestId);
+                } else {
+                    console.log("All Servers Unavailable!! Will retry in 1 minute")
+                }
                 return; 
-
+              
             } else if(data.status === "exception") {
                 // Some error occured in the processing of backtest
                 // Or otherwise Julia returned an error
@@ -399,23 +398,13 @@ function execBacktest(backtestId, conn, cb) {
             try {
                 //console.log(JSON.stringify({args:argArray.join("??##"), requestType:"execute"})); 
                 btClient.send(JSON.stringify({args:argArray.join("??##"), requestType:"execute"}));
-                subscriber.subscribe(`backtest-realtime-${backtestId}`);
-                subscriber.subscribe(`backtest-final-${backtestId}`);
-
-                redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify([]));
-                setSaveDataTimer(backtestId);
 
             } catch(err) {
                 var errMsg = "Error: Sending message to WS connection: "+ conn; 
                 executionDetails["error"] = errMsg;
                 console.log(errMsg);
                 serverDeniedRequest = true;
-                cb(null, executionDetails, {status:"pending"});
-            }
-
-            //Create timer function to send data to FE
-            if(subscribed[backtestId]) {
-                setSendDataTimer(backtestId);
+                cb(null, {status:"pending"});
             }
             
         });
@@ -425,11 +414,23 @@ function execBacktest(backtestId, conn, cb) {
             //Now, real-time data comes through Redis PUB/SUB
             try {
                 const dataJSON = JSON.parse(data);
-                dataJSON.backtestId = backtestId;
 
                 if(dataJSON.outputtype === "internal") {
                     if(dataJSON.code == 503) {
                         serverDeniedRequest = true;
+                        cb(null, {status:"pending"});
+                    } else if(dataJSON.code == 200) {
+                        //Request Accepted
+                        subscriber.subscribe(`backtest-realtime-${backtestId}`);
+                        subscriber.subscribe(`backtest-final-${backtestId}`);
+
+                        redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify([]));
+                        setSaveDataTimer(backtestId);
+
+                        //Create timer function to send data to FE
+                        if(subscribed[backtestId]) {
+                            setSendDataTimer(backtestId);
+                        }
                     }
                 }
             }
