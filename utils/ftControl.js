@@ -1,4 +1,5 @@
 'use strict';
+var redis = require("redis");
 const redisUtils = require('../utils/RedisUtils');
 const CryptoJS = require('crypto-js');
 const config = require('config');
@@ -8,7 +9,7 @@ const ForwardTestModel = require('../models/Research/forwardtest');
 const SettingsParser = require('./btSettings.js');
 const serverPort = require('../index').serverPort;
 
-var numRejections = {};
+var numAttempts = {};
 var numRequests = 0;
 function getConnectionForFt() {
     var machines = config.get('ftmachines');
@@ -35,8 +36,8 @@ function runForwardTest(forwardtestId) {
             updateForwardTestResult(forwardtestId, updateData);
         }
 
+        delete numAttempts[forwardtestId];
     });
-
 }
 
 // Schedule all the forward test jobs
@@ -73,7 +74,7 @@ function runAllForwardTest() {
 
             // ft will be an array consisting of all active forward tests
             forwardQueue.forEach(forwardtestId => {
-                numRejections[forwardtestId] = 0;
+                numAttempts[forwardtestId] = 0;
                 handleExecForwardTest(forwardtestId);
             });
         });
@@ -86,6 +87,8 @@ function runAllForwardTest() {
 // Forward test handler for running each forward test "synchronously"
 function handleExecForwardTest(forwardtestId) {
     
+    numAttempts[forwardtestId] == forwardtestId in numAttempts ? numAttempts[forwardtestId] + 1 : 1;
+
     // There are pending forward tests
     execForwardTest(forwardtestId, function(err, updateData) {
         if(err || updateData.status === "exception") {
@@ -177,10 +180,9 @@ function execForwardTest(forwardtestId, cb) {
         let algorithm = '';
         let forwardData = '';
         let ftClient = new WebSocket(connection);
-        var redis = require("redis")
-                  , subscriber = redis.createClient()
-                  , publisher  = redis.createClient();
-
+        
+        var subscriber = redis.createClient(config.get('redis_port'), config.get('redis_host'))
+        
         var juliaError = false;
         var internalError = false;
         var juliaErrorMessage = '';
@@ -201,9 +203,7 @@ function execForwardTest(forwardtestId, cb) {
                     if(dataJSON.code == 503) {
                         serverDeniedRequest = true;
                         
-                        numRejections[forwardtestId] == numRejections[forwardtestId] + 1;
-
-                        if(numRejections[forwardtestId] % config.get('ftmachines').length != 0) {
+                        if(numAttempts[forwardtestId] % config.get('ftmachines').length != 0) {
                             console.log(`Server: ${connection} is unavailable. Moving to next connection`);
                             handleExecForwardTest(forwardtestId);
                         } else {
@@ -230,57 +230,86 @@ function execForwardTest(forwardtestId, cb) {
                 var incomingForwardtestId = channel.split("-")[2];
                  
                 if(message == "backtest-final-output-ready") {
-                    //Convert concatenated message to JSON
-                    try {
-                        forwardData = JSON.parse(forwardData);
-                    
-                        if (forwardData.outputtype === 'serializedData') {
-                            algorithm = forwardData.algorithm;
-                        }
+                    setTimeout(function(){saveData(forwardtestId, cb, juliaError);}, 1000);
+                } 
+            }
 
-                        if(algorithm && Object.keys(algorithm).length > 0) {
-                            cb(null, {serializedData: algorithm, updatedAt: new Date(), updateMessage:"Successfully updated"});
-                        } else if (internalError) {
-                            cb(null, {updatedAt: new Date(), updateMessage: "Test couldn't complete for internal reasons"});
-                        } else if (juliaError) {
-                            cb(null, {updatedAt: new Date(), updateMessage: juliaErrorMessage});
-                        } else {
-                            cb(null, {updatedAt: new Date(), updateMessage: "Test completed without error but no data was generated"});
-                        }
-
-                    } catch (e) {
-                        console.log(e);
-                        cb(new Error("Test could not be completed"), {updateMessage:"Test could not be completed", error: true});
-                    }    
-                } else {
-  
-                    try {
-                        forwardData = forwardData.concat(message);
-                    } catch(e) {
-                        console.log(e);
+            if(channel.indexOf("backtest-realtime") != -1) {
+                try {
+                    const dataJSON = JSON.parse(message);
+               
+                    if(dataJSON.outputtype === 'log' && dataJSON.messagetype === "ERROR") {
+                        juliaError = true;
+                    } else if(dataJSON.outputtype === "internal") {
+                        juliaError = true;
                     }
                 }
-            } else if(channel.indexOf("backtest-realtime") != -1) {
-                var incomingForwardtestId = channel.split("-")[2];
-                const dataJSON = JSON.parse(message);
-                
-                if(dataJSON.outputtype === 'log' && dataJSON.messagetype === "ERROR") {
-                    juliaError = true;
-                    juliaErrorMessage = dataJSON.message;
-                } else if(dataJSON.outputtype === "internal") {
-                    internalError = true; 
+                catch (e) {
+                    console.log(e);
                 }
             }
         });
     })
     .catch(err => {
-        cb(err, {status:"exception"});
+        cb(err, {updateMessage:"Test could not be completed"});
     });
+}
+
+function saveData(forwardtestId, cb, juliaError) {
+    redisUtils.getRangeFromRedis(`backtest-final-${forwardtestId}`, 0 , -1, function(err, data) {
+        if(data){
+            
+            let forwardData='';
+            try {
+
+                var forwardDataArray = new Array(data.length);
+                var i = 0;
+                
+                data.forEach(item => {
+                    forwardDataArray[i++] = JSON.parse(item);
+                });
+
+                forwardDataArray.sort(function compare(a, b) {
+                    if (a.index < b.index) {
+                        return -1;
+                    } else if (a.index > b.index) {
+                        return 1;
+                    }
+                    return 0;
+                });
+
+                forwardData = JSON.parse(forwardDataArray.map(item => item.data).join(""));
+           
+                if (forwardData.outputtype === 'serializedData') {
+                    algorithm = forwardData.algorithm;
+                }
+
+                if(algorithm && Object.keys(algorithm).length > 0) {
+                    cb(null, {serializedData: algorithm, updatedAt: new Date(), updateMessage:"Successfully updated"});
+                } else if (internalError) {
+                    cb(null, {updatedAt: new Date(), updateMessage: "Test couldn't complete for internal reasons"});
+                } else if (juliaError) {
+                    cb(null, {updatedAt: new Date(), updateMessage: juliaErrorMessage});
+                } else {
+                    cb(null, {updatedAt: new Date(), updateMessage: "Test completed without error but no data was generated"});
+                }
+
+            } catch (e) {
+                console.log(e);
+                cb(new Error("Test could not be completed"), {updateMessage:"Test could not be completed"});
+            }
+        }
+
+        if(err) {
+            console.log(err);
+            cb(new Error("Test could not be completed"), {updateMessage:"Test could not be completed"});
+        }
+    });   
 }
 
 // Update foward test output data + serialized data to database
 function updateForwardTestResult(forwardtestId, data) {
-    console.log("Updating Forward Test");
+    console.log(`Updating Forward Test: ${forwardtestId}`);
     ForwardTestModel.updateForwardTest({
         _id: forwardtestId
     }, data);

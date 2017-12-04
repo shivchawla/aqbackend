@@ -1,4 +1,5 @@
 'use strict';
+var redis = require('redis');
 const redisUtils = require('../utils/RedisUtils');
 const config = require('config');
 const WebSocket = require('ws');
@@ -40,19 +41,9 @@ var freshSubscription = {};
 var lastIndexSent = {};
 var lastChunkSent = {};
 
+redisUtils.insertKeyValue(`numFailedRequests-${serverPort}`, 0);
 
-//Can introduce sent once acnd check this flag before deleting the data
-//LATER
-
-// Initialize map for status of each connection
-// Our Julia server can only accept one connection per process
-/*for(var machine of config.get('btmachines')) {
-    let server = 'ws://' + machine.host + ":" + machine.port;
-    setServerFree(server);
-    //isBusy[conn] = false
-}*/
-
-var numRejections = {};
+var numAttempts = {};
 var numRequests = 0;
 function getConnectionForBt() {
     var machines = config.get('btmachines');
@@ -106,44 +97,19 @@ function handleSubscription(req, res, fresh) {
     });
 }
 
-function setSaveDataTimer(backtestId) {
-    //Create timer function to send data to save data in Redis queue 
-    
-    if(!(backtestId in saveBacktestTimerId)) {
-        saveBacktestTimerId[backtestId] = setInterval(function(){saveData(backtestId, false);}, config.get('time_interval_realtime_output')); 
-    }
-}
-
-function clearSaveDataTimer(backtestId, final) {
-    if(backtestId in saveBacktestTimerId) {
-        clearInterval(saveBacktestTimerId[backtestId]);
-        delete saveBacktestTimerId[backtestId];
-    }
-
-    if (final) {
-        saveData(backtestId, true);
-    }
-}
-
 function setSendDataTimer(backtestId) {
     //Create timer function to send data to FE
     //If valid UI websocket connection
-    //var res = (backtestId in response) ? response[backtestId] : null;
-    
     if(!(backtestId in sendBacktestTimerId)) {
         sendBacktestTimerId[backtestId] = setInterval(function(){sendData(backtestId, false);}, config.get('time_interval_realtime_output')); 
     }
 }
 
-function clearSendDataTimer(backtestId, final) {
+function clearSendDataTimer(backtestId) {
     if(backtestId in sendBacktestTimerId) {
         clearInterval(sendBacktestTimerId[backtestId]);
         delete sendBacktestTimerId[backtestId];
-
-        //send data the last time
-        if(final) {
-            sendData(backtestId, true);
-        }
+        delete response[backtestId];
     }
 }
 
@@ -213,7 +179,6 @@ function saveBacktest(req, res) {
 
     //Initialize array to save execution details
     executionDetail[req.backtestId] = [];
-    numRejections[req.backtestId] = 0
 
     // Now we handle the requests
     processBacktest(null);
@@ -237,7 +202,6 @@ function processBacktest(backtestId) {
             // Redis is empty
             return;
         }
-
         
         if (!backtestId) {
             // Backtest requests queue
@@ -278,6 +242,8 @@ function processBacktest(backtestId) {
                 data["executionDetail"] = executionDetail[backtestId];    
             }*/
 
+            numAttempts[backtestId] = (backtestId in numAttempts) ? numAttempts[backtestId] + 1 : 1;
+
             if(err) {
                 // This particular backtest couldn't be completed
                 console.error("Error Occured:");
@@ -292,12 +258,20 @@ function processBacktest(backtestId) {
                 delete outputData[backtestId];
                 clearSendDataTimer(backtestId);
 
-                numRejections[backtestId] == numRejections[backtestId] + 1;
-
-                if(numRejections[backtestId] % config.get('btmachines').length != 0) {
+                if(numAttempts[backtestId] % config.get('btmachines').length != 0) {
                     console.log(`Server: ${server} unavailable. Moving to next connection`);
                     processBacktest(backtestId);
                 } else {
+                    redisUtils.incValue(`numFailedRequests-${serverPort}`, 1);
+                    redisUtils.getValue(`numFailedRequests-${serverPort}`, function(err, data){
+                        if(data) {
+                            console.log(`Number of Failed Requests: ${data}`);
+                            
+                            /*if(data > MAX_FAILED_REQUESTS) {
+                                //SEND AN EMAIL to admin: TODO
+                            }*/
+                        }
+                    });
                     console.log("All Servers Unavailable!! Will retry in 1 minute")
                 }
                 return; 
@@ -308,7 +282,6 @@ function processBacktest(backtestId) {
                 console.error("Exception in backtest occured");
                 updateBacktestResult(backtestId, data);
 
-            
             } else {
                 // Backtest successfully completed
                 // Update the db with output
@@ -321,15 +294,15 @@ function processBacktest(backtestId) {
                     return console.error(err);
                 } 
 
-                clearSaveDataTimer(backtestId, true);
-                redisUtils.setDataExpiry(backtestId + '-data', 200);
-                delete response[backtestId];
+                //clearSaveDataTimer(backtestId, true);
+                redisUtils.setDataExpiry(`backtest-realtime-${backtestId}`, 20);
+                redisUtils.setDataExpiry(`backtest-final-${backtestId}`, 1);
+                //delete response[backtestId];
                 delete currentlyRunning[backtestId];
+                delete numAttempts[backtestId];
             });
         });
 
-        //Call the next one too without waiting...
-        processBacktest(null);
     });
 }
 
@@ -356,14 +329,11 @@ function execBacktest(backtestId, conn, cb) {
     })
     .then(argArray => {
 
-        //console.log(argArray);
-      
         // TO DO: Progressively try to make connections with open julia process
         // create a string to bool dictioanry
         var btClient, backtestData = '';
-        var redis = require("redis")
-                  , subscriber = redis.createClient()
-                  , publisher  = redis.createClient();
+        
+        var subscriber = redis.createClient(config.get('redis_port'), config.get('redis_host'));
 
         var juliaError = false;
         outputData[backtestId] = [];
@@ -396,7 +366,12 @@ function execBacktest(backtestId, conn, cb) {
             executionDetails["wsOpenTime"] = new Date();
 
             try {
-                //console.log(JSON.stringify({args:argArray.join("??##"), requestType:"execute"})); 
+                //Delete any data for this backtestId in redis
+                //Mosty, it won't be there bu just in case
+
+                redisUtils.deleteKey(`backtest-realtime-${backtestId}`);
+                redisUtils.deleteKey(`backtest-final-${backtestId}`);
+
                 btClient.send(JSON.stringify({args:argArray.join("??##"), requestType:"execute"}));
 
             } catch(err) {
@@ -424,9 +399,6 @@ function execBacktest(backtestId, conn, cb) {
                         subscriber.subscribe(`backtest-realtime-${backtestId}`);
                         subscriber.subscribe(`backtest-final-${backtestId}`);
 
-                        redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify([]));
-                        setSaveDataTimer(backtestId);
-
                         //Create timer function to send data to FE
                         if(subscribed[backtestId]) {
                             setSendDataTimer(backtestId);
@@ -438,77 +410,76 @@ function execBacktest(backtestId, conn, cb) {
                 console.log(e);
             }
         });
-
    
         subscriber.on("message", function(channel, message) {
-          //console.log("Message '" + message + "' on channel '" + channel + "' arrived!")
           
             if(channel.indexOf("backtest-realtime") != -1) {     
                 var backtestId = channel.split("-")[2];
                 try {
                     const dataJSON = JSON.parse(message);
-                    dataJSON.backtestId = backtestId;
-
-                    if (dataJSON.outputtype === 'backtest') {
-                        backtestData = dataJSON;
-                    } else if(dataJSON.outputtype === 'log') {
-                        outputData[backtestId].push(dataJSON);
-                        if(dataJSON.messagetype === "ERROR") {
-                            juliaError = true;
-                        }
-                    } else if(dataJSON.outputtype === 'performance' || dataJSON.outputtype === 'labels') {
-                        outputData[backtestId].push(dataJSON);
-
+               
+                    if(dataJSON.outputtype === 'log' && dataJSON.messagetype === "ERROR") {
+                        juliaError = true;
                     } else if(dataJSON.outputtype === "internal") {
-                        
+                        juliaError = true;
                     }
                 }
                 catch (e) {
                     console.log(e);
                 }
-            } else if(channel.indexOf("backtest-final") != -1) {
-                var backtestId = channel.split("-")[2];
-                
-                if(message == "backtest-final-output-ready") {
-                    //Convert concatenated message to JSON
-                    clearSendDataTimer(backtestId, true);
-                    
-                    try {
-                        backtestData = JSON.parse(backtestData);
-                    
-                        var status = "complete";
-                        
-                        if(juliaError) {
-                            status = "exception";
-                        }
+            }
 
-                        if(backtestData && Object.keys(backtestData).length > 0) {
-                            cb(null, {output: backtestData, status:status});
-                        } else {
-                            // This gets triggered when no performance data comes
-                            // and backtest finishes
-                            cb(null, {status:"exception"});
-                        }
-                    } catch (e) {
-                        console.log(e);
-                        cb(e, {status:"exception"});
-                    }    
-                } else {
-  
-                    try {
-                        backtestData = backtestData.concat(message);
-                    } catch(e) {
-                        console.log(e);
-                    }
-                }
+            if(channel.indexOf("backtest-final") != -1) {
+                var backtestId = channel.split("-")[2];
+                setTimeout(function(){saveData(backtestId, cb, juliaError);}, 1000);    
             }
         });
-
     })
     .catch(err => {
         cb(err, {status:"exception"});
     });
 
+}
+
+function saveData(backtestId, cb, juliaError) {
+    //fetch all the data from the redis Queue "backtest-final-${backtestId}"
+    redisUtils.getRangeFromRedis(`backtest-final-${backtestId}`, 0 , -1, function(err, data) {
+        if(data) {
+            
+            let fOutput='';
+            try {
+                var dataArray = new Array(data.length);
+                var i = 0;
+                
+                data.forEach(item => {
+                    dataArray[i++] = JSON.parse(item);
+                });
+
+                dataArray.sort(function compare(a, b) {
+                    if (a.index < b.index) {
+                        return -1;
+                    } else if (a.index > b.index) {
+                        return 1;
+                    }
+                    return 0;
+                })
+
+                fOutput = JSON.parse(dataArray.map(item => item.data).join(""));
+            
+                var status = juliaError ? "exception" : "complete";
+                
+                cb(null, {status:status, output: fOutput});
+             } catch (e) {
+                console.log(e);
+                cb(e, {status:'exception', output: fOutput});
+            }
+        }
+
+        if(err) {
+            console.log(err);
+            cb(e, {status:"exception"});
+        }
+    });
 }
 
 // Send backtest output to front-end
@@ -520,14 +491,7 @@ function sendData(backtestId, final) {
         //Retrieve the  websocket response variable for the backtestId
         var res = response[backtestId];
 
-        redisUtils.getValue(backtestId + '-data', function(err, data) {
-
-            var dataArray = [];
-
-            if(data) {
-                dataArray = JSON.parse(data);
-
-            }
+        redisUtils.getRangeFromRedis(`backtest-realtime-${backtestId}`, 0, -1, function(err, dataArray) {
 
             if(err) {
                 console.log("No Data found in redis");
@@ -582,45 +546,9 @@ function sendData(backtestId, final) {
     }
 }
 
-//Save data to redis queue
-function saveData(backtestId, final) {
-    
-    //console.log("In Saving");
-    var dataArray = outputData[backtestId];
-    //&& hasOutputDataChanged[backtestId]
-    if (dataArray) {
-        
-        if(dataArray.length > 0) {
-            //Do we need to save everytime
-            //NO
-            //First get the value from the stored redis
-            //then compare it with new value
-            redisUtils.getValue(backtestId + '-data', function(err, data) {
-
-                var updateRequired = true;
-                if(data) {
-                    var parsedData = JSON.parse(data);
-
-                    if (parsedData.length == dataArray.length) {
-                        updateRequired = false;
-                    }
-                }
-                
-                if(updateRequired) {
-                    redisUtils.insertKeyValue(backtestId + '-data', JSON.stringify(dataArray));
-                }
-            });
-        }
-    } 
-
-    if (final) {
-        delete outputData[backtestId];
-    }                    
-}
-
 // Save backtest data to databse
 function updateBacktestResult(backtestId, data) {
-    console.log("Updating Backtest");
+    console.log(`Updating Backtest: ${backtestId}`);
     BacktestModel.updateBacktest({
         _id: backtestId
     }, data);

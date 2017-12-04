@@ -59,28 +59,8 @@ exports.execStrategy = function(args, res, next) {
     const userId = args.user._id;
     const strategyId = args.strategyId.value;
     const values = args.body.value;
-    const token  = args['aimsquant-token'].value.toString();   
-    
-    return new Promise(function(resolve, reject) {
-        RedisUtils.getValue(token + '-request-queue', (err, data) => {
-            if (data) {
-                var queue = JSON.parse(data);
-                if (queue.length >= config.get('max_num_julia_process_user')) {
-                     return reject(new Error("Can't execute"));
-                } 
-            } 
-            
-            return resolve(true);
-              
-        });
-    })
-    .then(flag => {
 
-        if(flag) {  
-            return StrategyModel.fetchStrategy({
-                    user: userId, _id: strategyId}, {});
-        } 
-    })
+    StrategyModel.fetchStrategy({user: userId, _id: strategyId}, {})
     .then(strategy => {
         BacktestService.createBacktest(strategy, values, res, next);
     })

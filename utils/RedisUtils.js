@@ -1,6 +1,6 @@
 const config = require('config');
 var redis = require('redis');
-var client = redis.createClient(config.get('redis_port'), config.get('redis_path'));
+var client = redis.createClient(config.get('redis_port'), config.get('redis_host'));
 
 function getAllFromRedis(masterKey, callback) {
     client.hgetall(masterKey, function(err, data) {
@@ -38,6 +38,16 @@ function deleteFromRedis(masterKey, key, callback) {
     });
 }
 
+function getRangeFromRedis(key, fIdx, lIdx, callback) {
+    client.lrange(key, fIdx, lIdx, function(err, reply) {
+        if (err) {
+            callback(err);
+        } else {
+            callback(err, reply);
+        }
+    });
+}
+
 function setDataExpiry(key, time_in_sec) {
     client.expire(key, time_in_sec);
 }
@@ -67,7 +77,20 @@ function incValue(key, increment) {
     client.incrby(key, increment);
 }
 
-exports.getFromRedis = getFromRedis;
+module.exports = {
+    getFromRedis,
+    insertIntoRedis,
+    deleteFromRedis,
+    setDataExpiry,
+    getValue,
+    insertKeyValue,
+    deleteKey,
+    incValue,
+    getAllFromRedis,
+    getRangeFromRedis
+}
+
+/*exports.getFromRedis = getFromRedis;
 exports.insertIntoRedis = insertIntoRedis;
 exports.deleteFromRedis = deleteFromRedis;
 exports.setDataExpiry = setDataExpiry;
@@ -76,3 +99,4 @@ exports.insertKeyValue = insertKeyValue;
 exports.deleteKey = deleteKey;
 exports.incValue = incValue;
 exports.getAllFromRedis = getAllFromRedis;
+*/
