@@ -30,10 +30,13 @@ function runForwardTest(forwardtestId) {
             console.error(err);
             // We can again push this task in the forwardQueue and wait for it's turn to be processed again but I say nay-nay, not a good idea
             // forwardQueue.push(forwardtestId);
-        }
-        else {
+        } else {
             // Update data for successful forward test run
             updateForwardTestResult(forwardtestId, updateData);
+
+            //clearSaveDataTimer(backtestId, true);
+            redisUtils.setDataExpiry(`backtest-realtime-${forwardtestId}`, 5);
+            redisUtils.setDataExpiry(`backtest-final-${forwardtestId}`, 5);
         }
 
         delete numAttempts[forwardtestId];
@@ -179,7 +182,15 @@ function execForwardTest(forwardtestId, cb) {
 
         let algorithm = '';
         let forwardData = '';
-        let ftClient = new WebSocket(connection);
+        let ftClient = '';
+
+        try {
+            ftClient = new WebSocket(connection);
+        } catch err {
+            console.log(`Server: ${connection} not available`);
+            handleRequestDenial(forwardtestId);
+            return;
+        }
         
         var subscriber = redis.createClient(config.get('redis_port'), config.get('redis_host'))
         
@@ -189,8 +200,27 @@ function execForwardTest(forwardtestId, cb) {
 
         ftClient.on('open', function() {
             console.log('Connection Open');
-            //console.log(argArray);
-            ftClient.send(JSON.stringify({args:argArray.join("??##"), requestType:"execute"}));
+
+            //Delete any data for this backtestId in redis
+            //Mosty, it won't be there bu just in case
+            try {
+                console.log(`Deleting existing data for ${forwardtestId}`);
+                redisUtils.deleteKey(`backtest-realtime-${forwardtestId}`);
+                redisUtils.deleteKey(`backtest-final-${forwardtestId}`);
+            } catch(err) {
+                console.log(err);
+                throw new Error("Error Deleting from redis");
+            }
+
+            try {
+                ftClient.send(JSON.stringify({args:argArray.join("??##"), requestType:"execute"}));
+            } catch(err) {
+                console.log(err);
+                console.log(`Error: Sending message to WS connection: ${conn}`);
+                handleRequestDenial(forwardtestId, connection);
+                return;
+            }
+
         });
 
         ftClient.on('message', function(data) {
@@ -201,18 +231,8 @@ function execForwardTest(forwardtestId, cb) {
 
                 if(dataJSON.outputtype === "internal") {
                     if(dataJSON.code == 503) {
-                        serverDeniedRequest = true;
-                        
-                        if(numAttempts[forwardtestId] % config.get('ftmachines').length != 0) {
-                            console.log(`Server: ${connection} is unavailable. Moving to next connection`);
-                            handleExecForwardTest(forwardtestId);
-                        } else {
-                            console.log("All Servers Unavailable!! Will retry in 1 minute");
-                            setTimeout(function(){handleExecForwardTest(forwardtestId)}, 60000);
-                        }
-
+                        handleRequestDenial(forwardtestId, connection);
                         return;
-
                     } else if(dataJSON.code == 200) {
                         //Request Accepted
                         subscriber.subscribe(`backtest-final-${forwardtestId}`);
@@ -220,8 +240,8 @@ function execForwardTest(forwardtestId, cb) {
                     }
                 }
             } catch (e) {
-                console.log("Error parsing Julia server output");
-                return;
+                console.log(e);
+                throw new Error("Error parsing Julia server output");
             }
         });
 
@@ -246,20 +266,32 @@ function execForwardTest(forwardtestId, cb) {
                 }
                 catch (e) {
                     console.log(e);
+                    throw new Error(`Error Parsing realtime data for ${forwardtestId}`);
                 }
             }
         });
     })
     .catch(err => {
+        //console.log(err);
         cb(err, {updateMessage:"Test could not be completed"});
     });
+}
+
+function handleRequestDenial(forwardtestId, connection) {
+    if(numAttempts[forwardtestId] % config.get('ftmachines').length != 0) {
+        console.log(`Server: ${connection} is unavailable. Moving to next connection`);
+        handleExecForwardTest(forwardtestId);
+    } else {
+        console.log("All Servers Unavailable!! Will retry in 1 minute");
+        setTimeout(function(){handleExecForwardTest(forwardtestId)}, 60000);
+    }
 }
 
 function saveData(forwardtestId, cb, juliaError) {
     redisUtils.getRangeFromRedis(`backtest-final-${forwardtestId}`, 0 , -1, function(err, data) {
         if(data){
             
-            let forwardData='';
+            let forwardData, algorithm='';
             try {
 
                 var forwardDataArray = new Array(data.length);

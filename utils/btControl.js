@@ -73,7 +73,7 @@ function handleSubscription(req, res, fresh) {
         if(bt.status === "complete" || bt.status === "exception") {
             // Backtest was already completed
             console.log("backtest already completed");
-            return res.send(JSON.stringify({backtestId: backtestId, strategyId: bt.strategy, status: bt.status}));
+            return res.send(JSON.stringify({backtestId: backtestId, strategyId: bt.strategy._id, status: bt.status}));
             //res.send(JSON.stringify(bt.output));
         } else {
             // Backtest is till running or will run after some time
@@ -109,7 +109,8 @@ function clearSendDataTimer(backtestId) {
     if(backtestId in sendBacktestTimerId) {
         clearInterval(sendBacktestTimerId[backtestId]);
         delete sendBacktestTimerId[backtestId];
-        delete response[backtestId];
+        
+        setTimeout(function(){delete response[backtestId];}, 5000);
     }
 }
 
@@ -227,7 +228,7 @@ function processBacktest(backtestId) {
         currentlyRunning[backtestId] = true;
 
         var server = getConnectionForBt();
-   
+    
         // Send this backtest request for execution
         execBacktest(backtestId, server, function(err, data) {
             // Callback function
