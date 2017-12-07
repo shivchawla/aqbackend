@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-09-04 15:52:51
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-05 16:32:27
+* @Last Modified time: 2017-12-07 21:35:36
 */
 const Promise = require('bluebird');
 const mongoose = require('../index');
@@ -28,8 +28,16 @@ Logs.statics.saveLogs = function(logs) {
     return logs ? (new this({values:logs})).saveAsync() : null;
 };
 
+Logs.statics.deleteLogs = function(query) {
+    return this.removeAsync(query);
+};
+
 Performance.statics.savePerformance = function(perf) {
     return perf ? (new this({detail:perf})).saveAsync() : null;
+};
+
+Performance.statics.deletePerformance = function(query) {
+    return this.removeAsync(query);
 };
 
 PortfolioHistory.statics.savePortfolioHistory = function(history) {
@@ -57,6 +65,10 @@ PortfolioHistory.statics.savePortfolioHistory = function(history) {
     return Promise.all(pArray);
 };
 
+PortfolioHistory.statics.deletePortfolioHistory = function(query) {
+    return this.removeAsync(query);
+}
+
 TransactionHistory.statics.saveTransactionHistory = function(history) {
 	if (!history) {
     	return null;
@@ -81,6 +93,10 @@ TransactionHistory.statics.saveTransactionHistory = function(history) {
 
     return Promise.all(pArray);
 };
+
+TransactionHistory.statics.deleteTransactionHistory = function(query) {
+    return this.removeAsync(query);
+}
 
 const LogModel = mongoose.model('Logs', Logs);
 const PerformanceModel = mongoose.model('Performance', Performance);

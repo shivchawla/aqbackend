@@ -147,7 +147,28 @@ Backtest.statics.findCount = function(query) {
 };
 
 Backtest.statics.removeAllBack = function(query) {
-    return this.removeAsync(query);
+    var q = this.findOne(query)
+    .select('output.performance output.logs output.portfolioHistory output.transactionHistory');
+
+    return q.execAsync()
+    .then(bt => {
+        if(bt) {
+            return Promise.all([
+                HelperModels.LogModel.deleteLogs({_id: bt.output.logs}),
+                HelperModels.PerformanceModel.deletePerformance({_id: bt.output.performance}),
+                HelperModels.TransactionHistoryModel.deleteTransactionHistory({_id: {$in: bt.output.transactionHistory}}),
+                HelperModels.PortfolioHistoryModel.deletePortfolioHistory({_id: {$in: bt.output.portfolioHistory}})]); 
+        } else {
+            return [{},{},{},{}];
+        } 
+    })
+    .then(([d1, d2, d3, d4]) => {
+        return this.removeAsync(query);
+    })
+    .catch(err => {
+        console.log(err);
+        console.log("Error deleting Backtest");
+    })   
 };
 
 Backtest.statics.updateBacktest = function(query, updates) {

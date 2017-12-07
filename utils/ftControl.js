@@ -186,7 +186,7 @@ function execForwardTest(forwardtestId, cb) {
 
         try {
             ftClient = new WebSocket(connection);
-        } catch err {
+        } catch (err) {
             console.log(`Server: ${connection} not available`);
             handleRequestDenial(forwardtestId);
             return;
