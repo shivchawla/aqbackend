@@ -265,6 +265,33 @@ paths:
         400:
           description: Error Sending Email
 
+  /user/sendInfoEmail:
+    post:
+      tags:
+      - "user"
+      summary: send informational emails froma admin 
+      description: send Info Emails (mass)
+      operationId: sendInfoEmail
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - in: body
+        name: body
+        required: true
+        schema:
+           $ref: '#/definitions/infoEmail'
+      x-swagger-router-controller: "User"
+      responses:
+        200:
+          description: OK
+        400:
+          description: Error Sending Email
+
   /user/updateToken:
     put:
       tags:
@@ -2270,6 +2297,17 @@ definitions:
     - emailList
     properties:
       emailList:
+        type: string
+
+  infoEmail:
+    type: object
+    required:
+    - templateFileName
+    - subject
+    properties:
+      templateFileName:
+        type: string
+      subject:
         type: string
   
   Share:

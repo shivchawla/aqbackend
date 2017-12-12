@@ -110,7 +110,7 @@ function clearSendDataTimer(backtestId) {
         clearInterval(sendBacktestTimerId[backtestId]);
         delete sendBacktestTimerId[backtestId];
         
-        setTimeout(function(){delete response[backtestId];}, 5000);
+        //setTimeout(function(){delete response[backtestId];}, 5000);
     }
 }
 

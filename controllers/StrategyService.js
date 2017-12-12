@@ -67,7 +67,6 @@ exports.execStrategy = function(args, res, next) {
     .catch(err => {
         res.status(400).json(err);
     });
-
 };
 
 exports.getStrategys = function(args, res, next) {
@@ -188,8 +187,22 @@ exports.getStrategy = function(args, res, next) {
             }
             
             if(str.code) { 
-                strategy.code = CryptoJS.AES.decrypt(str.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+                var code = CryptoJS.AES.decrypt(str.code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
+                
+                //TEMPORARY adjustment to code written in previous version of API
+                code = code.replace("using Raftaar", "");
+                code = code.replace("Portofolio value", "Portfolio Value");
+                
+                if(strategy.name == "Sample Strategy") {
+                    code = code.replace("CNX_BANK", "TCS");
+                }
+
+                if(strategy.name == "NIFTY-50 Stock Reversal") {
+                    code = code.replace("state.portfolio", "state.account.portfolio");
+                }
             }
+
+            strategy.code = code;
 
             return strategy;
         } else {

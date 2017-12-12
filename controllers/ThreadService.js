@@ -1,6 +1,7 @@
 'use strict';
 const ThreadModel = require('../models/Research/thread');
 const BacktestModel = require('../models/Research/backtest');
+const sendEmail = require('../email');
 
 exports.createThread = function(args, res, next) {
     const user = args.user;
@@ -140,12 +141,12 @@ exports.addTagToThread = function(args, res, next) {
     ThreadModel.updateTags({
         _id: args.threadId.value
     }, tag)
-        .then(thread => {
+    .then(thread => {
         return res.status(200).json(thread.tags);
-})
-.catch(err => {
-    next(err);
-});
+    })
+    .catch(err => {
+        next(err);
+    });
 };
 
 exports.likeThread = function(args, res, next) {
@@ -178,13 +179,18 @@ exports.replyToThread = function(args, res, next) {
         backtestId ? BacktestModel.updateBacktest(backtestQuery, {shared:true}) : Promise.resolve(true)])
     .then(([thread, status]) => {
         if(thread && status) {
-            return res.status(200).json(thread);
+            thread = JSON.parse(JSON.stringify(thread));
+            thread.markdownText = args.body.value.markdownText;
+            return [sendEmail.threadReplyEmail(thread), {success: 1}];
         } else if(!thread) {
             throw new Error("Can't add reply");
         } else if(!status) {
             throw new Error("Can't update shared backtest");
         } 
     })
+    .then(([emails, postSuccess]) => {
+        return res.status(200).json(postSuccess);
+    }) 
     .catch(err => {
         return res.status(400).send(err.message);
         next(err);

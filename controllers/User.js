@@ -44,3 +44,7 @@ module.exports.sendInvite = function sendInvite(req, res, next) {
 module.exports.updateToken = function updateToken(req, res, next) {
     User.updateToken(req.swagger.params, res, next);
 };
+
+module.exports.sendInfoEmail = function sendInfoEmail(req, res, next) {
+    User.sendInfoEmail(req.swagger.params, res, next);
+};

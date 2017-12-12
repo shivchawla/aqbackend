@@ -188,3 +188,27 @@ exports.updateToken = function(args, res, next) {
         return res.status(400).send(err.message);
     })
 };
+
+exports.sendInfoEmail = function (args, res, next) {
+    const user = args.user;
+
+    UserModel.fetchUser({email:'shivchawla2001@gmail.com'})
+    .then(adminUser => {
+        console.log(user);
+        console.log(adminUser);
+       if(adminUser._id.toString() == user._id.toString()) {
+            return UserModel.fetchUsers({},{firstName:1, lastName:1 , email:1}) 
+       } else {
+            throw new Error("Not Authorized");
+       }
+    })
+    .then(users => {
+        var details = args.body.value;
+        details.receivers = users;
+        sendEmail.sendInfoEmail(details);
+        return res.status(200).send("Emails sent successfully");    
+    })
+    .catch(err => {
+        return res.status(400).send(err.message);
+    });
+};

@@ -88,16 +88,11 @@ Thread.index({
 });
 
 Thread.statics.saveReply = function(query, replyDetails) {
-    return this.findOne(query)
-        .then(function(thread) {
-            if (thread) {
-                thread.replies.push(replyDetails);
-                thread.updatedAt = new Date();
-                thread.lastCommentedUser = replyDetails.user;
-
-                return thread.save();
-            }
-        });
+    return this.findOneAndUpdate(query, {$set: {updatedAt: new Date(), lastCommentedUser: replyDetails.user}, $push: {replies: replyDetails}}, {new: true})
+    .select('title followers lastCommentedUser')
+    .populate('lastCommentedUser', '_id firstName lastName')
+    .populate('followers', '_id firstName lastName email')
+    .execAsync();
 };
 
 Thread.statics.saveThread = function(ThreadDetails) {

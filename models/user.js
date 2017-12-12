@@ -59,6 +59,10 @@ User.statics.fetchUser = function(query) {
     return this.findOne(query).execAsync();
 };
 
+User.statics.fetchUsers = function(query, projections) {
+    return this.find(query, projections).execAsync()
+};
+
 User.statics.updateStatus = function(query, status) {
     return this.findOne(query)
         .then(function(user) {
