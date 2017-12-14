@@ -12,7 +12,6 @@ ws.on('connection', function connection(res) {
 
         try {
             req = JSON.parse(message);
-            console.log(req);
         } catch (e) {
             return res.send('not valid json');
         }

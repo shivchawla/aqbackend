@@ -2,6 +2,7 @@
 const ThreadModel = require('../models/Research/thread');
 const BacktestModel = require('../models/Research/backtest');
 const sendEmail = require('../email');
+var truncate = require('truncate-html');
 
 exports.createThread = function(args, res, next) {
     const user = args.user;
@@ -9,7 +10,7 @@ exports.createThread = function(args, res, next) {
     const thread = {
         user: user._id,
         category: args.body.value.category,
-        markdownText: args.body.value.markdownText,
+        markdownText: truncate(args.body.value.markdownText, {excludes: 'img'}),
         title: args.body.value.title,
         followers : [user._id],
         createdAt: Date.now(),
@@ -166,7 +167,7 @@ exports.replyToThread = function(args, res, next) {
     const user = args.user;
     const embedThread = {
         user: user._id,
-        markdownText: args.body.value.markdownText,
+        markdownText: truncate(args.body.value.markdownText, {excludes: 'img'}),
         backtestId : args.body.value.backtestId,
         createdAt: new Date(),
         updatedAt: new Date()
