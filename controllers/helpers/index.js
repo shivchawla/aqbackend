@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-04 13:56:52
+* @Last Modified time: 2017-12-15 20:07:29
 */
 
 'use strict';
@@ -44,7 +44,7 @@ function _computePerformance(portfolioHistory, benchmark) {
 
 	    wsClient.on('message', function(msg) {
 	    	var data = JSON.parse(msg);
-	    	wsClient.close();
+	    	//wsClient.close();
 
 	    	console.log(data);
 	    	if(data['error'] == '' && data['performance']) {
@@ -74,7 +74,7 @@ function _computePortfolioStats(portfolio, startDate, endDate) {
 
 	    wsClient.on('message', function(msg) {
 	    	var data = JSON.parse(msg);
-	    	wsClient.close();
+	    	//wsClient.close();
 
 	    	//console.log("result");
 	    	//console.log(data);
@@ -111,7 +111,7 @@ function _computePortfolioPerformance(portfolioStats, benchmark) {
 
 	    wsClient.on('message', function(msg) {
 	    	var data = JSON.parse(msg);
-	    	wsClient.close();
+	    	//wsClient.close();
 
 	    	if(data['error'] == '' && data['performance']) {
     			resolve(data['performance']);
@@ -188,7 +188,7 @@ function _updatePositions(positions, transactions) {
 	    	var data = JSON.parse(msg);
 	    	console.log("WTF");
 	    	console.log(data);
-	    	wsClient.close();
+	    	//wsClient.close();
 
 	    	if(data['portfolio']) {
     			resolve(data['portfolio']);
@@ -515,12 +515,13 @@ exports.validateAdvice = function(advice) {
 			
 			console.log(data);
         	
-        	wsClient.close();
+        	////wsClient.close();
 
         	if (data["valid"] == true) {
+        		console.log("Validity");
 			    resolve(true);
 		    } else {
-		    	resolve(false)
+		    	resolve(false);
 		    }
 	    });
     })
@@ -552,7 +553,7 @@ exports.validatePortfolio = function(portfolio) {
 			
 			console.log(data);
         	
-        	wsClient.close();
+        	//wsClient.close();
 
         	if (data["valid"] == true) {
 			    resolve(true);
@@ -588,7 +589,7 @@ exports.updateStockStaticPerformanceDetail = function(q, security) {
 			
 			console.log(data);
         	
-        	wsClient.close();
+        	//wsClient.close();
 
         	if (data["error"] == "" && data["performance"]) {
 			    resolve(data["performance"]);
@@ -627,7 +628,7 @@ exports.updateStockRollingPerformanceDetail = function(q, security) {
 			
 			console.log(data);
         	
-        	wsClient.close();
+        	//wsClient.close();
 
         	if (data["error"] == "" && data["performance"]) {
 			    resolve(data["performance"]);
@@ -666,7 +667,7 @@ exports.updateStockPriceHistory = function(q, security) {
 			
 			console.log(data);
         	
-        	wsClient.close();
+        	////wsClient.close();
 
         	if (data["error"] == "" && data["priceHistory"]) {
 			    resolve(data["priceHistory"]);
@@ -705,7 +706,7 @@ exports.updateStockLatestDetail = function(q, security) {
 			
 			console.log(data);
         	
-        	wsClient.close();
+        	//wsClient.close();
 
         	if (data["error"] == "" && data["latestDetail"]) {
 			    resolve(data["latestDetail"]);

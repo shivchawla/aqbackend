@@ -23,7 +23,7 @@ function convert(::Type{Security}, security::Dict{String, Any})
     println(country)
     
     # Fetch security from the database 
-    YRead.getsecurity(ticker, securitytype, exchange, country)
+    YRead.getsecurity(ticker, securitytype = securitytype, exchange = exchange, country = country)
 
 end
 
