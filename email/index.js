@@ -291,7 +291,7 @@ module.exports.sendInvite = function(res, args) {
 module.exports.threadReplyEmail = function(threadDetails) {
 
     var replyUser = threadDetails.lastCommentedUser;
-    var replyUserFullName = `${replyUser.firstName}${replyUser.lastName}`;
+    var replyUserFullName = replyUser.firstName.trim() + ' ' + replyUser.lastName.trim();
     var homeLink = config.get('hostname');
     var postLink = `${homeLink}/#/dashboard/community/${threadDetails._id}`;
     var unfollowLink = `${homeLink}/?unfollow=1#/dashboard/community/${threadDetails._id}`;
@@ -317,7 +317,7 @@ module.exports.threadReplyEmail = function(threadDetails) {
     
     threadDetails.followers.forEach(follower => {
         if(threadDetails.lastCommentedUser._id != follower._id) {
-            var followerFullName = `${follower.firstName}${follower.lastName}`;
+            var followerFullName = follower.firstName.trim() +' '+ follower.lastName.trim();
             var _t = template.replace('followerFullName', followerFullName);
 
             var request = sg.emptyRequest({
@@ -378,7 +378,7 @@ module.exports.sendInfoEmail = function(details) {
 
     
     receivers.forEach(receiver => {
-        var receiverFullName = `${receiver.firstName} ${receiver.lastName}`;
+        var receiverFullName = receiver.firstName.trim() + ' ' + receiver.lastName.trim();
         var _t = template.replace('receiverFullName', receiverFullName);
 
         var request = sg.emptyRequest({
