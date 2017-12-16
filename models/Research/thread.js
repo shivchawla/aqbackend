@@ -6,16 +6,16 @@ const Promise = require('bluebird');
 const EmbedThread = new Schema({
     user: {
         type: Schema.Types.ObjectId,
-        require: true,
+        required: true,
         ref: 'User'
     },
     markdownText: {
         type: String,
-        require: true
+        required: true
     },
     backtestId: {
         type: Schema.Types.ObjectId,
-        require: false,
+        required: false,
         ref: 'Backtest'
     },
     createdAt: Date,
@@ -25,49 +25,49 @@ const EmbedThread = new Schema({
 const Thread = new Schema({
     category: {
         type: String,
-        require: true,
+        required: true,
         enum: ['Share your Idea', 'Questions and Answers', 'News and Announcements']
     },
     user: {
         type: Schema.Types.ObjectId,
-        require: true,
+        required: true,
         ref: 'User'
     },
     title: {
         type: String,
-        require: true
+        required: true
     },
     backtestId: {
         type: Schema.Types.ObjectId,
-        require: false,
+        required: false,
         ref: 'Backtest'
     },
     markdownText: {
         type: String,
-        require: true
+        required: true
     },
     followers: [{
         type: Schema.Types.ObjectId,
-        require: true,
+        required: true,
         ref: 'User'
     }],
     likes: [{
         type: Schema.Types.ObjectId,
-        require: true,
+        required: true,
         ref: 'User'
     }],
     tags: [{
         type: String,
-        require: true
+        required: true
     }],
     views: {
         type: Number,
-        require: true,
+        required: true,
         default: 0
     },
     lastCommentedUser: {
         type: Schema.Types.ObjectId,
-        require: true,
+        required: true,
         ref: 'User'
     },
     replies: [EmbedThread],

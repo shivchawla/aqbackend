@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-15 20:07:29
+* @Last Modified time: 2017-12-16 16:49:57
 */
 
 'use strict';
@@ -44,9 +44,6 @@ function _computePerformance(portfolioHistory, benchmark) {
 
 	    wsClient.on('message', function(msg) {
 	    	var data = JSON.parse(msg);
-	    	//wsClient.close();
-
-	    	console.log(data);
 	    	if(data['error'] == '' && data['performance']) {
 	    		resolve(data['performance']);
 			} else {
@@ -65,7 +62,6 @@ function _computePortfolioStats(portfolio, startDate, endDate) {
 		wsClient.on('open', function open() {
 	        console.log('Connection Open');
 	        console.log(connection);
-	        console.log("khf:: compute_portfolio_value");
 	        var msg = JSON.stringify({action:"compute_portfolio_value_period", 
 	        				portfolio: portfolio, startDate:startDate, endDate:endDate});
 
@@ -74,10 +70,6 @@ function _computePortfolioStats(portfolio, startDate, endDate) {
 
 	    wsClient.on('message', function(msg) {
 	    	var data = JSON.parse(msg);
-	    	//wsClient.close();
-
-	    	//console.log("result");
-	    	//console.log(data);
 
 	    	if(data['error'] == '' && data['netValue']) {
 	    		// reformat date to JS
@@ -128,18 +120,10 @@ function _updatePortfolio(portfolio, transactions, adviceId) {
 	var subPositions = portfolio.subPositions.filter(item => {
 			return _compareIds(item.advice, adviceId);}); 	
 
-	console.log("SUB");
-	console.log(subPositions);
-			
 	return Promise.all([_updatePositions(subPositions, transactions),
 						_updatePositions(portfolio.positions, transactions)
 						])
 	.then(([port2, port1]) => {
-
-		/*console.log("port1");
-		console.log(port1);
-		console.log("port2");
-		console.log(port2);*/
 
 		port2.positions.forEach(position => {
 	    						position["advice"] = adviceId});
@@ -154,7 +138,6 @@ function _updatePortfolio(portfolio, transactions, adviceId) {
 			cash: portfolio.cash + port1.cash
 		};
 
-		console.log(updatedPortfolio);
 		return updatedPortfolio;
 	})
 }
@@ -186,10 +169,6 @@ function _updatePositions(positions, transactions) {
 
 	    wsClient.on('message', function(msg) {
 	    	var data = JSON.parse(msg);
-	    	console.log("WTF");
-	    	console.log(data);
-	    	//wsClient.close();
-
 	    	if(data['portfolio']) {
     			resolve(data['portfolio']);
 			} else {
@@ -262,8 +241,6 @@ exports.calculatePerformanceAndUpdateAdvice = function(adviceId) {
 		return _computePerformance(portfolioHistory, advice.benchmark);
 	})
 	.then(performance => {
-		console.log("Hola");
-		console.log(performance);
 		if(performance) {
 			performance["updatedDate"] = new Date();
 			performance.portfolioStats = performance.portfolioStats.map(item => { 
@@ -297,9 +274,6 @@ exports.updatePortfolioForStockTransactions = function(portfolioId, transactions
 	})
 	.then(updatedPortfolio => {
 
-		console.log("halala");
-		console.log(updatedPortfolio);
-	
 		updates.positions = updatedPortfolio.positions;
 		updates.subPositions = updatedPortfolio.subPositions;
 		updates.cash = updatedPortfolio.cash;
@@ -370,7 +344,6 @@ exports.fetchUpdatedAdvice = function(query, options) {
 
 exports.updateAdviceWithAdvicePerformance = function(advice) {
 		
-	console.log("Here");		
 	var needPortfolioValueUpdate = false;
 	var endDate = new Date();
 
@@ -502,23 +475,13 @@ exports.validateAdvice = function(advice) {
             var msg = JSON.stringify({action:"validate_advice", 
             						advice: advice});
 
-            console.log(advice);
-
          	wsClient.send(msg);
         });
 
         wsClient.on('message', function(msg) {
-        	console.log('On validation message');
-        	console.log(msg);
-
         	var data = JSON.parse(msg);
 			
-			console.log(data);
-        	
-        	////wsClient.close();
-
         	if (data["valid"] == true) {
-        		console.log("Validity");
 			    resolve(true);
 		    } else {
 		    	resolve(false);
@@ -540,21 +503,12 @@ exports.validatePortfolio = function(portfolio) {
             var msg = JSON.stringify({action:"validate_portfolio", 
             						portfolio: portfolio});
 
-            console.log(portfolio);
-
          	wsClient.send(msg);
         });
 
         wsClient.on('message', function(msg) {
-        	console.log('On validation message');
-        	console.log(msg);
-
         	var data = JSON.parse(msg);
 			
-			console.log(data);
-        	
-        	//wsClient.close();
-
         	if (data["valid"] == true) {
 			    resolve(true);
 		    } else {
@@ -576,21 +530,12 @@ exports.updateStockStaticPerformanceDetail = function(q, security) {
             var msg = JSON.stringify({action:"compute_stock_static_performance", 
             						security: security});
 
-            console.log(security);
-
          	wsClient.send(msg);
         });
 
         wsClient.on('message', function(msg) {
-        	console.log('On validation message');
-        	console.log(msg);
-
         	var data = JSON.parse(msg);
 			
-			console.log(data);
-        	
-        	//wsClient.close();
-
         	if (data["error"] == "" && data["performance"]) {
 			    resolve(data["performance"]);
 		    } else {
@@ -615,21 +560,12 @@ exports.updateStockRollingPerformanceDetail = function(q, security) {
             var msg = JSON.stringify({action:"compute_stock_rolling_performance", 
             						security: security});
 
-            console.log(security);
-
          	wsClient.send(msg);
         });
 
         wsClient.on('message', function(msg) {
-        	console.log('On validation message');
-        	console.log(msg);
 
         	var data = JSON.parse(msg);
-			
-			console.log(data);
-        	
-        	//wsClient.close();
-
         	if (data["error"] == "" && data["performance"]) {
 			    resolve(data["performance"]);
 		    } else {
@@ -653,21 +589,11 @@ exports.updateStockPriceHistory = function(q, security) {
             console.log(connection);
             var msg = JSON.stringify({action:"compute_stock_price_history", 
             						security: security});
-
-            console.log(security);
-
          	wsClient.send(msg);
         });
 
         wsClient.on('message', function(msg) {
-        	console.log('On validation message');
-        	console.log(msg);
-
         	var data = JSON.parse(msg);
-			
-			console.log(data);
-        	
-        	////wsClient.close();
 
         	if (data["error"] == "" && data["priceHistory"]) {
 			    resolve(data["priceHistory"]);
@@ -693,20 +619,11 @@ exports.updateStockLatestDetail = function(q, security) {
             var msg = JSON.stringify({action:"compute_stock_price_latest", 
             						security: security});
 
-            console.log(security);
-
          	wsClient.send(msg);
         });
 
         wsClient.on('message', function(msg) {
-        	console.log('On validation message');
-        	console.log(msg);
-
         	var data = JSON.parse(msg);
-			
-			console.log(data);
-        	
-        	//wsClient.close();
 
         	if (data["error"] == "" && data["latestDetail"]) {
 			    resolve(data["latestDetail"]);

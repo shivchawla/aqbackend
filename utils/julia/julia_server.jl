@@ -283,8 +283,6 @@ wsh = WebSocketHandler() do req, ws_client
           #updated_portfolio["updatedDate"] = string(now())
       elseif action == "compute_attribution"
 
-          println("Portfolio: $(updated_portfolio)")
-
           parsemsg["portfolio"] = updated_portfolio
 
       else

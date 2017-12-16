@@ -4,7 +4,7 @@ const Schema = mongoose.Schema;
 const Strategy = new Schema({
     name: {
         type: String,
-        require: true,
+        required: true,
     },
 
     suffix: {
@@ -18,24 +18,24 @@ const Strategy = new Schema({
 
     user: {
         type: Schema.Types.ObjectId,
-        require: true,
+        required: true,
         ref: 'User'
     },
     type: {
         type: String,
-        require: true
+        required: true
     },
     language: {
         type: String,
-        require: true
+        required: true
     },
     description: {
         type: String,
-        require: true
+        required: true
     },
     code: {
         type: String,
-        require: false
+        required: false
     },
     createdAt: Date,
     updatedAt: Date,

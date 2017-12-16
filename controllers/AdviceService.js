@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-04 12:40:48
+* @Last Modified time: 2017-12-16 16:54:26
 */
 
 'use strict';
@@ -55,11 +55,13 @@ exports.createAdvice = function(args, res, next) {
 	.then(port => {
 		if(port) {
 			const adv = {
+				name: advice.name,
+				description: advice.description,
 				advisor: advisorId,
 				benchmark: advice.benchmark, 
 		       	portfolio: port._id, 
 		       	createdDate: new Date(),
-		       	updatedDate: new Date()   	
+		       	updatedDate: new Date()
 		    };
 		    return AdviceModel.saveAdvice(adv);
 	    } else {
@@ -637,25 +639,17 @@ function _updateAdvice(adviceId, updates) {
             var msg = JSON.stringify({action:"validate_portfolio", 
             				portfolio: updates.portfolio});
 
-            console.log(msg);
-
          	wsClient.send(msg);
         });
 
 
         wsClient.on('message', function(msg) {
         	console.log('On validation message');
-        	console.log(msg);
-
         	var data = JSON.parse(msg);
-			
-			console.log(data);
-        	
-        	wsClient.close();
+        	//wsClient.close();
 
         	if (data["valid"] == true) {
         		resolve(AdviceModel.updateAdvice({_id: adviceId}, updates));
-        		
 		    }
 	    });
 	} else {

@@ -5,17 +5,17 @@ const User = new Schema({
 
     email: {
         type: String,
-        require: true,
+        required: true,
         index: true,
         unique: true
     },
     firstName: {
         type: String,
-        require: true
+        required: true
     },
     lastName: {
         type: String,
-        require: true
+        required: true
     },
     photourl: {
         type: String
@@ -25,12 +25,12 @@ const User = new Schema({
     },
     password: {
         type: String,
-        require: true
+        required: true
     },
     active: {
         type: Boolean,
         default: false,
-        require: true
+        required: true
     },
     code: {
         type: String,

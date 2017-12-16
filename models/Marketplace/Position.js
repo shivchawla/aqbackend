@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-04 12:39:57
+* @Last Modified time: 2017-12-16 13:09:09
 */
 
 'use strict';
@@ -17,7 +17,7 @@ const Position = new Schema({
 
 	quantity: {
 		type: Number,
-		require: true,
+		required: true,
 		default: 0,
 	},
 

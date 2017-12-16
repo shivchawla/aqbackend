@@ -4,24 +4,24 @@ const Schema = mongoose.Schema;
 const ForwardTest = new Schema({
     strategy: {
         type: Schema.Types.ObjectId,
-        require: true,
+        required: true,
         ref: 'Strategy',
     },
 
     backtest: {
         type: Schema.Types.ObjectId,
-        require: true,
+        required: true,
         ref: 'Backtest',
     },
 
     code: {
         type: String,
-        require: true,
+        required: true,
     },
 
     settings: {
         type: Schema.Types.Mixed,
-        require: true,
+        required: true,
     },
 
     active: {
@@ -41,7 +41,7 @@ const ForwardTest = new Schema({
 
     name: {
         type: String,
-        require: false
+        required: false
     },
 
     output: Schema.Types.Mixed,

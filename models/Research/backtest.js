@@ -6,30 +6,30 @@ const Schema = mongoose.Schema;
 const Backtest = new Schema({
     strategy: {
         type: Schema.Types.ObjectId,
-        require: true,
+        required: true,
         ref: 'Strategy'
     },
     settings: {
         type: Schema.Types.Mixed,
-        require: true,
+        required: true,
     },
 
     notes :{
         type: String,
-        require: false, 
+        required: false, 
     },  
 
     name: {
         type: String,
-        require: false
+        required: false
     },
     strategy_name: {
         type: String,
-        require: false
+        required: false
     },
     code: {
         type: String,
-        require: false
+        required: false
     },
     shared : {
         type : Boolean,

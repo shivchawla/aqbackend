@@ -11,17 +11,9 @@ using TimeSeries
 function convert(::Type{Security}, security::Dict{String, Any})                
     
     ticker = haskey(security, "ticker") ? security["ticker"] : ""
-    println(ticker)
-    
     securitytype = haskey(security, "securitytype") ? security["securitytype"] : "EQ"
-    println(securitytype)
-    
     exchange = haskey(security, "exchange") ? security["exchange"] : "NSE"
-    println(exchange)
-    
     country = haskey(security, "country") ? security["country"] : "IN"
-    println(country)
-    
     # Fetch security from the database 
     YRead.getsecurity(ticker, securitytype = securitytype, exchange = exchange, country = country)
 
@@ -35,9 +27,6 @@ function convert(::Type{OrderFill}, transaction::Dict{String, Any})
     price = haskey(transaction, "price") ? convert(Float64, transaction["price"]) : 0.0
     fee = haskey(transaction, "fee") ? convert(Float64,transaction["fee"]) : 0.0
 
-    println("Type of qty: $(typeof(qty))")
-    println("Type of price: $(typeof(price))")
-    println("Type of fee: $(typeof(fee))")
     return OrderFill(security.symbol, price, qty, fee)
 
 end
@@ -53,8 +42,6 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
             if haskey(pos, "security")
                 
                 security = convert(Raftaar.Security, pos["security"])
-                println(security)
-                println(security.symbol)
 
                 if security == Security()
                     println("Invalid security: $(security)")
@@ -85,7 +72,6 @@ function _validate_advice(advice::Dict{String, Any})
         benchmark = convert(Raftaar.Security, advice["benchmark"])
         
         if benchmark == Security()
-            println("benchmark")
             return false
         end
     else
@@ -102,8 +88,6 @@ end
 function _validate_portfolio(port::Dict{String, Any})   
     startDate = DateTime()
     if haskey(port, "startDate")
-        println("startDate")
-        println(port["startDate"][1:end-1])
         startDate = DateTime(port["startDate"])
     else
         return false    
@@ -111,24 +95,18 @@ function _validate_portfolio(port::Dict{String, Any})
 
     endDate = DateTime()
     if haskey(port, "endDate")
-        println("endDate")
-        println(port["endDate"][1:end-1])
         endDate = DateTime(port["endDate"])
     else
         return false    
     end
 
     if startDate >= endDate || startDate == DateTime() || endDate == DateTime()
-        println("Just Datesss")
         return false
     end
 
     portfolio = convert(Raftaar.Portfolio, port)
     
-    println(portfolio)
-    println(portfolio == Portfolio())
     if portfolio == Portfolio() 
-        println("Only Positions")
         return false  
     end
 
@@ -143,7 +121,7 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
     secids = [sym.id for sym in keys(portfolio.positions)]    
 
     #get the unadjusted prices for tickers in the portfolio
-    prices = YRead.history_unadj(secids, "close", :Day, start_date, end_date)
+    prices = YRead.history_unadj(secids, "Close", :Day, start_date, end_date)
 
     ts = prices.timestamp
 
@@ -164,10 +142,6 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
 
         portfolio_value[i, 1] = equity_value + cash
     end
-
-    println("asas")
-    println(size(portfolio_value))
-    println(size(ts))
 
     return TimeArray(ts, portfolio_value, ["Portfolio"])
 end
@@ -206,9 +180,6 @@ function compute_portfolio_value_history(portfolioHistory)
 
         startDate = DateTime(collection["startDate"][1:end-1])
         endDate = DateTime(collection["endDate"][1:end-1])
-
-        println(startDate)
-        println(endDate)
 
         # Compute portfolio value timed array
         portfolio_value_ta = _compute_portfoliovalue(portfolio, startDate, endDate, cash)

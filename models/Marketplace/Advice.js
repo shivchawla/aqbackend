@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-04 13:47:04
+* @Last Modified time: 2017-12-16 13:08:47
 */
 'use strict';
 const mongoose = require('../index');
@@ -20,28 +20,28 @@ const HelperFunctions = require("../helper");
 const Advice = new Schema({
     advisor: {
         type: Schema.Types.ObjectId,
-        require: true,
+        required: true,
         ref: 'Advisor'
     },
 
     name: {
         type: String,
-        require: true
+        required: true
     },
 
     description: {
         type: String,
-        require: true
+        required: true
     },
 
     createdDate: {
         type: Date,
-        require: true,
+        required: true,
     },
 
     updatedDate:{
         type: Date,
-        require: true,
+        required: true,
     },
 
     public: {
@@ -65,12 +65,12 @@ const Advice = new Schema({
 
     benchmark: {
         type: Security,
-        require: true,
+        required: true,
     },
 
     portfolio: {
         type: Schema.Types.ObjectId,
-        require: true,
+        required: true,
         ref: 'Portfolio'
     },
 
@@ -89,7 +89,7 @@ const Advice = new Schema({
     subscribers: [{
         user:{
     	    type: Schema.Types.ObjectId,
-            require: true,
+            required: true,
             ref: 'User'
         },
 
@@ -105,7 +105,7 @@ const Advice = new Schema({
 	followers: [{
         user: {
             type: Schema.Types.ObjectId,
-            require: true,
+            required: true,
             ref: 'User'
         },
 

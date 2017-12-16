@@ -6,16 +6,16 @@ const Security = require('./Security');
 const Watchlist = new Schema({
     name: {
         type: String,
-        require: true,
+        required: true,
     },
     user: {
         type: Schema.Types.ObjectId,
-        require: true,
+        required: true,
         ref: 'User'
     },
     type: {
         type: String,
-        require: true
+        required: true
     },
     createdAt: Date,
     updatedAt: Date,

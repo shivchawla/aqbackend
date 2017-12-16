@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-04 13:54:55
+* @Last Modified time: 2017-12-16 13:08:49
 */
 'use strict';
 
@@ -23,7 +23,7 @@ const Advisor = new Schema({
 
     approved: {
 		type: Boolean,
-    	require: true,
+    	required: true,
     	default: false,
     },
 
