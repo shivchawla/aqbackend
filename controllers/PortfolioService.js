@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-09 13:41:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-04 12:42:06
+* @Last Modified time: 2017-12-20 17:40:31
 */
 
 'use strict';
@@ -16,7 +16,7 @@ const config = require('config');
 const WebSocket = require('ws');
 const APIError = require('../utils/error');
 
-exports.createPortfolio = function(args, res, next) {
+module.exports.createPortfolio = function(args, res, next) {
 	const userId = args.user._id;
 
 	//Only investor can create a portfolio
@@ -73,7 +73,7 @@ exports.createPortfolio = function(args, res, next) {
     });
 };
 
-exports.updatePortfolio = function(args, res, next) {
+module.exports.updatePortfolio = function(args, res, next) {
 	const portfolioId = args.portfolioId.value;
 	const investorId = args.investorId.value;
 
@@ -119,7 +119,7 @@ exports.updatePortfolio = function(args, res, next) {
     });
 };
 
-exports.getPortfolio = function(args, res, next) {
+module.exports.getPortfolio = function(args, res, next) {
 
 	const portfolioId = args.portfolioId.value;
 	const userId = args.user._id;
@@ -162,13 +162,13 @@ exports.getPortfolio = function(args, res, next) {
 */
 
 
-exports.getPositionDetail = function(args, res, next) {
+module.exports.getPositionDetail = function(args, res, next) {
 	const userId = args.user._id;
 	const portfolioId = args.portfolioId.value;
 	const positionSymbol = args.symbol.value;
 };
 
-exports.getPortfolioStockTransactions = function(args, res, next) {
+module.exports.getPortfolioStockTransactions = function(args, res, next) {
 	const portfolioId = args.portfolioId;
 	const userId = args.user._id;
 	const investorId = args.user.investor;
@@ -178,7 +178,7 @@ exports.getPortfolioStockTransactions = function(args, res, next) {
 		if(user) {
 			return InvestorModel.getInvestor({_id: investorId}, 'portfolio');
 		} else {
-			APIError.thowJsonError({msg: "User not found"})
+			APIError.thowJsonError({message: "User not found"})
 		}
 	})
 	.then(portfolios => {
@@ -186,17 +186,17 @@ exports.getPortfolioStockTransactions = function(args, res, next) {
 			if(portfolio.indexOf(portfolioId) != -1) {
 
 			} else {
-				APIError.thowJsonError({userId: userId, portfolioId:portfolioId, msg: "Not Authorized to view"});
+				APIError.thowJsonError({userId: userId, portfolioId:portfolioId, message: "Not Authorized to view"});
 			}
 		} else {
-			APIError.thowJsonError({userId: userId, msg: "No portfolios found"});
+			APIError.thowJsonError({userId: userId, message: "No portfolios found"});
 		}
 	})
 
 
 };
 
-exports.deleteAdvice = function(args, res, next) {
+/*module.exports.deleteAdvice = function(args, res, next) {
 	const investorId = args.investorId.value;
 	const adviceId = args.adviceId.value;
 	const userId = args.user._id;
@@ -241,9 +241,9 @@ exports.deleteAdvice = function(args, res, next) {
     	return res.status(400).json(err);
     	//next(err);
     });
-};
+};*/
 
-exports.followAdvice = function(args, res, next) {
+/*module.exports.followAdvice = function(args, res, next) {
     const userId = args.user._id;
   	const adviceId = args.adviceId.value;
 
@@ -280,9 +280,9 @@ exports.followAdvice = function(args, res, next) {
         return res.status(400).json(err);
         //next(err);
     });
-};
+};*/
 
-exports.subscribeAdvice = function(args, res, next) {
+/*module.exports.subscribeAdvice = function(args, res, next) {
     const userId = args.user._id;
   	const adviceId = args.adviceId.value;
 
@@ -319,9 +319,9 @@ exports.subscribeAdvice = function(args, res, next) {
         return res.status(400).json(err);
         //next(err);
     });
-};
+};*/
 
-function _updateAdvice(adviceId, updates) {
+/*function _updateAdvice(adviceId, updates) {
 
 	return new Promise(function(resolve, reject) {
 
@@ -362,10 +362,9 @@ function _updateAdvice(adviceId, updates) {
 	}
 
 	});
+}*/
 
-}
-
-function _validateAndSaveAdvice(advice) {
+/*function _validateAndSaveAdvice(advice) {
 
 	return new Promise(function(resolve, reject) {
 
@@ -398,10 +397,10 @@ function _validateAndSaveAdvice(advice) {
 		    }
 	    });
     });
-}
+}*/
 
 
-function _updateAdviceWithCurrentPortfolioPerformance(advice) {
+/*function _updateAdviceWithCurrentPortfolioPerformance(advice) {
 
 	console.log("_updateAdviceWithCurrentPortfolioPerformance(advice)");
 
@@ -521,9 +520,9 @@ function _updateAdviceWithCurrentPortfolioPerformance(advice) {
 
 		});
 	});
-}
+}*/
 
-function _updateAdviceWithAdvicePerformance(advice) {
+/*function _updateAdviceWithAdvicePerformance(advice) {
 
 	console.log("Here");
 	var needPortfolioValueUpdate = false;
@@ -624,12 +623,12 @@ function _updateAdviceWithAdvicePerformance(advice) {
 
 		});
 	});
-}
+}*/
 
-function _updateAdviceWithPerformance(advice) {
+/*function _updateAdviceWithPerformance(advice) {
 
 	return _updateAdviceWithCurrentPortfolioPerformance(advice)
 	.then(advice => {
 		return _updateAdviceWithAdvicePerformance(advice);
 	});
-}
+}*/

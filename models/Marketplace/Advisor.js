@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-16 13:08:49
+* @Last Modified time: 2017-12-17 12:41:56
 */
 'use strict';
 
@@ -15,10 +15,10 @@ const Performance = require('./Performance');
 const User = require('../user');
 
 const Advisor = new Schema({
-   
    	user: {
         type: Schema.Types.ObjectId,
         ref:'User',
+        required: true
     },
 
     approved: {

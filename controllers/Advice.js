@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 14:59:47
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-06-20 16:59:42
+* @Last Modified time: 2017-12-18 21:35:40
 */
 
 'use strict';
@@ -30,6 +30,10 @@ module.exports.getAdviceHistory = function getAdviceHistory(req, res, next) {
 
 module.exports.updateAdvice = function updateAdvice(req, res, next) {
     Advice.updateAdvice(req.swagger.params, res, next);
+};
+
+module.exports.updateAdvicePortfolio = function updateAdvicePortfolio(req, res, next) {
+    Advice.updateAdvicePortfolio(req.swagger.params, res, next);
 };
 
 module.exports.deleteAdvice = function deleteAdvice(req, res, next) {

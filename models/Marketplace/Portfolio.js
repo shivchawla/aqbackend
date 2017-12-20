@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-04 13:54:32
+* @Last Modified time: 2017-12-20 17:32:37
 */
 
 'use strict';
@@ -51,15 +51,6 @@ const Portfolio = new Schema({
 
 	transactions: [Transaction],
 
-	/*portfolioStats: [{
-		date: Date,
-    	netValue: Number,
-    	cash: {
-			type: Number,
-			default: 0
-		},
-	}],*/
-
 	history: [{
 		startDate: Date,
 		
@@ -71,14 +62,6 @@ const Portfolio = new Schema({
 
 		cash: Number
 
-		/*portfolioStats: {
-			date: Date,
-    		netValue: Number,
-	    	cash: {
-				type: Number,
-				default: 0
-			},
-		},*/
 	}],
 
 });
@@ -98,13 +81,14 @@ Portfolio.statics.savePortfolio = function(portfolio) {
 
 Portfolio.statics.fetchPortfolio = function(query, options) {
 	var q = this.findOne(query)
+	
 	if(options.fields) {
 		q = q.select(options.fields);	
 	}
 	
 	//Select advice name and 
 	if((options.fields && options.fields.indexOf('subPositions') !=-1 ) || !options.fields) {
-		q.populate('subPositions.advice','name', {_id:{$ne:null}});
+		q.populate('subPositions.advice', 'name', {_id:{$ne:null}});
 	}
 
 	return q.execAsync();
@@ -136,7 +120,9 @@ Portfolio.statics.updatePortfolio = function(query, updates) {
 	return this.findOne(query)
 	.then(portfolio => {
 		
-		const history = {date: new Date()};
+		//Should end day be changed in the history ???
+		const history = {date: new Date(), startDate: portfolio.startDate, endDate: portfolio.endDate};
+		
 		if ("positions" in updates) {
 			history["positions"] = portfolio.positions;
 		}
@@ -145,21 +131,14 @@ Portfolio.statics.updatePortfolio = function(query, updates) {
 			history["subPositions"] = portfolio.subPositions;	
 		}
 
-		if ("portfolioStats" in updates) {
-			history["portfolioStats"] = portfolio.portfolioStats;
-		}
-
 		Object.keys(updates).forEach(key => {
-			if (key == "transactions"){
+			if (key == "transactions") {
 				updates[key].forEach(transaction => {
 					portfolio[key].push(transaction);
 				});
 			} else if (key == "advices"){
 				portfolio[key].push(updates[key]);
 			} else {
-				console.log(key);
-				console.log(portfolio[key]);
-				console.log(updates[key]); 
 				portfolio[key] = updates[key];
 			}
 		});
@@ -174,7 +153,11 @@ Portfolio.statics.updatePortfolio = function(query, updates) {
 		}
 
 		return portfolio.save();
-	});
+	})
+	.catch(err => {
+		console.log(err);
+		return null;
+	})
 };
 
 const PortfolioModel = mongoose.model('Portfolio', Portfolio);

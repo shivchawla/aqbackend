@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-16 13:08:47
+* @Last Modified time: 2017-12-19 16:42:29
 */
 'use strict';
 const mongoose = require('../index');
@@ -14,8 +14,6 @@ const Transaction = require('./Transaction');
 const Performance = require('./Performance');
 const Advisor = require('./Advisor');
 const HelperFunctions = require("../helper");
-
-//const Promise = require('bluebird');
 
 const Advice = new Schema({
     advisor: {
@@ -34,14 +32,24 @@ const Advice = new Schema({
         required: true
     },
 
+    portfolio: {
+        type: Schema.Types.ObjectId,
+        ref:'Portfolio',
+        required: true
+    },
+
+    publishDate: {
+        type: Date,
+    }, 
+
     createdDate: {
         type: Date,
-        required: true,
+        required: true
     },
 
     updatedDate:{
         type: Date,
-        required: true,
+        required: true
     },
 
     public: {
@@ -68,11 +76,10 @@ const Advice = new Schema({
         required: true,
     },
 
-    portfolio: {
+    portfolioHistory: [{
         type: Schema.Types.ObjectId,
-        required: true,
         ref: 'Portfolio'
-    },
+    }],
 
     rating: [{
         value: {
@@ -81,7 +88,6 @@ const Advice = new Schema({
         },
 
         date: Date,
-
     }],
 
     advicePerformance: Performance,
@@ -99,7 +105,6 @@ const Advice = new Schema({
         },
 
         dateUpdated: Date,
-
     }],
     	
 	followers: [{
@@ -115,12 +120,10 @@ const Advice = new Schema({
         },
 
         dateUpdated: Date,
-
-    }],
+    }]
 });
 
 Advice.statics.saveAdvice = function(adviceDetails) {
-    console.log(adviceDetails);
     const advice = new this(adviceDetails);
     return advice.save();
 };
@@ -131,7 +134,6 @@ Advice.statics.fetchAdvices = function(query, options) {
                 .limit(options.limit);
 
 	if(options.fields) {
-		//options.fields = options.fields.replace(',',' ');
 		q = q.select(options.fields);
 	}
 
@@ -142,9 +144,8 @@ Advice.statics.fetchAdvices = function(query, options) {
                         });
         // null, { _id: { $ne: null }});
     } 
-    //{path : 'userId', populate : {path : 'reviewId'}}
-
-	return q.execAsync();
+	
+    return q.execAsync();
 };
 
 Advice.statics.fetchAdvice = function(query, options) {
@@ -164,40 +165,11 @@ Advice.statics.fetchAdvice = function(query, options) {
         q = q.populate('portfolio', null, { _id: { $ne: null }});
     }
 
+    if(options.fields && options.fields.indexOf('portfolioHistory') != -1) {
+        q = q.populate('portfolioHistory', null, { _id: { $ne: null }});
+    }
+
 	return q.execAsync();
-    /*then(advice => {
-        console.log(advice);
-        var update = false;
-
-        if(options.fields.indexOf('advicePerformance')) {
-            //check if advice Performance is tha latest
-            if(advice.advicePerformance) {
-                var performance = advice.advicePerformance;
-
-                if(getDate(performance.updatedDate) < getDate(new Date())) {
-                    update = true;
-                } 
-
-            } else {
-                update = true;
-            }
-        }
-
-        if(update) {
-             return Promise.all([true, HelperFunctions.calculatePerformanceAndUpdateAdvice(advice)]);
-        } else {
-            return [false, advice];
-        }
-
-    })
-    .then(([updated, advice]) => {
-        if(updated) {
-            return q.select(options.fields).execAsync();
-        } else {
-            return advice;
-        }
-    });*/
-   
 };
 
 Advice.statics.getAdviceHistory = function(query, options) {
@@ -211,36 +183,41 @@ Advice.statics.getAdviceHistory = function(query, options) {
 	return q.execAsync();
 };
 
-
 Advice.statics.updateAdvice = function(query, updates) {
-    return this.findOne(query)
-    .then(advice => {
-        if (advice) {
-            console.log(updates);
-            //Now update
-            const keys = Object.keys(updates);
-            keys.forEach(key => {
-                advice[key] = updates[key];
-            });
+    
+    var q = this.findOne(query);
 
-            return advice.save();
+    const keys = Object.keys(updates);
+    var options = {};
+    if(keys.indexOf('portfolio') != -1) {
+        q = q.select('portfolio');
+    }
+
+    return q.execAsync()
+    .then(advice => {
+        var oldPortfolio = advice.portfolio;
+        
+        var fupdate = {$set: updates};
+        
+        if(keys.indexOf("portfolio") != -1) {
+            fupdate = {$set: updates, $push:{portfolioHistory: oldPortfolio}};
         }
-    });
+        
+        return this.update(query, fupdate);
+    })
 };
 
 Advice.statics.updateCurrentPortfolioPerformance = function(query, performance) {
     return this.findOne(query)
-        .then(advice => {
-            if (advice) {
-            	console.log("dsdsdsd");
-				
-				if(advice.currentPortfolio.performanceMetrics.map(x => x.date).indexOf(performance.date) == -1) {
-	            	advice.currentPortfolio.performanceMetrics.push({date: performance.date, performance: performance.value, rating:0.0});
-            	}
-            	
-	            return advice.save();
-            }
-        });
+    .then(advice => {
+        if (advice) {
+			if(advice.currentPortfolio.performanceMetrics.map(x => x.date).indexOf(performance.date) == -1) {
+            	advice.currentPortfolio.performanceMetrics.push({date: performance.date, performance: performance.value, rating:0.0});
+        	}
+        	
+            return advice.save();
+        }
+    });
 };
 
 Advice.statics.updateAdvicePortfolioStats = function(query, portfolioStats) {
@@ -303,18 +280,15 @@ Advice.statics.updateCurrentPortfolioPortfolioStats = function(query, portfolioS
 
 Advice.statics.updateAdvicePerformance = function(query, performance) {
     return this.findOne(query)
-        .then(advice => {
-            if (advice) {
-            	
-            	if(advice.performanceMetrics.map(x => x.date).indexOf(performance.date) == -1) {
-	            	advice.performanceMetrics.push({date: performance.date, performance: performance.value, rating: 0.0});
-            	}
-            	
-            	return advice.save();
-            }
-        });
+    .then(advice => {
+        if (advice) {
+        	if(advice.performanceMetrics.map(x => x.date).indexOf(performance.date) == -1) {
+            	advice.performanceMetrics.push({date: performance.date, performance: performance.value, rating: 0.0});
+        	}
+        	return advice.save();
+        }
+    });
 };
-
 
 Advice.statics.deleteAdvice = function(query) {
 	return this.findOne(query)
@@ -338,61 +312,45 @@ Advice.statics.deleteAdvice = function(query) {
 //Keeps a history of followers
 //Adds if not following.
 //Updates enddate if already following
-Advice.statics.updateFollowers = function(query, investorId) {
+Advice.statics.updateFollowers = function(query, userId) {
  	
-    return this.findOne(query, {fields: 'followers'})
+    return this.findOne(query, {followers: 1})
     .then(advice => {
         if (advice) {
-
-            var idx = advice.followers.indexOf(investorId);
-           
+            var idx = advice.followers.map(item => item.user.toString()).indexOf(userId.toString());
+            
             if(idx == -1) {
-        		advice.followers.addToSet(investorId);
+        		advice.followers.addToSet({user:userId, active:true, dateUpdated: new Date()});
             } else {
-            	advice.followers.pull(investorId);
+            	var follower = advice.followers[idx];
+                follower.active = !follower.active;
+                follower.dateUpdated = new Date();
+                advice.followers[idx] = follower;
             }
 
             return advice.save();
-        }
-        
+        }      
     });
 };
 
-
-Advice.statics.updateSubscribers = function(query, investorId) {
+Advice.statics.updateSubscribers = function(query, userId) {
  	
-    return this.findOne(query, {fields:'subscribers subscribersHistory'})
-	.then(advice => {
+    return this.findOne(query, {subscribers: 1})
+    .then(advice => {
         if (advice) {
-
-            var idx = advice.subscribers.indexOf(investorId);
-           
+            var idx = advice.subscribers.map(item => item.user.toString()).indexOf(userId.toString());
+            
             if(idx == -1) {
-        		advice.subscribers.addToSet(investorId);
+                advice.subscribers.addToSet({user:userId, active:true, dateUpdated: new Date()});
             } else {
-            	advice.subscribers.pull(investorId);
-            }
-            
-            idx = advice.subscribersHistory.map(x => x.subscriber).lastIndexOf(investorId);
-            
-            if (idx == -1) {
-            	//Insert the investor
-            	advice.subscribersHistory.push({startdate: new Date(), enddate: farfuture(), subscriber:investorId});
-            } else {
-            	// Get the enddate
-            	var endTime = advice.subscribersHistory[idx].enddate.getTime();
-            	// Check if already following
-            	if (endTime == farfuture().getTime()) {
-            		//Set end date as NOW
-            		advice.subscribersHistory[idx].enddate = new Date();
-            	} else {
-            		advice.subscribersHistory.push({startdate: new Date(), enddate: farfuture(), subscriber:investorId});
-            	}
+                var subscriber = advice.subscribers[idx];
+                subscriber.active = !subscriber.active;
+                subscriber.dateUpdated = new Date();
+                advice.subscribers[idx] = subscriber;
             }
 
-        	 return advice.save();
-    	}
-        
+            return advice.save();
+        }      
     });
 };
 

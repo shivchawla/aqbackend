@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:53:13
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-04 12:39:37
+* @Last Modified time: 2017-12-20 09:52:44
 */
 
 'use strict';
@@ -68,11 +68,9 @@ const Investor = new Schema({
             type: Boolean,
             default: true,
        }
-
     }],
 
     followingAdvisors: [{
-
         advisor: {
             type: Schema.Types.ObjectId,
             ref: 'Advisor'
@@ -88,31 +86,23 @@ const Investor = new Schema({
 
 });
 
-/*Investor.statics.saveInvestor = function(investorDetails) {
-    const investor = new this(investorDetails);
-    return investor.save();
-};*/
-
 Investor.statics.saveInvestor = function(investorDetails) {
     const investor = new this(investorDetails);
     return investor.save();
 };
 
 Investor.statics.fetchInvestor = function(query, options) {
-	console.log(options);
-    console.log(options.fields);
-    var q = this.findOne(query);
-			
+	var q = this.findOne(query);
+
 	if(options.fields) {   
 		q = q.select(options.fields);
 	}
-    console.log(options.fields);
-
+   
     if((options.fields && options.fields.indexOf('defaultPortfolio')) || !options.fields) {
         q = q.populate('defaultPortfolio', null, { _id: { $ne: null }});
     }
 
-	/*if((options.fields && options.fields.indexOf('portfolios')) || !options.fields) {
+	/*if(options.fields && options.fields.indexOf('portfolios')) {
 		q = q.populate('portfolios', null, { _id: { $ne: null }});
 	}*/
 
@@ -124,95 +114,78 @@ Investor.statics.fetchInvestor = function(query, options) {
 		q = q.populate('followingAdvisors', null, { _id: { $ne: null }})
 	}
 
-    console.log("end");
-
-    //console.log(q);
 	return q.execAsync();
-	 	
 };
 
 Investor.statics.updateInvestorPerformance = function(query, portfolioId, performance) {
     return this.findOne(query)
     .then(investor => {
-        var idx = investor.performance.map(item => item.portfolio.valueOf()).indexOf(portfolioId);
+
+        console.log(investor.performance);
+
+        var idx = investor.performance.map(item => item.portfolio.toString()).indexOf(portfolioId);
+        console.log(idx);
         if(idx !=-1) {
             investor.performance[idx].value = performance;
         } else {
             investor.performance.push({portfolio: portfolioId, value: performance});
         }
 
-        console.log("Saving Investor");
         return investor.save();
     });
 };
 
 Investor.statics.updateFollowing = function(query, id, type) {
 	
-	var id = id.toString(); 
+    return this.findOne(query, {followingAdvisors:1, followingAdvices:1})
+    .then(investor => {
+        if (investor) {
 
-    return this.findOne(query)
-	    .then(investor => {
-	        if (investor) {
-	            
-	            let array = ''
-	            let idx = ''
-	            if (type=="advisor"){
-	            	array = investor.followingAdvisors;
-	            	idx = array.indexOf(id);
-	            } else {
-	            	array = investor.followingAdvices;
-	            	idx = array.indexOf(id);
-	            }
-	           
-	            if(idx == -1) {
-	            	//Insert the advisor
-	            	array.addToSet(id);
-	            } else {
-	            	array.pull(id);
-            	}
-	            	
-	        	return investor.save();
-	    	}
-	        
-	    });
+            let array = ''
+            let idx = ''
+            if (type=="advisor") {
+            	array = investor.followingAdvisors;
+            	idx = array.map(item => item.advisor.toString()).indexOf(id.toString());
+            } else {
+            	array = investor.followingAdvices;
+            	idx = array.map(item => item.advice.toString()).indexOf(id.toString());
+            }
+           
+            if(idx == -1) {
+                if (type=="advisor") {
+                    array.addToSet({advisor: id, active: true, updatedDate: new Date()});
+                } else {
+                    array.addToSet({advice: id, active: true, updatedDate: new Date()});
+                }
+            } else {
+            	array[idx].active = !array[idx].active;
+                array[idx].updatedDate = new Date();
+        	}
+            	
+        	return investor.save();
+    	}
+    });
 };
 
 Investor.statics.updateSubscription = function(query, adviceId) {
 	var adviceId = adviceId.toString(); 
 
-    return this.findOne(query)
+    return this.findOne(query, {subscribedAdvices: 1})
     .then(investor => {
         if (investor) {
-
-        	//update current subscriptions
-        	var idx = investor.subscribedAdvices.indexOf(adviceId);
-        	if(idx == -1) {
-        		investor.subscribedAdvices.addToSet(adviceId);
-        	} else {
-        		investor.subscribedAdvices.pull(adviceId);
-        	}
-
-        	//update subscription history 
-            idx = investor.subscriptionHistory.map(x => x.advice).lastIndexOf(adviceId);
             
+            var array = investor.subscribedAdvices;
+            var idx = array.map(item => item.advice.toString()).indexOf(adviceId);
+           
             if(idx == -1) {
-            	//Insert the advisor
-            	investor.subscriptionHistory.addToSet({startDate: new Date(), endDate: farfuture(), advice:adviceId});
+                array.addToSet({advice: adviceId, active: true, updatedDate: new Date()});
             } else {
-            	// Get the enddate
-            	var endTime = investor.subscriptionHistory[idx].endDate.getTime();
-            	// Check if already following
-            	if (endTime == farfuture().getTime()) {
-            		//Set end date as NOW
-            		investor.subscriptionHistory[idx].endDate = new Date();
-            	} else {
-            		investor.subscriptionHistory.addToSet({startDate: new Date(), endDate: farfuture(), advice:adviceId});
-            	}
+                array[idx].active = !array[idx].active;
+                array[idx].updatedDate = new Date();
             }
-        
-        	return investor.save();
-    	}
-        
+                
+            return investor.save();
+        }
     });
 };
 

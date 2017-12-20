@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-16 13:09:11
+* @Last Modified time: 2017-12-20 16:45:00
 */
 
 'use strict';
@@ -19,14 +19,17 @@ const Security = new Schema({
 	},
 	exchange: {
 		type: String,
+		default: "NSE",
 		required: true,	
 	}, 
 	country: {
 		type: String,
+		default: "IN",
 		required: true,	
 	}, 
 	securityType: {
 		type: String,
+		default: "EQ",
 		required: true,
 	},
 	startDate: {

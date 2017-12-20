@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-04 12:41:03
+* @Last Modified time: 2017-12-20 17:39:01
 */
 
 'use strict';
@@ -13,19 +13,20 @@ const AdviceModel = require('../models/Marketplace/Advice');
 const APIError = require('../utils/error');
 const Promise = require('bluebird');
 
-exports.createAdvisor = function(args, res, next) {
+module.exports.createAdvisor = function(args, res, next) {
     const userId = args.user._id;
 
     AdvisorModel.fetchAdvisor({user:userId}, {})
 	.then(advisor => {
 		if(!advisor) {
-			return AdvisorModel.saveAdvisor({user:userId}, {user: userId})
+			return AdvisorModel.saveAdvisor({user:userId})
 		} else {
 			APIError.throwJsonError({userId: userId, message:"Advisor already exists"});
 		}	
 	})
 	.then(advisor => {
 		if(advisor) {
+
 			return res.status(200).json(advisor);
 		} else {
 			APIError.throwJsonError({userId: userId, message:"Advisor can't be created"});
@@ -36,7 +37,7 @@ exports.createAdvisor = function(args, res, next) {
 	});
 };
 
-exports.getAdvisors = function(args, res, next) {
+module.exports.getAdvisors = function(args, res, next) {
     
     const options = {};
     options.limit = args.limit.value;
@@ -58,19 +59,19 @@ exports.getAdvisors = function(args, res, next) {
     });
 };
 
-exports.getAdvisorSummary = function(args, res, next) {
+module.exports.getAdvisorSummary = function(args, res, next) {
 	const advisorId = args.advisorId.value;
    
     //TODO: options when user is investor/advisor
     const options = {};
-    options.fields = 'user performance rating subscribers advices'
+    options.fields = 'user performance rating followers advices'
     
  	AdvisorModel.fetchAdvisor({_id: advisorId}, options)
   	.then(advisor => {
   		if(advisor) {
   			return res.status(200).json(advisor);
  		} else {
- 			APIError.throwJsonError({advisorId: advisorId, msg: "Advisor not found"});
+ 			APIError.throwJsonError({advisorId: advisorId, message: "Advisor not found"});
  		}
   	})
   	.catch(err => {
@@ -78,7 +79,7 @@ exports.getAdvisorSummary = function(args, res, next) {
   	});
 };
 
-exports.getAdvisorDetail = function(args, res, next) {
+module.exports.getAdvisorDetail = function(args, res, next) {
 	const advisorId = args.advisorId.value;
     const userId = args.user._id;
 
@@ -91,7 +92,7 @@ exports.getAdvisorDetail = function(args, res, next) {
   		if(advisor) {
   			return res.status(200).json(advisor);
 		} else {
-			APIError.throwJsonError({msg:"Advisor not found or not authorized"});
+			APIError.throwJsonError({message:"Advisor not found or not authorized"});
 		}
   	})
   	.catch(err => {
@@ -99,11 +100,11 @@ exports.getAdvisorDetail = function(args, res, next) {
   	});
 };
 
-exports.followAdvisor = function(args, res, next) {
+module.exports.followAdvisor = function(args, res, next) {
     const userId = args.user._id;
   	const advisorId = args.advisorId.value;
 
-  	Promise.all([AdvisorModel.fetchAdvisor({_id: advisorId},{fields:'_id'}),
+  	return Promise.all([AdvisorModel.fetchAdvisor({_id: advisorId, user:{$ne:userId}}, {fields:'_id'}),
   					InvestorModel.fetchInvestor({user:userId}, {fields:'_id'})])
   	.then(([advisor, investor]) => {
   		if(advisor && investor) {
@@ -113,7 +114,7 @@ exports.followAdvisor = function(args, res, next) {
 
 						InvestorModel.updateFollowing({
 			    			_id: investorId}, advisorId, "advisor"
-						    		)]
+    			)]
 			);
 		} else {
 			if(!investor) {
@@ -125,13 +126,11 @@ exports.followAdvisor = function(args, res, next) {
 	})
 	.then(([advisor, investor]) => {
 		if (advisor && investor) {
-			return res.status(200).json({followers:advisor.followers, count: advisor.followers.length}); 
+			return res.status(200).json({followers: advisor.followers, count: advisor.followers.length}); 
 		} else if(!investor) {
 			APIError.throwJsonError({userId:userId, message: "Advisor can't be updated"});
-			
 		} else if(!advisor) {
 			APIError.throwJsonError({advisorId: advisorId, message: "Investor can't be updated"});
-			
 		}
 	})
     .catch(err => {
@@ -139,7 +138,7 @@ exports.followAdvisor = function(args, res, next) {
     });
 };
 
-exports.getFollowers = function(args, res, next) {
+module.exports.getFollowers = function(args, res, next) {
 	
 	//TODO: send relevant information about the followers (PUBLIC profile)
 	const userId = args.user._id;
@@ -149,12 +148,12 @@ exports.getFollowers = function(args, res, next) {
     .then(advisor => {
     	if(advisor) {
     		if(advisor.followers) {
-	    		return res.status(200).json({followers:output.followers, count:output.followers.length});
+	    		return res.status(200).json({followers:advisor.followers, count:advisor.followers.length});
     		} else{
     			return res.status(200).json({followers:[], count:0});
     		}	
     	} else {
-    		APIError.throwJsonError({msg:"No advisor found"});
+    		APIError.throwJsonError({message:"No advisor found"});
     	}
     })
     .catch(err => {
@@ -162,7 +161,7 @@ exports.getFollowers = function(args, res, next) {
     });
 };
 
-exports.getAdvisorAdvicesWithStock = function(args, res, next) {
+module.exports.getAdvisorAdvicesWithStock = function(args, res, next) {
 	const userId = args.user._id;
 
 	const ticker = ags.ticker.value;
@@ -183,10 +182,10 @@ exports.getAdvisorAdvicesWithStock = function(args, res, next) {
 						return AdviceModel.fetchAdvice({_id: advice._id}, {fields: 'portfolio'})
 					})]);
 			} else {
-				APIError.throwJsonError({msg: "No advices found"});
+				APIError.throwJsonError({message: "No advices found"});
 			}
 		} else {
-			APIError.throwJsonError({userId: userId, msg: "No advisor found"})
+			APIError.throwJsonError({userId: userId, message: "No advisor found"})
 		}
 	})
 	.then(([advices])=> {
@@ -209,7 +208,7 @@ exports.getAdvisorAdvicesWithStock = function(args, res, next) {
 			return res.status(200).json(advicesWithStock);
 
 		} else {
-			APIError.throwJsonError({msg: "No advices found"});
+			APIError.throwJsonError({message: "No advices found"});
 		}
 	})
 	.catch(err => {

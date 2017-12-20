@@ -8,6 +8,16 @@ import Base: convert
 using TimeSeries
 
 
+function convert(::Type{Dict{String,Any}}, security::Security)                  
+    s = Dict{String, Any}()
+    s["ticker"] = security.symbol.ticker
+    s["exchange"] = security.exchange
+    s["country"] = security.country
+    s["securityType"] = security.securitytype
+
+    return s
+end
+
 function convert(::Type{Security}, security::Dict{String, Any})                
     
     ticker = haskey(security, "ticker") ? security["ticker"] : ""
@@ -45,7 +55,7 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
 
                 if security == Security()
                     println("Invalid security: $(security)")
-                    return Portfolio()
+                    return nothing
                 end  
             
                 qty = haskey(pos, "quantity") ? pos["quantity"] : 0
@@ -61,7 +71,7 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
     return portfolio
 end
 
-function _validate_advice(advice::Dict{String, Any})
+function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, Any})
     
     # Validate 3 components of portfolio
     #a. positions
@@ -78,35 +88,63 @@ function _validate_advice(advice::Dict{String, Any})
         return false
     end
 
-    if haskey(advice, "portfolio")
-        return _validate_portfolio(advice["portfolio"]) 
-    end 
+    portfolio = get(advice, "portfolio", Dict{String, Any}())
+    oldPortfolio = get(lastAdvice, "portfolio", Dict{String, Any}())
+
+    if portfolio == Dict{String, Any}()
+        return false
+    end
+
+    #Validate dates
+    format = "yyyy-mm-ddTHH:MM:SS.sssZ"
     
-    return true   
-end 
+    startDate = haskey(portfolio, "startDate") ? DateTime(portfolio["startDate"], format) : DateTime()
+    endDate = haskey(portfolio, "endDate") ? DateTime(portfolio["endDate"], format) : DateTime()
 
-function _validate_portfolio(port::Dict{String, Any})   
-    startDate = DateTime()
-    if haskey(port, "startDate")
-        startDate = DateTime(port["startDate"])
-    else
-        return false    
-    end
-
-    endDate = DateTime()
-    if haskey(port, "endDate")
-        endDate = DateTime(port["endDate"])
-    else
-        return false    
-    end
+    lastStartDate = haskey(oldPortfolio, "startDate") ? DateTime(oldPortfolio["startDate"], format) : DateTime()
+    lastEndDate = haskey(oldPortfolio, "endDate") ? DateTime(oldPortfolio["endDate"], format) : DateTime()
 
     if startDate >= endDate || startDate == DateTime() || endDate == DateTime()
         return false
     end
 
+    if lastStartDate != DateTime() && lastEndDate != DateTime() && startDate <= lastEndDate 
+        return false
+    end
+    
+    _validate_portfolio(portfolio)  
+end 
+
+function _validate_adviceportfolio(advicePortfolio::Dict{String, Any}, lastAdvicePortfolio::Dict{String, Any})
+    
+    format = "yyyy-mm-ddTHH:MM:SS.sssZ"
+    
+    startDate = haskey(advicePortfolio, "startDate") ? DateTime(advicePortfolio["startDate"], format) : DateTime()
+    endDate = haskey(advicePortfolio, "endDate") ? DateTime(advicePortfolio["endDate"], format) : DateTime()
+
+    lastStartDate = haskey(lastAdvicePortfolio, "startDate") ? DateTime(lastAdvicePortfolio["startDate"], format) : DateTime()
+    lastEndDate = haskey(lastAdvicePortfolio, "endDate") ? DateTime(lastAdvicePortfolio["endDate"], format) : DateTime()
+
+    if startDate >= endDate || startDate == DateTime() || endDate == DateTime()
+        return false
+    end
+
+    if lastStartDate != DateTime() && lastEndDate != DateTime() && startDate <= lastEndDate 
+        return false
+    end
+
+    if haskey(advicePortfolio, "portfolio")
+        return _validate_portfolio(advicePortfolio["portfolio"]) 
+    end 
+    
+    return false  
+end 
+
+function _validate_portfolio(port::Dict{String, Any})   
+    
     portfolio = convert(Raftaar.Portfolio, port)
     
-    if portfolio == Portfolio() 
+    if portfolio == nothing
         return false  
     end
 
@@ -122,6 +160,11 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
 
     #get the unadjusted prices for tickers in the portfolio
     prices = YRead.history_unadj(secids, "Close", :Day, start_date, end_date)
+
+    if prices == nothing
+        println("Price data not available")
+        return nothing
+    end
 
     ts = prices.timestamp
 
@@ -170,6 +213,8 @@ function compute_portfolio_value_history(portfolioHistory)
     
     ts = Vector{TimeArray}()
 
+    format = "yyyy-mm-ddTHH:MM:SS.sssZ"
+  
     for collection in portfolioHistory
 
         port = collection["portfolio"]
@@ -178,15 +223,22 @@ function compute_portfolio_value_history(portfolioHistory)
         cash = haskey(port, "cash") ? port["cash"] : 0.0
         cash = convert(Float64, cash)
 
-        startDate = DateTime(collection["startDate"][1:end-1])
-        endDate = DateTime(collection["endDate"][1:end-1])
+        startDate = DateTime(collection["startDate"], format)
+        endDate = DateTime(collection["endDate"], format)
 
         # Compute portfolio value timed array
         portfolio_value_ta = _compute_portfoliovalue(portfolio, startDate, endDate, cash)
 
-        push!(ts, portfolio_value_ta)
+        if portfolio_value_ta != nothing    
+            push!(ts, portfolio_value_ta)
+        end
     end
 
+    if length(ts) == 0
+        println("Empty timer series vector. No data available upstream")
+        return (nothing, nothing)
+    end
+    
     f_ts = ts[1]
 
     for i = 2:length(ts)
@@ -233,7 +285,6 @@ function compute_updated_portfolio(port::Dict{String, Any}, transactions::Vector
     return (cash, portfolio)
 end
 
-
 function convert_to_node_portfolio(port::Portfolio)
     
     output = Dict{String, Any}("positions" => [])
@@ -241,7 +292,7 @@ function convert_to_node_portfolio(port::Portfolio)
     for (sym, pos) in port.positions
         n_pos = Dict{String, Any}()
         
-        n_pos["security"] = serialize(getsecurity(pos.securitysymbol.id))
+        n_pos["security"] = convert(Dict{String,Any}, getsecurity(pos.securitysymbol.id))
         n_pos["quantity"] = pos.quantity
         n_pos["price"] = pos.averageprice
         
@@ -250,4 +301,5 @@ function convert_to_node_portfolio(port::Portfolio)
 
     return output
 end
+
 

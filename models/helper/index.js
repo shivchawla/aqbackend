@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-06-29 16:28:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-04 13:53:25
+* @Last Modified time: 2017-12-17 23:41:11
 */
 
 'use strict';
@@ -67,7 +67,7 @@ function computePerformance(portfolioHistory, benchmark) {
 };*/
 
 
-exports.calculatePerformanceAndUpdateAdvice = function(advice) {
+/*exports.calculatePerformanceAndUpdateAdvice = function(advice) {
 	
 	var portfolioHistory = [{startDate: advice.portfolio.startDate, 
 								endDate: new Date(), 
@@ -95,4 +95,4 @@ exports.calculatePerformanceAndUpdateAdvice = function(advice) {
 		}
 	})
 
-};
+};*/

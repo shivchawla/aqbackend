@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-04 12:42:14
+* @Last Modified time: 2017-12-18 10:57:49
 */
 
 'use strict';
@@ -97,48 +97,6 @@ function _checkIfStockLatestDetailUpdateRequired(detail) {
 
     return false;
 }
-
-exports.getStockDetail = function(args, res, next) {
-
-	const ticker = args.ticker.value;
-	const exchange = args.exchange.value;
-	const securityType = args.securityType.value;
-	const country = args.country.value;
-
-	const field = args.field.value;
-	const security = {ticker: ticker,
-						exchange: exchange,
-						securityType: securityType,
-						country: country};
-
-	console.log(security);
-
-	var q = {'security.ticker': ticker,
-					'security.exchange': exchange,
-					'security.securityType': securityType,
-					'security.country': country};
-
-	SecurityPerformanceModel.fetchSecurityPerformance(q, {fields:field})
-	.then(securityPerformance => {
-		if(!securityPerformance) {
-			return SecurityPerformanceModel.saveSecurityPerformance({security: security})
-		} else {
-			return securityPerformance;
-		}
-	})
-	.then(securityPerformance => {
-		if(field == "priceHistory") {
-			return getStockPriceHistory(res, q, security);
-		} else if (field == "staticPerformance") {
-			return getStockStaticPerformance(res, q, security);
-		} else if (field == "rollingPerformance") {
-			return getStockRollingPerformance(res, q, security);
-		} else if (field == "latestDetail") {
-			return getStockLatestDetail(res, q, security);
-		}
-
-	});
-};
 
 function getStockPriceHistory(res, q, security) {
 	/*const ticker = args.ticker.value;
@@ -285,3 +243,46 @@ function getStockLatestDetail(res, q, security) {
 		return res.status(400).send(err.message);
 	})
 };
+
+module.exports.getStockDetail = function(args, res, next) {
+
+	const ticker = args.ticker.value;
+	const exchange = args.exchange.value;
+	const securityType = args.securityType.value;
+	const country = args.country.value;
+
+	const field = args.field.value;
+	const security = {ticker: ticker,
+						exchange: exchange,
+						securityType: securityType,
+						country: country};
+
+	console.log(security);
+
+	var q = {'security.ticker': ticker,
+					'security.exchange': exchange,
+					'security.securityType': securityType,
+					'security.country': country};
+
+	SecurityPerformanceModel.fetchSecurityPerformance(q, {fields:field})
+	.then(securityPerformance => {
+		if(!securityPerformance) {
+			return SecurityPerformanceModel.saveSecurityPerformance({security: security})
+		} else {
+			return securityPerformance;
+		}
+	})
+	.then(securityPerformance => {
+		if(field == "priceHistory") {
+			return getStockPriceHistory(res, q, security);
+		} else if (field == "staticPerformance") {
+			return getStockStaticPerformance(res, q, security);
+		} else if (field == "rollingPerformance") {
+			return getStockRollingPerformance(res, q, security);
+		} else if (field == "latestDetail") {
+			return getStockLatestDetail(res, q, security);
+		}
+
+	});
+};
+

@@ -67,7 +67,7 @@ wsh = WebSocketHandler() do req, ws_client
         valid = false
 
         try 
-          valid = _validate_advice(parsemsg["advice"]) 
+          valid = _validate_advice(parsemsg["advice"], parsemsg["lastAdvice"] == "" ? Dict{String,Any}() : parsemsg["lastAdvice"] ) 
         catch err
           println(err)
           error = "Error"
@@ -75,6 +75,7 @@ wsh = WebSocketHandler() do req, ws_client
 
         parsemsg["valid"] = valid
         parsemsg["error"] = error
+
       elseif action == "validate_portfolio"
           
          valid = false
@@ -94,17 +95,21 @@ wsh = WebSocketHandler() do req, ws_client
 
           (netValues, dates) = compute_portfolio_value_history(portfolioHistory)
 
-          performance = compute_performance(netValues, dates, benchmark)
+          if netValues != nothing && dates != nothing
+              performance = compute_performance(netValues, dates, benchmark)
+          
+              nVDict = Vector{Dict{String, Any}}()
 
-          nVDict = Vector{Dict{String, Any}}()
+              for i = 1:length(netValues)
+                  push!(nVDict, Dict{String, Any}("date" => dates[i], "netValue" => netValues[i]))
+              end
 
-          for i = 1:length(netValues)
-              push!(nVDict, Dict{String, Any}("date" => dates[i], "netValue" => netValues[i]))
-          end
-
-          parsemsg["performance"] = Dict{String, Any}("detail" => serialize(performance), 
+              parsemsg["performance"] = Dict{String, Any}("detail" => serialize(performance), 
                                       "portfolioStats" => nVDict)
-          parsemsg["error"] = error
+              parsemsg["error"] = error
+          else 
+              parsemsg["error"] = "Data not available"
+          end
 
       elseif action == "compute_portfolio_performance"
          
@@ -272,18 +277,19 @@ wsh = WebSocketHandler() do req, ws_client
 
           # TODO: update function to compute portfolio stats etc.
           # TODO: if price is not give (or zero price), assume EOD price for the day
+          ##
+          ##
           (cash, updated_portfolio) = compute_updated_portfolio(portfolio, transactions)
           
           #Update, the positions to match the object structure in Node
-          #portfolio = Raftaar.serialize(updated_portfolio)
-
           updated_portfolio = convert_to_node_portfolio(updated_portfolio)
           
           updated_portfolio["cash"] = cash
-          #updated_portfolio["updatedDate"] = string(now())
+          parsemsg["portfolio"] = updated_portfolio
+
       elseif action == "compute_attribution"
 
-          parsemsg["portfolio"] = updated_portfolio
+          #parsemsg["portfolio"] = updated_portfolio
 
       else
 

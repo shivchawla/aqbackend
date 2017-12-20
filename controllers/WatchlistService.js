@@ -7,7 +7,7 @@ function _checkIfValidSecurity(security) {
 	return true;
 }
 
-exports.createWatchlist = function(args, res, next) {
+module.exports.createWatchlist = function(args, res, next) {
 	const user = args.user;
     const values = args.body.value;
     
@@ -38,7 +38,7 @@ exports.createWatchlist = function(args, res, next) {
     })
 };
 
-exports.getAllWatchlists = function(args, res, next) {
+module.exports.getAllWatchlists = function(args, res, next) {
 	const userId = args.user._id;
 	var query = {user: userId, deleted: false};
 	
@@ -59,7 +59,7 @@ exports.getAllWatchlists = function(args, res, next) {
 	})
 };
 
-exports.getWatchlist = function(args, res, next) {
+module.exports.getWatchlist = function(args, res, next) {
 	const userId = args.user._id;
 	const watchlistId = args.watchlistId.value;
 
@@ -76,7 +76,7 @@ exports.getWatchlist = function(args, res, next) {
 	})
 };
 
-exports.updateWatchlist = function(args, res, next) {
+module.exports.updateWatchlist = function(args, res, next) {
 	const userId = args.user._id;
 	const watchlistId = args.watchlistId.value;
 
@@ -102,7 +102,7 @@ exports.updateWatchlist = function(args, res, next) {
 	})
 };
 
-exports.deleteWatchlist = function(args, res, next) {
+module.exports.deleteWatchlist = function(args, res, next) {
 	const userId = args.user._id;
 	const watchlistId = args.watchlistId.value;
 

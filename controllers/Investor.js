@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 20:45:19
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-07-03 17:41:33
+* @Last Modified time: 2017-12-20 17:55:02
 */
 
 'use strict';
@@ -45,14 +45,6 @@ module.exports.getInvestorPerformance = function getInvestorPerformance(req, res
 module.exports.updateInvestorPortfolio = function updateInvestorPortfolio(req, res, next){
 	Investor.updateInvestorPortfolio(req.swagger.params, res, next);
 };
-
-/*module.exports.updateInvestorPortfolioForStock = function updateInvestorPortfolio(req, res, next){
-	Investor.updateInvestorPortfolioForStock(req.swagger.params, res, next);
-};
-
-module.exports.updateInvestorPortfolioForAdvice = function updateInvestorPortfolio(req, res, next){
-	Investor.updateInvestorPortfolioForAdvice(req.swagger.params, res, next);
-};*/
 
 module.exports.deleteInvestorPortfolio = function deleteInvestorPortfolio(req, res, next){
 	Investor.deleteInvestorPortfolio(req.swagger.params, res, next);

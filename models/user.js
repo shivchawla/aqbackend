@@ -1,8 +1,8 @@
 'use strict';
 const mongoose = require('./index');
 const Schema = mongoose.Schema;
-const User = new Schema({    
 
+const User = new Schema({    
     email: {
         type: String,
         required: true,
@@ -40,7 +40,7 @@ const User = new Schema({
         type: Date,
         //required: true,
     },
-    updatedAt: Date,
+    updatedAt: Date
 
 });
 

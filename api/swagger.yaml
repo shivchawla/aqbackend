@@ -1054,6 +1054,7 @@ paths:
         400:
           description: 'Invalid input'
       x-swagger-router-controller: "Advisor"
+    
     get:
       tags:
       - advisor
@@ -1368,7 +1369,7 @@ paths:
         in: body
         required: true
         schema: 
-          $ref: '#/definitions/Advice'
+          $ref: '#/definitions/AdvicePatch'
       responses:
         200:
           description: "updated advice"
@@ -1506,6 +1507,41 @@ paths:
       responses:
         200:
           description: OK
+      x-swagger-router-controller: "Advice"
+
+  /advice/{adviceId}/portfolio:
+    put:
+      tags:
+      - advice
+      summary: update advice 
+      description: updates the advice 
+      consumes:
+      - application/json
+      operationId: updateAdvicePortfolio
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        required: true
+        type: string
+      - name: body
+        in: body
+        required: true
+        schema: 
+          $ref: '#/definitions/Portfolio'
+      responses:
+        200:
+          description: "updated advice"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
       x-swagger-router-controller: "Advice"
 
   /investor:
@@ -1661,9 +1697,90 @@ paths:
           description: OK
         400:
           description: 'Invalid input'
-      x-swagger-router-controller: "Investor"
+      x-swagger-router-controller: "Investor"  
+  
+  /investor/{investorId}/portfolio/{portfolioId}:
+    get:
+      tags:
+      - investor
+      summary: get portfolio for investor
+      description: Gets the complete portfolio for an investor
+      operationId: getInvestorPortfolio
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        type: string
+        required: true
+      - name: portfolioId
+        in: path
+        type: string
+        required: true
+      - name: ticker
+        in: query
+        required: true
+        type: string
+        description: stock ticker
+      - name: exchange
+        in: query
+        required: true
+        default: NSE
+        type: string
+        description: stock exchange      
+      - name: country
+        in: query
+        required: false
+        type: string
+        default: IN
+        description: security country
+      - name: securityType
+        in: query
+        required: false
+        type: string
+        default: EQ
+        description: security type
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Investor"  
+  
+    delete:
+      tags:
+      - investor
+      summary: remove portfolio for investor
+      description: Removes the complete portfolio for an investor
+      operationId: deleteInvestorPortfolio
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        type: string
+        required: true
+      - name: portfolioId
+        in: path
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Investor"  
 
-  /investor/{investorId}/portfolio/{portfolioId}/update:
     put:
       tags:
       - investor
@@ -1710,135 +1827,6 @@ paths:
           description: 'Invalid input'
       x-swagger-router-controller: "Investor"
 
-  /investor/{investorId}/portfolio/{portfolioId}/stock:
-    get:
-      tags:
-      - investor
-      summary: get the detail of position in portfolio
-      description: get the detail of position in portfolio
-      operationId: getInvestorPortfolioPosition
-      security:
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: investorId
-        in: path
-        type: string
-        required: true
-      - name: portfolioId
-        in: path
-        type: string
-        required: true
-      - name: ticker
-        in: query
-        required: true
-        type: string
-        description: stock ticker
-      - name: exchange
-        in: query
-        required: true
-        type: string
-        description: stock exchange      
-      responses:
-        200:
-          description: OK
-        400:
-          description: 'Invalid input'
-      x-swagger-router-controller: "Investor"
-  
-  /investor/{investorId}/portfolio/{portfolioId}/performance:
-    get:
-      tags:
-      - investor
-      summary: get portfolio's performance for investor
-      description: Gets the portfolio's performance for an investor
-      operationId: getInvestorPerformance
-      security:
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: investorId
-        in: path
-        type: string
-        required: true
-      - name: portfolioId
-        in: path
-        type: string
-        required: true
-      responses:
-        200:
-          description: OK
-        400:
-          description: 'Invalid input'
-      x-swagger-router-controller: "Investor"  
-  
-  /investor/{investorId}/portfolio/{portfolioId}:
-    get:
-      tags:
-      - investor
-      summary: get portfolio for investor
-      description: Gets the complete portfolio for an investor
-      operationId: getInvestorPortfolio
-      security:
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: investorId
-        in: path
-        type: string
-        required: true
-      - name: portfolioId
-        in: path
-        type: string
-        required: true
-      responses:
-        200:
-          description: OK
-        400:
-          description: 'Invalid input'
-      x-swagger-router-controller: "Investor"  
-  
-    delete:
-      tags:
-      - investor
-      summary: remove portfolio for investor
-      description: Removes the complete portfolio for an investor
-      operationId: deleteInvestorPortfolio
-      security:
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: investorId
-        in: path
-        type: string
-        required: true
-      - name: portfolioId
-        in: path
-        type: string
-        required: true
-      responses:
-        200:
-          description: OK
-        400:
-          description: 'Invalid input'
-      x-swagger-router-controller: "Investor"  
-  
   /investor/{investorId}/followingAdvices:
     get:
       tags:
@@ -2413,6 +2401,10 @@ definitions:
         $ref: '#/definitions/Security'
       portfolio:
           $ref: "#/definitions/Portfolio"
+
+#AdvicePatch
+  AdvicePatch:
+    type: object
 
 #Investor
   Investor:

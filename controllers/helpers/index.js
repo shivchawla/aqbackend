@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-16 16:49:57
+* @Last Modified time: 2017-12-20 17:41:51
 */
 
 'use strict';
@@ -121,8 +121,7 @@ function _updatePortfolio(portfolio, transactions, adviceId) {
 			return _compareIds(item.advice, adviceId);}); 	
 
 	return Promise.all([_updatePositions(subPositions, transactions),
-						_updatePositions(portfolio.positions, transactions)
-						])
+						_updatePositions(portfolio.positions, transactions)])
 	.then(([port2, port1]) => {
 
 		port2.positions.forEach(position => {
@@ -138,6 +137,8 @@ function _updatePortfolio(portfolio, transactions, adviceId) {
 			cash: portfolio.cash + port1.cash
 		};
 
+		console.log("Portfolio Updated");
+		console.log(updatedPortfolio);
 		return updatedPortfolio;
 	})
 }
@@ -178,9 +179,9 @@ function _updatePositions(positions, transactions) {
 	});
 }
 
-exports.calculatePerformanceAndUpdateInvestor = function(investorId, portfolioId) {
+module.exports.calculatePerformanceAndUpdateInvestor = function(investorId, portfolioId) {
 	
-	return PortfolioModel.fetchPortfolio({_id: portfolioId},{})
+	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'startDate endDate cash positions'})
 	.then(portfolio => {
 		var portfolioHistory = [{startDate: portfolio.startDate, 
 									endDate: new Date(), 
@@ -200,89 +201,96 @@ exports.calculatePerformanceAndUpdateInvestor = function(investorId, portfolioId
 			});
 		}
 
-		return _computePerformance(portfolioHistory, {ticker:"CNX_NIFTY"});
+		return _computePerformance(portfolioHistory, {ticker:"NIFTY_50"});
 	})
 	.then(performance => {
-
 		if(performance) {
 			performance["updatedDate"] = new Date();
-			performance.portfolioStats = performance.portfolioStats.map(item => { 
-				  item.date = new Date(item.date); 
-				  return item;
-			});
-			return InvestorModel.updateInvestorPerformance({_id: investorId}, portfolioId, performance);
+			if(performance.portfolioStats) {
+				performance.portfolioStats = performance.portfolioStats.map(item => { 
+			  		item.date = new Date(item.date); 
+			  		return item;
+				});
+			}
+		} else {
+			performance = {updatedDate: new Date(), message: "Error computing performance data. Missing data"};
 		}
-	})
 
+		return InvestorModel.updateInvestorPerformance({_id: investorId}, portfolioId, performance);
+	})
 };
 
-exports.calculatePerformanceAndUpdateAdvice = function(adviceId) {
+module.exports.calculatePerformance = function(adviceId) {
 	
-	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio benchmark'})
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio portfolioHistory benchmark'})
 	.then(advice => {
-		var portfolioHistory = [{startDate: advice.portfolio.startDate, 
-								endDate: new Date(), 
+
+		var currentPortfolio = advice.portfolio;
+
+		var portfolioHistory = [{startDate: currentPortfolio.startDate, 
+								endDate: currentPortfolio.endDate, 
 								portfolio: {
-									positions: advice.portfolio.positions,
-									cash: advice.portfolio.cash}
+									positions: currentPortfolio.positions,
+									cash: currentPortfolio.cash}
 								}];
 
-		if(advice.portfolio.history) {
-			advice.portfolio.history.forEach(port => {
-				portfolioHistory.push({startDate: port.startDate, 
-									endDate: port.endDate,
+		if(advice.portfolioHistory) {
+			advice.portfolioHistory.forEach(item => {
+				portfolioHistory.push({startDate: item.startDate, 
+									endDate: item.endDate,
 									portfolio: {
-										positions: port.positions,
-										cash: port.cash}
+										positions: item.positions,
+										cash: item.cash}
 									});
 			});
 		}
-	
+
 		return _computePerformance(portfolioHistory, advice.benchmark);
 	})
-	.then(performance => {
+	/*.then(performance => {
 		if(performance) {
 			performance["updatedDate"] = new Date();
 			performance.portfolioStats = performance.portfolioStats.map(item => { 
 				  item.date = new Date(item.date); 
 				  return item;
-			});
-			return AdviceModel.updateAdvice({_id: adviceId}, {advicePerformance:performance});
+			});	
+			return AdviceModel.updateAdvice({_id: adviceId}, {advicePerformance: performance});
+		} else {
+			performance = {message: "Error computing latest performance. Missing Data"};
 		}
-	});
+
+		
+	})*/
 };
 
-exports.updatePortfolioForStockTransactions = function(portfolioId, transactions) {
+module.exports.updatePortfolioForStockTransactions = function(portfolioId, transactions) {
 	
 	const updates = {};
 	
 	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted: false}, {fields: 'positions subPositions cash'})
 	.then(portfolio => {
 		if(portfolio) {
-			//var positions = portfolio.positions;
-
-			//var subPositions = portfolio.subPositions.filter(position => {
-			//	position.advice == null});
-
 			// Send exisitng positions and transactions to Julia
 			// Get back updated positions 
 			return _updatePortfolio(portfolio, transactions, null);
 							
 		} else {
-			APIError.thowJsonError({portfolioId: portfolioId, msg: "Portfolio not found"});
+			APIError.thowJsonError({portfolioId: portfolioId, message: "Portfolio not found"});
 		}
 	})
 	.then(updatedPortfolio => {
+
+		console.log(updatedPortfolio);
 
 		updates.positions = updatedPortfolio.positions;
 		updates.subPositions = updatedPortfolio.subPositions;
 		updates.cash = updatedPortfolio.cash;
 		updates.transactions = transactions;
-		return PortfolioModel.updatePortfolio({_id:portfolioId}, updates);
+		return PortfolioModel.updatePortfolio({_id: portfolioId}, updates);
 	})
 };
 
-exports.updatePortfolioForAdviceTransactions = function(portfolioId, adviceId) {
+module.exports.updatePortfolioForAdviceTransactions = function(portfolioId, adviceId) {
 	
 	const updates = {};
 	
@@ -292,7 +300,7 @@ exports.updatePortfolioForAdviceTransactions = function(portfolioId, adviceId) {
 		if(portfolio && advice.portfolio) {
 
 			if(portfolio.advices.indexOf(adviceId) !=-1) {
-				APIError.throwJsonError({adviceId: adviceId, msg:"Advice already part of the portfolio"});
+				APIError.throwJsonError({adviceId: adviceId, message:"Advice already part of the portfolio"});
 			}
 
 			var subPositions = portfolio.subPositions.filter(item => {return _compareIds(item.advice, adviceId);});
@@ -321,11 +329,10 @@ exports.updatePortfolioForAdviceTransactions = function(portfolioId, adviceId) {
 				};
 
 				transactions.push(transaction);
-
 			});
+
 			// Send exisitng positions and transactions to Julia
 			// Get back updated positions 
-
 			return _updatePortfolio(portfolio, transactions, adviceId);							
 		}
 	})
@@ -339,10 +346,10 @@ exports.updatePortfolioForAdviceTransactions = function(portfolioId, adviceId) {
 	});
 };
 
-exports.fetchUpdatedAdvice = function(query, options) {
+module.exports.fetchUpdatedAdvice = function(query, options) {
 }
 
-exports.updateAdviceWithAdvicePerformance = function(advice) {
+module.exports.updateAdviceWithAdvicePerformance = function(advice) {
 		
 	var needPortfolioValueUpdate = false;
 	var endDate = new Date();
@@ -391,7 +398,7 @@ exports.updateAdviceWithAdvicePerformance = function(advice) {
 	}
 };
 
-exports.updateInvestorPortfolioPerformance = function(investor) {
+module.exports.updateInvestorPortfolioPerformance = function(investor) {
 	var needPerformanceUpdate = false;
 	var endDate = new Date();
 
@@ -462,7 +469,7 @@ exports.updateInvestorPortfolioPerformance = function(investor) {
 	}
 };
 
-exports.validateAdvice = function(advice) {
+module.exports.validateAdvice = function(advice, oldAdvice) {
 
 	return new Promise((resolve, reject) => {
 
@@ -473,7 +480,8 @@ exports.validateAdvice = function(advice) {
             console.log('Connection Open');
             console.log(connection);
             var msg = JSON.stringify({action:"validate_advice", 
-            						advice: advice});
+            						advice: advice,
+            						lastAdvice: oldAdvice ? oldAdvice : ""});
 
          	wsClient.send(msg);
         });
@@ -490,7 +498,7 @@ exports.validateAdvice = function(advice) {
     })
 };
 
-exports.validatePortfolio = function(portfolio) {
+module.exports.validatePortfolio = function(portfolio) {
 
 	return new Promise((resolve, reject) => {
 
@@ -518,7 +526,7 @@ exports.validatePortfolio = function(portfolio) {
     })
 };
 
-exports.updateStockStaticPerformanceDetail = function(q, security) {
+module.exports.updateStockStaticPerformanceDetail = function(q, security) {
 	return new Promise((resolve, reject) => {
 
 		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
@@ -548,7 +556,7 @@ exports.updateStockStaticPerformanceDetail = function(q, security) {
     });
 };
 
-exports.updateStockRollingPerformanceDetail = function(q, security) {
+module.exports.updateStockRollingPerformanceDetail = function(q, security) {
 	return new Promise((resolve, reject) => {
 
 		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
@@ -578,7 +586,7 @@ exports.updateStockRollingPerformanceDetail = function(q, security) {
     })
 };
 
-exports.updateStockPriceHistory = function(q, security) {
+module.exports.updateStockPriceHistory = function(q, security) {
 	return new Promise((resolve, reject) => {
 
 		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
@@ -607,7 +615,7 @@ exports.updateStockPriceHistory = function(q, security) {
     });
 };
 
-exports.updateStockLatestDetail = function(q, security) {
+module.exports.updateStockLatestDetail = function(q, security) {
 	return new Promise((resolve, reject) => {
 
 		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
@@ -636,7 +644,7 @@ exports.updateStockLatestDetail = function(q, security) {
     	if(latestDetail) {
     		return SecurityPerformanceModel.updateLatestDetail(q, latestDetail);
 		} else {
-			APIError.throwJsonError({msg: "Error in computation. Stock latest detail can't be updated"});
+			APIError.throwJsonError({message: "Error in computation. Stock latest detail can't be updated"});
 		}
     });
 };
