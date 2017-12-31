@@ -39,7 +39,6 @@ const Thread = new Schema({
     },
     backtestId: {
         type: Schema.Types.ObjectId,
-        required: false,
         ref: 'Backtest'
     },
     markdownText: {
@@ -48,26 +47,21 @@ const Thread = new Schema({
     },
     followers: [{
         type: Schema.Types.ObjectId,
-        required: true,
         ref: 'User'
     }],
     likes: [{
         type: Schema.Types.ObjectId,
-        required: true,
         ref: 'User'
     }],
     tags: [{
         type: String,
-        required: true
     }],
     views: {
         type: Number,
-        required: true,
         default: 0
     },
     lastCommentedUser: {
         type: Schema.Types.ObjectId,
-        required: true,
         ref: 'User'
     },
     replies: [EmbedThread],

@@ -1,42 +1,52 @@
 'use strict';
+const UserModel = require('../models/user');
 const ThreadModel = require('../models/Research/thread');
 const BacktestModel = require('../models/Research/backtest');
 const sendEmail = require('../email');
 var truncate = require('truncate-html');
+const config = require('config');
 
 exports.createThread = function(args, res, next) {
     const user = args.user;
-  
-    const thread = {
-        user: user._id,
-        category: args.body.value.category,
-        markdownText: truncate(args.body.value.markdownText, {excludes: 'img'}),
-        title: args.body.value.title,
-        followers : [user._id],
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-    };
+    
+    //if user is not admin, don't allow image ig markdown
+    let thread;
+    let backtestQuery;
+    
+    return UserModel.fetchUsers({email:{$in:config.get('admin_followers')}})
+    .then(adminFollowers => {
+        var markdownOptions = user.email != config.get('admin_user') ? {excludes: 'img'} : {};
+        thread = {
+            user: user._id,
+            category: args.body.value.category,
+            markdownText: truncate(args.body.value.markdownText, markdownOptions),
+            title: args.body.value.title,
+            followers : ([user._id].concat(adminFollowers ? adminFollowers.map(item => item._id) : [])).reduce((x, y) => x.includes(y) ? x : [...x, y], []),
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
 
-    if (args.body.value.backtestId) {
-        thread.backtestId = args.body.value.backtestId;
-    }
+        if (args.body.value.backtestId) {
+            thread.backtestId = args.body.value.backtestId;
+        }
 
-    if (args.body.value.tags) {
-        thread.tags = args.body.value.tags;
-    }
-   
-    var backtestQuery = {_id : thread.backtestId};
+        if (args.body.value.tags) {
+            thread.tags = args.body.value.tags;
+        }
 
-    ThreadModel.saveThread(thread)
+        var backtestQuery = {_id: thread.backtestId};
+
+        return ThreadModel.saveThread(thread)
+    })
     .then(threadSaved => {
         return Promise.all(
                 [threadSaved._id,
-                    BacktestModel.updateBacktest(backtestQuery, {shared : true})
+                    thread.backtestId ? BacktestModel.updateBacktest(backtestQuery, {shared : true}) : "No attached backtest"
                 ]);
                 
     })
     .then(([threadId, message]) => {
-        return res.status(200).json({_id : threadId});
+        return res.status(200).json({_id: threadId});
     })
     .catch(err => {
         next(err);
@@ -165,9 +175,13 @@ exports.likeThread = function(args, res, next) {
 
 exports.replyToThread = function(args, res, next) {
     const user = args.user;
+
+    //if user is not admin, don't allow image ig markdown
+    var markdownOptions = user.email != config.get('admin_user') ? {excludes: 'img'} : {};
+
     const embedThread = {
         user: user._id,
-        markdownText: truncate(args.body.value.markdownText, {excludes: 'img'}),
+        markdownText: truncate(args.body.value.markdownText, markdownOptions),
         backtestId : args.body.value.backtestId,
         createdAt: new Date(),
         updatedAt: new Date()
