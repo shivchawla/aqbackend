@@ -451,14 +451,14 @@ paths:
       summary: get a thread
       description: get thread details
       operationId: getThread
-      security:
-      - api_key: []
+      security: []
+      #- api_key: []
       parameters:
       - name: "aimsquant-token"
         in: "header"
         description: "auth token"
         type: "string"
-        required: true
+        required: false
       - in: path
         name: threadId
         type: string
@@ -548,14 +548,14 @@ paths:
       summary: view a thread
       description: view a thread
       operationId: viewThread
-      security:
-      - api_key: []
+      security: []
+      #- api_key: []
       parameters:
       - name: "aimsquant-token"
         in: "header"
         description: "auth token"
         type: "string"
-        required: true
+        required: false
       - in: path
         name: threadId
         type: string
