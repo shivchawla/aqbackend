@@ -344,7 +344,7 @@ paths:
       summary: get all threads
       description: get all threads
       operationId: getThreads
-      security:
+      security: 
       - api_key: []
       parameters:
       - name: "aimsquant-token"
@@ -404,6 +404,32 @@ paths:
         required: true
         in: query
         default: 0
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Thread"
+
+  /thread_default:
+    get:
+      tags:
+      - thread
+      summary: get last 10 threads
+      description: get last 10 threads
+      operationId: getThreadsDefault
+      security: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: false
+      - name: order_param
+        type: string
+        required: false
+        in: query
+        default: createdAt
       responses:
         200:
           description: OK
@@ -489,14 +515,14 @@ paths:
       summary: get list of followers
       description: get list of followers
       operationId: listFollowers
-      security:
-      - api_key: []
+      security: []
+      #- api_key: []
       parameters:
       - name: "aimsquant-token"
         in: "header"
         description: "auth token"
         type: "string"
-        required: true
+        required: false
       - in: path
         name: threadId
         type: string

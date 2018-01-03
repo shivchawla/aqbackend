@@ -1,6 +1,7 @@
 'use strict';
 
 const Thread = require('./ThreadService');
+const User = require('./UserService');
 
 
 module.exports.createThread = function createThread (req, res, next) {
@@ -17,6 +18,10 @@ module.exports.listFollowers = function listFollowers (req, res, next) {
 
 module.exports.getThreads = function(req, res, next) {
     Thread.getThreads(req.swagger.params, res, next);
+};
+
+module.exports.getThreadsDefault = function(req, res, next) {
+    Thread.getThreadsDefault(req.swagger.params, res, next);
 };
 
 module.exports.followThread = function followThread (req, res, next) {

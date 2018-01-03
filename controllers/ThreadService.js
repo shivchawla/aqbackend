@@ -63,6 +63,7 @@ exports.getThreads = function(args, res, next) {
     const following = args.following.value;
     const category = args.category.value;
     const query = { };
+
     if (personal) {
         query.user = args.user._id;
     }
@@ -96,6 +97,23 @@ exports.getThreads = function(args, res, next) {
       .catch(err => {
           next(err);
       });
+};
+
+exports.getThreadsDefault = function(args, res, next) {
+    const order_param = args.order_param.value;
+    const options = {};
+    options.limit = 10;
+    options.skip = 0;
+    options.order_param = order_param || 'createdAt';
+    options.order = -1;
+
+    ThreadModel.fetchThreads({}, options)
+    .then((threads) => {
+        return res.status(200).send(threads);
+    })
+    .catch(err => {
+        next(err);
+    });
 };
 
 exports.getThread = function(args, res, next) {
