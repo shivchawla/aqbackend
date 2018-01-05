@@ -25,10 +25,10 @@ exports.createBacktest = function(strategy, values, res, next) {
             var req = {action:'exec-backtest', backtestId: bt._id};
             try {
                 spawn.handleAction(req, null);
-                console.log("Spawned");
             } catch(err) {
                 console.log(err);
             }
+            
             return res.status(200).json(bt);
         }
     })
@@ -51,7 +51,7 @@ exports.getBackTests = function(args, res, next) {
     options.sort = args.sort.value;
     options.select = args.select.value;
 
-    StrategyModel.fetchStrategy({user:userId, _id: strategyId}, {select:'user'})
+    return StrategyModel.fetchStrategy({user:userId, _id: strategyId}, {select:'user'})
     .then(strategy => {
         if(strategy) {
             return BacktestModel.fetchBacktests({
@@ -65,7 +65,7 @@ exports.getBackTests = function(args, res, next) {
         for(var i=0; i<backtests.length; i++){
             backtests[i].code = CryptoJS.AES.decrypt(backtests[i].code, config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
         }
-        res.status(200).json(backtests);
+        return res.status(200).json(backtests);
     })
     .catch(err => {
         next(err);
@@ -83,7 +83,7 @@ exports.getBackTest = function(args, res, next) {
         options.select = options.select.concat(' strategy');
     }
 
-    BacktestModel.fetchBacktest({
+    return BacktestModel.fetchBacktest({
         _id: backtestId,
     }, options)
     .then(bt => {
@@ -109,25 +109,23 @@ exports.deleteBackTest = function(args, res, next) {
     const backtestId = args.backtestId.value;
     const userId = args.user._id;
 
-    BacktestModel.fetchBacktest({_id : backtestId, shared : true}, {})
+    return BacktestModel.fetchBacktest({_id : backtestId, shared : true}, {})
     .then(backtest => {
         if(backtest && backtest.strategy.user.toString() == userId){
-            BacktestModel.updateBacktest({_id: backtestId}, {deleted : true})
+            return BacktestModel.updateBacktest({_id: backtestId}, {deleted : true})
             .then(obj => {
-                console.log("Soft delete")
-                res.status(200).json({backtestId: backtestId, message:"Successfly deleted"});
+                return res.status(200).json({backtestId: backtestId, message:"Successfly deleted"});
             })
             .catch(err => {
                 next(err);
             });
         } else {
-            BacktestModel.removeAllBack({
+            return BacktestModel.removeAllBack({
                 _id: backtestId,
                 shared:false
             })
             .then(obj => {
-                console.log("Hard Delete")
-                res.status(200).json({backtestId: backtestId, message:"Successfly deleted"});
+                return res.status(200).json({backtestId: backtestId, message:"Successfly deleted"});
             })
             .catch(err => {
                 next(err);
@@ -153,7 +151,7 @@ exports.updateBacktest = function(args, res, next) {
         updates.notes = args.notes.value;
     }
 
-    BacktestModel.updateBacktest({user: userId, _id: backtestId}, updates)
+    return BacktestModel.updateBacktest({user: userId, _id: backtestId}, updates)
     .then(obj => {
         if(obj) {
             return res.status(200).json(obj);

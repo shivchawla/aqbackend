@@ -105,6 +105,7 @@ Strategy.statics.fetchStrategy = function(query, options) {
         options.select.replace(',', ' ');
         q = q.select(options.select);
     }
+
     return q.populate('user', '_id firstName lastName').execAsync();
 };
 
@@ -126,7 +127,7 @@ Strategy.statics.updateStrategy = function(query, updates) {
                 strategy[key] = updates[key];
             });
             strategy.updatedAt= new Date();
-            return strategy.save();
+            return strategy.saveAsync();
         }
     });
 };

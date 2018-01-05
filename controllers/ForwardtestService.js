@@ -123,7 +123,6 @@ exports.deleteForwardTest = function(args, res, next) {
         }
     })
     .then(obj => {
-        console.log("Soft delete")
         res.status(200).json({forwardtestId: forwardtestId, message:"Successfly deleted"});
     })
     .catch(err=>{
