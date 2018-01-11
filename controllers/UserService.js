@@ -5,6 +5,7 @@ const hashUtil = require('../utils/hashUtil');
 const sendEmail = require('../email');
 const uuid = require('node-uuid');
 const config = require('config');
+var request = require('request');
 
 exports.registerUser = function(args, res, next) {
     const user = {
@@ -78,6 +79,7 @@ exports.forgotPassword = function(args, res, next) {
         sendEmail.sendForgotEmail(res, userDetails);
     })
     .catch(err => {
+        console.log(err);
         next(err);
     });
 };
@@ -188,6 +190,25 @@ exports.updateToken = function(args, res, next) {
         return res.status(400).send(err.message);
     })
 };
+
+exports.verifyCaptchaToken = function(args, res, next) {
+    console.log("in here");
+    const captchaToken = args.body.value.token;
+    const secret = "6Lfm6z8UAAAAAB4i3G4ay-4ptaN9KdEmSwl1zE3Q";
+    const url = "https://www.google.com/recaptcha/api/siteverify";
+    const input = {response: captchaToken, secret:secret};
+
+    console.log(input);
+
+    request.post(url, {json: true, body: input}, function(err, response, body) {
+        if (!err && response.statusCode === 200) {
+            res.status(200).send({message:"Captcha token valid"});  
+        } else {
+            res.status(response.statusCode).send({message:"Error validating captcha"});
+        }
+    });
+};
+
 
 exports.sendInfoEmail = function (args, res, next) {
     const user = args.user;

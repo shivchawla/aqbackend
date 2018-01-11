@@ -1,7 +1,7 @@
 {
     "hostname":"http://www.aimsquant.com",
 //    "mongo_url": "mongodb://aimsquant:aimsquant05!@ds159348.mlab.com:59348/aimsquant",
-    "sendgrid_key":"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",
+    "sendgrid_key":"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",
     "activation_url":"http://www.aimsquant.com/?mode=activationComplete#/user/authMessage",
     "account_activation_api_url":"http://api.aimsquant.com/api/v2/user/activate?code=",
     "reset_password_url":"http://www.aimsquant.com/?resetcode=${code}#/user/resetpassword",
@@ -12,17 +12,31 @@
     "mongo_db":"aimsquant_prod",
     "mongo_user":"app_server_prod",
     "mongo_pass":"pwd_app_server_prod",
-    "mongo_path":"35.154.134.30",
+    "mongo_path":"10.5.85.185",
     "mongo_port":27017,
-    "mongo_debug":false,
+    "mongo_debug":true,
 
     "privkey":"/etc/letsencrypt/live/aimsquant.com/privkey.pem",
     "cert":"/etc/letsencrypt/live/aimsquant.com/cert.pem",
 
     "redis_port":6379,
     "redis_path":"localhost",
-    
-    "max_num_julia_process" : 3,
+
+    "max_num_julia_process_user": 1,
+    "max_num_julia_process_total": 2,
     "time_interval_realtime_output":3000,
-    
+
+    "julia_server_host" : "127.0.0.1",
+    "julia_server_port" : 6000,
+
+    "max_advices_per_advisor":5,
+
+    "btmachines": [{"host":"163.172.142.98", "port":6001},{"host":"163.172.142.98","port":6002},
+                 {"host":"163.172.142.98", "port":6003},{"host":"163.172.142.98", "port":6004}],
+
+    "ftmachines": [{"host":"163.172.142.98", "port":7001}],
+
+    "ft_second":0,
+    "ft_minute":0,
+    "ft_hour":18    
 }

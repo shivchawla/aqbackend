@@ -32,7 +32,9 @@
     "node-schedule": "^1.2.3",
     "node-uuid": "^1.4.7",
     "redis": "^2.6.5",
+    "request": "^2.83.0",
     "sendgrid": "4.7.1",
+    "sib-api-v3-sdk": "^3.1.5",
     "stream-splitter": "^0.3.2",
     "swagger-tools": "0.10.1",
     "ws": "^1.1.1"

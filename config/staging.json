@@ -1,7 +1,7 @@
 {
     "hostname":"http://staging.aimsquant.com",
 //    "mongo_url": "mongodb://aimsquant:aimsquant05!@ds159348.mlab.com:59348/aimsquant",
-    "sendgrid_key":"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",
+    "sendgrid_key":"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",
     "activation_url":"http://staging.aimsquant.com/?mode=activationComplete#/user/authMessage",
     "account_activation_api_url":"http://stagingapi.aimsquant.com/api/v2/user/activate?code=",
     "reset_password_url":"http://staging.aimsquant.com/?resetcode=${code}#/user/resetpassword",

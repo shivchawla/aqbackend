@@ -45,6 +45,10 @@ module.exports.updateToken = function updateToken(req, res, next) {
     User.updateToken(req.swagger.params, res, next);
 };
 
+module.exports.verifyCaptchaToken = function verifyCaptchaToken(req, res, next) {
+    User.verifyCaptchaToken(req.swagger.params, res, next);
+};
+
 module.exports.sendInfoEmail = function sendInfoEmail(req, res, next) {
     User.sendInfoEmail(req.swagger.params, res, next);
 };

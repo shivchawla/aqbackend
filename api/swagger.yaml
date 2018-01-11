@@ -311,6 +311,27 @@ paths:
           description: OK
         400:
           description: Error Updating Token
+
+  /user/verifyCaptcha:
+    post:
+      tags:
+      - "user"
+      summary: Verify captcha token
+      description: Verify captcha token
+      operationId: verifyCaptchaToken
+      parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+           $ref: '#/definitions/captchaToken'
+      x-swagger-router-controller: "User"
+      responses:
+        200:
+          description: OK
+        400:
+          description: Error verifying captcha token
+
           
   /thread:
     post:
@@ -2216,6 +2237,14 @@ definitions:
       token:
         type: string
       email:
+        type: string
+
+  captchaToken:
+    type: object
+    required:
+      - token
+    properties:
+      token:
         type: string
     
   userId:
