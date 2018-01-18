@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-19 16:42:29
+* @Last Modified time: 2018-01-18 14:24:39
 */
 'use strict';
 const mongoose = require('../index');
@@ -23,6 +23,11 @@ const Advice = new Schema({
     },
 
     name: {
+        type: String,
+        required: true
+    },
+
+    heading: {
         type: String,
         required: true
     },
@@ -51,6 +56,8 @@ const Advice = new Schema({
         type: Date,
         required: true
     },
+
+    updateRequired:Boolean,
 
     public: {
         type: Boolean,
@@ -183,7 +190,7 @@ Advice.statics.getAdviceHistory = function(query, options) {
 	return q.execAsync();
 };
 
-Advice.statics.updateAdvice = function(query, updates) {
+Advice.statics.updateAdvice = function(query, updates, newPortfolio) {
     
     var q = this.findOne(query);
 
@@ -199,12 +206,14 @@ Advice.statics.updateAdvice = function(query, updates) {
         
         var fupdate = {$set: updates};
         
-        if(keys.indexOf("portfolio") != -1) {
+        //Update the portfolio array if it's TRULY a new Portfolio 
+        //(not just an update to exisitng portfolio in case of non-public advice)
+        if(keys.indexOf("portfolio") != -1 && newPortfolio) {
             fupdate = {$set: updates, $push:{portfolioHistory: oldPortfolio}};
         }
         
         return this.update(query, fupdate);
-    })
+    });
 };
 
 Advice.statics.updateCurrentPortfolioPerformance = function(query, performance) {

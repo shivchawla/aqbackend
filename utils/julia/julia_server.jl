@@ -4,7 +4,8 @@ using HttpServer
 using WebSockets
 using JSON
 using TimeSeries
- 
+using BufferedStreams
+
 using Raftaar: Performance, Returns, Drawdown, Ratios, Deviation, PortfolioStats
 using Raftaar: serialize
   
@@ -51,6 +52,13 @@ end
 function decode_message(msg)
    String(copy(msg))
 end
+
+function geterrormsg(err::Any)
+  out = BufferedOutputStream()
+  showerror(out, err)
+  msg = String(take!(out))
+  close(out)
+end
  
 wsh = WebSocketHandler() do req, ws_client
      
@@ -60,21 +68,22 @@ wsh = WebSocketHandler() do req, ws_client
     if haskey(parsemsg, "action") 
 
        action = parsemsg["action"]
-       error = ""
+       err_msg = ""
       
       if action == "validate_advice"
          
         valid = false
 
         try 
-          valid = _validate_advice(parsemsg["advice"], parsemsg["lastAdvice"] == "" ? Dict{String,Any}() : parsemsg["lastAdvice"] ) 
+          (valid, err_msg) = _validate_advice(parsemsg["advice"], parsemsg["lastAdvice"] == "" ? Dict{String,Any}() : parsemsg["lastAdvice"] ) 
         catch err
-          println(err)
-          error = "Error"
+          err_msg = geterrormsg(err)
         end
 
+        println(err_msg)
+        
         parsemsg["valid"] = valid
-        parsemsg["error"] = error
+        parsemsg["error"] = err_msg
 
       elseif action == "validate_portfolio"
           
@@ -83,11 +92,11 @@ wsh = WebSocketHandler() do req, ws_client
          try 
             valid = _validate_portfolio(parsemsg["portfolio"]) 
          catch err
-            error = "Error"
+            err_msg = geterrormsg(err)
          end
 
          parsemsg["valid"] = valid
-         parsemsg["error"] = error
+         parsemsg["error"] = err_msg
        
       elseif action == "compute_performance_portfolio_history"
           portfolioHistory = parsemsg["portfolioHistory"]
@@ -106,7 +115,7 @@ wsh = WebSocketHandler() do req, ws_client
 
               parsemsg["performance"] = Dict{String, Any}("detail" => serialize(performance), 
                                       "portfolioStats" => nVDict)
-              parsemsg["error"] = error
+              parsemsg["error"] = err_msg
           else 
               parsemsg["error"] = "Data not available"
           end
@@ -122,13 +131,13 @@ wsh = WebSocketHandler() do req, ws_client
          try
            performance = compute_performance(parsemsg["portfolio"], startDate, endDate)
          catch err
-           error = "error"
+           err_msg = geterrormsg(err)
          end
 
          performance = JSON.parse(JSON.json(performance))
 
          parsemsg["performance"] = Dict("date" => endDate, "value" => performance)
-         parsemsg["error"] = error
+         parsemsg["error"] = err_msg
 
       elseif action == "compute_performance_netvalue"
          performance = Dict{String, Any}()
@@ -145,12 +154,13 @@ wsh = WebSocketHandler() do req, ws_client
            performance = compute_performance(netValue, dates, benchmark)
            performance = JSON.parse(JSON.json(performance))
            parsemsg["performance"] = Dict("date" => endDate, "value" => performance)
-           error = ""
+           err_msg = ""
            
          catch err
-           error = "error"
+           err_msg = geterrormsg(err)
          end
-         parsemsg["error"] = error
+
+         parsemsg["error"] = err_msg
 
       elseif action == "compute_portfolio_value_history"
 
@@ -163,7 +173,7 @@ wsh = WebSocketHandler() do req, ws_client
            parsemsg["error"] = ""
 
          catch err
-           error = "error"
+           err_msg = geterrormsg(err)
          end
 
       elseif action == "compute_portfolio_value_period"
@@ -177,7 +187,7 @@ wsh = WebSocketHandler() do req, ws_client
            parsemsg["error"] = ""
            
          catch err
-           error = "error"
+           err_msg = geterrormsg(err)
          end
 
       elseif action == "compute_portfolio_value_date"
@@ -193,10 +203,10 @@ wsh = WebSocketHandler() do req, ws_client
                parsemsg["error"] = ""
              end
           catch err
-            error = "error"
+            err_msg = geterrormsg(err)
           end
         
-          parsemsg["error"] = error
+          parsemsg["error"] = err_msg
 
       elseif action == "compute_stock_price_history"
           try
@@ -211,10 +221,10 @@ wsh = WebSocketHandler() do req, ws_client
             parsemsg["priceHistory"] = history
 
            catch err
-            error = "error"
+            err_msg = geterrormsg(err)
           end
         
-          parsemsg["error"] = error
+          parsemsg["error"] = err_msg
           
       elseif action == "compute_stock_price_latest"
           try
@@ -224,11 +234,10 @@ wsh = WebSocketHandler() do req, ws_client
             parsemsg["latestDetail"] = latestPriceDetail
 
            catch err
-            println(err)
-            error = "error"
+            err_msg = geterrormsg(err)
           end
         
-          parsemsg["error"] = error                
+          parsemsg["error"] = err_msg                
       elseif action == "compute_stock_rolling_performance"
           try
             security = convert(Raftaar.Security, parsemsg["security"])
@@ -242,10 +251,10 @@ wsh = WebSocketHandler() do req, ws_client
 
             parsemsg["performance"] = rolling_performance_dict
           catch err
-             error = "error"
+             err_msg = geterrormsg(err)
           end
         
-          parsemsg["error"] = error
+          parsemsg["error"] = err_msg
 
       elseif action == "compute_stock_static_performance"
           try
@@ -266,10 +275,10 @@ wsh = WebSocketHandler() do req, ws_client
               parsemsg["performance"] = static_performance_dict
           
           catch err
-              error = "error"
+              err_msg = geterrormsg(err)
           end
          
-          parsemsg["error"] = error
+          parsemsg["error"] = err_msg
 
       elseif action == "compute_updated_portfolio"
           portfolio = parsemsg["portfolio"]
@@ -288,13 +297,9 @@ wsh = WebSocketHandler() do req, ws_client
           parsemsg["portfolio"] = updated_portfolio
 
       elseif action == "compute_attribution"
-
           #parsemsg["portfolio"] = updated_portfolio
-
       else
-
           parsemsg["error"] = "Invalid action"
-       
       end
       
       write(ws_client, JSON.json(parsemsg))  

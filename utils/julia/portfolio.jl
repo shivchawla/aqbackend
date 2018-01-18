@@ -82,17 +82,16 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
         benchmark = convert(Raftaar.Security, advice["benchmark"])
         
         if benchmark == Security()
-            return false
+            return (false, "Invalid Benchmark Security")
         end
     else
-        return false
+        return (false, "Advice doesn't contain Benchmark Security")
     end
 
     portfolio = get(advice, "portfolio", Dict{String, Any}())
-    oldPortfolio = get(lastAdvice, "portfolio", Dict{String, Any}())
-
+    
     if portfolio == Dict{String, Any}()
-        return false
+        return (false, "Advice doesn't contain portfolio")
     end
 
     #Validate dates
@@ -101,18 +100,43 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
     startDate = haskey(portfolio, "startDate") ? DateTime(portfolio["startDate"], format) : DateTime()
     endDate = haskey(portfolio, "endDate") ? DateTime(portfolio["endDate"], format) : DateTime()
 
-    lastStartDate = haskey(oldPortfolio, "startDate") ? DateTime(oldPortfolio["startDate"], format) : DateTime()
-    lastEndDate = haskey(oldPortfolio, "endDate") ? DateTime(oldPortfolio["endDate"], format) : DateTime()
-
     if startDate >= endDate || startDate == DateTime() || endDate == DateTime()
-        return false
+        return (false, "Empty dates or startDate less than or equal to end date")
     end
 
-    if lastStartDate != DateTime() && lastEndDate != DateTime() && startDate <= lastEndDate 
-        return false
+    #Check for old advice if oldAdvice is not empty
+    if(lastAdvice != Dict{String, Any}())
+        oldPortfolio = get(lastAdvice, "portfolio", Dict{String, Any}())
+        lastStartDate = haskey(oldPortfolio, "startDate") ? DateTime(oldPortfolio["startDate"], format) : DateTime()
+        lastEndDate = haskey(oldPortfolio, "endDate") ? DateTime(oldPortfolio["endDate"], format) : DateTime()
+
+        if lastStartDate != DateTime() && lastEndDate != DateTime() && startDate <= lastEndDate 
+            return (false, "Old Advice: Empty dates or startDate less than or equal to end date")
+        end
     end
     
-    _validate_portfolio(portfolio)  
+    println(portfolio)
+
+    port = convert(Raftaar.Portfolio, portfolio)
+
+    if port == nothing
+        return (false, "Invalid Portfolio Composition")
+    else    
+        try
+            portval = _compute_latest_portfoliovalue(port, convert(Float64, get(portfolio,"cash", 0.0)))
+
+            println("Portfolio Value: $(portval)")
+            if portval == nothing
+                return (false, "Can't compute portfolio prices | missing prices")
+            elseif portval > 100000.0 
+                return (false, "Portfolio exceeds 1 Lac")
+            else
+                return (true, "")
+            end
+        catch err
+            println(err)
+        end
+    end
 end 
 
 function _validate_adviceportfolio(advicePortfolio::Dict{String, Any}, lastAdvicePortfolio::Dict{String, Any})
@@ -154,16 +178,47 @@ end
 function _update_portfolio(portfolio::Portfolio, fill::OrderFill)
 end
 
-function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime, cash::Float64)
+function _compute_latest_portfoliovalue(portfolio::Portfolio, cash::Float64)
     # Get the list of ticker
     secids = [sym.id for sym in keys(portfolio.positions)]    
 
     #get the unadjusted prices for tickers in the portfolio
-    prices = YRead.history_unadj(secids, "Close", :Day, start_date, end_date)
+    prices = YRead.history_unadj(secids, "Close", :Day, 1, now(), offset = -1)
+
+    println(prices)
 
     if prices == nothing
         println("Price data not available")
-        return nothing
+        return cash
+    end
+
+    ts = prices.timestamp
+
+    nrows = length(ts)
+    portfolio_value = 0.0
+
+    equity_value = 0.0    
+    for (sym, pos) in portfolio.positions
+
+        ticker = sym.ticker
+        
+        close = values(prices[ticker])[end]
+        equity_value += pos.quantity * close 
+    end
+
+    portfolio_value = equity_value + cash 
+end
+
+function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime, cash::Float64)
+    # Get the list of ticker
+    secids = [sym.id for sym in keys(portfolio.positions)]    
+
+    #Get the Adjusted prices for tickers in the portfolio
+    prices = YRead.history(secids, "Close", :Day, start_date, end_date)
+
+    if prices == nothing
+        println("Price data not available")
+        return cash
     end
 
     ts = prices.timestamp

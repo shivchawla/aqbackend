@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-20 17:40:02
+* @Last Modified time: 2018-01-18 15:25:38
 */
 
 'use strict';
@@ -13,7 +13,6 @@ const PortfolioModel = require('../models/Marketplace/Portfolio');
 const APIError = require('../utils/error');
 const Promise = require('bluebird');
 const HelperFunctions = require("./helpers");
-
 
 function _checkPerformanceUpdateRequired(performanceArray, portfolioId) {
 	var update = false;
@@ -244,10 +243,13 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 		const securityType = args.securityType.value;
 		const country = args.country.value;
 
-		security = {ticker: ticker, 
-					exchange: exchange, 
-					securityType: securityType,
-					country: country};
+		security = ticker!="" 
+					&& exchange!="" 
+					&& securityType!="" 
+					&& country!=""  ? {ticker: ticker, 
+								exchange: exchange, 
+								securityType: securityType,
+								country: country} : null;
 	} catch(err) {
 		security = null;
 	} 
@@ -261,10 +263,10 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 		if (investor) {
 			if(investor.portfolios) {
 				return Promise.all(investor.portfolios.map(item => {
-					var fields = 'startDate endDate name performance';s
-					if(security) {
-						fields = fields.append(' positions');
-					}
+					var fields = 'startDate endDate name performance positions';
+					/*if(security) {
+						fields = fields.concat(' positions');
+					}*/
 					return PortfolioModel.fetchPortfolio({_id: item}, {fields: fields});
 				}));
 			} else {
@@ -276,27 +278,28 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 		}
 	})
 	.then(portfolios => {
-
 		if(portfolios) {
-
 			if(security) {
 				var portfoliosWithStock = [];
 				portfolios.forEach(port => {
-					var idx = port.positions.map(item => item.security).findIndex(item => { var x =
-								item.ticker == security.ticker &&
-								item.exchange == security.exchange && 
-								item.securityType == security.securityType && 
-								item.country == security.country; 
-								return x;});
+					if(port) {
+						var idx = port.positions.map(item => item.security).findIndex(item => { var x =
+									item.ticker == security.ticker &&
+									item.exchange == security.exchange && 
+									item.securityType == security.securityType && 
+									item.country == security.country; 
+									return x;});
 
-					if (idx != -1) {
-						portfoliosWithStock.push({portfolio: port, position: port.positions[idx]});
+						if (idx != -1) {
+							portfoliosWithStock.push({portfolio: port, position: port.positions[idx]});
+						}
 					}
 
 				});
+
 				return res.status(200).json(portfoliosWithStock);
 			} else {
-				return res.status(200).json(portfolios);
+				return res.status(200).json(portfolios.filter(item => {return item != null;}));
 			}
 			
 		} else {

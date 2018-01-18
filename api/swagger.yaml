@@ -32,6 +32,8 @@ tags:
   description: "operations on stock"
 - name: "watchlist"
   description: "operations on watchlist"
+- name: "Notebook"
+  description: "Operations on Julia Notebook" 
 
   externalDocs:
     description: "Find out more about us"
@@ -332,7 +334,77 @@ paths:
         400:
           description: Error verifying captcha token
 
-          
+  
+  /notebook:
+    post:
+      tags:
+      - Notebook
+      summary: Create a Julia notebook
+      description: Create a Julia notebook        
+      operationId: createNotebook
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Notebook"
+
+    get:
+      tags:
+      - Notebook
+      summary: Get all julia notebooks
+      description: Get all Julia notebooks        
+      operationId: getNotebooks
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Notebook"
+
+  /notebook/{notebookId}:
+    get:
+      tags:
+      - Notebook
+      summary: Get Julia notebook
+      description: Get Julia notebook
+      operationId: getNotebook
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - in: path
+        name: notebookId
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Notebook"
+
+
   /thread:
     post:
       tags:
@@ -1771,12 +1843,13 @@ paths:
         required: true
       - name: ticker
         in: query
-        required: true
+        default: ""
+        required: false
         type: string
         description: stock ticker
       - name: exchange
         in: query
-        required: true
+        required: false
         default: NSE
         type: string
         description: stock exchange      
@@ -2445,6 +2518,7 @@ definitions:
     required:
       - name
       - description
+      - heading
       - benchmark
       - portfolio
     properties:
@@ -2452,6 +2526,8 @@ definitions:
         type: string
       description:
         type: string
+      heading:
+        type: string  
       benchmark:
         $ref: '#/definitions/Security'
       portfolio:

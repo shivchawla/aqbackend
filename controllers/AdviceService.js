@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-20 17:37:58
+* @Last Modified time: 2018-01-18 14:32:10
 */
 
 'use strict';
@@ -64,6 +64,7 @@ module.exports.createAdvice = function(args, res, next) {
 		if(port) {
 			const adv = {
 				name: advice.name,
+				heading: advice.heading,
 				description: advice.description,
 				advisor: advisorId,
 				benchmark: advice.benchmark, 
@@ -143,33 +144,78 @@ module.exports.updateAdvicePortfolio = function(args, res, next) {
 module.exports.updateAdvice = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const userId = args.user._id;
-	var updates = args.body.value;
+	const updates = args.body.value;
 	
+	var numUpdates = Object.keys(updates).length;
+	var hasPortfolioUpdate = Object.keys(updates).indexOf('portfolio') !=-1;
+	var adviceFields = hasPortfolioUpdate ? 'advisor public portfolio benchmark' : 'advisor public';
+
 	return Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
-					AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, {fields:'advisor'})])
+					AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, {fields: adviceFields})])
 	.then(([advisor, advice]) => {
 		if(advisor && advice) {
 			if(advice.advisor.equals(advisor._id)) {
-				
-				var allowedKeys = ['public']; 
+
+				console.log("hollaaa");
+				let allowedKeys;
+				if (advice.public == false) {
+					allowedKeys = ['public', 'name', 'heading', 'description', 'benchmark', 'portfolio']; 
+				} else {
+					allowedKeys = ['portfolio']; 
+				}
+
 				Object.keys(updates).forEach(key => {
 					if(allowedKeys.indexOf(key) == -1) {
-						APIError.throwJsonError({message: "Not Authorized to modify"}); 
+						APIError.throwJsonError({message: `${key}: Not Authorized to modify`}); 
 					} 
 				});
 
-				if(Object.keys(updates).length != 0) {
-					return AdviceModel.updateAdvice({_id: adviceId}, updates);
+				let portfolioUpdate;
+				var modifiedUpdates = updates;
+				if(hasPortfolioUpdate && advice.public == false) {
+					console.log("Aquii - 1");
+					var benchmark = Object.keys(updates).indexOf('benchmark') !=-1 ? updates.benchmark : advice.benchmark;
+					return Promise.all([advice, HelperFunctions.validateAdvice({portfolio: updates.portfolio, benchmark: benchmark})]);
+				} else if (hasPortfolioUpdate && advice.public == true) {
+					console.log("Aquii - 2");
+					var newAdvice = {portfolio: updates.portfolio, benchmark: advice.benchmark}
+					return Promise.all([advice, HelperFunctions.validateAdvice(newAdvice, advice)]);
 				} else {
-					APIError.throwJsonError({message: "Nothing to update"}); 
-				}	
-
+					console.log("Aquii - 3");
+					return [advice, true];
+				}
 			} else {
 				APIError.throwJsonError({message: "Not Authorized"});
 			}
 		} else {
 			APIError.throwJsonError({userId:userId, adviceId:adviceId, message: "Advice not found"});
 		}
+	})
+	.then(([advice, valid]) => {
+		if(valid) {
+			if(hasPortfolioUpdate) {
+				return Promise.all([advice, PortfolioModel.savePortfolio(updates.portfolio)]);
+			} else {
+				return [advice, null];
+			}
+		} else {
+			APIError.throwJsonError({message: "Invalid Portfolio Composition or dates"});
+		}
+	})
+	.then(([advice, portfolioId]) => {
+		var modifiedUpdates = JSON.parse(JSON.stringify(updates));
+		
+		//Set Flag
+		modifiedUpdates.updateRequired = true;
+
+		var newPortfolio = (advice.public == true);
+
+		if (hasPortfolioUpdate) {
+			delete modifiedUpdates["portfolio"];
+			modifiedUpdates["portfolio"] = portfolioId;
+		} 
+
+		return AdviceModel.updateAdvice({_id: advice.id}, modifiedUpdates, newPortfolio)
 	})
 	.then(advice => {
 		return res.status(200).send({message: "Advice updated successfully"});
@@ -179,6 +225,9 @@ module.exports.updateAdvice = function(args, res, next) {
 	})
 };
 
+//Advices fetched should adhere to following restrictions
+//1. current date < end date of advice
+//2. Advice is public
 module.exports.getAdvices = function(args, res, next) {
 	const userId = args.user._id;
     
@@ -195,7 +244,6 @@ module.exports.getAdvices = function(args, res, next) {
     const approved = args.approved.value;
 
     const query = {deleted: false, public: true};
-
     
     if(approved) {
     	query.approved = approved;
@@ -237,7 +285,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const userId = args.user._id;
 	
 	const options = {};
-	options.fields = 'name description benchmark advicePerformance createdDate updatedDate advisor public approved';
+	options.fields = 'name heading description benchmark advicePerformance createdDate updatedDate advisor public approved updateRequired';
 	
 	Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id'}),
 				AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, options)])
@@ -288,12 +336,12 @@ module.exports.getAdviceDetail = function(args, res, next) {
 			//PERSONAL
 			if (advice.advisor.equals(advisorId) || advice.subscribers.indexOf(investorId) != -1) {
 				if(!options.fields) {
-					options.fields = 'portfolio advicePerformance subscribers followers createdDate updatedDate approved advisor';
+					options.fields = 'portfolio advicePerformance subscribers followers createdDate updatedDate approved advisor updateRequired';
 				}
 			} else if(advice.followers.indexOf(investorId) != -1) {
 				//if(!options.fields) {
 					// Over ride fields as portfolio (and a few others) are NOT allowed
-					options.fields = 'advicePerformance subscribers followers createdDate updatedDate advisor';
+					options.fields = 'advicePerformance subscribers followers createdDate updatedDate advisor updateRequired';
 				//} 
 			}
 
@@ -420,7 +468,7 @@ module.exports.followAdvice = function(args, res, next) {
 	})
 	.then(([advice, investor]) => {
 		if (advice && investor) {
-			return res.status(200).json({followers:advice.followers, count: advice.followers.length}); 
+			return res.status(200).json({count: advice.followers.length}); 
 		} else if(!investor) {
 			APIError.throwJsonError({userId:userId, message: "No Investor found"});
 		} else if(!advice) {
@@ -482,7 +530,7 @@ function _updateAdviceWithPerformance(adviceId) {
 			});	
 			
 			performance["updateMessage"] = "Updated successfully";
-			return AdviceModel.updateAdvice({_id: adviceId}, {advicePerformance: performance});
+			return AdviceModel.updateAdvice({_id: adviceId}, {advicePerformance: performance, updateRequired: false});
 		
 		} else {
 			return AdviceModel.updateAdvice({_id: adviceId}, {"advicePerformance.updateMessage": "Performance could not be calculated", "advicePerformance.updatedDate": new Date()});
@@ -492,9 +540,11 @@ function _updateAdviceWithPerformance(adviceId) {
 
 function _checkIfPerformanceUpdateRequired(advice, fields) {
 	
-	var update = false;
+
+	var update = (advice.updateRequired == null) || advice.updateRequired ? true : false;
+
     //check if advice Performance is the latest
-    if(advice.advicePerformance) {
+    if(advice.advicePerformance && !update) {
         var performance = advice.advicePerformance;
 
         if(performance.updatedDate) {
