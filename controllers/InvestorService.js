@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-18 15:25:38
+* @Last Modified time: 2018-01-25 13:17:44
 */
 
 'use strict';
@@ -10,11 +10,21 @@ const AdviceModel = require('../models/Marketplace/Advice');
 const InvestorModel = require('../models/Marketplace/Investor');
 const UserModel = require('../models/user');
 const PortfolioModel = require('../models/Marketplace/Portfolio');
+const PerformanceModel = require('../models/Marketplace/Performance');
 const APIError = require('../utils/error');
 const Promise = require('bluebird');
 const HelperFunctions = require("./helpers");
 
-function _checkPerformanceUpdateRequired(performanceArray, portfolioId) {
+function getDate(date) {
+    var d = date.getDate();
+    var m = date.getMonth() + 1;
+    var y = date.getYear();
+
+    return d+"-"+m+"-"+y;  
+}
+
+//MOVED ALL TO PERFORMANCE SERVICE
+/*function _checkPerformanceUpdateRequired(performanceArray, portfolioId) {
 	var update = false;
 	
 	if(!portfolioId) {
@@ -49,25 +59,151 @@ function _checkPerformanceUpdateRequired(performanceArray, portfolioId) {
     return update;
 }
 
-function getDate(date) {
-    var d = date.getDate();
-    var m = date.getMonth() + 1;
-    var y = date.getYear();
+function _computePerformance(portfolioId) {
+	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'current benchmark history'})
+	.then(portfolio => {
+		var currentPortfolio = portfolio.current;
 
-    return d+"-"+m+"-"+y;  
+		var portfolioHistory = [{startDate: currentPortfolio.startDate, 
+									endDate: currentPortfolio.endDate,
+									portfolio: {
+										positions: currentPortfolio.positions,
+										cash: currentPortfolio.cash}
+									}];
+
+		if(portfolio.history) {							
+			portfolio.history.forEach(port => {
+				portfolioHistory.push({startDate: port.startDate, 
+										endDate: port.endDate,
+										portfolio: port.detail});
+			});
+		}
+
+		return HelperFunctions.computePerformance(portfolioHistory, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
+	});
+}
+
+function _computeAndUpdatePerformance(portfolioId) {
+	
+	return PerformanceModel.fetchPerformance({portfolio: portfolioId})
+	.then(performance => {
+		var updateRequired = !performance;
+
+		if (performance) {
+			updateRequired = performance.lastUpdated ? performance.lastUpdated.getDate() < new Date().getDate() ? true : false : true;
+		} 
+
+		return updateRequired ? _computePerformance(portfolioId) : performance;		
+	})
+	.then(performance => {
+
+		console.log(performance);
+
+		if(performance) {
+			performance.portfolioValues = performance.portfolioValues.map(item => { 
+				  //Changing time to unix timestamp
+				  item.date = new Date(item.date).getTime()/1000; 
+				  return item;
+			});	
+			
+			performance["updateMessage"] = "Updated successfully";
+		} else {
+			performance["updateMessage"] = "Couldn't updated performance";
+		}
+
+		performance["updatedDate"] = new Date();
+
+		console.log(performance);
+
+		return PerformanceModel.updatePerformance({portfolio: portfolioId}, performance);
+	});
+}
+
+function _updateInvestorPerformance(investorId, portfolioId, performance) {
+	return InvestorModel.updateInvestorPerformance({_id: investorId}, portfolioId, performance); 
+}*/
+
+function _updatePortfolioForStockTransactions(portfolioId, transactions) {
+	const updates = {};
+	
+	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted: false}, {fields: 'positions subPositions cash'})
+	.then(portfolio => {
+		if(portfolio) {
+			// Send exisitng positions and transactions to Julia
+			// Get back updated positions 
+			return HelperFunctions.updatePortfolio(portfolio, transactions, null);
+							
+		} else {
+			APIError.throwJsonError({portfolioId: portfolioId, message: "Portfolio not found"});
+		}
+	})
+	.then(updatedPortfolio => {
+		updates.positions = updatedPortfolio.positions;
+		updates.subPositions = updatedPortfolio.subPositions;
+		updates.cash = updatedPortfolio.cash;
+		updates.transactions = transactions;
+		return PortfolioModel.updatePortfolio({_id: portfolioId}, updates);
+	})
+}
+
+function _updatePortfolioForAdviceTransactions(portfolioId, adviceId) {
+	const updates = {};
+	
+	return Promise.all([PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'positions subPositions cash advices'}),
+						AdviceModel.fetchAdvice({_id: adviceId}, {fields:'portfolio'})])	
+	.then(([portfolio, advice]) => {
+		if(portfolio && advice.portfolio) {
+
+			if(portfolio.advices.indexOf(adviceId) !=-1) {
+				APIError.throwJsonError({adviceId: adviceId, message:"Advice already part of the portfolio"});
+			}
+
+			var subPositions = portfolio.subPositions.filter(item => {return _compareIds(item.advice, adviceId);});
+			var transactions = [];
+
+			//GO over all the positions in advice portfoli
+			// and find out if we need to transact the advice
+			// advice could already be present
+			advice.portfolio.positions.forEach(position => {
+				
+				var originalQty = 0;
+				if(subPositions){
+					var idx = subPositions.indexOf(item => {item.security.equals(position.security)});
+				
+					if(idx !=-1) {
+						originalQty = subPositions[idx].quantity;
+					}
+				}
+
+				var transaction = {
+					security: position.security,
+					quantity: position.quantity - originalQty,
+					price: 0,
+					date: new Date()
+				};
+
+				transactions.push(transaction);
+			});
+
+			// Send exisitng positions and transactions to Julia
+			// Get back updated positions 
+			return HelperFunctions.updatePortfolio(portfolio, transactions, adviceId);							
+		}
+	})
+	.then(updatedPortfolio => {
+		updates.positions = updatedPortfolio.positions;
+		updates.subPositions = updatedPortfolio.subPositions;
+		updates.cash = updatedPortfolio.cash;
+		updates.advices = adviceId;
+		
+		return PortfolioModel.updatePortfolio({_id:portfolioId}, updates);
+	});	
 }
 
 module.exports.createInvestor = function(args, res, next) {
     const userId = args.user._id;
 
-	InvestorModel.fetchInvestor({user:userId}, {fields:'_id'})
-	.then(investor => {
-		if(!investor) {
-			return InvestorModel.saveInvestor({user:userId}, {user:userId});
-		} else {
-			return investor;
-		}
-	})
+	InvestorModel.fetchInvestor({user:userId}, {fields:'_id', insert:true})
 	.then(investor => {
 		if(investor) {
 			return res.status(200).json(investor);
@@ -84,47 +220,40 @@ module.exports.getInvestorSummary = function(args, res, next) {
 	const investorId = args.investorId.value;
    	
    	const options = {};
-    options.fields = 'user defaultPortfolio performance followingAdvices subscribedAdvices';
+    options.fields = 'user defaultPortfolio portfolios followingAdvices subscribedAdvices';
+    options.populate = 'defaultPortfolio followingAdvices subscribedAdvices';
+    options.insert = true;
 
     const userId = args.user._id;
 
     return InvestorModel.fetchInvestor({user: userId, _id: investorId}, options)
-   	.then(investor => {
-   		if(investor) {
-			var updateRequired = false;
- 			if(options.fields.indexOf('performance')) {
-	            //check if advice Performance is the latest
-	            updateRequired = _checkPerformanceUpdateRequired(investor.performance, investor.defaultPortfolio);
-	        }
-
-         	return updateRequired ? 
-         			HelperFunctions.calculatePerformanceAndUpdateInvestor(investorId, investor.defaultPortfolio) :
-         			investor.defaultPortfolio ? InvestorModel.updateInvestorPerformance({_id: investorId}, investor.defaultPortfolio, {performance: {message: "Performance up-to-date"}}) : null;
-   			
-		} else {
-			APIError.throwJsonError({investorId: investorId, message:"No Investor Found"});
-		}
-	})
-	.then(updatedInvestor =>{
-		return InvestorModel.fetchInvestor({user: userId, _id: investorId}, options);
-	})
-	.then(updatedInvestor => {
-		return res.status(200).json(updatedInvestor);
-	})
+    .then(investor => {
+    	if(investor) {
+    		return res.status(200).json(investor);
+    	} else {
+    		APIError.throwJsonError({investorId: investorId, message:"Investor not found or unauthorized"});
+    	}
+    })
 	.catch(err => {
 		return res.status(400).send(err.message);
 	});
 };
 
+//DETAIL is not really useful
 module.exports.getInvestorDetail = function(args, res, next) {
  	const investorId = args.investorId.value;
     const userId = args.user._id;
 
     const options = {};
-    options.fields = args.fields.value;
+    var defaultFields = 'user defaultPortfolio portfolios followingAdvices subscribedAdvices';
+    //options.populate = 'defaultPortfolio followingAdvices subscribedAdvices';
+    
+    options.fields = args.fields.value != "" ? args.fields.value : defaultFields; 
+    options.insert = true;
+    //options.populate = 'defaultPortfolio followingAdvices subscribedAdvices';
 	
-    return InvestorModel.fetchInvestor({user: userId, _id: investorId}, options)
-   	.then(investor => {
+    return InvestorModel.fetchInvestor({user: userId, _id:investorId}, options)
+   	/*.then(investor => {
    		if(investor) {
    			
    			var updateRequired = false;
@@ -142,10 +271,14 @@ module.exports.getInvestorDetail = function(args, res, next) {
 		}
 	})
 	.then(updated => {
-		return InvestorModel.fetchInvestor({user: userId, _id: investorId}, options);
-	})
-	.then(updatedInvestor => {
-		return res.status(200).json(updatedInvestor);
+		return InvestorModel.fetchInvestor({user: userId}, options);
+	})*/
+	.then(investor => {
+		if(investor) {
+			return res.status(200).json(investor);
+		} else {
+			APIError.throwJsonError({investorId: investorId, message:"No Investor Found or not authorized"});
+		}
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);
@@ -159,7 +292,7 @@ module.exports.getFollowingAdvices = function(args, res, next) {
 	const userId = args.user._id;
 	const investorId = args.investorId.value;
 
-	return InvestorModel.fetchInvestor({user: userId, _id: investorId}, 'followingAdvices')
+	return InvestorModel.fetchInvestor({user: userId}, {fields: 'followingAdvices', insert: true})
     .then(investor => {
     	if(investor && investor.followingAdvices) {
     		var following = investor.followingAdvices.filter(item => {return item.active == true;});
@@ -180,7 +313,7 @@ module.exports.getFollowingAdvisors = function(args, res, next) {
 	const userId = args.user._id;
 	const investorId = args.investorId.value;
 
-	return InvestorModel.fetchInvestor({user: userId, _id: investorId}, 'followingAdvisors')
+	return InvestorModel.fetchInvestor({user: userId}, {fields: 'followingAdvisors', insert: true})
     .then(investor => {
     	if(investor.followingAdvisors) {
     		var following = investor.followingAdvisors.filter(item => {return item.active == true;});
@@ -200,11 +333,18 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 
 	//Portfolio not linked to any portfolio has (advice = null)
 	const portfolio = args.body.value;
-	portfolio.positions.forEach(position => {
+	portfolio.detail.positions.forEach(position => {
 		position["advice"] = null;
 	});
 
-	return HelperFunctions.validatePortfolio(portfolio)
+	InvestorModel.fetchInvestor({user: userId}, {})
+	.then(investor => {
+		if(investor._id.equals(investorId)) {
+			return HelperFunctions.validatePortfolio(portfolio);	
+		} else {
+			APIError.throwJsonError({message: "Not Authorized"});
+		}
+	})
 	.then(valid => {
 		if(valid) {
 			return PortfolioModel.savePortfolio(portfolio);
@@ -233,8 +373,9 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
     });
 };
 
-module.exports.getInvestorPortfolio = function(args, res, next) {
+module.exports.getInvestorPortfolios = function(args, res, next) {
 	const userId = args.user._id;
+	const investorId = args.investorId.value;
 
 	let security;
 	try {
@@ -258,12 +399,12 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 	//GET all advices of user with stock in it. 
 	//GET all portfolios of investors with stock in it
 
-	return InvestorModel.fetchInvestor({user: userId}, {fields: 'portfolios'})
+	return InvestorModel.fetchInvestor({user: userId, _id:investorId}, {fields: 'portfolios', insert: true})
 	.then(investor => {
 		if (investor) {
 			if(investor.portfolios) {
 				return Promise.all(investor.portfolios.map(item => {
-					var fields = 'startDate endDate name performance positions';
+					var fields = 'name detail benchmark';
 					/*if(security) {
 						fields = fields.concat(' positions');
 					}*/
@@ -274,7 +415,7 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 			}
 			
 		} else {
-			APIError.throwJsonError({userId: userId, message: "No Investor found"});
+			APIError.throwJsonError({userId: userId, message: "No Investor found or not authorized"});
 		}
 	})
 	.then(portfolios => {
@@ -283,7 +424,7 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 				var portfoliosWithStock = [];
 				portfolios.forEach(port => {
 					if(port) {
-						var idx = port.positions.map(item => item.security).findIndex(item => { var x =
+						var idx = port.detail.positions.map(item => item.security).findIndex(item => { var x =
 									item.ticker == security.ticker &&
 									item.exchange == security.exchange && 
 									item.securityType == security.securityType && 
@@ -291,7 +432,7 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 									return x;});
 
 						if (idx != -1) {
-							portfoliosWithStock.push({portfolio: port, position: port.positions[idx]});
+							portfoliosWithStock.push(port);
 						}
 					}
 
@@ -311,6 +452,54 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 	})
 };
 
+module.exports.getInvestorPortfolio = function(args, res, next) {
+	const userId = args.user._id;
+	const portfolioId = args.portfolioId.value;
+	const investorId = args.investorId.value;
+	
+	return InvestorModel.fetchInvestor({user: userId}, {fields: 'user portfolios', insert: true})
+	.then(investor => {
+		if (investor) {
+			if (investor.user.equals(userId)){
+				if(investor.portfolios) {
+					if (investor.portfolios.map(item => item.toString()).indexOf(portfolioId) != -1) {
+						var fields = 'name detail history advices benchmark';
+						return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields: fields});
+					} else {
+						APIError.throwJsonError({userId: userId, message: "PortfolioId is not a valid portfolio for investor"})
+					}
+				} else {
+					APIError.throwJsonError({userId: userId, message: "No Portfolios found"})
+				}
+			} else {
+				APIError.throwJsonError({userId: userId, message: "Not Authorized to view"})
+			}
+			
+		} else {
+			APIError.throwJsonError({userId: userId, message: "No Investor found"});
+		}
+	})
+	.then(portfolio => {
+		if(portfolio) {
+			return res.status(200).json(portfolio);
+			//return Promise.all([portfolio, _computeAndUpdatePerformance(portfolioId)]);
+		} else {
+			APIError.throwJsonError({message: "No portfolios found"});
+		}
+	})
+	/*.then(([portfolio, performance]) => {
+		if (portfolio && performance) {
+			return res.status(200).json({portfolio: portfolio, performance: performance});
+		} else {
+			//shouldn't happen
+			APIError.throwJsonError({message: "Portfolio not found or Error computing performance"});	
+		}
+	})*/
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
+};
+
 // Common function to transact advice or stock
 module.exports.updateInvestorPortfolio = function(args, res, next) {
 	
@@ -322,15 +511,15 @@ module.exports.updateInvestorPortfolio = function(args, res, next) {
 	const type = args.type.value;
 	const adviceId = args.adviceId ? args.adviceId.value : null;
 
- 	return InvestorModel.fetchInvestor({user: userId, _id: investorId}, {fields:'portfolios'}) 
+ 	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios'}) 
 	.then(investor => {
-		if(investor && investor.portfolios) {
+		if(investor && investor.portfolios && investor._id.equals(investorId)) {
 			
 			if(investor.portfolios.indexOf(portfolioId) != -1) {			
 				if(type == "stock" && transactions) {
-					return HelperFunctions.updatePortfolioForStockTransactions({_id: portfolioId}, transactions);
+					return _updatePortfolioForStockTransactions(portfolioId, transactions);
 				} else if (type == "advice" && adviceId) {
-					return HelperFunctions.updatePortfolioForAdviceTransactions({_id: portfolioId}, adviceId);	
+					return _updatePortfolioForAdviceTransactions(portfolioId, adviceId);	
 				} else {
 					APIError.throwJsonError({message: "Invalid transaction type or value"});
 				}
@@ -370,7 +559,7 @@ module.exports.getInvestorPortfolioPosition = function(args, res, next) {
 	//GET all advices of user with stock in it. 
 	//GET all portfolios of investors with stock in it
 
-	return InvestorModel.fetchInvestor({user: userId}, {fields: 'portfolios'})
+	return InvestorModel.fetchInvestor({user: userId}, {fields: 'portfolios', insert:true})
 	.then(investor => {
 		if (investor) {
 			if(investor.portfolios){
@@ -407,20 +596,22 @@ module.exports.getInvestorPortfolioPosition = function(args, res, next) {
 	})
 };
 
-module.exports.deleteInvestorPortfolio = function(args, res, next){
+module.exports.deleteInvestorPortfolio = function(args, res, next) {
 	const userId = args.user._id;
 	const investorId = args.investorId.value;
 	const portfolioId = args.portfolioId.value;
 
-	return InvestorModel.fetchInvestor({user: userId, _id: investorId}, {fields:'portfolios'})
+	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios'})
 	.then(investor => {
-		if(investor && investor.portfolios) {
+		if(investor && investor.portfolios && investor._id.equals(investorId)) {
 			if(investor.portfolios.indexOf(portfolioId) != -1) {	
 				return Promise.all([PortfolioModel.updatePortfolio({_id: portfolioId}, {deleted: true, updatedDate: new Date()}),
 							InvestorModel.removePortfolio({_id: investorId}, portfolioId)])
 			} else {
 				APIError.throwJsonError({portfolioId: portfolioId, message: "No portfolio found "});
 			}
+		} else {
+			APIError.throwJsonError({investorId: investorId, message: "Not a valid investor or not authorized"});
 		}
 	})
 	.then(([portfolio, investor]) => {
@@ -432,4 +623,3 @@ module.exports.deleteInvestorPortfolio = function(args, res, next){
 		return res.status(400).send(err.message);
 	})
 };
-

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:53:13
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-20 09:52:44
+* @Last Modified time: 2018-01-25 12:51:40
 */
 
 'use strict';
@@ -32,14 +32,14 @@ const Investor = new Schema({
         ref: 'Portfolio'
     }],
 
-    performance: [{
+    /*performance: [{
         portfolio: {
             type: Schema.Types.ObjectId,
             ref: 'Portfolio'
         },
 
         value: Performance
-    }],
+    }],*/
 
     subscribedAdvices:[{
         advice: {
@@ -84,6 +84,8 @@ const Investor = new Schema({
         }
     }],
 
+    profile: Schema.Types.Mixed,
+
 });
 
 Investor.statics.saveInvestor = function(investorDetails) {
@@ -92,39 +94,57 @@ Investor.statics.saveInvestor = function(investorDetails) {
 };
 
 Investor.statics.fetchInvestor = function(query, options) {
-	var q = this.findOne(query);
+	//FETCH creates a new document with default if insert is TRUE
+    var q = this.findOneAndUpdate(query, {}, {upsert: options.insert, new: options.insert, setDefaultsOnInsert: options.insert});
 
-	if(options.fields) {   
+	if (!options.fields) {
+        options.fields = '';
+    }
+
+    if (!options.populate) {
+        options.populate = '';
+    }
+
+    if(options.fields) {   
 		q = q.select(options.fields);
 	}
    
-    if((options.fields && options.fields.indexOf('defaultPortfolio')) || !options.fields) {
-        q = q.populate('defaultPortfolio', null, { _id: { $ne: null }});
+    if(options.populate.indexOf('defaultPortfolio') != -1) {
+        q = q.populate('defaultPortfolio', 'name detail benchmark deleted', { _id: { $ne: null }});
     }
 
-	/*if(options.fields && options.fields.indexOf('portfolios')) {
-		q = q.populate('portfolios', null, { _id: { $ne: null }});
-	}*/
-
-	if((options.fields && options.fields.indexOf('followingAdvices')) || !options.fields) {
+	if(options.populate.indexOf('followingAdvices') != -1) {
 		q = q.populate('followingAdvices', null, { _id: { $ne: null }})
 	}
 
-	if((options.fields && options.fields.indexOf('followingAdvisors')) || !options.fields) {
+	if(options.populate.indexOf('followingAdvisors') != -1) {
 		q = q.populate('followingAdvisors', null, { _id: { $ne: null }})
 	}
 
 	return q.execAsync();
+    /*.then(investor => {
+        if(investor) {
+            if (investor.followingAdvices) {
+                investor.followingAdvices = investor.followingAdvices.filter(item => {
+                    return item.active == true;
+                });
+            }
+
+            if (investor.followingAdvisors) {
+                investor.followingAdvisors = investor.followingAdvisors.filter(item => {
+                    return item.active == true;
+                });
+            }
+
+            return investor;
+        }
+    });*/
 };
 
 Investor.statics.updateInvestorPerformance = function(query, portfolioId, performance) {
     return this.findOne(query)
     .then(investor => {
-
-        console.log(investor.performance);
-
         var idx = investor.performance.map(item => item.portfolio.toString()).indexOf(portfolioId);
-        console.log(idx);
         if(idx !=-1) {
             investor.performance[idx].value = performance;
         } else {
@@ -243,6 +263,9 @@ Investor.statics.addPortfolio = function(query, portfolioId){
     .select('portfolios')
     .then(investor => {
         if(investor.portfolios) {
+            if (investor.portfolios.length == 0) {
+               investor.defaultPortfolio = portfolioId; 
+            }
             investor.portfolios.push(portfolioId);
         } else {
             investor.defaultPortfolio = portfolioId;

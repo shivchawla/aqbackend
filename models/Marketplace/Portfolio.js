@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-20 17:32:37
+* @Last Modified time: 2018-01-25 13:28:56
 */
 
 'use strict';
@@ -14,34 +14,36 @@ const Performance = require('./Performance');
 const mongoose = require('../index');
 const Schema = mongoose.Schema;
 
-const Portfolio = new Schema({
-
+const PortfolioDetail = new Schema({
 	startDate: Date,
-
 	endDate: Date,
+	positions: [Position],
+	//Track positions per Advice
+	subPositions: [Position], 
+	cash: {
+		type: Number,
+		default: 0
+	}
+});
 
+const Portfolio = new Schema({
+	name: String,
+
+	benchmark: Security,
+
+	//CURRENT PORTFOLIO
+	detail: PortfolioDetail, 
+	
 	createdDate: Date,
 
 	updatedDate: Date,
-
-	name: String,
-
+	
 	deleted: {
 		type: Boolean,
 		default: false,
 	},
 
 	deletedDate: Date,
-
-	cash: {
-		type: Number,
-		default: 0
-	},
-
-	positions: [Position],
-
-	//Track positions per Advice
-	subPositions: [Position], 
 
 	//To track the advices bought
 	advices: [{
@@ -51,29 +53,27 @@ const Portfolio = new Schema({
 
 	transactions: [Transaction],
 
-	history: [{
-		startDate: Date,
-		
-		endDate: Date,
-		
-		positions: [Position],
-		
-		subPositions:[Position],
-
-		cash: Number
-
-	}],
-
+	history: [PortfolioDetail]
 });
 
 
 Portfolio.statics.savePortfolio = function(portfolio) {
 	
-	if(!portfolio.subPositions && portfolio.positions) {
-		portfolio.subPositions = portfolio.positions;
+	//Convert security strings to upper case
+	if(portfolio.detail) {
+		var positions = portfolio.detail.positions;
+
+		positions.forEach(pos => {
+			pos.security.ticker = pos.security.ticker.toUpperCase();
+			pos.security.securityType = pos.security.securityType.toUpperCase();
+			pos.security.country = pos.security.country.toUpperCase();
+			pos.security.exchange = pos.security.exchange.toUpperCase();  
+		});
 	}
 
-	console.log(portfolio);
+	if(!portfolio.detail.subPositions && portfolio.detail.positions) {
+		portfolio.detail.subPositions = portfolio.detail.positions;
+	}
 
 	const port = new this(portfolio);
 	return port.save(); 
@@ -116,7 +116,28 @@ Portfolio.statics.addTransactions = function(query, transactions) {
 
 };
 
-Portfolio.statics.updatePortfolio = function(query, updates) {
+Portfolio.statics.updatePortfolio = function(query, updates, addNew) {
+	return this.findOne(query)
+	.then(portfolio => {
+		
+		console.log(updates);
+		var fupdate = {$set: updates};
+
+		if (addNew) {
+			//var newStartDate = updatedPortfolio.startDate;
+			var history = updates.detail;
+			
+			//CHANGE DATE to date - 1
+			history.endDate = updates.detail.startDate;
+
+			fupdate = {$set: modifiedUpdates, $push:{history: history}};
+		}
+
+		return this.findOneAndUpdate(query, fupdate, {upsert:true, new: true});
+	});
+}
+
+Portfolio.statics.updatePortfolioWithTransactions = function(query, updates) {
 	return this.findOne(query)
 	.then(portfolio => {
 		

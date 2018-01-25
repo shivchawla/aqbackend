@@ -64,75 +64,126 @@ function compute_performance(netvalue::Vector{Float64}, dates::Vector{Date}, ben
     return performance
 end
 
+function compute_stock_rolling_performance(security_dict::Dict{String,Any})
 
-function compute_stock_rolling_performance(security::Security)
-
-    start_date = DateTime("2001-01-01")
-    end_date = now()
-
-    benchmark = "NIFTY_50"
-    benchmark_prices = history_nostrict([benchmark], "Close", :Day, start_date, end_date)
-    stock_prices = history([security.symbol.ticker], "Close", :Day, start_date, end_date)
-    
-    merged_returns = percentchange(merge(stock_prices, benchmark_prices, :outer))
-    merged_returns = rename(merged_returns, ["algorithm", "benchmark"])
-
-    Raftaar.calculateperformance_rollingperiods(merged_returns)
-end
-
-function compute_stock_static_performance(security::Security)
-    start_date = DateTime("2001-01-01")
-    end_date = now()
-
-    benchmark = "NIFTY_50"
-    benchmark_prices = history_nostrict([benchmark], "Close", :Day, start_date, end_date)
-    stock_prices = history([security.symbol.ticker], "Close", :Day, start_date, end_date)
-
-    merged_returns = percentchange(merge(stock_prices, benchmark_prices, :outer))
-    merged_returns = rename(merged_returns, ["algorithm", "benchmark"])
-
-    Raftaar.calculateperformance_staticperiods(merged_returns)    
-end
-
-function get_stock_price_history(security::Security)
-    start_date = DateTime("2001-01-01")
-    end_date = now()
-
-    stock_value = history([security.symbol.ticker], "Close", :Day, start_date, end_date )
-
-    return (stock_value[security.symbol.ticker].timestamp, stock_value[security.symbol.ticker].values) 
-end
-
-function get_stock_price_latest(security::Security)
-    end_date = Date(now())
-    start_date = end_date - Dates.Week(52)
-
-    stock_value_52w = history(security.symbol.id, ["Open","High","Low","Close"], :Day, DateTime(start_date), DateTime(end_date))
-    output = Dict{String, Any}() 
-
-    if(length(stock_value_52w.values) > 0)
+    try
+        (valid, security) = validate_security(security_dict)
         
-        highs = stock_value_52w["High"].values
-        lows = stock_value_52w["Low"].values 
-        
-        output["High_52w"] = maximum(highs)
-        output["Low_52w"] = minimum(lows)
+        if valid
+            start_date = DateTime("2001-01-01")
+            end_date = now()
 
-        output["Low"] = stock_value_52w["Low"].values[end]
-        output["High"] = stock_value_52w["High"].values[end]
-        output["Open"] = stock_value_52w["Open"].values[end]
-        output["Close"] = stock_value_52w["Close"].values[end]
-        output["Date"] = string(Date(stock_value_52w.timestamp[end]))
-        output["Change"] = round(percentchange(stock_value_52w["Close"]).values[end] * 100.0, 2)
+            benchmark = "NIFTY_50"
+            benchmark_prices = history_nostrict([benchmark], "Close", :Day, start_date, end_date)
+            stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date)
+            
+            merged_returns = percentchange(merge(stock_prices, benchmark_prices, :outer))
+            merged_returns = rename(merged_returns, ["algorithm", "benchmark"])
+
+            return Raftaar.calculateperformance_rollingperiods(merged_returns)
+        else
+            error("Stock data for $(security.securitysymbol.ticker) is not present")
+        end
+    catch err
+        rethrow(err)
     end
+end
 
-    return output
+function compute_stock_static_performance(security_dict::Dict{String,Any}; benchmark::String="NIFTY_50")
+    try
+        (valid, security) = validate_security(security_dict)
+        
+        if valid
+            start_date = DateTime("2001-01-01")
+            end_date = now()
+
+            benchmark_prices = history_nostrict([benchmark], "Close", :Day, start_date, end_date)
+            stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date)
+
+            merged_returns = percentchange(merge(stock_prices, benchmark_prices, :outer))
+            merged_returns = rename(merged_returns, ["algorithm", "benchmark"])
+
+            return Raftaar.calculateperformance_staticperiods(merged_returns)
+        else 
+            error("Stock data for $(security.securitysymbol.ticker) is not present")    
+        end
+    catch err
+       rethrow(err) 
+    end
+end
+
+function get_stock_price_history(security_dict::Dict{String,Any})
+    
+    try
+        (valid, security) = validate_security(security_dict)
+        
+        if valid
+            start_date = DateTime("2001-01-01")
+            end_date = now()
+
+            stock_value = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date)
+
+            if stock_value != nothing
+                (ts, prices) = (stock_value[security.symbol.ticker].timestamp, stock_value[security.symbol.ticker].values) 
+                
+                history = Vector{Dict{String, Any}}()
+                for i = 1:length(ts)
+                    push!(history, Dict{String, Any}("date" => Date(ts[i]), "price" => prices[i]))
+                end
+               
+                return history
+            else
+                error("Stock data for $(security.securitysymbol.ticker) is not present")
+            end
+        end
+    catch err
+        rethrow(err)
+    end    
+end
+
+function get_stock_price_latest(security_dict::Dict{String,Any})
+    
+    try
+        (valid, security) = validate_security(security_dict)
+    
+        if valid
+            end_date = Date(now())
+            start_date = end_date - Dates.Week(52)
+
+            stock_value_52w = YRead.history(security.symbol.id, ["Open","High","Low","Close"], :Day, DateTime(start_date), DateTime(end_date))
+            output = Dict{String, Any}() 
+
+            if(length(stock_value_52w.values) > 0)
+                
+                highs = stock_value_52w["High"].values
+                lows = stock_value_52w["Low"].values 
+                
+                output["High_52w"] = maximum(highs)
+                output["Low_52w"] = minimum(lows)
+
+                output["Low"] = stock_value_52w["Low"].values[end]
+                output["High"] = stock_value_52w["High"].values[end]
+                output["Open"] = stock_value_52w["Open"].values[end]
+                output["Close"] = stock_value_52w["Close"].values[end]
+                output["Date"] = string(Date(stock_value_52w.timestamp[end]))
+                output["Change"] = round(percentchange(stock_value_52w["Close"]).values[end] * 100.0, 2)
+            
+                return output
+            else
+                error("Stock data for $(security.securitysymbol.ticker) is not present")
+            end
+        else 
+            error("Stock data for $(security.securitysymbol.ticker) is not present")
+        end
+    catch err
+        rethrow(err)
+    end
     
 end
 
 function history_nostrict(tickers, dtype::String, res::Symbol, sd::DateTime, ed::DateTime)
     YRead.setstrict(false)
-    data = history(tickers, dtype, res, sd, ed)
+    data = YRead.history(tickers, dtype, res, sd, ed)
     YRead.setstrict(true)
     return data
 end

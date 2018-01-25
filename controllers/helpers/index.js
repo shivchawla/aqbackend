@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-20 17:41:51
+* @Last Modified time: 2018-01-25 10:35:58
 */
 
 'use strict';
@@ -27,33 +27,7 @@ function _compareIds(x, y) {
 	}
 }
 
-function _computePerformance(portfolioHistory, benchmark) {
-	return new Promise(function(resolve, reject) {
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-	        console.log('Connection Open');
-	        console.log(connection);
-	        var msg = JSON.stringify({action:"compute_performance_portfolio_history", 
-	        				portfolioHistory: portfolioHistory,
-	        				benchmark: benchmark});
-
-	     	wsClient.send(msg);
-	    });
-
-	    wsClient.on('message', function(msg) {
-	    	var data = JSON.parse(msg);
-	    	if(data['error'] == '' && data['performance']) {
-	    		resolve(data['performance']);
-			} else {
-				resolve(null);
-			}
-		});
-	});
-}
-
-function _computePortfolioStats(portfolio, startDate, endDate) {
+function _computePortfolioValue(portfolio, startDate, endDate) {
 	
 	return new Promise(function(resolve, reject) {
 		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
@@ -72,18 +46,17 @@ function _computePortfolioStats(portfolio, startDate, endDate) {
 	    	var data = JSON.parse(msg);
 
 	    	if(data['error'] == '' && data['netValue']) {
-	    		// reformat date to JS
 	    		resolve(data['netValue']);
-	    		
+			} else if (data["error"] != "") {
+				reject(new Error(data["error"]));
 			} else {
-				//find out what REJECT() does
-				resolve(null);
-			} 
+				reject(new Error("Error computing netvalue of portfolio"))
+			}
 		});
     });
 }
 
-function _computePortfolioPerformance(portfolioStats, benchmark) {
+function _computePortfolioPerformance(portfolioValues, benchmark) {
 
 	return new Promise(function(resolve, reject) {
 		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
@@ -94,53 +67,26 @@ function _computePortfolioPerformance(portfolioStats, benchmark) {
 	        console.log(connection);
 
 	        var msg = JSON.stringify({action:"compute_performance_netvalue", 
-        								netValue: portfolioStats.map(x=>x.netValue),
-        								dates: portfolioStats.map(x=>x.date),
-        								benchmark: benchmark}); 
+        								netValue: portfolioValues.map(x=>x.netValue),
+        								dates: portfolioValues.map(x=>x.date),
+        								benchmark: benchmark ? benchmark : {ticker: 'NIFTY_50'}}); 
 
 	     	wsClient.send(msg);
 	    });
 
 	    wsClient.on('message', function(msg) {
 	    	var data = JSON.parse(msg);
-	    	//wsClient.close();
 
 	    	if(data['error'] == '' && data['performance']) {
-    			resolve(data['performance']);
+	    		resolve(data['performance']);
+			} else if (data["error"] != "") {
+				reject(new Error(data["error"]));
 			} else {
-				resolve(null);
+				reject(new Error("Error computing netvalue of portfolio performance"))
 			}
 		});
 
 	});
-}
-
-function _updatePortfolio(portfolio, transactions, adviceId) {
-	
-	var subPositions = portfolio.subPositions.filter(item => {
-			return _compareIds(item.advice, adviceId);}); 	
-
-	return Promise.all([_updatePositions(subPositions, transactions),
-						_updatePositions(portfolio.positions, transactions)])
-	.then(([port2, port1]) => {
-
-		port2.positions.forEach(position => {
-	    						position["advice"] = adviceId});
-
-		var subPositions = portfolio.subPositions.filter(item => {
-								return !_compareIds(item.advice, adviceId);})
-							.concat(port2.positions);
-
-		const updatedPortfolio = {
-			positions: port1.positions,
-			subPositions: subPositions,
-			cash: portfolio.cash + port1.cash
-		};
-
-		console.log("Portfolio Updated");
-		console.log(updatedPortfolio);
-		return updatedPortfolio;
-	})
 }
 
 function _updatePositions(positions, transactions) {
@@ -179,294 +125,142 @@ function _updatePositions(positions, transactions) {
 	});
 }
 
-module.exports.calculatePerformanceAndUpdateInvestor = function(investorId, portfolioId) {
-	
-	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'startDate endDate cash positions'})
-	.then(portfolio => {
-		var portfolioHistory = [{startDate: portfolio.startDate, 
-									endDate: new Date(), 
-									portfolio: {
-										positions: portfolio.positions,
-										cash: portfolio.cash}
-									}];
+module.exports.comparePortfolioDetail = function(oldPortfolioDetail, newPortfolioDetail) {
+	return new Promise(function(resolve, reject) {
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
 
-		if(portfolio.history) {							
-			portfolio.history.forEach(port => {
-				portfolioHistory.push({startDate: port.startDate, 
-										endDate: port.endDate,
-										portfolio: {
-											positions: port.positions,
-											cash: port.cash}
-										});
-			});
-		}
+		wsClient.on('open', function open() {
+	        console.log('Connection Open');
+	        console.log(connection);
+	        var msg = JSON.stringify({action:"compare_portfolio", 
+	        				oldPortfolio: oldPortfolio,
+	        				newPortfolio: newPortfolio});
 
-		return _computePerformance(portfolioHistory, {ticker:"NIFTY_50"});
-	})
-	.then(performance => {
-		if(performance) {
-			performance["updatedDate"] = new Date();
-			if(performance.portfolioStats) {
-				performance.portfolioStats = performance.portfolioStats.map(item => { 
-			  		item.date = new Date(item.date); 
-			  		return item;
-				});
+	     	wsClient.send(msg);
+	    });
+
+	    wsClient.on('message', function(msg) {
+	    	var data = JSON.parse(msg);
+	    	
+	    	if(data['error'] == '' && data['compare']) {
+	    		resolve(data['compare']);
+			} else if (data['error'] != '') {
+				reject(new Error(data["error"]));
+			} else {
+				reject(new Error("Internal error in comparing portfolios"))
 			}
-		} else {
-			performance = {updatedDate: new Date(), message: "Error computing performance data. Missing data"};
-		}
+		});
+	});
+}
 
-		return InvestorModel.updateInvestorPerformance({_id: investorId}, portfolioId, performance);
-	})
-};
+module.exports.compareSecurity = function(oldSecurity, newSecurity) {
+	return new Promise(function(resolve, reject) {
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
 
-module.exports.calculatePerformance = function(adviceId) {
-	
-	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio portfolioHistory benchmark'})
-	.then(advice => {
+		wsClient.on('open', function open() {
+	        console.log('Connection Open');
+	        console.log(connection);
+	        var msg = JSON.stringify({action:"compare_security", 
+	        				oldSecurity: oldSecurity,
+	        				newSecurity: newSecurity});
 
-		var currentPortfolio = advice.portfolio;
+	     	wsClient.send(msg);
+	    });
 
-		var portfolioHistory = [{startDate: currentPortfolio.startDate, 
-								endDate: currentPortfolio.endDate, 
-								portfolio: {
-									positions: currentPortfolio.positions,
-									cash: currentPortfolio.cash}
-								}];
-
-		if(advice.portfolioHistory) {
-			advice.portfolioHistory.forEach(item => {
-				portfolioHistory.push({startDate: item.startDate, 
-									endDate: item.endDate,
-									portfolio: {
-										positions: item.positions,
-										cash: item.cash}
-									});
-			});
-		}
-
-		return _computePerformance(portfolioHistory, advice.benchmark);
-	})
-	/*.then(performance => {
-		if(performance) {
-			performance["updatedDate"] = new Date();
-			performance.portfolioStats = performance.portfolioStats.map(item => { 
-				  item.date = new Date(item.date); 
-				  return item;
-			});	
-			return AdviceModel.updateAdvice({_id: adviceId}, {advicePerformance: performance});
-		} else {
-			performance = {message: "Error computing latest performance. Missing Data"};
-		}
-
-		
-	})*/
-};
-
-module.exports.updatePortfolioForStockTransactions = function(portfolioId, transactions) {
-	
-	const updates = {};
-	
-	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted: false}, {fields: 'positions subPositions cash'})
-	.then(portfolio => {
-		if(portfolio) {
-			// Send exisitng positions and transactions to Julia
-			// Get back updated positions 
-			return _updatePortfolio(portfolio, transactions, null);
-							
-		} else {
-			APIError.thowJsonError({portfolioId: portfolioId, message: "Portfolio not found"});
-		}
-	})
-	.then(updatedPortfolio => {
-
-		console.log(updatedPortfolio);
-
-		updates.positions = updatedPortfolio.positions;
-		updates.subPositions = updatedPortfolio.subPositions;
-		updates.cash = updatedPortfolio.cash;
-		updates.transactions = transactions;
-		return PortfolioModel.updatePortfolio({_id: portfolioId}, updates);
-	})
-};
-
-module.exports.updatePortfolioForAdviceTransactions = function(portfolioId, adviceId) {
-	
-	const updates = {};
-	
-	return Promise.all([PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'positions subPositions cash advices'}),
-						AdviceModel.fetchAdvice({_id: adviceId}, {fields:'portfolio'})])	
-	.then(([portfolio, advice]) => {
-		if(portfolio && advice.portfolio) {
-
-			if(portfolio.advices.indexOf(adviceId) !=-1) {
-				APIError.throwJsonError({adviceId: adviceId, message:"Advice already part of the portfolio"});
+	    wsClient.on('message', function(msg) {
+	    	var data = JSON.parse(msg);
+	    	
+	    	if(data['error'] == '' && data['compare']) {
+	    		resolve(data['compare']);
+			} else if (data['error'] != '') {
+				reject(new Error(data["error"]));
+			} else {
+				reject(new Error("Internal error in comparing Security"))
 			}
+		});
+	});
+}
 
-			var subPositions = portfolio.subPositions.filter(item => {return _compareIds(item.advice, adviceId);});
+module.exports.updatePortfolio = function(portfolio, transactions, adviceId) {
+	
+	var subPositions = portfolio.subPositions.filter(item => {
+			return _compareIds(item.advice, adviceId);}); 	
 
-			var transactions = [];
+	return Promise.all([_updatePositions(subPositions, transactions),
+						_updatePositions(portfolio.positions, transactions)])
+	.then(([port2, port1]) => {
 
-			//GO over all the positions in advice portfoli
-			// and find out if we need to transact the advice
-			// advice could already be present
-			advice.portfolio.positions.forEach(position => {
-				
-				var originalQty = 0;
-				if(subPositions){
-					var idx = subPositions.indexOf(item => {item.security.equals(position.security)});
-				
-					if(idx !=-1) {
-						originalQty = subPositions[idx].quantity;
-					}
-				}
+		port2.positions.forEach(position => {
+	    						position["advice"] = adviceId});
 
-				var transaction = {
-					security: position.security,
-					quantity: position.quantity - originalQty,
-					price: 0,
-					date: new Date()
-				};
+		var subPositions = portfolio.subPositions.filter(item => {
+								return !_compareIds(item.advice, adviceId);})
+							.concat(port2.positions);
 
-				transactions.push(transaction);
-			});
+		const updatedPortfolio = {
+			positions: port1.positions,
+			subPositions: subPositions,
+			cash: portfolio.cash + port1.cash
+		};
 
-			// Send exisitng positions and transactions to Julia
-			// Get back updated positions 
-			return _updatePortfolio(portfolio, transactions, adviceId);							
-		}
-	})
-	.then(updatedPortfolio => {
-		updates.positions = updatedPortfolio.positions;
-		updates.subPositions = updatedPortfolio.subPositions;
-		updates.cash = updatedPortfolio.cash;
-		updates.advices = adviceId;
-		
-		return PortfolioModel.updatePortfolio({_id:portfolioId}, updates);
+		return updatedPortfolio;
+	});
+}
+
+module.exports.computePerformance = function(portfolioHistory, benchmark) {
+	return new Promise(function(resolve, reject) {
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
+
+		wsClient.on('open', function open() {
+	        console.log('Connection Open');
+	        console.log(connection);
+	        var msg = JSON.stringify({action:"compute_performance_portfolio_history", 
+	        				portfolioHistory: portfolioHistory,
+	        				benchmark: benchmark});
+
+	     	wsClient.send(msg);
+	    });
+
+	    wsClient.on('message', function(msg) {
+	    	var data = JSON.parse(msg);
+	    	
+	    	if(data['error'] == '' && data['performance']) {
+	    		var performance = data['performance'];
+	    		performance.portfolioValues = performance.portfolioValues.map(item => { 
+				  	//Changing time to unix timestamp
+				  	item.date = new Date(item.date).getTime()/1000; 
+				  	return item;
+				});	
+			
+	    		resolve(performance);
+
+			} else if (data['error'] != '') {
+				reject(new Error(data["error"]));
+			} else {
+				reject(new Error("Internal error computing performance"))
+			}
+		});
 	});
 };
 
-module.exports.fetchUpdatedAdvice = function(query, options) {
-}
-
-module.exports.updateAdviceWithAdvicePerformance = function(advice) {
-		
-	var needPortfolioValueUpdate = false;
-	var endDate = new Date();
-
-	if (advice.performance) {
-		
-		var lastUpdatedDate = advice.performance.lastUpdatedDate;
-
-		lastUpdatedDate.setDate(lastUpdatedDate.getDate() + 1);
-
-		var today = new Date();
-		today.setHours(0, 0, 0, 0);
-
-		if(today.getTime() > lastUpdatedDate.getTime()) {
-			needPortfolioValueUpdate = true;
-			endDate = today;
-		}
-	}
-		
-	if (needPortfolioValueUpdate) {
-		var portfolio = advice.currentPortfolio;
-		var startDate = advice.performance.lastUpdatedDate;
-		var benchmark = advice.benchmark;
-		
-		var updates = {};
-		
-		//ASSUMPTION: Portfolio didn't change..
-		//HOW TO FIX:
-		//ONE WAY: To send complete portfolio history from start to endDate
-
-		return computePortfolioStats(portfolio, startDate, endDate)
-		.then(portfolioStats => {
-			if(portfolioStats) {
-				updates.portfolioStats = portfolioStats;
-				return computePortfolioPerformance(portfolioStats, benchmark);
-			}
-		})
-		.then(performance => { 
-			if (performance) {
-				updates.performance = performance;
-				updates.lastUpdatedDate = today;
-
-				return AdviceModel.updateAdvicePerformance({_id: investor.id}, updates);
-			}
-		});	
-	}
-};
-
-module.exports.updateInvestorPortfolioPerformance = function(investor) {
-	var needPerformanceUpdate = false;
-	var endDate = new Date();
-
-	if (investor.performance) {
-
-		var nMetrics = investor.performance.metrics.length;
-		var lastUpdatedDate = investor.performance.lastUpdatedDate;
-
-		// Is this necessary
-		lastUpdatedDate.setDate(lastUpdatedDate.getDate() + 1);
-
-		var today = new Date();
-		today.setHours(0, 0, 0, 0);
-
-		//TODO : FINANCIAL Calendar
-
-		if(today.getTime() > lastUpdatedDate.getTime()) {
-			needPerformanceUpdate = true;
-			endDate = today;
-		}
-
-		/*if(nMetrics > 0) {
-			var lastUpdatedDate = investor.currentPortfolio.performanceMetrics[nMetrics - 1].date;
-		
-			//lastUpdatedDate.setDate(lastUpdatedDate.getDate() + 1);
-			
-			if(today.getTime() > lastUpdatedDate.getTime()) {
-				needPerformanceUpdate = true;
-				endDate = today;
-			}
-		} else if (today.getTime() > investor.currentPortfolio.startDate.getTime()) {
-			needPerformanceUpdate = true;
-			endDate = today;
-		}*/
-	}
+module.exports.computeHistoricalPerformance = function(portfolio, startDate, endDate) {
 	
-
-
-	if(needPerformanceUpdate) {
-		
-		/******
-		//TRICKY: Is the portfolio consistent from start to end dates
-		// OR the portfoli changed as well
-		******/
-
-		var portfolio = investor.portfolio;
-		var startDate = investor.performance.lastUpdatedDate
-		var benchmark = investor.portfolio.benchmark;
-		
-		var updates = {};
-		
-		return computePortfolioStats(portfolio, startDate, endDate)
-		.then(portfolioStats => {
-			if(portfolioStats) {
-				updates.portfolioStats = portfolioStats;
-				return computePortfolioPerformance(portfolioStats, benchmark);
-			}
-		})
-		.then(performance => { 
-			if (performance) {
-				updates.performance = performance;
-				updates.lastUpdatedDate = today;
-
-				return InvestorModel.updatePortfolioPerformance({_id: investor.id}, updates);
-			}
-		});
-		
-	}
+	return _computePortfolioValue(portfolio, startDate, endDate)
+	.then(portfolioValue => {
+		return Promise.all([portfolioValue, _computePortfolioPerformance(portfolioValue, portfolio.benchmark)]);
+	})
+	.then(([portfolioValues, performance]) => {
+		portfolioValues = portfolioValues.map(item => { 
+		  	//Changing time to unix timestamp
+		  	item.date = new Date(item.date).getTime()/1000; 
+		  	return item;
+		});	
+	
+		return {portfolioValues: portfolioValues, analytics: performance};
+	});
 };
 
 module.exports.validateAdvice = function(advice, oldAdvice) {
@@ -489,10 +283,12 @@ module.exports.validateAdvice = function(advice, oldAdvice) {
         wsClient.on('message', function(msg) {
         	var data = JSON.parse(msg);
 			
-        	if (data["valid"] == true) {
-			    resolve(true);
+        	if (data["error"] == "") {
+			    resolve(data["valid"]);
+		    } else if (data["error"] != "") {
+		    	reject(new Error(data["error"]))
 		    } else {
-		    	resolve(false);
+		    	reject(new Error("Error validating the advice"))
 		    }
 	    });
     })
@@ -516,11 +312,13 @@ module.exports.validatePortfolio = function(portfolio) {
 
         wsClient.on('message', function(msg) {
         	var data = JSON.parse(msg);
-			
-        	if (data["valid"] == true) {
-			    resolve(true);
+
+		    if (data["error"] == "") {
+			    resolve(data["valid"]);
+		    } else if (data["error"] != "") {
+		    	reject(new Error(data["error"]));
 		    } else {
-		    	resolve(false)
+		    	reject(new Error("Unknown error in validating portfolio"));
 		    }
 	    });
     })
@@ -546,8 +344,10 @@ module.exports.updateStockStaticPerformanceDetail = function(q, security) {
 			
         	if (data["error"] == "" && data["performance"]) {
 			    resolve(data["performance"]);
+		    } else if (data["error"] != "") {
+		    	reject(new Error(data["error"]));
 		    } else {
-		    	resolve(null)
+		    	reject(new Error("Unknown error in computing stock static performance detail"));
 		    }
 	    });
     })
@@ -576,8 +376,10 @@ module.exports.updateStockRollingPerformanceDetail = function(q, security) {
         	var data = JSON.parse(msg);
         	if (data["error"] == "" && data["performance"]) {
 			    resolve(data["performance"]);
+		    } else if (data["error"] != "") {
+		    	reject(new Error(data["error"]));
 		    } else {
-		    	resolve(null)
+		    	reject(new Error("Unknown error in computing stock rolling performance detail"));
 		    }
 	    });
     })
@@ -602,16 +404,29 @@ module.exports.updateStockPriceHistory = function(q, security) {
 
         wsClient.on('message', function(msg) {
         	var data = JSON.parse(msg);
+			console.log(data);
 
         	if (data["error"] == "" && data["priceHistory"]) {
 			    resolve(data["priceHistory"]);
+		    } else if (data["error"] != "") {
+		    	reject(new Error(data["error"]));
 		    } else {
-		    	resolve(null)
+		    	reject(new Error("Unknown error in computing stock price history"));
 		    }
 	    });
     })
     .then(priceHistory => {
-    	return SecurityPerformanceModel.updatePriceHistory(q, priceHistory);
+    	//here change the datatype before saving to database
+    	if(priceHistory) {
+    		priceHistory = priceHistory.map(item => {
+    			item.date = new Date(item.date).getTime()/1000;
+    			return item; 
+    		});
+    		
+    		return SecurityPerformanceModel.updatePriceHistory(q, priceHistory);
+		} else {
+			APIError.throwJsonError({message: "Invalid price history data. Can't update!!"});
+		}
     });
 };
 
@@ -635,17 +450,14 @@ module.exports.updateStockLatestDetail = function(q, security) {
 
         	if (data["error"] == "" && data["latestDetail"]) {
 			    resolve(data["latestDetail"]);
+		    } else if (data["error"] != "") {
+		    	reject(new Error(data["error"]));
 		    } else {
-		    	resolve(null)
+		    	reject(new Error("Unknown error in computing stock latest detail"));
 		    }
 	    });
     })
     .then(latestDetail => {
-    	if(latestDetail) {
-    		return SecurityPerformanceModel.updateLatestDetail(q, latestDetail);
-		} else {
-			APIError.throwJsonError({message: "Error in computation. Stock latest detail can't be updated"});
-		}
+    	return SecurityPerformanceModel.updateLatestDetail(q, latestDetail);
     });
 };
-

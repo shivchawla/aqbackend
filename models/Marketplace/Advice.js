@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-18 14:24:39
+* @Last Modified time: 2018-01-25 12:09:43
 */
 'use strict';
 const mongoose = require('../index');
@@ -13,7 +13,6 @@ const Security = require('./Security');
 const Transaction = require('./Transaction');
 const Performance = require('./Performance');
 const Advisor = require('./Advisor');
-const HelperFunctions = require("../helper");
 
 const Advice = new Schema({
     advisor: {
@@ -57,7 +56,7 @@ const Advice = new Schema({
         required: true
     },
 
-    updateRequired:Boolean,
+    //updateRequired:Boolean,
 
     public: {
         type: Boolean,
@@ -78,15 +77,12 @@ const Advice = new Schema({
 
     deletedDate: Date,
 
-    benchmark: {
-        type: Security,
-        required: true,
-    },
-
-    portfolioHistory: [{
+    //Is this portfolio history required? 
+    //Is portfolio history within the portfolio object not sufficient?
+    /*portfolioHistory: [{
         type: Schema.Types.ObjectId,
         ref: 'Portfolio'
-    }],
+    }],*/
 
     rating: [{
         value: {
@@ -97,13 +93,13 @@ const Advice = new Schema({
         date: Date,
     }],
 
-    advicePerformance: Performance,
+    //advicePerformance: Performance,
 
     subscribers: [{
-        user:{
+        investor:{
     	    type: Schema.Types.ObjectId,
             required: true,
-            ref: 'User'
+            ref: 'Investor'
         },
 
         active: {
@@ -118,7 +114,7 @@ const Advice = new Schema({
         user: {
             type: Schema.Types.ObjectId,
             required: true,
-            ref: 'User'
+            ref: 'Investor'
         },
 
         active: {
@@ -130,16 +126,33 @@ const Advice = new Schema({
     }]
 });
 
+//TODO: Deleted advices can/should be moved to deleted-advice collection
+//Such collection doesn't exist but can be a good improvement.
+//Advice.index({advisor: 1, name:1}, {unique: true});
+
+//TODO: consider putting weights to index items
+Advice.index({
+    name: 'text',
+    heading: 'text',
+    description: 'text'
+});
+
 Advice.statics.saveAdvice = function(adviceDetails) {
     const advice = new this(adviceDetails);
     return advice.save();
 };
 
 Advice.statics.fetchAdvices = function(query, options) {
-  	var q = this.find(query)
-                .skip(options.skip)
-                .limit(options.limit);
+  	var q = this.find(query);
 
+    if(options.skip) {
+        q = q.skip(options.skip)    
+    }
+
+    if(options.limit) {
+        q = q.limit(options.limit)
+    }           
+    
 	if(options.fields) {
 		q = q.select(options.fields);
 	}
@@ -158,22 +171,27 @@ Advice.statics.fetchAdvices = function(query, options) {
 Advice.statics.fetchAdvice = function(query, options) {
   	var q = this.findOne(query);
 	           
-    if(options.fields) {
-        //if(options.fields.indexOf('advicePerformance' != -1)) {
-		  q = q.select(options.fields);
-          //q = q.select(options.fields.concat(' portfolio benchmark'));
-          //q = q.populate('portfolio', null, { _id: { $ne: null }});
-        /*} else {
-            q = q.select(options.fields);
-        }*/
-	}
-
-    if(options.fields && options.fields.indexOf('portfolio') != -1) {
-        q = q.populate('portfolio', null, { _id: { $ne: null }});
+    if (!options.fields) {
+        options.fields = '';
     }
 
-    if(options.fields && options.fields.indexOf('portfolioHistory') != -1) {
-        q = q.populate('portfolioHistory', null, { _id: { $ne: null }});
+    if (!options.populate) {
+        options.populate = '';
+    }
+
+    if(options.fields) {
+	   q = q.select(options.fields);
+	}
+
+    if(options.populate.indexOf('portfolio') != -1) {
+        q = q.select('portfolio').populate('portfolio','detail benchmark deleted _id', { _id: { $ne: null }});
+    }
+
+    if(options.populate.indexOf('advisor') != -1) {
+        q = q.select('advisor').populate({path:'advisor', select:'user _id',
+                                        populate:{path: 'user', 
+                                            select:'_id firstName lastName'}
+                                });
     }
 
 	return q.execAsync();
@@ -190,7 +208,7 @@ Advice.statics.getAdviceHistory = function(query, options) {
 	return q.execAsync();
 };
 
-Advice.statics.updateAdvice = function(query, updates, newPortfolio) {
+Advice.statics.updateAdvice = function(query, updates, oldPortfolio) {
     
     var q = this.findOne(query);
 
@@ -203,16 +221,15 @@ Advice.statics.updateAdvice = function(query, updates, newPortfolio) {
     return q.execAsync()
     .then(advice => {
         var oldPortfolio = advice.portfolio;
-        
         var fupdate = {$set: updates};
         
         //Update the portfolio array if it's TRULY a new Portfolio 
         //(not just an update to exisitng portfolio in case of non-public advice)
-        if(keys.indexOf("portfolio") != -1 && newPortfolio) {
+        if(keys.indexOf("portfolio") != -1 && !oldPortfolio) {
             fupdate = {$set: updates, $push:{portfolioHistory: oldPortfolio}};
         }
         
-        return this.update(query, fupdate);
+        return this.findOneAndUpdate(query, fupdate, {upsert:true, new: true});
     });
 };
 
@@ -235,8 +252,6 @@ Advice.statics.updateAdvicePortfolioStats = function(query, portfolioStats) {
             if (advice) {
             	
             	portfolioStats.values = portfolioStats.values[0];
-            	console.log(portfolioStats.values);
-            	console.log(typeof(portfolioStats.values));
 
             	if(portfolioStats.values.length > 0) {
             		// if new portfolioStats has new length

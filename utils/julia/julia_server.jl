@@ -58,6 +58,7 @@ function geterrormsg(err::Any)
   showerror(out, err)
   msg = String(take!(out))
   close(out)
+  return msg
 end
  
 wsh = WebSocketHandler() do req, ws_client
@@ -65,241 +66,196 @@ wsh = WebSocketHandler() do req, ws_client
     msg = decode_message(read(ws_client))
     parsemsg = JSON.parse(msg)
 
+    parsemsg["error"] = ""
+
     if haskey(parsemsg, "action") 
 
-       action = parsemsg["action"]
-       err_msg = ""
-      
-      if action == "validate_advice"
-         
-        valid = false
-
-        try 
-          (valid, err_msg) = _validate_advice(parsemsg["advice"], parsemsg["lastAdvice"] == "" ? Dict{String,Any}() : parsemsg["lastAdvice"] ) 
-        catch err
-          err_msg = geterrormsg(err)
-        end
-
-        println(err_msg)
+        action = parsemsg["action"]
         
-        parsemsg["valid"] = valid
-        parsemsg["error"] = err_msg
+      try  
 
-      elseif action == "validate_portfolio"
-          
-         valid = false
+        if action == "validate_advice"
+          valid = false
+          valid = _validate_advice(parsemsg["advice"], parsemsg["lastAdvice"] == "" ? Dict{String,Any}() : parsemsg["lastAdvice"] ) 
+          parsemsg["valid"] = valid
 
-         try 
-            valid = _validate_portfolio(parsemsg["portfolio"]) 
-         catch err
-            err_msg = geterrormsg(err)
-         end
+        elseif action == "validate_portfolio"
+            
+          valid = false
+          (valid, port) = _validate_portfolio(parsemsg["portfolio"]) 
 
-         parsemsg["valid"] = valid
-         parsemsg["error"] = err_msg
-       
-      elseif action == "compute_performance_portfolio_history"
-          portfolioHistory = parsemsg["portfolioHistory"]
-          benchmark = parsemsg["benchmark"]["ticker"];
-
-          (netValues, dates) = compute_portfolio_value_history(portfolioHistory)
-
-          if netValues != nothing && dates != nothing
-              performance = compute_performance(netValues, dates, benchmark)
-          
-              nVDict = Vector{Dict{String, Any}}()
-
-              for i = 1:length(netValues)
-                  push!(nVDict, Dict{String, Any}("date" => dates[i], "netValue" => netValues[i]))
-              end
-
-              parsemsg["performance"] = Dict{String, Any}("detail" => serialize(performance), 
-                                      "portfolioStats" => nVDict)
-              parsemsg["error"] = err_msg
-          else 
-              parsemsg["error"] = "Data not available"
-          end
-
-      elseif action == "compute_portfolio_performance"
+          parsemsg["valid"] = valid
          
-         performance = Dict{String, Any}()
-         
-         # trim Z from the string
-         startDate = DateTime(parsemsg["startDate"][1:end-1])
-         endDate = DateTime(parsemsg["endDate"][1:end-1])
+        elseif action == "compute_performance_portfolio_history"
+            
+            portfolioHistory = parsemsg["portfolioHistory"]
+            benchmark = parsemsg["benchmark"]["ticker"];
 
-         try
-           performance = compute_performance(parsemsg["portfolio"], startDate, endDate)
-         catch err
-           err_msg = geterrormsg(err)
-         end
+            (netValues, dates) = compute_portfolio_value_history(portfolioHistory)
 
-         performance = JSON.parse(JSON.json(performance))
+            if netValues != nothing && dates != nothing
+                performance = compute_performance(netValues, dates, benchmark)
+            
+                nVDict = Vector{Dict{String, Any}}()
 
-         parsemsg["performance"] = Dict("date" => endDate, "value" => performance)
-         parsemsg["error"] = err_msg
+                for i = 1:length(netValues)
+                    push!(nVDict, Dict{String, Any}("date" => dates[i], "netValue" => netValues[i]))
+                end
 
-      elseif action == "compute_performance_netvalue"
-         performance = Dict{String, Any}()
-         
-         try
+                parsemsg["performance"] = Dict{String, Any}("analytics" => serialize(performance), 
+                                        "portfolioValues" => nVDict)
+            else 
+                error("Missing Input")
+            end
+
+        elseif action == "compute_portfolio_performance"
+           
+          performance = Dict{String, Any}()
+            
+          # trim Z from the string
+          startDate = DateTime(parsemsg["startDate"][1:end-1])
+          endDate = DateTime(parsemsg["endDate"][1:end-1])
+
+          performance = compute_performance(parsemsg["portfolio"], startDate, endDate)
+          performance = JSON.parse(JSON.json(performance))
+          parsemsg["performance"] = Dict("date" => endDate, "value" => performance)
+
+        elseif action == "compute_performance_netvalue"
+           performance = Dict{String, Any}()
+           
            netValue = convert(Vector{Float64}, parsemsg["netValue"])
            benchmark = parsemsg["benchmark"]["ticker"]
            dates = parsemsg["dates"]
 
            endDate = dates[end]
 
-           dates = [Date(DateTime(date[1:end-1])) for date in dates]
+           dates = [Date(date) for date in dates]
 
            performance = compute_performance(netValue, dates, benchmark)
            performance = JSON.parse(JSON.json(performance))
            parsemsg["performance"] = Dict("date" => endDate, "value" => performance)
-           err_msg = ""
            
-         catch err
-           err_msg = geterrormsg(err)
-         end
+        elseif action == "compute_portfolio_value_history"
 
-         parsemsg["error"] = err_msg
-
-      elseif action == "compute_portfolio_value_history"
-
-         try
-           portfolioHistory = parsemsg["portfolioHistory"]
-
-           (netValue, dates) = compute_portfolio_value_history(portfolioHistory)
-
-           parsemsg["netValue"] = Dict("dates" => dates, "values" => netValue)
-           parsemsg["error"] = ""
-
-         catch err
-           err_msg = geterrormsg(err)
-         end
-
-      elseif action == "compute_portfolio_value_period"
-         try
-           portfolio = parsemsg["portfolio"]
-           startDate = parsemsg["startDate"]
-           endDate = parsemsg["endDate"]
-           
-           (netValue, dates) = compute_portfolio_value_period(portfolio, startDate, endDate)
-           parsemsg["netValue"] = Dict("dates" => dates, "values" => netValue)
-           parsemsg["error"] = ""
-           
-         catch err
-           err_msg = geterrormsg(err)
-         end
-
-      elseif action == "compute_portfolio_value_date"
-           netvalue = 0.0
-           lastdate = DateTime()
-           try
-             portfolio = parsemsg["portfolio"]
-             date = data["date"]
-
-             netvalue = compute_portfoliovalue(portfolio, date)
-             if (lastdate == DateTime())
-               parsemsg["netvalue"] = Dict("date" => lastdate, "value" => netvalue)
-               parsemsg["error"] = ""
-             end
-          catch err
-            err_msg = geterrormsg(err)
-          end
+          portfolioHistory = parsemsg["portfolioHistory"]
+          (netValue, dates) = compute_portfolio_value_history(portfolioHistory)
+          parsemsg["netValue"] = Dict("dates" => dates, "values" => netValue)
         
-          parsemsg["error"] = err_msg
-
-      elseif action == "compute_stock_price_history"
-          try
-            security = convert(Raftaar.Security, parsemsg["security"])
-            (ts, prices) = get_stock_price_history(security)
-            
-            history = Dict{String, Float64}()
-            for i=1:length(ts)
-              history[string(Date(ts[i]))] = prices[i]
-            end
-
-            parsemsg["priceHistory"] = history
-
-           catch err
-            err_msg = geterrormsg(err)
-          end
-        
-          parsemsg["error"] = err_msg
+        elseif action == "compute_portfolio_value_period"
           
-      elseif action == "compute_stock_price_latest"
-          try
-            security = convert(Raftaar.Security, parsemsg["security"])
-            latestPriceDetail = get_stock_price_latest(security)
-            
-            parsemsg["latestDetail"] = latestPriceDetail
-
-           catch err
-            err_msg = geterrormsg(err)
-          end
-        
-          parsemsg["error"] = err_msg                
-      elseif action == "compute_stock_rolling_performance"
-          try
-            security = convert(Raftaar.Security, parsemsg["security"])
-            
-            rolling_performances = compute_stock_rolling_performance(security)
-
-            rolling_performance_dict = Dict{String, Any}()
-            for (k,v) in rolling_performances
-                rolling_performance_dict[k] = serialize(v)
-            end
-
-            parsemsg["performance"] = rolling_performance_dict
-          catch err
-             err_msg = geterrormsg(err)
-          end
-        
-          parsemsg["error"] = err_msg
-
-      elseif action == "compute_stock_static_performance"
-          try
-              security = convert(Raftaar.Security, parsemsg["security"])
-              static_performance = compute_stock_static_performance(security)
-
-              static_performance_dict = Dict{String, Any}()
-              static_performance_dict["yearly"] = Dict{String, Any}()
-              static_performance_dict["monthly"] = Dict{String, Any}()                  
-
-              for (k,v) in static_performance["yearly"]
-                  static_performance_dict["yearly"][k] = serialize(v)
-              end
-
-              for (k,v) in static_performance["monthly"]
-                  static_performance_dict["monthly"][k] = serialize(v)
-              end
-              parsemsg["performance"] = static_performance_dict
-          
-          catch err
-              err_msg = geterrormsg(err)
-          end
-         
-          parsemsg["error"] = err_msg
-
-      elseif action == "compute_updated_portfolio"
           portfolio = parsemsg["portfolio"]
-          transactions = parsemsg["transactions"]
-
-          # TODO: update function to compute portfolio stats etc.
-          # TODO: if price is not give (or zero price), assume EOD price for the day
-          ##
-          ##
-          (cash, updated_portfolio) = compute_updated_portfolio(portfolio, transactions)
+          startDate = parsemsg["startDate"]
+          endDate = parsemsg["endDate"]
+         
+          (netValues, dates) = compute_portfolio_value_period(portfolio, DateTime(startDate), DateTime(endDate))
           
-          #Update, the positions to match the object structure in Node
-          updated_portfolio = convert_to_node_portfolio(updated_portfolio)
-          
-          updated_portfolio["cash"] = cash
-          parsemsg["portfolio"] = updated_portfolio
+          nVDict = Vector{Dict{String, Any}}()
 
-      elseif action == "compute_attribution"
-          #parsemsg["portfolio"] = updated_portfolio
-      else
-          parsemsg["error"] = "Invalid action"
+          for i = 1:length(netValues)
+              push!(nVDict, Dict{String, Any}("date" => dates[i], "netValue" => netValues[i]))
+          end
+
+          parsemsg["netValue"] = nVDict
+
+        elseif action == "compute_portfolio_value_date"
+          netvalue = 0.0
+          lastdate = DateTime()
+          portfolio = parsemsg["portfolio"]
+          date = data["date"]
+
+          netvalue = compute_portfoliovalue(portfolio, date)
+          if (lastdate == DateTime())
+            parsemsg["netvalue"] = Dict("date" => lastdate, "value" => netvalue)
+            parsemsg["error"] = ""
+          end
+        
+        elseif action == "compute_stock_price_history"
+            
+            parsemsg["priceHistory"] = ""
+            parsemsg["priceHistory"] = get_stock_price_history(parsemsg["security"])
+            
+        elseif action == "compute_stock_price_latest"
+            parsemsg["latestDetail"] = ""
+            parsemsg["latestDetail"] = get_stock_price_latest(parsemsg["security"])
+        
+        elseif action == "compute_stock_rolling_performance"
+            parsemsg["performance"] = ""
+
+            rolling_performances = compute_stock_rolling_performance(parsemsg["security"])
+            if rolling_performances != nothing
+                rolling_performance_dict = Dict{String, Any}()
+                
+                for (k,v) in rolling_performances
+                    rolling_performance_dict[k] = serialize(v)
+                end
+
+                parsemsg["performance"] = rolling_performance_dict
+            else
+                parsemsg["error"] = "Empty Rolling Performance. Compute Error!!"
+            end
+
+        elseif action == "compute_stock_static_performance"
+            
+            parsemsg["performance"] = ""
+            static_performance = compute_stock_static_performance(parsemsg["security"])
+            
+            if static_performance != nothing
+                static_performance_dict = Dict{String, Any}()
+                static_performance_dict["yearly"] = Dict{String, Any}()
+                static_performance_dict["monthly"] = Dict{String, Any}()                  
+
+                for (k,v) in static_performance["yearly"]
+                    static_performance_dict["yearly"][k] = serialize(v)
+                end
+
+                for (k,v) in static_performance["monthly"]
+                    static_performance_dict["monthly"][k] = serialize(v)
+                end
+
+                parsemsg["performance"] = static_performance_dict
+            
+            else
+                parsemsg["error"] = "Empty Static Performance. Compute Error!!"
+            end
+
+        elseif action == "compute_updated_portfolio"
+            portfolio = parsemsg["portfolio"]
+            transactions = parsemsg["transactions"]
+
+            # TODO: update function to compute portfolio stats etc.
+            # TODO: if price is not give (or zero price), assume EOD price for the day
+            ##
+            ##
+            (cash, updated_portfolio) = compute_updated_portfolio(portfolio, transactions)
+            
+            #Update, the positions to match the object structure in Node
+            updated_portfolio = convert_to_node_portfolio(updated_portfolio)
+            
+            updated_portfolio["cash"] = cash
+            parsemsg["portfolio"] = updated_portfolio
+
+        elseif action == "compare_security"
+            oldSecurity = convert(Raftaar.Security, parsemsg["oldSecurity"])
+            newSecurity = convert(Raftaar.Security, parsemsg["newSecurity"])
+
+            parsemsg["compare"] = oldSecurity == newSecurity
+
+        elseif action == "compare_portfolio"
+            oldPortfolio = convert(Raftaar.Portfolio, parsemsg["oldPortfolio"])
+            newPorfolo = convert(Raftaar.Portfolio, parsemsg["newPortfolio"])
+
+            parsemsg["compare"] = oldPortfolio == newPortfolio
+
+        elseif action == "compute_attribution"
+            #parsemsg["portfolio"] = updated_portfolio
+        else
+            parsemsg["error"] = "Invalid action"
+        end
+
+      catch err
+          err_msg = geterrormsg(err)
+          parsemsg["error"] = err_msg
+          warn("Error: $(err_msg)")
       end
       
       write(ws_client, JSON.json(parsemsg))  

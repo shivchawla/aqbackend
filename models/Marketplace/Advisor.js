@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-17 12:41:56
+* @Last Modified time: 2018-01-23 10:39:32
 */
 'use strict';
 
@@ -12,7 +12,7 @@ const Schema = mongoose.Schema;
 const PerformanceMetrics = require('./PerformanceMetrics');
 const PortfolioStats = require('./PortfolioStats');
 const Performance = require('./Performance');
-const User = require('../user');
+const Investor = require('./Investor');
 
 const Advisor = new Schema({
    	user: {
@@ -29,15 +29,10 @@ const Advisor = new Schema({
 
     approvedDate: Date,  
 
-    advices: [{
-    	type: Schema.Types.ObjectId,
-    	ref: 'Advice',
-    }],
-
     followers: [{
-    	user: {
+    	investor: {
 	        type: Schema.Types.ObjectId,
-	        ref: 'User'
+	        ref: 'Investor'
         },
 
         active: {
@@ -48,15 +43,15 @@ const Advisor = new Schema({
         updatedDate: Date
     }],
        
-    performance: Performance,
-
     rating: [{
     	date: Date,
     	rating: {
     		type: Number,
         	default: 0
     	}
-    }]
+    }],
+
+    profile: Schema.Types.Mixed,
 });
 
 
@@ -109,11 +104,13 @@ Advisor.statics.updateFollowers = function(query, userId) {
     });
 };
 
-Advisor.statics.getAllAdvisors = function(query, options) {	
+Advisor.statics.fetchAdvisors = function(query, options) {	
 	var q = this.find(query)
 				.populate('user', 'firstName lastName');
 
-	if(options.skip){
+	console.log(options);
+
+	if(options.skip) {
 		q = q.skip(options.skip) 	
 	}
 
@@ -143,7 +140,8 @@ Advisor.statics.getAllAdvisors = function(query, options) {
 };
 
 Advisor.statics.fetchAdvisor = function(query, options) {
-	var q = this.findOne(query)
+	//FETCH creates a new document with default if insert is TRUE
+	var q = this.findOneAndUpdate(query, {}, {upsert: options.insert, new: options.insert, setDefaultsOnInsert: options.insert})
 			.populate('user', 'firstName lastName');
 
 	if(options.fields) {
@@ -158,10 +156,6 @@ Advisor.statics.fetchAdvisor = function(query, options) {
 	if((options.fields && options.fields.indexOf('followers')) || !options.fields) {
 		q = q.populate('followers.user', 'firstName lastName', { _id: { $ne: null }})
 	}
-
-	/*if((options.fields && options.fields.indexOf('followersHistory')) || !options.fields) {
-		q = q.populate('followersHistory.user', 'firstName lastName', { _id: { $ne: null }})
-	}*/
 
 	return q.execAsync();
 };
@@ -197,7 +191,7 @@ Advisor.statics.removeAdvice = function(query, adviceId) {
 Advisor.statics.updatePerformance = function(query, performance) {
 	return this.findOne(query)
 		.populate('user')
-		.then((advisor) => {
+		.then(advisor => {
 			if(advisor) {
 				var histPerformance = advisor.currentPerformance;
 				

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 20:45:19
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-20 17:55:02
+* @Last Modified time: 2018-01-23 11:44:46
 */
 
 'use strict';
@@ -32,6 +32,10 @@ module.exports.getFollowingAdvices = function getFollowingAdvices(req, res, next
 
 module.exports.createInvestorPortfolio = function createInvestorPortfolio(req, res, next){
 	Investor.createInvestorPortfolio(req.swagger.params, res, next);
+};
+
+module.exports.getInvestorPortfolios = function getInvestorPortfolios(req, res, next){
+	Investor.getInvestorPortfolios(req.swagger.params, res, next);
 };
 
 module.exports.getInvestorPortfolio = function getInvestorPortfolio(req, res, next){

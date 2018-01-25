@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-20 17:39:01
+* @Last Modified time: 2018-01-25 10:48:32
 */
 
 'use strict';
@@ -26,7 +26,6 @@ module.exports.createAdvisor = function(args, res, next) {
 	})
 	.then(advisor => {
 		if(advisor) {
-
 			return res.status(200).json(advisor);
 		} else {
 			APIError.throwJsonError({userId: userId, message:"Advisor can't be created"});
@@ -46,13 +45,27 @@ module.exports.getAdvisors = function(args, res, next) {
     options.sort = args.sort.value;
     const userId = args.user._id;
 
-    AdvisorModel.getAllAdvisors({}, options)
+    AdvisorModel.fetchAdvisors({}, options)
     .then(advisors => {
     	if(advisors) {
-    		return res.status(200).json(advisors);
-    	} else {
+    		return Promise.all([advisors, 
+    			Promise.map(advisors, function(advisor) {
+    				return AdviceModel.fetchAdvices({advisor: advisor, deleted: false}, {});
+    			})
+			])
+		} else {
     		APIError.throwJsonError({message:"No advisors found"});
     	}
+	})
+	.then(([advisors, advices]) => {
+		
+		advisors = JSON.parse(JSON.stringify(advisors));
+		
+		advisors.forEach((advisor, i) => {
+			advisor["adviceCount"] = advices[i].length;
+		});
+
+		return res.status(200).json(advisors);
     })
     .catch(err => {
     	res.status(400).send(err.message);
@@ -61,17 +74,27 @@ module.exports.getAdvisors = function(args, res, next) {
 
 module.exports.getAdvisorSummary = function(args, res, next) {
 	const advisorId = args.advisorId.value;
-   
-    //TODO: options when user is investor/advisor
-    const options = {};
-    options.fields = 'user performance rating followers advices'
+   	const userId = args.user._id;
     
- 	AdvisorModel.fetchAdvisor({_id: advisorId}, options)
-  	.then(advisor => {
-  		if(advisor) {
-  			return res.status(200).json(advisor);
+    const options = {};
+    options.fields = 'user rating followers profile'
+    
+ 	Promise.all([AdvisorModel.fetchAdvisor({_id: advisorId}, options), 
+ 		//Fetch advice performance (aggregate it or send the summary for each advisr.
+ 		//NEEDS summary definition)
+ 		AdviceModel.fetchAdvices({advisor: advisorId, deleted: false}, {fields:'advicePerformance'})])
+  	.then(([advisor, advices]) => {
+  		if(advisor && advices) {
+  			advisor = JSON.parse(JSON.stringify(advisor));
+		  	advisor["adviceCount"] = advices.length;
+		  	advisor.followers = advisor.followers.map(item => {return item.active == true;}).length; 
+		  	advisor.rating = advisor.rating.length > 0 ? advisor.rating[advisor.rating.length - 1] : 0.0;
+		  	
+		  	delete advisor.advices;
+		  	
+		  	return res.status(200).json(advisor);
  		} else {
- 			APIError.throwJsonError({advisorId: advisorId, message: "Advisor not found"});
+ 			APIError.throwJsonError({advisorId: advisorId, message: "Advisor/Advices not found"});
  		}
   	})
   	.catch(err => {
@@ -79,6 +102,7 @@ module.exports.getAdvisorSummary = function(args, res, next) {
   	});
 };
 
+//NEEDS more work..Wha to return??
 module.exports.getAdvisorDetail = function(args, res, next) {
 	const advisorId = args.advisorId.value;
     const userId = args.user._id;
@@ -87,9 +111,9 @@ module.exports.getAdvisorDetail = function(args, res, next) {
     const options = {};
     options.fields = args.fields.value;
     
-	AdvisorModel.fetchAdvisor({user: userId, _id: advisorId}, options)
+	AdvisorModel.fetchAdvisor({user: userId}, options)
   	.then(advisor => {
-  		if(advisor) {
+  		if(advisor && advisor._id.equals(advisorId)) {
   			return res.status(200).json(advisor);
 		} else {
 			APIError.throwJsonError({message:"Advisor not found or not authorized"});
@@ -105,7 +129,7 @@ module.exports.followAdvisor = function(args, res, next) {
   	const advisorId = args.advisorId.value;
 
   	return Promise.all([AdvisorModel.fetchAdvisor({_id: advisorId, user:{$ne:userId}}, {fields:'_id'}),
-  					InvestorModel.fetchInvestor({user:userId}, {fields:'_id'})])
+  					InvestorModel.fetchInvestor({user:userId}, {fields:'_id', insert:true})])
   	.then(([advisor, investor]) => {
   		if(advisor && investor) {
     		const investorId = investor._id; 
@@ -120,13 +144,13 @@ module.exports.followAdvisor = function(args, res, next) {
 			if(!investor) {
 				APIError.throwJsonError({userId: userId, message: "Investor not found"});
 			} else if(!advisor) {
-				APIError.throwJsonError({userId: userId, message: "Advisor not found"});
+				APIError.throwJsonError({userId: userId, message: "Advisor not found or Advisor same as user"});
 			}
 		}
 	})
 	.then(([advisor, investor]) => {
 		if (advisor && investor) {
-			return res.status(200).json({followers: advisor.followers, count: advisor.followers.length}); 
+			return res.status(200).json({count: advisor.followers.length}); 
 		} else if(!investor) {
 			APIError.throwJsonError({userId:userId, message: "Advisor can't be updated"});
 		} else if(!advisor) {
@@ -138,15 +162,16 @@ module.exports.followAdvisor = function(args, res, next) {
     });
 };
 
-module.exports.getFollowers = function(args, res, next) {
+//NOT REQUIRED
+/*module.exports.getFollowers = function(args, res, next) {
 	
 	//TODO: send relevant information about the followers (PUBLIC profile)
 	const userId = args.user._id;
 	const advisorId = args.advisorId.value;
 	
-	AdvisorModel.fetchAdvisor({user: userId, _id: advisorId}, {fields:'followers'})
+	AdvisorModel.fetchAdvisor({user: userId}, {fields:'followers'})
     .then(advisor => {
-    	if(advisor) {
+    	if(advisor && advisor._id.equals(advisorId)) {
     		if(advisor.followers) {
 	    		return res.status(200).json({followers:advisor.followers, count:advisor.followers.length});
     		} else{
@@ -159,8 +184,9 @@ module.exports.getFollowers = function(args, res, next) {
     .catch(err => {
     	return res.status(400).send(err.message);
     });
-};
+};*/
 
+//NOT REQUIRED
 module.exports.getAdvisorAdvicesWithStock = function(args, res, next) {
 	const userId = args.user._id;
 
@@ -174,7 +200,7 @@ module.exports.getAdvisorAdvicesWithStock = function(args, res, next) {
 						securityType: securityType,
 						country: country};
 
-	return AdvisorModel.fetchAdvisor({user: userId},{fields:'advices'})
+	return AdvisorModel.fetchAdvisor({user: userId}, {fields:'advices'})
 	.then(advisor => {
 		if(advisor) {
 			if(advisor.advices) {
@@ -188,7 +214,7 @@ module.exports.getAdvisorAdvicesWithStock = function(args, res, next) {
 			APIError.throwJsonError({userId: userId, message: "No advisor found"})
 		}
 	})
-	.then(([advices])=> {
+	.then(([advices]) => {
 		if(advices) {
 			var advicesWithStock = [];
 			advices.forEach(advice => {

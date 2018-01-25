@@ -32,8 +32,10 @@ tags:
   description: "operations on stock"
 - name: "watchlist"
   description: "operations on watchlist"
-- name: "Notebook"
-  description: "Operations on Julia Notebook" 
+- name: "notebook"
+  description: "operations on Julia Notebook" 
+- name: "performance"
+  description: "operations on Performance" 
 
   externalDocs:
     description: "Find out more about us"
@@ -338,7 +340,7 @@ paths:
   /notebook:
     post:
       tags:
-      - Notebook
+      - notebook
       summary: Create a Julia notebook
       description: Create a Julia notebook        
       operationId: createNotebook
@@ -359,7 +361,7 @@ paths:
 
     get:
       tags:
-      - Notebook
+      - notebook
       summary: Get all julia notebooks
       description: Get all Julia notebooks        
       operationId: getNotebooks
@@ -381,7 +383,7 @@ paths:
   /notebook/{notebookId}:
     get:
       tags:
-      - Notebook
+      - notebook
       summary: Get Julia notebook
       description: Get Julia notebook
       operationId: getNotebook
@@ -1307,76 +1309,7 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Advisor"
-
-  /advisor/{advisorId}/followers:
-    get:
-      tags:
-      - 'advisor'
-      summary: get list of followers
-      description: get list of followers
-      operationId: getFollowers
-      security:
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: advisorId
-        in: path
-        type: string
-        required: true
-      - name: skip
-        in: query
-        description: skip number of records
-        required: true
-        default: 0
-        type: integer
-      - name: limit
-        type: integer
-        required: true
-        in: query
-        default: 10
-      responses:
-        200:
-          description: OK
-      x-swagger-router-controller: "Advisor"
-
-  /advisor/{advisorId}/advice:
-    get:
-      tags:
-      - advisor
-      summary: get advices of advisor
-      description: get advices of advisor
-      operationId: getAdvisorAdvices
-      security:
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: advisorId
-        in: path
-        type: string
-        required: true
-      - name: ticker
-        in: query
-        description: security ticker
-        required: false
-        type: string
-      - name: exchange
-        in: query
-        type: string
-        required: false
-        default: "NSE"
-      responses:
-        200:
-          description: OK
-      x-swagger-router-controller: "Advisor"
-  
+ 
   /advice:
     post:
       tags:
@@ -1422,16 +1355,19 @@ paths:
         in: query
         type: integer
         required: false
+        default: 1
         description: Followed Advices only
       - name: subscribed 
         in: query
         type: integer
         required: false
+        default: 1
         description: Subscribed Advices only
       - name: personal 
         in: query
         type: integer
         required: false
+        default: 1
         description: Self-authored Advices only
       - name: approved
         in: query
@@ -1488,7 +1424,7 @@ paths:
         in: body
         required: true
         schema: 
-          $ref: '#/definitions/AdvicePatch'
+          $ref: '#/definitions/Advice'
       responses:
         200:
           description: "updated advice"
@@ -1572,6 +1508,7 @@ paths:
       - name: fields
         in: query
         type: string
+        default: ""
         required: false
       responses:
         200:
@@ -1626,41 +1563,6 @@ paths:
       responses:
         200:
           description: OK
-      x-swagger-router-controller: "Advice"
-
-  /advice/{adviceId}/portfolio:
-    put:
-      tags:
-      - advice
-      summary: update advice 
-      description: updates the advice 
-      consumes:
-      - application/json
-      operationId: updateAdvicePortfolio
-      security:
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: adviceId
-        in: path
-        required: true
-        type: string
-      - name: body
-        in: body
-        required: true
-        schema: 
-          $ref: '#/definitions/Portfolio'
-      responses:
-        200:
-          description: "updated advice"
-        400:
-          description: "Not Authorized"
-          schema:
-            $ref: "#/definitions/Error"
       x-swagger-router-controller: "Advice"
 
   /investor:
@@ -1740,6 +1642,7 @@ paths:
       - name: fields
         in: query
         type: string
+        default: ""
         required: false
         description: selection fields
       responses:
@@ -1802,15 +1705,28 @@ paths:
         required: true
       - name: ticker
         in: query
-        type: string
+        default: ""
         required: false
+        type: string
         description: stock ticker
       - name: exchange
         in: query
-        type: string
         required: false
-        default: "NSE"
-        description: stock exchange
+        default: NSE
+        type: string
+        description: stock exchange      
+      - name: country
+        in: query
+        required: false
+        type: string
+        default: IN
+        description: security country
+      - name: securityType
+        in: query
+        required: false
+        type: string
+        default: EQ
+        description: security type
       responses:
         200:
           description: OK
@@ -1841,30 +1757,6 @@ paths:
         in: path
         type: string
         required: true
-      - name: ticker
-        in: query
-        default: ""
-        required: false
-        type: string
-        description: stock ticker
-      - name: exchange
-        in: query
-        required: false
-        default: NSE
-        type: string
-        description: stock exchange      
-      - name: country
-        in: query
-        required: false
-        type: string
-        default: IN
-        description: security country
-      - name: securityType
-        in: query
-        required: false
-        type: string
-        default: EQ
-        description: security type
       responses:
         200:
           description: OK
@@ -2079,6 +1971,99 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Stock"
+
+  /performance/investor/{investorId}/{portfolioId}:
+    get:
+      tags:
+      - performance
+      summary: get portfolio historical performance
+      description: get portfolio historical performance
+      operationId: getPerformanceInvestorPortfolio
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        required: true
+        type: string
+        description: investorId
+      - name: portfolioId
+        in: path
+        required: true
+        type: string
+        description: portfolioId
+      responses:
+        200:
+          description: "get stock performance detail"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Performance"
+
+  /performance/advice/{adviceId}:
+    get:
+      tags:
+      - performance
+      summary: get portfolio historical performance of advice portfolio
+      description: get portfolio historical performance of advice portfolio
+      operationId: getPerformanceAdvicePortfolio
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        required: true
+        type: string
+        description: adviceId
+      responses:
+        200:
+          description: "get stock performance detail of advice portfolio"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Performance"
+
+  /performance:
+    post:
+      tags:
+      - performance
+      summary: get portfolio historical performance
+      description: get portfolio historical performance
+      operationId: getPerformanceNewPortfolio
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema: 
+          $ref: '#/definitions/Portfolio'
+        description: Portfolio 
+      responses:
+        200:
+          description: "get stock performance detail"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Performance"
 
   /watchlist:
     post:
@@ -2439,9 +2424,9 @@ definitions:
     type: object
     required:
       - ticker
-      - securityType
-      - country
-      - exchange
+      #- securityType
+      #- country
+      #- exchange
     properties:
       ticker:
         type: string
@@ -2490,14 +2475,14 @@ definitions:
         type: string
         format: date
 
-#Portfolio
-  Portfolio:
+#PortfolioDetail
+  PortfolioDetail:
     type: object
     required:
         - startDate
         - endDate
         - positions
-        - cash 
+        - cash
     properties:
       startDate:
         type: string
@@ -2511,6 +2496,19 @@ definitions:
           $ref: '#/definitions/Position'
       cash:
         type: number
+    
+#Portfolio
+  Portfolio:
+    type: object
+    required:
+        - detail
+        - benchmark 
+    properties:
+      detail:
+        $ref: '#/definitions/PortfolioDetail'
+      benchmark:
+        $ref: '#/definitions/Security'
+
 
 #Advice definition
   Advice:
@@ -2519,7 +2517,6 @@ definitions:
       - name
       - description
       - heading
-      - benchmark
       - portfolio
     properties:
       name:
@@ -2528,10 +2525,8 @@ definitions:
         type: string
       heading:
         type: string  
-      benchmark:
-        $ref: '#/definitions/Security'
       portfolio:
-          $ref: "#/definitions/Portfolio"
+        $ref: "#/definitions/Portfolio"
 
 #AdvicePatch
   AdvicePatch:

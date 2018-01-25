@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-22 14:19:01
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-04 12:39:41
+* @Last Modified time: 2018-01-23 18:17:13
 */
 
 'use strict';
@@ -12,8 +12,7 @@ const Portfolio = require('./Portfolio');
 const PortfolioStats = require('./PortfolioStats');
 const PerformanceMetrics = require('./PerformanceMetrics');
 
-const Performance  = new Schema({ 
-  	
+const Performance  = new Schema({  	
   	portfolio:{
   		type: Schema.Types.ObjectId,
   		ref: 'Portfolio'
@@ -21,13 +20,28 @@ const Performance  = new Schema({
 
     lastUpdated: Date, 
 
-    detail: Schema.Types.Mixed,
+    analytics: Schema.Types.Mixed,
     
-	portfolioStats: [{
-		date: Date,
-		netValue: Number,	
-	}],
+  	portfolioValues: [{
+  		date: Number,
+  		netValue: Number,	
+  	}],
 
 });
 
-module.exports = Performance;
+Performance.statics.savePerformance = function(performanceDetail) {
+    const performance = new this(performanceDetail);
+    return performance.save();
+};
+
+Performance.statics.fetchPerformance = function(query) {
+    return this.find(query).execAsync();
+};
+
+Performance.statics.updatePerformance = function(query, updates) {
+    return this.findOneAndUpdate(query, updates, {upsert:true, new: true}).execAsync();
+};
+
+//module.exports = Performance;
+const PerformanceModel = mongoose.model('PortPerformance', Performance);
+module.exports = PerformanceModel;

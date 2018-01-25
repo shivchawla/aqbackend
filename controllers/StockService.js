@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-18 10:57:49
+* @Last Modified time: 2018-01-25 13:34:19
 */
 
 'use strict';
@@ -99,17 +99,6 @@ function _checkIfStockLatestDetailUpdateRequired(detail) {
 }
 
 function getStockPriceHistory(res, q, security) {
-	/*const ticker = args.ticker.value;
-	const exchange = args.exchange.value;
-	const securityType = args.securityType.value;
-	const country = args.country.value;
-
-	const security = {ticker: ticker,
-						exchange: exchange,
-						securityType: securityType,
-						country: country};
-
-	console.log(security);*/
 
 	SecurityPerformanceModel.fetchPriceHistory(q)
 	.then(securityPerformance => {
@@ -120,9 +109,7 @@ function getStockPriceHistory(res, q, security) {
 			return [false, securityPerformance];
 		}
 	})
-
 	.then(([updated, securityPerformance]) => {
-		console.log(updated);
 		if(updated) {
 			return SecurityPerformanceModel.fetchPriceHistory(q);
 		} else {
@@ -157,14 +144,11 @@ function getStockRollingPerformance(res, q, security) {
 		if(update) {
 			return Promise.all([true, HelperFunctions.updateStockRollingPerformanceDetail(q, security)]);
 		} else {
-			console.log("LUNDDD");
-			console.log(securityPerformance);
 			return [false, securityPerformance];
 		}
 	})
 
 	.then(([updated, securityPerformance]) => {
-		console.log(updated);
 		if(updated) {
 			return SecurityPerformanceModel.fetchRollingPerformance(q);
 		} else {
@@ -202,7 +186,6 @@ function getStockStaticPerformance(res, q, security) {
 			return [false, securityPerformance];
 		}
 	})
-
 	.then(([updated, securityPerformance]) => {
 		if(updated) {
 			return SecurityPerformanceModel.fetchStaticPerformance(q);
@@ -222,7 +205,6 @@ function getStockLatestDetail(res, q, security) {
 	SecurityPerformanceModel.fetchLatestDetail(q)
 	.then(securityPerformance => {
 		var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
-		console.log("Update Required: " + update);
 		if(update) {
 			return Promise.all([true, HelperFunctions.updateStockLatestDetail(q, security)]);
 		} else {
@@ -256,8 +238,6 @@ module.exports.getStockDetail = function(args, res, next) {
 						exchange: exchange,
 						securityType: securityType,
 						country: country};
-
-	console.log(security);
 
 	var q = {'security.ticker': ticker,
 					'security.exchange': exchange,
