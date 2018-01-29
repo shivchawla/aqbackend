@@ -2,17 +2,17 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-09 13:41:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-24 15:32:27
+* @Last Modified time: 2018-01-26 17:41:20
 */
 
 'use strict';
 
-const PortfolioModel = require('../models/Marketplace/Portfolio');
+const PortfolioModel = require('../../models/Marketplace/Portfolio');
 const Promise = require('bluebird');
 const config = require('config');
 const WebSocket = require('ws');
-const APIError = require('../utils/error');
-const HelperFunctions = require("./helpers");
+const APIError = require('../../utils/error');
+const HelperFunctions = require("../helpers");
 
 /*function _hasPortfolioDetailChanged(oldPortfolioDetail, newPortfolioDetail) {
 	return HelperFunctions.comparePortfolioDetail(oldPortfolio, newPortfolio);

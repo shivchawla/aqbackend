@@ -2,54 +2,61 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 20:45:19
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-23 11:44:46
+* @Last Modified time: 2018-01-29 13:18:18
 */
 
 'use strict';
-const Investor = require('./InvestorService');
+const Investor = require('./MarketPlace/InvestorService');
 
-module.exports.createInvestor = function createInvestor(req, res, next) {
+module.exports.createInvestor = function(req, res, next) {
     Investor.createInvestor(req.swagger.params, res, next);
 };
 
-module.exports.getInvestorSummary = function getInvestorSummary(req, res, next) {
+module.exports.getInvestorSummary = function(req, res, next) {
     Investor.getInvestorSummary(req.swagger.params, res, next);
 };
 
-module.exports.getInvestorDetail = function getInvestorSummary(req, res, next) {
+module.exports.getInvestorDetail = function(req, res, next) {
     Investor.getInvestorDetail(req.swagger.params, res, next);
 };
 
-module.exports.getFollowingAdvisors = function getFollowingAdvisors(req, res, next) {
+module.exports.getFollowingAdvisors = function(req, res, next) {
     Investor.getFollowingAdvisors(req.swagger.params, res, next);
 };
 
-module.exports.getFollowingAdvices = function getFollowingAdvices(req, res, next) {
+module.exports.getFollowingAdvices = function(req, res, next) {
     Investor.getFollowingAdvices(req.swagger.params, res, next);
 };
 
 //Investor Portfolio Related
-
-module.exports.createInvestorPortfolio = function createInvestorPortfolio(req, res, next){
+module.exports.createInvestorPortfolio = function(req, res, next) {
 	Investor.createInvestorPortfolio(req.swagger.params, res, next);
 };
 
-module.exports.getInvestorPortfolios = function getInvestorPortfolios(req, res, next){
+/*module.exports.createInvestorPortfolioFromTransactions = function(req, res, next) {
+	Investor.createInvestorPortfolioFromTransactions(req.swagger.params, res, next);
+};*/
+
+module.exports.getInvestorPortfolios = function(req, res, next) {
 	Investor.getInvestorPortfolios(req.swagger.params, res, next);
 };
 
-module.exports.getInvestorPortfolio = function getInvestorPortfolio(req, res, next){
+module.exports.getInvestorPortfolio = function(req, res, next) {
 	Investor.getInvestorPortfolio(req.swagger.params, res, next);
 };
 
-module.exports.getInvestorPerformance = function getInvestorPerformance(req, res, next){
+module.exports.getInvestorPerformance = function(req, res, next) {
 	Investor.getInvestorPerformance(req.swagger.params, res, next);
 };
 
-module.exports.updateInvestorPortfolio = function updateInvestorPortfolio(req, res, next){
+module.exports.updateInvestorPortfolio = function(req, res, next) {
 	Investor.updateInvestorPortfolio(req.swagger.params, res, next);
 };
 
-module.exports.deleteInvestorPortfolio = function deleteInvestorPortfolio(req, res, next){
+module.exports.updateInvestorPortfolioForTransactions = function(req, res, next) {
+	Investor.updateInvestorPortfolioForTransactions(req.swagger.params, res, next);
+};
+
+module.exports.deleteInvestorPortfolio = function(req, res, next) {
 	Investor.deleteInvestorPortfolio(req.swagger.params, res, next);
 };

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-16 13:09:17
+* @Last Modified time: 2018-01-29 22:09:30
 */
 
 'use strict';
@@ -31,6 +31,18 @@ const Transaction = new Schema({
 	},
 
 	date: Date,
+
+	commission: {
+		type: Number,
+		default: 0.0
+	},
+
+	cashLinked: {
+		type: Boolean,
+		default: false
+	},
+
+	advice: Schema.Types.ObjectId
 });
 
 //const TransactionModel = mongoose.model('Transaction', Transaction);

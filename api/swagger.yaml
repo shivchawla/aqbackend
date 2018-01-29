@@ -65,6 +65,7 @@ paths:
         default:
           description: "successful operation"
       x-swagger-router-controller: "User"
+
   /user/login:
     post:
       tags:
@@ -91,6 +92,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "User"
+
   /me:
     get:
       tags:
@@ -115,6 +117,7 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "User"
+
   /user/activate:
     get:
       tags:
@@ -131,6 +134,7 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "User"
+
   /user/resetpage:
     get:
       tags:
@@ -147,6 +151,7 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "User"
+
   /user/resetpasswordcall:
     post:
       tags:
@@ -175,6 +180,7 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "User"
+
   /user/forgotpassword:
     get:
       tags:
@@ -336,7 +342,6 @@ paths:
         400:
           description: Error verifying captcha token
 
-  
   /notebook:
     post:
       tags:
@@ -405,7 +410,6 @@ paths:
         400:
           description: 'Invalid input'
       x-swagger-router-controller: "Notebook"
-
 
   /thread:
     post:
@@ -1655,36 +1659,6 @@ paths:
       x-swagger-router-controller: "Investor"
 
   /investor/{investorId}/portfolio:
-    post:
-      tags:
-      - investor
-      summary: create an Investor portfolio
-      description: create an investor portfolio
-      operationId: createInvestorPortfolio
-      security:
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: investorId
-        in: path
-        type: string
-        required: true
-      - name: body
-        in: body
-        required: true
-        schema:
-          $ref: "#/definitions/Portfolio"
-      responses:
-        200:
-          description: OK
-        400:
-          description: 'Invalid input'
-      x-swagger-router-controller: "Investor"
-  
     get:
       tags:
       - investor
@@ -1733,6 +1707,36 @@ paths:
         400:
           description: 'Invalid input'
       x-swagger-router-controller: "Investor"  
+
+    post:
+      tags:
+      - investor
+      summary: create an Investor portfolio
+      description: create an investor portfolio
+      operationId: createInvestorPortfolio
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: "#/definitions/Portfolio"
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Investor"
   
   /investor/{investorId}/portfolio/{portfolioId}:
     get:
@@ -1796,8 +1800,8 @@ paths:
     put:
       tags:
       - investor
-      summary: update the portfolio with transactions
-      description: Updates the portfolio with transactions
+      summary: update the portfolio
+      description: Updates the portfolio
       operationId: updateInvestorPortfolio
       security:
       - api_key: []
@@ -1815,16 +1819,41 @@ paths:
         in: path
         type: string
         required: true
-      - name: type
-        in: query
+      - name: body
+        in: body
+        required: false
+        schema:
+          $ref: '#/definitions/Portfolio'
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Investor"
+
+  /investor/{investorId}/portfolio/{portfolioId}/transactions:
+    post:
+      tags:
+      - investor
+      summary: update the portfolio with transactions
+      description: Updates the portfolio with transactions
+      operationId: updateInvestorPortfolioForTransactions
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
         type: string
         required: true
-        description: transaction type (stock or advice)
-      - name: adviceId
-        in: query
+      - name: portfolioId
+        in: path
         type: string
-        required: false
-        description: advice to transact
+        required: true
       - name: body
         in: body
         required: false
@@ -1837,7 +1866,7 @@ paths:
           description: OK
         400:
           description: 'Invalid input'
-      x-swagger-router-controller: "Investor"
+      x-swagger-router-controller: "Investor" 
 
   /investor/{investorId}/followingAdvices:
     get:
@@ -2248,7 +2277,6 @@ definitions:
         type: "string"
       password:
         type: "string"
-
   
   Thread:
     type: object
@@ -2284,7 +2312,6 @@ definitions:
       code:
         type: "string"
         format: "uuid"
-
 
   updateToken:
     type: object
@@ -2460,7 +2487,6 @@ definitions:
     required:
       - security
       - quantity
-      - price
       - date
     properties:
       security:
@@ -2469,18 +2495,30 @@ definitions:
         type: integer
       price:
         type: number
+        default: 0.0
       fee:
         type: number
       date:
         type: string
         format: date
+      commission:
+        type: number
+        default: 0.0
+      cashLinked:
+        type: boolean
+        default: false
+      advice:
+        type: string
+        format: uuid
+        default: ""
+
 
 #PortfolioDetail
   PortfolioDetail:
     type: object
     required:
-        - startDate
-        - endDate
+        #- startDate
+        #- endDate
         - positions
         - cash
     properties:
@@ -2496,6 +2534,7 @@ definitions:
           $ref: '#/definitions/Position'
       cash:
         type: number
+        default: 0.0
     
 #Portfolio
   Portfolio:
@@ -2504,6 +2543,9 @@ definitions:
         - detail
         - benchmark 
     properties:
+      name:
+        type: string
+        default: ""
       detail:
         $ref: '#/definitions/PortfolioDetail'
       benchmark:
@@ -2518,6 +2560,8 @@ definitions:
       - description
       - heading
       - portfolio
+      - rebalance
+      - maxNotional
     properties:
       name:
         type: string
@@ -2527,6 +2571,12 @@ definitions:
         type: string  
       portfolio:
         $ref: "#/definitions/Portfolio"
+      rebalance:
+        type: string
+        enum: ['Daily', 'Weekly', 'Bi-Weekly', 'Monthly', 'Quartely']
+      maxNotional:
+        type: string
+        enum: ['100000', '200000', '300000', '500000', '750000', '1000000']
 
 #AdvicePatch
   AdvicePatch:

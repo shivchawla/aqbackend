@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-25 13:28:56
+* @Last Modified time: 2018-01-29 22:25:58
 */
 
 'use strict';
@@ -17,6 +17,7 @@ const Schema = mongoose.Schema;
 const PortfolioDetail = new Schema({
 	startDate: Date,
 	endDate: Date,
+
 	positions: [Position],
 	//Track positions per Advice
 	subPositions: [Position], 
@@ -30,6 +31,8 @@ const Portfolio = new Schema({
 	name: String,
 
 	benchmark: Security,
+
+	seedCash: Number,
 
 	//CURRENT PORTFOLIO
 	detail: PortfolioDetail, 
@@ -46,14 +49,20 @@ const Portfolio = new Schema({
 	deletedDate: Date,
 
 	//To track the advices bought
-	advices: [{
+	//NOT NECESSARY (transaction contains advice reference)
+	/*advices: [{
 		type: Schema.Types.ObjectId,
     	ref: 'Advice'
-	}],
+	}],*/
 
 	transactions: [Transaction],
 
-	history: [PortfolioDetail]
+	history: [PortfolioDetail],
+
+	/*cashHistory:[{
+		cash: Number,
+		date: Date
+	}]*/
 });
 
 
@@ -69,14 +78,20 @@ Portfolio.statics.savePortfolio = function(portfolio) {
 			pos.security.country = pos.security.country.toUpperCase();
 			pos.security.exchange = pos.security.exchange.toUpperCase();  
 		});
+	} else {
+		portfolio.detail = {cash: 0.0, positions:[], subPositions:[]};
 	}
 
 	if(!portfolio.detail.subPositions && portfolio.detail.positions) {
 		portfolio.detail.subPositions = portfolio.detail.positions;
 	}
+ 
+	portfolio.seedCash = portfolio.detail ? portfolio.detail.cash : 0.0;
+
+	portfolio.createdDate = new Date();
 
 	const port = new this(portfolio);
-	return port.save(); 
+	return port.saveAsync(); 
 };
 
 Portfolio.statics.fetchPortfolio = function(query, options) {
@@ -100,37 +115,42 @@ Portfolio.statics.clonePortfolio = function(query, options) {
 		const port = new this(portfolio);
 		port._id = mongoose.Types.ObjectId();
         port.isNew = true; 
-		return port.save();	
+		return port.saveAsync();	
 	});
 };
 
 Portfolio.statics.addTransactions = function(query, transactions) {
-	this.findOne(query)
+	return this.findOne(query)
 	.then(portfolio => {
 		transactions.forEach(transaction => {
+			if (transaction.advice == "") {
+                transaction.advice = null;
+            } else {
+                transaction.advice = new mongoose.Types.ObjectId(transaction.advice);
+            }
 			portfolio.transactions.push(transaction);	
 		});
 
-		return portfolio.save();
-	})
-
+		console.log('Saving');
+		return portfolio.saveAsync();
+	});
 };
 
+
 Portfolio.statics.updatePortfolio = function(query, updates, addNew) {
-	return this.findOne(query)
+	return this.findOne(query).select('detail history')
 	.then(portfolio => {
 		
-		console.log(updates);
 		var fupdate = {$set: updates};
 
 		if (addNew) {
-			//var newStartDate = updatedPortfolio.startDate;
-			var history = updates.detail;
-			
-			//CHANGE DATE to date - 1
-			history.endDate = updates.detail.startDate;
+			var history = updates.history ? updates.history : [];
+			var modifiedUpdates = JSON.parse(JSON.stringify(updates));
 
-			fupdate = {$set: modifiedUpdates, $push:{history: history}};
+			delete modifiedUpdates.history;
+
+			//assuming history is array;
+			fupdate = {$set: modifiedUpdates, $push:{history: {$each: history}} };
 		}
 
 		return this.findOneAndUpdate(query, fupdate, {upsert:true, new: true});
@@ -173,7 +193,7 @@ Portfolio.statics.updatePortfolioWithTransactions = function(query, updates) {
 			}
 		}
 
-		return portfolio.save();
+		return portfolio.saveAsync();
 	})
 	.catch(err => {
 		console.log(err);

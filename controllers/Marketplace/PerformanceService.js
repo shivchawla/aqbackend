@@ -2,18 +2,18 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-25 13:19:32
+* @Last Modified time: 2018-01-26 17:41:04
 */
 
 'use strict'
-const InvestorModel = require('../models/Marketplace/Investor');
-const AdvisorModel = require('../models/Marketplace/Advisor');
-const AdviceModel = require('../models/Marketplace/Advice');
-const PortfolioModel = require('../models/Marketplace/Portfolio');
-const PerformanceModel = require('../models/Marketplace/Performance');
-const APIError = require('../utils/error');
+const InvestorModel = require('../../models/Marketplace/Investor');
+const AdvisorModel = require('../../models/Marketplace/Advisor');
+const AdviceModel = require('../../models/Marketplace/Advice');
+const PortfolioModel = require('../../models/Marketplace/Portfolio');
+const PerformanceModel = require('../../models/Marketplace/Performance');
+const APIError = require('../../utils/error');
 const Promise = require('bluebird');
-const HelperFunctions = require("./helpers");
+const HelperFunctions = require("../helpers");
 
 function _checkPerformanceUpdateRequired(performance) {
 	if(!performance) {

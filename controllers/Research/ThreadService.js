@@ -1,8 +1,8 @@
 'use strict';
-const UserModel = require('../models/user');
-const ThreadModel = require('../models/Research/thread');
-const BacktestModel = require('../models/Research/backtest');
-const sendEmail = require('../email');
+const UserModel = require('../../models/user');
+const ThreadModel = require('../../models/Research/thread');
+const BacktestModel = require('../../models/Research/backtest');
+const sendEmail = require('../../email');
 var truncate = require('truncate-html');
 const config = require('config');
 

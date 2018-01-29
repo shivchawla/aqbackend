@@ -1,7 +1,7 @@
 
-const WatchlistModel = require('../models/Marketplace/Watchlist');
+const WatchlistModel = require('../../models/Marketplace/Watchlist');
 const Promise = require('bluebird');
-const APIError = require('../utils/error');
+const APIError = require('../../utils/error');
 
 function _checkIfValidSecurity(security) {
 	return true;

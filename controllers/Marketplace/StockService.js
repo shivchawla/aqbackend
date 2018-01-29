@@ -2,15 +2,15 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-25 13:34:19
+* @Last Modified time: 2018-01-26 17:41:33
 */
 
 'use strict';
-const SecurityPerformanceModel = require('../models/Marketplace/SecurityPerformance');
+const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
 const Promise = require('bluebird');
 const config = require('config');
-const HelperFunctions = require("./helpers");
-const APIError = require('../utils/error');
+const HelperFunctions = require("../helpers");
+const APIError = require('../../utils/error');
 
 function getDate(date) {
     var d = date.getDate();

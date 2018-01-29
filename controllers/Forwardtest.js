@@ -1,6 +1,6 @@
 'use strict';
 
-const ForwardTest = require('./ForwardtestService');
+const ForwardTest = require('./Research/ForwardtestService');
 
 module.exports.createForwardtest = function createForwardtest (req, res, next) {
     ForwardTest.createForwardtest(req.swagger.params, res, next);

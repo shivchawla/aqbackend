@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-25 12:09:43
+* @Last Modified time: 2018-01-29 16:24:45
 */
 'use strict';
 const mongoose = require('../index');
@@ -33,6 +33,16 @@ const Advice = new Schema({
 
     description: {
         type: String,
+        required: true
+    },
+
+    rebalance: {
+        type: String,
+        required: true
+    },
+
+    maxNotional: {
+        type: Number,
         required: true
     },
 
@@ -77,13 +87,6 @@ const Advice = new Schema({
 
     deletedDate: Date,
 
-    //Is this portfolio history required? 
-    //Is portfolio history within the portfolio object not sufficient?
-    /*portfolioHistory: [{
-        type: Schema.Types.ObjectId,
-        ref: 'Portfolio'
-    }],*/
-
     rating: [{
         value: {
             type: Number,
@@ -92,8 +95,6 @@ const Advice = new Schema({
 
         date: Date,
     }],
-
-    //advicePerformance: Performance,
 
     subscribers: [{
         investor:{

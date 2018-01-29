@@ -1,10 +1,9 @@
 'use strict';
-require('../utils/spawn');
-const BacktestModel = require('../models/Research/backtest');
-const StrategyModel = require('../models/Research/strategy');
+const BacktestModel = require('../../models/Research/backtest');
+const StrategyModel = require('../../models/Research/strategy');
 var CryptoJS = require("crypto-js");
 const config = require('config');
-const spawn = require('../utils/spawn');
+const spawn = require('../../utils/spawn');
 
 exports.createBacktest = function(strategy, values, res, next) {
     const backtest = {

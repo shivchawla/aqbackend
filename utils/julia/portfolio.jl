@@ -7,7 +7,6 @@ using Raftaar: updateportfolio_fill!
 import Base: convert
 using TimeSeries
 
-
 function convert(::Type{Dict{String,Any}}, security::Security)                  
     try
         s = Dict{String, Any}()
@@ -25,10 +24,10 @@ end
 function convert(::Type{Security}, security::Dict{String, Any})                
     
     try
-        ticker = uppercase(haskey(security, "ticker") ? security["ticker"] : "")
-        securitytype = uppercase(haskey(security, "securitytype") ? security["securitytype"] : "EQ")
-        exchange = uppercase(haskey(security, "exchange") ? security["exchange"] : "NSE")
-        country = uppercase(haskey(security, "country") ? security["country"] : "IN")
+        ticker = uppercase(get(security, "ticker",""))
+        securitytype = uppercase(get(security, "securitytype", "EQ"))
+        exchange = uppercase(get(security, "exchange", "NSE"))
+        country = uppercase(get(security, "country", "IN"))
         
         # Fetch security from the database 
         security = YRead.getsecurity(ticker, securitytype = securitytype, exchange = exchange, country = country)
@@ -39,30 +38,31 @@ function convert(::Type{Security}, security::Dict{String, Any})
 end
 
 function convert(::Type{OrderFill}, transaction::Dict{String, Any})
-    
+ 
     try
         security = convert(Raftaar.Security, transaction["security"])
 
-        qty = haskey(transaction, "quantity") ? convert(Int64,transaction["quantity"]) : 0
-        price = haskey(transaction, "price") ? convert(Float64, transaction["price"]) : 0.0
-        fee = haskey(transaction, "fee") ? convert(Float64,transaction["fee"]) : 0.0
+        qty = convert(Int64, get(transaction, "quantity", 0))
+        price = convert(Float64, get(transaction, "price", 0.0)) 
+        fee = convert(Float64, get(transaction, "commission", 0.0))
 
-        return OrderFill(security.symbol, price, qty, fee)
+        cashlinked = get(transaction, "cashLinked", false)
+        return OrderFill(security.symbol, price, qty, fee, cashlinked)
     
     catch err
         rethrow(err)
-
     end
 end
 
 function convert(::Type{Portfolio}, port::Dict{String, Any})
 
     try
-        portfolio = Portfolio()
+        portfolio = nothing
 
         if haskey(port, "positions")
-            positions = port["positions"]
+            portfolio = Portfolio()
 
+            positions = port["positions"]
             for pos in positions
                 if haskey(pos, "security")
                     
@@ -72,42 +72,28 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
                         error("Invalid portfolio composition (Invalid Security: $(pos["security"]["ticker"]))")
                     end
 
-                    qty = haskey(pos, "quantity") ? pos["quantity"] : 0
-                    price = haskey(pos, "price") ? pos["price"] : 0.0
+                    qty = get(pos, "quantity", 0)
+                    
+                    #MODIFY the logic to fetch the close price for the date if
+                    #price is 0.0 
+                    price = get(pos, "price", 0.0)
+                    price = convert(Float64, price)
 
                     # Append to position dictionary
                     portfolio.positions[security.symbol] = Position(security.symbol, qty, price, 0.0)
                        
                 end
             end
-        end
-
-        if portfolio == nothing
-            error("Invalid portfolio Composition") 
         else
-            return portfolio
+            error("Positions key is missing")
         end
+
+        return portfolio        
 
     catch err
         rethrow(err)
     end
-
 end
-
-function validate_security(security::Dict{String, Any})
-    
-    try
-        security_raftaar = convert(Raftaar.Security, security)
-        if security_raftaar == Security()
-            error("Inavlid Security")
-        end
-
-        return (true, security_raftaar)
-    catch err
-        rethrow(err)
-    end
-end
-
 
 function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, Any})
     
@@ -142,10 +128,10 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
             error("Advice doesn't contain benchmark Security")
         end
 
+        portfoliodetail = get(portfolio, "detail", Dict{String, Any}())
+       
         #Validate dates
-        format = "yyyy-mm-ddTHH:MM:SS.sssZ"
-        
-        portfolioDetail = get(portfolio, "detail", Dict{String, Any}())
+        #=format = "yyyy-mm-ddTHH:MM:SS.sssZ"
         startDate = haskey(portfolioDetail, "startDate") ? DateTime(portfolioDetail["startDate"], format) : DateTime()
         endDate = haskey(portfolioDetail, "endDate") ? DateTime(portfolioDetail["endDate"], format) : DateTime()
         if startDate >= endDate || startDate == DateTime() || endDate == DateTime()
@@ -159,7 +145,7 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
 
         if lastStartDate != DateTime() && lastEndDate != DateTime() && startDate <= lastEndDate 
             error("Empty dates or startDate less than or equal to end date of current advice")
-        end
+        end=#
             
         #Validating positions and benchmark
         (valid_port, port) = _validate_portfolio(portfolio, checkbenchmark = false)
@@ -168,12 +154,14 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
             return valid_port
         end
 
-        portval = _compute_latest_portfoliovalue(port, convert(Float64, get(portfolioDetail,"cash", 0.0)))
+        portval = _compute_latest_portfoliovalue(port, convert(Float64, get(portfoliodetail,"cash", 0.0)))
+
+        maxnotional = convert(Float64, parse(get(advice, "maxNotional", "0.0")))
 
         if portval == nothing
             error("Can't compute portfolio prices | missing prices")
-        elseif portval > 100000.0 
-            error("Portfolio exceeds 1 Lac")
+        elseif portval > 1.1 * maxnotional #Allow 10% 
+            error("Portfolio value exceeds maxnotional:$(maxnotional) + 10% bound")
         else
             return true
         end
@@ -238,9 +226,6 @@ function _validate_portfolio(port::Dict{String, Any}; checkbenchmark = true)
     catch err
         rethrow(err)
     end
-end
-
-function _update_portfolio(portfolio::Portfolio, fill::OrderFill)
 end
 
 function _compute_latest_portfoliovalue(portfolio::Portfolio, cash::Float64)
@@ -335,6 +320,20 @@ function _compute_portfoliovalue(port::Dict{String, Any}, date::DateTime)
     end
 end
 
+function validate_security(security::Dict{String, Any})
+    
+    try
+        security_raftaar = convert(Raftaar.Security, security)
+        if security_raftaar == Security()
+            error("Inavlid Security")
+        end
+
+        return (true, security_raftaar)
+    catch err
+        rethrow(err)
+    end
+end
+
 #=
 Compute portfolio value based on portfolio history for a given period
 OUTPUT: Vector of portfolio value
@@ -416,11 +415,25 @@ function compute_updated_portfolio(port::Dict{String, Any}, transactions::Vector
         
         fills = Vector{OrderFill}()
         for transaction in transactions
-            fill = convert(Raftaar.OrderFill, transaction)
-            push!(fills, fill)
+
+            #Check if transaction is CASH
+            if (transaction["security"]["ticker"] == "CASH_INR")  
+                println("Quantity")
+                println(transaction["quantity"])
+                cash += convert(Float64, transaction["quantity"])
+
+                println("New Cash: $(cash)")
+            else
+                fill = convert(Raftaar.OrderFill, transaction)
+                push!(fills, fill)
+            end
         end
 
-        cash += Raftaar.updateportfolio_fills!(portfolio, fills)
+        if length(fills) > 0
+            nd = Raftaar.updateportfolio_fills!(portfolio, fills)
+            println("Cash from fills: $(nd)")
+            cash += nd
+        end
 
         return (cash, portfolio)
     catch err

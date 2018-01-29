@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:53:13
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-25 12:51:40
+* @Last Modified time: 2018-01-29 22:36:55
 */
 
 'use strict';
@@ -20,6 +20,7 @@ const Investor = new Schema({
     user: {
         type: Schema.Types.ObjectId,
         ref:'User',
+        required: true
     },
 
     defaultPortfolio: {
@@ -31,15 +32,6 @@ const Investor = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Portfolio'
     }],
-
-    /*performance: [{
-        portfolio: {
-            type: Schema.Types.ObjectId,
-            ref: 'Portfolio'
-        },
-
-        value: Performance
-    }],*/
 
     subscribedAdvices:[{
         advice: {
@@ -90,7 +82,7 @@ const Investor = new Schema({
 
 Investor.statics.saveInvestor = function(investorDetails) {
     const investor = new this(investorDetails);
-    return investor.save();
+    return investor.saveAsync();
 };
 
 Investor.statics.fetchInvestor = function(query, options) {
@@ -122,37 +114,11 @@ Investor.statics.fetchInvestor = function(query, options) {
 	}
 
 	return q.execAsync();
-    /*.then(investor => {
-        if(investor) {
-            if (investor.followingAdvices) {
-                investor.followingAdvices = investor.followingAdvices.filter(item => {
-                    return item.active == true;
-                });
-            }
-
-            if (investor.followingAdvisors) {
-                investor.followingAdvisors = investor.followingAdvisors.filter(item => {
-                    return item.active == true;
-                });
-            }
-
-            return investor;
-        }
-    });*/
 };
 
-Investor.statics.updateInvestorPerformance = function(query, portfolioId, performance) {
-    return this.findOne(query)
-    .then(investor => {
-        var idx = investor.performance.map(item => item.portfolio.toString()).indexOf(portfolioId);
-        if(idx !=-1) {
-            investor.performance[idx].value = performance;
-        } else {
-            investor.performance.push({portfolio: portfolioId, value: performance});
-        }
-
-        return investor.save();
-    });
+Investor.statics.updateInvestor = function(query, updates) {
+    var q = this.findOneAndUpdate(query, updates, {new: true});
+    return q.execAsync();
 };
 
 Investor.statics.updateFollowing = function(query, id, type) {
@@ -182,7 +148,7 @@ Investor.statics.updateFollowing = function(query, id, type) {
                 array[idx].updatedDate = new Date();
         	}
             	
-        	return investor.save();
+        	return investor.saveAsync();
     	}
     });
 };
@@ -204,83 +170,8 @@ Investor.statics.updateSubscription = function(query, adviceId) {
                 array[idx].updatedDate = new Date();
             }
                 
-            return investor.save();
+            return investor.saveAsync();
         }
-    });
-};
-
-Investor.statics.updatePortfolioHistory = function(query, portfolioId, cloneId) {
-    return this.findOne(query)
-    .select('historicalPortfolio')
-    .then(investor => {
-        
-        if(investor && investor.historicalPortfolio) {
-            var idx = investor.historicalPortfolio.map(item =>item.refPortfolio).equals(portfolioId)
-            if(idx !=- 1) {
-                investor.historicalPortfolio[idx].history.push(cloneId);
-            }
-        }
-
-        return investor.save();
-        
-    });
-};
-
-Investor.statics.addTransactions = function(query, transactions) {
-    this.findOne(query)
-    .select('transactions')
-    .then(investor => {
-        if(investor && investor.transactions) {
-            transactions.forEach(transaction => {
-                //transaction["portfolio"] = portfolioId;
-                investor.transactions.push(transaction);
-            })
-        }
-
-        return investor.save();
-    });
-};
-
-Investor.statics.addAdviceTransactions = function(query, adviceId) {
-    return this.findOne(query)
-    .select('adviceTransactions')
-    .then(investor => {
-        if(investor && investor.adviceTransactions) {
-            
-            var idx = adviceTransactions.indexOf(item => {item.advice.equals(adviceId)});
-            
-            if(idx == -1) {
-                investor.adviceTransactions.push({date: new Date, advice: adviceId});
-            }
-        }
-
-        return investor.save();
-    });
-};
-
-Investor.statics.addPortfolio = function(query, portfolioId){
-    return this.findOne(query)
-    .select('portfolios')
-    .then(investor => {
-        if(investor.portfolios) {
-            if (investor.portfolios.length == 0) {
-               investor.defaultPortfolio = portfolioId; 
-            }
-            investor.portfolios.push(portfolioId);
-        } else {
-            investor.defaultPortfolio = portfolioId;
-            investor.portfolios = [portfolioId];
-        }
-        return investor.save();
-    });
-};
-
-Investor.statics.removePortfolio = function(query, portfolioId){
-    return this.findOne(query)
-    .select('portfolios')
-    .then(investor => {
-        investor.portfolios.splice(portfolioId, 1);
-        return investor.save();
     });
 };
 

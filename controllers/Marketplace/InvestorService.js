@@ -2,18 +2,27 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-25 13:17:44
+* @Last Modified time: 2018-01-29 21:49:25
 */
 
 'use strict';
-const AdviceModel = require('../models/Marketplace/Advice');
-const InvestorModel = require('../models/Marketplace/Investor');
-const UserModel = require('../models/user');
-const PortfolioModel = require('../models/Marketplace/Portfolio');
-const PerformanceModel = require('../models/Marketplace/Performance');
-const APIError = require('../utils/error');
+const AdviceModel = require('../../models/Marketplace/Advice');
+const InvestorModel = require('../../models/Marketplace/Investor');
+const PortfolioModel = require('../../models/Marketplace/Portfolio');
+const PerformanceModel = require('../../models/Marketplace/Performance');
+const APIError = require('../../utils/error');
 const Promise = require('bluebird');
-const HelperFunctions = require("./helpers");
+const HelperFunctions = require("../helpers");
+
+function _compareIds(x, y) {
+	if(!x && !y) {
+		return true;
+	} else if(!x || !y) {
+		return false;
+	} else {
+		return x.equals(y)
+	}
+}
 
 function getDate(date) {
     var d = date.getDate();
@@ -23,134 +32,129 @@ function getDate(date) {
     return d+"-"+m+"-"+y;  
 }
 
-//MOVED ALL TO PERFORMANCE SERVICE
-/*function _checkPerformanceUpdateRequired(performanceArray, portfolioId) {
-	var update = false;
+
+//Common function to handle stock and stock/advice transactions
+function _computeUpdatedPortfolioForStockTransaction(initialPortfolio, allTransactions) {
 	
-	if(!portfolioId) {
-		return false;
-	}
+	//Creating vector of unique dates
+	//by comparing getTime() component of date
+	var dates = Array.from(new Set(allTransactions.map(item => {return item.date.getTime()}))).map(item => new Date(item));
 
-	if(performanceArray) {
-        var performanceFilteredArray = performanceArray.filter(item => {return item.portfolio.valueOf() == portfolioId;});
-
-        if(performanceFilteredArray.length == 0) {
-        	return true;
-        }
-
-        var performance = performanceArray[0].value;
-
-        if(!performance.portfolioStats) {
-        	return true;
-        }
-
-        if(performance && performance.updatedDate) {
-            if(getDate(performance.updatedDate) < getDate(new Date())) {
-            	update = true;
-            }
-        } else {
-        	update = true; 
-        } 
-
-    } else {
-        update = true;
-    }
-
-    return update;
-}
-
-function _computePerformance(portfolioId) {
-	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'current benchmark history'})
-	.then(portfolio => {
-		var currentPortfolio = portfolio.current;
-
-		var portfolioHistory = [{startDate: currentPortfolio.startDate, 
-									endDate: currentPortfolio.endDate,
-									portfolio: {
-										positions: currentPortfolio.positions,
-										cash: currentPortfolio.cash}
-									}];
-
-		if(portfolio.history) {							
-			portfolio.history.forEach(port => {
-				portfolioHistory.push({startDate: port.startDate, 
-										endDate: port.endDate,
-										portfolio: port.detail});
-			});
-		}
-
-		return HelperFunctions.computePerformance(portfolioHistory, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
+	//Aggregating transactions by the date
+	var tsByDates = []
+	//First convert dates to numeric value and then sort
+	dates.map(item => {return item.getTime()}).sort().forEach(date => {
+		var ts = allTransactions.filter(transaction => {return transaction.date.getTime() == date;});
+		tsByDates.push({transactions: ts});
 	});
-}
 
-function _computeAndUpdatePerformance(portfolioId) {
+	let history = [];
+	var reducerArray = [initialPortfolio].concat(tsByDates);
 	
-	return PerformanceModel.fetchPerformance({portfolio: portfolioId})
-	.then(performance => {
-		var updateRequired = !performance;
+	return Promise.reduce(reducerArray, function(startPortfolio, tso) {
+		var transactionsByDay = tso.transactions;
+		
+		return HelperFunctions.computeUpdatedPortfolioForStockTransactions(startPortfolio, transactionsByDay)
+		.then(newPortfolio => {
+				
+			var lastDate = new Date(transactionsByDay[0].date);
+			var lastTransactionDate = new Date(transactionsByDay[0].date);
 
-		if (performance) {
-			updateRequired = performance.lastUpdated ? performance.lastUpdated.getDate() < new Date().getDate() ? true : false : true;
-		} 
+			//Push a portfolio to history
+			var lastPortfolio = JSON.parse(JSON.stringify(startPortfolio));
+			//Last portfolio's enddate is one day before the transaction day 
+			lastDate = new Date(lastDate.setDate(lastDate.getDate() - 1));
+			lastPortfolio.endDate = lastDate;
 
-		return updateRequired ? _computePerformance(portfolioId) : performance;		
+			history.push(lastPortfolio);
+				
+			//Update the start portfolio
+			startPortfolio = newPortfolio;
+			startPortfolio.startDate = lastTransactionDate;
+
+			return startPortfolio;
+		})
 	})
-	.then(performance => {
-
-		console.log(performance);
-
-		if(performance) {
-			performance.portfolioValues = performance.portfolioValues.map(item => { 
-				  //Changing time to unix timestamp
-				  item.date = new Date(item.date).getTime()/1000; 
-				  return item;
-			});	
-			
-			performance["updateMessage"] = "Updated successfully";
-		} else {
-			performance["updateMessage"] = "Couldn't updated performance";
-		}
-
-		performance["updatedDate"] = new Date();
-
-		console.log(performance);
-
-		return PerformanceModel.updatePerformance({portfolio: portfolioId}, performance);
+	.then(finalPortfolio => {
+		return [finalPortfolio, history];
 	});
 }
-
-function _updateInvestorPerformance(investorId, portfolioId, performance) {
-	return InvestorModel.updateInvestorPerformance({_id: investorId}, portfolioId, performance); 
-}*/
 
 function _updatePortfolioForStockTransactions(portfolioId, transactions) {
-	const updates = {};
 	
-	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted: false}, {fields: 'positions subPositions cash'})
+	//LOGIC
+	//1. Insert new transactions
+	//2a. Create portfolio by going over all the transactions 
+	//if new transaction dates are older than existing transactions
+	//2b. Update current portfolio if the transactions are new
+
+	let updateMethod;
+
+	return PortfolioModel.fetchPortfolio({_id:portfolioId}, {fields:'transactions'})
 	.then(portfolio => {
+		
+		updateMethod = 'Create';
+
+		var oldTransactions = portfolio.transactions;
+
+		var nTransactions = oldTransactions.length;
+		if(nTransactions > 0) {
+			//sort transaction by date
+			oldTransactions.sort((item1, item2) => {
+				return item1.date.getTime() < item2.date.getTime() ? -1 : 1; 
+			});
+
+			//get the last transaction's date
+			var lastDateOld = new Date(oldTransactions[nTransactions -1].date);
+
+			//Also, sort the new transactions by dates.
+			transactions.sort((item1, item2) => {
+				return item1.date.getTime() < item2.date.getTime() ? -1 : 1; 
+			});
+
+			//get first transaction date
+			var firstDateNew = new Date(transactions[0].date);
+
+			if (firstDateNew.getTime() >= lastDateOld.getTime()) {
+				updateMethod = 'Append';
+			} 
+		}
+
+		return PortfolioModel.addTransactions({_id: portfolioId, deleted: false}, transactions)
+	})
+	.then(portfolio => { //Has updated transaction but portfolio is STALE
 		if(portfolio) {
-			// Send exisitng positions and transactions to Julia
-			// Get back updated positions 
-			return HelperFunctions.updatePortfolio(portfolio, transactions, null);
-							
-		} else {
-			APIError.throwJsonError({portfolioId: portfolioId, message: "Portfolio not found"});
+			if (updateMethod == "Create") {
+				var initialPortfolio = {positions: [], subPositions: [], cash: portfolio.seedCash ? portfolio.seedCash : 1000000.0};
+				return _computeUpdatedPortfolioForStockTransaction(initialPortfolio, portfolio.transactions);
+			} else if (updateMethod == "Append") {
+				//Updating the date format
+				transactions.map(item => {item.date = new Date(item.date); return item});
+				return _computeUpdatedPortfolioForStockTransaction(portfolio.detail, transactions);
+			}
 		}
 	})
-	.then(updatedPortfolio => {
-		updates.positions = updatedPortfolio.positions;
-		updates.subPositions = updatedPortfolio.subPositions;
-		updates.cash = updatedPortfolio.cash;
-		updates.transactions = transactions;
-		return PortfolioModel.updatePortfolio({_id: portfolioId}, updates);
+	.then(([updatedPortfolio, history]) => {
+		const updates = {};
+		updates.detail = updatedPortfolio;
+		updates.history = history;
+
+		return PortfolioModel.updatePortfolio({_id:portfolioId}, updates, updateMethod == "Append");
 	})
+	.catch(err => {
+		console.log(err);
+		throw err;
+	});
 }
 
+//NOT TO BE USED
+//Use Stock Transaction instead
+//stock transaction has an adviceId fields to be used to mark advice/stock transaction
 function _updatePortfolioForAdviceTransactions(portfolioId, adviceId) {
 	const updates = {};
 	
-	return Promise.all([PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'positions subPositions cash advices'}),
-						AdviceModel.fetchAdvice({_id: adviceId}, {fields:'portfolio'})])	
+	return Promise.all([PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'detail advices'}),
+						AdviceModel.fetchAdvice({_id: adviceId}, {populate:'portfolio'})])	
 	.then(([portfolio, advice]) => {
 		if(portfolio && advice.portfolio) {
 
@@ -158,26 +162,26 @@ function _updatePortfolioForAdviceTransactions(portfolioId, adviceId) {
 				APIError.throwJsonError({adviceId: adviceId, message:"Advice already part of the portfolio"});
 			}
 
-			var subPositions = portfolio.subPositions.filter(item => {return _compareIds(item.advice, adviceId);});
+			var currentSubPositions = portfolio.detail.subPositions.filter(item => {return _compareIds(item.advice, adviceId);});
 			var transactions = [];
 
-			//GO over all the positions in advice portfoli
+			//GO over all the positions in advice portfolio
 			// and find out if we need to transact the advice
 			// advice could already be present
-			advice.portfolio.positions.forEach(position => {
+			advice.portfolio.detail.positions.forEach(position => {
 				
 				var originalQty = 0;
 				if(subPositions){
-					var idx = subPositions.indexOf(item => {item.security.equals(position.security)});
+					var idx = currentSubPositions.indexOf(item => {item.security.equals(position.security)});
 				
 					if(idx !=-1) {
-						originalQty = subPositions[idx].quantity;
+						currentQty = currentSubPositions[idx].quantity;
 					}
 				}
 
 				var transaction = {
 					security: position.security,
-					quantity: position.quantity - originalQty,
+					quantity: position.quantity - currentQty,
 					price: 0,
 					date: new Date()
 				};
@@ -187,7 +191,7 @@ function _updatePortfolioForAdviceTransactions(portfolioId, adviceId) {
 
 			// Send exisitng positions and transactions to Julia
 			// Get back updated positions 
-			return HelperFunctions.updatePortfolio(portfolio, transactions, adviceId);							
+			return HelperFunctions.computeUpdatedPortfolioForStockTransactions(portfolio, transactions, adviceId);							
 		}
 	})
 	.then(updatedPortfolio => {
@@ -200,6 +204,9 @@ function _updatePortfolioForAdviceTransactions(portfolioId, adviceId) {
 	});	
 }
 
+/*
+* Create an investor object 
+*/
 module.exports.createInvestor = function(args, res, next) {
     const userId = args.user._id;
 
@@ -216,6 +223,11 @@ module.exports.createInvestor = function(args, res, next) {
 	});
 };
 
+/*
+* Get investor summary
+* List of portfolios, default portfolio and other relevant fields
+* Use detail to get specific fields only
+*/
 module.exports.getInvestorSummary = function(args, res, next) {
 	const investorId = args.investorId.value;
    	
@@ -229,10 +241,21 @@ module.exports.getInvestorSummary = function(args, res, next) {
     return InvestorModel.fetchInvestor({user: userId, _id: investorId}, options)
     .then(investor => {
     	if(investor) {
-    		return res.status(200).json(investor);
+    		if(investor.portfolios) {
+				return Promise.all([investor, 
+						Promise.map(investor.portfolios, function(item) {
+							return PortfolioModel.fetchPortfolio({_id: item}, {fields: '_id deleted'});
+						})]);
+			} else {
+				return [investor, []];	
+			}
     	} else {
     		APIError.throwJsonError({investorId: investorId, message:"Investor not found or unauthorized"});
     	}
+    })
+    .then(([investor, portfolios]) => {
+    	investor.portfolios = portfolios.filter(item => {return item.deleted == false;});
+    	return res.status(200).json(investor);
     })
 	.catch(err => {
 		return res.status(400).send(err.message);
@@ -285,6 +308,9 @@ module.exports.getInvestorDetail = function(args, res, next) {
 	});  
 };
 
+/*
+* Get following advices
+*/
 module.exports.getFollowingAdvices = function(args, res, next) {
 
 	const skip = args.skip.value;
@@ -306,6 +332,9 @@ module.exports.getFollowingAdvices = function(args, res, next) {
     });
 };
 
+/*
+* Get following advisors
+*/
 module.exports.getFollowingAdvisors = function(args, res, next) {
 	const skip = args.skip.value;
 	const limit = args.limit.value;
@@ -327,6 +356,9 @@ module.exports.getFollowingAdvisors = function(args, res, next) {
     });
 };
 
+/*
+* Create Portfolio based on positions in a portfolio
+*/
 module.exports.createInvestorPortfolio = function(args, res, next) {
 	const userId = args.user._id;
 	const investorId = args.investorId.value;
@@ -373,6 +405,66 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
     });
 };
 
+/*
+* Create Portfolio based on stock OR advice transactions
+* Fist create an empty portfolio and add transactions subsequently
+* Can only accepy one type of transaction currently
+* Send two API calls for stock and advice transactions 
+*/
+
+//NOT IN USE
+module.exports.createInvestorPortfolioFromTransactions = function(args, res, next) {
+	console.log(args);
+
+	const userId = args.user._id;
+	const investorId = args.investorId.value;
+	const transactions = args.body.value;
+
+	InvestorModel.fetchInvestor({user: userId}, {})
+	.then(investor => {
+		if(investor._id.equals(investorId)) {
+			return PortfolioModel.savePortfolio({});	
+		} else {
+			APIError.throwJsonError({message: "Not Authorized"});
+		}
+	})
+	.then(emptyPortfolio => {
+		if(emptyPortfolio) {
+			return Promise.all([emptyPortfolio, InvestorModel.addPortfolio({_id: investorId}, emptyPortfolio._id)]);
+		} else {
+			APIError.throwJsonError({message: "Unable to create Portfolio"});
+		}
+	})
+	.then(([portfolio, investor]) => {
+		if(!investor) {
+			APIError.throwJsonError({message: "Error adding portfolio to investor"});
+		}
+
+		if(type == "stock" && transactions) {
+			return _updatePortfolioForStockTransactions(portfolio._id, transactions);
+		} else if (type == "advice" && adviceId) {
+			return _updatePortfolioForAdviceTransactions(portfolio._id, adviceId);
+		} else {
+			APIError.throwJsonError({message: "Invalid transaction type or value"});
+		}
+	})
+    .then(updatedPortfolio => {
+    	if(updatedPortfolio) {
+    		const pf = JSON.parse(JSON.stringify(updatedPortfolio));
+    		pf["investor"] = investorId;
+    		return res.status(200).json(pf);
+		} else {
+			APIError.throwJsonError({message: "Could not create/update portfolio for investor"});
+		}
+    })
+	.catch(err => {
+    	return res.status(400).send(err.message);
+    });
+};
+
+/*
+* Search portfolio by ticker
+*/
 module.exports.getInvestorPortfolios = function(args, res, next) {
 	const userId = args.user._id;
 	const investorId = args.investorId.value;
@@ -403,13 +495,13 @@ module.exports.getInvestorPortfolios = function(args, res, next) {
 	.then(investor => {
 		if (investor) {
 			if(investor.portfolios) {
-				return Promise.all(investor.portfolios.map(item => {
+				return Promise.map(investor.portfolios, function(item) {
 					var fields = 'name detail benchmark';
 					/*if(security) {
 						fields = fields.concat(' positions');
 					}*/
-					return PortfolioModel.fetchPortfolio({_id: item}, {fields: fields});
-				}));
+					return PortfolioModel.fetchPortfolio({_id: item, deleted: false}, {fields: fields});
+				});
 			} else {
 				APIError.throwJsonError({userId: userId, message: "No Portfolios found"})
 			}
@@ -452,6 +544,9 @@ module.exports.getInvestorPortfolios = function(args, res, next) {
 	})
 };
 
+/*
+* Fetch investor portfolio detail
+*/
 module.exports.getInvestorPortfolio = function(args, res, next) {
 	const userId = args.user._id;
 	const portfolioId = args.portfolioId.value;
@@ -482,46 +577,72 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 	.then(portfolio => {
 		if(portfolio) {
 			return res.status(200).json(portfolio);
-			//return Promise.all([portfolio, _computeAndUpdatePerformance(portfolioId)]);
 		} else {
 			APIError.throwJsonError({message: "No portfolios found"});
 		}
 	})
-	/*.then(([portfolio, performance]) => {
-		if (portfolio && performance) {
-			return res.status(200).json({portfolio: portfolio, performance: performance});
-		} else {
-			//shouldn't happen
-			APIError.throwJsonError({message: "Portfolio not found or Error computing performance"});	
-		}
-	})*/
 	.catch(err => {
 		return res.status(400).send(err.message);
 	})
 };
 
-// Common function to transact advice or stock
+/*
+* UPDATE portfolio 
+*/
 module.exports.updateInvestorPortfolio = function(args, res, next) {
 	
 	const userId = args.user._id;
-	const transactions = args.body ? args.body.value : null;
 	const investorId = args.investorId.value;
 	const portfolioId = args.portfolioId.value;
 
-	const type = args.type.value;
-	const adviceId = args.adviceId ? args.adviceId.value : null;
+	const portfolio = args.body.value;
 
  	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios'}) 
 	.then(investor => {
 		if(investor && investor.portfolios && investor._id.equals(investorId)) {
 			
 			if(investor.portfolios.indexOf(portfolioId) != -1) {			
-				if(type == "stock" && transactions) {
+				return InvestorModel.updatePortfolio({_id:portfolioId}, portfolio);
+			} else {
+				APIError.throwJsonError({portfolioId:portfolioId, message: "Portfolio not found"})
+			}
+		} else {
+			APIError.throwJsonError({investorId:investorId, message: "Investor or Portfolios not found"})
+		}
+	})
+	.then(portfolio => {
+		if(portfolio) {
+			return res.status(200).json(portfolio); 
+		} else {
+			APIError.throwJsonError({messsage: "Can't update portfolio for transactions"});
+		}	
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
+};
+
+/*
+* UPDATE portfolio based on stock OR stock/advice transactions
+*/
+module.exports.updateInvestorPortfolioForTransactions = function(args, res, next) {
+	
+	const userId = args.user._id;
+	const transactions = args.body.value;
+	const investorId = args.investorId.value;
+	const portfolioId = args.portfolioId.value;
+
+	console.log(transactions);
+
+ 	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios'}) 
+	.then(investor => {
+		if(investor && investor.portfolios && investor._id.equals(investorId)) {
+			
+			if(investor.portfolios.indexOf(portfolioId) != -1) {			
+				if(transactions) {
 					return _updatePortfolioForStockTransactions(portfolioId, transactions);
-				} else if (type == "advice" && adviceId) {
-					return _updatePortfolioForAdviceTransactions(portfolioId, adviceId);	
-				} else {
-					APIError.throwJsonError({message: "Invalid transaction type or value"});
+				}  else {
+					APIError.throwJsonError({message: "Invalid transactions"});
 				}
 			} else {
 				APIError.throwJsonError({portfolioId:portfolioId, message: "Portfolio not found"})
@@ -542,6 +663,10 @@ module.exports.updateInvestorPortfolio = function(args, res, next) {
 	})
 };
 
+/*
+* Get detail about ticker specific info about portfolio
+* like positions, subpositions, transactions
+*/
 module.exports.getInvestorPortfolioPosition = function(args, res, next) {
 	const userId = args.user._id;
 	const portfolioId = args.portfolioId.value;
@@ -565,7 +690,7 @@ module.exports.getInvestorPortfolioPosition = function(args, res, next) {
 			if(investor.portfolios){
 				var idx = investor.portfolios.indexOf(portfolioId);
 				if(idx !=-1) {
-					return PortfolioModel.fetchPortfolio({_id: portfolioId},{});
+					return PortfolioModel.fetchPortfolio({_id: portfolioId},{fields: 'detail transactions'});
 				}
 			} else {
 				APIError.throwJsonError({portfolioId: portfolioId, message:"Portfolio not found"});
@@ -576,15 +701,13 @@ module.exports.getInvestorPortfolioPosition = function(args, res, next) {
 	})
 	.then(portfolio => {
 		if(portfolio) {
-			
 			var	positionDetail = {
-				_id: port._id,
-				name: port.name,
-				position: port.positions.filter(item =>{return item.security.equals(security);}),
-				subPositions: port.subPositions.filter(item => {return item.security.equals(security);}),
-				transactions: port.transactions.filter(item => {return item.security.equals(security);})
+				_id: portfolio._id,
+				name: portfolio.name,
+				position: portfolio.detail.positions.filter(item => {return item.security.equals(security);}),
+				subPositions: portfolio.detail.subPositions.filter(item => {return item.security.equals(security);}),
+				transactions: portfolio.transactions.filter(item => {return item.security.equals(security);})
 			};
-
 
 			return res.status(200).json(positionDetail);
 		} else {
@@ -596,17 +719,40 @@ module.exports.getInvestorPortfolioPosition = function(args, res, next) {
 	})
 };
 
+/*
+* Soft delete investor portfolio
+* Sets delete flag on portfolio
+*/
 module.exports.deleteInvestorPortfolio = function(args, res, next) {
 	const userId = args.user._id;
 	const investorId = args.investorId.value;
 	const portfolioId = args.portfolioId.value;
 
-	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios'})
+	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios defaultPortfolio'})
 	.then(investor => {
-		if(investor && investor.portfolios && investor._id.equals(investorId)) {
-			if(investor.portfolios.indexOf(portfolioId) != -1) {	
+
+		return Promise.all([investor, Promise.map(investor.portfolios, function(item) {
+			return PortfolioModel.fetchPortfolio({_id:item}, {fields:'_id deleted'})
+		})]);
+	})
+	.then(([investor, populatedPortfolios]) => {
+		if(investor && investor._id.equals(investorId)) {
+			//WHEN to convert to string
+			//CONFUSION
+			var idx = populatedPortfolios.map(item => item._id.toString()).indexOf(portfolioId.toString())
+			if(idx != -1) {	
+
+				//Remove the deleted portfolio
+				populatedPortfolios.splice(idx, 1);
+				var validPortfolios = populatedPortfolios.filter(item => {return item.deleted == false;});
+
+				var defaultPortfolio = investor.defaultPortfolio;
+				
+				var defaultId = !defaultPortfolio || defaultPortfolio.equals(portfolioId) ? 
+					validPortfolios.length > 0 ? validPortfolios[0] : null : defaultPortfolio;
+
 				return Promise.all([PortfolioModel.updatePortfolio({_id: portfolioId}, {deleted: true, updatedDate: new Date()}),
-							InvestorModel.removePortfolio({_id: investorId}, portfolioId)])
+					InvestorModel.updateInvestor({_id:investorId}, {defaultPortfolio: defaultId})]); 
 			} else {
 				APIError.throwJsonError({portfolioId: portfolioId, message: "No portfolio found "});
 			}
@@ -615,8 +761,10 @@ module.exports.deleteInvestorPortfolio = function(args, res, next) {
 		}
 	})
 	.then(([portfolio, investor]) => {
-		if(portfolio && investor) {
+		if(portfolio) {
 			return res.status(200).send({investorId: investorId, portfolioId: portfolioId, message:"Successfully deleted"});
+		} else {
+			APIError.throwJsonError({investorId: investorId, portfolioId: portfolioId, message: "Error deleting the portfolio"})
 		}
 	})
 	.catch(err => {

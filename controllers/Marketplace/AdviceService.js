@@ -2,20 +2,19 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-25 12:20:28
+* @Last Modified time: 2018-01-29 17:34:08
 */
 
 'use strict';
-const AdvisorModel = require('../models/Marketplace/Advisor');
-const InvestorModel = require('../models/Marketplace/Investor');
-const AdviceModel = require('../models/Marketplace/Advice');
-const UserModel = require('../models/user');
-const PortfolioModel = require('../models/Marketplace/Portfolio');
+const AdvisorModel = require('../../models/Marketplace/Advisor');
+const InvestorModel = require('../../models/Marketplace/Investor');
+const AdviceModel = require('../../models/Marketplace/Advice');
+const PortfolioModel = require('../../models/Marketplace/Portfolio');
 const Portfolio = require('./PortfolioService');
 const Promise = require('bluebird');
 const config = require('config');
-const HelperFunctions = require("./helpers");
-const APIError = require('../utils/error');
+const HelperFunctions = require("../helpers");
+const APIError = require('../../utils/error');
 
 function getDate(date) {
     var d = date.getDate();
@@ -57,10 +56,13 @@ module.exports.createAdvice = function(args, res, next) {
 	})
 	.then(port => {
 		if(port) {
+
 			const adv = {
 				name: advice.name,
 				heading: advice.heading,
 				description: advice.description,
+				maxNotional:parseFloat(advice.maxNotional),
+				rebalance: advice.rebalance,
 				advisor: advisorId,
 		       	portfolio: port._id,
 		       	createdDate: new Date(),
@@ -110,7 +112,7 @@ module.exports.updateAdvice = function(args, res, next) {
 
 				let allowedKeys;
 				if (advice.public == false) {
-					allowedKeys = ['public', 'name', 'heading', 'description', 'portfolio']; 
+					allowedKeys = ['public', 'name', 'heading', 'description', 'portfolio', 'maxNotional', 'rebalance']; 
 				} else {
 					allowedKeys = ['portfolio']; 
 				}
@@ -146,42 +148,6 @@ module.exports.updateAdvice = function(args, res, next) {
 		updatedAdvice.portfolio = updatedPortfolio; 
 		return res.status(200).send({advice: updatedAdvice, message: "Advice updated successfully"});
 	})
-	/*.then(([advice, valid]) => {
-		if(valid) {
-			if(hasPortfolioUpdate) {
-				var addNew = (advice.public == true);
-
-				return Promise.all([, PortfolioModel.updatePortfolio({_id: advice.portfolio._id}, updates.portfolio, addNew)]);
-			} else {
-				return [advice, null];
-			}
-		} else {
-			APIError.throwJsonError({message: "Invalid Portfolio Composition or dates"});
-		}
-	})*/
-	/*.then(([advice, portfolioId]) => {
-		var modifiedUpdates = JSON.parse(JSON.stringify(updates));
-		
-		//Set Flag
-		modifiedUpdates.updateRequired = true;
-
-		var oldPortfolio = (advice.public == false);
-
-		if (hasPortfolioUpdate) {
-			delete modifiedUpdates["portfolio"];
-			modifiedUpdates["portfolio"] = portfolioId;
-		} 
-
-		//Add publish date to advice (when public == TRUE)
-		if(advice.public == false && Object.keys(modifiedUpdates).indexOf('public') !=- 1) {
-			modifiedUpdates["publishDate"] = new Date();
-		}
-
-		return AdviceModel.updateAdvice({_id: advice.id}, modifiedUpdates, oldPortfolio)
-	})*/
-	/*.then(([advice, portfolio]) => {
-		return res.status(200).send({message: "Advice updated successfully"});
-	})*/
 	.catch(err => {
 		return res.status(400).json(err.message);	
 	})
@@ -252,7 +218,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const userId = args.user._id;
 	
 	const options = {};
-	options.fields = 'name heading description createdDate updatedDate advisor public approved followers subscribers rating';
+	options.fields = 'name heading description createdDate updatedDate advisor public approved followers subscribers rating portfolio';
 	options.populate = 'advisor';
 	
 	Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
@@ -263,6 +229,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	 		if((!advisorId.equals(advice.advisor._id) && advice.public == true && advice.approved == true)  
 	 			|| advisorId.equals(advice.advisor._id)) { 
 	 			
+	 			//TODO: Add a fetch for basic performance
 	 			return res.status(200).json(advice);
 
 			} else {

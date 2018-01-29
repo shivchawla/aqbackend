@@ -2,11 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:44:53
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-08-29 15:39:45
+* @Last Modified time: 2018-01-27 11:56:14
 */
 
 'use strict';
-const Watchlist = require('./WatchlistService');
+const Watchlist = require('./MarketPlace/WatchlistService');
 
 module.exports.createWatchlist = function createWatchlist(req, res, next) {
     Watchlist.createWatchlist(req.swagger.params, res, next);

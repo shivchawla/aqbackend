@@ -1,16 +1,16 @@
 'use strict';
-const StrategyModel = require('../models/Research/strategy');
+const StrategyModel = require('../../models/Research/strategy');
 const BacktestService = require('./BacktestService');
-const BacktestModel = require('../models/Research/backtest');
-const ForwardtestModel = require('../models/Research/forwardtest');
-var constants = require('../utils/Constants.js');
+const BacktestModel = require('../../models/Research/backtest');
+const ForwardtestModel = require('../../models/Research/forwardtest');
+var constants = require('../../utils/Constants.js');
 const Promise = require('bluebird');
 var CryptoJS = require("crypto-js");
 const config = require('config');
 var fs = require('fs');
 var path = require("path");    
-const fname = "../examples/template.txt";
-const RedisUtils = require('../utils/RedisUtils');
+const fname = "../../examples/template.txt";
+const RedisUtils = require('../../utils/RedisUtils');
 
 exports.createStrategy = function(args, res, next) {
     const user = args.user;

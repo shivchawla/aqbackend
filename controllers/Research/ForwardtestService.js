@@ -1,7 +1,6 @@
 'use strict';
-require('../utils/spawn');
-const ForwardtestModel = require('../models/Research/forwardtest');
-const BacktestModel = require('../models/Research/backtest');
+const ForwardtestModel = require('../../models/Research/forwardtest');
+const BacktestModel = require('../../models/Research/backtest');
 var CryptoJS = require("crypto-js");
 const config = require('config');
 

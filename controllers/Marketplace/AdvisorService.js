@@ -2,15 +2,14 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-25 10:48:32
+* @Last Modified time: 2018-01-29 17:34:16
 */
 
 'use strict';
-const AdvisorModel = require('../models/Marketplace/Advisor');
-const InvestorModel = require('../models/Marketplace/Investor');
-const UserModel = require('../models/user');
-const AdviceModel = require('../models/Marketplace/Advice');
-const APIError = require('../utils/error');
+const AdvisorModel = require('../../models/Marketplace/Advisor');
+const InvestorModel = require('../../models/Marketplace/Investor');
+const AdviceModel = require('../../models/Marketplace/Advice');
+const APIError = require('../../utils/error');
 const Promise = require('bluebird');
 
 module.exports.createAdvisor = function(args, res, next) {

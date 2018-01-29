@@ -1,6 +1,6 @@
 'use strict';
 
-const Thread = require('./ThreadService');
+const Thread = require('./Research/ThreadService');
 const User = require('./UserService');
 
 

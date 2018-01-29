@@ -2,11 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 14:59:47
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-24 15:15:42
+* @Last Modified time: 2018-01-27 11:55:52
 */
 
 'use strict';
-const Portfolio = require('./PortfolioService');
+const Portfolio = require('./MarketPlace/PortfolioService');
 
 /*module.exports.createPortfolio = function createPortfolio(req, res, next) {
     Portfolio.createPortfolio(req.swagger.params, res, next);

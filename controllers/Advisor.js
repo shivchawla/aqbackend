@@ -2,11 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-21 11:22:32
+* @Last Modified time: 2018-01-27 11:55:21
 */
 
 'use strict';
-const Advisor = require('./AdvisorService');
+const Advisor = require('./MarketPlace/AdvisorService');
 
 module.exports.createAdvisor = function createAdvisor(req, res, next) {
     Advisor.createAdvisor(req.swagger.params, res, next);

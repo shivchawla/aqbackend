@@ -1,6 +1,6 @@
 'use strict';
 
-const Strategy = require('./StrategyService');
+const Strategy = require('./Research/StrategyService');
 
 module.exports.createStrategy = function createStrategy (req, res, next) {
     Strategy.createStrategy(req.swagger.params, res, next);

@@ -6,6 +6,9 @@ const sendEmail = require('../email');
 const uuid = require('node-uuid');
 const config = require('config');
 var request = require('request');
+const Promise = require('bluebird');
+const AdvisorModel = require('../models/Marketplace/Advisor');
+const InvestorModel = require('../models/Marketplace/Investor');
 
 exports.registerUser = function(args, res, next) {
     const user = {
@@ -62,7 +65,18 @@ exports.userlogin = function(args, res, next) {
     .spread(function(token, userDetails) {
         userDetails.token = token;
         delete userDetails.password;
-        res.status(200).json(userDetails);
+        delete userDetails.code;
+        
+        return Promise.all([InvestorModel.fetchInvestor({user:userDetails._id}, {insert:true}),
+                AdvisorModel.fetchAdvisor({user:userDetails._id}, {insert:true}),
+                userDetails
+            ]);
+
+    })
+    .then(([investor, advisor, user]) => {
+        user.investor = investor._id;
+        user.advisor = advisor._id;
+        res.status(200).json(user);
     })
     .catch(function(err) {
         return res.status(401).json(err);

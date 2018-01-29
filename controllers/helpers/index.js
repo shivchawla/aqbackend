@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-25 10:35:58
+* @Last Modified time: 2018-01-29 21:47:09
 */
 
 'use strict';
@@ -183,10 +183,59 @@ module.exports.compareSecurity = function(oldSecurity, newSecurity) {
 	});
 }
 
-module.exports.updatePortfolio = function(portfolio, transactions, adviceId) {
+module.exports.computeUpdatedPortfolioForStockTransactions = function(portfolio, transactions) {
 	
+	console.log(transactions);
+	var uniqueAdvicesInTransactions = Array.from(new Set(transactions.map(item => item.advice)));
+
+	console.log(uniqueAdvicesInTransactions);
+
+	return Promise.all([_updatePositions(portfolio.positions, transactions),
+				
+			Promise.map(uniqueAdvicesInTransactions, function(adviceId) {
+				var transactionsForAdviceId = transactions.filter(item => {
+					return _compareIds(item.advice, adviceId);
+				}); 	
+
+
+				var subPositionsForAdviceId = portfolio.subPositions.filter(item => {
+					return _compareIds(item.advice, adviceId);
+				}); 
+
+				return _updatePositions(subPositionsForAdviceId, transactionsForAdviceId)
+					.then(subPortfolio => {
+						subPortfolio.positions.map(position => {
+	    						position["advice"] = adviceId
+	    						return position});
+
+						console.log(subPortfolio);
+						return subPortfolio;
+					});		
+
+			})
+		])
+	.then(([fullPortfolio, subPortfolios]) => {
+	
+		var subPositions = [];
+		subPortfolios.forEach(subPortfolio => {
+			subPositions = subPositions.concat(subPortfolio.positions);
+		})
+
+		const updatedPortfolio = {
+			positions: fullPortfolio.positions,
+			subPositions: subPositions,
+			cash: portfolio.cash + fullPortfolio.cash
+		};
+
+		return updatedPortfolio;
+	});
+}
+
+module.exports.OLDcomputeUpdatedPortfolioForStockTransactions = function(portfolio, transactions, adviceId) {
+		
 	var subPositions = portfolio.subPositions.filter(item => {
 			return _compareIds(item.advice, adviceId);}); 	
+
 
 	return Promise.all([_updatePositions(subPositions, transactions),
 						_updatePositions(portfolio.positions, transactions)])
