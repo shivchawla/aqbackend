@@ -2,11 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 14:59:47
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-27 11:55:16
+* @Last Modified time: 2018-01-30 12:32:01
 */
 
 'use strict';
-const Advice = require('./MarketPlace/AdviceService');
+const Advice = require('./Marketplace/AdviceService');
 
 module.exports.createAdvice = function createAdvice(req, res, next) {
     Advice.createAdvice(req.swagger.params, res, next);

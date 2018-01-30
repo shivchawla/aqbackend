@@ -2,11 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 20:45:19
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-29 13:18:18
+* @Last Modified time: 2018-01-30 12:35:31
 */
 
 'use strict';
-const Investor = require('./MarketPlace/InvestorService');
+const Investor = require('./Marketplace/InvestorService');
 
 module.exports.createInvestor = function(req, res, next) {
     Investor.createInvestor(req.swagger.params, res, next);
