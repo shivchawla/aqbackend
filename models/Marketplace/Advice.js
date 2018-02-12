@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-12 10:43:21
+* @Last Modified time: 2018-02-12 11:56:30
 */
 'use strict';
 const mongoose = require('../index');
@@ -110,7 +110,7 @@ const Advice = new Schema({
     }],
     	
 	followers: [{
-        user: {
+        investor: {
             type: Schema.Types.ObjectId,
             required: true,
             ref: 'Investor'
@@ -335,15 +335,15 @@ Advice.statics.deleteAdvice = function(query) {
 //Keeps a history of followers
 //Adds if not following.
 //Updates enddate if already following
-Advice.statics.updateFollowers = function(query, userId) {
+Advice.statics.updateFollowers = function(query, investorId) {
  	
     return this.findOne(query, {followers: 1})
     .then(advice => {
         if (advice) {
-            var idx = advice.followers.map(item => item.user.toString()).indexOf(userId.toString());
+            var idx = advice.followers.map(item => item.investor.toString()).indexOf(investorId.toString());
             
             if(idx == -1) {
-        		advice.followers.addToSet({user:userId, active:true, dateUpdated: new Date()});
+        		advice.followers.addToSet({investor:investorId, active:true, dateUpdated: new Date()});
             } else {
             	var follower = advice.followers[idx];
                 follower.active = !follower.active;
@@ -356,15 +356,15 @@ Advice.statics.updateFollowers = function(query, userId) {
     });
 };
 
-Advice.statics.updateSubscribers = function(query, userId) {
+Advice.statics.updateSubscribers = function(query, investorId) {
  	
     return this.findOne(query, {subscribers: 1})
     .then(advice => {
         if (advice) {
-            var idx = advice.subscribers.map(item => item.user.toString()).indexOf(userId.toString());
+            var idx = advice.subscribers.map(item => item.investor.toString()).indexOf(investorId.toString());
             
             if(idx == -1) {
-                advice.subscribers.addToSet({user:userId, active:true, dateUpdated: new Date()});
+                advice.subscribers.addToSet({investor:investorId, active:true, dateUpdated: new Date()});
             } else {
                 var subscriber = advice.subscribers[idx];
                 subscriber.active = !subscriber.active;

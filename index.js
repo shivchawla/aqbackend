@@ -12,30 +12,7 @@ const config = require('config');
 const WebSocketServer = require('ws').Server;
 const spawn = require('child_process').spawn;
 
-
 exports.serverPort = serverPort;
-/*var conn = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-console.log("Starting Julia server at " + conn);
-try {
-    spawn(config.get('julia_exe'),
-                    ["./utils/julia/julia_server.jl", config.get('julia_server_port'), config.get('julia_server_host')],
-                        {stdio: ['pipe', process.stdout, process.stderr]});
-} catch(err) {
-    console.log(err);
-}*/
-
-/*for(var machine of config.get('btmachines')) {
-    var conn = 'ws://' + machine.host + ":" + machine.port;
-    console.log("Starting Backtest Julia server: " + conn);
-    spawn(config.get('julia_exe'), ["../raftaar/Util/Run/server.jl", machine.port, machine.host], {stdio: ['pipe', process.stdout, process.stderr]});
-}*/
-
-/*for(var machine of config.get('ftmachines')) {
-    var conn = 'ws://' + machine.host + ":" + machine.port;
-    console.log("Starting Forward test Julia server: " + conn);
-    spawn(config.get('julia_exe'), ["../raftaar/Util/server.jl", machine.port, machine.host], {stdio: ['pipe', 'pipe', process.stderr]});
-}*/
-
 var server = '';
 if(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging') {
     server = require('http').createServer(app);
@@ -63,13 +40,14 @@ const spec = fs.readFileSync('./api/swagger.yaml', 'utf8');
 const swaggerDoc = jsyaml.safeLoad(spec);
 
 if (process.env.NODE_ENV === 'staging') {
-  swaggerDoc.host = 'service-staging.aimsquant.com'
+  swaggerDoc.host = 'stagingapi.aimsquant.com'
 }
 
 // Initialize the Swagger middleware
 swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
     // Interpret Swagger resources and attach metadata to request - must be first
     // in swagger-tools middleware chain
+
     app.use(middleware.swaggerMetadata());
     app.use(cors());
     // Validate Swagger requests
@@ -110,6 +88,7 @@ swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
         console.log('Swagger-ui is available on http://localhost:%d/docs', serverPort);
     });
 });
+
 exports.ws = new WebSocketServer({
     server: server,
 
