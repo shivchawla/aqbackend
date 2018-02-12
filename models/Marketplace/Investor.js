@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:53:13
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-29 22:36:55
+* @Last Modified time: 2018-02-12 17:22:45
 */
 
 'use strict';
@@ -172,6 +172,24 @@ Investor.statics.updateSubscription = function(query, adviceId) {
                 
             return investor.saveAsync();
         }
+    });
+};
+
+Investor.statics.addPortfolio = function(query, portfolioId){
+    return this.findOne(query)
+    .select('portfolios')
+    .then(investor => {
+        if(investor.portfolios) {
+            investor.portfolios.push(portfolioId);
+        } else {
+            investor.portfolios = [portfolioId];
+        }
+
+        if (!investor.defaultPortfolio || investor.portfolios.length == 1) {
+           investor.defaultPortfolio = portfolioId; 
+        }
+
+        return investor.saveAsync();
     });
 };
 
