@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-12 11:09:08
+* @Last Modified time: 2018-02-12 12:39:38
 */
 
 'use strict';
@@ -259,11 +259,11 @@ module.exports.getAdviceDetail = function(args, res, next) {
 	.then(([investor, advisor, advice])  => {
 		if(investor && advisor && advice) {
 			const advisorId = advisor._id;
-			const investorId = investor._id;
-
-			var activeSubscribers = advice.subscribers.filter(item => {return item.active == true}).map(item => item.investor);
-			var activeFollowers = advice.followers.filter(item => {return item.active == true}).map(item => item.investor);
 			
+			var activeSubscribers = advice.subscribers.filter(item => {return item.active == true}).map(item => item.investor.toString());
+			var activeFollowers = advice.followers.filter(item => {return item.active == true}).map(item => item.investor.toString());
+			
+			const investorId = investor._id.toString();
 			//PERSONAL or subscribers
 			//get to see expanded portfolio if chosen
 			if (advice.advisor.equals(advisorId) || activeSubscribers.indexOf(investorId) != -1) {
