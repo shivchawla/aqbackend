@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-12 10:45:44
+* @Last Modified time: 2018-02-12 11:09:08
 */
 
 'use strict';
@@ -226,7 +226,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
  	.then(([advisor, advice]) => {
  		if(advice && advisor) {
  			const advisorId = advisor._id;
-	 		if((!advisorId.equals(advice.advisor._id) && advice.public == true && advice.approved == true)  
+	 		if((!advisorId.equals(advice.advisor._id) && advice.public == true)  
 	 			|| advisorId.equals(advice.advisor._id)) { 
 	 			
 	 			//TODO: Add a fetch for basic performance
