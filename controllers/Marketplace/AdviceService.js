@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-29 17:34:08
+* @Last Modified time: 2018-02-12 10:45:44
 */
 
 'use strict';
@@ -164,7 +164,7 @@ module.exports.getAdvices = function(args, res, next) {
     options.limit = args.limit.value;
 
     options.sort = args.sort.value;
-    options.fields = 'name description heading performance createdDate updatedDate advisor public approved';
+    options.fields = 'name description heading performance createdDate updatedDate advisor public approved maxNotional rebalance';
 
     const following = args.following.value;
 
@@ -218,7 +218,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const userId = args.user._id;
 	
 	const options = {};
-	options.fields = 'name heading description createdDate updatedDate advisor public approved followers subscribers rating portfolio';
+	options.fields = 'name heading description createdDate updatedDate advisor public approved followers subscribers rating portfolio rebalance maxNotional';
 	options.populate = 'advisor';
 	
 	Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
@@ -248,7 +248,7 @@ module.exports.getAdviceDetail = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const userId = args.user._id;
 
-	var defaultFields = 'subscribers followers createdDate updatedDate advisor portfolio';
+	var defaultFields = 'subscribers followers createdDate updatedDate advisor portfolio rebalance maxNotional';
 	const options = {};
    	options.fields = args.fields.value != "" ? args.fields.value : defaultFields;
    	options.populate = 'advisor';
@@ -333,6 +333,42 @@ module.exports.deleteAdvice = function(args, res, next) {
 	})
   	.catch(err => {
   		return res.status(400).send(err.message);
+    });
+};
+
+module.exports.publishAdvice = function(args, res, next) {
+    const userId = args.user._id;
+  	const adviceId = args.adviceId.value;
+
+  	Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
+  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: false}, {field:'advisor'})])
+  	.then(([advisor, advice]) => {
+  		if(advisor && advice) {			
+    		const advisorId = advisor._id;
+
+    		if(!advice.advisor.equals(advisorId)) {
+    			APIError.throwJsonError({message: "Advisor can't publish his advice"});
+    		}
+
+    		return AdviceModel.updateAdvice({_id: adviceId}, {public: true, publishDate: new Date()});
+						
+		} else {
+			if (!advice) {
+				APIError.throwJsonError({adviceId: adviceId, message: "Advice not found or already public"});
+			} else if(!advisor) {
+				APIError.throwJsonError({userId:userId, message: "Advisor not found"});
+			}
+		}
+	})
+	.then(advice => {
+		if (advice) {
+			return res.status(200).json({adviceId: adviceId, message: "Successfully published"}); 
+		} else {
+			APIError.throwJsonError({adviceId: adviceId, message: "Error publishing advice"});
+		}
+	})
+    .catch(err => {
+    	return res.status(400).send(err.message);
     });
 };
 
@@ -428,77 +464,3 @@ module.exports.subscribeAdvice = function(args, res, next) {
     	return res.status(400).send(err.message);
     });
 };
-
-//NOT REQUIRED
-//PERFORMANCE IS FETCHED BY PERFORMANCE SERVICE
-function _updateAdviceWithPerformance(adviceId) {
-
-	//21/01/2018
-	//MOVED the logic to compute the portfolio history here.
-	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio portfolioHistory'})
-	.then(advice => {
-
-		var currentPortfolio = advice.portfolio;
-
-		var portfolioHistory = [{startDate: currentPortfolio.startDate, 
-								endDate: currentPortfolio.endDate, 
-								portfolio: {
-									positions: currentPortfolio.positions,
-									cash: currentPortfolio.cash}
-								}];
-
-		if(advice.portfolioHistory) {
-			advice.portfolioHistory.forEach(item => {
-				portfolioHistory.push({startDate: item.startDate, 
-									endDate: item.endDate,
-									portfolio: {
-										positions: item.positions,
-										cash: item.cash}
-									});
-			});
-		}
-
-		return HelperFunctions.computePerformance(portfolioHistory, currentPortfolio.benchmark);
-	})
-	.then(performance => {
-		if(performance) {
-			performance["updatedDate"] = new Date();
-			performance.portfolioValues = performance.portfolioValues.map(item => { 
-				  //Changing time to unix timestamp
-				  item.date = new Date(item.date).getTime()/1000; 
-				  return item;
-			});	
-			
-			performance["updateMessage"] = "Updated successfully";
-			return AdviceModel.updateAdvice({_id: adviceId}, {advicePerformance: performance, updateRequired: false});
-		
-		} else {
-			return AdviceModel.updateAdvice({_id: adviceId}, {"advicePerformance.updateMessage": "Performance could not be calculated", "advicePerformance.updatedDate": new Date()});
-		}
-	});
-}
-
-//NOT REQUIRED
-function _checkIfPerformanceUpdateRequired(advice, fields) {
-	
-
-	var update = (advice.updateRequired == null) || advice.updateRequired ? true : false;
-
-    //check if advice Performance is the latest
-    if(advice.advicePerformance && !update) {
-        var performance = advice.advicePerformance;
-
-        if(performance.updatedDate) {
-            if(getDate(performance.updatedDate) < getDate(new Date())) {
-                update = true;
-            }
-        } else {
-        	update = true; 
-        } 
-
-    } else {
-        update = true;
-    }
-
-    return update;
-}
