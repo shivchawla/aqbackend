@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-26 17:41:04
+* @Last Modified time: 2018-02-12 15:00:20
 */
 
 'use strict'
@@ -40,13 +40,33 @@ function _checkPerformanceUpdateRequired(performance) {
     return false;
 }
 
+function _computeSimulatedPerformance(portfolioId) {
+	
+	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'detail benchmark'})
+	.then(portfolio => {
+		var currentPortfolio = portfolio.detail;
+
+		var startDate = new Date(currentPortfolio.startDate);
+		startDate = new Date(startDate.setDate(startDate.getDate() - 365));
+
+		var portfolioHistory = [{startDate: startDate, 
+									endDate: currentPortfolio.startDate,
+									portfolio: {
+										positions: currentPortfolio.positions,
+										cash: currentPortfolio.cash}
+									}];
+
+		return HelperFunctions.computePerformance(portfolioHistory, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
+	});
+}
+
 function _computePerformance(portfolioId) {
 	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'detail benchmark history'})
 	.then(portfolio => {
 		var currentPortfolio = portfolio.detail;
 
 		var portfolioHistory = [{startDate: currentPortfolio.startDate, 
-									endDate: currentPortfolio.endDate,
+									endDate: new Date(),//currentPortfolio.endDate,
 									portfolio: {
 										positions: currentPortfolio.positions,
 										cash: currentPortfolio.cash}
@@ -68,7 +88,7 @@ function _computePerformance(portfolioId) {
 	});
 }
 
-function _getLatestPerformance(portfolioId) {
+function _computeLatestPerformance(portfolioId) {
 	return PerformanceModel.fetchPerformance({portfolio: portfolioId})
 	.then(performance => {
 		var updateRequired = _checkPerformanceUpdateRequired(performance);
@@ -106,7 +126,7 @@ module.exports.getPerformanceInvestorPortfolio = function(args, res, next) {
 						//var fields = 'name current history advices benchmark';
 						//return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields: fields});
 						//return PerformanceModel.fetchPerformance({portfolio: portfolioId})
-						return _getLatestPerformance(portfolioId);
+						return _computeLatestPerformance(portfolioId);
 					} else {
 						APIError.throwJsonError({userId: userId, message: "PortfolioId is not a valid portfolio for investor"})
 					}
@@ -139,7 +159,7 @@ module.exports.getPerformanceAdvicePortfolio = function(args, res, next) {
 	.then(([advice, advisor]) => {
 		if (advice && advisor) {
 			if (advisor._id.equals(advice.advisor) || advice.public == true) {
-				return _getLatestPerformance(advice.portfolio);
+				return Promise.all([_computeSimulatedPerformance(advice.portfolio), _computeLatestPerformance(advice.portfolio)]);
 			} else {
 				APIError.throwJsonError({userId: userId, message:"Not Authorized"});
 			}
@@ -147,8 +167,8 @@ module.exports.getPerformanceAdvicePortfolio = function(args, res, next) {
 			APIError.throwJsonError({userId: userId, message: "No Advice/Advisor found"});
 		}
 	})
-	.then(updatedPerformance => {
-		return res.status(200).send(updatedPerformance);
+	.then(([simulatedPerformance, updatedPerformance]) => {
+		return res.status(200).send({advicePerformance: updatedPerformance, historicalPerformance: simulatedPerformance});
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);
