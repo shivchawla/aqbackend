@@ -60,6 +60,8 @@ function geterrormsg(err::Any)
   close(out)
   return msg
 end
+
+jsdateformat = "yyyy-mm-ddTHH:MM:SS.sssZ"
  
 wsh = WebSocketHandler() do req, ws_client
      
@@ -89,7 +91,7 @@ wsh = WebSocketHandler() do req, ws_client
         elseif action == "compute_performance_portfolio_history"
             
             portfolioHistory = parsemsg["portfolioHistory"]
-            benchmark = parsemsg["benchmark"]["ticker"];
+            benchmark = parsemsg["benchmark"]["ticker"]
 
             (netValues, dates) = compute_portfolio_value_history(portfolioHistory)
 
@@ -113,8 +115,8 @@ wsh = WebSocketHandler() do req, ws_client
           performance = Dict{String, Any}()
             
           # trim Z from the string
-          startDate = DateTime(parsemsg["startDate"][1:end-1])
-          endDate = DateTime(parsemsg["endDate"][1:end-1])
+          startDate = DateTime(parsemsg["startDate"], jsdateformat)
+          endDate = DateTime(parsemsg["endDate"], jsdateformat)
 
           performance = compute_performance(parsemsg["portfolio"], startDate, endDate)
           performance = JSON.parse(JSON.json(performance))
@@ -134,7 +136,27 @@ wsh = WebSocketHandler() do req, ws_client
            performance = compute_performance(netValue, dates, benchmark)
            performance = JSON.parse(JSON.json(performance))
            parsemsg["performance"] = Dict("date" => endDate, "value" => performance)
-           
+        
+        elseif action == "compute_portfolio_constituents_performance"
+
+          startDate = DateTime(parsemsg["startDate"], jsdateformat)
+          endDate = DateTime(parsemsg["endDate"], jsdateformat)
+          benchmark = get(parsemsg, "benchmark", Dict("ticker"=>"NIFTY_50"))
+
+          performance = JSON.parse(JSON.json(compute_performance_constituents(parsemsg["portfolio"], startDate, endDate, benchmark)))
+          
+          parsemsg["performance"] = performance
+
+        elseif action == "compute_portfolio_composition"
+
+          startDate = DateTime(parsemsg["startDate"], jsdateformat)
+          endDate = DateTime(parsemsg["endDate"], jsdateformat)
+          benchmark = get(parsemsg, "benchmark", Dict("ticker"=>"NIFTY_50"))
+
+          composition = JSON.parse(JSON.json(compute_portfolio_composition(parsemsg["portfolio"], startDate, endDate, benchmark)))
+          
+          parsemsg["composition"] = composition
+        
         elseif action == "compute_portfolio_value_history"
 
           portfolioHistory = parsemsg["portfolioHistory"]
@@ -144,10 +166,10 @@ wsh = WebSocketHandler() do req, ws_client
         elseif action == "compute_portfolio_value_period"
           
           portfolio = parsemsg["portfolio"]
-          startDate = parsemsg["startDate"]
-          endDate = parsemsg["endDate"]
+          startDate = DateTime(parsemsg["startDate"], jsdateformat)
+          endDate = DateTime(parsemsg["endDate"], jsdateformat)
          
-          (netValues, dates) = compute_portfolio_value_period(portfolio, DateTime(startDate), DateTime(endDate))
+          (netValues, dates) = compute_portfolio_value_period(portfolio, startDate, endDate)
           
           nVDict = Vector{Dict{String, Any}}()
 
@@ -161,7 +183,7 @@ wsh = WebSocketHandler() do req, ws_client
           netvalue = 0.0
           lastdate = DateTime()
           portfolio = parsemsg["portfolio"]
-          date = data["date"]
+          date = DateTime(data["date"], jsdateformat)
 
           netvalue = compute_portfoliovalue(portfolio, date)
           if (lastdate == DateTime())

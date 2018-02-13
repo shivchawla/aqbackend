@@ -95,6 +95,10 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
     end
 end
 
+###
+# Internal Function
+# Validate advice (portfolio and notional limits)
+###
 function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, Any})
     
     # Validate 3 components of portfolio
@@ -199,6 +203,10 @@ function _validate_adviceportfolio(advicePortfolio::Dict{String, Any}, lastAdvic
     end 
 end 
 
+###
+# Internal Function
+# Validate portfolio for positions (and internal stocks)
+###
 function _validate_portfolio(port::Dict{String, Any}; checkbenchmark = true)   
     try 
         portfolio = nothing
@@ -228,6 +236,11 @@ function _validate_portfolio(port::Dict{String, Any}; checkbenchmark = true)
     end
 end
 
+###
+# Internal Function
+# Compute portfolio value on latest date
+# OUTPUT: portfolio value 
+###
 function _compute_latest_portfoliovalue(portfolio::Portfolio, cash::Float64)
    
     try
@@ -262,6 +275,11 @@ function _compute_latest_portfoliovalue(portfolio::Portfolio, cash::Float64)
     end
 end
 
+###
+# Internal Function
+# Compute portfolio value over a period
+# OUTPUT: portfolio value vector
+###
 function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime, cash::Float64)
     try
         # Get the list of ticker
@@ -289,7 +307,7 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
                 ticker = sym.ticker
                 
                 close = (prices[ticker][date]).values[1]
-                equity_value += pos.quantity * close 
+                equity_value += pos.quantity * (!isnan(close) ? close : 0.0)
             end
 
             portfolio_value[i, 1] = equity_value + cash
@@ -301,10 +319,11 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
     end
 end
 
-#=
-Compute portfolio value on a given date
-OUTPUT: portfolio value
-=#
+###
+# Internal Function
+# Compute portfolio value on a given date
+# OUTPUT: portfolio value
+###
 function _compute_portfoliovalue(port::Dict{String, Any}, date::DateTime)
     try
         portfolio = convert(Raftaar.Portfolio, port)
@@ -312,7 +331,7 @@ function _compute_portfoliovalue(port::Dict{String, Any}, date::DateTime)
         cash = haskey(port, "cash") ? port["cash"] : 0.0
         cash = convert(Float64, cash)
 
-        portfolio_value = compute_portfoliovalue(portfolio, date, date, cash)
+        portfolio_value = _compute_portfoliovalue(portfolio, date, date, cash)
 
         return portfolio_value.values[1]
     catch err
@@ -320,6 +339,55 @@ function _compute_portfoliovalue(port::Dict{String, Any}, date::DateTime)
     end
 end
 
+###
+# Internal Function
+# Function to compute portfolio compostion on a specific date
+###
+function _compute_portfolio_composition(port::Dict{String, Any}, date::DateTime)
+    try
+        portfolio = convert(Raftaar.Portfolio, port)
+
+        cash = haskey(port, "cash") ? port["cash"] : 0.0
+        cash = convert(Float64, cash)
+
+        portfolio_value = _compute_portfoliovalue(portfolio, date, date, cash).values[1]
+
+        # Get the list of ticker
+        allkeys = keys(portfolio.positions)
+        secids = [sym.id for sym in allkeys]
+        tickers = [sym.ticker for sym in allkeys]    
+
+        #Get the Adjusted prices for tickers in the portfolio
+        prices = YRead.history(secids, "Close", :Day, date, date)
+
+        if prices == nothing
+            println("Price data not available")
+            return nothing
+        end
+        
+        equity_value_wt = Vector{Float64}(length(allkeys))
+
+        for (i, sym) in enumerate(allkeys)
+            ticker = sym.ticker
+            close = (prices[ticker]).values[1]
+            equity_value = portfolio.positions[sym].quantity * close
+            equity_value_wt[i] = portfolio_value > 0.0 ? equity_value/portfolio_value : 0.0;
+        end
+
+        cash_wt = portfolio_value > 0.0 ? cash/portfolio_value : 0.0
+
+        composition = [Dict("weight" => cash_wt, "ticker" => "CASH_INR")]
+        append!(composition, [Dict("weight" => equity_value_wt[i], "ticker" => tickers[i]) for i in 1:length(allkeys)])
+        
+        return composition
+    catch err
+        rethrow(err)
+    end
+end
+
+###
+# Function to validate a security (against database data)
+###
 function validate_security(security::Dict{String, Any})
     
     try
@@ -387,7 +455,7 @@ end
 Compute portfolio value for a given period (start and end date)
 OUTPUT: Vector of portfolio value
 =#
-function compute_portfolio_value_period(port, startDate, endDate)
+function compute_portfolio_value_period(port, startDate::DateTime, endDate::DateTime)
     try
         
         # the dates are string without sssZ format(JS)..not need to convert
@@ -406,6 +474,9 @@ function compute_portfolio_value_period(port, startDate, endDate)
     end
 end
 
+###
+# Function to update portfolio with transactions
+###
 function compute_updated_portfolio(port::Dict{String, Any}, transactions::Vector{Any})
     try
         portfolio = convert(Raftaar.Portfolio, port)
@@ -418,11 +489,7 @@ function compute_updated_portfolio(port::Dict{String, Any}, transactions::Vector
 
             #Check if transaction is CASH
             if (transaction["security"]["ticker"] == "CASH_INR")  
-                println("Quantity")
-                println(transaction["quantity"])
                 cash += convert(Float64, transaction["quantity"])
-
-                println("New Cash: $(cash)")
             else
                 fill = convert(Raftaar.OrderFill, transaction)
                 push!(fills, fill)
@@ -439,6 +506,42 @@ function compute_updated_portfolio(port::Dict{String, Any}, transactions::Vector
     catch err
         rethrow(err)
     end
+end
+
+###
+# Function to compute portfolio WEIGHT composition for the LAST available day (in a period)
+###
+function compute_portfolio_composition(port::Dict{String, Any}, start_date::DateTime, end_date::DateTime, benchmark::Dict{String,Any} = Dict("ticker"=>"NIFTY_50"))
+    composition_alldates = Dict{String, Any}()
+    
+    benchmark_ticker = "NIFTY_50"
+    try
+        (valid, benchmark_security) = validate_security(benchmark)
+
+        if !valid
+            error("Invalid benchmark")
+        else
+            benchmark_ticker = benchmark["ticker"]
+        end 
+    catch err
+        benchmark_ticker = "NIFTY_50"
+    end
+
+    prices_benchmark = history_nostrict([benchmark_ticker], "Close", :Day, start_date, end_date)
+
+    ts = prices_benchmark.timestamp
+
+    if length(ts) > 0 
+        date = ts[end]
+
+        println("Computing composition for date: $(date)")
+
+        #for date in prices_benchmark.timestamp[end]
+        composition = _compute_portfolio_composition(port, DateTime(date))
+        composition_alldates[string(Date(date))] = composition != nothing ? composition : ""
+    end
+
+    return composition_alldates
 end
 
 function convert_to_node_portfolio(port::Portfolio)

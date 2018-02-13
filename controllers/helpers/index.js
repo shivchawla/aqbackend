@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-29 21:47:09
+* @Last Modified time: 2018-02-13 14:05:49
 */
 
 'use strict';
@@ -257,6 +257,68 @@ module.exports.OLDcomputeUpdatedPortfolioForStockTransactions = function(portfol
 		return updatedPortfolio;
 	});
 }
+
+module.exports.computeConstituentPerformance = function(portfolio, startDate, endDate, benchmark) {
+	return new Promise(function(resolve, reject) {
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
+
+		wsClient.on('open', function open() {
+	        console.log('Connection Open');
+	        console.log(connection);
+	        var msg = JSON.stringify({action: "compute_portfolio_constituents_performance", 
+	        				portfolio: portfolio,
+	        				startDate: startDate,
+	        				endDate: endDate,
+	        				benchmark: benchmark});
+
+	     	wsClient.send(msg);
+	    });
+
+	    wsClient.on('message', function(msg) {
+	    	var data = JSON.parse(msg);
+	    	
+	    	if(data['error'] == '' && data['performance']) {
+	    		resolve(data['performance']);
+			} else if (data['error'] != '') {
+				reject(new Error(data["error"]));
+			} else {
+				reject(new Error("Internal error computing constituents performance"))
+			}
+		});
+	});
+};
+
+module.exports.computePortfolioComposition = function(portfolio, startDate, endDate, benchmark) {
+	return new Promise(function(resolve, reject) {
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
+
+		wsClient.on('open', function open() {
+	        console.log('Connection Open');
+	        console.log(connection);
+	        var msg = JSON.stringify({action: "compute_portfolio_composition", 
+	        				portfolio: portfolio,
+	        				startDate: startDate,
+	        				endDate: endDate,
+	        				benchmark: benchmark});
+
+	     	wsClient.send(msg);
+	    });
+
+	    wsClient.on('message', function(msg) {
+	    	var data = JSON.parse(msg);
+	    	
+	    	if(data['error'] == '' && data['composition']) {
+	    		resolve(data['composition']);
+			} else if (data['error'] != '') {
+				reject(new Error(data["error"]));
+			} else {
+				reject(new Error("Internal error computing constituents performance"))
+			}
+		});
+	});
+};
 
 module.exports.computePerformance = function(portfolioHistory, benchmark) {
 	return new Promise(function(resolve, reject) {
