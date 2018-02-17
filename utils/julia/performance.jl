@@ -33,22 +33,20 @@ end
 # Compute Portfolio Performance based on NET-VALUE over a period (start and end dates)
 # OUTPUT: Performance object
 ###
-function compute_performance(netvalue::Vector{Float64}, dates::Vector{Date}, benchmark::String)
+function compute_performance(portfolio_value::TimeArray, benchmark::String)
 
-    if length(netvalue) < 2
+    ts = portfolio_value.timestamp
+    if length(ts) < 2
         return Performance()
     end
 
-    start_date = dates[1]
-    end_date = dates[end]
-
-    vals = zeros(length(netvalue), 1)
-    for (i,val) in enumerate(netvalue)
-        vals[i,1] = val
-    end
-
-    portfolio_value = TimeArray(dates, vals, ["Portfolio"])
+    #Fetch benchmark price history
+    start_date = ts[1]
+    end_date = ts[end]
+        
+    portfolio_value = rename(portfolio_value, ["Portfolio"])
     benchmark_value = history_nostrict([benchmark], "Close", :Day, DateTime(start_date), DateTime(end_date))
+    
     merged_value = merge(portfolio_value, benchmark_value, :outer)
     merged_returns = percentchange(merged_value, :log)
     
@@ -70,13 +68,31 @@ end
 function compute_performance_constituents(port::Dict{String, Any}, start_date::DateTime, end_date::DateTime, benchmark::Dict{String,Any} = Dict("ticker"=>"NIFTY_50"))
     performance_allstocks = Dict{String, Any}[]
     
+    all_securities = Raftaar.Security[]
     for pos in get(port, "positions", Vector{Dict{String,Any}}())
-        security = pos["security"]
-        performance_stock = JSON.parse(JSON.json(compute_stock_performance(security, start_date, end_date, benchmark)))
-        push!(performance_allstocks, Dict("security" => security, "performance" => performance_stock))
+        (valid, security) = validate_security(pos["security"])
+        if valid 
+            push!(all_securities, security)
+        end
     end
 
-    return performance_allstocks
+    (valid, benchmark_security) = validate_security(benchmark)
+
+    all_tickers = [sec.symbol.ticker for sec in all_securities]
+    stock_prices = YRead.history(all_tickers, "Close", :Day, start_date, end_date)
+    benchmark_prices = history_nostrict([benchmark_security.symbol.ticker], "Close", :Day, start_date, end_date)
+
+    merged_prices = merge(stock_prices, benchmark_prices, :outer)
+
+    lastdate = merged_prices.timestamp[end] 
+
+    performance_allstocks = [Dict("security" => serialize(security), 
+            "stockPerformance" => compute_performance(merged_prices[security.symbol.ticker], benchmark_security.symbol.ticker)) for security in all_securities]
+    
+    #performance_stock = JSON.parse(JSON.json(compute_stock_performance(security, start_date, end_date, benchmark)))
+    #push!(performance_allstocks, Dict("security" => security, "performance" => performance_stock))
+
+    return (merged_prices.timestamp[end], performance_allstocks)
 end
 
 ###
@@ -100,23 +116,34 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
         (valid, security) = validate_security(security)
         
         if valid
+            println("Test - 1")
             benchmark_prices = history_nostrict([benchmark_ticker], "Close", :Day, start_date, end_date)
             stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date)
             
+            println(benchmark_prices)
+            println(stock_prices)
+
+            println("Test - 2")
             merged_returns = percentchange(merge(stock_prices, benchmark_prices, :outer))
             merged_returns = rename(merged_returns, ["stock", "benchmark"])
 
+            println(merged_returns)
+            
+            println("Test - 3")
             stock_returns = merged_returns["stock"].values
             benchmark_returns = merged_returns["benchmark"].values
 
+            println(stock_returns)
+            println(benchmark_returns)
+
+            println("Test - 4")
             # replace NaN with zeros
             stock_returns[isnan.(stock_returns)] = 0.0
             benchmark_returns[isnan.(benchmark_returns)] = 0.0
 
-
             performance = Raftaar.calculateperformance(stock_returns, benchmark_returns)
     
-            return performance
+            return (Date(merged_returns.timestamp[end]), performance)
         end
     catch err
         rethrow(err)    

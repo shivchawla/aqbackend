@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-16 13:09:09
+* @Last Modified time: 2018-02-17 11:49:52
 */
 
 'use strict';
@@ -21,17 +21,15 @@ const Position = new Schema({
 		default: 0,
 	},
 
-	avgPrice: {
-		type: Number,
-	},
+	avgPrice: Number,
 
-	lastPrice:{
-		type: Number,
-	},
+	lastPrice: Number,
 
-	profit: {
-		type: Number,
-	},
+	unrealizedPnL: Number,
+
+	realizedPnL: Number,
+
+	totalFees: Number,
 
 	//To track the orginating advice (if any)
 	advice: {

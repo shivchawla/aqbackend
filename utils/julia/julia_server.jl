@@ -96,16 +96,22 @@ wsh = WebSocketHandler() do req, ws_client
             (netValues, dates) = compute_portfolio_value_history(portfolioHistory)
 
             if netValues != nothing && dates != nothing
-                performance = compute_performance(netValues, dates, benchmark)
-            
-                nVDict = Vector{Dict{String, Any}}()
+                vals = zeros(length(netValues), 1)
+                for (i,val) in enumerate(netValues)
+                    vals[i,1] = val
+                end
+                
+                performance = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
+              
+                nVDict = Vector{Dict{String, Any}}(length(netValues))
 
                 for i = 1:length(netValues)
-                    push!(nVDict, Dict{String, Any}("date" => dates[i], "netValue" => netValues[i]))
+                    nVDict[i] = Dict{String, Any}("date" => dates[i], "netValue" => netValues[i])
                 end
 
-                parsemsg["performance"] = Dict{String, Any}("analytics" => serialize(performance), 
-                                        "portfolioValues" => nVDict)
+                parsemsg["performance"] = Dict{String, Any}("date" => dates[end], 
+                                          "value" => serialize(performance), 
+                                          "portfolioValues" => nVDict)
             else 
                 error("Missing Input")
             end
@@ -143,9 +149,9 @@ wsh = WebSocketHandler() do req, ws_client
           endDate = DateTime(parsemsg["endDate"], jsdateformat)
           benchmark = get(parsemsg, "benchmark", Dict("ticker"=>"NIFTY_50"))
 
-          performance = JSON.parse(JSON.json(compute_performance_constituents(parsemsg["portfolio"], startDate, endDate, benchmark)))
-          
-          parsemsg["performance"] = performance
+          (date, performance) = JSON.parse(JSON.json(compute_performance_constituents(parsemsg["portfolio"], startDate, endDate, benchmark)))
+
+          parsemsg["constituentPerformance"] = Dict("date" => date, "value" => performance)
 
         elseif action == "compute_portfolio_composition"
 
@@ -153,9 +159,9 @@ wsh = WebSocketHandler() do req, ws_client
           endDate = DateTime(parsemsg["endDate"], jsdateformat)
           benchmark = get(parsemsg, "benchmark", Dict("ticker"=>"NIFTY_50"))
 
-          composition = JSON.parse(JSON.json(compute_portfolio_composition(parsemsg["portfolio"], startDate, endDate, benchmark)))
+          (date, composition) = JSON.parse(JSON.json(compute_portfolio_composition(parsemsg["portfolio"], startDate, endDate, benchmark)))
           
-          parsemsg["composition"] = composition
+          parsemsg["portfolioComposition"] = Dict("date" => date, "value" => composition)
         
         elseif action == "compute_portfolio_value_history"
 
@@ -240,7 +246,7 @@ wsh = WebSocketHandler() do req, ws_client
                 parsemsg["error"] = "Empty Static Performance. Compute Error!!"
             end
 
-        elseif action == "compute_updated_portfolio"
+        elseif action == "update_portfolio_transactions"
             portfolio = parsemsg["portfolio"]
             transactions = parsemsg["transactions"]
 
@@ -248,7 +254,7 @@ wsh = WebSocketHandler() do req, ws_client
             # TODO: if price is not give (or zero price), assume EOD price for the day
             ##
             ##
-            (cash, updated_portfolio) = compute_updated_portfolio(portfolio, transactions)
+            (cash, updated_portfolio) = updateportfolio_transactions(portfolio, transactions)
             
             #Update, the positions to match the object structure in Node
             updated_portfolio = convert_to_node_portfolio(updated_portfolio)
@@ -256,6 +262,13 @@ wsh = WebSocketHandler() do req, ws_client
             updated_portfolio["cash"] = cash
             parsemsg["portfolio"] = updated_portfolio
 
+        elseif action == "update_portfolio_price"    
+            portfolio = parsemsg["portfolio"]
+            updated_positions = updateportfolio_latestprice(portfolio)
+            
+            #Update, the positions to match the object structure in Node
+            parsemsg["updatedPositions"] = convert_to_node_portfolio(updated_positions)["positions"]
+            
         elseif action == "compare_security"
             oldSecurity = convert(Raftaar.Security, parsemsg["oldSecurity"])
             newSecurity = convert(Raftaar.Security, parsemsg["newSecurity"])

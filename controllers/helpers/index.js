@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-13 14:05:49
+* @Last Modified time: 2018-02-17 14:33:34
 */
 
 'use strict';
@@ -10,6 +10,7 @@ const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
 const AdviceModel = require('../../models/Marketplace/Advice');
 const PortfolioModel = require('../../models/Marketplace/Portfolio');
+const PerformanceModel = require('../../models/Marketplace/Performance');
 const UserModel = require('../../models/user');
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
 const APIError = require('../../utils/error');
@@ -102,12 +103,13 @@ function _updatePositions(positions, transactions) {
 	        console.log('Connection Open');
 	        console.log(connection);
 
+	        //WHy Cash == 0.0: So that output potfolio has cash generated
 	        const portfolio = {
 	        	positions: positions,
 	        	cash: 0.0
 	        };
 
-	        var msg = JSON.stringify({action:"compute_updated_portfolio", 
+	        var msg = JSON.stringify({action:"update_portfolio_transactions", 
         								portfolio: portfolio,
         								transactions: transactions}); 
 
@@ -185,10 +187,10 @@ module.exports.compareSecurity = function(oldSecurity, newSecurity) {
 
 module.exports.computeUpdatedPortfolioForStockTransactions = function(portfolio, transactions) {
 	
-	console.log(transactions);
+	//console.log(transactions);
 	var uniqueAdvicesInTransactions = Array.from(new Set(transactions.map(item => item.advice)));
 
-	console.log(uniqueAdvicesInTransactions);
+	//console.log(uniqueAdvicesInTransactions);
 
 	return Promise.all([_updatePositions(portfolio.positions, transactions),
 				
@@ -203,15 +205,14 @@ module.exports.computeUpdatedPortfolioForStockTransactions = function(portfolio,
 				}); 
 
 				return _updatePositions(subPositionsForAdviceId, transactionsForAdviceId)
-					.then(subPortfolio => {
-						subPortfolio.positions.map(position => {
-	    						position["advice"] = adviceId
-	    						return position});
+				.then(subPortfolio => {
+					subPortfolio.positions.map(position => {
+    						position["advice"] = adviceId
+    						return position});
 
-						console.log(subPortfolio);
-						return subPortfolio;
-					});		
-
+					//console.log(subPortfolio);
+					return subPortfolio;
+				});		
 			})
 		])
 	.then(([fullPortfolio, subPortfolios]) => {
@@ -231,6 +232,7 @@ module.exports.computeUpdatedPortfolioForStockTransactions = function(portfolio,
 	});
 }
 
+//NOT REQUIRED
 module.exports.OLDcomputeUpdatedPortfolioForStockTransactions = function(portfolio, transactions, adviceId) {
 		
 	var subPositions = portfolio.subPositions.filter(item => {
@@ -278,8 +280,8 @@ module.exports.computeConstituentPerformance = function(portfolio, startDate, en
 	    wsClient.on('message', function(msg) {
 	    	var data = JSON.parse(msg);
 	    	
-	    	if(data['error'] == '' && data['performance']) {
-	    		resolve(data['performance']);
+	    	if(data['error'] == '' && data['constituentPerformance']) {
+	    		resolve(data['constituentPerformance']);
 			} else if (data['error'] != '') {
 				reject(new Error(data["error"]));
 			} else {
@@ -309,8 +311,8 @@ module.exports.computePortfolioComposition = function(portfolio, startDate, endD
 	    wsClient.on('message', function(msg) {
 	    	var data = JSON.parse(msg);
 	    	
-	    	if(data['error'] == '' && data['composition']) {
-	    		resolve(data['composition']);
+	    	if(data['error'] == '' && data['portfolioComposition']) {
+	    		resolve(data['portfolioComposition']);
 			} else if (data['error'] != '') {
 				reject(new Error(data["error"]));
 			} else {
@@ -515,7 +517,6 @@ module.exports.updateStockPriceHistory = function(q, security) {
 
         wsClient.on('message', function(msg) {
         	var data = JSON.parse(msg);
-			console.log(data);
 
         	if (data["error"] == "" && data["priceHistory"]) {
 			    resolve(data["priceHistory"]);
@@ -571,4 +572,94 @@ module.exports.updateStockLatestDetail = function(q, security) {
     .then(latestDetail => {
     	return SecurityPerformanceModel.updateLatestDetail(q, latestDetail);
     });
+};
+
+module.exports.computeRating = function(portfolioId) {
+	return PerformanceModel.fetchPerformance({portfolio: portfolioId})
+	.then(performance => {
+		//WRITE RATING LOGIC HERE
+		if (performance) {
+			//Use Sharpe Ratio Fractional Rnking
+			//Use Information Ratio Fractional Ranking
+			//Use Calmar Ratio Fractional Ranking
+			//Use Total Return Fractional Ranking
+			//Use Inverse of Volatility Fractional Ranking
+			//Use Tracking Error Fractional Ranking
+		}
+	});
+};
+
+module.exports.updatePositionsForLatestPrice = function(positions) {
+	if (positions) {
+		return new Promise((resolve, reject) => {
+
+			var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+			var wsClient = new WebSocket(connection);
+
+			const portfolio = {
+				positions: positions,
+				cash: 0.0
+			};
+
+			wsClient.on('open', function open() {
+	            console.log('Connection Open');
+	            console.log(connection);
+	            var msg = JSON.stringify({action:"update_portfolio_price", 
+	            						portfolio: portfolio});
+	         	wsClient.send(msg);
+	        });
+
+	        wsClient.on('message', function(msg) {
+	        	var data = JSON.parse(msg);
+				//console.log(data);
+
+	        	if (data["error"] == "" && data["updatedPositions"]) {
+				    resolve(data["updatedPositions"]);
+			    } else if (data["error"] != "") {
+			    	reject(new Error(data["error"]));
+			    } else {
+			    	reject(new Error("Unknown error in updating portfolio for latest price"));
+			    }
+		    });
+	    })
+	} else {
+		APIError.throwJsonError({message:"Invalid positions: Can't update positions for latest price"});
+	}
+};
+
+//NOT IN USE
+module.exports.updatePortfolioForLatestPrice = function(portfolio) {
+	if (portfolio) {
+		return new Promise((resolve, reject) => {
+
+			var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+			var wsClient = new WebSocket(connection);
+
+			wsClient.on('open', function open() {
+	            console.log('Connection Open');
+	            console.log(connection);
+	            var msg = JSON.stringify({action:"update_portfolio_price", 
+	            						portfolio: portfolio});
+	         	wsClient.send(msg);
+	        });
+
+	        wsClient.on('message', function(msg) {
+	        	var data = JSON.parse(msg);
+
+	        	if (data["error"] == "" && data["updatedPositions"]) {
+				    resolve(data["updatedPositions"]);
+			    } else if (data["error"] != "") {
+			    	reject(new Error(data["error"]));
+			    } else {
+			    	reject(new Error("Unknown error in updating portfolio for latest price"));
+			    }
+		    });
+	    })
+	} else {
+		APIError.throwJsonError({message:"Invalid portfolio: Can't update positions for latest price"});
+	}
+};
+
+module.exports.getDate = function(dateTime) {
+	return new Date(dateTime.toDateString());
 };

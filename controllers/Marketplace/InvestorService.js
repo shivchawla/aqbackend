@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-29 21:49:25
+* @Last Modified time: 2018-02-17 13:19:35
 */
 
 'use strict';
@@ -23,15 +23,6 @@ function _compareIds(x, y) {
 		return x.equals(y)
 	}
 }
-
-function getDate(date) {
-    var d = date.getDate();
-    var m = date.getMonth() + 1;
-    var y = date.getYear();
-
-    return d+"-"+m+"-"+y;  
-}
-
 
 //Common function to handle stock and stock/advice transactions
 function _computeUpdatedPortfolioForStockTransaction(initialPortfolio, allTransactions) {
@@ -145,6 +136,51 @@ function _updatePortfolioForStockTransactions(portfolioId, transactions) {
 		console.log(err);
 		throw err;
 	});
+}
+
+function _computeUpdatedPortfolioForLatestPrice(portfolio) {
+	return Promise.all([
+		HelperFunctions.updatePositionsForLatestPrice(portfolio.detail.positions),
+		HelperFunctions.updatePositionsForLatestPrice(portfolio.detail.subPositions)
+	])
+	.then(([updatedPositions, updatedSubPositions]) => {
+		
+		if(updatedPositions || updatedSubPositions) {
+			var updatedPortfolio = JSON.parse(JSON.stringify(portfolio));
+			
+			if(updatedPositions) {
+				updatedPortfolio.detail.positions = updatedPositions;
+			}
+			
+			if(updatedSubPositions) {
+				updatedPortfolio.detail.subPositions = updatedSubPositions;
+			}
+
+			updatedPortfolio.updatedDate = new Date();
+			return [true, updatedPortfolio];
+		} else {
+			return [false, portfolio];
+		}
+		
+	});
+}
+
+function _getUpdatedPortfolio(portfolioId) {
+	var fields = 'name detail benchmark updatedDate';
+	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields: fields})
+	.then(portfolio => {
+		if(portfolio) {
+			var updateRequired = portfolio.updatedDate ? HelperFunctions.getDate(portfolio.updatedDate) < HelperFunctions.getDate(new Date()) : true;
+			return updateRequired ? 
+				_computeUpdatedPortfolioForLatestPrice(portfolio) :
+				[false, portfolio];
+		} else {
+			APIError.throwJsonError({portfolioId: portfolioId, message: "No portfolio found"});
+		}
+	})
+	.then(([updated, updatedPortfolio]) => {
+		return updated ? PortfolioModel.updatePortfolio({_id: portfolioId}, updatedPortfolio) : updatedPortfolio;
+	})					
 }
 
 //NOT TO BE USED
@@ -414,7 +450,7 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 
 //NOT IN USE
 module.exports.createInvestorPortfolioFromTransactions = function(args, res, next) {
-	console.log(args);
+	//console.log(args);
 
 	const userId = args.user._id;
 	const investorId = args.investorId.value;
@@ -558,8 +594,9 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 			if (investor.user.equals(userId)){
 				if(investor.portfolios) {
 					if (investor.portfolios.map(item => item.toString()).indexOf(portfolioId) != -1) {
-						var fields = 'name detail history advices benchmark';
-						return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields: fields});
+						//var fields = 'name detail history advices benchmark';
+						//return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields: fields});
+						return _getUpdatedPortfolio(portfolioId);
 					} else {
 						APIError.throwJsonError({userId: userId, message: "PortfolioId is not a valid portfolio for investor"})
 					}
@@ -574,20 +611,32 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 			APIError.throwJsonError({userId: userId, message: "No Investor found"});
 		}
 	})
-	.then(portfolio => {
-		if(portfolio) {
-			return res.status(200).json(portfolio);
+	.then(updatedPortfolio => {
+		if(updatedPortfolio) {
+			return res.status(200).send(updatedPortfolio);
+			//return Promise.all([portfolio, HelperFunctions.updatePositionsForLatestPrice(portfolio.detail)]);
 		} else {
-			APIError.throwJsonError({message: "No portfolios found"});
+			APIError.throwJsonError({message: "Invalid updated portfolio"});
 		}
 	})
+	/*.then(([portfolio, updatedPositions]) => {
+		console.log(updatedPositions);
+		var port = JSON.parse(JSON.stringify(portfolio));
+
+		port.detail.positions = updatedPositions;
+		
+		console.log(port.detail);
+		console.log(port.detail.positions);
+
+		return res.status(200).send(port);
+	})*/
 	.catch(err => {
 		return res.status(400).send(err.message);
 	})
 };
 
 /*
-* UPDATE portfolio 
+* UPDATE portfolio  
 */
 module.exports.updateInvestorPortfolio = function(args, res, next) {
 	
@@ -596,6 +645,10 @@ module.exports.updateInvestorPortfolio = function(args, res, next) {
 	const portfolioId = args.portfolioId.value;
 
 	const portfolio = args.body.value;
+
+	//FILTER OUT items that CAN'T be updated
+	//If not, it can potentially modify the detail as well and we don't want that
+	delete portfolio.detail;
 
  	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios'}) 
 	.then(investor => {
@@ -632,7 +685,7 @@ module.exports.updateInvestorPortfolioForTransactions = function(args, res, next
 	const investorId = args.investorId.value;
 	const portfolioId = args.portfolioId.value;
 
-	console.log(transactions);
+	//console.log(transactions);
 
  	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios'}) 
 	.then(investor => {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-13 17:14:33
+* @Last Modified time: 2018-02-17 13:03:14
 */
 
 'use strict';
@@ -19,8 +19,10 @@ const PortfolioDetail = new Schema({
 	endDate: Date,
 
 	positions: [Position],
+	
 	//Track positions per Advice
 	subPositions: [Position], 
+	
 	cash: {
 		type: Number,
 		default: 0
@@ -119,14 +121,19 @@ Portfolio.statics.addTransactions = function(query, transactions) {
 			portfolio.transactions.push(transaction);	
 		});
 
-		console.log('Saving');
 		return portfolio.saveAsync();
 	});
 };
 
 
 Portfolio.statics.updatePortfolio = function(query, updates, addNew) {
-	return this.findOne(query).select('detail history')
+	var q = this.findOne(query);
+	
+	if (addNew) {
+		q = q.select('detail history');
+	}
+
+	return q.execAsync()
 	.then(portfolio => {
 		
 		var fupdate = {$set: updates};

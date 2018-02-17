@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:53:13
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-12 17:22:45
+* @Last Modified time: 2018-02-17 14:35:49
 */
 
 'use strict';
@@ -11,8 +11,6 @@ const mongoose = require('../index');
 const Schema = mongoose.Schema;
 
 const Portfolio = require('./Portfolio');
-const Transaction = require('./Transaction');
-const Performance = require('./Performance');
 const Advice = require('./Advice');
 
 const Investor = new Schema({
@@ -127,8 +125,8 @@ Investor.statics.updateFollowing = function(query, id, type) {
     .then(investor => {
         if (investor) {
 
-            let array = ''
-            let idx = ''
+            let array = '';
+            let idx = '';
             if (type=="advisor") {
             	array = investor.followingAdvisors;
             	idx = array.map(item => item.advisor.toString()).indexOf(id.toString());

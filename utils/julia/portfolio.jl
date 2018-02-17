@@ -1,8 +1,8 @@
 using YRead
-using Raftaar: Security, SecuritySymbol, Portfolio, Position, OrderFill
+using Raftaar: Security, SecuritySymbol, Portfolio, Position, OrderFill, TradeBar
 using Raftaar: Performance, PortfolioStats 
 using Raftaar: calculateperformance
-using Raftaar: updateportfolio_fill!
+using Raftaar: updateportfolio_fill!, updateportfolio_price!
 
 import Base: convert
 using TimeSeries
@@ -265,7 +265,7 @@ function _compute_latest_portfoliovalue(portfolio::Portfolio, cash::Float64)
 
             ticker = sym.ticker
             
-            close = values(prices[ticker])[end]
+            close = prices[ticker].values[end]
             equity_value += pos.quantity * close 
         end
 
@@ -433,7 +433,7 @@ function compute_portfolio_value_history(portfolioHistory)
         end
 
         if length(ts) == 0
-            println("Empty timer series vector. No data available upstream")
+            println("Empty time series vector. No data available upstream")
             return (nothing, nothing)
         end
         
@@ -477,7 +477,7 @@ end
 ###
 # Function to update portfolio with transactions
 ###
-function compute_updated_portfolio(port::Dict{String, Any}, transactions::Vector{Any})
+function updateportfolio_transactions(port::Dict{String, Any}, transactions::Vector{Any})
     try
         portfolio = convert(Raftaar.Portfolio, port)
 
@@ -509,10 +509,40 @@ function compute_updated_portfolio(port::Dict{String, Any}, transactions::Vector
 end
 
 ###
+# Function to update portfolio with latest price
+###
+function updateportfolio_latestprice(port::Dict{String, Any})
+    try
+        portfolio = convert(Raftaar.Portfolio, port)
+
+        alltickers = [sym.ticker for (sym, pos) in portfolio.positions]
+        
+        end_date = Date(now())
+        start_date = end_date - Dates.Week(52)
+
+        stock_value_52w = YRead.history(alltickers, "Close", :Day, DateTime(start_date), DateTime(end_date))
+        
+        latest_stock_values = stock_value_52w[end]
+        latest_dt = DateTime(stock_value_52w.timestamp[end])
+
+        tradebars = Dict{SecuritySymbol, Vector{TradeBar}}()
+        for (sym, pos) in portfolio.positions
+            tradebars[sym] = [Raftaar.TradeBar(latest_dt, 0.0, 0.0, 0.0, latest_stock_values[sym.ticker].values[1])]
+        end
+
+        Raftaar.updateportfolio_price!(portfolio, tradebars, latest_dt)
+        
+        return portfolio
+    catch err
+        rethrow(err)
+    end
+end
+
+###
 # Function to compute portfolio WEIGHT composition for the LAST available day (in a period)
 ###
 function compute_portfolio_composition(port::Dict{String, Any}, start_date::DateTime, end_date::DateTime, benchmark::Dict{String,Any} = Dict("ticker"=>"NIFTY_50"))
-    composition_alldates = Dict{String, Any}()
+    composition = nothing
     
     benchmark_ticker = "NIFTY_50"
     try
@@ -533,15 +563,15 @@ function compute_portfolio_composition(port::Dict{String, Any}, start_date::Date
 
     if length(ts) > 0 
         date = ts[end]
-
         println("Computing composition for date: $(date)")
-
         #for date in prices_benchmark.timestamp[end]
         composition = _compute_portfolio_composition(port, DateTime(date))
-        composition_alldates[string(Date(date))] = composition != nothing ? composition : ""
-    end
 
-    return composition_alldates
+        return (date, composition != nothing ? composition : "")
+    else 
+        println("Empty data: Portfolio Composition can't be calculated")
+        return ("", "")
+    end
 end
 
 function convert_to_node_portfolio(port::Portfolio)
@@ -553,7 +583,9 @@ function convert_to_node_portfolio(port::Portfolio)
             
             n_pos["security"] = convert(Dict{String,Any}, getsecurity(pos.securitysymbol.id))
             n_pos["quantity"] = pos.quantity
-            n_pos["price"] = pos.averageprice
+            n_pos["avgPrice"] = pos.averageprice
+            n_pos["profit"] = pos.lasttradepnl
+            n_pos["lastPrice"] = pos.lastprice
             
             push!(output["positions"], n_pos) 
         end
