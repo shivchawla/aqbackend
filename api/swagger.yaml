@@ -1861,7 +1861,7 @@ paths:
       - investor
       summary: update the portfolio with transactions
       description: Updates the portfolio with transactions
-      operationId: updateInvestorPortfolioForTransactions
+      operationId: updateInvestorPortfolioForNewTransactions
       security:
       - api_key: []
       parameters:
@@ -1885,6 +1885,11 @@ paths:
           type: array
           items:
             $ref: '#/definitions/Transaction'
+      - name: action
+        in: query
+        required: true
+        default: "add"
+        type: string
       responses:
         200:
           description: OK
@@ -2538,6 +2543,10 @@ definitions:
         type: string
         format: uuid
         default: ""
+      _id:
+        type: string
+        format: uuid
+        default: null 
 
 
 #PortfolioDetail
