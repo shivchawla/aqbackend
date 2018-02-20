@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-29 22:09:30
+* @Last Modified time: 2018-02-17 18:34:43
 */
 
 'use strict';
@@ -42,7 +42,12 @@ const Transaction = new Schema({
 		default: false
 	},
 
-	advice: Schema.Types.ObjectId
+	advice: Schema.Types.ObjectId,
+
+	deleted: {
+		type: Boolean,
+		default: false
+	}
 });
 
 //const TransactionModel = mongoose.model('Transaction', Transaction);

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-17 13:03:14
+* @Last Modified time: 2018-02-17 18:44:14
 */
 
 'use strict';
@@ -112,6 +112,11 @@ Portfolio.statics.clonePortfolio = function(query, options) {
 Portfolio.statics.addTransactions = function(query, transactions) {
 	return this.findOne(query)
 	.then(portfolio => {
+
+		var oldTransaction = transactions.filter(item => {return item._id != null});
+		var newTransaction = transactions.filter(item => {return item._id == null});
+
+		//PUSH new transactions
 		transactions.forEach(transaction => {
 			if (transaction.advice == "") {
                 transaction.advice = null;
@@ -119,6 +124,56 @@ Portfolio.statics.addTransactions = function(query, transactions) {
                 transaction.advice = new mongoose.Types.ObjectId(transaction.advice);
             }
 			portfolio.transactions.push(transaction);	
+		});
+
+
+		//UPDATE old transactions
+		oldTransaction.forEach(transaction => {
+			var idx = portfolio.transactions.map(item => item._id).indexOf(transaction._id);
+			
+			if(idx == -1) {
+				console.log("Old transaction not foudn. This is not possible");
+			} else {
+				portfolio.transactions[idx] = transaction;
+			}
+		});
+
+		return portfolio.saveAsync();
+	});
+};
+
+Portfolio.statics.updateTransactions = function(query, transactions) {
+	return this.findOne(query)
+	.then(portfolio => {
+
+		//UPDATE old transactions
+		transactions.forEach(transaction => {
+			var idx = portfolio.transactions.map(item => item._id).indexOf(transaction._id);
+			
+			if(idx == -1) {
+				console.log("Transaction not found while updating");
+			} else {
+				portfolio.transactions[idx] = transaction;
+			}
+		});
+
+		return portfolio.saveAsync();
+	});
+};
+
+Portfolio.statics.deleteTransactions = function(query, transactions) {
+	return this.findOne(query)
+	.then(portfolio => {
+
+		//UPDATE old transactions
+		transactions.forEach(transaction => {
+			var idx = portfolio.transactions.map(item => item._id).indexOf(transaction._id);
+			
+			if(idx == -1) {
+				console.log("Transaction not found while deleting");
+			} else {
+				portfolio.transactions[idx].deleted = true;
+			}
 		});
 
 		return portfolio.saveAsync();

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-17 13:19:35
+* @Last Modified time: 2018-02-17 18:51:16
 */
 
 'use strict';
@@ -71,7 +71,7 @@ function _computeUpdatedPortfolioForStockTransaction(initialPortfolio, allTransa
 	});
 }
 
-function _updatePortfolioForStockTransactions(portfolioId, transactions) {
+function _updatePortfolioForStockTransactions(portfolioId, transactions, action) {
 	
 	//LOGIC
 	//1. Insert new transactions
@@ -86,38 +86,52 @@ function _updatePortfolioForStockTransactions(portfolioId, transactions) {
 		
 		updateMethod = 'Create';
 
-		var oldTransactions = portfolio.transactions;
+		if(action == "update") {
+			//Check if transaction has "_id" field, 
+			//This means MODIFY existing transaction
+			//IF YES, then "create" portfolio from scratch
+			return PortfolioModel.updateTransactions({_id: portfolioId, deleted: false}, transactions);
 
-		var nTransactions = oldTransactions.length;
-		if(nTransactions > 0) {
-			//sort transaction by date
-			oldTransactions.sort((item1, item2) => {
-				return item1.date.getTime() < item2.date.getTime() ? -1 : 1; 
-			});
+		} else if(action == "delete") {
+			return PortfolioModel.deleteTransactions({_id: portfolioId, deleted: false}, transactions);
 
-			//get the last transaction's date
-			var lastDateOld = new Date(oldTransactions[nTransactions -1].date);
+		} else {
+		
+			var oldTransactions = portfolio.transactions;
 
-			//Also, sort the new transactions by dates.
-			transactions.sort((item1, item2) => {
-				return item1.date.getTime() < item2.date.getTime() ? -1 : 1; 
-			});
+			var nTransactions = oldTransactions.length;
+			if(nTransactions > 0) {
+				//sort transaction by date
+				oldTransactions.sort((item1, item2) => {
+					return item1.date.getTime() < item2.date.getTime() ? -1 : 1; 
+				});
 
-			//get first transaction date
-			var firstDateNew = new Date(transactions[0].date);
+				//get the last transaction's date
+				var lastDateOld = new Date(oldTransactions[nTransactions -1].date);
 
-			if (firstDateNew.getTime() >= lastDateOld.getTime()) {
-				updateMethod = 'Append';
-			} 
+				//Also, sort the new transactions by dates.
+				transactions.sort((item1, item2) => {
+					return item1.date.getTime() < item2.date.getTime() ? -1 : 1; 
+				});
+
+				//get first transaction date
+				var firstDateNew = new Date(transactions[0].date);
+
+				//If earliest date of new transaction is hgher than latest date of old transactions,
+				//then APPEND
+				if (firstDateNew.getTime() >= lastDateOld.getTime()) {
+					updateMethod = 'Append';
+				} 
+			}
+
+			return PortfolioModel.addTransactions({_id: portfolioId, deleted: false}, transactions)
 		}
-
-		return PortfolioModel.addTransactions({_id: portfolioId, deleted: false}, transactions)
 	})
 	.then(portfolio => { //Has updated transaction but portfolio is STALE
 		if(portfolio) {
 			if (updateMethod == "Create") {
 				var initialPortfolio = {positions: [], subPositions: [], cash: portfolio.seedCash ? portfolio.seedCash : 1000000.0};
-				return _computeUpdatedPortfolioForStockTransaction(initialPortfolio, portfolio.transactions);
+				return _computeUpdatedPortfolioForStockTransaction(initialPortfolio, portfolio.transactions.filter(item => {return item.deleted == false}));
 			} else if (updateMethod == "Append") {
 				//Updating the date format
 				transactions.map(item => {item.date = new Date(item.date); return item});
@@ -450,7 +464,6 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 
 //NOT IN USE
 module.exports.createInvestorPortfolioFromTransactions = function(args, res, next) {
-	//console.log(args);
 
 	const userId = args.user._id;
 	const investorId = args.investorId.value;
@@ -594,8 +607,6 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 			if (investor.user.equals(userId)){
 				if(investor.portfolios) {
 					if (investor.portfolios.map(item => item.toString()).indexOf(portfolioId) != -1) {
-						//var fields = 'name detail history advices benchmark';
-						//return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields: fields});
 						return _getUpdatedPortfolio(portfolioId);
 					} else {
 						APIError.throwJsonError({userId: userId, message: "PortfolioId is not a valid portfolio for investor"})
@@ -614,22 +625,10 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 	.then(updatedPortfolio => {
 		if(updatedPortfolio) {
 			return res.status(200).send(updatedPortfolio);
-			//return Promise.all([portfolio, HelperFunctions.updatePositionsForLatestPrice(portfolio.detail)]);
 		} else {
 			APIError.throwJsonError({message: "Invalid updated portfolio"});
 		}
 	})
-	/*.then(([portfolio, updatedPositions]) => {
-		console.log(updatedPositions);
-		var port = JSON.parse(JSON.stringify(portfolio));
-
-		port.detail.positions = updatedPositions;
-		
-		console.log(port.detail);
-		console.log(port.detail.positions);
-
-		return res.status(200).send(port);
-	})*/
 	.catch(err => {
 		return res.status(400).send(err.message);
 	})
@@ -684,8 +683,7 @@ module.exports.updateInvestorPortfolioForTransactions = function(args, res, next
 	const transactions = args.body.value;
 	const investorId = args.investorId.value;
 	const portfolioId = args.portfolioId.value;
-
-	//console.log(transactions);
+	const action = args.action.value;
 
  	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios'}) 
 	.then(investor => {
@@ -693,7 +691,7 @@ module.exports.updateInvestorPortfolioForTransactions = function(args, res, next
 			
 			if(investor.portfolios.indexOf(portfolioId) != -1) {			
 				if(transactions) {
-					return _updatePortfolioForStockTransactions(portfolioId, transactions);
+					return _updatePortfolioForStockTransactions(portfolioId, transactions, action);
 				}  else {
 					APIError.throwJsonError({message: "Invalid transactions"});
 				}
