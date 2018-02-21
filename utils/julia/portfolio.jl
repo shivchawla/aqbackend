@@ -291,6 +291,9 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
         if prices == nothing
             println("Price data not available")
             dt_array = Date(start_date):Date(end_date)
+            if length(dt_array) == 0
+                return nothing
+            end
             return TimeArray([dt for dt in dt_array], cash*ones(length(dt_array)), ["Portfolio"])
         end
 
@@ -433,7 +436,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory)
 
             portfolio_value_ta = _compute_portfoliovalue(portfolio, startDate, endDate, cash)
 
-            if portfolio_value_ta != nothing    
+            if portfolio_value_ta != nothing 
                 push!(ts, portfolio_value_ta)
             end
         end
@@ -446,7 +449,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory)
         f_ts = ts[1]
 
         for i = 2:length(ts)
-            vcat(f_ts, ts)
+            vcat(f_ts, ts[i])
         end
 
         netValues = f_ts.values
@@ -564,11 +567,12 @@ function compute_portfolio_composition(port::Dict{String, Any}, start_date::Date
 
     prices_benchmark = history_nostrict([benchmark_ticker], "Close", :Day, start_date, end_date)
 
-    ts = prices_benchmark.timestamp
+    if prices_benchmark == nothing
+        return ("", "")
+    end
 
-    if length(ts) > 0 
-        date = ts[end]
-        #for date in prices_benchmark.timestamp[end]
+    if length(prices_benchmark.timestamp) > 0 
+        date = prices_benchmark.timestamp[end]
         composition = _compute_portfolio_composition(port, DateTime(date))
 
         return (date, composition != nothing ? composition : "")

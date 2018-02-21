@@ -22,7 +22,11 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
         if benchmark_value != nothing && portfolio_value != nothing
             merged_value = merge(portfolio_value, benchmark_value, :outer)
             merged_returns = percentchange(merged_value, :log)
-        
+            
+            if length(merged_returns.timestamp) == 0
+                return Performance()
+            end
+
             portfolio_returns = merged_returns["Portfolio"].values
             benchmark_returns = merged_returns[benchmark].values
 
@@ -49,6 +53,7 @@ end
 ###
 function compute_performance(portfolio_value::TimeArray, benchmark::String)
 
+
     ts = portfolio_value.timestamp
     if length(ts) < 2
         return Performance()
@@ -65,6 +70,10 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
         merged_value = merge(portfolio_value, benchmark_value, :outer)
         merged_returns = percentchange(merged_value, :log)
         
+        if length(merged_returns.timestamp) == 0
+            return Performance()
+        end
+
         portfolio_returns = merged_returns["Portfolio"].values
         benchmark_returns = merged_returns[benchmark].values
 
@@ -153,7 +162,14 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
             stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date)
             
             if(benchmark_prices != nothing, stock_prices != nothing)
+                
                 merged_returns = percentchange(merge(stock_prices, benchmark_prices, :outer))
+                
+                ##Empty timeseries output of pctchange when length == 1 
+                if length(merged_returns.timestamp) == 0
+                    return (Date(now()), Performance())
+                end
+
                 merged_returns = rename(merged_returns, ["stock", "benchmark"])
 
                 stock_returns = merged_returns["stock"].values
@@ -193,6 +209,11 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
             
             if benchmark_prices != nothing && stock_prices != nothing
                 merged_returns = percentchange(merge(stock_prices, benchmark_prices, :outer))
+                
+                if length(merged_returns.timestamp) == 0
+                    return Performance()
+                end
+
                 merged_returns = rename(merged_returns, ["algorithm", "benchmark"])
 
                 return Raftaar.calculateperformance_rollingperiods(merged_returns)
@@ -223,6 +244,11 @@ function compute_stock_static_performance(security_dict::Dict{String,Any}; bench
 
             if benchmark_prices != nothing && stock_prices != nothing
                 merged_returns = percentchange(merge(stock_prices, benchmark_prices, :outer))
+                
+                if length(merged_returns.timestamp) == 0
+                    return Performance()
+                end
+
                 merged_returns = rename(merged_returns, ["algorithm", "benchmark"])
 
                 return Raftaar.calculateperformance_staticperiods(merged_returns)
@@ -297,7 +323,7 @@ function get_stock_price_latest(security_dict::Dict{String,Any})
                 output["Open"] = stock_value_52w["Open"].values[end]
                 output["Close"] = stock_value_52w["Close"].values[end]
                 output["Date"] = string(Date(stock_value_52w.timestamp[end]))
-                output["Change"] = round(percentchange(stock_value_52w["Close"]).values[end] * 100.0, 2)
+                output["Change"] = length(stock_value_52w.timestamp) > 1 ? round(percentchange(stock_value_52w["Close"]).values[end] * 100.0, 2) : 0.0
             
                 return output
             else

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-12 12:39:38
+* @Last Modified time: 2018-02-21 09:49:44
 */
 
 'use strict';
@@ -10,19 +10,11 @@ const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
 const AdviceModel = require('../../models/Marketplace/Advice');
 const PortfolioModel = require('../../models/Marketplace/Portfolio');
-const Portfolio = require('./PortfolioService');
+const PerformanceModel = require('../../models/Marketplace/Performance');
 const Promise = require('bluebird');
 const config = require('config');
 const HelperFunctions = require("../helpers");
 const APIError = require('../../utils/error');
-
-function getDate(date) {
-    var d = date.getDate();
-    var m = date.getMonth() + 1;
-    var y = date.getYear();
-
-    return d+"-"+m+"-"+y;  
-}
 
 module.exports.createAdvice = function(args, res, next) {
 	const userId = args.user._id;
@@ -218,7 +210,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const userId = args.user._id;
 	
 	const options = {};
-	options.fields = 'name heading description createdDate updatedDate advisor public approved followers subscribers rating portfolio rebalance maxNotional';
+	options.fields = 'name heading description createdDate updatedDate advisor public approved analytics portfolio rebalance maxNotional';
 	options.populate = 'advisor';
 	
 	Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
