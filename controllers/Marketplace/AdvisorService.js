@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-29 17:34:16
+* @Last Modified time: 2018-02-20 14:48:39
 */
 
 'use strict';
@@ -15,7 +15,7 @@ const Promise = require('bluebird');
 module.exports.createAdvisor = function(args, res, next) {
     const userId = args.user._id;
 
-    AdvisorModel.fetchAdvisor({user:userId}, {})
+    return AdvisorModel.fetchAdvisor({user:userId}, {})
 	.then(advisor => {
 		if(!advisor) {
 			return AdvisorModel.saveAdvisor({user:userId})
@@ -44,7 +44,7 @@ module.exports.getAdvisors = function(args, res, next) {
     options.sort = args.sort.value;
     const userId = args.user._id;
 
-    AdvisorModel.fetchAdvisors({}, options)
+    return AdvisorModel.fetchAdvisors({}, options)
     .then(advisors => {
     	if(advisors) {
     		return Promise.all([advisors, 
@@ -78,7 +78,7 @@ module.exports.getAdvisorSummary = function(args, res, next) {
     const options = {};
     options.fields = 'user rating followers profile'
     
- 	Promise.all([AdvisorModel.fetchAdvisor({_id: advisorId}, options), 
+ 	return Promise.all([AdvisorModel.fetchAdvisor({_id: advisorId}, options), 
  		//Fetch advice performance (aggregate it or send the summary for each advisr.
  		//NEEDS summary definition)
  		AdviceModel.fetchAdvices({advisor: advisorId, deleted: false}, {fields:'advicePerformance'})])
@@ -159,86 +159,6 @@ module.exports.followAdvisor = function(args, res, next) {
     .catch(err => {
     	return res.status(400).send(err.message);
     });
-};
-
-//NOT REQUIRED
-/*module.exports.getFollowers = function(args, res, next) {
-	
-	//TODO: send relevant information about the followers (PUBLIC profile)
-	const userId = args.user._id;
-	const advisorId = args.advisorId.value;
-	
-	AdvisorModel.fetchAdvisor({user: userId}, {fields:'followers'})
-    .then(advisor => {
-    	if(advisor && advisor._id.equals(advisorId)) {
-    		if(advisor.followers) {
-	    		return res.status(200).json({followers:advisor.followers, count:advisor.followers.length});
-    		} else{
-    			return res.status(200).json({followers:[], count:0});
-    		}	
-    	} else {
-    		APIError.throwJsonError({message:"No advisor found"});
-    	}
-    })
-    .catch(err => {
-    	return res.status(400).send(err.message);
-    });
-};*/
-
-//NOT REQUIRED
-module.exports.getAdvisorAdvicesWithStock = function(args, res, next) {
-	const userId = args.user._id;
-
-	const ticker = ags.ticker.value;
-	const exchange = args.exchange.value;
-	const securityType = args.securityType.value;
-	const country = args.country.value;
-
-	const security = {ticker: ticker, 
-						exchange: exchange, 
-						securityType: securityType,
-						country: country};
-
-	return AdvisorModel.fetchAdvisor({user: userId}, {fields:'advices'})
-	.then(advisor => {
-		if(advisor) {
-			if(advisor.advices) {
-				return Promise.all([advisor.advices.forEach(advice => {
-						return AdviceModel.fetchAdvice({_id: advice._id}, {fields: 'portfolio'})
-					})]);
-			} else {
-				APIError.throwJsonError({message: "No advices found"});
-			}
-		} else {
-			APIError.throwJsonError({userId: userId, message: "No advisor found"})
-		}
-	})
-	.then(([advices]) => {
-		if(advices) {
-			var advicesWithStock = [];
-			advices.forEach(advice => {
-				var idx = advice.portfolio.positions.map(item => item.security).indexOf(security);
-				
-				if (idx != -1) {
-					advicesWithStock.push({
-							_id: advice._id,
-							name: advice.name,
-							description: advice.description,
-							position: advice.portfolio.positions[idx]
-						});
-				}
-
-			});
-
-			return res.status(200).json(advicesWithStock);
-
-		} else {
-			APIError.throwJsonError({message: "No advices found"});
-		}
-	})
-	.catch(err => {
-		return res.status(400).send(err.message);
-	})    
 };
 
 function farfuture() {

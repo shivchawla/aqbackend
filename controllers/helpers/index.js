@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-17 14:33:34
+* @Last Modified time: 2018-02-20 16:30:15
 */
 
 'use strict';
@@ -226,34 +226,6 @@ module.exports.computeUpdatedPortfolioForStockTransactions = function(portfolio,
 			positions: fullPortfolio.positions,
 			subPositions: subPositions,
 			cash: portfolio.cash + fullPortfolio.cash
-		};
-
-		return updatedPortfolio;
-	});
-}
-
-//NOT REQUIRED
-module.exports.OLDcomputeUpdatedPortfolioForStockTransactions = function(portfolio, transactions, adviceId) {
-		
-	var subPositions = portfolio.subPositions.filter(item => {
-			return _compareIds(item.advice, adviceId);}); 	
-
-
-	return Promise.all([_updatePositions(subPositions, transactions),
-						_updatePositions(portfolio.positions, transactions)])
-	.then(([port2, port1]) => {
-
-		port2.positions.forEach(position => {
-	    						position["advice"] = adviceId});
-
-		var subPositions = portfolio.subPositions.filter(item => {
-								return !_compareIds(item.advice, adviceId);})
-							.concat(port2.positions);
-
-		const updatedPortfolio = {
-			positions: port1.positions,
-			subPositions: subPositions,
-			cash: portfolio.cash + port1.cash
 		};
 
 		return updatedPortfolio;
@@ -574,21 +546,6 @@ module.exports.updateStockLatestDetail = function(q, security) {
     });
 };
 
-module.exports.computeRating = function(portfolioId) {
-	return PerformanceModel.fetchPerformance({portfolio: portfolioId})
-	.then(performance => {
-		//WRITE RATING LOGIC HERE
-		if (performance) {
-			//Use Sharpe Ratio Fractional Rnking
-			//Use Information Ratio Fractional Ranking
-			//Use Calmar Ratio Fractional Ranking
-			//Use Total Return Fractional Ranking
-			//Use Inverse of Volatility Fractional Ranking
-			//Use Tracking Error Fractional Ranking
-		}
-	});
-};
-
 module.exports.updatePositionsForLatestPrice = function(positions) {
 	if (positions) {
 		return new Promise((resolve, reject) => {
@@ -627,37 +584,108 @@ module.exports.updatePositionsForLatestPrice = function(positions) {
 	}
 };
 
-//NOT IN USE
-module.exports.updatePortfolioForLatestPrice = function(portfolio) {
-	if (portfolio) {
-		return new Promise((resolve, reject) => {
+function _computePortfolioRating (portfolioId) {
+	return PerformanceModel.fetchPerformance({portfolio: portfolioId})
+	.then(performance => {
+		//WRITE RATING LOGIC HERE
+		if (performance) {
+			//Use Sharpe Ratio Fractional Rnking
+			//Use Information Ratio Fractional Ranking
+			//Use Calmar Ratio Fractional Ranking
+			//Use Total Return Fractional Ranking
+			//Use Inverse of Volatility Fractional Ranking
+			//Use Tracking Error Fractional Ranking
 
-			var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-			var wsClient = new WebSocket(connection);
+			return 5.0;
+		} else {
+			APIError.throwJsonError({portfolioId: portfolioId, message: "Performance not available"});
+		}
+	});
+};
 
-			wsClient.on('open', function open() {
-	            console.log('Connection Open');
-	            console.log(connection);
-	            var msg = JSON.stringify({action:"update_portfolio_price", 
-	            						portfolio: portfolio});
-	         	wsClient.send(msg);
-	        });
+function _computeAggregateRating (adviceIds) {
+	return Promise.map(adviceIds, function(adviceId) {
+		return AdviceModel.fetchAdvice({_id: adviceId}, {fields:'portfolio analytics'}, {populate: 'portfolio'});
+	})
+	.then(advices => {
+		if (advices) {
+			//FIND a logic to combine all ratings
+			return 0.5;
+		} else {
+			APIError.throwJsonError({message: "Advices not available while computing aggregate ratings"});
+		}
+	});
+}
 
-	        wsClient.on('message', function(msg) {
-	        	var data = JSON.parse(msg);
+function updateAdvisorAnalytics(advisorId) {
+	return Promise.all([
+		AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: '_id subscribers followers'}),
+		AdviceModel.fetchAdvices({advisor: advisorId, deleted: false, public: true}, {fields:'_id'})])
+	.then(([advisor, advices]) => {
+		if(advisor && advices) {
+			return {
+				date: getDate(new Date()),
+				numSubscribers: advisor.subscribers.filter(item => {return item.active == true;}).length,
+				numFollowers: advisor.followers.filter(item => {return item.active == true;}).length,
+				rating: _computeAggregatedRating(advices),
+				numAdvices: advices.length
+			};
+		} else {
+			if(!advisor) {
+				APIError.throwJsonError({advisor: advisorId, message: "Advisor not found while updating analytics"});
+			} else if(!advices) {
+				APIError.throwJsonError({advisor: advisorId, message: "Null advices for advisor"});
+			}
+		}
+	})
+	.then(advisorAnalytics => {
+		return AdvisorModel.updateAnalytics({_id: advisorId}, advisorAnalytics.analytics);
+	});
+}
 
-	        	if (data["error"] == "" && data["updatedPositions"]) {
-				    resolve(data["updatedPositions"]);
-			    } else if (data["error"] != "") {
-			    	reject(new Error(data["error"]));
-			    } else {
-			    	reject(new Error("Unknown error in updating portfolio for latest price"));
-			    }
-		    });
-	    })
-	} else {
-		APIError.throwJsonError({message:"Invalid portfolio: Can't update positions for latest price"});
-	}
+function updateAllAdvisorAnalytics() {
+	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
+	.then(advisors => {
+		if (advisors) {
+			return Promise.map(advisors, function(advisor) {
+				return updateAdvisorAnalytics(advisor._id);
+			});
+		} else {
+			APIError.throwJsonError({message: "Advisors not found while updating analytics"});
+		}
+	});
+}
+
+function updateAdviceAnalytics(adviceId) {
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: '_id portfolio subscribers followers'})
+	.then(advice => {
+		if (advice) {
+			return {
+				date: getDate(new Date()),
+				numSubscribers: advice.subscribers.filter(item => {return item.active == true}).length,
+				numFollowers: advice.followers.filter(item => {return item.active == true}).length,
+				rating: _computePortfolioRating(advice.portfolio)
+			};
+		} else {
+			APIError.throwJsonError({advice: adviceId, message: "Advice not found while updating analytics"});
+		}
+	})
+	.then(adviceAnalytics => {
+		return AdviceModel.updateAnalytics({_id: adviceId}, adviceAnalytics.analytics);
+	});
+}
+
+function updateAllAdviceAnalytics() {
+	return AdviceModel.fetchAdvices({deleted: false}, {fields: '_id'})
+	.then(advices => {
+		if (advices) {
+			return Promise.map(advices, function(advice) {
+				return updateAdviceAnalytics(Advice._id);
+			});
+		} else {
+			APIError.throwJsonError({message: "Advices not found while updating analytics"});
+		}
+	});
 };
 
 module.exports.getDate = function(dateTime) {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-12 11:56:30
+* @Last Modified time: 2018-02-20 14:29:21
 */
 'use strict';
 const mongoose = require('../index');
@@ -13,6 +13,13 @@ const Security = require('./Security');
 const Transaction = require('./Transaction');
 const Performance = require('./Performance');
 const Advisor = require('./Advisor');
+
+const AdviceAnalytics = new Schema({
+    date: Date,
+    rating: Number,
+    numSubscribers: Number,
+    numFollowers: Number 
+});
 
 const Advice = new Schema({
     advisor: {
@@ -85,15 +92,6 @@ const Advice = new Schema({
 
     deletedDate: Date,
 
-    rating: [{
-        value: {
-            type: Number,
-            default: 0
-        },
-
-        date: Date,
-    }],
-
     subscribers: [{
         investor:{
     	    type: Schema.Types.ObjectId,
@@ -122,7 +120,9 @@ const Advice = new Schema({
         },
 
         dateUpdated: Date,
-    }]
+    }],
+
+    analytics: [AdviceAnalytics]
 });
 
 //TODO: Deleted advices can/should be moved to deleted-advice collection
@@ -207,29 +207,8 @@ Advice.statics.getAdviceHistory = function(query, options) {
 	return q.execAsync();
 };
 
-Advice.statics.updateAdvice = function(query, updates, oldPortfolio) {
-    
-    var q = this.findOne(query);
-
-    const keys = Object.keys(updates);
-    var options = {};
-    if(keys.indexOf('portfolio') != -1) {
-        q = q.select('portfolio');
-    }
-
-    return q.execAsync()
-    .then(advice => {
-        var oldPortfolio = advice.portfolio;
-        var fupdate = {$set: updates};
-        
-        //Update the portfolio array if it's TRULY a new Portfolio 
-        //(not just an update to exisitng portfolio in case of non-public advice)
-        if(keys.indexOf("portfolio") != -1 && !oldPortfolio) {
-            fupdate = {$set: updates, $push:{portfolioHistory: oldPortfolio}};
-        }
-        
-        return this.findOneAndUpdate(query, fupdate, {upsert:true, new: true});
-    });
+Advice.statics.updateAdvice = function(query, updates) {
+    return this.findOneAndUpdate(query, updates, {upsert:true, new: true});
 };
 
 Advice.statics.updateCurrentPortfolioPerformance = function(query, performance) {
@@ -374,6 +353,28 @@ Advice.statics.updateSubscribers = function(query, investorId) {
 
             return advice.save();
         }      
+    });
+};
+
+
+Advice.statics.updateAnalytics = function(query, analytics) {
+    return this.findOne(query, {analytics:1})
+    .then(advice => {
+        var adviceAnalytics = advice.analytics;
+        var analyticsDate = analytics.date;
+
+        //Find date
+        var idx = adviceAnalytics.map(item => item.date.getTime).indexOf(analyticsDate.getTime());
+        if (idx == -1) {
+            adviceAnalytics.push(analytics);
+        } else {
+            Object.keys(analytics).forEach(key => {
+                adviceAnalytics[idx][key] = analytics[key];
+            });
+        }
+
+        return advice.save();
+
     });
 };
 

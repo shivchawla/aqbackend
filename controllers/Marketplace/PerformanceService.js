@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-17 13:33:19
+* @Last Modified time: 2018-02-21 09:46:23
 */
 
 'use strict'
@@ -43,7 +43,7 @@ function _computePortfolioConstituentsPerformance(portfolioId) {
 	.then(portfolio => {
 		var currentPortfolio = portfolio.detail;
 
-		var startDate = new Date(currentPortfolio.startDate);
+		var startDate = HelperFunctions.getDate(currentPortfolio.startDate);
 		var endDate = new Date();
 
 		return HelperFunctions.computeConstituentPerformance(currentPortfolio, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
@@ -114,20 +114,29 @@ function _computeSimulatedPerformance(portfolioId) {
 	
 	return _computeSimulatedPerformanceCurrentPortfolio(portfolioId)
 	.then(simulatedPerformance => {
-		var updates = {updateMessage: "Updated Successfully",
-			updateDate: new Date(),
-			metrics: {
-				date:  new Date(simulatedPerformance.date),
-				portfolioComposition: null,
-				portfolioPerformance: simulatedPerformance.value,
-				constituentPerformance: null,
-			},
+		
+		if (simulatedPerformance) {
+			var updates = {updateMessage: "Updated Successfully",
+				updateDate: new Date(),
+				metrics: {
+					date:  HelperFunctions.getDate(simulatedPerformance.date),
+					portfolioComposition: null,
+					portfolioPerformance: simulatedPerformance.value,
+					constituentPerformance: null,
+				},
 
-			portfolioValues: simulatedPerformance.portfolioValues
-		};
+				portfolioValues: simulatedPerformance.portfolioValues
+			};
 
-		return updates;
+			return updates;
+		} else {
+			return null;
+		}
 		//return PerformanceModel.updatePerformanceByType({portfolio: portfolioId}, updates, "simulated");
+	})
+	.catch(err => {
+		console.log("Warn: " + err.message);
+		return null;
 	});
 }
 
@@ -139,6 +148,7 @@ function _computeLatestPerformance(portfolioId) {
 				true, 
 				_computeTruePerformance(portfolioId), //WORKS
 				//null,
+				//null
 				_computePortfolioComposition(portfolioId), //WORKS
 				//null,
 				_computePortfolioConstituentsPerformance(portfolioId)
@@ -157,7 +167,7 @@ function _computeLatestPerformance(portfolioId) {
       		var updates = {updateMessage: updateMessage, 
 				updateDate: new Date(),
 				metrics: {
-					date:  new Date(latestPerformanceDate),
+					date:  getDate(latestPerformanceDate),
 					portfolioComposition: portfolioComposition.value,
 					portfolioPerformance: latestPerformance.value,
 					constituentPerformance: constituentPerformance.value
@@ -167,11 +177,14 @@ function _computeLatestPerformance(portfolioId) {
 			};
 
 			return updates;
-			//return PerformanceModel.updatePerformanceByType({portfolio: portfolioId}, updates, "current");	
       	} else {
-      		APIError.throwJsonError({message: "Output date mismatch while calculating performance"})
+      		console.log("Warn: Output date mismatch while calculating performance");
+      		return null;
       	}
-		
+	})
+	.catch(err => {
+		console.log("Warn: " + err.message);
+		return null;
 	});
 }
 
@@ -240,7 +253,8 @@ module.exports.getPerformanceAdvicePortfolio = function(args, res, next) {
 				portfolioId = advice.portfolio;
 				return Promise.all([
 				 	_computeSimulatedPerformance(portfolioId),
-				 	_computeLatestPerformance(portfolioId)]);
+				 	_computeLatestPerformance(portfolioId)
+				 	]);
 			} else {
 				APIError.throwJsonError({userId: userId, message:"Not Authorized"});
 			}

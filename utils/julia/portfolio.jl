@@ -290,7 +290,8 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
 
         if prices == nothing
             println("Price data not available")
-            return cash
+            dt_array = Date(start_date):Date(end_date)
+            return TimeArray([dt for dt in dt_array], cash*ones(length(dt_array)), ["Portfolio"])
         end
 
         ts = prices.timestamp
@@ -406,7 +407,7 @@ end
 Compute portfolio value based on portfolio history for a given period
 OUTPUT: Vector of portfolio value
 =#
-function compute_portfolio_value_history(portfolioHistory)
+function compute_portfoliohistory_netvalue(portfolioHistory)
     
     try
         ts = Vector{TimeArray}()
@@ -425,6 +426,11 @@ function compute_portfolio_value_history(portfolioHistory)
             endDate = DateTime(collection["endDate"], format)
 
             # Compute portfolio value timed array
+            # Output is TA 
+            if endDate < startDate
+                error("Start date in portfolio greater then End date. Can't compute portoflio value")    
+            end
+
             portfolio_value_ta = _compute_portfoliovalue(portfolio, startDate, endDate, cash)
 
             if portfolio_value_ta != nothing    
@@ -498,7 +504,6 @@ function updateportfolio_transactions(port::Dict{String, Any}, transactions::Vec
 
         if length(fills) > 0
             nd = Raftaar.updateportfolio_fills!(portfolio, fills)
-            println("Cash from fills: $(nd)")
             cash += nd
         end
 
@@ -563,7 +568,6 @@ function compute_portfolio_composition(port::Dict{String, Any}, start_date::Date
 
     if length(ts) > 0 
         date = ts[end]
-        println("Computing composition for date: $(date)")
         #for date in prices_benchmark.timestamp[end]
         composition = _compute_portfolio_composition(port, DateTime(date))
 

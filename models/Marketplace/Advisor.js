@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-15 12:42:15
+* @Last Modified time: 2018-02-20 14:29:32
 */
 'use strict';
 
@@ -11,6 +11,14 @@ const Schema = mongoose.Schema;
 
 const Performance = require('./Performance');
 const Investor = require('./Investor');
+
+const AdvisorAnalytics = new Schema({
+    date: Date,
+    rating: Number,
+    numSubscribers: Number,
+    numFollowers: Number,
+    numAdvices: Number
+});
 
 const Advisor = new Schema({
    	user: {
@@ -41,17 +49,10 @@ const Advisor = new Schema({
         updatedDate: Date
     }],
        
-    rating: [{
-    	date: Date,
-    	rating: {
-    		type: Number,
-        	default: 0
-    	}
-    }],
-
     profile: Schema.Types.Mixed,
-});
 
+    analytics: [AdvisorAnalytics]
+});
 
 Advisor.statics.saveAdvisor = function(advisorDetail) {
     const advisor = new this(advisorDetail);
@@ -171,7 +172,6 @@ Advisor.statics.addAdvice = function(query, adviceId) {
 	/*.then(advisor => {
 		return {addedAdvice: adviceId, advices: advisor.advices};
 	})*/
-	
 };
 
 Advisor.statics.removeAdvice = function(query, adviceId) {
@@ -218,6 +218,10 @@ Advisor.statics.updateRating = function(query, rating) {
 		.then(advisor => {
 			return {user: advisor.user, rating: advisor.rating};
 		});
+};
+
+Advisor.statics.updateAdvisor = function(query, updates) {
+	return this.findOneAndUpdate(query, updates, {upsert: true, new: true, setDefaultsOnInsert: true});
 };
 
 function getTime(d) {

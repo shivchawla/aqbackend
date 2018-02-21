@@ -93,7 +93,7 @@ wsh = WebSocketHandler() do req, ws_client
             portfolioHistory = parsemsg["portfolioHistory"]
             benchmark = parsemsg["benchmark"]["ticker"]
 
-            (netValues, dates) = compute_portfolio_value_history(portfolioHistory)
+            (netValues, dates) = compute_portfoliohistory_netvalue(portfolioHistory)
 
             if netValues != nothing && dates != nothing
                 vals = zeros(length(netValues), 1)
@@ -102,7 +102,7 @@ wsh = WebSocketHandler() do req, ws_client
                 end
                 
                 performance = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
-              
+                
                 nVDict = Vector{Dict{String, Any}}(length(netValues))
 
                 for i = 1:length(netValues)
@@ -113,7 +113,10 @@ wsh = WebSocketHandler() do req, ws_client
                                           "value" => serialize(performance), 
                                           "portfolioValues" => nVDict)
             else 
-                error("Missing Input")
+                parsemsg["performance"] = Dict{String, Any}("date" => Date(now()), 
+                                          "value" => serialize(Performance()), 
+                                          "portfolioValues" => Dict{String, Any}[])
+                #error("Missing Input")
             end
 
         elseif action == "compute_portfolio_performance"
