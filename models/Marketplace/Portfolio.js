@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-17 18:44:14
+* @Last Modified time: 2018-02-21 16:12:15
 */
 
 'use strict';
@@ -113,8 +113,8 @@ Portfolio.statics.addTransactions = function(query, transactions) {
 	return this.findOne(query)
 	.then(portfolio => {
 
-		var oldTransaction = transactions.filter(item => {return item._id != null});
-		var newTransaction = transactions.filter(item => {return item._id == null});
+		var oldTransaction = transactions.filter(item => {return item._id != "" && item._id != null});
+		var newTransaction = transactions.filter(item => {return item._id == "" || item._id == null});
 
 		//PUSH new transactions
 		transactions.forEach(transaction => {
@@ -123,16 +123,21 @@ Portfolio.statics.addTransactions = function(query, transactions) {
             } else {
                 transaction.advice = new mongoose.Types.ObjectId(transaction.advice);
             }
+
+            if (transaction._id == "") {
+            	delete transaction._id;
+            }
+
 			portfolio.transactions.push(transaction);	
 		});
 
 
 		//UPDATE old transactions
 		oldTransaction.forEach(transaction => {
-			var idx = portfolio.transactions.map(item => item._id).indexOf(transaction._id);
+			var idx = portfolio.transactions.map(item => item._id.toString()).indexOf(transaction._id);
 			
 			if(idx == -1) {
-				console.log("Old transaction not foudn. This is not possible");
+				console.log("Old transaction not found. This is not possible");
 			} else {
 				portfolio.transactions[idx] = transaction;
 			}

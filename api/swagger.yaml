@@ -1861,7 +1861,7 @@ paths:
       - investor
       summary: update the portfolio with transactions
       description: Updates the portfolio with transactions
-      operationId: updateInvestorPortfolioForNewTransactions
+      operationId: updateInvestorPortfolioForTransactions
       security:
       - api_key: []
       parameters:
@@ -1883,7 +1883,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/TransactionsAction'
-      
       responses:
         200:
           description: OK
@@ -2550,7 +2549,7 @@ definitions:
     properties:
       action:
         type: string
-        enum: ["add", "update"]
+        enum: ["add", "update", "delete"]
         default: "add"
       transactions: 
         type: array
