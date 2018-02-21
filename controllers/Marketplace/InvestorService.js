@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-17 18:51:16
+* @Last Modified time: 2018-02-21 15:16:51
 */
 
 'use strict';
@@ -119,7 +119,7 @@ function _updatePortfolioForStockTransactions(portfolioId, transactions, action)
 
 				//If earliest date of new transaction is hgher than latest date of old transactions,
 				//then APPEND
-				if (firstDateNew.getTime() >= lastDateOld.getTime()) {
+				if (firstDateNew.getTime() > lastDateOld.getTime()) {
 					updateMethod = 'Append';
 				} 
 			}
@@ -680,10 +680,10 @@ module.exports.updateInvestorPortfolio = function(args, res, next) {
 module.exports.updateInvestorPortfolioForTransactions = function(args, res, next) {
 	
 	const userId = args.user._id;
-	const transactions = args.body.value;
+	const transactions = args.body.value.transactions;
 	const investorId = args.investorId.value;
 	const portfolioId = args.portfolioId.value;
-	const action = args.action.value;
+	const action = args.body.value.action;
 
  	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios'}) 
 	.then(investor => {

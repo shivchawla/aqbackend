@@ -1880,16 +1880,10 @@ paths:
         required: true
       - name: body
         in: body
-        required: false
-        schema:
-          type: array
-          items:
-            $ref: '#/definitions/Transaction'
-      - name: action
-        in: query
         required: true
-        default: "add"
-        type: string
+        schema:
+          $ref: '#/definitions/TransactionsAction'
+      
       responses:
         200:
           description: OK
@@ -2547,6 +2541,21 @@ definitions:
         type: string
         format: uuid
         default: ""
+
+  TransactionsAction:
+    type: object
+    required:
+      - action
+      - transactions
+    properties:
+      action:
+        type: string
+        enum: ["add", "update"]
+        default: "add"
+      transactions: 
+        type: array
+        items:
+          $ref: '#/definitions/Transaction'
 
 
 #PortfolioDetail

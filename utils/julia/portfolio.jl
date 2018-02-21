@@ -449,7 +449,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory)
         f_ts = ts[1]
 
         for i = 2:length(ts)
-            vcat(f_ts, ts[i])
+            f_ts = vcat(f_ts, ts[i])
         end
 
         netValues = f_ts.values

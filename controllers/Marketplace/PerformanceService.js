@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-21 09:46:23
+* @Last Modified time: 2018-02-21 15:22:56
 */
 
 'use strict'
@@ -68,6 +68,7 @@ function _computeTruePerformance(portfolioId) {
 	.then(portfolio => {
 		var currentPortfolio = portfolio.detail;
 
+		
 		var portfolioHistory = [{startDate: currentPortfolio.startDate, 
 									endDate: new Date(),//currentPortfolio.endDate,
 									portfolio: {
@@ -77,7 +78,7 @@ function _computeTruePerformance(portfolioId) {
 
 		if(portfolio.history) {							
 			portfolio.history.forEach(port => {
-				portfolioHistory.push({startDate: port.startDate, 
+				portfolioHistory.push({startDate: port.startDate ? port.startDate : port.endDate, 
 										endDate: port.endDate,
 										portfolio: {
 											positions: port.positions,
@@ -119,7 +120,7 @@ function _computeSimulatedPerformance(portfolioId) {
 			var updates = {updateMessage: "Updated Successfully",
 				updateDate: new Date(),
 				metrics: {
-					date:  HelperFunctions.getDate(simulatedPerformance.date),
+					date:  HelperFunctions.getDate(new Date(simulatedPerformance.date)),
 					portfolioComposition: null,
 					portfolioPerformance: simulatedPerformance.value,
 					constituentPerformance: null,
@@ -167,7 +168,7 @@ function _computeLatestPerformance(portfolioId) {
       		var updates = {updateMessage: updateMessage, 
 				updateDate: new Date(),
 				metrics: {
-					date:  getDate(latestPerformanceDate),
+					date:  HelperFunctions.getDate(new Date(latestPerformanceDate)),
 					portfolioComposition: portfolioComposition.value,
 					portfolioPerformance: latestPerformance.value,
 					constituentPerformance: constituentPerformance.value
@@ -222,7 +223,7 @@ module.exports.getPerformanceInvestorPortfolio = function(args, res, next) {
 		}
 	})	
 	.then(updatedPerformance => {
-		return res.status(200).send(updatePerformance);
+		return res.status(200).send(updatedPerformance);
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);
