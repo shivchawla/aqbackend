@@ -40,9 +40,13 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns)
             performance.portfoliostats.netvalue = portfolio_value.values[end]
             
-            return performance
+            return (merged_value.timestamp[end], performance)
+        
+        elseif benchmark_value != nothing
+            return (benchmark_value.timestamp[end], Performance())
+        
         else
-            return Performance()
+            return (Date(now(), Performance())
         end
     catch err
         rethrow(err)
@@ -55,11 +59,7 @@ end
 ###
 function compute_performance(portfolio_value::TimeArray, benchmark::String)
 
-
     ts = portfolio_value.timestamp
-    if length(ts) < 2
-        return Performance()
-    end
 
     #Fetch benchmark price history
     start_date = ts[1]
@@ -68,12 +68,16 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
     portfolio_value = rename(portfolio_value, ["Portfolio"])
     benchmark_value = history_nostrict([benchmark], "Close", :Day, DateTime(start_date), DateTime(end_date))
     
-    if portfolio_value != nothing && benchmark_value != nothing
+    if portfolio_value != nothing && benchmark_value != nothing && length(ts) > 2
         merged_value = merge(portfolio_value, benchmark_value, :outer)
+        
+        #drop observations before benchmark lastdate
+        merged_value = to(merged_value, benchmark_value.timestamp[end])
         merged_returns = percentchange(merged_value, :log)
         
         if length(merged_returns.timestamp) == 0
-            return Performance()
+            #Can we pick a better date???
+            return (Date(now()) ,Performance())
         end
 
         portfolio_returns = merged_returns["Portfolio"].values
@@ -85,9 +89,13 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
 
         performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns)
         
-        return performance
+        return (merged_value.timestamp[end], performance)
+    
+    elseif benchmark_value != nothing
+        return (benchmark_value.timestamp[end], Performance())
+
     else
-        return Performance()
+        return (Date(now()), Performance())
     end
 end
 

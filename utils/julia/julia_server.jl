@@ -101,7 +101,7 @@ wsh = WebSocketHandler() do req, ws_client
                     vals[i,1] = val
                 end
                 
-                performance = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
+                (lastdate, performance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
                 
                 nVDict = Vector{Dict{String, Any}}(length(netValues))
 
@@ -109,7 +109,7 @@ wsh = WebSocketHandler() do req, ws_client
                     nVDict[i] = Dict{String, Any}("date" => dates[i], "netValue" => netValues[i])
                 end
 
-                parsemsg["performance"] = Dict{String, Any}("date" => dates[end], 
+                parsemsg["performance"] = Dict{String, Any}("date" => lastdate, 
                                           "value" => serialize(performance), 
                                           "portfolioValues" => nVDict)
             else 
