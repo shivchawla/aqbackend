@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-20 16:30:15
+* @Last Modified time: 2018-02-22 10:17:56
 */
 
 'use strict';
@@ -17,6 +17,7 @@ const APIError = require('../../utils/error');
 const config = require('config');
 const WebSocket = require('ws'); 
 const Promise = require('bluebird');
+var ObjectId= require('mongoose').Types.ObjectId;
 
 function _compareIds(x, y) {
 	if(!x && !y) {
@@ -24,7 +25,7 @@ function _compareIds(x, y) {
 	} else if(!x || !y) {
 		return false;
 	} else {
-		return x.equals(y)
+		return x.equals(y);
 	}
 }
 
@@ -187,40 +188,46 @@ module.exports.compareSecurity = function(oldSecurity, newSecurity) {
 
 module.exports.computeUpdatedPortfolioForStockTransactions = function(portfolio, transactions) {
 	
-	//console.log(transactions);
-	var uniqueAdvicesInTransactions = Array.from(new Set(transactions.map(item => item.advice)));
+	var unionAdviceIds = transactions.map(item => item.advice).concat(portfolio.subPositions.map(item => item.advice)).map(item => {return item ? item.toString() : ""});
+	var uniqueAdviceIds = Array.from(new Set(unionAdviceIds));
 
-	//console.log(uniqueAdvicesInTransactions);
+	return Promise.all([
+		//PROMISE 1: Update Positions
+		_updatePositions(portfolio.positions, transactions),
+		
+		//PROMISE 2: Update Sub-Positions
+		Promise.map(uniqueAdviceIds, function(adviceId) {
+			var transactionsForAdviceId = transactions.filter(item => {
+				var tId = item.advice ? item.advice.toString() : "";
+				return tId == adviceId;
+			}); 	
 
-	return Promise.all([_updatePositions(portfolio.positions, transactions),
-				
-			Promise.map(uniqueAdvicesInTransactions, function(adviceId) {
-				var transactionsForAdviceId = transactions.filter(item => {
-					return _compareIds(item.advice, adviceId);
-				}); 	
+			var subPositionsForAdviceId = portfolio.subPositions.filter(item => {
+				var tId = item.advice ? item.advice.toString() : "";
+				return tId == adviceId;
+			}); 
 
-
-				var subPositionsForAdviceId = portfolio.subPositions.filter(item => {
-					return _compareIds(item.advice, adviceId);
-				}); 
-
+			if (transactionsForAdviceId.length > 0) {
 				return _updatePositions(subPositionsForAdviceId, transactionsForAdviceId)
 				.then(subPortfolio => {
 					subPortfolio.positions.map(position => {
-    						position["advice"] = adviceId
-    						return position});
-
-					//console.log(subPortfolio);
+						position["advice"] = adviceId!= "" ? ObjectId(adviceId) : null;
+						return position
+					});
+					
 					return subPortfolio;
-				});		
-			})
-		])
+				});	
+			} else  {
+				return {positions : subPositionsForAdviceId};
+			}		
+		})
+	])
 	.then(([fullPortfolio, subPortfolios]) => {
-	
+		
 		var subPositions = [];
 		subPortfolios.forEach(subPortfolio => {
 			subPositions = subPositions.concat(subPortfolio.positions);
-		})
+		});
 
 		const updatedPortfolio = {
 			positions: fullPortfolio.positions,
@@ -568,7 +575,6 @@ module.exports.updatePositionsForLatestPrice = function(positions) {
 
 	        wsClient.on('message', function(msg) {
 	        	var data = JSON.parse(msg);
-				//console.log(data);
 
 	        	if (data["error"] == "" && data["updatedPositions"]) {
 				    resolve(data["updatedPositions"]);
