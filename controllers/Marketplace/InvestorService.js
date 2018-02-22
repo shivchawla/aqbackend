@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-22 16:07:03
+* @Last Modified time: 2018-02-22 19:12:28
 */
 
 'use strict';
@@ -706,15 +706,14 @@ module.exports.updateInvestorPortfolioForTransactions = function(args, res, next
 	const action = args.body.value.action;
 	const preview = args.body.value.preview;
 
+	//Update the transaction's adviceId to match mongoose requirement
+	//This is slightly hacky
+	//Need this for PREVIEW feature
+	//In case of PREVIEW, input transaction object is not saved 
+	//and hence doesn't match the type requirement 
 	transactions.forEach(item => {
-		item.advice = ObjectId(item.advice);
+		item.advice = item.advice != "" ? ObjectId( item.advice) : null;
 		item.date = new Date(item.date);
-
-		Object.keys(item).forEach(it => {
-			console.log(it);
-			console.log(item[it]);
-			console.log(typeof(item[it]));
-		})
 	});
 
  	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios'}) 

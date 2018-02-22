@@ -568,7 +568,8 @@ function compute_portfolio_composition(port::Dict{String, Any}, start_date::Date
     prices_benchmark = history_nostrict([benchmark_ticker], "Close", :Day, start_date, end_date)
 
     if prices_benchmark == nothing
-        return ("", "")
+        #Return the default output
+        return (Date(now()), [Dict("weight" => 1.0, "ticker" => "CASH_INR")])
     end
 
     if length(prices_benchmark.timestamp) > 0 
@@ -578,7 +579,8 @@ function compute_portfolio_composition(port::Dict{String, Any}, start_date::Date
         return (date, composition != nothing ? composition : "")
     else 
         println("Empty data: Portfolio Composition can't be calculated")
-        return ("", "")
+        #Return the default output
+        return (Date(now()), [Dict("weight" => 1.0, "ticker" => "CASH_INR")])
     end
 end
 

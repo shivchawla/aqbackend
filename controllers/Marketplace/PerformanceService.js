@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-21 15:22:56
+* @Last Modified time: 2018-02-22 19:09:21
 */
 
 'use strict'
@@ -57,7 +57,6 @@ function _computePortfolioComposition(portfolioId) {
 
 		var startDate = new Date(currentPortfolio.startDate);
 		var endDate = new Date();
-
 
 		return HelperFunctions.computePortfolioComposition(currentPortfolio, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
 	});
@@ -219,11 +218,17 @@ module.exports.getPerformanceInvestorPortfolio = function(args, res, next) {
 		if (latestPerformance) {
 			return PerformanceModel.updatePerformanceByType({portfolio: portfolioId}, latestPerformance, "current");
 		} else {
-			APIError.throwJsonError({message: "Invalid performance"});
+			//If latest Performance is NULL, send the alraeady stored performance
+			//Keep a track of cases where computation yields NULL performance
+			return PerformanceModel.fetchPerformance({portfolio: portfolioId});
 		}
 	})	
 	.then(updatedPerformance => {
-		return res.status(200).send(updatedPerformance);
+		if (updatedPerformance) {
+			return res.status(200).send(updatedPerformance);
+		} else {
+			APIError.throwJsonError({message: "Invalid performance"});
+		}
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);
