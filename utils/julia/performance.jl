@@ -21,6 +21,9 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
         
         if benchmark_value != nothing && portfolio_value != nothing
             merged_value = merge(portfolio_value, benchmark_value, :outer)
+
+            #drop observations before benchmark lastdate
+            merged_value = to(merged_value, benchmark_value.timestamp[end])
             merged_returns = percentchange(merged_value, :log)
             
             if length(merged_returns.timestamp) == 0
@@ -44,7 +47,6 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
     catch err
         rethrow(err)
     end
-
 end
 
 ###
@@ -122,6 +124,11 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
             performance_allstocks = [Dict("security" => serialize(security), 
                 "stockPerformance" => compute_performance(merged_prices[security.symbol.ticker], benchmark_security.symbol.ticker)) for security in all_securities]
             return (merged_prices.timestamp[end], performance_allstocks)
+        
+        elseif benchmark_prices != nothing
+            lastdate = benchmark_prices.timestamp[end] 
+            return (lastdate, [Dict("security" => serialize(security), 
+                "stockPerformance" => Performance()) for security in all_securities])
         else
             return (Date(now()), [Dict("security" => serialize(security), 
                 "stockPerformance" => Performance()) for security in all_securities])
@@ -182,6 +189,10 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
                 performance = Raftaar.calculateperformance(stock_returns, benchmark_returns)
         
                 return (Date(merged_returns.timestamp[end]), performance)
+            
+            elseif benchmark_prices != nothing
+                return (benchmark_prices.timestamp[end], Performance())
+
             else
                 return (Date(now()), Performance())
             end
@@ -217,6 +228,7 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
                 merged_returns = rename(merged_returns, ["algorithm", "benchmark"])
 
                 return Raftaar.calculateperformance_rollingperiods(merged_returns)
+            
             else 
                 return Performance()
             end
