@@ -2544,9 +2544,14 @@ definitions:
   TransactionsAction:
     type: object
     required:
+      - preview
       - action
       - transactions
+      
     properties:
+      preview:
+        type: boolean
+        default: true
       action:
         type: string
         enum: ["add", "update", "delete"]
@@ -2555,7 +2560,6 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/Transaction'
-
 
 #PortfolioDetail
   PortfolioDetail:

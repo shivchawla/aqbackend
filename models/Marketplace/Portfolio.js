@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-21 16:12:15
+* @Last Modified time: 2018-02-22 16:33:11
 */
 
 'use strict';
@@ -200,7 +200,7 @@ Portfolio.statics.updatePortfolio = function(query, updates, addNew) {
 
 		if (addNew) {
 			var history = updates.history ? updates.history : [];
-			var modifiedUpdates = JSON.parse(JSON.stringify(updates));
+			var modifiedUpdates = Object.assign({}, updates);
 
 			delete modifiedUpdates.history;
 

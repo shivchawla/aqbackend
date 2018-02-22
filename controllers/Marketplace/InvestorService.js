@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-22 11:21:46
+* @Last Modified time: 2018-02-22 16:07:03
 */
 
 'use strict';
@@ -13,6 +13,7 @@ const PerformanceModel = require('../../models/Marketplace/Performance');
 const APIError = require('../../utils/error');
 const Promise = require('bluebird');
 const HelperFunctions = require("../helpers");
+var ObjectId= require('mongoose').Types.ObjectId;
 
 function _compareIds(x, y) {
 	if(!x && !y) {
@@ -47,7 +48,7 @@ function _computeUpdatedPortfolioForStockTransaction(initialPortfolio, allTransa
 		
 		return HelperFunctions.computeUpdatedPortfolioForStockTransactions(startPortfolio, transactionsByDay)
 		.then(newPortfolio => {
-				
+			
 			var lastDate = new Date(transactionsByDay[0].date);
 			var lastTransactionDate = new Date(transactionsByDay[0].date);
 
@@ -71,7 +72,7 @@ function _computeUpdatedPortfolioForStockTransaction(initialPortfolio, allTransa
 	});
 }
 
-function _updatePortfolioForStockTransactions(portfolioId, transactions, action) {
+function _updatePortfolioForStockTransactions(portfolioId, transactions, action, preview) {
 	
 	//LOGIC
 	//1. Insert new transactions
@@ -81,7 +82,7 @@ function _updatePortfolioForStockTransactions(portfolioId, transactions, action)
 
 	let updateMethod;
 
-	return PortfolioModel.fetchPortfolio({_id:portfolioId}, {fields:'transactions'})
+	return PortfolioModel.fetchPortfolio({_id:portfolioId}, {fields:'transactions detail'})
 	.then(portfolio => {
 		
 		updateMethod = 'Create';
@@ -112,13 +113,14 @@ function _updatePortfolioForStockTransactions(portfolioId, transactions, action)
 				//Also, sort the new transactions by dates
 				//First convert to JS dates from string dates
 				transactions.sort((item1, item2) => {
-					var d1 = new Date(item1.date).getTime();
-					var d2 = new Date(item2.date).getTime();
-					return d1 < d2 ? -1 : 1; 
+					//var d1 = new Date(item1.date).getTime();
+					//var d2 = new Date(item2.date).getTime();
+					//return d1 < d2 ? -1 : 1; 
+					return item1.date < item2.date ? -1 : 1;
 				});
 
 				//get first transaction date
-				var firstDateNew = new Date(transactions[0].date);
+				var firstDateNew = transactions[0].date;
 
 				//If earliest date of new transaction is hgher than latest date of old transactions,
 				//then APPEND
@@ -127,14 +129,25 @@ function _updatePortfolioForStockTransactions(portfolioId, transactions, action)
 				} 
 			}
 
-			return PortfolioModel.addTransactions({_id: portfolioId, deleted: false}, transactions)
+			if (!preview) {
+				return PortfolioModel.addTransactions({_id: portfolioId, deleted: false}, transactions)
+			} else {
+				updateMethod = "Create";
+				
+				const np = Object.assign({}, portfolio.toObject());
+				var originalTransactions = np.transactions;
+
+				return {transactions: originalTransactions.concat(transactions), 
+						detail: portfolio.detail
+					};
+			}
 		}
 	})
 	.then(portfolio => { //Has updated transaction but portfolio is STALE
 		if(portfolio) {
 			if (updateMethod == "Create") {
 				var initialPortfolio = {positions: [], subPositions: [], cash: portfolio.seedCash ? portfolio.seedCash : 1000000.0};
-				return _computeUpdatedPortfolioForStockTransaction(initialPortfolio, portfolio.transactions.filter(item => {return item.deleted == false}));
+				return _computeUpdatedPortfolioForStockTransaction(initialPortfolio, portfolio.transactions.filter(item => {return !item.deleted}));
 			} else if (updateMethod == "Append") {
 				//Updating the date format
 				transactions.map(item => {item.date = new Date(item.date); return item});
@@ -147,7 +160,11 @@ function _updatePortfolioForStockTransactions(portfolioId, transactions, action)
 		updates.detail = updatedPortfolio;
 		updates.history = history;
 
-		return PortfolioModel.updatePortfolio({_id:portfolioId}, updates, updateMethod == "Append");
+		if(!preview) {
+			return PortfolioModel.updatePortfolio({_id:portfolioId}, updates, updateMethod == "Append");
+		} else {
+			return updatedPortfolio;
+		}
 	})
 	.catch(err => {
 		console.log(err);
@@ -687,7 +704,18 @@ module.exports.updateInvestorPortfolioForTransactions = function(args, res, next
 	const investorId = args.investorId.value;
 	const portfolioId = args.portfolioId.value;
 	const action = args.body.value.action;
+	const preview = args.body.value.preview;
 
+	transactions.forEach(item => {
+		item.advice = ObjectId(item.advice);
+		item.date = new Date(item.date);
+
+		Object.keys(item).forEach(it => {
+			console.log(it);
+			console.log(item[it]);
+			console.log(typeof(item[it]));
+		})
+	});
 
  	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios'}) 
 	.then(investor => {
@@ -695,7 +723,7 @@ module.exports.updateInvestorPortfolioForTransactions = function(args, res, next
 			
 			if(investor.portfolios.indexOf(portfolioId) != -1) {			
 				if(transactions) {
-					return _updatePortfolioForStockTransactions(portfolioId, transactions, action);
+					return _updatePortfolioForStockTransactions(portfolioId, transactions, action, preview);
 				}  else {
 					APIError.throwJsonError({message: "Invalid transactions"});
 				}
