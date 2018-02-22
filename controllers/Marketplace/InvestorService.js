@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-21 15:16:51
+* @Last Modified time: 2018-02-22 11:21:46
 */
 
 'use strict';
@@ -109,9 +109,12 @@ function _updatePortfolioForStockTransactions(portfolioId, transactions, action)
 				//get the last transaction's date
 				var lastDateOld = new Date(oldTransactions[nTransactions -1].date);
 
-				//Also, sort the new transactions by dates.
+				//Also, sort the new transactions by dates
+				//First convert to JS dates from string dates
 				transactions.sort((item1, item2) => {
-					return item1.date.getTime() < item2.date.getTime() ? -1 : 1; 
+					var d1 = new Date(item1.date).getTime();
+					var d2 = new Date(item2.date).getTime();
+					return d1 < d2 ? -1 : 1; 
 				});
 
 				//get first transaction date
@@ -684,6 +687,7 @@ module.exports.updateInvestorPortfolioForTransactions = function(args, res, next
 	const investorId = args.investorId.value;
 	const portfolioId = args.portfolioId.value;
 	const action = args.body.value.action;
+
 
  	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios'}) 
 	.then(investor => {
