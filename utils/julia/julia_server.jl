@@ -152,7 +152,7 @@ wsh = WebSocketHandler() do req, ws_client
           endDate = DateTime(parsemsg["endDate"], jsdateformat)
           benchmark = get(parsemsg, "benchmark", Dict("ticker"=>"NIFTY_50"))
 
-          (date, performance) = JSON.parse(JSON.json(compute_performance_constituents(parsemsg["portfolio"], startDate, endDate, benchmark)))
+          (date, performance) = JSON.parse(JSON.json(compute_performance_constituents(parsemsg["portfolio"], endDate, benchmark)))
 
           parsemsg["constituentPerformance"] = Dict("date" => date, "value" => performance)
 

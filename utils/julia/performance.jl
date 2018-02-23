@@ -20,10 +20,8 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
         benchmark_value = history_nostrict([benchmark], "Close", :Day, start_date, end_date)
         
         if benchmark_value != nothing && portfolio_value != nothing
-            merged_value = merge(portfolio_value, benchmark_value, :outer)
-
-            #drop observations before benchmark lastdate
-            merged_value = to(merged_value, benchmark_value.timestamp[end])
+            #merge and drop observations before benchmark lastdate
+            merged_value = to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end])
             merged_returns = percentchange(merged_value, :log)
             
             if length(merged_returns.timestamp) == 0
@@ -69,10 +67,8 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
     benchmark_value = history_nostrict([benchmark], "Close", :Day, DateTime(start_date), DateTime(end_date))
     
     if portfolio_value != nothing && benchmark_value != nothing && length(ts) > 2
-        merged_value = merge(portfolio_value, benchmark_value, :outer)
-        
-        #drop observations before benchmark lastdate
-        merged_value = to(merged_value, benchmark_value.timestamp[end])
+        #merge and drop observations before benchmark lastdate
+        merged_value = to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end])
         merged_returns = percentchange(merged_value, :log)
         
         if length(merged_returns.timestamp) == 0
@@ -102,12 +98,11 @@ end
 ###
 # Function to compute (weighted)performance of individual stocks in portfolio   
 ###
-function compute_performance_constituents(port::Dict{String, Any}, start_date::DateTime, end_date::DateTime, benchmark::Dict{String,Any} = Dict("ticker"=>"NIFTY_50"))
+function compute_performance_constituents(port::Dict{String, Any}, date::DateTime, benchmark::Dict{String,Any} = Dict("ticker"=>"NIFTY_50"))
     
     try 
-
-        if start_date > end_date
-            error("Start date is greater than end date. Can't compute constituent performance.")
+        if date > now()
+            error("date is greater than current date. Can't compute constituent performance.")
         end
 
         performance_allstocks = Dict{String, Any}[]
@@ -122,21 +117,19 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
 
         (valid, benchmark_security) = validate_security(benchmark)
 
-        all_tickers = [sec.symbol.ticker for sec in all_securities]
-        stock_prices = YRead.history(all_tickers, "Close", :Day, start_date, end_date)
+        end_date = date
+        start_date = DateTime(Date(end_date) - Dates.Week(52))
         benchmark_prices = history_nostrict([benchmark_security.symbol.ticker], "Close", :Day, start_date, end_date)
 
-        if (stock_prices != nothing && benchmark_prices != nothing)
-            merged_prices = merge(stock_prices, benchmark_prices, :outer)
-            lastdate = merged_prices.timestamp[end] 
-            performance_allstocks = [Dict("security" => serialize(security), 
-                "stockPerformance" => compute_performance(merged_prices[security.symbol.ticker], benchmark_security.symbol.ticker)) for security in all_securities]
-            return (merged_prices.timestamp[end], performance_allstocks)
-        
-        elseif benchmark_prices != nothing
+        if (benchmark_prices != nothing)
+            portfolio = updateportfolio_latestprice(port, DateTime(benchmark_prices.timestamp[end]))
+            
             lastdate = benchmark_prices.timestamp[end] 
-            return (lastdate, [Dict("security" => serialize(security), 
-                "stockPerformance" => Performance()) for security in all_securities])
+            performance_allstocks = [Dict("ticker" => sym.ticker, 
+                "stockPerformance" => compute_pnl_stats(pos)) for (sym,pos) in portfolio.positions]
+            
+            return (lastdate, performance_allstocks)
+        
         else
             return (Date(now()), [Dict("security" => serialize(security), 
                 "stockPerformance" => Performance()) for security in all_securities])
@@ -178,8 +171,10 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
             
             if(benchmark_prices != nothing, stock_prices != nothing)
                 
-                merged_returns = percentchange(merge(stock_prices, benchmark_prices, :outer))
-                
+                #Merge and drop observations after the last date of benchmark                
+                merged_prices = to(merge(stock_prices, benchmark_prices, :outer), benchmark_prices.timestamp[end])
+                merged_returns = percentchange(merged_prices)
+
                 ##Empty timeseries output of pctchange when length == 1 
                 if length(merged_returns.timestamp) == 0
                     return (Date(now()), Performance())
@@ -227,8 +222,8 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
             stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date)
             
             if benchmark_prices != nothing && stock_prices != nothing
-                merged_returns = percentchange(merge(stock_prices, benchmark_prices, :outer))
-                
+                merged_pricess = to(merge(stock_prices, benchmark_prices, :outer), benchmark_prices.timestamp[end])
+                merged_returns = percentchange(merged_prices)
                 if length(merged_returns.timestamp) == 0
                     return Performance()
                 end
@@ -263,8 +258,8 @@ function compute_stock_static_performance(security_dict::Dict{String,Any}; bench
             stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date)
 
             if benchmark_prices != nothing && stock_prices != nothing
-                merged_returns = percentchange(merge(stock_prices, benchmark_prices, :outer))
-                
+                merged_prices = to(merge(stock_prices, benchmark_prices, :outer), benchmark_prices.timestamp[end])
+                merged_returns = percentchange(merged_prices)
                 if length(merged_returns.timestamp) == 0
                     return Performance()
                 end
@@ -365,5 +360,11 @@ function history_nostrict(tickers, dtype::String, res::Symbol, sd::DateTime, ed:
     data = YRead.history(tickers, dtype, res, sd, ed, strict = false)
     #YRead.setstrict(true)
     return data
+end
+
+function compute_pnl_stats(pos::Position)
+    pnl = pos.lastprice > 0.0 ? pos.lastprice - pos.averageprice : 0.0
+    pnlpct = pos.averageprice > 0.0 ? round(pnl * 100/pos.averageprice, 2) : 0.0
+    return Dict{String, Any}("pnl" => pnl, "pnl_pct" => pnlpct)
 end
 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-23 11:27:50
+* @Last Modified time: 2018-02-23 11:49:24
 */
 
 'use strict';
@@ -114,8 +114,8 @@ Portfolio.statics.addTransactions = function(query, transactions) {
 	return this.findOne(query)
 	.then(portfolio => {
 
-		var oldTransaction = transactions.filter(item => {return item._id != null});
-		var newTransaction = transactions.filter(item => {return item._id == null});
+		var oldTransactions = transactions.filter(item => {return item._id != null});
+		var newTransactions = transactions.filter(item => {return item._id == null});
 
 		//PUSH new transactions
 		newTransactions.forEach(transaction => {
@@ -134,7 +134,7 @@ Portfolio.statics.addTransactions = function(query, transactions) {
 
 
 		//UPDATE old transactions
-		oldTransaction.forEach(transaction => {
+		oldTransactions.forEach(transaction => {
 			var idx = portfolio.transactions.map(item => item._id.toString()).indexOf(transaction._id);
 			
 			if(idx == -1) {

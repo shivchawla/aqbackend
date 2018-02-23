@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-23 11:17:53
+* @Last Modified time: 2018-02-23 16:41:46
 */
 
 'use strict'
@@ -156,18 +156,19 @@ function _computeLatestPerformance(portfolioId) {
 	})
 	.then(([updated, latestPerformance, portfolioComposition, constituentPerformance]) => {
 		
-		var latestPerformanceDate = latestPerformance.date;
-      	var portfolioCompositionDate = portfolioComposition.date;
-      	var constituentPerformanceDate = constituentPerformance.date;
+		var latestPerformanceDate = new Date(latestPerformance.date);
+      	var portfolioCompositionDate = new Date(portfolioComposition.date);
+      	var constituentPerformanceDate = new Date(constituentPerformance.date);
 
 		var updateMessage = updated ? "Updated successfully" : "Performance up-to-date";
 
-      	if (latestPerformanceDate == portfolioCompositionDate
-      		&& latestPerformanceDate == constituentPerformanceDate) {
+      	if (latestPerformanceDate.getTime() == portfolioCompositionDate.getTime()
+      		&& latestPerformanceDate.getTime() == constituentPerformanceDate.getTime()) {
+      		
       		var updates = {updateMessage: updateMessage, 
 				updateDate: new Date(),
 				metrics: {
-					date:  HelperFunctions.getDate(new Date(latestPerformanceDate)),
+					date:  HelperFunctions.getDate(latestPerformanceDate),
 					portfolioComposition: portfolioComposition.value,
 					portfolioPerformance: latestPerformance.value,
 					constituentPerformance: constituentPerformance.value

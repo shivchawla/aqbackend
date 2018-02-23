@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-22 14:19:01
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-23 10:07:14
+* @Last Modified time: 2018-02-23 16:42:02
 */
 
 'use strict';
@@ -68,14 +68,14 @@ Performance.statics.updatePerformanceByType = function(query, latestPerformanceD
           var performanceDetailMetrics = performanceDetail.metrics ? performanceDetail.metrics : [];
 
           var latestPerformanceDetailMetrics = latestPerformanceDetail.metrics;
-          var latestDate = latestPerformanceDetail.date;
+          var latestDate = new Date(latestPerformanceDetailMetrics.date);
 
           //find date in the current Performance Metrics
-          var idx = performanceDetailMetrics.map(item => item.date).indexOf(latestDate);
+          var idx = performanceDetailMetrics.map(item => item.date.getTime()).indexOf(latestDate.getTime());
 
           //Performance or input date is not present: INSERT
           if (idx == -1) {
-              performanceDetailMetrics.push(latestPerformanceDetail.metrics);
+              performanceDetailMetrics.push(latestPerformanceDetailMetrics);
           } else { //UPDATE
               Object.keys(latestPerformanceDetailMetrics).forEach(key => {
                   performanceDetailMetrics[idx][key] = latestPerformanceDetailMetrics[key];      
@@ -114,7 +114,7 @@ Performance.statics.addPerformance = function(query, latestPerformance) {
                     var performanceDetailMetrics = performanceDetail.metrics ? performanceDetail.metrics : [];
 
                     var latestPerformanceDetailMetrics = latestPerformanceDetail.metrics;
-                    var latestDate = latestPerformanceDetailMetrics.date;
+                    var latestDate = new Date(latestPerformanceDetailMetrics.date);
 
                     //find date in the current Performance Metrics
                     var idx = performanceDetailMetrics.map(item => item.date.getTime()).indexOf(latestDate.getTime());

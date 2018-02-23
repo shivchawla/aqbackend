@@ -520,7 +520,7 @@ end
 ###
 # Function to update portfolio with latest price
 ###
-function updateportfolio_latestprice(port::Dict{String, Any})
+function updateportfolio_latestprice(port::Dict{String, Any}, end_date::DateTime = now())
     try
         portfolio = convert(Raftaar.Portfolio, port)
 
@@ -528,19 +528,21 @@ function updateportfolio_latestprice(port::Dict{String, Any})
         
         #Check if portoflio has any non-zero number of stock postions
         if length(alltickers) > 0
-            end_date = Date(now())
-            start_date = end_date - Dates.Week(52)
+            start_date = DateTime(Date(end_date) - Dates.Week(52))
 
-            stock_value_52w = YRead.history(alltickers, "Close", :Day, DateTime(start_date), DateTime(end_date))
-            
+            stock_value_52w = YRead.history(alltickers, "Close", :Day, start_date, end_date)
+            benchmark_value_52w =  history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date) 
+
             #Check if stock values are valid 
-            if stock_value_52w != nothing
-                latest_stock_values = stock_value_52w[end]
-                latest_dt = DateTime(stock_value_52w.timestamp[end])
+            if stock_value_52w != nothing && benchmark_value_52w != nothing
+                merged_prices = to(merge(stock_value_52w, benchmark_value_52w), benchmark_value_52w.timestamp[end])
+                
+                latest_values = merged_prices[end]
+                latest_dt = DateTime(latest_values.timestamp[end])
 
                 tradebars = Dict{SecuritySymbol, Vector{TradeBar}}()
                 for (sym, pos) in portfolio.positions
-                    tradebars[sym] = [Raftaar.TradeBar(latest_dt, 0.0, 0.0, 0.0, latest_stock_values[sym.ticker].values[1])]
+                    tradebars[sym] = [Raftaar.TradeBar(latest_dt, 0.0, 0.0, 0.0, latest_values[sym.ticker].values[1])]
                 end
 
                 Raftaar.updateportfolio_price!(portfolio, tradebars, latest_dt)
@@ -572,6 +574,9 @@ function compute_portfolio_composition(port::Dict{String, Any}, start_date::Date
         benchmark_ticker = "NIFTY_50"
     end
 
+    #Fetch benchmark data for one year atleast
+    #Hacky but hopefully this wil have some data
+    start_date = DateTime(min(Date(start_date), Date(end_date) - Dates.Week(52)))
     prices_benchmark = history_nostrict([benchmark_ticker], "Close", :Day, start_date, end_date)
 
     if prices_benchmark == nothing
