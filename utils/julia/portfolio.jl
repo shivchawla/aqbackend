@@ -526,20 +526,26 @@ function updateportfolio_latestprice(port::Dict{String, Any})
 
         alltickers = [sym.ticker for (sym, pos) in portfolio.positions]
         
-        end_date = Date(now())
-        start_date = end_date - Dates.Week(52)
+        #Check if portoflio has any non-zero number of stock postions
+        if length(alltickers) > 0
+            end_date = Date(now())
+            start_date = end_date - Dates.Week(52)
 
-        stock_value_52w = YRead.history(alltickers, "Close", :Day, DateTime(start_date), DateTime(end_date))
-        
-        latest_stock_values = stock_value_52w[end]
-        latest_dt = DateTime(stock_value_52w.timestamp[end])
+            stock_value_52w = YRead.history(alltickers, "Close", :Day, DateTime(start_date), DateTime(end_date))
+            
+            #Check if stock values are valid 
+            if stock_value_52w != nothing
+                latest_stock_values = stock_value_52w[end]
+                latest_dt = DateTime(stock_value_52w.timestamp[end])
 
-        tradebars = Dict{SecuritySymbol, Vector{TradeBar}}()
-        for (sym, pos) in portfolio.positions
-            tradebars[sym] = [Raftaar.TradeBar(latest_dt, 0.0, 0.0, 0.0, latest_stock_values[sym.ticker].values[1])]
+                tradebars = Dict{SecuritySymbol, Vector{TradeBar}}()
+                for (sym, pos) in portfolio.positions
+                    tradebars[sym] = [Raftaar.TradeBar(latest_dt, 0.0, 0.0, 0.0, latest_stock_values[sym.ticker].values[1])]
+                end
+
+                Raftaar.updateportfolio_price!(portfolio, tradebars, latest_dt)
+            end
         end
-
-        Raftaar.updateportfolio_price!(portfolio, tradebars, latest_dt)
         
         return portfolio
     catch err

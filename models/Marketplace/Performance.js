@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-22 14:19:01
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-16 16:42:23
+* @Last Modified time: 2018-02-23 10:07:14
 */
 
 'use strict';
@@ -117,7 +117,7 @@ Performance.statics.addPerformance = function(query, latestPerformance) {
                     var latestDate = latestPerformanceDetailMetrics.date;
 
                     //find date in the current Performance Metrics
-                    var idx = performanceDetailMetrics.map(item => item.date.toString()).indexOf(latestDate.toString());
+                    var idx = performanceDetailMetrics.map(item => item.date.getTime()).indexOf(latestDate.getTime());
 
                     //Performance or input date is not present: INSERT
                     if (idx == -1) {
