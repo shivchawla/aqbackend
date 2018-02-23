@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-22 16:33:11
+* @Last Modified time: 2018-02-23 11:27:50
 */
 
 'use strict';
@@ -13,6 +13,7 @@ const Performance = require('./Performance');
 
 const mongoose = require('../index');
 const Schema = mongoose.Schema;
+var ObjectId = mongoose.Types.ObjectId;
 
 const PortfolioDetail = new Schema({
 	startDate: Date,
@@ -103,7 +104,7 @@ Portfolio.statics.clonePortfolio = function(query, options) {
 	return this.findOne(query, options)
 	.then(portfolio => {
 		const port = new this(portfolio);
-		port._id = mongoose.Types.ObjectId();
+		port._id = ObjectId();
         port.isNew = true; 
 		return port.saveAsync();	
 	});
@@ -113,18 +114,18 @@ Portfolio.statics.addTransactions = function(query, transactions) {
 	return this.findOne(query)
 	.then(portfolio => {
 
-		var oldTransaction = transactions.filter(item => {return item._id != "" && item._id != null});
-		var newTransaction = transactions.filter(item => {return item._id == "" || item._id == null});
+		var oldTransaction = transactions.filter(item => {return item._id != null});
+		var newTransaction = transactions.filter(item => {return item._id == null});
 
 		//PUSH new transactions
-		transactions.forEach(transaction => {
-			if (transaction.advice == "") {
+		newTransactions.forEach(transaction => {
+			/*if (transaction.advice == "") {
                 transaction.advice = null;
             } else {
-                transaction.advice = new mongoose.Types.ObjectId(transaction.advice);
-            }
+                transaction.advice = ObjectId(transaction.advice);
+            }*/
 
-            if (transaction._id == "") {
+            if (transaction._id == null) {
             	delete transaction._id;
             }
 

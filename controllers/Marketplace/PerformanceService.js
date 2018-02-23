@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-22 19:09:21
+* @Last Modified time: 2018-02-23 11:17:53
 */
 
 'use strict'
@@ -198,7 +198,7 @@ module.exports.getPerformanceInvestorPortfolio = function(args, res, next) {
 		if (investor) {
 			if (investor.user.equals(userId)){
 				if(investor.portfolios) {
-					if (investor.portfolios.map(item => item.toString()).indexOf(portfolioId) != -1) {
+					if (investor.portfolios.filter(item => !item.deleted).map(item => item.toString()).indexOf(portfolioId) != -1) {
 						return _computeLatestPerformance(portfolioId);
 					} else {
 						APIError.throwJsonError({userId: userId, message: "PortfolioId is not a valid portfolio for investor"})
@@ -243,7 +243,7 @@ module.exports.getPerformanceAdvicePortfolio = function(args, res, next) {
 	let showDetail;
 	let portfolioId;
 
-	return Promise.all([AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'advisor portfolio public subscribers'}),
+	return Promise.all([AdviceModel.fetchAdvice({_id: adviceId, deleted:false}, {fields: 'advisor portfolio public subscribers'}),
 			AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id'}),
 			InvestorModel.fetchInvestor({user:userId}, {fields:'_id', insert: true})])
 	.then(([advice, advisor, investor]) => {
