@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-23 11:26:06
+* @Last Modified time: 2018-02-23 19:57:37
 */
 
 'use strict';
@@ -149,7 +149,7 @@ function _updatePortfolioForStockTransactions(portfolioId, transactions, action,
 	.then(portfolio => { //Has updated transaction but portfolio is STALE
 		if(portfolio) {
 			if (updateMethod == "Create") {
-				var initialPortfolio = {positions: [], subPositions: [], cash: portfolio.seedCash ? portfolio.seedCash : 1000000.0};
+				var initialPortfolio = {positions: [], subPositions: [], cash: 0.0};
 				return _computeUpdatedPortfolioForStockTransaction(initialPortfolio, portfolio.transactions.filter(item => {return !item.deleted}));
 			} else if (updateMethod == "Append") {
 				//Updating the date format
@@ -432,7 +432,7 @@ module.exports.getFollowingAdvisors = function(args, res, next) {
 /*
 * Create Portfolio based on positions in a portfolio
 */
-module.exports.createInvestorPortfolio = function(args, res, next) {
+module.exports.OLDcreateInvestorPortfolio = function(args, res, next) {
 	const userId = args.user._id;
 	const investorId = args.investorId.value;
 
@@ -471,6 +471,84 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
     		return res.status(200).json(pf);
 		} else {
 			APIError.throwJsonError({message: "Could not create portfolio for investor"});
+		}
+    })
+	.catch(err => {
+    	return res.status(400).send(err.message);
+    });
+};
+
+/*
+* Create Portfolio based on positions in a portfolio
+*/
+module.exports.createInvestorPortfolio = function(args, res, next) {
+	const userId = args.user._id;
+	const investorId = args.investorId.value;
+
+	//Portfolio not linked to any portfolio has (advice = null)
+	const transactions = args.body.value.transactions;
+	
+	//Initialize with empty portfolio
+	const portfolio = {
+		name: args.body.value.name, 
+		benchmark: args.body.value.benchmark,
+		detail: {startDate: new Date(), endDate: new Date(), positions: []}
+	};
+
+	return InvestorModel.fetchInvestor({user: userId}, {fields:'_id portfolios'})
+	.then(investor => {
+		if(investor._id.equals(investorId)) {
+			return Promise.all([
+				Promise.map(investor.portfolios, function(portfolioId) {
+					return PortfolioModel.fetchPortfolio({_id:portfolioId}, {fields: 'name'});
+				}),
+				HelperFunctions.validatePortfolio(portfolio)])	
+		} else {
+			APIError.throwJsonError({message: "Not Authorized"});
+		}
+	})
+	.then(([otherPortfolios, valid]) => {
+		if(valid) {
+			var numSameNamePortfolios = otherPortfolios.filter(item => {return item.name == portfolio.name;}).length;
+			if (numSameNamePortfolios > 0) {
+				APIError.throwJsonError({message: "Portfolio exists with same name"});
+			}
+
+			return PortfolioModel.savePortfolio(portfolio);
+		} else {
+			APIError.throwJsonError({message: "Invalid Portfolio"});
+		}
+	})
+	.then(portfolio => {
+		if(portfolio) {
+			return Promise.all([portfolio, InvestorModel.addPortfolio({_id: investorId, user:userId}, portfolio._id)]);
+		} else {
+			APIError.throwJsonError({message: "Unable to create Portfolio"});
+		}
+	})
+    .then(([portfolio, investor]) => {
+    	if(investor && portfolio) {
+    		//Update the transaction's adviceId to match mongoose requirement
+			//This is slightly hacky
+			//Need this for PREVIEW feature
+			//In case of PREVIEW, input transaction object is not saved 
+			//and hence doesn't match the type requirement 
+			transactions.forEach(item => {
+				item.advice = item.advice != "" ? ObjectId(item.advice) : null;
+				item.date = new Date(item.date);
+				item._id = item._id != "" ? ObjectId(item._id) : null;
+			});
+
+			return transactions.length > 0 ? _updatePortfolioForStockTransactions(portfolio._id, transactions, "add", false) : portfolio;
+		} else {
+			APIError.throwJsonError({message: "Could not create portfolio for investor"});
+		}
+    })
+    .then(portfolio => {
+    	if(portfolio) {
+			return res.status(200).json(portfolio); 
+		} else {
+			APIError.throwJsonError({messsage: "Can't update portfolio for transactions"});
 		}
     })
 	.catch(err => {

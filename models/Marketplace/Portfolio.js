@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-23 11:49:24
+* @Last Modified time: 2018-02-23 19:47:51
 */
 
 'use strict';
@@ -35,8 +35,6 @@ const Portfolio = new Schema({
 
 	benchmark: Security,
 
-	seedCash: Number,
-
 	//CURRENT PORTFOLIO
 	detail: PortfolioDetail, 
 	
@@ -55,7 +53,6 @@ const Portfolio = new Schema({
 
 	history: [PortfolioDetail]
 });
-
 
 Portfolio.statics.savePortfolio = function(portfolio) {
 	
@@ -77,8 +74,6 @@ Portfolio.statics.savePortfolio = function(portfolio) {
 		portfolio.detail.subPositions = portfolio.detail.positions;
 	}
  
-	portfolio.seedCash = portfolio.detail ? portfolio.detail.cash : 0.0;
-
 	portfolio.createdDate = new Date();
 
 	const port = new this(portfolio);

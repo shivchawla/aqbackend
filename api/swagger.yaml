@@ -1754,7 +1754,8 @@ paths:
         in: body
         required: true
         schema:
-          $ref: "#/definitions/Portfolio"
+          $ref: '#/definitions/CreatePortfolio'
+          
       responses:
         200:
           description: OK
@@ -2561,14 +2562,31 @@ definitions:
         items:
           $ref: '#/definitions/Transaction'
 
+#CreatePortfolio
+  CreatePortfolio:
+    type: object
+    required:
+      - name
+      - benchmark
+      - transactions
+    properties:
+      name:
+        type: string
+      benchmark:
+        $ref: '#/definitions/Security'
+      transactions:
+        type: array
+        items:
+          $ref: '#/definitions/Transaction'
+
 #PortfolioDetail
   PortfolioDetail:
     type: object
     required:
-        #- startDate
-        #- endDate
-        - positions
-        - cash
+      #- startDate
+      #- endDate
+      - positions
+      - cash
     properties:
       startDate:
         type: string
