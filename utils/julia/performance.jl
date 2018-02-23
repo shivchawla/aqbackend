@@ -98,11 +98,11 @@ end
 ###
 # Function to compute (weighted)performance of individual stocks in portfolio   
 ###
-function compute_performance_constituents(port::Dict{String, Any}, date::DateTime, benchmark::Dict{String,Any} = Dict("ticker"=>"NIFTY_50"))
+function compute_performance_constituents(port::Dict{String, Any}, start_date::DateTime, end_date::DateTime, benchmark::Dict{String,Any} = Dict("ticker"=>"NIFTY_50"))
     
     try 
-        if date > now()
-            error("date is greater than current date. Can't compute constituent performance.")
+        if end_date > now() || start_date > end_date
+            error("Invalid dates. Can't compute constituent performance.")
         end
 
         performance_allstocks = Dict{String, Any}[]
@@ -117,11 +117,19 @@ function compute_performance_constituents(port::Dict{String, Any}, date::DateTim
 
         (valid, benchmark_security) = validate_security(benchmark)
 
-        end_date = date
-        start_date = DateTime(Date(end_date) - Dates.Week(52))
-        benchmark_prices = history_nostrict([benchmark_security.symbol.ticker], "Close", :Day, start_date, end_date)
+        edate = end_date
+        sdate = DateTime(min(Date(start_date), Date(end_date) - Dates.Week(52)))
+        benchmark_prices = history_nostrict([benchmark_security.symbol.ticker], "Close", :Day, sdate, edate)
 
-        if (benchmark_prices != nothing)
+        if benchmark_prices == nothing
+            return (Date(now()), [Dict("security" => serialize(security), 
+                "stockPerformance" => Performance()) for security in all_securities])
+        
+        elseif benchmark_prices.timestamp[end] < Date(start_date)
+            return (Date(now()), [Dict("security" => serialize(security), 
+                "stockPerformance" => Performance()) for security in all_securities])
+
+        elseif (benchmark_prices != nothing)
             portfolio = updateportfolio_latestprice(port, DateTime(benchmark_prices.timestamp[end]))
             
             lastdate = benchmark_prices.timestamp[end] 
@@ -130,10 +138,8 @@ function compute_performance_constituents(port::Dict{String, Any}, date::DateTim
             
             return (lastdate, performance_allstocks)
         
-        else
-            return (Date(now()), [Dict("security" => serialize(security), 
-                "stockPerformance" => Performance()) for security in all_securities])
         end
+            
     catch err
         rethrow(err)
     end

@@ -576,15 +576,18 @@ function compute_portfolio_composition(port::Dict{String, Any}, start_date::Date
 
     #Fetch benchmark data for one year atleast
     #Hacky but hopefully this wil have some data
-    start_date = DateTime(min(Date(start_date), Date(end_date) - Dates.Week(52)))
-    prices_benchmark = history_nostrict([benchmark_ticker], "Close", :Day, start_date, end_date)
+    edate = end_date
+    sdate = DateTime(min(Date(start_date), Date(end_date) - Dates.Week(52)))
+    prices_benchmark = history_nostrict([benchmark_ticker], "Close", :Day, sdate, edate)
 
     if prices_benchmark == nothing
         #Return the default output
         return (Date(now()), [Dict("weight" => 1.0, "ticker" => "CASH_INR")])
-    end
 
-    if length(prices_benchmark.timestamp) > 0 
+    elseif prices_benchmark.timestamp[end] < Date(start_date)
+        return (Date(now()), [Dict("weight" => 1.0, "ticker" => "CASH_INR")])
+
+    elseif length(prices_benchmark.timestamp) > 0 
         date = prices_benchmark.timestamp[end]
         composition = _compute_portfolio_composition(port, DateTime(date))
 
