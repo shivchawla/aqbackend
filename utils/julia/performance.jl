@@ -46,7 +46,7 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             return (benchmark_value.timestamp[end], Performance())
         
         else
-            return (Date(now(), Performance())
+            return (Date(now()), Performance())
         end
     catch err
         rethrow(err)

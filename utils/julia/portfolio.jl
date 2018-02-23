@@ -349,6 +349,7 @@ end
 ###
 function _compute_portfolio_composition(port::Dict{String, Any}, date::DateTime)
     try
+        
         portfolio = convert(Raftaar.Portfolio, port)
 
         cash = haskey(port, "cash") ? port["cash"] : 0.0
@@ -366,7 +367,7 @@ function _compute_portfolio_composition(port::Dict{String, Any}, date::DateTime)
 
         if prices == nothing
             println("Price data not available")
-            return nothing
+            return [Dict("weight" => 1.0, "ticker" => "CASH_INR")]
         end
         
         equity_value_wt = Vector{Float64}(length(allkeys))
