@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-22 14:19:01
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-23 16:42:02
+* @Last Modified time: 2018-02-24 11:25:11
 */
 
 'use strict';
@@ -20,7 +20,7 @@ const PerformanceMetrics = new Schema({
 const PerformanceDetail = new Schema({
       updateDate: Date,
       updateMessage: String,
-      metrics: [PerformanceMetrics],
+      metrics: PerformanceMetrics,
       portfolioValues: [{date: Number, netValue: Number}]  
 });
 
@@ -42,7 +42,7 @@ Performance.statics.savePerformance = function(performanceDetail) {
 
 Performance.statics.fetchPerformance = function(query, fields) {
     
-    var q = this.find(query);
+    var q = this.findOne(query);
 
     if(fields) {
         q = q.select(fields)
@@ -65,23 +65,25 @@ Performance.statics.updatePerformanceByType = function(query, latestPerformanceD
           }
 
           var performanceDetail = performance[type];
-          var performanceDetailMetrics = performanceDetail.metrics ? performanceDetail.metrics : [];
+          //var performanceDetailMetrics = performanceDetail.metrics ? performanceDetail.metrics : {};
 
           var latestPerformanceDetailMetrics = latestPerformanceDetail.metrics;
-          var latestDate = new Date(latestPerformanceDetailMetrics.date);
+          //var latestDate = new Date(latestPerformanceDetailMetrics.date);
 
           //find date in the current Performance Metrics
-          var idx = performanceDetailMetrics.map(item => item.date.getTime()).indexOf(latestDate.getTime());
+          //var idx = performanceDetailMetrics.map(item => item.date.getTime()).indexOf(latestDate.getTime());
 
           //Performance or input date is not present: INSERT
-          if (idx == -1) {
-              performanceDetailMetrics.push(latestPerformanceDetailMetrics);
-          } else { //UPDATE
-              Object.keys(latestPerformanceDetailMetrics).forEach(key => {
-                  performanceDetailMetrics[idx][key] = latestPerformanceDetailMetrics[key];      
-              });
-          }
+         // if (idx == -1) {
+         //     performanceDetailMetrics.push(latestPerformanceDetailMetrics);
+         // } else { //UPDATE
+              //Object.keys(latestPerformanceDetailMetrics).forEach(key => {
+              //    performanceDetailMetrics[key] = latestPerformanceDetailMetrics[key];      
+              //});
+          //}
 
+          performanceDetail.metrics = latestPerformanceDetailMetrics;
+          
           //Update the portfolio Values 
           performanceDetail.portfolioValues = latestPerformanceDetail.portfolioValues;
 
@@ -90,7 +92,7 @@ Performance.statics.updatePerformanceByType = function(query, latestPerformanceD
           performanceDetail.updatedMessage = latestPerformanceDetail.updatedMessage;
 
           //Save the updated performance
-          return performance.save();          
+          return performance.saveAsync();          
         }
     });
 };
@@ -111,22 +113,24 @@ Performance.statics.addPerformance = function(query, latestPerformance) {
 
                 if (latestPerformanceDetail) {
 
-                    var performanceDetailMetrics = performanceDetail.metrics ? performanceDetail.metrics : [];
+                    //var performanceDetailMetrics = performanceDetail.metrics ? performanceDetail.metrics : {};
 
                     var latestPerformanceDetailMetrics = latestPerformanceDetail.metrics;
-                    var latestDate = new Date(latestPerformanceDetailMetrics.date);
+                    //var latestDate = new Date(latestPerformanceDetailMetrics.date);
 
                     //find date in the current Performance Metrics
-                    var idx = performanceDetailMetrics.map(item => item.date.getTime()).indexOf(latestDate.getTime());
+                    //var idx = performanceDetailMetrics.map(item => item.date.getTime()).indexOf(latestDate.getTime());
 
                     //Performance or input date is not present: INSERT
-                    if (idx == -1) {
-                        performanceDetailMetrics.push(latestPerformanceDetail.metrics);
-                    } else { //UPDATE
-                        Object.keys(latestPerformanceDetailMetrics).forEach(key => {
-                            performanceDetailMetrics[idx][key] = latestPerformanceDetailMetrics[key];      
-                        });
-                    }
+                    //if (idx == -1) {
+                        //performanceDetailMetrics.push(latestPerformanceDetail.metrics);
+                    //} else { //UPDATE
+                        //Object.keys(latestPerformanceDetailMetrics).forEach(key => {
+                        //    performanceDetailMetrics[key] = latestPerformanceDetailMetrics[key];      
+                        //});
+                    //}
+
+                    performanceDetail.metrics = latestPerformanceDetailMetrics;
 
                     //Update the portfolio Values 
                     performanceDetail.portfolioValues = latestPerformanceDetail.portfolioValues;
@@ -138,7 +142,7 @@ Performance.statics.addPerformance = function(query, latestPerformance) {
             });
 
             //Save the updated performance
-            return performance.save();          
+            return performance.saveAsync();          
         }
     });
 };

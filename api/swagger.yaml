@@ -41,7 +41,7 @@ tags:
     description: "Find out more about us"
     url: "http://www.aimsquant.com"
 schemes:
-- "http"
+- "https"
 produces:
 - "application/json"
 paths:
@@ -2569,6 +2569,7 @@ definitions:
       - name
       - benchmark
       - transactions
+      - preview
     properties:
       name:
         type: string
@@ -2578,6 +2579,9 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/Transaction'
+      preview: 
+        type: boolean
+        default: true
 
 #PortfolioDetail
   PortfolioDetail:

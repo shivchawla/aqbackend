@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-23 16:41:46
+* @Last Modified time: 2018-02-24 11:51:14
 */
 
 'use strict'
@@ -134,10 +134,6 @@ function _computeSimulatedPerformance(portfolioId) {
 		}
 		//return PerformanceModel.updatePerformanceByType({portfolio: portfolioId}, updates, "simulated");
 	})
-	.catch(err => {
-		console.log("Warn: " + err.message);
-		return null;
-	});
 }
 
 function _computeLatestPerformance(portfolioId) {
@@ -152,23 +148,23 @@ function _computeLatestPerformance(portfolioId) {
 				_computePortfolioComposition(portfolioId), //WORKS
 				//null,
 				_computePortfolioConstituentsPerformance(portfolioId)
-				]) : [false, performance];
+				]) : [false, null, null, null];
 	})
 	.then(([updated, latestPerformance, portfolioComposition, constituentPerformance]) => {
 		
-		var latestPerformanceDate = new Date(latestPerformance.date);
-      	var portfolioCompositionDate = new Date(portfolioComposition.date);
-      	var constituentPerformanceDate = new Date(constituentPerformance.date);
+		if (updated){
+			var latestPerformanceDate = new Date(latestPerformance.date);
+	      	var portfolioCompositionDate = new Date(portfolioComposition.date);
+	      	var constituentPerformanceDate = new Date(constituentPerformance.date);
 
-		var updateMessage = updated ? "Updated successfully" : "Performance up-to-date";
+	      	var earliestDate = new Date(Math.min(latestPerformanceDate.getTime(), portfolioCompositionDate.getTime(), constituentPerformanceDate.getTime()));
+			var updateMessage = updated ? "Updated successfully" : "Performance up-to-date";
 
-      	if (latestPerformanceDate.getTime() == portfolioCompositionDate.getTime()
-      		&& latestPerformanceDate.getTime() == constituentPerformanceDate.getTime()) {
-      		
-      		var updates = {updateMessage: updateMessage, 
+	  		var updates = {
+	  			updateMessage: updateMessage, 
 				updateDate: new Date(),
 				metrics: {
-					date:  HelperFunctions.getDate(latestPerformanceDate),
+					date:  HelperFunctions.getDate(earliestDate),
 					portfolioComposition: portfolioComposition.value,
 					portfolioPerformance: latestPerformance.value,
 					constituentPerformance: constituentPerformance.value
@@ -178,14 +174,9 @@ function _computeLatestPerformance(portfolioId) {
 			};
 
 			return updates;
-      	} else {
-      		console.log("Warn: Output date mismatch while calculating performance");
-      		return null;
-      	}
-	})
-	.catch(err => {
-		console.log("Warn: " + err.message);
-		return null;
+		} else {
+			return null;
+		}
 	});
 }
 
@@ -217,7 +208,7 @@ module.exports.getPerformanceInvestorPortfolio = function(args, res, next) {
 	})
 	.then(latestPerformance => {
 		if (latestPerformance) {
-			return PerformanceModel.updatePerformanceByType({portfolio: portfolioId}, latestPerformance, "current");
+			return PerformanceModel.updatePerformance({portfolio: portfolioId}, {current: latestPerformance});
 		} else {
 			//If latest Performance is NULL, send the alraeady stored performance
 			//Keep a track of cases where computation yields NULL performance
@@ -270,7 +261,21 @@ module.exports.getPerformanceAdvicePortfolio = function(args, res, next) {
 		}
 	})
 	.then(([simulatedPerformance, currentPerformance]) => {
-		return PerformanceModel.addPerformance({portfolio: portfolioId}, {current: currentPerformance, simulated: simulatedPerformance});
+		if (!simulatedPerformance || !currentPerformance) {
+			const updates = {};
+			if (!simulatedPerformance) {
+				updates["simulated"] = simulatedPerformance;
+			}
+
+			if(!currentPerformance) {
+				updates["current"] = currentPerformance;
+			}
+
+			return PerformanceModel.updatePerformance({portfolio: portfolioId}, updates);
+		} else {
+			return PerformanceModel.fetchPerformance({portfolio: portfolioId});
+		}
+		
 	})
 	.then(performance => {
 

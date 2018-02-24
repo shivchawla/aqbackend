@@ -41,6 +41,8 @@ const swaggerDoc = jsyaml.safeLoad(spec);
 
 if (process.env.NODE_ENV === 'staging') {
   swaggerDoc.host = 'stagingapi.aimsquant.com'
+} else if (process.env.NODE_ENV === 'development') {
+  swaggerDoc.host = 'developapi.aimsquant.com'
 }
 
 // Initialize the Swagger middleware
