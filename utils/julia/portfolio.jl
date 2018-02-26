@@ -14,6 +14,7 @@ function convert(::Type{Dict{String,Any}}, security::Security)
         s["exchange"] = security.exchange
         s["country"] = security.country
         s["securityType"] = security.securitytype
+        s["name"] = security.name
 
         return s
     catch err
@@ -47,6 +48,7 @@ function convert(::Type{OrderFill}, transaction::Dict{String, Any})
         fee = convert(Float64, get(transaction, "commission", 0.0))
 
         cashlinked = get(transaction, "cashLinked", false)
+        
         return OrderFill(security.symbol, price, qty, fee, cashlinked)
     
     catch err
@@ -76,11 +78,10 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
                     
                     #MODIFY the logic to fetch the close price for the date if
                     #price is 0.0 
-                    price = get(pos, "price", 0.0)
-                    price = convert(Float64, price)
+                    price = convert(Float64, get(pos, "avgPrice", 0.0))
 
                     # Append to position dictionary
-                    portfolio.positions[security.symbol] = Position(security.symbol, qty, price, 0.0)
+                    portfolio.positions[security.symbol] = Position(security.symbol, qty, price)
                        
                 end
             end

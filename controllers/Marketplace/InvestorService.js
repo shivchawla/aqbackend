@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-24 14:15:49
+* @Last Modified time: 2018-02-26 17:11:10
 */
 
 'use strict';
@@ -54,7 +54,7 @@ function _computeUpdatedPortfolioForStockTransaction(initialPortfolio, allTransa
 			var lastTransactionDate = new Date(transactionsByDay[0].date);
 
 			//Push a portfolio to history
-			var lastPortfolio = JSON.parse(JSON.stringify(startPortfolio));
+			var lastPortfolio = Object.assign({}, startPortfolio);
 			//Last portfolio's enddate is one day before the transaction day 
 			lastDate = new Date(lastDate.setDate(lastDate.getDate() - 1));
 			lastPortfolio.endDate = lastDate;
@@ -131,8 +131,7 @@ function _updatePortfolioForStockTransactions(portfolio, transactions, action, p
 				firstFunction = PortfolioModel.addTransactions({_id: portfolioId, deleted: false}, transactions)
 			} else {
 				updateMethod = "Create";
-				
-				const np = Object.assign({}, portfolio);
+				const np = Object.assign({}, portfolio.toObject());
 				var originalTransactions = np.transactions ? np.transactions : [];
 
 				firstFunction = {transactions: originalTransactions.concat(transactions), 
@@ -159,13 +158,16 @@ function _updatePortfolioForStockTransactions(portfolio, transactions, action, p
 			}
 		}
 	})
-	.then(([updatedPortfolio, history]) => {
-		const updates = {};
-		updates.detail = updatedPortfolio;
-		updates.history = history;
-
+	.then(([updatedPortfolioForTransactions, history]) => {
+		return Promise.all([_computeUpdatedPortfolioForLatestPrice({detail:updatedPortfolioForTransactions}), history])
+	})
+	.then(([[priceUpdated, updatedPortfolio], history]) => {
 		if(!preview) {
-			return PortfolioModel.updatePortfolio({_id:portfolioId}, updates, updateMethod == "Append");
+			const updates = {};
+			updates.detail = updatedPortfolio.detail;
+			updates.history = history;
+
+			return PortfolioModel.updatePortfolio({_id:portfolioId}, updates, {new: true, fields:'name detail benchmark updatedDate'}, updateMethod == "Append");
 		} else {
 			return updatedPortfolio;
 		}
@@ -184,7 +186,7 @@ function _computeUpdatedPortfolioForLatestPrice(portfolio) {
 	.then(([updatedPositions, updatedSubPositions]) => {
 		
 		if(updatedPositions || updatedSubPositions) {
-			var updatedPortfolio = JSON.parse(JSON.stringify(portfolio));
+			var updatedPortfolio = Object.assign({}, portfolio);
 			
 			if(updatedPositions) {
 				updatedPortfolio.detail.positions = updatedPositions;
@@ -194,7 +196,6 @@ function _computeUpdatedPortfolioForLatestPrice(portfolio) {
 				updatedPortfolio.detail.subPositions = updatedSubPositions;
 			}
 
-			updatedPortfolio.updatedDate = new Date();
 			return [true, updatedPortfolio];
 		} else {
 			return [false, portfolio];
@@ -203,9 +204,9 @@ function _computeUpdatedPortfolioForLatestPrice(portfolio) {
 	});
 }
 
-function _getUpdatedPortfolio(portfolioId) {
-	var fields = 'name detail benchmark updatedDate';
-	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted:false}, {fields: fields})
+function _getUpdatedPortfolio(portfolioId, fields) {
+		
+	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted:false}, {fields: 'name detail benchmark updatedDate'})
 	.then(portfolio => {
 		if(portfolio) {
 			var updateRequired = portfolio.updatedDate ? HelperFunctions.getDate(portfolio.updatedDate) < HelperFunctions.getDate(new Date()) : true;
@@ -216,9 +217,9 @@ function _getUpdatedPortfolio(portfolioId) {
 			APIError.throwJsonError({portfolioId: portfolioId, message: "No portfolio found"});
 		}
 	})
-	.then(([updated, updatedPortfolio]) => {
-		return updated ? PortfolioModel.updatePortfolio({_id: portfolioId}, updatedPortfolio) : updatedPortfolio;
-	})					
+	.then(([updated, latestPricePortfolio]) => {
+		return updated ? PortfolioModel.updatePortfolio({_id: portfolioId}, latestPricePortfolio, {new:true, fields: fields}) : latestPricePortfolio;
+	});
 }
 
 //NOT TO BE USED
@@ -511,9 +512,8 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 	})
 	.then(([otherPortfolios, valid]) => {
 		if(valid) {
-			
 
-			var numSameNamePortfolios = otherPortfolios.filter(item => {return item.name == portfolio.name && !item.deleted;}).length;
+			var numSameNamePortfolios = otherPortfolios.filter(item => {return item ? item.name == portfolio.name && !item.deleted : false}).length;
 			
 			if (numSameNamePortfolios > 0) {
 				APIError.throwJsonError({message: "Portfolio exists with same name"});
@@ -706,6 +706,11 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 	const userId = args.user._id;
 	const portfolioId = args.portfolioId.value;
 	const investorId = args.investorId.value;
+	var fields = args.fields.value;
+
+	if (fields == '' || !fields) {
+		fields = 'name benchmark detail updatedDate';
+	}
 	
 	return InvestorModel.fetchInvestor({user: userId}, {fields: 'user portfolios', insert: true})
 	.then(investor => {
@@ -713,7 +718,7 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 			if (investor.user.equals(userId)){
 				if(investor.portfolios) {
 					if (investor.portfolios.map(item => item.toString()).indexOf(portfolioId) != -1) {
-						return _getUpdatedPortfolio(portfolioId);
+						return _getUpdatedPortfolio(portfolioId, fields);
 					} else {
 						APIError.throwJsonError({userId: userId, portfolioId: portfolioId, message: "Not a valid portfolio for investor"})
 					}

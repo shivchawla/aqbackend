@@ -123,11 +123,11 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
 
         if benchmark_prices == nothing
             return (Date(now()), [Dict("security" => serialize(security), 
-                "stockPerformance" => Performance()) for security in all_securities])
+                "stockPerformance" => empty_pnl()) for security in all_securities])
         
         elseif benchmark_prices.timestamp[end] < Date(start_date)
             return (Date(now()), [Dict("security" => serialize(security), 
-                "stockPerformance" => Performance()) for security in all_securities])
+                "stockPerformance" => empty_pnl()) for security in all_securities])
 
         elseif (benchmark_prices != nothing)
             portfolio = updateportfolio_latestprice(port, DateTime(benchmark_prices.timestamp[end]))
@@ -372,5 +372,9 @@ function compute_pnl_stats(pos::Position)
     pnl = pos.lastprice > 0.0 ? pos.lastprice - pos.averageprice : 0.0
     pnlpct = pos.averageprice > 0.0 ? round(pnl * 100/pos.averageprice, 2) : 0.0
     return Dict{String, Any}("pnl" => pnl, "pnl_pct" => pnlpct)
+end
+
+function empty_pnl()
+    return Dict{String, Any}("pnl" => 0.0, "pnl_pct" => 0.0)
 end
 

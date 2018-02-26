@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-23 19:47:51
+* @Last Modified time: 2018-02-26 17:13:49
 */
 
 'use strict';
@@ -81,15 +81,15 @@ Portfolio.statics.savePortfolio = function(portfolio) {
 };
 
 Portfolio.statics.fetchPortfolio = function(query, options) {
-	var q = this.findOne(query)
-	
+	var q = this.findOne(query);
+		
 	if(options.fields) {
 		q = q.select(options.fields);	
 	}
 	
 	//Select advice name and 
-	if((options.fields && options.fields.indexOf('subPositions') !=-1 ) || !options.fields) {
-		q.populate('subPositions.advice', 'name', {_id:{$ne:null}});
+	if((options.fields && options.fields.indexOf('detail') !=-1 ) || !options.fields) {
+		q.populate('detail.subPositions.advice', 'name', {_id:{$ne:null}});
 	}
 
 	return q.execAsync();
@@ -182,7 +182,7 @@ Portfolio.statics.deleteTransactions = function(query, transactions) {
 };
 
 
-Portfolio.statics.updatePortfolio = function(query, updates, addNew) {
+Portfolio.statics.updatePortfolio = function(query, updates, options, addNew) {
 	var q = this.findOne(query);
 	
 	if (addNew) {
@@ -192,7 +192,7 @@ Portfolio.statics.updatePortfolio = function(query, updates, addNew) {
 	return q.execAsync()
 	.then(portfolio => {
 		
-		var fupdate = {$set: updates};
+		var fupdate = {$set: Object.assign({updatedDate: new Date()}, updates)};
 
 		if (addNew) {
 			var history = updates.history ? updates.history : [];
@@ -204,7 +204,7 @@ Portfolio.statics.updatePortfolio = function(query, updates, addNew) {
 			fupdate = {$set: modifiedUpdates, $push:{history: {$each: history}} };
 		}
 
-		return this.findOneAndUpdate(query, fupdate, {upsert:true, new: true});
+		return this.findOneAndUpdate(query, fupdate, options);
 	});
 }
 
