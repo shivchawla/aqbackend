@@ -132,19 +132,21 @@ wsh = WebSocketHandler() do req, ws_client
           parsemsg["performance"] = Dict("date" => endDate, "value" => performance)
 
         elseif action == "compute_performance_netvalue"
-           performance = Dict{String, Any}()
+          performance = Dict{String, Any}()
            
-           netValue = convert(Vector{Float64}, parsemsg["netValue"])
-           benchmark = parsemsg["benchmark"]["ticker"]
-           dates = parsemsg["dates"]
+          netValues = convert(Vector{Float64}, parsemsg["netValue"])
+          benchmark = parsemsg["benchmark"]["ticker"]
+          dates = parsemsg["dates"]
+          dates = [Date(date) for date in dates]
 
-           endDate = dates[end]
+          vals = zeros(length(netValues), 1)
+          for (i,val) in enumerate(netValues)
+            vals[i,1] = val
+          end
+          
+          (lastdate, performance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
 
-           dates = [Date(date) for date in dates]
-
-           performance = compute_performance(netValue, dates, benchmark)
-           performance = JSON.parse(JSON.json(performance))
-           parsemsg["performance"] = Dict("date" => endDate, "value" => performance)
+          parsemsg["performance"] = Dict("date" => lastdate, "value" => serialize(performance))
         
         elseif action == "compute_portfolio_constituents_performance"
 

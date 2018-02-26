@@ -122,19 +122,16 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
         benchmark_prices = history_nostrict([benchmark_security.symbol.ticker], "Close", :Day, sdate, edate)
 
         if benchmark_prices == nothing
-            return (Date(now()), [Dict("security" => serialize(security), 
-                "stockPerformance" => empty_pnl()) for security in all_securities])
+            return (Date(now()), [merge(Dict("ticker" => security.securitysymbol.ticker), empty_pnl()) for security in all_securities])
         
         elseif benchmark_prices.timestamp[end] < Date(start_date)
-            return (Date(now()), [Dict("security" => serialize(security), 
-                "stockPerformance" => empty_pnl()) for security in all_securities])
+            return (Date(now()), [merge(Dict("ticker" => security.securitysymbol.ticker), empty_pnl()) for security in all_securities])
 
         elseif (benchmark_prices != nothing)
             portfolio = updateportfolio_latestprice(port, DateTime(benchmark_prices.timestamp[end]))
             
             lastdate = benchmark_prices.timestamp[end] 
-            performance_allstocks = [Dict("ticker" => sym.ticker, 
-                "stockPerformance" => compute_pnl_stats(pos)) for (sym,pos) in portfolio.positions]
+            performance_allstocks = [merge(Dict("ticker" => sym.ticker), compute_pnl_stats(pos)) for (sym,pos) in portfolio.positions]
             
             return (lastdate, performance_allstocks)
         
