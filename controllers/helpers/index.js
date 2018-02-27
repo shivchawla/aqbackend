@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-27 13:13:41
+* @Last Modified time: 2018-02-27 20:41:27
 */
 
 'use strict';
@@ -168,9 +168,21 @@ function _updatePositionsForLatestPrice(positions) {
 module.exports.computeUpdatedPortfolioForLatestPrice = function(portfolio) {
 	return Promise.all([
 		_updatePositionsForLatestPrice(portfolio.detail.positions),
-		_updatePositionsForLatestPrice(portfolio.detail.subPositions)
+		
+		//Each subposition is sent separately as JULIA portfolio can't handle 
+		//redundant securities
+		Promise.map(portfolio.detail.subPositions, function(position) {
+			return _updatePositionsForLatestPrice([position])
+			.then(updatedPositions => {
+				if (updatedPositions){
+					return updatedPositions.length == 1 ? updatedPositions[0] : null;
+				} else {
+					return null;
+				}
+			});
+		})
 	])
-	.then(([updatedPositions, updatedSubPositions]) => {
+	.then(([updatedPositions, updatedSubPositions]) => { 
 		
 		if(updatedPositions || updatedSubPositions) {
 			var updatedPortfolio = Object.assign({}, portfolio);
@@ -180,7 +192,8 @@ module.exports.computeUpdatedPortfolioForLatestPrice = function(portfolio) {
 			}
 			
 			if(updatedSubPositions) {
-				updatedPortfolio.detail.subPositions = updatedSubPositions;
+				//Filter out the NULL values
+				updatedPortfolio.detail.subPositions = updatedSubPositions.filter(item => item);
 			}
 
 			return [true, updatedPortfolio];
@@ -260,6 +273,7 @@ module.exports.computeUpdatedPortfolioForStockTransactions = function(portfolio,
 		
 		//PROMISE 2: Update Sub-Positions
 		Promise.map(uniqueAdviceIds, function(adviceId) {
+			
 			var transactionsForAdviceId = transactions.filter(item => {
 				var tId = item.advice ? item.advice.toString() : "";
 				return tId == adviceId;
@@ -273,12 +287,13 @@ module.exports.computeUpdatedPortfolioForStockTransactions = function(portfolio,
 			if (transactionsForAdviceId.length > 0) {
 				return _updatePositions(subPositionsForAdviceId, transactionsForAdviceId)
 				.then(subPortfolio => {
-					subPortfolio.positions.map(position => {
-						position["advice"] = adviceId!= "" ? ObjectId(adviceId) : null;
-						return position
-					});
-					
-					return subPortfolio;
+					return {
+						positions: 
+							subPortfolio.positions.map(position => {
+								position["advice"] = adviceId!= "" ? ObjectId(adviceId) : null;
+								return position;
+							})
+						};
 				});	
 			} else  {
 				return {positions : subPositionsForAdviceId};
@@ -286,7 +301,6 @@ module.exports.computeUpdatedPortfolioForStockTransactions = function(portfolio,
 		})
 	])
 	.then(([fullPortfolio, subPortfolios]) => {
-		
 		var subPositions = [];
 		subPortfolios.forEach(subPortfolio => {
 			subPositions = subPositions.concat(subPortfolio.positions);
@@ -461,6 +475,58 @@ module.exports.validatePortfolio = function(portfolio) {
             console.log(connection);
             var msg = JSON.stringify({action:"validate_portfolio", 
             						portfolio: portfolio});
+
+         	wsClient.send(msg);
+        });
+
+        wsClient.on('message', function(msg) {
+        	var data = JSON.parse(msg);
+
+		    if (data["error"] == "") {
+			    resolve(data["valid"]);
+		    } else if (data["error"] != "") {
+		    	reject(new Error(data["error"]));
+		    } else {
+		    	reject(new Error("Unknown error in validating portfolio"));
+		    }
+	    });
+    })
+};
+
+module.exports.validateTransactions = function(transactions) {
+	
+	return new Promise((resolve, reject) => {
+		resolve(true);
+	});
+
+	//First validation is checking if transactions belonging to adviceId have same portfolio
+	var uniqueAdviceIds = Array.from(new Set(transactions.map(item => item.advice)));
+	return Promise.map(uniqueAdviceIds, function(adviceId){
+		if (adviceId) {
+			var transactionsForAdviceId = transactions.filter(item => {return item.advice == adviceId;});
+			
+			var validDate = true;
+			var datesForTransactions = Array.from(new Set(transactionsForAdviceId.map(item => new Date(item.date).getTime())));
+
+			if(datesForTransactions.length > 1) {
+				APIError.throwJsonError({message:" Different dates for same advice", adviceId: adviceId});
+			}
+
+			var date = new Date(datesForTransactions[0])
+			return AdviceModel.fetchAdvicePortfolio({_id: adviceId}, date);
+		}
+	});
+
+	return new Promise((resolve, reject) => {
+
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
+
+		wsClient.on('open', function open() {
+            console.log('Connection Open');
+            console.log(connection);
+            var msg = JSON.stringify({action:"validate_transactions", 
+            						transactions: transactions});
 
          	wsClient.send(msg);
         });
