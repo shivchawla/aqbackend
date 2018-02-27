@@ -80,8 +80,12 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
                     #price is 0.0 
                     price = convert(Float64, get(pos, "avgPrice", 0.0))
 
+                    #Link the position to an advice (Used in marketplace Sub-Portfolio)
+                    advice = get(pos, "advice", "")
+                    advice = advice == nothing ? "" : advice
+
                     # Append to position dictionary
-                    portfolio.positions[security.symbol] = Position(security.symbol, qty, price)
+                    portfolio.positions[security.symbol] = Position(security.symbol, qty, price, advice)
                        
                 end
             end
@@ -612,6 +616,7 @@ function convert_to_node_portfolio(port::Portfolio)
             n_pos["avgPrice"] = pos.averageprice
             n_pos["profit"] = pos.lasttradepnl
             n_pos["lastPrice"] = pos.lastprice
+            n_pos["advice"] = pos.advice == "" ? nothing : pos.advice
             
             push!(output["positions"], n_pos) 
         end

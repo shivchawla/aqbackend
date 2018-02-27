@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-27 09:54:31
+* @Last Modified time: 2018-02-27 12:58:50
 */
 
 'use strict';
@@ -159,7 +159,7 @@ function _updatePortfolioForStockTransactions(portfolio, transactions, action, p
 		}
 	})
 	.then(([updatedPortfolioForTransactions, history]) => {
-		return Promise.all([_computeUpdatedPortfolioForLatestPrice({detail:updatedPortfolioForTransactions}), history])
+		return Promise.all([HelperFunctions.computeUpdatedPortfolioForLatestPrice({detail:updatedPortfolioForTransactions}), history])
 	})
 	.then(([[priceUpdated, updatedPortfolio], history]) => {
 		if(!preview) {
@@ -178,7 +178,7 @@ function _updatePortfolioForStockTransactions(portfolio, transactions, action, p
 	});
 }
 
-function _computeUpdatedPortfolioForLatestPrice(portfolio) {
+/*function _computeUpdatedPortfolioForLatestPrice(portfolio) {
 	return Promise.all([
 		HelperFunctions.updatePositionsForLatestPrice(portfolio.detail.positions),
 		HelperFunctions.updatePositionsForLatestPrice(portfolio.detail.subPositions)
@@ -202,24 +202,24 @@ function _computeUpdatedPortfolioForLatestPrice(portfolio) {
 		}
 		
 	});
-}
+}*/
 
 function _getUpdatedPortfolio(portfolioId, fields) {
 		
-	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted:false}, {fields: 'name detail benchmark updatedDate'})
+	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted:false}, {fields: 'detail updatedDate'})
 	.then(portfolio => {
 		if(portfolio) {
 			var updateRequired = portfolio.updatedDate ? HelperFunctions.getDate(portfolio.updatedDate) < HelperFunctions.getDate(new Date()) : true;
 			return updateRequired ? 
-				_computeUpdatedPortfolioForLatestPrice(portfolio.toObject()) :
-				[false, portfolio];
+				HelperFunctions.computeUpdatedPortfolioForLatestPrice(portfolio.toObject()):
+				[false,  portfolio];
 		} else {
 			APIError.throwJsonError({portfolioId: portfolioId, message: "No portfolio found"});
 		}
 	})
 	.then(([updated, latestPricePortfolio]) => {
-		return updated ? PortfolioModel.updatePortfolio({_id: portfolioId}, latestPricePortfolio, {new:true, fields: fields}) : latestPricePortfolio;
-	});
+		return updated ? PortfolioModel.updatePortfolio({_id: portfolioId}, latestPricePortfolio, {fields: fields}) : latestPricePortfolio;
+	})
 }
 
 //NOT TO BE USED
@@ -736,10 +736,28 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 	.then(updatedPortfolio => {
 		if(updatedPortfolio) {
 			return res.status(200).send(updatedPortfolio);
+			/*return Promise.map(updatedPortfolio.detail.subPositions, function(subPosition) {
+				if(subPosition.advice) {
+					return AdviceModel.fetchAdvice({_id: subPosition.advice}, {fields: 'name'})
+					.then(advice => {
+						subPosition.advice = advice.name;
+						return subPosition;
+					})
+				} else {
+					return subPosition;
+				}
+			})
+			.then(updatedSubPositions => {
+				updatedPortfolio.detail.subPositions = updatedSubPositions;
+				return updatedPortfolio;
+			});*/
 		} else {
 			APIError.throwJsonError({message: "Invalid updated portfolio"});
 		}
 	})
+	/*.then(finalPortfolio => {
+		return res.status(200).send(finalPortfolio);
+	})*/		
 	.catch(err => {
 		return res.status(400).send(err.message);
 	})
@@ -842,7 +860,7 @@ module.exports.updateInvestorPortfolioForTransactions = function(args, res, next
 
 /*
 * Get detail about ticker specific info about portfolio
-* like positions, subpositions, transactions
+* like positions, subPositions, transactions
 */
 module.exports.getInvestorPortfolioPosition = function(args, res, next) {
 	const userId = args.user._id;

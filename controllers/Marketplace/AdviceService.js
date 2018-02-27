@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-21 09:49:44
+* @Last Modified time: 2018-02-27 13:06:34
 */
 
 'use strict';
@@ -276,6 +276,20 @@ module.exports.getAdviceDetail = function(args, res, next) {
 			} else if (!advice) {
 				APIError.throwJsonError({message:"Advice not found"});
 			}
+		}
+	})
+	.then(advice => {
+		if (options.fields.indexOf('portfolio') != -1 && advice.portfolio) {
+			return HelperFunctions.computeUpdatedPortfolioForLatestPrice(advice.portfolio.toObject())
+			.then(([updated, updatedPortfolio]) => {
+				if(updated) {
+					advice.portfolio = updatedPortfolio;
+				}
+
+				return advice;
+			});
+		} else {
+			return advice;
 		}
 	})
 	/*.then(advice => {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-22 10:17:56
+* @Last Modified time: 2018-02-27 13:13:41
 */
 
 'use strict';
@@ -127,6 +127,69 @@ function _updatePositions(positions, transactions) {
 		});
 	});
 }
+
+function _updatePositionsForLatestPrice(positions) {
+	if (positions) {
+		return new Promise((resolve, reject) => {
+
+			var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+			var wsClient = new WebSocket(connection);
+
+			const portfolio = {
+				positions: positions,
+				cash: 0.0
+			};
+
+			wsClient.on('open', function open() {
+	            console.log('Connection Open');
+	            console.log(connection);
+	            var msg = JSON.stringify({action:"update_portfolio_price", 
+	            						portfolio: portfolio});
+	         	wsClient.send(msg);
+	        });
+
+	        wsClient.on('message', function(msg) {
+	        	var data = JSON.parse(msg);
+
+	        	if (data["error"] == "" && data["updatedPositions"]) {
+				    resolve(data["updatedPositions"]);
+			    } else if (data["error"] != "") {
+			    	reject(new Error(data["error"]));
+			    } else {
+			    	reject(new Error("Unknown error in updating portfolio for latest price"));
+			    }
+		    });
+	    })
+	} else {
+		APIError.throwJsonError({message:"Invalid positions: Can't update positions for latest price"});
+	}
+}
+
+module.exports.computeUpdatedPortfolioForLatestPrice = function(portfolio) {
+	return Promise.all([
+		_updatePositionsForLatestPrice(portfolio.detail.positions),
+		_updatePositionsForLatestPrice(portfolio.detail.subPositions)
+	])
+	.then(([updatedPositions, updatedSubPositions]) => {
+		
+		if(updatedPositions || updatedSubPositions) {
+			var updatedPortfolio = Object.assign({}, portfolio);
+			
+			if(updatedPositions) {
+				updatedPortfolio.detail.positions = updatedPositions;
+			}
+			
+			if(updatedSubPositions) {
+				updatedPortfolio.detail.subPositions = updatedSubPositions;
+			}
+
+			return [true, updatedPortfolio];
+		} else {
+			return [false, portfolio];
+		}
+		
+	});
+};
 
 module.exports.comparePortfolioDetail = function(oldPortfolioDetail, newPortfolioDetail) {
 	return new Promise(function(resolve, reject) {
@@ -551,43 +614,6 @@ module.exports.updateStockLatestDetail = function(q, security) {
     .then(latestDetail => {
     	return SecurityPerformanceModel.updateLatestDetail(q, latestDetail);
     });
-};
-
-module.exports.updatePositionsForLatestPrice = function(positions) {
-	if (positions) {
-		return new Promise((resolve, reject) => {
-
-			var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-			var wsClient = new WebSocket(connection);
-
-			const portfolio = {
-				positions: positions,
-				cash: 0.0
-			};
-
-			wsClient.on('open', function open() {
-	            console.log('Connection Open');
-	            console.log(connection);
-	            var msg = JSON.stringify({action:"update_portfolio_price", 
-	            						portfolio: portfolio});
-	         	wsClient.send(msg);
-	        });
-
-	        wsClient.on('message', function(msg) {
-	        	var data = JSON.parse(msg);
-
-	        	if (data["error"] == "" && data["updatedPositions"]) {
-				    resolve(data["updatedPositions"]);
-			    } else if (data["error"] != "") {
-			    	reject(new Error(data["error"]));
-			    } else {
-			    	reject(new Error("Unknown error in updating portfolio for latest price"));
-			    }
-		    });
-	    })
-	} else {
-		APIError.throwJsonError({message:"Invalid positions: Can't update positions for latest price"});
-	}
 };
 
 function _computePortfolioRating (portfolioId) {

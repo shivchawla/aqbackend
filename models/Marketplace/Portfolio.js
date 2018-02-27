@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-27 09:43:15
+* @Last Modified time: 2018-02-27 12:52:11
 */
 
 'use strict';
@@ -89,7 +89,7 @@ Portfolio.statics.fetchPortfolio = function(query, options) {
 	
 	//Select advice name and 
 	if((options.fields && options.fields.indexOf('detail') !=-1 ) || !options.fields) {
-		q = q.populate('detail.subPositions.advice', 'name', {_id:{$ne:null}});
+		q = q.populate('detail.subPositions.advice', '_id name', {_id:{$ne:null}});
 	}
 
 	return q.execAsync();
@@ -204,7 +204,14 @@ Portfolio.statics.updatePortfolio = function(query, updates, options, addNew) {
 			fupdate = {$set: modifiedUpdates, $push:{history: {$each: history}} };
 		}
 
-		return this.findOneAndUpdate(query, fupdate, options);
+		return this.findOneAndUpdate(query, fupdate);
+	})
+	.then(update => {
+		if (options.fields) {
+			return this.fetchPortfolio(query, {fields: options.fields});
+		} else {
+			return null;
+		}
 	});
 }
 
