@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-26 17:13:49
+* @Last Modified time: 2018-02-27 09:43:15
 */
 
 'use strict';
@@ -89,7 +89,7 @@ Portfolio.statics.fetchPortfolio = function(query, options) {
 	
 	//Select advice name and 
 	if((options.fields && options.fields.indexOf('detail') !=-1 ) || !options.fields) {
-		q.populate('detail.subPositions.advice', 'name', {_id:{$ne:null}});
+		q = q.populate('detail.subPositions.advice', 'name', {_id:{$ne:null}});
 	}
 
 	return q.execAsync();

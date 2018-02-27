@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-26 17:11:10
+* @Last Modified time: 2018-02-27 09:54:31
 */
 
 'use strict';
@@ -211,7 +211,7 @@ function _getUpdatedPortfolio(portfolioId, fields) {
 		if(portfolio) {
 			var updateRequired = portfolio.updatedDate ? HelperFunctions.getDate(portfolio.updatedDate) < HelperFunctions.getDate(new Date()) : true;
 			return updateRequired ? 
-				_computeUpdatedPortfolioForLatestPrice(portfolio) :
+				_computeUpdatedPortfolioForLatestPrice(portfolio.toObject()) :
 				[false, portfolio];
 		} else {
 			APIError.throwJsonError({portfolioId: portfolioId, message: "No portfolio found"});
