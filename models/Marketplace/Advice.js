@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 15:16:01
+* @Last Modified time: 2018-02-28 17:06:58
 */
 'use strict';
 const mongoose = require('../index');
@@ -157,12 +157,11 @@ Advice.statics.fetchAdvices = function(query, options) {
 	}
 
     if(options.fields && options.fields.indexOf('advisor') != -1) {
-        q = q.populate({path:'advisor', 
-                        populate:{path: 'user', 
-                                    select:'_id firstName lastName'}
-                        });
-        // null, { _id: { $ne: null }});
-    } 
+        q = q.select('advisor').populate({path:'advisor', select:'user _id',
+                                        populate:{path: 'user', 
+                                            select:'_id firstName lastName'}
+                                });
+    }
 	
     return q.execAsync();
 };

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-27 13:06:34
+* @Last Modified time: 2018-02-28 17:10:49
 */
 
 'use strict';
@@ -156,13 +156,12 @@ module.exports.getAdvices = function(args, res, next) {
     options.limit = args.limit.value;
 
     options.sort = args.sort.value;
-    options.fields = 'name description heading performance createdDate updatedDate advisor public approved maxNotional rebalance';
+    options.fields = 'name description heading createdDate updatedDate advisor public approved maxNotional rebalance';
 
     const following = args.following.value;
 
     const subscribed = args.subscribed.value;
     const personal = args.personal.value;
-    console.log(`Personal: ${personal}`);
 
     const approved = args.approved.value;
 
@@ -210,19 +209,35 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const userId = args.user._id;
 	
 	const options = {};
-	options.fields = 'name heading description createdDate updatedDate advisor public approved analytics portfolio rebalance maxNotional';
+	options.fields = 'name heading description createdDate updatedDate advisor public approved analytics followers subscribers portfolio rebalance maxNotional';
 	options.populate = 'advisor';
 	
-	Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
-				AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, options)])
- 	.then(([advisor, advice]) => {
- 		if(advice && advisor) {
+	Promise.all([
+		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
+		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, options),
+		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true})
+	])
+ 	.then(([advisor, advice, investor]) => {
+ 		if(advice && advisor && investor) {
  			const advisorId = advisor._id;
+ 			const investorId = investor._id;
 	 		if((!advisorId.equals(advice.advisor._id) && advice.public == true)  
 	 			|| advisorId.equals(advice.advisor._id)) { 
 	 			
-	 			//TODO: Add a fetch for basic performance
-	 			return res.status(200).json(advice);
+	 			var isFollowing = false;
+	 			var isSubscribed = false;
+	 			var isOwner = advisorId.equals(advice.advisor._id);
+
+	 			if(!advisorId.equals(advice.advisor._id)) {
+	 				isFollowing = advice.followers.filter(item => {return item.active == true}).map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
+	 				isSubscribed = advice.subscribers.filter(item => {return item.active == true}).map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
+	 			} 
+ 				
+ 				var nAdvice = advice.toObject();
+ 				delete nAdvice.subscribers;
+ 				delete nAdvice.followers;
+ 				nAdvice = Object.assign({isFollowing: isFollowing, isSubscribed: isSubscribed, isOwner: isOwner}, nAdvice);
+ 				return res.status(200).send(nAdvice);	
 
 			} else {
 				APIError.throwJsonError({userId: userId, adviceId: adviceId, message:"Not authorized to view this advice"});
