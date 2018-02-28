@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-27 20:39:42
+* @Last Modified time: 2018-02-28 18:38:52
 */
 
 'use strict';
@@ -919,7 +919,7 @@ module.exports.deleteInvestorPortfolio = function(args, res, next) {
 				var defaultId = !defaultPortfolio || defaultPortfolio.equals(portfolioId) ? 
 					validPortfolios.length > 0 ? validPortfolios[0] : null : defaultPortfolio;
 
-				return Promise.all([PortfolioModel.updatePortfolio({_id: portfolioId}, {deleted: true, updatedDate: new Date()}),
+				return Promise.all([PortfolioModel.updatePortfolio({_id: portfolioId}, {deleted: true, updatedDate: new Date()}, {fields: 'deleted'}),
 					InvestorModel.updateInvestor({_id:investorId}, {defaultPortfolio: defaultId})]); 
 			} else {
 				APIError.throwJsonError({portfolioId: portfolioId, message: "No portfolio found "});
@@ -929,7 +929,7 @@ module.exports.deleteInvestorPortfolio = function(args, res, next) {
 		}
 	})
 	.then(([portfolio, investor]) => {
-		if(portfolio) {
+		if(portfolio && portfolio.deleted) {
 			return res.status(200).send({investorId: investorId, portfolioId: portfolioId, message:"Successfully deleted"});
 		} else {
 			APIError.throwJsonError({investorId: investorId, portfolioId: portfolioId, message: "Error deleting the portfolio"})

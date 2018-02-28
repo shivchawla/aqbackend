@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-27 12:52:11
+* @Last Modified time: 2018-02-28 18:29:11
 */
 
 'use strict';
@@ -207,7 +207,7 @@ Portfolio.statics.updatePortfolio = function(query, updates, options, addNew) {
 		return this.findOneAndUpdate(query, fupdate);
 	})
 	.then(update => {
-		if (options.fields) {
+		if (options && options.fields) {
 			return this.fetchPortfolio(query, {fields: options.fields});
 		} else {
 			return null;
