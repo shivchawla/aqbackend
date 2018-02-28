@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 15:41:38
+* @Last Modified time: 2018-02-28 18:54:23
 */
 
 'use strict'
@@ -97,13 +97,14 @@ module.exports.getPerformanceAdvicePortfolio = function(args, res, next) {
 		}
 	})
 	.then(([simulatedPerformance, currentPerformance]) => {
-		if (!simulatedPerformance || !currentPerformance) {
+
+		if (simulatedPerformance || currentPerformance) {
 			const updates = {};
-			if (!simulatedPerformance) {
+			if (simulatedPerformance) {
 				updates["simulated"] = simulatedPerformance;
 			}
 
-			if(!currentPerformance) {
+			if(currentPerformance) {
 				updates["current"] = currentPerformance;
 			}
 
