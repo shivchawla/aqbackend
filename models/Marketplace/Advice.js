@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-20 14:29:21
+* @Last Modified time: 2018-02-28 15:16:01
 */
 'use strict';
 const mongoose = require('../index');
@@ -138,7 +138,7 @@ Advice.index({
 
 Advice.statics.saveAdvice = function(adviceDetails) {
     const advice = new this(adviceDetails);
-    return advice.save();
+    return advice.saveAsync();
 };
 
 Advice.statics.fetchAdvices = function(query, options) {
@@ -219,7 +219,7 @@ Advice.statics.updateCurrentPortfolioPerformance = function(query, performance) 
             	advice.currentPortfolio.performanceMetrics.push({date: performance.date, performance: performance.value, rating:0.0});
         	}
         	
-            return advice.save();
+            return advice.saveAsync();
         }
     });
 };
@@ -246,7 +246,7 @@ Advice.statics.updateAdvicePortfolioStats = function(query, portfolioStats) {
             		}
         		}
 
-            	return advice.save();
+            	return advice.saveAsync();
             }
         });
 };
@@ -275,7 +275,7 @@ Advice.statics.updateCurrentPortfolioPortfolioStats = function(query, portfolioS
             		}
         		}
 
-            	return advice.save();
+            	return advice.saveAsync();
             }
         });
 };
@@ -287,7 +287,7 @@ Advice.statics.updateAdvicePerformance = function(query, performance) {
         	if(advice.performanceMetrics.map(x => x.date).indexOf(performance.date) == -1) {
             	advice.performanceMetrics.push({date: performance.date, performance: performance.value, rating: 0.0});
         	}
-        	return advice.save();
+        	return advice.saveAsync();
         }
     });
 };
@@ -300,7 +300,7 @@ Advice.statics.deleteAdvice = function(query) {
             if(!advice.deleted) {
                 advice.deleted = true;
                 advice.deletedDate = new Date();
-	            return advice.save(); 
+	            return advice.saveAsync(); 
             } else {
                 throw new Error("Advice already deleted");
             }
@@ -330,7 +330,7 @@ Advice.statics.updateFollowers = function(query, investorId) {
                 advice.followers[idx] = follower;
             }
 
-            return advice.save();
+            return advice.saveAsync();
         }      
     });
 };
@@ -351,11 +351,10 @@ Advice.statics.updateSubscribers = function(query, investorId) {
                 advice.subscribers[idx] = subscriber;
             }
 
-            return advice.save();
+            return advice.saveAsync();
         }      
     });
 };
-
 
 Advice.statics.updateAnalytics = function(query, analytics) {
     return this.findOne(query, {analytics:1})
@@ -363,8 +362,12 @@ Advice.statics.updateAnalytics = function(query, analytics) {
         var adviceAnalytics = advice.analytics;
         var analyticsDate = analytics.date;
 
+        if(!adviceAnalytics) {
+            advice.analytics = [];
+        }
+
         //Find date
-        var idx = adviceAnalytics.map(item => item.date.getTime).indexOf(analyticsDate.getTime());
+        var idx = adviceAnalytics.map(item => item.date.getTime()).indexOf(analyticsDate.getTime());
         if (idx == -1) {
             adviceAnalytics.push(analytics);
         } else {
@@ -373,16 +376,37 @@ Advice.statics.updateAnalytics = function(query, analytics) {
             });
         }
 
-        return advice.save();
+        return advice.saveAsync();
 
     });
+};
+
+
+Advice.statics.fetchAdvicePortfolio = function(query, date) {
+    if (!date) {
+        return this.findOne(query).select('portfolio').populate('portfolio', 'detail').execAsync();
+    } else {
+        return this.findOne(query).select('portfolio').populate('detail history').execAsync()
+        .then(advice => {
+            var advicePortfolio = advice.portfolio;
+            if (_compareDates(date, advicePortfolio.detail.startDate) != -1) {
+                return advice.portfolio.detail;
+            } else {
+                advicePortfolio.history.forEach(historicalDetail => {
+                    if (_compareDates(date, historicalDetail.startDate) != -1) {
+                        return historicalDetail;
+                    } 
+                });
+            }
+        })    
+    }
 };
 
 function farfuture() {
 	return new Date(2200, 1, 1);
 }
 
-function _comparedates(d1, d2) {
+function _compareDates(d1, d2) {
 	t1 = d1.getTime();
 	t2 = d1.getTime();
 

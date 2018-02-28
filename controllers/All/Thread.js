@@ -1,8 +1,5 @@
 'use strict';
-
-const Thread = require('./Research/ThreadService');
-const User = require('./UserService');
-
+const Thread = require('../Research/ThreadService');
 
 module.exports.createThread = function createThread (req, res, next) {
     Thread.createThread(req.swagger.params, res, next);

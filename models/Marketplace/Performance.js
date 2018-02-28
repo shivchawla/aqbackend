@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-22 14:19:01
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-24 11:25:11
+* @Last Modified time: 2018-02-28 13:21:14
 */
 
 'use strict';
@@ -42,13 +42,14 @@ Performance.statics.savePerformance = function(performanceDetail) {
 
 Performance.statics.fetchPerformance = function(query, fields) {
     
-    var q = this.findOne(query);
-
+    var options = {upsert: true, new:true};
+    
     if(fields) {
-        q = q.select(fields)
+        options.fields = fields;
     }
 
-    return q.execAsync();
+    return this.findOneAndUpdate(query, {}, options);
+
 };
 
 Performance.statics.updatePerformance = function(query, updates) {

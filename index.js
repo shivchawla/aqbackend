@@ -30,7 +30,7 @@ const hostname = config.get('hostname');
 // swaggerRouter configuration
 const options = {
     swaggerUi: '/swagger.json',
-    controllers: './controllers',
+    controllers: './controllers/All',
     useStubs: process.env.NODE_ENV === 'development' ? true : false
         // Conditionally turn on stubs (mock mode)
 };
@@ -75,6 +75,9 @@ swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {
 
     // load models
     require('./models');
+
+    //Setup jobs
+    require('./Jobs');
 
     // set up email service
     //require('./email').config(app);

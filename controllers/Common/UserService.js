@@ -1,14 +1,14 @@
 'use strict';
-const UserModel = require('../models/user');
-const jwtUtil = require('../utils/jwttoken');
-const hashUtil = require('../utils/hashUtil');
-const sendEmail = require('../email');
+const UserModel = require('../../models/user');
+const jwtUtil = require('../../utils/jwttoken');
+const hashUtil = require('../../utils/hashUtil');
+const sendEmail = require('../../email');
 const uuid = require('node-uuid');
 const config = require('config');
 var request = require('request');
 const Promise = require('bluebird');
-const AdvisorModel = require('../models/Marketplace/Advisor');
-const InvestorModel = require('../models/Marketplace/Investor');
+const AdvisorModel = require('../../models/Marketplace/Advisor');
+const InvestorModel = require('../../models/Marketplace/Investor');
 
 exports.registerUser = function(args, res, next) {
     const user = {

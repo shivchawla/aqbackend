@@ -1,6 +1,5 @@
 'use strict';
-
-const User = require('./UserService');
+const User = require('../Common/UserService');
 
 module.exports.activateUser = function activateUser (req, res, next) {
     User.activateUser(req.swagger.params, res, next);

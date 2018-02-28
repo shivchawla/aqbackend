@@ -1,6 +1,6 @@
 'use strict';
 
-const Backtest = require('./Research/BacktestService');
+const Backtest = require('../Research/BacktestService');
 
 module.exports.getBackTests = function getBackTests (req, res, next) {
     Backtest.getBackTests(req.swagger.params, res, next);

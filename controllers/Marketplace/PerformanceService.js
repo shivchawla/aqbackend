@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-24 11:51:14
+* @Last Modified time: 2018-02-28 15:41:38
 */
 
 'use strict'
@@ -14,171 +14,7 @@ const PerformanceModel = require('../../models/Marketplace/Performance');
 const APIError = require('../../utils/error');
 const Promise = require('bluebird');
 const HelperFunctions = require("../helpers");
-
-function _checkPerformanceUpdateRequired(performanceDetail) {
-	if(!performanceDetail) {
-		return true;
-	}
-
-
-	if(performanceDetail && performanceDetail.updatedDate) {
-        if(HelperFunctions.getDate(performanceDetail.updatedDate) < HelperFunctions.getDate(new Date())) {
-        	 return true;
-        }
-    } else {
-    	return true; 
-    } 
-
-	
-	var performanceDetailMetrics = performanceDetail.metrics ? performanceDetail.metrics : [];
-    if(performanceDetailMetrics.length == 0) {
-    	return true;
-    }
-        
-    return false;
-}
-
-function _computePortfolioConstituentsPerformance(portfolioId) {
-	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'detail benchmark'})
-	.then(portfolio => {
-		var currentPortfolio = portfolio.detail;
-
-		var startDate = HelperFunctions.getDate(currentPortfolio.startDate);
-		var endDate = new Date();
-
-		return HelperFunctions.computeConstituentPerformance(currentPortfolio, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
-	});
-}
-
-function _computePortfolioComposition(portfolioId) {
-	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'detail benchmark'})
-	.then(portfolio => {
-		var currentPortfolio = portfolio.detail;
-
-		var startDate = new Date(currentPortfolio.startDate);
-		var endDate = new Date();
-
-		return HelperFunctions.computePortfolioComposition(currentPortfolio, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
-	});
-}
-
-function _computeTruePerformance(portfolioId) {
-	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'detail benchmark history'})
-	.then(portfolio => {
-		var currentPortfolio = portfolio.detail;
-
-		
-		var portfolioHistory = [{startDate: currentPortfolio.startDate, 
-									endDate: new Date(),//currentPortfolio.endDate,
-									portfolio: {
-										positions: currentPortfolio.positions,
-										cash: currentPortfolio.cash}
-									}];
-
-		if(portfolio.history) {							
-			portfolio.history.forEach(port => {
-				portfolioHistory.push({startDate: port.startDate ? port.startDate : port.endDate, 
-										endDate: port.endDate,
-										portfolio: {
-											positions: port.positions,
-											cash: port.cash
-										}
-									});
-			});
-		}
-
-		return HelperFunctions.computePerformance(portfolioHistory, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
-	});
-}
-
-function _computeSimulatedPerformanceCurrentPortfolio(portfolioId) {
-	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'detail benchmark'})
-	.then(portfolio => {
-		var currentPortfolio = portfolio.detail;
-
-		var startDate = new Date(); //new Date(currentPortfolio.startDate);
-		startDate = new Date(startDate.setDate(startDate.getDate() - 365));
-
-		var portfolioHistory = [{startDate: startDate, 
-									endDate: new Date(), 
-									portfolio: {
-										positions: currentPortfolio.positions,
-										cash: currentPortfolio.cash}
-									}];
-
-		return HelperFunctions.computePerformance(portfolioHistory, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
-	});
-}
-
-function _computeSimulatedPerformance(portfolioId) {
-	
-	return _computeSimulatedPerformanceCurrentPortfolio(portfolioId)
-	.then(simulatedPerformance => {
-		
-		if (simulatedPerformance) {
-			var updates = {updateMessage: "Updated Successfully",
-				updateDate: new Date(),
-				metrics: {
-					date:  HelperFunctions.getDate(new Date(simulatedPerformance.date)),
-					portfolioComposition: null,
-					portfolioPerformance: simulatedPerformance.value,
-					constituentPerformance: null,
-				},
-
-				portfolioValues: simulatedPerformance.portfolioValues
-			};
-
-			return updates;
-		} else {
-			return null;
-		}
-		//return PerformanceModel.updatePerformanceByType({portfolio: portfolioId}, updates, "simulated");
-	})
-}
-
-function _computeLatestPerformance(portfolioId) {
-	return PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: 'current'})
-	.then(performance => {
-		var updateRequired = _checkPerformanceUpdateRequired(performance ? performance.current : null);
-		return updateRequired ? Promise.all([
-				true, 
-				_computeTruePerformance(portfolioId), //WORKS
-				//null,
-				//null
-				_computePortfolioComposition(portfolioId), //WORKS
-				//null,
-				_computePortfolioConstituentsPerformance(portfolioId)
-				]) : [false, null, null, null];
-	})
-	.then(([updated, latestPerformance, portfolioComposition, constituentPerformance]) => {
-		
-		if (updated){
-			var latestPerformanceDate = new Date(latestPerformance.date);
-	      	var portfolioCompositionDate = new Date(portfolioComposition.date);
-	      	var constituentPerformanceDate = new Date(constituentPerformance.date);
-
-	      	var earliestDate = new Date(Math.min(latestPerformanceDate.getTime(), portfolioCompositionDate.getTime(), constituentPerformanceDate.getTime()));
-			var updateMessage = updated ? "Updated successfully" : "Performance up-to-date";
-
-	  		var updates = {
-	  			updateMessage: updateMessage, 
-				updateDate: new Date(),
-				metrics: {
-					date:  HelperFunctions.getDate(earliestDate),
-					portfolioComposition: portfolioComposition.value,
-					portfolioPerformance: latestPerformance.value,
-					constituentPerformance: constituentPerformance.value
-				},
-
-				portfolioValues: latestPerformance.portfolioValues
-			};
-
-			return updates;
-		} else {
-			return null;
-		}
-	});
-}
+const PerformanceHelper = require("../helpers/Performance");
 
 module.exports.getPerformanceInvestorPortfolio = function(args, res, next) {
 	const investorId = args.investorId.value;
@@ -191,7 +27,7 @@ module.exports.getPerformanceInvestorPortfolio = function(args, res, next) {
 			if (investor.user.equals(userId)){
 				if(investor.portfolios) {
 					if (investor.portfolios.filter(item => !item.deleted).map(item => item.toString()).indexOf(portfolioId) != -1) {
-						return _computeLatestPerformance(portfolioId);
+						return PerformanceHelper.computeLatestPerformance(portfolioId);
 					} else {
 						APIError.throwJsonError({userId: userId, message: "PortfolioId is not a valid portfolio for investor"})
 					}
@@ -250,8 +86,8 @@ module.exports.getPerformanceAdvicePortfolio = function(args, res, next) {
 				
 				portfolioId = advice.portfolio;
 				return Promise.all([
-				 	_computeSimulatedPerformance(portfolioId),
-				 	_computeLatestPerformance(portfolioId)
+				 	PerformanceHelper.computeSimulatedPerformance(portfolioId),
+				 	PerformanceHelper.computeLatestPerformance(portfolioId)
 				 	]);
 			} else {
 				APIError.throwJsonError({userId: userId, message:"Not Authorized"});
@@ -301,20 +137,9 @@ module.exports.getPerformanceAdvicePortfolio = function(args, res, next) {
 module.exports.getPerformanceNewPortfolio = function(args, res, next) {
 	const portfolio = args.body.value;
 
-	return HelperFunctions.validatePortfolio(portfolio)
-	.then(validPortfolio => {	
-		if (validPortfolio) { 
-			return Promise.all([
-				HelperFunctions.computePortfolioComposition(portfolio.detail, portfolio.detail.startDate, portfolio.detail.endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'}),
-				HelperFunctions.computeConstituentPerformance(portfolio.detail, portfolio.detail.startDate, portfolio.detail.endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'}),
-				HelperFunctions.computeHistoricalPerformance(portfolio.detail, portfolio.detail.startDate, portfolio.detail.endDate)])
-		} else if(!validPortfolio) {
-			//this should not be called but in any-case
-			APIError.throwJsonError({message: "Invalid portfolio composition"});
-		} 
-	})
-	.then(([portfolioComposition, constituentPerformance, portfolioPerformance]) => {
-		return res.status(200).json({stockPerformance: constituentPerformance, portfolioPerformance: portfolioPerformance, portfolioComposition: portfolioComposition});
+	return PerformanceHelper.computePerformanceHypthetical(portfolio)
+	.then(performance => {
+		return res.status(200).send(performance);
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-20 14:29:32
+* @Last Modified time: 2018-02-28 16:20:51
 */
 'use strict';
 
@@ -15,7 +15,6 @@ const Investor = require('./Investor');
 const AdvisorAnalytics = new Schema({
     date: Date,
     rating: Number,
-    numSubscribers: Number,
     numFollowers: Number,
     numAdvices: Number
 });
@@ -56,7 +55,7 @@ const Advisor = new Schema({
 
 Advisor.statics.saveAdvisor = function(advisorDetail) {
     const advisor = new this(advisorDetail);
-    return advisor.save();
+    return advisor.saveAsync();
 };
 
 //Update the followers list
@@ -97,7 +96,7 @@ Advisor.statics.updateFollowers = function(query, userId) {
             	}
             }*/
         
-        	return advisor.save();
+        	return advisor.saveAsync();
     	}
         
     });
@@ -167,7 +166,7 @@ Advisor.statics.addAdvice = function(query, adviceId) {
 			advisor.advices.push(adviceId);
 		}
 
-		return advisor.save();
+		return advisor.saveAsync();
 	});
 	/*.then(advisor => {
 		return {addedAdvice: adviceId, advices: advisor.advices};
@@ -179,50 +178,42 @@ Advisor.statics.removeAdvice = function(query, adviceId) {
 	.then(advisor => {
 		if(advisor) {
 			advisor.advices.pull(adviceId);
-			return advisor.save();
+			return advisor.saveAsync();
 		} else {
 			throw new Error("Advisor not found. Advice can't be removed");
 		}
 	});
 };
 
-Advisor.statics.updatePerformance = function(query, performance) {
-	return this.findOne(query)
-		.populate('user')
-		.then(advisor => {
-			if(advisor) {
-				var histPerformance = advisor.currentPerformance;
-				
-				if(histPerformance) {
-					advisor.performance.push(histPerformance);
-				}
-
-				advisor.currentPerformance = histPerformance;
-			}
-
-			return advisor.save();
-		})
-		.then(advisor => {
-			return {user: advisor.user, performance: advisor.currentPerformance};
-		})
-};
-
-Advisor.statics.updateRating = function(query, rating) {
-	return this.find(query)
-		.then((advisor) => {
-			if(advisor) {
-				advisor.rating = rating;
-				return advisor.save();
-			}
-		})
-		.then(advisor => {
-			return {user: advisor.user, rating: advisor.rating};
-		});
-};
-
 Advisor.statics.updateAdvisor = function(query, updates) {
 	return this.findOneAndUpdate(query, updates, {upsert: true, new: true, setDefaultsOnInsert: true});
 };
+
+Advisor.statics.updateAnalytics = function(query, analytics) {
+    return this.findOne(query, {analytics:1})
+    .then(advisor => {
+        var advisorAnalytics = advisor.analytics;
+        var analyticsDate = analytics.date;
+
+        if (!advisorAnalytics) {
+        	advisor.analytics = [];
+        }
+
+        //Find date
+        var idx = advisorAnalytics.map(item => item.date.getTime()).indexOf(analyticsDate.getTime());
+        if (idx == -1) {
+            advisorAnalytics.push(analytics);
+        } else {
+            Object.keys(analytics).forEach(key => {
+                advisorAnalytics[idx][key] = analytics[key];
+            });
+        }
+
+        return advisor.saveAsync();
+
+    });
+};
+
 
 function getTime(d) {
 	return d.getTime();
