@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 17:10:49
+* @Last Modified time: 2018-02-28 18:05:27
 */
 
 'use strict';
@@ -156,7 +156,7 @@ module.exports.getAdvices = function(args, res, next) {
     options.limit = args.limit.value;
 
     options.sort = args.sort.value;
-    options.fields = 'name description heading createdDate updatedDate advisor public approved maxNotional rebalance';
+    options.fields = 'name description heading createdDate updatedDate advisor public approved maxNotional rebalance analytics subscribers followers';
 
     const following = args.following.value;
 
@@ -172,20 +172,27 @@ module.exports.getAdvices = function(args, res, next) {
     }
 
     const queryArray = [defaultQuery];
-   
+   	
+   	let investorId;
+   	let advisorId;
+
     Promise.all([AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id', insert: true}),
     		InvestorModel.fetchInvestor({user:userId}, {fields: '_id', insert: true})])
     .then(([advisor, investor]) => {
+    	
+    	advisorId = advisor._id;
+    	investorId = investor._id;
+    	
     	if (personal) {
-        	queryArray.push({advisor: advisor._id, deleted: false});
+        	queryArray.push({advisor: advisorId, deleted: false});
 	    } 
 
 	    if (following) {
-	        queryArray.push(Object.assign({}, defaultQuery, {followers: {'$elemMatch':{'$eq': investor._id}}}));
+	        queryArray.push(Object.assign({}, defaultQuery, {followers: {'$elemMatch':{'$eq': investorId}}}));
 	    } 
 
 	    if(subscribed){
-	        queryArray.push(Object.assign({}, defaultQuery, {subscribers: {'$elemMatch':{'$eq': investor._id}}}));
+	        queryArray.push(Object.assign({}, defaultQuery, {subscribers: {'$elemMatch':{'$eq': investorId}}}));
 	    }
 
 	    const query = queryArray.length > 0 ? {'$or': queryArray} : defaultQuery;
@@ -194,7 +201,32 @@ module.exports.getAdvices = function(args, res, next) {
 	})
     .then(advices => {
     	if(advices) {
-    		return res.status(200).json(advices);
+	    	var nAdvices = advices.map(advice => {
+	    		var nAdvice = Object.assign({}, advice.toObject());
+
+	    		var isFollowing = false;
+	 			var isSubscribed = false;
+	 			var isOwner = advisorId.equals(advice.advisor._id);
+
+	 			if(!advisorId.equals(advice.advisor._id)) {
+	 				isFollowing = advice.followers.filter(item => {return item.active == true}).map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
+	 				isSubscribed = advice.subscribers.filter(item => {return item.active == true}).map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
+	 			} 
+
+	 			var adviceAnalytics = advice.analytics;
+	 			var numAdviceAnalytics = adviceAnalytics.length;
+
+	 			var latestAnalytics = numAdviceAnalytics > 0 ? adviceAnalytics[numAdviceAnalytics - 1] : null;
+
+	 			delete nAdvice.subscribers;
+	 			delete nAdvice.followers;
+	 			delete nAdvice.analytics;
+
+	 			nAdvice = Object.assign({latestAnalytics: latestAnalytics, isFollowing: isFollowing, isSubscribed: isSubscribed, isOwner: isOwner}, nAdvice);
+	 			return nAdvice;
+	    	});
+
+    		return res.status(200).json(nAdvices);
 		} else {
 			APIError.throwJsonError({message: "No advices found"});
 		}
@@ -233,10 +265,17 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	 				isSubscribed = advice.subscribers.filter(item => {return item.active == true}).map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
 	 			} 
  				
+ 				var adviceAnalytics = advice.analytics;
+	 			var numAdviceAnalytics = adviceAnalytics.length;
+ 				var latestAnalytics = numAdviceAnalytics > 0 ? adviceAnalytics[numAdviceAnalytics - 1] : null;
+
  				var nAdvice = advice.toObject();
+
  				delete nAdvice.subscribers;
  				delete nAdvice.followers;
- 				nAdvice = Object.assign({isFollowing: isFollowing, isSubscribed: isSubscribed, isOwner: isOwner}, nAdvice);
+ 				delete nAdvice.analytics;
+
+ 				nAdvice = Object.assign({latestAnalytics: latestAnalytics, isFollowing: isFollowing, isSubscribed: isSubscribed, isOwner: isOwner}, nAdvice);
  				return res.status(200).send(nAdvice);	
 
 			} else {
