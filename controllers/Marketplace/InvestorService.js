@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-01 12:56:19
+* @Last Modified time: 2018-03-01 19:44:34
 */
 
 'use strict';
@@ -93,12 +93,12 @@ function _updatePortfolioForStockTransactions(portfolio, transactions, action, p
 			//TRANSACTION WITH ADVICE_ID are just like stock transaction 
 			//but have adviceId  
 			//1. Get Transactions for a date
-			var uniqueDates = Array.from(new Set(transactionsForAdviceId.map(item => new(item.date).getTime()))).map(item => new Date(item));
+			var uniqueDates = Array.from(new Set(transactionsForAdviceId.map(item => new Date(item.date).getTime()))).map(item => new Date(item));
 
 			//2. Filter out transaction for the date
-
 			return Promise.map(uniqueDates, function(date){
-				var transactionsForAdviceIdForDate = transactionsForAdviceId.filter(item => {return HelperFunctions.compareDates(item, date) == 0;});
+
+				var transactionsForAdviceIdForDate = transactionsForAdviceId.filter(item => {return HelperFunctions.compareDates(item.date, date) == 0;});
 				
 				return AdviceModel.fetchAdvicePortfolio({_id: adviceId}, date)
 				.then(advicePortfolio => {
@@ -106,7 +106,7 @@ function _updatePortfolioForStockTransactions(portfolio, transactions, action, p
 						//3. Validate transactions against advice portfolio as of that date
 						return HelperFunctions.validateTransactions(transactionsForAdviceIdForDate, advicePortfolio)
 						.catch(err => {
-							APIError.throwJsonError({message: `Validation failed for transactions - Invalid transactions (Reason: ${err.message})`, advice: adviceId, date: date});
+							APIError.throwJsonError({message: "Validation failed for transactions - Invalid transactions (Reason: " + err.message +")", advice: adviceId, date: date});
 						});
 					} else {
 						APIError.throwJsonError({message: "Validation failed for transactions - Portfolio not present", advice: adviceId, date: date});
@@ -117,8 +117,11 @@ function _updatePortfolioForStockTransactions(portfolio, transactions, action, p
 				return validFlags.every(function(item){return item;})
 			})
 		} else {
-			var onlyStockTransactions = transactions.filter(item => {return !item});
-			return HelperFunctions.validateTransactions(onlyStockTransactions);
+			var onlyStockTransactions = transactions.filter(item => {return !item.advice});
+			return HelperFunctions.validateTransactions(onlyStockTransactions)
+			.catch(err => {
+				APIError.throwJsonError({message: "Validation failed for stock transactions - Invalid transactions (Reason: "+ err.message +")"});
+			});
 		}
 	})
 	.then(validFlags => {
@@ -203,10 +206,6 @@ function _updatePortfolioForStockTransactions(portfolio, transactions, action, p
 		} else {
 			return updatedPortfolio;
 		}
-	})
-	.catch(err => {
-		console.log(err);
-		throw err;
 	});
 }
 
@@ -870,52 +869,33 @@ module.exports.deleteInvestorPortfolio = function(args, res, next) {
 };
 
 
-/*
-Transaction Logic: Not Valid anymore
-return Promise.map(transactionsForAdviceId, function(tAdvice) {
-				return AdviceModel.fetchAdvicePortfolio({_id: adviceId}, tAdvice.date)
-				.then(portfolio => {
-					if(portfolio) {
-						var stockTransactionsForAdviceForDate = portfolio.detail.positions.map(item => {
-							var qty = parseFloat(tAdvice.quantity);
-							var nItem = {
-								security: item.security, 
-								quantity: parseFloat(item.quantity)*qty, 
-								advice: adviceId, 
-								price: 0.0, 
-								date: tAdvice.date, 
-								commission: tAdvice.commission, 
-								cashLinked: tAdvice.cashLinked
-							};
+module.exports.updateInvestorDefaultPortfolio = function(args, res, next) {
+	const userId = args.user._id;
+	const investorId = args.investorId.value;
+	const portfolioId = args.portfolioId.value;
 
-							return nItem;
-						});
-
-						return stockTransactionsForAdviceForDate;
-					}
-				})
-			})
-			.then(stockTransactionsForAdviceForAllDates => {
-				var stockTransactionsForAdvice = [];
-				stockTransactionsForAdviceForAllDates.forEach(item => {
-					stockTransactionsForAdvice = stockTransactionsForAdvice.concat(item); 
-				});
-
-				return stockTransactionsForAdvice;
+	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios'})
+	.then(investor => {
+		if (investor.portfolios.indexOf(portfolioId) !=- 1) {
+			return PortfolioModel.fetchPortfolio({_id:item}, {fields:'_id deleted'})
+			.then(portfolio => {
+				if(portfolio && !portfolio.deleted) {
+					return InvestorModel.updateInvestor({_id: investorId}, {defaultPortfolio: portfolioId});
+				} else {
+					APIError.throwJsonError({message: "Portfolio doesn't exist or deleted", portfolio: portfolioId});
+				}
 			})
 		} else {
-			return [];
+			APIError.throwJsonError({investor: investorId, portfolio: portfolioId, message: "Not authorized to change. Not the owner of the portfolio"});
 		}
 	})
-	.then(stockTransactionsForAllAdvices => {
-		var advicesBasedStockTransactions = [];
-		stockTransactionsForAllAdvices.forEach(item => {
-			advicesBasedStockTransactions = advicesBasedStockTransactions.concat(item);
-		});
-
-		return advicesBasedStockTransactions;
+	.then(updated => {
+		return res.status(200).send({message: "Default portfolio updated successfully"});
 	})
-	.then(advicesBasedStockTransactions => {
-		var allTransactions = advicesBasedStockTransactions.concat(onlyStockTransactions);
-		return HelperFunctions.validateTransactions(allTransactions);
-	})*/
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
+};
+
+
+

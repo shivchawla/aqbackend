@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-01 12:34:20
+* @Last Modified time: 2018-03-01 19:05:23
 */
 
 'use strict';
@@ -329,10 +329,6 @@ module.exports.validatePortfolio = function(portfolio) {
 module.exports.validateTransactions = function(transactions, portfolio) {
 
 	return new Promise((resolve, reject) => {
-		resolve(true);
-	});	
-
-	return new Promise((resolve, reject) => {
 
 		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
 		var wsClient = new WebSocket(connection);
@@ -342,7 +338,7 @@ module.exports.validateTransactions = function(transactions, portfolio) {
             console.log(connection);
             var msg = JSON.stringify({action:"validate_transactions", 
             						transactions: transactions,
-        							portfolio: portfolio});
+        							portfolio: portfolio ? portfolio : ""});
 
          	wsClient.send(msg);
         });

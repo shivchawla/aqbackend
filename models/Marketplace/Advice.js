@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-01 12:48:59
+* @Last Modified time: 2018-03-01 18:35:03
 */
 'use strict';
 const mongoose = require('../index');
@@ -306,7 +306,10 @@ Advice.statics.updateAnalytics = function(query, analytics) {
 
 Advice.statics.fetchAdvicePortfolio = function(query, date) {
     if (!date || date == '') {
-        return this.findOne(query).select('portfolio').populate('portfolio', 'detail').execAsync();
+        return this.findOne(query).select('portfolio').populate('portfolio', 'detail').execAsync()
+        .then(advice => {
+            return advice.portfolio.detail;
+        });
     } else {
         return this.findOne(query).select('portfolio').populate('portfolio','detail history').execAsync()
         .then(advice => {

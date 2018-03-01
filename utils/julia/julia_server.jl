@@ -90,10 +90,11 @@ wsh = WebSocketHandler() do req, ws_client
 
         elseif action == "validate_transactions"
             
-          transactions = parsemsg["transactions"]
+          transactions = convert(Vector{Dict{String,Any}}, parsemsg["transactions"])
           portfolio = parsemsg["portfolio"]
+
           #Check if portfolio is NOT null
-          valid = _validate_transactions(transactions, portfolio == nothing ? Dict{String,Any}() : portfolio) 
+          valid = _validate_transactions(transactions, portfolio != "" ? portfolio : Dict{String,Any}()) 
 
           parsemsg["valid"] = valid
          

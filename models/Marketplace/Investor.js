@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:53:13
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-17 14:35:49
+* @Last Modified time: 2018-03-01 19:27:51
 */
 
 'use strict';
@@ -115,8 +115,7 @@ Investor.statics.fetchInvestor = function(query, options) {
 };
 
 Investor.statics.updateInvestor = function(query, updates) {
-    var q = this.findOneAndUpdate(query, updates, {new: true});
-    return q.execAsync();
+    return this.findOneAndUpdate(query, updates);
 };
 
 Investor.statics.updateFollowing = function(query, id, type) {

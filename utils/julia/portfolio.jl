@@ -43,6 +43,10 @@ function convert(::Type{OrderFill}, transaction::Dict{String, Any})
     try
         security = convert(Raftaar.Security, transaction["security"])
 
+        if security == Security()
+            error("Invalid transaction (Invalid Security: $(transaction["security"]["ticker"]))")
+        end
+
         qty = convert(Int64, get(transaction, "quantity", 0))
         price = convert(Float64, get(transaction, "price", 0.0)) 
         fee = convert(Float64, get(transaction, "commission", 0.0))
@@ -629,30 +633,36 @@ end
 
 function _validate_transactions(transactions::Vector{Dict{String,Any}}, port::Dict{String, Any})
     try
-        transactions_raftaar = Raftaar.Transaction[];
+        transactions_raftaar = Raftaar.OrderFill[];
 
         for (i, transaction) in enumerate(transactions)
             try
-                push!(transactions_raftaar, convert(OrderFill, transaction))
+                push!(transactions_raftaar, convert(Raftaar.OrderFill, transaction))
                 #Can add a check by comparing the price...but not important 
             catch err
-                error("Invalid transaction: $(i)")
+                rethrow(err)
             end
         end
 
         if port != Dict{String,Any}()
             portfolio = convert(Raftaar.Portfolio, port)
-            multiple = Vector{Int64}()
+            multiple = Int64[]
 
             for (i, txn) in enumerate(transactions_raftaar)
-                sym = txn.security.securitysymbol
+                sym = txn.securitysymbol
                 pos = get(portfolio.positions, sym, nothing)
 
                 if(pos == nothing)
                     error("Transaction in Invalid Position: $(sym.ticker)")
                 end
 
-                push!(multiple, round(txn.fillquantity/pos.quantity))
+                remainder = txn.fillquantity % pos.quantity
+                
+                if(abs(remainder) > 0)
+                    error("Invalid quantity in $(sym.ticker)")
+                end
+
+                push!(multiple, round(txn.fillquantity / pos.quantity))
 
             end
 
