@@ -112,10 +112,10 @@ wsh = WebSocketHandler() do req, ws_client
                 
                 (lastdate, performance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
                 
-                nVDict = Vector{Dict{String, Any}}(length(netValues))
+                nVDict = Dict{String, Any}()
 
                 for i = 1:length(netValues)
-                    nVDict[i] = Dict{String, Any}("date" => dates[i], "netValue" => netValues[i])
+                    nVDict[string(dates[i])] = netValues[i]
                 end
 
                 parsemsg["performance"] = Dict{String, Any}("date" => lastdate, 
@@ -124,7 +124,7 @@ wsh = WebSocketHandler() do req, ws_client
             else 
                 parsemsg["performance"] = Dict{String, Any}("date" => Date(now()), 
                                           "value" => serialize(Performance()), 
-                                          "portfolioValues" => Dict{String, Any}[])
+                                          "portfolioValues" => nVDict)
                 #error("Missing Input")
             end
 
@@ -191,10 +191,10 @@ wsh = WebSocketHandler() do req, ws_client
          
           (netValues, dates) = compute_portfolio_value_period(portfolio, startDate, endDate)
           
-          nVDict = Vector{Dict{String, Any}}()
+          nVDict = Dict{String, Any}()
 
           for i = 1:length(netValues)
-              push!(nVDict, Dict{String, Any}("date" => dates[i], "netValue" => netValues[i]))
+              nVDict[string(dates[i])] = netValues[i]
           end
 
           parsemsg["netValue"] = nVDict

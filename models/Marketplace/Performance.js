@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-22 14:19:01
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 13:21:14
+* @Last Modified time: 2018-03-01 15:39:12
 */
 
 'use strict';
@@ -21,7 +21,7 @@ const PerformanceDetail = new Schema({
       updateDate: Date,
       updateMessage: String,
       metrics: PerformanceMetrics,
-      portfolioValues: [{date: Number, netValue: Number}]  
+      portfolioValues: [{date: Date, netValue: Number}]  
 });
 
 const Performance  = new Schema({  	
