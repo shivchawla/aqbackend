@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-01 12:48:22
+* @Last Modified time: 2018-03-01 16:02:11
 */
 
 'use strict';
@@ -239,9 +239,14 @@ module.exports.getAdvices = function(args, res, next) {
 	 			var isSubscribed = false;
 	 			var isOwner = advisorId.equals(advice.advisor._id);
 
+ 				var activeSubscribers = advice.subscribers.filter(item => {return item.active == true});
+ 				var activeFollowers = advice.followers.filter(item => {return item.active == true});
+ 				var numSubscribers = activeSubscribers.length;
+ 				var numFollowers = activeFollowers.length;
+
 	 			if(!advisorId.equals(advice.advisor._id)) {
-	 				isFollowing = advice.followers.filter(item => {return item.active == true}).map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
-	 				isSubscribed = advice.subscribers.filter(item => {return item.active == true}).map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
+	 				isFollowing = activeFollowers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
+	 				isSubscribed = activeSubscribers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
 	 			} 
 
 	 			var adviceAnalytics = advice.analytics;
@@ -253,7 +258,14 @@ module.exports.getAdvices = function(args, res, next) {
 	 			delete nAdvice.followers;
 	 			delete nAdvice.analytics;
 
-	 			nAdvice = Object.assign({latestAnalytics: latestAnalytics, isFollowing: isFollowing, isSubscribed: isSubscribed, isOwner: isOwner}, nAdvice);
+	 			nAdvice = Object.assign({
+	 				latestAnalytics: latestAnalytics, 
+	 				isFollowing: isFollowing, 
+	 				isSubscribed: isSubscribed, 
+	 				isOwner: isOwner,
+	 				numFollowers: numFollowers,
+	 				numSubscribers: numSubscribers
+	 			}, nAdvice);
 	 			return nAdvice;
 	    	});
 
@@ -290,11 +302,16 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	 			var isFollowing = false;
 	 			var isSubscribed = false;
 	 			var isOwner = advisorId.equals(advice.advisor._id);
+	 			var activeFollowers = advice.followers.filter(item => {return item.active == true});
+ 				var activeSubscribers = advice.subscribers.filter(item => {return item.active == true});
+	 				
+	 			var numSubscribers = activeSubscribers.length;
+	 			var numFollowers = activeFollowers.length;;
 
 	 			if(!advisorId.equals(advice.advisor._id)) {
-	 				isFollowing = advice.followers.filter(item => {return item.active == true}).map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
+	 				isFollowing = activeFollowers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
 	 				isSubscribed = advice.subscribers.filter(item => {return item.active == true}).map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
-	 			} 
+	 			}
  				
  				var adviceAnalytics = advice.analytics;
 	 			var numAdviceAnalytics = adviceAnalytics.length;
@@ -306,7 +323,14 @@ module.exports.getAdviceSummary = function(args, res, next) {
  				delete nAdvice.followers;
  				delete nAdvice.analytics;
 
- 				nAdvice = Object.assign({latestAnalytics: latestAnalytics, isFollowing: isFollowing, isSubscribed: isSubscribed, isOwner: isOwner}, nAdvice);
+ 				nAdvice = Object.assign({
+ 					latestAnalytics: latestAnalytics, 
+ 					isFollowing: isFollowing, 
+ 					isSubscribed: isSubscribed, 
+ 					isOwner: isOwner,
+ 					numSubscribers: numSubscribers,
+ 					numFollowers: numFollowers,
+				}, nAdvice);
  				return res.status(200).send(nAdvice);	
 
 			} else {
