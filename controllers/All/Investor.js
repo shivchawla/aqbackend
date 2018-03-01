@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 20:45:19
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 10:37:52
+* @Last Modified time: 2018-02-28 20:49:56
 */
 
 'use strict';
@@ -55,6 +55,10 @@ module.exports.updateInvestorPortfolio = function(req, res, next) {
 
 module.exports.updateInvestorPortfolioForTransactions = function(req, res, next) {
 	Investor.updateInvestorPortfolioForTransactions(req.swagger.params, res, next);
+};
+
+module.exports.updateInvestorDefaultPortfolio = function(req, res, next) {
+	Investor.updateInvestorDefaultPortfolio(req.swagger.params, res, next);
 };
 
 module.exports.deleteInvestorPortfolio = function(req, res, next) {

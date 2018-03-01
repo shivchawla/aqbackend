@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 18:05:27
+* @Last Modified time: 2018-03-01 12:48:22
 */
 
 'use strict';
@@ -15,6 +15,32 @@ const Promise = require('bluebird');
 const config = require('config');
 const HelperFunctions = require("../helpers");
 const APIError = require('../../utils/error');
+
+function _isUserAuthorizedToViewAdviceDetail(userId, adviceId) {
+	return Promise.all([
+		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert: true}),
+		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert: true}),
+		AdviceModel.fetchAdvice({_id: adviceId, deleted:false}, {fields:'advisor followers subscribers'})])
+	.then(([investor, advisor, advice])  => {
+		if(investor && advisor && advice) {
+			const advisorId = advisor._id;
+			
+			var activeSubscribers = advice.subscribers.filter(item => {return item.active == true}).map(item => item.investor.toString());
+			
+			const investorId = investor._id.toString();
+			//PERSONAL or subscribers
+			//get to see expanded portfolio if chosen
+			return advice.advisor.equals(advisorId) || activeSubscribers.indexOf(investorId) != -1;
+				
+		} else if(!investor) {
+			APIError.throwJsonError({message:"Investor not found"});
+		} else if(!advisor) {
+			APIError.throwJsonError({message:"Advisor not found"});
+		} else if (!advice) {
+			APIError.throwJsonError({message:"Advice not found"});
+		} 
+	});
+}
 
 module.exports.createAdvice = function(args, res, next) {
 	const userId = args.user._id;
@@ -110,8 +136,10 @@ module.exports.updateAdvice = function(args, res, next) {
 				}
 
 				Object.keys(newAdvice).forEach(key => {
-					if(allowedKeys.indexOf(key) == -1 && newAdvice[key] != advice[key]) {
-						APIError.throwJsonError({message: key + ": Not Authorized to modify"}); 
+					if (key != "portfolio") {
+						if(allowedKeys.indexOf(key) == -1 && newAdvice[key] != advice[key]) {
+							APIError.throwJsonError({message: key + ": Not Authorized to modify"}); 
+						}
 					} 
 				});
 
@@ -126,11 +154,14 @@ module.exports.updateAdvice = function(args, res, next) {
 	})
 	.then(([advice, validAdvice]) => {
 		
-		var adviceUpdates = JSON.parse(JSON.stringify(newAdvice));
+		var adviceUpdates = Object.assign({}, newAdvice);
 		delete adviceUpdates.portfolio;
 		
 		if (validAdvice) {
-			return Promise.all([PortfolioModel.updatePortfolio({_id:advice.portfolio._id}, newAdvice.portfolio, advice.public == true), 
+			console.log(advice.portfolio);
+			console.log(newAdvice.portfolio);
+
+			return Promise.all([PortfolioModel.updatePortfolio({_id:advice.portfolio}, newAdvice.portfolio, {}, advice.public == true), 
 				AdviceModel.updateAdvice({_id: adviceId}, adviceUpdates)]);
 		} else {
 			APIError.throwJsonError({message:"Invalid Advice"});
@@ -242,7 +273,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	
 	const options = {};
 	options.fields = 'name heading description createdDate updatedDate advisor public approved analytics followers subscribers portfolio rebalance maxNotional';
-	options.populate = 'advisor';
+	options.populate = 'advisor benchmark';
 	
 	Promise.all([
 		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
@@ -298,38 +329,19 @@ module.exports.getAdviceDetail = function(args, res, next) {
 	const options = {};
    	options.fields = args.fields.value != "" ? args.fields.value : defaultFields;
    	options.populate = 'advisor';
-
-	return Promise.all([InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert: true}),
-				AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert: true}),
-				AdviceModel.fetchAdvice({_id: adviceId, deleted:false}, {fields:'advisor followers subscribers'})])
-	.then(([investor, advisor, advice])  => {
-		if(investor && advisor && advice) {
-			const advisorId = advisor._id;
-			
-			var activeSubscribers = advice.subscribers.filter(item => {return item.active == true}).map(item => item.investor.toString());
-			var activeFollowers = advice.followers.filter(item => {return item.active == true}).map(item => item.investor.toString());
-			
-			const investorId = investor._id.toString();
-			//PERSONAL or subscribers
-			//get to see expanded portfolio if chosen
-			if (advice.advisor.equals(advisorId) || activeSubscribers.indexOf(investorId) != -1) {
-				
-				if (options.fields.indexOf('portfolio') != -1) {
-					options.populate = options.populate.concat(' portfolio');
-				}
+	
+	return _isUserAuthorizedToViewAdviceDetail(userId, adviceId)
+	.then(allowed => {
+		if(allowed) {		
+			if (options.fields.indexOf('portfolio') != -1) {
+				options.populate = options.populate.concat(' portfolio');
 			}
 
 			//Re-run the query after checking 
 			return AdviceModel.fetchAdvice({_id:adviceId}, options);
 		
 		} else {
-			if(!investor) {
-				APIError.throwJsonError({message:"Investor not found"});
-			} else if(!advisor) {
-				APIError.throwJsonError({message:"Advisor not found"});
-			} else if (!advice) {
-				APIError.throwJsonError({message:"Advice not found"});
-			}
+			APIError.throwJsonError({message:"Not authorized to view advice detail"});
 		}
 	})
 	.then(advice => {
@@ -346,27 +358,31 @@ module.exports.getAdviceDetail = function(args, res, next) {
 			return advice;
 		}
 	})
-	/*.then(advice => {
-		if (advice.subscribers || advice.followers) {
-			advice = JSON.parse(JSON.stringify(advice));
-		}
-
-		if (advice.subscribers) {
-			var ct = advice.subscribers.filter(item => {return item.active == true}).length;
-			delete advice.subscribers;
-			advice["subscribers"]  = ct;
-		}
-
-		if (advice.followers) {
-			var ct = advice.followers.filter(item => {return item.active == true}).length;
-			delete advice.followers;
-			advice["followers"] = ct;
-		}
-
-		return advice;
-	})*/
 	.then(finalAdvice => {
 		return res.status(200).json(finalAdvice);
+	})
+ 	.catch(err => {
+    	return res.status(400).send(err.message);
+    });
+};
+
+module.exports.getAdvicePortfolio = function(args, res, next) {
+	const adviceId = args.adviceId.value;
+	const userId = args.user._id;
+	const date = args.date.value;
+
+	return _isUserAuthorizedToViewAdviceDetail(userId, adviceId)
+	.then(allowed => {
+
+		if(allowed) {
+			//Re-run the query after checking 
+			return AdviceModel.fetchAdvicePortfolio({_id:adviceId}, date);
+		} else {
+			APIError.throwJsonError({message:"Not authorized to view advice detail"});
+		}
+	})
+	.then(portfolioDetail => {
+		return res.status(200).send({detail: portfolioDetail});
 	})
  	.catch(err => {
     	return res.status(400).send(err.message);

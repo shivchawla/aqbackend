@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 13:15:30
+* @Last Modified time: 2018-03-01 12:29:17
 */
 
 'use strict';
@@ -105,12 +105,6 @@ function _computeHistoricalPerformance(portfolio, startDate, endDate) {
 		return Promise.all([portfolioValue, _computePerformance_portfolioValues(portfolioValue, portfolio.benchmark)]);
 	})
 	.then(([portfolioValues, performance]) => {
-		portfolioValues = portfolioValues.map(item => { 
-		  	//Changing time to unix timestamp
-		  	item.date = new Date(item.date).getTime()/1000; 
-		  	return item;
-		});	
-	
 		return {portfolioValues: portfolioValues, analytics: performance};
 	});
 };
@@ -224,15 +218,7 @@ function _computePerformance_portfolioHistory(portfolioHistory, benchmark) {
 	    	var data = JSON.parse(msg);
 	    	
 	    	if(data['error'] == '' && data['performance']) {
-	    		var performance = data['performance'];
-	    		performance.portfolioValues = performance.portfolioValues.map(item => { 
-				  	//Changing time to unix timestamp
-				  	item.date = new Date(item.date).getTime()/1000; 
-				  	return item;
-				});	
-			
-	    		resolve(performance);
-
+	    		resolve(data['performance']);
 			} else if (data['error'] != '') {
 				reject(new Error(data["error"]));
 			} else {

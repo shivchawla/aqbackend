@@ -87,6 +87,15 @@ wsh = WebSocketHandler() do req, ws_client
           (valid, port) = _validate_portfolio(parsemsg["portfolio"]) 
 
           parsemsg["valid"] = valid
+
+        elseif action == "validate_transactions"
+            
+          transactions = parsemsg["transactions"]
+          portfolio = parsemsg["portfolio"]
+          #Check if portfolio is NOT null
+          valid = _validate_transactions(transactions, portfolio == nothing ? Dict{String,Any}() : portfolio) 
+
+          parsemsg["valid"] = valid
          
         elseif action == "compute_performance_portfolio_history"
             

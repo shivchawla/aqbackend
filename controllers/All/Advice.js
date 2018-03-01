@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 14:59:47
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 10:37:31
+* @Last Modified time: 2018-02-28 20:49:07
 */
 
 'use strict';
@@ -22,6 +22,10 @@ module.exports.getAdviceSummary = function(req, res, next) {
 
 module.exports.getAdviceDetail = function(req, res, next) {
     Advice.getAdviceDetail(req.swagger.params, res, next);
+};
+
+module.exports.getAdvicePortfolio = function(req, res, next) {
+    Advice.getAdvicePortfolio(req.swagger.params, res, next);
 };
 
 module.exports.getAdviceHistory = function(req, res, next) {

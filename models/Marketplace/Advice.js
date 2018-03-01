@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 17:06:58
+* @Last Modified time: 2018-03-01 12:48:59
 */
 'use strict';
 const mongoose = require('../index');
@@ -185,6 +185,10 @@ Advice.statics.fetchAdvice = function(query, options) {
         q = q.select('portfolio').populate('portfolio','detail benchmark deleted _id', { _id: { $ne: null }});
     }
 
+    if(options.populate.indexOf('benchmark') != -1) {
+        q = q.select('portfolio').populate('portfolio','benchmark _id', { _id: { $ne: null }});
+    }
+
     if(options.populate.indexOf('advisor') != -1) {
         q = q.select('advisor').populate({path:'advisor', select:'user _id',
                                         populate:{path: 'user', 
@@ -208,87 +212,6 @@ Advice.statics.getAdviceHistory = function(query, options) {
 
 Advice.statics.updateAdvice = function(query, updates) {
     return this.findOneAndUpdate(query, updates, {upsert:true, new: true});
-};
-
-Advice.statics.updateCurrentPortfolioPerformance = function(query, performance) {
-    return this.findOne(query)
-    .then(advice => {
-        if (advice) {
-			if(advice.currentPortfolio.performanceMetrics.map(x => x.date).indexOf(performance.date) == -1) {
-            	advice.currentPortfolio.performanceMetrics.push({date: performance.date, performance: performance.value, rating:0.0});
-        	}
-        	
-            return advice.saveAsync();
-        }
-    });
-};
-
-Advice.statics.updateAdvicePortfolioStats = function(query, portfolioStats) {
-    return this.findOne(query)
-        .then(advice => {
-            if (advice) {
-            	
-            	portfolioStats.values = portfolioStats.values[0];
-
-            	if(portfolioStats.values.length > 0) {
-            		// if new portfolioStats has new length
-            		if (portfolioStats.values.length > advice.portfolioStats.length) {
-	            		advice.portfolioStats = [];
-	            		
-	            		if (portfolioStats.values.length == portfolioStats.dates.length) {
-	            			var n = portfolioStats.values.length;
-	            			for(var i=0;i<n;i++){
-	            				advice.portfolioStats.push({date: new Date(portfolioStats.dates[i]),
-	            										netValue: portfolioStats.values[i]});
-	            			}	
-	            		}
-            		}
-        		}
-
-            	return advice.saveAsync();
-            }
-        });
-};
-
-Advice.statics.updateCurrentPortfolioPortfolioStats = function(query, portfolioStats) {
-    return this.findOne(query)
-        .then(advice => {
-            if (advice) {
-            	
-            	portfolioStats.values = portfolioStats.values[0];
-            	console.log(portfolioStats.values);
-            	console.log(typeof(portfolioStats.values));
-
-            	if(portfolioStats.values.length > 0) {
-            		// if new portfolioStats has new length
-            		if (portfolioStats.values.length > advice.currentPortfolio.portfolioStats.length) {
-	            		advice.currentPortfolio.portfolioStats = [];
-	            		
-	            		if (portfolioStats.values.length == portfolioStats.dates.length) {
-	            			var n = portfolioStats.values.length;
-	            			for(var i=0;i<n;i++){
-	            				advice.currentPortfolio.portfolioStats.push({date: new Date(portfolioStats.dates[i]),
-	            										netValue: portfolioStats.values[i]});
-	            			}	
-	            		}
-            		}
-        		}
-
-            	return advice.saveAsync();
-            }
-        });
-};
-
-Advice.statics.updateAdvicePerformance = function(query, performance) {
-    return this.findOne(query)
-    .then(advice => {
-        if (advice) {
-        	if(advice.performanceMetrics.map(x => x.date).indexOf(performance.date) == -1) {
-            	advice.performanceMetrics.push({date: performance.date, performance: performance.value, rating: 0.0});
-        	}
-        	return advice.saveAsync();
-        }
-    });
 };
 
 Advice.statics.deleteAdvice = function(query) {
@@ -382,22 +305,26 @@ Advice.statics.updateAnalytics = function(query, analytics) {
 
 
 Advice.statics.fetchAdvicePortfolio = function(query, date) {
-    if (!date) {
+    if (!date || date == '') {
         return this.findOne(query).select('portfolio').populate('portfolio', 'detail').execAsync();
     } else {
-        return this.findOne(query).select('portfolio').populate('detail history').execAsync()
+        return this.findOne(query).select('portfolio').populate('portfolio','detail history').execAsync()
         .then(advice => {
             var advicePortfolio = advice.portfolio;
             if (_compareDates(date, advicePortfolio.detail.startDate) != -1) {
                 return advice.portfolio.detail;
             } else {
-                advicePortfolio.history.forEach(historicalDetail => {
+                var detail = null;
+                for(var historicalDetail of advicePortfolio.history){
                     if (_compareDates(date, historicalDetail.startDate) != -1) {
-                        return historicalDetail;
+                        detail = historicalDetail;
+                        break;
                     } 
-                });
+                }
+
+                return detail;
             }
-        })    
+        });    
     }
 };
 
@@ -406,8 +333,8 @@ function farfuture() {
 }
 
 function _compareDates(d1, d2) {
-	t1 = d1.getTime();
-	t2 = d1.getTime();
+	var t1 = new Date(d1).getTime();
+	var t2 = new Date(d2).getTime();
 
 	return (t1 < t2) ? -1 : (t1 == t2) ? 0 : 1;
 }

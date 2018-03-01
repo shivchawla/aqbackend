@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 18:38:52
+* @Last Modified time: 2018-03-01 12:56:19
 */
 
 'use strict';
@@ -84,9 +84,46 @@ function _updatePortfolioForStockTransactions(portfolio, transactions, action, p
 	var updateMethod = 'Create';
 	var portfolioId = portfolio._id;
 
-	return HelperFunctions.validateTransactions(transactions)
-	.then(valid => {
-		if (valid && portfolio) {
+	var uniqueAdviceIds = Array.from(new Set(transactions.map(item => item.advice)));
+	
+	return Promise.map(uniqueAdviceIds, function(adviceId){
+		if (adviceId) {
+			var transactionsForAdviceId = transactions.filter(item => {return item.advice == adviceId;});
+			
+			//TRANSACTION WITH ADVICE_ID are just like stock transaction 
+			//but have adviceId  
+			//1. Get Transactions for a date
+			var uniqueDates = Array.from(new Set(transactionsForAdviceId.map(item => new(item.date).getTime()))).map(item => new Date(item));
+
+			//2. Filter out transaction for the date
+
+			return Promise.map(uniqueDates, function(date){
+				var transactionsForAdviceIdForDate = transactionsForAdviceId.filter(item => {return HelperFunctions.compareDates(item, date) == 0;});
+				
+				return AdviceModel.fetchAdvicePortfolio({_id: adviceId}, date)
+				.then(advicePortfolio => {
+					if(advicePortfolio) {
+						//3. Validate transactions against advice portfolio as of that date
+						return HelperFunctions.validateTransactions(transactionsForAdviceIdForDate, advicePortfolio)
+						.catch(err => {
+							APIError.throwJsonError({message: `Validation failed for transactions - Invalid transactions (Reason: ${err.message})`, advice: adviceId, date: date});
+						});
+					} else {
+						APIError.throwJsonError({message: "Validation failed for transactions - Portfolio not present", advice: adviceId, date: date});
+					}
+				});
+			})
+			.then(validFlags => {
+				return validFlags.every(function(item){return item;})
+			})
+		} else {
+			var onlyStockTransactions = transactions.filter(item => {return !item});
+			return HelperFunctions.validateTransactions(onlyStockTransactions);
+		}
+	})
+	.then(validFlags => {
+
+		if (validFlags.every(function(item){return item;}) && portfolio) {
 
 			if(action == "update") {
 				//Check if transaction has "_id" field, 
@@ -103,7 +140,7 @@ function _updatePortfolioForStockTransactions(portfolio, transactions, action, p
 				if(nTransactions > 0) {
 					//sort transaction by date
 					oldTransactions.sort((item1, item2) => {
-						return item1.date.getTime() < item2.date.getTime() ? -1 : 1; 
+						return HelperFunctions.compareDates(item1, item2);
 					});
 
 					//get the last transaction's date
@@ -112,10 +149,7 @@ function _updatePortfolioForStockTransactions(portfolio, transactions, action, p
 					//Also, sort the new transactions by dates
 					//First convert to JS dates from string dates
 					transactions.sort((item1, item2) => {
-						//var d1 = new Date(item1.date).getTime();
-						//var d2 = new Date(item2.date).getTime();
-						//return d1 < d2 ? -1 : 1; 
-						return item1.date < item2.date ? -1 : 1;
+						return HelperFunctions.compareDates(item1, item2);
 					});
 
 					//get first transaction date
@@ -123,9 +157,9 @@ function _updatePortfolioForStockTransactions(portfolio, transactions, action, p
 
 					//If earliest date of new transaction is hgher than latest date of old transactions,
 					//then APPEND
-					if (firstDateNew.getTime() > lastDateOld.getTime()) {
+					if (HelperFunctions.compareDates(firstDateNew, lastDateOld) == 1) {
 						updateMethod = 'Append';
-					} 
+					}
 				}
 
 				if (!preview) {
@@ -407,55 +441,6 @@ module.exports.getFollowingAdvisors = function(args, res, next) {
 /*
 * Create Portfolio based on positions in a portfolio
 */
-module.exports.OLDcreateInvestorPortfolio = function(args, res, next) {
-	const userId = args.user._id;
-	const investorId = args.investorId.value;
-
-	//Portfolio not linked to any portfolio has (advice = null)
-	const portfolio = args.body.value;
-	portfolio.detail.positions.forEach(position => {
-		position["advice"] = null;
-	});
-
-	InvestorModel.fetchInvestor({user: userId}, {})
-	.then(investor => {
-		if(investor._id.equals(investorId)) {
-			return HelperFunctions.validatePortfolio(portfolio);	
-		} else {
-			APIError.throwJsonError({message: "Not Authorized"});
-		}
-	})
-	.then(valid => {
-		if(valid) {
-			return PortfolioModel.savePortfolio(portfolio);
-		} else {
-			APIError.throwJsonError({message: "Invalid Portfolio"});
-		}
-	})
-	.then(portfolio => {
-		if(portfolio) {
-			return Promise.all([portfolio, InvestorModel.addPortfolio({_id: investorId, user:userId}, portfolio._id)]);
-		} else {
-			APIError.throwJsonError({message: "Unable to create Portfolio"});
-		}
-	})
-    .then(([portfolio, investor]) => {
-    	if(investor && portfolio) {
-    		const pf = JSON.parse(JSON.stringify(portfolio));
-    		pf["investor"] = investor._id;
-    		return res.status(200).json(pf);
-		} else {
-			APIError.throwJsonError({message: "Could not create portfolio for investor"});
-		}
-    })
-	.catch(err => {
-    	return res.status(400).send(err.message);
-    });
-};
-
-/*
-* Create Portfolio based on positions in a portfolio
-*/
 module.exports.createInvestorPortfolio = function(args, res, next) {
 	const userId = args.user._id;
 	const investorId = args.investorId.value;
@@ -527,62 +512,6 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 			return res.status(200).json(portfolio); 
 		} else {
 			APIError.throwJsonError({messsage: "Can't update portfolio for transactions"});
-		}
-    })
-	.catch(err => {
-    	return res.status(400).send(err.message);
-    });
-};
-
-/*
-* Create Portfolio based on stock OR advice transactions
-* Fist create an empty portfolio and add transactions subsequently
-* Can only accepy one type of transaction currently
-* Send two API calls for stock and advice transactions 
-*/
-
-//NOT IN USE
-module.exports.createInvestorPortfolioFromTransactions = function(args, res, next) {
-
-	const userId = args.user._id;
-	const investorId = args.investorId.value;
-	const transactions = args.body.value;
-
-	InvestorModel.fetchInvestor({user: userId}, {})
-	.then(investor => {
-		if(investor._id.equals(investorId)) {
-			return PortfolioModel.savePortfolio({});	
-		} else {
-			APIError.throwJsonError({message: "Not Authorized"});
-		}
-	})
-	.then(emptyPortfolio => {
-		if(emptyPortfolio) {
-			return Promise.all([emptyPortfolio, InvestorModel.addPortfolio({_id: investorId}, emptyPortfolio._id)]);
-		} else {
-			APIError.throwJsonError({message: "Unable to create Portfolio"});
-		}
-	})
-	.then(([portfolio, investor]) => {
-		if(!investor) {
-			APIError.throwJsonError({message: "Error adding portfolio to investor"});
-		}
-
-		if(type == "stock" && transactions) {
-			return _updatePortfolioForStockTransactions(portfolio._id, transactions);
-		} else if (type == "advice" && adviceId) {
-			return _updatePortfolioForAdviceTransactions(portfolio._id, adviceId);
-		} else {
-			APIError.throwJsonError({message: "Invalid transaction type or value"});
-		}
-	})
-    .then(updatedPortfolio => {
-    	if(updatedPortfolio) {
-    		const pf = JSON.parse(JSON.stringify(updatedPortfolio));
-    		pf["investor"] = investorId;
-    		return res.status(200).json(pf);
-		} else {
-			APIError.throwJsonError({message: "Could not create/update portfolio for investor"});
 		}
     })
 	.catch(err => {
@@ -939,3 +868,54 @@ module.exports.deleteInvestorPortfolio = function(args, res, next) {
 		return res.status(400).send(err.message);
 	})
 };
+
+
+/*
+Transaction Logic: Not Valid anymore
+return Promise.map(transactionsForAdviceId, function(tAdvice) {
+				return AdviceModel.fetchAdvicePortfolio({_id: adviceId}, tAdvice.date)
+				.then(portfolio => {
+					if(portfolio) {
+						var stockTransactionsForAdviceForDate = portfolio.detail.positions.map(item => {
+							var qty = parseFloat(tAdvice.quantity);
+							var nItem = {
+								security: item.security, 
+								quantity: parseFloat(item.quantity)*qty, 
+								advice: adviceId, 
+								price: 0.0, 
+								date: tAdvice.date, 
+								commission: tAdvice.commission, 
+								cashLinked: tAdvice.cashLinked
+							};
+
+							return nItem;
+						});
+
+						return stockTransactionsForAdviceForDate;
+					}
+				})
+			})
+			.then(stockTransactionsForAdviceForAllDates => {
+				var stockTransactionsForAdvice = [];
+				stockTransactionsForAdviceForAllDates.forEach(item => {
+					stockTransactionsForAdvice = stockTransactionsForAdvice.concat(item); 
+				});
+
+				return stockTransactionsForAdvice;
+			})
+		} else {
+			return [];
+		}
+	})
+	.then(stockTransactionsForAllAdvices => {
+		var advicesBasedStockTransactions = [];
+		stockTransactionsForAllAdvices.forEach(item => {
+			advicesBasedStockTransactions = advicesBasedStockTransactions.concat(item);
+		});
+
+		return advicesBasedStockTransactions;
+	})
+	.then(advicesBasedStockTransactions => {
+		var allTransactions = advicesBasedStockTransactions.concat(onlyStockTransactions);
+		return HelperFunctions.validateTransactions(allTransactions);
+	})*/

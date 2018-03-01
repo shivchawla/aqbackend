@@ -1520,6 +1520,37 @@ paths:
           description: OK
         400:
           description: 'Invalid input'
+      x-swagger-router-controller: "Advice"
+
+  /advice/{adviceId}/portfolio:    
+    get:
+      tags:
+      - advice
+      summary: get advice portfolio for any date
+      description: Gets the advice portfolio for any date
+      operationId: getAdvicePortfolio
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        type: string
+        required: true
+      - name: date
+        in: query
+        type: string
+        required: false
+        description: date
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
       x-swagger-router-controller: "Advice"  
   
   /advice/{adviceId}/publish:
@@ -1890,6 +1921,36 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/TransactionsAction'
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Investor" 
+
+  /investor/{investorId}/portfolio/{portfolioId}/defaultPortfolio:
+    post:
+      tags:
+      - investor
+      summary: update the default portfolio of investor
+      description: Update the default portfolio of the investor
+      operationId: updateInvestorDefaultPortfolio
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        type: string
+        required: true
+      - name: portfolioId
+        in: path
+        type: string
+        required: true
       responses:
         200:
           description: OK
@@ -2360,15 +2421,6 @@ definitions:
     properties:
       token:
         type: string
-    
-  userId:
-    type: object
-    required:
-    - userId
-    properties:
-      userId:
-        type: string
-        format: uuid
   
   Error:
     type: "object"
@@ -2466,14 +2518,6 @@ definitions:
         type: string
       subject:
         type: string
-  
-  Share:
-    type: object
-    required:
-    - threadId
-    properties:
-      threadId:
-        type: string      
 
 #Security
   Security:
@@ -2654,36 +2698,9 @@ definitions:
         type: string
         enum: ['100000', '200000', '300000', '500000', '750000', '1000000']
 
-#AdvicePatch
-  AdvicePatch:
-    type: object
-
 #Investor
   Investor:
     type: object
-        
-#Performance
-  Performance:
-    type: object
-    required:
-      - profit
-    properties:
-      profit:
-        type: number
-        format: double
-
-#Hisorical Performance
-  HistoricalPerformance:
-    type: object
-    required:
-      - date
-      - performance
-    properties:
-      date:
-        type: string
-        format: date
-      performance:
-        $ref: '#/definitions/Performance'
      
 # Advisor definitions
   Advisor:

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 15:01:52
+* @Last Modified time: 2018-03-01 12:34:20
 */
 
 'use strict';
@@ -27,6 +27,13 @@ function _compareIds(x, y) {
 	} else {
 		return x.equals(y);
 	}
+}
+
+function _compareDates(d1, d2) {
+	var t1 = new Date(d1).getTime();
+	var t2 = new Date(d1).getTime();
+
+	return (t1 < t2) ? -1 : (t1 == t2) ? 0 : 1;
 }
 
 function _updatePositions(positions, transactions) {
@@ -102,6 +109,10 @@ function _updatePositionsForLatestPrice(positions) {
 		APIError.throwJsonError({message:"Invalid positions: Can't update positions for latest price"});
 	}
 }
+
+module.exports.compareDates = function(date1, date2) {
+	return _compareDates(date1, date2);
+};
 
 module.exports.computeUpdatedPortfolioForLatestPrice = function(portfolio) {
 	return Promise.all([
@@ -315,29 +326,11 @@ module.exports.validatePortfolio = function(portfolio) {
     })
 };
 
-module.exports.validateTransactions = function(transactions) {
-	
+module.exports.validateTransactions = function(transactions, portfolio) {
+
 	return new Promise((resolve, reject) => {
 		resolve(true);
-	});
-
-	//First validation is checking if transactions belonging to adviceId have same portfolio
-	var uniqueAdviceIds = Array.from(new Set(transactions.map(item => item.advice)));
-	return Promise.map(uniqueAdviceIds, function(adviceId){
-		if (adviceId) {
-			var transactionsForAdviceId = transactions.filter(item => {return item.advice == adviceId;});
-			
-			var validDate = true;
-			var datesForTransactions = Array.from(new Set(transactionsForAdviceId.map(item => new Date(item.date).getTime())));
-
-			if(datesForTransactions.length > 1) {
-				APIError.throwJsonError({message:" Different dates for same advice", adviceId: adviceId});
-			}
-
-			var date = new Date(datesForTransactions[0])
-			return AdviceModel.fetchAdvicePortfolio({_id: adviceId}, date);
-		}
-	});
+	});	
 
 	return new Promise((resolve, reject) => {
 
@@ -348,7 +341,8 @@ module.exports.validateTransactions = function(transactions) {
             console.log('Connection Open');
             console.log(connection);
             var msg = JSON.stringify({action:"validate_transactions", 
-            						transactions: transactions});
+            						transactions: transactions,
+        							portfolio: portfolio});
 
          	wsClient.send(msg);
         });
@@ -356,12 +350,12 @@ module.exports.validateTransactions = function(transactions) {
         wsClient.on('message', function(msg) {
         	var data = JSON.parse(msg);
 
-		    if (data["error"] == "") {
+		    if (data["error"] == "" && data["valid"]) {
 			    resolve(data["valid"]);
 		    } else if (data["error"] != "") {
 		    	reject(new Error(data["error"]));
 		    } else {
-		    	reject(new Error("Unknown error in validating portfolio"));
+		    	reject(new Error("Unknown error in validating transactions"));
 		    }
 	    });
     })
@@ -458,13 +452,7 @@ module.exports.updateStockPriceHistory = function(q, security) {
 	    });
     })
     .then(priceHistory => {
-    	//here change the datatype before saving to database
-    	if(priceHistory) {
-    		priceHistory = priceHistory.map(item => {
-    			item.date = new Date(item.date).getTime()/1000;
-    			return item; 
-    		});
-    		
+    	if(priceHistory) {	
     		return SecurityPerformanceModel.updatePriceHistory(q, priceHistory);
 		} else {
 			APIError.throwJsonError({message: "Invalid price history data. Can't update!!"});

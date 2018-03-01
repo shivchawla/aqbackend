@@ -350,7 +350,7 @@ end
 
 ###
 # Internal Function
-# Function to compute portfolio compostion on a specific date
+# Function to compute portfolio composition on a specific date
 ###
 function _compute_portfolio_composition(port::Dict{String, Any}, date::DateTime)
     try
@@ -531,7 +531,7 @@ function updateportfolio_latestprice(port::Dict{String, Any}, end_date::DateTime
 
         alltickers = [sym.ticker for (sym, pos) in portfolio.positions]
         
-        #Check if portoflio has any non-zero number of stock postions
+        #Check if portoflio has any non-zero number of stock positions
         if length(alltickers) > 0
             start_date = DateTime(Date(end_date) - Dates.Week(52))
 
@@ -622,6 +622,46 @@ function convert_to_node_portfolio(port::Portfolio)
         end
 
         return output
+    catch err
+        rethrow(err)
+    end
+end
+
+function _validate_transactions(transactions::Vector{Dict{String,Any}}, port::Dict{String, Any})
+    try
+        transactions_raftaar = Raftaar.Transaction[];
+
+        for (i, transaction) in enumerate(transactions)
+            try
+                push!(transactions_raftaar, convert(OrderFill, transaction))
+                #Can add a check by comparing the price...but not important 
+            catch err
+                error("Invalid transaction: $(i)")
+            end
+        end
+
+        if port != Dict{String,Any}()
+            portfolio = convert(Raftaar.Portfolio, port)
+            multiple = Vector{Int64}()
+
+            for (i, txn) in enumerate(transactions_raftaar)
+                sym = txn.security.securitysymbol
+                pos = get(portfolio.positions, sym, nothing)
+
+                if(pos == nothing)
+                    error("Transaction in Invalid Position: $(sym.ticker)")
+                end
+
+                push!(multiple, round(txn.fillquantity/pos.quantity))
+
+            end
+
+            #check if all are equal
+            return all(y->y==multiple[1], multiple)
+        else
+            return true
+        end
+
     catch err
         rethrow(err)
     end
