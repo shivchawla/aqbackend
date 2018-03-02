@@ -104,7 +104,6 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
         if end_date > now() || start_date > end_date
             error("Invalid dates. Can't compute constituent performance.")
         end
-
         performance_allstocks = Dict{String, Any}[]
         
         all_securities = Raftaar.Security[]
@@ -116,7 +115,6 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
         end
 
         (valid, benchmark_security) = validate_security(benchmark)
-
         edate = end_date
         sdate = DateTime(min(Date(start_date), Date(end_date) - Dates.Week(52)))
         benchmark_prices = history_nostrict([benchmark_security.symbol.ticker], "Close", :Day, sdate, edate)
@@ -128,7 +126,7 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
             return (Date(now()), [merge(Dict("ticker" => security.securitysymbol.ticker), empty_pnl()) for security in all_securities])
 
         elseif (benchmark_prices != nothing)
-            portfolio = updateportfolio_latestprice(port, DateTime(benchmark_prices.timestamp[end]))
+            portfolio = updateportfolio_price(port, DateTime(benchmark_prices.timestamp[end]))
             
             lastdate = benchmark_prices.timestamp[end] 
             performance_allstocks = [merge(Dict("ticker" => sym.ticker), compute_pnl_stats(pos)) for (sym,pos) in portfolio.positions]

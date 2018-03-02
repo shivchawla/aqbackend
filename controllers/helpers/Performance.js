@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-01 15:46:25
+* @Last Modified time: 2018-03-02 18:13:59
 */
 
 'use strict';
@@ -144,12 +144,14 @@ function _computeConstituentPerformance_portfolio(portfolio, startDate, endDate,
 function _computeConstituentPerformance(portfolioId) {
 	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'detail benchmark'})
 	.then(portfolio => {
-		var currentPortfolio = portfolio.detail;
-
-		var startDate = HelperFunctions.getDate(currentPortfolio.startDate);
-		var endDate = new Date();
-
-		return _computeConstituentPerformance_portfolio(currentPortfolio, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
+		if(portfolio && portfolio.detail) {
+			var currentPortfolio = portfolio.detail;
+			var startDate = HelperFunctions.getDate(currentPortfolio.startDate);
+			var endDate = new Date();
+			return _computeConstituentPerformance_portfolio(currentPortfolio, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
+		} else {
+			return null;
+		}
 	});
 }
 
@@ -187,7 +189,7 @@ function _computePortfolioComposition_portfolio(portfolio, startDate, endDate, b
 function _computePortfolioComposition(portfolioId) {
 	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'detail benchmark'})
 	.then(portfolio => {
-		if(portfolio) {
+		if(portfolio && portfolio.detail) {
 			var currentPortfolio = portfolio.detail;
 
 			var startDate = new Date(currentPortfolio.startDate);
@@ -195,7 +197,8 @@ function _computePortfolioComposition(portfolioId) {
 
 			return _computePortfolioComposition_portfolio(currentPortfolio, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
 		} else {
-			APIError.throwJsonError({message: "Portfolio not found", portfolioId: portfolioId});
+			return null;
+			//APIError.throwJsonError({message: "Portfolio not found", portfolioId: portfolioId});
 		}
 	});
 }
@@ -239,17 +242,19 @@ function _computePerformance_portfolioHistory(portfolioHistory, benchmark) {
 function _computePerformance(portfolioId) {
 	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'detail benchmark history'})
 	.then(portfolio => {
-		var currentPortfolio = portfolio.detail;
-
+		var portfolioHistory = [];
 		
-		var portfolioHistory = [{startDate: currentPortfolio.startDate, 
-									endDate: new Date(),//currentPortfolio.endDate,
-									portfolio: {
-										positions: currentPortfolio.positions,
-										cash: currentPortfolio.cash}
-									}];
+		if(portfolio && portfolio.detail) {
+			var currentPortfolio = portfolio.detail;
+			portfolioHistory.push({startDate: currentPortfolio.startDate, 
+										endDate: new Date(),//currentPortfolio.endDate,
+										portfolio: {
+											positions: currentPortfolio.positions,
+											cash: currentPortfolio.cash}
+										});
+		}
 
-		if(portfolio.history) {							
+		if(portfolio && portfolio.history && portfolio.history.length > 0) {							
 			portfolio.history.forEach(port => {
 				portfolioHistory.push({startDate: port.startDate ? port.startDate : port.endDate, 
 										endDate: port.endDate,
@@ -260,8 +265,11 @@ function _computePerformance(portfolioId) {
 									});
 			});
 		}
-
-		return _computePerformance_portfolioHistory(portfolioHistory, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
+		if (portfolioHistory.length > 0) {
+			return _computePerformance_portfolioHistory(portfolioHistory, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
+		} else {
+			return null;
+		}
 	});
 }
 
@@ -298,7 +306,7 @@ function _computeLatestPerformance(portfolioId) {
 		})
 		.then(([updated, latestPerformance, portfolioComposition, constituentPerformance]) => {
 			
-			if (updated){
+			if (updated && latestPerformance && portfolioComposition && constituentPerformance) {
 				var latestPerformanceDate = new Date(latestPerformance.date);
 		      	var portfolioCompositionDate = new Date(portfolioComposition.date);
 		      	var constituentPerformanceDate = new Date(constituentPerformance.date);

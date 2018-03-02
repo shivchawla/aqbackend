@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-01 19:05:23
+* @Last Modified time: 2018-03-02 12:56:17
 */
 
 'use strict';
@@ -36,151 +36,9 @@ function _compareDates(d1, d2) {
 	return (t1 < t2) ? -1 : (t1 == t2) ? 0 : 1;
 }
 
-function _updatePositions(positions, transactions) {
-	
-	//SEND all the transactions and current positions to Julia server 
-	//Julia computes the updated portfolio	
-	//HEAVY DUTY WORK IS DONE BY JULIA
-	return new Promise(function(resolve, reject) {
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-	        console.log('Connection Open');
-	        console.log(connection);
-
-	        //WHy Cash == 0.0: So that output potfolio has cash generated
-	        const portfolio = {
-	        	positions: positions,
-	        	cash: 0.0
-	        };
-
-	        var msg = JSON.stringify({action:"update_portfolio_transactions", 
-        								portfolio: portfolio,
-        								transactions: transactions}); 
-
-	     	wsClient.send(msg);
-	    });
-
-	    wsClient.on('message', function(msg) {
-	    	var data = JSON.parse(msg);
-	    	if(data['portfolio']) {
-    			resolve(data['portfolio']);
-			} else {
-				resolve(null);
-			}
-		});
-	});
-}
-
-function _updatePositionsForLatestPrice(positions) {
-	if (positions) {
-		return new Promise((resolve, reject) => {
-
-			var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-			var wsClient = new WebSocket(connection);
-
-			const portfolio = {
-				positions: positions,
-				cash: 0.0
-			};
-
-			wsClient.on('open', function open() {
-	            console.log('Connection Open');
-	            console.log(connection);
-	            var msg = JSON.stringify({action:"update_portfolio_price", 
-	            						portfolio: portfolio});
-	         	wsClient.send(msg);
-	        });
-
-	        wsClient.on('message', function(msg) {
-	        	var data = JSON.parse(msg);
-
-	        	if (data["error"] == "" && data["updatedPositions"]) {
-				    resolve(data["updatedPositions"]);
-			    } else if (data["error"] != "") {
-			    	reject(new Error(data["error"]));
-			    } else {
-			    	reject(new Error("Unknown error in updating portfolio for latest price"));
-			    }
-		    });
-	    })
-	} else {
-		APIError.throwJsonError({message:"Invalid positions: Can't update positions for latest price"});
-	}
-}
-
 module.exports.compareDates = function(date1, date2) {
 	return _compareDates(date1, date2);
 };
-
-module.exports.computeUpdatedPortfolioForLatestPrice = function(portfolio) {
-	return Promise.all([
-		_updatePositionsForLatestPrice(portfolio.detail.positions),
-		
-		//Each subposition is sent separately as JULIA portfolio can't handle 
-		//redundant securities
-		Promise.map(portfolio.detail.subPositions, function(position) {
-			return _updatePositionsForLatestPrice([position])
-			.then(updatedPositions => {
-				if (updatedPositions){
-					return updatedPositions.length == 1 ? updatedPositions[0] : null;
-				} else {
-					return null;
-				}
-			});
-		})
-	])
-	.then(([updatedPositions, updatedSubPositions]) => { 
-		
-		if(updatedPositions || updatedSubPositions) {
-			var updatedPortfolio = Object.assign({}, portfolio);
-			
-			if(updatedPositions) {
-				updatedPortfolio.detail.positions = updatedPositions;
-			}
-			
-			if(updatedSubPositions) {
-				//Filter out the NULL values
-				updatedPortfolio.detail.subPositions = updatedSubPositions.filter(item => item);
-			}
-
-			return [true, updatedPortfolio];
-		} else {
-			return [false, portfolio];
-		}
-		
-	});
-};
-
-module.exports.comparePortfolioDetail = function(oldPortfolioDetail, newPortfolioDetail) {
-	return new Promise(function(resolve, reject) {
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-	        console.log('Connection Open');
-	        console.log(connection);
-	        var msg = JSON.stringify({action:"compare_portfolio", 
-	        				oldPortfolio: oldPortfolio,
-	        				newPortfolio: newPortfolio});
-
-	     	wsClient.send(msg);
-	    });
-
-	    wsClient.on('message', function(msg) {
-	    	var data = JSON.parse(msg);
-	    	
-	    	if(data['error'] == '' && data['compare']) {
-	    		resolve(data['compare']);
-			} else if (data['error'] != '') {
-				reject(new Error(data["error"]));
-			} else {
-				reject(new Error("Internal error in comparing portfolios"))
-			}
-		});
-	});
-}
 
 module.exports.compareSecurity = function(oldSecurity, newSecurity) {
 	return new Promise(function(resolve, reject) {
@@ -208,60 +66,6 @@ module.exports.compareSecurity = function(oldSecurity, newSecurity) {
 				reject(new Error("Internal error in comparing Security"))
 			}
 		});
-	});
-}
-
-module.exports.computeUpdatedPortfolioForStockTransactions = function(portfolio, transactions) {
-	
-	var unionAdviceIds = transactions.map(item => item.advice).concat(portfolio.subPositions.map(item => item.advice)).map(item => {return item ? item.toString() : ""});
-	var uniqueAdviceIds = Array.from(new Set(unionAdviceIds));
-
-	return Promise.all([
-		//PROMISE 1: Update Positions
-		_updatePositions(portfolio.positions, transactions),
-		
-		//PROMISE 2: Update Sub-Positions
-		Promise.map(uniqueAdviceIds, function(adviceId) {
-			
-			var transactionsForAdviceId = transactions.filter(item => {
-				var tId = item.advice ? item.advice.toString() : "";
-				return tId == adviceId;
-			}); 	
-
-			var subPositionsForAdviceId = portfolio.subPositions.filter(item => {
-				var tId = item.advice ? item.advice.toString() : "";
-				return tId == adviceId;
-			}); 
-
-			if (transactionsForAdviceId.length > 0) {
-				return _updatePositions(subPositionsForAdviceId, transactionsForAdviceId)
-				.then(subPortfolio => {
-					return {
-						positions: 
-							subPortfolio.positions.map(position => {
-								position["advice"] = adviceId!= "" ? ObjectId(adviceId) : null;
-								return position;
-							})
-						};
-				});	
-			} else  {
-				return {positions : subPositionsForAdviceId};
-			}		
-		})
-	])
-	.then(([fullPortfolio, subPortfolios]) => {
-		var subPositions = [];
-		subPortfolios.forEach(subPortfolio => {
-			subPositions = subPositions.concat(subPortfolio.positions);
-		});
-
-		const updatedPortfolio = {
-			positions: fullPortfolio.positions,
-			subPositions: subPositions,
-			cash: portfolio.cash + fullPortfolio.cash
-		};
-
-		return updatedPortfolio;
 	});
 }
 

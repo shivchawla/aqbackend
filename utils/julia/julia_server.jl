@@ -110,7 +110,7 @@ wsh = WebSocketHandler() do req, ws_client
                 for (i,val) in enumerate(netValues)
                     vals[i,1] = val
                 end
-                
+                  
                 (lastdate, performance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
                 
                 nVDict = Dict{String, Any}()
@@ -279,7 +279,8 @@ wsh = WebSocketHandler() do req, ws_client
 
         elseif action == "update_portfolio_price"    
             portfolio = parsemsg["portfolio"]
-            updated_positions = updateportfolio_latestprice(portfolio)
+            date = parsemsg["date"]
+            updated_positions = updateportfolio_price(portfolio, date == "" ? now() : DateTime(date))
             
             #Update, the positions to match the object structure in Node
             parsemsg["updatedPositions"] = convert_to_node_portfolio(updated_positions)["positions"]

@@ -43,7 +43,7 @@ function convert(::Type{OrderFill}, transaction::Dict{String, Any})
     try
         security = convert(Raftaar.Security, transaction["security"])
 
-        if security == Security()
+        if security == Security() && transaction["security"]["ticker"] != "CASH_INR"
             error("Invalid transaction (Invalid Security: $(transaction["security"]["ticker"]))")
         end
 
@@ -529,7 +529,7 @@ end
 ###
 # Function to update portfolio with latest price
 ###
-function updateportfolio_latestprice(port::Dict{String, Any}, end_date::DateTime = now())
+function updateportfolio_price(port::Dict{String, Any}, end_date::DateTime = now())
     try
         portfolio = convert(Raftaar.Portfolio, port)
 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-01 18:35:49
+* @Last Modified time: 2018-03-02 14:55:29
 */
 
 'use strict';
@@ -14,6 +14,7 @@ const PerformanceModel = require('../../models/Marketplace/Performance');
 const Promise = require('bluebird');
 const config = require('config');
 const HelperFunctions = require("../helpers");
+const PortfolioHelper = require("../helpers/Portfolio");
 const APIError = require('../../utils/error');
 
 function _isUserAuthorizedToViewAdviceDetail(userId, adviceId) {
@@ -49,7 +50,7 @@ module.exports.createAdvice = function(args, res, next) {
 	var advisorId='';
 	
 	//Any one can create an advice
-	AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id', insert: true})
+	return AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id', insert: true})
 	.then(advisor => {
 		if(advisor) {
 			advisorId = advisor._id;
@@ -93,17 +94,6 @@ module.exports.createAdvice = function(args, res, next) {
 	})
     .then(advice => {
     	if(advice) {
-    		//return res.status(200).json(advice);
-			/*return Promise.all([advice, AdvisorModel.addAdvice({
-        		_id: advisorId
-			}, advice._id)]);
-		} else {
-			APIError.throwJsonError({message: "Advice not created"});
-			//return res.status(400).json({message: "Invalid Portfolio"});
-		}		
-    })
-    .then(([advice, advisor]) => {
-    	if(advice && advisor) {*/
     		return res.status(200).json(advice);
     	} else {
     		APIError.throwJsonError({message: "Advice not added to advisor"});	
@@ -158,9 +148,6 @@ module.exports.updateAdvice = function(args, res, next) {
 		delete adviceUpdates.portfolio;
 		
 		if (validAdvice) {
-			console.log(advice.portfolio);
-			console.log(newAdvice.portfolio);
-
 			return Promise.all([PortfolioModel.updatePortfolio({_id:advice.portfolio}, newAdvice.portfolio, {}, advice.public == true), 
 				AdviceModel.updateAdvice({_id: adviceId}, adviceUpdates)]);
 		} else {
@@ -370,7 +357,7 @@ module.exports.getAdviceDetail = function(args, res, next) {
 	})
 	.then(advice => {
 		if (options.fields.indexOf('portfolio') != -1 && advice.portfolio) {
-			return HelperFunctions.computeUpdatedPortfolioForLatestPrice(advice.portfolio.toObject())
+			return PortfolioHelper.computeUpdatedPortfolioForPrice(advice.portfolio.toObject())
 			.then(([updated, updatedPortfolio]) => {
 				if(updated) {
 					advice.portfolio = updatedPortfolio;
@@ -406,7 +393,14 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 		}
 	})
 	.then(portfolioDetail => {
-		return res.status(200).send({portfolio: portfolioDetail});
+		if (portfolioDetail) {
+			return PortfolioHelper.computeUpdatedPortfolioForPrice({detail: portfolioDetail}, date);
+		} else {
+			return null;
+		}
+	})
+	.then(([updated, updatedPortfolio]) => {
+		return res.status(200).send(updatedPortfolio);
 	})
  	.catch(err => {
     	return res.status(400).send(err.message);
