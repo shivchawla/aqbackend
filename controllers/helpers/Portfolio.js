@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-02 17:08:18
+* @Last Modified time: 2018-03-03 13:18:44
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -12,6 +12,8 @@ const WebSocket = require('ws');
 const config = require('config');
 const Promise = require('bluebird');
 const HelperFunctions = require('./index');
+var ObjectId = require('mongoose').Types.ObjectId;
+
 
 //Common function to handle stock and stock/advice transactions
 function _computeUpdatedPortfolioForStockTransaction(initialPortfolio, allTransactions) {
@@ -325,6 +327,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 					return PortfolioModel.addTransactions({_id: portfolioId, deleted: false}, transactions)
 				} else {
 					updateMethod = "Create";
+
 					const np = Object.assign({}, portfolio);
 					var originalTransactions = np.transactions ? np.transactions : [];
 

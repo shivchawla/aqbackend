@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-02 19:07:08
+* @Last Modified time: 2018-03-03 13:19:05
 */
 
 'use strict';
@@ -186,6 +186,7 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 		item.date = new Date(item.date);
 		item._id = item._id != "" ? ObjectId(item._id) : null;
 	});
+
 
 	return InvestorModel.fetchInvestor({user: userId}, {fields:'_id portfolios'})
 	.then(investor => {
@@ -449,7 +450,7 @@ module.exports.updateInvestorPortfolioForTransactions = function(args, res, next
 			
 			if(investor.portfolios.indexOf(portfolioId) != -1) {			
 				if(transactions) {
-					return PortfolioHelper.updatePortfolioForStockTransactions(portfolio, transactions, action, preview);
+					return PortfolioHelper.updatePortfolioForStockTransactions(portfolio.toObject(), transactions, action, preview);
 				}  else {
 					APIError.throwJsonError({message: "Invalid transactions"});
 				}
