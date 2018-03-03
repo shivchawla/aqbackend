@@ -86,6 +86,12 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
 
                     #Link the position to an advice (Used in marketplace Sub-Portfolio)
                     advice = get(pos, "advice", "")
+
+                    #Added check if advice is populated (from node)
+                    if typeof(advice) == Dict{String,Any}
+                        advice = get(advice, "_id", "")    
+                    end
+
                     advice = advice == nothing ? "" : advice
 
                     # Append to position dictionary

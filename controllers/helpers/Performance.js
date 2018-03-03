@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-02 18:13:59
+* @Last Modified time: 2018-03-02 19:57:29
 */
 
 'use strict';
@@ -276,19 +276,23 @@ function _computePerformance(portfolioId) {
 function _computeSimulatedPerformanceCurrentPortfolio(portfolioId) {
 	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'detail benchmark'})
 	.then(portfolio => {
-		var currentPortfolio = portfolio.detail;
+		if(portfolio && portfolio.detail){
+			var currentPortfolio = portfolio.detail;
 
-		var startDate = new Date(); //new Date(currentPortfolio.startDate);
-		startDate = new Date(startDate.setDate(startDate.getDate() - 365));
+			var startDate = new Date(); //new Date(currentPortfolio.startDate);
+			startDate = new Date(startDate.setDate(startDate.getDate() - 365));
 
-		var portfolioHistory = [{startDate: startDate, 
-									endDate: new Date(), 
-									portfolio: {
-										positions: currentPortfolio.positions,
-										cash: currentPortfolio.cash}
-									}];
+			var portfolioHistory = [{startDate: startDate, 
+										endDate: new Date(), 
+										portfolio: {
+											positions: currentPortfolio.positions,
+											cash: currentPortfolio.cash}
+										}];
 
-		return _computePerformance_portfolioHistory(portfolioHistory, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
+			return _computePerformance_portfolioHistory(portfolioHistory, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
+		} else {
+			return null;
+		}
 	});
 }
 
@@ -361,16 +365,18 @@ function _computeSimulatedPerformance(portfolioId) {
 	});
 }
 
-module.exports.computeLatestPerformance = function(portfolioId) {
+/*module.exports.computeLatestPerformance = function(portfolioId) {
+	
 	return _computeLatestPerformance(portfolioId);
-};
+};*/
 
-module.exports.computeSimulatedPerformance = function(portfolioId) {
+/*module.exports.computeSimulatedPerformance = function(portfolioId) {
+	
 	return _computeSimulatedPerformance(portfolioId);
-};
+};*/
 
 module.exports.computePerformanceHypthetical = function(portfolio) {
-	return HelperFunctions.validatePortfolio(portfolio)
+	return portfolio ? HelperFunctions.validatePortfolio(portfolio) : null
 	.then(validPortfolio => {	
 		if (validPortfolio) { 
 			return Promise.all([
@@ -422,4 +428,48 @@ module.exports.updatePerformanceAllAdvices = function() {
 		});
 	});
 };
+
+module.exports.getLatestPerformance = function(portfolioId) {
+	return Promise.all([
+		_computeSimulatedPerformance(portfolioId),
+	 	_computeLatestPerformance(portfolioId)
+ 	])
+	.then(([simulatedPerformance, currentPerformance]) => {
+
+		if (simulatedPerformance || currentPerformance) {
+			const updates = {};
+			if (simulatedPerformance) {
+				updates["simulated"] = simulatedPerformance;
+			}
+
+			if(currentPerformance) {
+				updates["current"] = currentPerformance;
+			}
+
+			return PerformanceModel.updatePerformance({portfolio: portfolioId}, updates);
+		} else {
+			return PerformanceModel.fetchPerformance({portfolio: portfolioId});
+		}
+		
+	});
+}
+
+module.exports.getPerformanceSummary = function(portfolioId) {
+	return exports.getLatestPerformance(portfolioId)
+	.then(performance => {
+		if (performance && performance.current) {
+
+			const summary = Object.assign({}, performance.current.toObject());
+
+			delete summary.portfolioValues;
+			delete summary.metrics.constituentPerformance;
+			delete summary.metrics.portfolioComposition;
+
+			summary.metrics = summary.metrics.portfolioPerformance;
+			return summary; 
+		} else {
+			return null;
+		}
+	});
+}
 

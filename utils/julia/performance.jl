@@ -120,10 +120,10 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
         benchmark_prices = history_nostrict([benchmark_security.symbol.ticker], "Close", :Day, sdate, edate)
 
         if benchmark_prices == nothing
-            return (Date(now()), [merge(Dict("ticker" => security.securitysymbol.ticker), empty_pnl()) for security in all_securities])
+            return (Date(now()), [merge(Dict("ticker" => security.symbol.ticker), empty_pnl()) for security in all_securities])
         
         elseif benchmark_prices.timestamp[end] < Date(start_date)
-            return (Date(now()), [merge(Dict("ticker" => security.securitysymbol.ticker), empty_pnl()) for security in all_securities])
+            return (Date(now()), [merge(Dict("ticker" => security.symbol.ticker), empty_pnl()) for security in all_securities])
 
         elseif (benchmark_prices != nothing)
             portfolio = updateportfolio_price(port, DateTime(benchmark_prices.timestamp[end]))
@@ -237,7 +237,7 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
                 return Performance()
             end
         else
-            error("Stock data for $(security.securitysymbol.ticker) is not present")
+            error("Stock data for $(security.symbol.ticker) is not present")
         end
     catch err
         rethrow(err)
@@ -272,7 +272,7 @@ function compute_stock_static_performance(security_dict::Dict{String,Any}; bench
                 return Performance()
             end
         else 
-            error("Stock data for $(security.securitysymbol.ticker) is not present")    
+            error("Stock data for $(security.symbol.ticker) is not present")    
         end
     catch err
        rethrow(err) 
@@ -303,7 +303,7 @@ function get_stock_price_history(security_dict::Dict{String,Any})
                
                 return history
             else
-                error("Stock data for $(security.securitysymbol.ticker) is not present")
+                error("Stock data for $(security.symbol.ticker) is not present")
             end
         end
     catch err
@@ -343,10 +343,10 @@ function get_stock_price_latest(security_dict::Dict{String,Any})
             
                 return output
             else
-                error("Stock data for $(security.securitysymbol.ticker) is not present")
+                error("Stock data for $(security.symbol.ticker) is not present")
             end
         else 
-            error("Stock data for $(security.securitysymbol.ticker) is not present")
+            error("Stock data for $(security.symbol.ticker) is not present")
         end
     catch err
         rethrow(err)

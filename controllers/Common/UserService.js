@@ -137,7 +137,6 @@ exports.resetPassword = function(args, res, next) {
             },hash);
         })
         .then(function(userDetails) {
-            console.log(userDetails)
             if (userDetails) {
                 delete userDetails.password;
                 sendEmail.resetSuccessEmail(res, userDetails);
@@ -206,13 +205,11 @@ exports.updateToken = function(args, res, next) {
 };
 
 exports.verifyCaptchaToken = function(args, res, next) {
-    console.log("in here");
     const captchaToken = args.body.value.token;
     const secret = "6Lfm6z8UAAAAAB4i3G4ay-4ptaN9KdEmSwl1zE3Q";
     const url = "https://www.google.com/recaptcha/api/siteverify";
     const input = {response: captchaToken, secret:secret};
 
-    console.log(input);
 
     request.post(url, {json: true, body: input}, function(err, response, body) {
         if (!err && response.statusCode === 200) {
@@ -229,8 +226,6 @@ exports.sendInfoEmail = function (args, res, next) {
 
     UserModel.fetchUser({email:'shivchawla2001@gmail.com'})
     .then(adminUser => {
-        console.log(user);
-        console.log(adminUser);
        if(adminUser._id.toString() == user._id.toString()) {
             return UserModel.fetchUsers({},{firstName:1, lastName:1 , email:1}) 
        } else {

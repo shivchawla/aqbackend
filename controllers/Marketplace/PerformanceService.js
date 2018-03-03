@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 18:54:23
+* @Last Modified time: 2018-03-03 10:34:30
 */
 
 'use strict'
@@ -27,7 +27,7 @@ module.exports.getPerformanceInvestorPortfolio = function(args, res, next) {
 			if (investor.user.equals(userId)){
 				if(investor.portfolios) {
 					if (investor.portfolios.filter(item => !item.deleted).map(item => item.toString()).indexOf(portfolioId) != -1) {
-						return PerformanceHelper.computeLatestPerformance(portfolioId);
+						return PerformanceHelper.getLatestPerformance(portfolioId);
 					} else {
 						APIError.throwJsonError({userId: userId, message: "PortfolioId is not a valid portfolio for investor"})
 					}
@@ -42,18 +42,9 @@ module.exports.getPerformanceInvestorPortfolio = function(args, res, next) {
 			APIError.throwJsonError({userId: userId, message: "No Investor found"});
 		}
 	})
-	.then(latestPerformance => {
-		if (latestPerformance) {
-			return PerformanceModel.updatePerformance({portfolio: portfolioId}, {current: latestPerformance});
-		} else {
-			//If latest Performance is NULL, send the alraeady stored performance
-			//Keep a track of cases where computation yields NULL performance
-			return PerformanceModel.fetchPerformance({portfolio: portfolioId});
-		}
-	})	
-	.then(updatedPerformance => {
-		if (updatedPerformance) {
-			return res.status(200).send(updatedPerformance);
+	.then(performance => {
+		if (performance) {
+			return res.status(200).send(performance);
 		} else {
 			APIError.throwJsonError({message: "Invalid performance"});
 		}
@@ -85,34 +76,13 @@ module.exports.getPerformanceAdvicePortfolio = function(args, res, next) {
 			if (advice.advisor.equals(advisorId) || advice.public == true) {
 				
 				portfolioId = advice.portfolio;
-				return Promise.all([
-				 	PerformanceHelper.computeSimulatedPerformance(portfolioId),
-				 	PerformanceHelper.computeLatestPerformance(portfolioId)
-				 	]);
+				return PerformanceHelper.getLatestPerformance(portfolioId);
 			} else {
 				APIError.throwJsonError({userId: userId, message:"Not Authorized"});
 			}
 		} else {
 			APIError.throwJsonError({userId: userId, message: "No Advice/Advisor found"});
 		}
-	})
-	.then(([simulatedPerformance, currentPerformance]) => {
-
-		if (simulatedPerformance || currentPerformance) {
-			const updates = {};
-			if (simulatedPerformance) {
-				updates["simulated"] = simulatedPerformance;
-			}
-
-			if(currentPerformance) {
-				updates["current"] = currentPerformance;
-			}
-
-			return PerformanceModel.updatePerformance({portfolio: portfolioId}, updates);
-		} else {
-			return PerformanceModel.fetchPerformance({portfolio: portfolioId});
-		}
-		
 	})
 	.then(performance => {
 

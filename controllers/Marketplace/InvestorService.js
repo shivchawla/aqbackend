@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-02 18:12:48
+* @Last Modified time: 2018-03-02 19:07:08
 */
 
 'use strict';
@@ -78,6 +78,9 @@ module.exports.getInvestorSummary = function(args, res, next) {
     .then(([investor, portfolios, updatedDefaultPortfolio]) => {
     	//Added check on item for NULL values - 27/02/2018
     	investor.portfolios = portfolios.filter(item => {return item ? !item.deleted : false;});
+    	investor.subscribedAdvices = investor.subscribedAdvices.filter(item => {return item ? item.active : false;});
+    	investor.followingAdvices = investor.followingAdvices.filter(item => {return item ? item.active : false;});
+
     	investor.defaultPortfolio = updatedDefaultPortfolio;
     	return res.status(200).json(investor);
     })
@@ -279,10 +282,10 @@ module.exports.getInvestorPortfolios = function(args, res, next) {
 					var fields = 'name benchmark createdDate updatedDate';
 					return Promise.all([
 						item ? PortfolioModel.fetchPortfolio({_id: item, deleted: false}, {fields: fields}) : {message:"Portfolio not valid"},
-						item ? PerformanceHelper.computeLatestPerformance(item) : null		
+						item ? PerformanceHelper.getPerformanceSummary(item) : null		
 					])
-					.then(([portfolio, latestPerformance]) => {
-						return portfolio ? Object.assign({performance: latestPerformance}, portfolio.toObject()) : null;
+					.then(([portfolio, performanceSummary]) => {
+						return portfolio ? Object.assign({performance: performanceSummary}, portfolio.toObject()) : null;
 					
 					});
 				});
