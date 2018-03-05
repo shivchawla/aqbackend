@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-03 10:50:15
+* @Last Modified time: 2018-03-05 11:01:39
 */
 
 'use strict';
@@ -259,7 +259,7 @@ module.exports.getAdvices = function(args, res, next) {
 	    	return Promise.map(advices , function(advice) {
 	    		return Promise.all([
 	    			_getAdviceSubscriptionDetail(advice, advisorId, investorId),
-	    			PerformanceHelper.getPerformanceSummary(advice.portfolio)
+	    			PerformanceHelper.getPerformanceSummary(advice.portfolio).catch(err => {return {error: err.message};})
     			])
     			.then(([nAdvice, performanceSummary]) => {
     				return Object.assign({performance: performanceSummary}, nAdvice);
@@ -297,7 +297,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	 		if((!advisorId.equals(advice.advisor._id) && advice.public == true)  
 	 			|| advisorId.equals(advice.advisor._id)) { 
 	 			
-				var nAdvice = _updateAdviceSubscriptionDetail(advice, advisorId, investorId)
+				var nAdvice = _getAdviceSubscriptionDetail(advice, advisorId, investorId)
  				return res.status(200).send(nAdvice);	
 
 			} else {
