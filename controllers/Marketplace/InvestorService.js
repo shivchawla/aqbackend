@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-03 13:19:05
+* @Last Modified time: 2018-03-05 14:57:44
 */
 
 'use strict';
@@ -181,6 +181,10 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 		detail: {startDate: new Date(), endDate: new Date(), positions: []}
 	};
 
+	if (portfolio.name == "" && !preview) {
+		return res.status(400).send({message:"Portfolio name can't be empty"});
+	}
+
 	transactions.forEach(item => {
 		item.advice = item.advice != "" ? ObjectId(item.advice) : null;
 		item.date = new Date(item.date);
@@ -192,9 +196,9 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 	.then(investor => {
 		if(investor._id.equals(investorId)) {
 			return Promise.all([
-				Promise.map(investor.portfolios, function(portfolioId) {
+				!preview ? Promise.map(investor.portfolios, function(portfolioId) {
 					return PortfolioModel.fetchPortfolio({_id:portfolioId}, {fields: 'name deleted'});
-				}),
+				}):[],
 				HelperFunctions.validatePortfolio(portfolio),
 				HelperFunctions.validateTransactions(transactions)])	
 		} else {
@@ -204,6 +208,7 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 	.then(([otherPortfolios, validPortfolio, validTransactions]) => {
 		
 		if(validPortfolio && validTransactions) {
+			
 			var numSameNamePortfolios = otherPortfolios.filter(item => {return item ? item.name == portfolio.name && !item.deleted : false}).length;
 			
 			if (numSameNamePortfolios > 0) {
