@@ -147,7 +147,7 @@ wsh = WebSocketHandler() do req, ws_client
           netValues = convert(Vector{Float64}, parsemsg["netValue"])
           benchmark = parsemsg["benchmark"]["ticker"]
           dates = parsemsg["dates"]
-          dates = [Date(date) for date in dates]
+          dates = [Date(DateTime(date, jsdateformat)) for date in dates]
 
           vals = zeros(length(netValues), 1)
           for (i,val) in enumerate(netValues)

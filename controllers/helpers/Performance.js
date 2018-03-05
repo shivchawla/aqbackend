@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-02 19:57:29
+* @Last Modified time: 2018-03-05 13:40:18
 */
 
 'use strict';
@@ -100,7 +100,6 @@ function _computePerformance_portfolioValues(portfolioValues, benchmark) {
 }
 
 function _computeHistoricalPerformance(portfolio, startDate, endDate) {
-	
 	return _computePortfolioValue(portfolio, startDate, endDate)
 	.then(portfolioValue => {
 		return Promise.all([portfolioValue, _computePerformance_portfolioValues(portfolioValue, portfolio.benchmark)]);
@@ -376,13 +375,20 @@ function _computeSimulatedPerformance(portfolioId) {
 };*/
 
 module.exports.computePerformanceHypthetical = function(portfolio) {
-	return portfolio ? HelperFunctions.validatePortfolio(portfolio) : null
+	return new Promise((resolve,reject) => {
+		if(portfolio) {
+			resolve(HelperFunctions.validatePortfolio(portfolio));
+		} else {
+			resolve(false);
+		}
+	})
 	.then(validPortfolio => {	
 		if (validPortfolio) { 
 			return Promise.all([
-				_computePortfolioComposition(portfolio.detail, portfolio.detail.startDate, portfolio.detail.endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'}),
-				_computeConstituentPerformance(portfolio.detail, portfolio.detail.startDate, portfolio.detail.endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'}),
-				_computeHistoricalPerformance(portfolio.detail, portfolio.detail.startDate, portfolio.detail.endDate)])
+				_computePortfolioComposition_portfolio(portfolio.detail, portfolio.detail.startDate, portfolio.detail.endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'}),
+				_computeConstituentPerformance_portfolio(portfolio.detail, portfolio.detail.startDate, portfolio.detail.endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'}),
+				_computeHistoricalPerformance(portfolio.detail, portfolio.detail.startDate, portfolio.detail.endDate)
+			])
 		} else if(!validPortfolio) {
 			//this should not be called but in any-case
 			APIError.throwJsonError({message: "Invalid portfolio composition"});
