@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-03 13:18:44
+* @Last Modified time: 2018-03-05 10:30:14
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -363,7 +363,22 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 
 			return PortfolioModel.updatePortfolio({_id:portfolioId}, updates, {new: true, fields:'name detail benchmark updatedDate'}, updateMethod == "Append");
 		} else {
-			return updatedPortfolio;
+			//POPULATE ADVICE NAME - 05/03/2018
+			return Promise.map(updatedPortfolio.detail.subPositions, function(position) {
+				if (position.advice) {
+					 return AdviceModel.fetchAdvice({_id: position.advice}, {fields:'_id name'})
+					 .then(advice => {
+					 	position.advice = advice;
+					 	return position;
+					 });
+
+				} else {
+					return position;
+				}
+			}).then(updatedSubPositions => {
+				updatedPortfolio.detail.subPositions = updatedSubPositions;
+				return updatedPortfolio;
+			});
 		}
 	});
 }
