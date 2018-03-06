@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-05 20:04:27
+* @Last Modified time: 2018-03-06 11:19:46
 */
 
 'use strict';
@@ -142,6 +142,7 @@ module.exports.updateAdvice = function(args, res, next) {
 //1. current date < end date of advice
 //2. Advice is public
 module.exports.getAdvices = function(args, res, next) {
+
 	const userId = args.user._id;
     
     const options = {};
@@ -160,6 +161,11 @@ module.exports.getAdvices = function(args, res, next) {
     const personal = args.personal.value;
     
     const advisorId = args.advisor.value;
+
+    const search = args.search.value;
+    if (search) {
+        query.$text = {$search: search};
+    }
 
     const approved = args.approved.value;
     if(approved) {

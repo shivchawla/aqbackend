@@ -1355,6 +1355,11 @@ paths:
         description: "auth token"
         type: "string"
         required: true
+      - name: search
+        in: query
+        type: string
+        description: search advices by text
+        required: false
       - name: all
         in: query
         type: boolean
