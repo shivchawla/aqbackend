@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-05 19:06:52
+* @Last Modified time: 2018-03-06 18:39:51
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -15,10 +15,8 @@ const APIError = require('../../utils/error');
 
 module.exports.computeAdviceSubscriptionDetail = function(adviceId, advisorId, investorId) {
 	
-	return AdviceModel.fetchAdvice({_id:adviceId}, {field:'advisor subscribers followers analytics'})
+	return AdviceModel.fetchAdvice({_id:adviceId}, {field:'advisor subscribers followers'})
 	.then(advice => {
-		//var nAdvice = {};
-
 		var isFollowing = false;
 		var isSubscribed = false;
 		var isOwner = advisorId.equals(advice.advisor._id);
@@ -32,18 +30,8 @@ module.exports.computeAdviceSubscriptionDetail = function(adviceId, advisorId, i
 			isFollowing = activeFollowers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
 			isSubscribed = activeSubscribers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
 		} 
-
-		var adviceAnalytics = advice.analytics;
-		var numAdviceAnalytics = adviceAnalytics.length;
-
-		var latestAnalytics = numAdviceAnalytics > 0 ? adviceAnalytics[numAdviceAnalytics - 1] : null;
-
-		//delete nAdvice.subscribers;
-		//delete nAdvice.followers;
-		//delete nAdvice.analytics;
-
+		
 		return {
-			latestAnalytics: latestAnalytics, 
 			isFollowing: isFollowing, 
 			isSubscribed: isSubscribed, 
 			isOwner: isOwner,

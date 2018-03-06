@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-01 18:35:03
+* @Last Modified time: 2018-03-06 18:42:56
 */
 'use strict';
 const mongoose = require('../index');
@@ -122,7 +122,12 @@ const Advice = new Schema({
         dateUpdated: Date,
     }],
 
-    analytics: [AdviceAnalytics]
+    analytics: [AdviceAnalytics],
+
+    latestPerformance: Schema.Types.Mixed,
+
+    latestAnalytics: AdviceAnalytics,
+    
 });
 
 //TODO: Deleted advices can/should be moved to deleted-advice collection
@@ -163,6 +168,12 @@ Advice.statics.fetchAdvices = function(query, options) {
                                 });
     }
 	
+    if (options.orderParam && options.order) {
+        console.log(options.orderParam);
+        console.log(options.order);
+        q = q.sort({[options.orderParam]: options.order});
+    }
+
     return q.execAsync();
 };
 
@@ -278,31 +289,39 @@ Advice.statics.updateSubscribers = function(query, investorId) {
     });
 };
 
-Advice.statics.updateAnalytics = function(query, analytics) {
-    return this.findOne(query, {analytics:1})
+Advice.statics.updateAnalyticsAndPerformance = function(query, analyticsAndPerformance) {
+    return this.findOne(query, {analytics:1, latestPerformance:1})
     .then(advice => {
         var adviceAnalytics = advice.analytics;
-        var analyticsDate = analytics.date;
+        var latestAnalytics = analyticsAndPerformance.analytics;
+        var latestAnalyticsDate = latestAnalytics.date;
 
         if(!adviceAnalytics) {
             advice.analytics = [];
         }
 
         //Find date
-        var idx = adviceAnalytics.map(item => item.date.getTime()).indexOf(analyticsDate.getTime());
+        var idx = adviceAnalytics.map(item => item.date.getTime()).indexOf(latestAnalyticsDate.getTime());
         if (idx == -1) {
-            adviceAnalytics.push(analytics);
+            adviceAnalytics.push(latestAnalytics);
         } else {
-            Object.keys(analytics).forEach(key => {
-                adviceAnalytics[idx][key] = analytics[key];
+            Object.keys(latestAnalytics).forEach(key => {
+                adviceAnalytics[idx][key] = latestAnalytics[key];
             });
         }
 
-        return advice.saveAsync();
+        var latestPerformance = analyticsAndPerformance.latestPerformance;
 
+        if(!advice.latestPerformance) {
+            advice.latestPerformance = {};
+        }
+
+        advice.latestPerformance = latestPerformance;
+        advice.latestAnalytics = latestAnalytics;
+
+        return advice.saveAsync();
     });
 };
-
 
 Advice.statics.fetchAdvicePortfolio = function(query, date) {
     if (!date || date == '') {

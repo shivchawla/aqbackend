@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-06 09:56:10
+* @Last Modified time: 2018-03-06 18:22:14
 */
 
 'use strict';
@@ -460,7 +460,7 @@ module.exports.getLatestPerformance = function(portfolioId) {
 	});
 }
 
-module.exports.getPerformanceSummary = function(portfolioId) {
+module.exports.getPerformanceSummaryOLD = function(portfolioId) {
 	return exports.getLatestPerformance(portfolioId)
 	.then(performance => {
 		if (performance && performance.current) {
@@ -473,6 +473,33 @@ module.exports.getPerformanceSummary = function(portfolioId) {
 
 			summary.metrics = summary.metrics.portfolioPerformance;
 			return summary; 
+		} else {
+			return null;
+		}
+	})
+	.catch(err => {
+		//ERROR in performance calculation
+		//Logging the error (needs IMPROVEMENT)
+		//Instead of hard fail, computation continues with error message
+		console.log(err.message);
+		return {error: err.message};
+	});
+}
+
+module.exports.getPerformanceSummary = function(portfolioId) {
+	return exports.getLatestPerformance(portfolioId)
+	.then(performance => {
+		if (performance && performance.current) {
+
+			const summary = Object.assign({}, performance.current.toObject());
+
+			return {
+				return: summary && summary.metrics && summary.metrics.returns ? summary.metrics.returns.totalreturn : 0.0,
+				volatility: summary && summary.metrics && summary.metrics.deviation ? summary.metrics.deviation.annualstandarddeviation : 0.0,
+				sharpe: summary && summary.metrics && summary.metrics.ratios ? summary.metrics.ratios.sharperatio : 0.0,
+				beta: summary && summary.metrics && summary.metrics.ratios ? summary.metrics.ratios.beta : 0.0, 
+				maxloss: summary && summary.metrics && summary.metrics.metrics ? summary.metrics.drawdown : 0.0	
+			} 
 		} else {
 			return null;
 		}

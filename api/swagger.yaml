@@ -1426,12 +1426,19 @@ paths:
         required: false
         default: 10
         description: total number of advice
-      - name: sort
+      - name: orderParam
         in: query
         description: sort criteria
         type: string
         required: false
-        enum: ['name', 'rating', 'followers', 'subscribers', 'updatedAt desc']
+        default: rating
+        enum: [name, rating, return, volatility, sharpe, maxloss, numFollowers, numSubscribers, createdDate]
+      - name: order
+        type: number
+        required: true
+        in: query
+        default: -1
+        description: sort order
       responses:
         200:
           description: OK

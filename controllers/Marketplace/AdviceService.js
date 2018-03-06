@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-06 13:20:23
+* @Last Modified time: 2018-03-06 18:38:05
 */
 
 'use strict';
@@ -149,8 +149,18 @@ module.exports.getAdvices = function(args, res, next) {
 	options.skip = args.skip.value;
     options.limit = args.limit.value;
 
-    options.sort = args.sort.value;
-    options.fields = 'name description heading createdDate updatedDate advisor public approved maxNotional rebalance';
+    options.order = args.order.value || 1;
+
+    var orderParam = args.orderParam.value || "rating";
+	if (["return", "volatility", "sharpe", "maxloss"].indexOf(orderParam) != -1) {
+		orderParam = "latestPerformance."+orderParam;
+	} else if(["rating", "numFollowers", "numSubscribers"].indexOf(orderParam) !=-1) {
+		orderParam = "latestAnalytics."+orderParam;
+	}
+
+	options.orderParam = orderParam;
+
+    options.fields = 'name description heading createdDate updatedDate advisor public approved maxNotional rebalance latestPerformance';
 
     var query = {deleted: false};
 
@@ -237,14 +247,9 @@ module.exports.getAdvices = function(args, res, next) {
     .then(advices => {
     	if(advices) {
 	    	return Promise.map(advices , function(advice) {
-	    		return Promise.all([
-	    			AdviceHelper.computeAdviceSubscriptionDetail(advice._id, userAdvisorId, userInvestorId),
-	    			AdviceHelper.computeAdvicePerformanceSummary(advice._id)
-    			])
-    			.then(([subscriptionDetail, performanceSummary]) => {
-    				const _cs = Object.assign(subscriptionDetail, performanceSummary);
-    				const nAdvice = Object.assign(_cs, advice.toObject());
-    				return nAdvice;
+    			return AdviceHelper.computeAdviceSubscriptionDetail(advice._id, userAdvisorId, userInvestorId)
+    			.then(subscriptionDetail => {
+    				return Object.assign(subscriptionDetail, advice.toObject());
     			});
 			});
 		} else {
@@ -264,7 +269,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const userId = args.user._id;
 	
 	const options = {};
-	options.fields = 'name heading description createdDate updatedDate advisor public approved portfolio rebalance maxNotional';
+	options.fields = 'name heading description createdDate updatedDate advisor public approved portfolio rebalance maxNotional latestPerformance latestAnalytics';
 	options.populate = 'advisor benchmark';
 	
 	return Promise.all([

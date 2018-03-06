@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:56:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 15:36:55
+* @Last Modified time: 2018-03-06 16:56:10
 */
 
 const PerformanceModel = require('../../models/Marketplace/Performance');
@@ -11,10 +11,11 @@ const AdvisorModel = require('../../models/Marketplace/Advisor');
 const APIError = require('../../utils/error');
 const Promise = require('bluebird');
 const HelperFunctions = require('./index');
+const PerformanceHelper = require('./Performance');
 
-function _computePortfolioRating (portfolioId) {
-	return PerformanceModel.fetchPerformance({portfolio: portfolioId})
-	.then(performance => {
+function _computePerformanceRating (performance) {
+	//return PerformanceModel.fetchPerformance({portfolio: portfolioId})
+	//.then(performance => {
 		//WRITE RATING LOGIC HERE
 		if (performance) {
 			//Use Sharpe Ratio Fractional Rnking
@@ -26,9 +27,10 @@ function _computePortfolioRating (portfolioId) {
 
 			return 5.0;
 		} else {
-			APIError.throwJsonError({portfolioId: portfolioId, message: "Performance not available"});
+			return 5.0
+			//APIError.throwJsonError({portfolioId: portfolioId, message: "Performance not available"});
 		}
-	});
+	//});
 }
 
 function _computeAggregateRating (adviceIds) {
@@ -74,24 +76,36 @@ function _updateAdvisorAnalytics(advisorId) {
 }
 
 function _updateAdviceAnalytics(adviceId) {
+	let subscribers;
+	let followers;
 	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio subscribers followers'})
 	.then(advice => {
 		if (advice) {
-			return  _computePortfolioRating(advice.portfolio)
-			.then(rating => {
-				return {
-					date: HelperFunctions.getDate(new Date()),
-					numSubscribers: advice.subscribers.filter(item => {return item.active == true}).length,
-					numFollowers: advice.followers.filter(item => {return item.active == true}).length,
-					rating: rating
-				};
-			});
+			subscribers = advice.subscribers;
+			followers = advice.followers;
+			return PerformanceHelper.getPerformanceSummary(advice.portfolio);
 		} else {
 			APIError.throwJsonError({advice: adviceId, message: "Advice not found while updating analytics"});
 		}
 	})
-	.then(adviceAnalytics => {
-		return AdviceModel.updateAnalytics({_id: adviceId}, adviceAnalytics);
+	.then(performance => {
+		return Promise.all([performance, _computePerformanceRating(performance)])
+	})
+	.then(([performance, rating]) => {
+		var updateObj = { 
+			analytics: {
+				date: HelperFunctions.getDate(new Date()),
+				numSubscribers: subscribers.filter(item => {return item.active == true}).length,
+				numFollowers: followers.filter(item => {return item.active == true}).length,
+				rating: rating,
+			},
+			latestPerformance: performance
+		};
+
+		return updateObj;
+	})
+	.then(adviceAnalyticsAndPerformance => {
+		return AdviceModel.updateAnalyticsAndPerformance({_id: adviceId}, adviceAnalyticsAndPerformance);
 	});
 }
 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-05 14:57:44
+* @Last Modified time: 2018-03-06 14:27:37
 */
 
 'use strict';
@@ -78,8 +78,8 @@ module.exports.getInvestorSummary = function(args, res, next) {
     .then(([investor, portfolios, updatedDefaultPortfolio]) => {
     	//Added check on item for NULL values - 27/02/2018
     	investor.portfolios = portfolios.filter(item => {return item ? !item.deleted : false;});
-    	investor.subscribedAdvices = investor.subscribedAdvices.filter(item => {return item ? item.active : false;});
-    	investor.followingAdvices = investor.followingAdvices.filter(item => {return item ? item.active : false;});
+    	investor.subscribedAdvices = investor.subscribedAdvices.filter(item => {return item ? item.active && !item.advice.deleted : false; });
+    	investor.followingAdvices = investor.followingAdvices.filter(item => {return item ? item.active && !item.advice.deleted : false;});
 
     	investor.defaultPortfolio = updatedDefaultPortfolio;
     	return res.status(200).json(investor);
@@ -614,6 +614,3 @@ module.exports.updateInvestorDefaultPortfolio = function(args, res, next) {
 		return res.status(400).send(err.message);
 	})
 };
-
-
-
