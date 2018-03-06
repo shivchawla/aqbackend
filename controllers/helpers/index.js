@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-02 12:56:17
+* @Last Modified time: 2018-03-06 10:40:21
 */
 
 'use strict';
@@ -31,7 +31,7 @@ function _compareIds(x, y) {
 
 function _compareDates(d1, d2) {
 	var t1 = new Date(d1).getTime();
-	var t2 = new Date(d1).getTime();
+	var t2 = new Date(d2).getTime();
 
 	return (t1 < t2) ? -1 : (t1 == t2) ? 0 : 1;
 }
@@ -131,6 +131,15 @@ module.exports.validatePortfolio = function(portfolio) {
 };
 
 module.exports.validateTransactions = function(transactions, portfolio) {
+
+	//Addding a checking for valid transaction date (05-03-2018)
+	var tomorrow = exports.getDate(new Date());
+	tomorrow.setDate(tomorrow.getDate()+1);
+	transactions.forEach(transaction => {
+		if (_compareDates(transaction.date, tomorrow) != -1) {
+			APIError.throwJsonError({message: "Illegal Transaction. Transactions later than today are not allowed"});
+		}
+	});
 
 	return new Promise((resolve, reject) => {
 
