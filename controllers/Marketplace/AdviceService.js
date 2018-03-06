@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-06 11:19:46
+* @Last Modified time: 2018-03-06 12:30:13
 */
 
 'use strict';
@@ -196,11 +196,11 @@ module.exports.getAdvices = function(args, res, next) {
     	userInvestorId = investor._id; 
 
     	if (following) {
-	        query.followers = {'$elemMatch':{'$eq': userInvestorId}};
+	        query.followers = {'$elemMatch':{investor: userInvestorId, active:true}};
 	    } 
 
 	    if(subscribed){
-	        query.subscribers = {'$elemMatch':{'$eq': userInvestorId}};
+	        query.subscribers = {'$elemMatch':{investor: userInvestorId, active:true}};
 	    }
 
 	    var advisorQuery = [];
@@ -225,7 +225,7 @@ module.exports.getAdvices = function(args, res, next) {
 	    	if (!userAdvisorId.equals(advisorId)) {
 	    		query.public = true;	
 	    	}
-	    } 
+	    }
 
 	    //  (deleted == false && subscribed == true) && 
 	    //	[(advisor != self && public == true) || -- ALL
@@ -264,10 +264,10 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const userId = args.user._id;
 	
 	const options = {};
-	options.fields = 'name heading description createdDate updatedDate advisor public approved analytics followers subscribers portfolio rebalance maxNotional';
+	options.fields = 'name heading description createdDate updatedDate advisor public approved portfolio rebalance maxNotional';
 	options.populate = 'advisor benchmark';
 	
-	Promise.all([
+	return Promise.all([
 		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
 		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, options),
 		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true})
@@ -279,8 +279,11 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	 		if((!advisorId.equals(advice.advisor._id) && advice.public == true)  
 	 			|| advisorId.equals(advice.advisor._id)) { 
 	 			
-				var nAdvice = _getAdviceSubscriptionDetail(advice, advisorId, investorId)
- 				return res.status(200).send(nAdvice);	
+				return AdviceHelper.computeAdviceSubscriptionDetail(adviceId, advisorId, investorId)
+				.then(subscriptionDetail => {
+					var nAdvice = Object.assign(subscriptionDetail, advice.toObject());
+					return res.status(200).send(nAdvice);
+				});
 
 			} else {
 				APIError.throwJsonError({userId: userId, adviceId: adviceId, message:"Not authorized to view this advice"});
