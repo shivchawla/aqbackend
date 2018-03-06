@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-20 14:48:39
+* @Last Modified time: 2018-03-05 19:54:21
 */
 
 'use strict';
@@ -76,15 +76,15 @@ module.exports.getAdvisorSummary = function(args, res, next) {
    	const userId = args.user._id;
     
     const options = {};
-    options.fields = 'user rating followers profile'
+    options.fields = 'user analytics followers profile'
     
  	return Promise.all([AdvisorModel.fetchAdvisor({_id: advisorId}, options), 
  		//Fetch advice performance (aggregate it or send the summary for each advisr.
  		//NEEDS summary definition)
- 		AdviceModel.fetchAdvices({advisor: advisorId, deleted: false}, {fields:'advicePerformance'})])
+ 		AdviceModel.fetchAdvices({advisor: advisorId, deleted: false}, {fields:''})])
   	.then(([advisor, advices]) => {
   		if(advisor && advices) {
-  			advisor = JSON.parse(JSON.stringify(advisor));
+  			advisor = Object.assign({}, advisor.toObject());
 		  	advisor["adviceCount"] = advices.length;
 		  	advisor.followers = advisor.followers.map(item => {return item.active == true;}).length; 
 		  	advisor.rating = advisor.rating.length > 0 ? advisor.rating[advisor.rating.length - 1] : 0.0;
@@ -110,7 +110,7 @@ module.exports.getAdvisorDetail = function(args, res, next) {
     const options = {};
     options.fields = args.fields.value;
     
-	AdvisorModel.fetchAdvisor({user: userId}, options)
+	return AdvisorModel.fetchAdvisor({user: userId}, options)
   	.then(advisor => {
   		if(advisor && advisor._id.equals(advisorId)) {
   			return res.status(200).json(advisor);

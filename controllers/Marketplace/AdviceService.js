@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-05 11:01:39
+* @Last Modified time: 2018-03-05 20:04:27
 */
 
 'use strict';
@@ -15,70 +15,8 @@ const config = require('config');
 const HelperFunctions = require("../helpers");
 const PortfolioHelper = require("../helpers/Portfolio");
 const PerformanceHelper = require("../helpers/Performance");
+const AdviceHelper = require("../helpers/Advice");
 const APIError = require('../../utils/error');
-
-function _getAdviceSubscriptionDetail(advice, advisorId, investorId) {
-	var nAdvice = Object.assign({}, advice.toObject());
-
-	var isFollowing = false;
-	var isSubscribed = false;
-	var isOwner = advisorId.equals(advice.advisor._id);
-
-	var activeSubscribers = advice.subscribers.filter(item => {return item.active == true});
-	var activeFollowers = advice.followers.filter(item => {return item.active == true});
-	var numSubscribers = activeSubscribers.length;
-	var numFollowers = activeFollowers.length;
-
-	if(!advisorId.equals(advice.advisor._id)) {
-		isFollowing = activeFollowers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
-		isSubscribed = activeSubscribers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
-	} 
-
-	var adviceAnalytics = advice.analytics;
-	var numAdviceAnalytics = adviceAnalytics.length;
-
-	var latestAnalytics = numAdviceAnalytics > 0 ? adviceAnalytics[numAdviceAnalytics - 1] : null;
-
-	delete nAdvice.subscribers;
-	delete nAdvice.followers;
-	delete nAdvice.analytics;
-
-	nAdvice = Object.assign({
-		latestAnalytics: latestAnalytics, 
-		isFollowing: isFollowing, 
-		isSubscribed: isSubscribed, 
-		isOwner: isOwner,
-		numFollowers: numFollowers,
-		numSubscribers: numSubscribers
-	}, nAdvice);
-	return nAdvice;
-}
-
-function _isUserAuthorizedToViewAdviceDetail(userId, adviceId) {
-	return Promise.all([
-		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert: true}),
-		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert: true}),
-		AdviceModel.fetchAdvice({_id: adviceId, deleted:false}, {fields:'advisor followers subscribers'})])
-	.then(([investor, advisor, advice])  => {
-		if(investor && advisor && advice) {
-			const advisorId = advisor._id;
-			
-			var activeSubscribers = advice.subscribers.filter(item => {return item.active == true}).map(item => item.investor.toString());
-			
-			const investorId = investor._id.toString();
-			//PERSONAL or subscribers
-			//get to see expanded portfolio if chosen
-			return advice.advisor.equals(advisorId) || activeSubscribers.indexOf(investorId) != -1;
-				
-		} else if(!investor) {
-			APIError.throwJsonError({message:"Investor not found"});
-		} else if(!advisor) {
-			APIError.throwJsonError({message:"Advisor not found"});
-		} else if (!advice) {
-			APIError.throwJsonError({message:"Advice not found"});
-		} 
-	});
-}
 
 module.exports.createAdvice = function(args, res, next) {
 	const userId = args.user._id;
@@ -211,58 +149,96 @@ module.exports.getAdvices = function(args, res, next) {
     options.limit = args.limit.value;
 
     options.sort = args.sort.value;
-    options.fields = 'name description heading createdDate updatedDate advisor public approved maxNotional rebalance analytics subscribers followers portfolio';
+    options.fields = 'name description heading createdDate updatedDate advisor public approved maxNotional rebalance';
+
+    var query = {deleted: false};
 
     const following = args.following.value;
-
+   
     const subscribed = args.subscribed.value;
+    
     const personal = args.personal.value;
+    
+    const advisorId = args.advisor.value;
 
     const approved = args.approved.value;
-
-    const defaultQuery = {deleted: false, public: true};
-
     if(approved) {
-    	defaultQuery.approved = true;
+        var approvedCategories = approved.split(",");    
+        query.approved = {$in: approvedCategories};
     }
 
-    const queryArray = [defaultQuery];
-   	
-   	let investorId;
-   	let advisorId;
+    const maxNotional = args.maxNotional.value;
+    if(approved) {
+        var maxNotionalCategories = maxNotional.split(",");    
+        query.maxNotional = {$in: maxNotionalCategories.map(item => parseFloat(item))};
+    }
 
-    Promise.all([AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id', insert: true}),
+    const rebalance = args.rebalance.value;
+    if(rebalance) {
+        var rebalanceCategories = rebalance.split(",");    
+        query.rebalance = {$in: rebalanceCategories};
+    }
+
+   	let userInvestorId;
+   	let userAdvisorId;
+
+    return Promise.all([AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id', insert: true}),
     		InvestorModel.fetchInvestor({user:userId}, {fields: '_id', insert: true})])
     .then(([advisor, investor]) => {
     	
-    	advisorId = advisor._id;
-    	investorId = investor._id;
-    	
-    	if (personal) {
-        	queryArray.push({advisor: advisorId, deleted: false});
-	    } 
+    	userAdvisorId = advisor._id;
+    	userInvestorId = investor._id; 
 
-	    if (following) {
-	        queryArray.push(Object.assign({}, defaultQuery, {followers: {'$elemMatch':{'$eq': investorId}}}));
+    	if (following) {
+	        query.followers = {'$elemMatch':{'$eq': userInvestorId}};
 	    } 
 
 	    if(subscribed){
-	        queryArray.push(Object.assign({}, defaultQuery, {subscribers: {'$elemMatch':{'$eq': investorId}}}));
+	        query.subscribers = {'$elemMatch':{'$eq': userInvestorId}};
 	    }
 
-	    const query = queryArray.length > 0 ? {'$or': queryArray} : defaultQuery;
+	    var advisorQuery = [];
+	    if(personal && !advisorId) {
+			var personalCategories = personal.split(",");
+	 		
+	    	if (personalCategories.indexOf("1") !=-1) {
+	    		//query.advisor = userAdvisorId;
+	    		advisorQuery.push({advisor: userAdvisorId});
+	    	}
 
-    	return AdviceModel.fetchAdvices(query, options)
+	    	if (personalCategories.indexOf("0") !=-1) {
+	    		advisorQuery.push({advisor:{'$ne': userAdvisorId}, public: true});
+	    	}
+
+	    	query = {'$and': [query, {'$or': advisorQuery}]}
+
+	    }
+
+     	if(advisorId) {
+	    	query.advisor = advisorId;
+	    	if (!userAdvisorId.equals(advisorId)) {
+	    		query.public = true;	
+	    	}
+	    } 
+
+	    //  (deleted == false && subscribed == true) && 
+	    //	[(advisor != self && public == true) || -- ALL
+	    //  (advisor == self)   -- PERSONAL]  && 
+	    //  (advisor == specific && public == true)
+
+    	return AdviceModel.fetchAdvices(query, options);
 	})
     .then(advices => {
     	if(advices) {
 	    	return Promise.map(advices , function(advice) {
 	    		return Promise.all([
-	    			_getAdviceSubscriptionDetail(advice, advisorId, investorId),
-	    			PerformanceHelper.getPerformanceSummary(advice.portfolio).catch(err => {return {error: err.message};})
+	    			AdviceHelper.computeAdviceSubscriptionDetail(advice._id, userAdvisorId, userInvestorId),
+	    			AdviceHelper.computeAdvicePerformanceSummary(advice._id)
     			])
-    			.then(([nAdvice, performanceSummary]) => {
-    				return Object.assign({performance: performanceSummary}, nAdvice);
+    			.then(([subscriptionDetail, performanceSummary]) => {
+    				const _cs = Object.assign(subscriptionDetail, performanceSummary);
+    				const nAdvice = Object.assign(_cs, advice.toObject());
+    				return nAdvice;
     			});
 			});
 		} else {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-05 13:40:18
+* @Last Modified time: 2018-03-06 09:56:10
 */
 
 'use strict';
@@ -476,6 +476,13 @@ module.exports.getPerformanceSummary = function(portfolioId) {
 		} else {
 			return null;
 		}
+	})
+	.catch(err => {
+		//ERROR in performance calculation
+		//Logging the error (needs IMPROVEMENT)
+		//Instead of hard fail, computation continues with error message
+		console.log(err.message);
+		return {error: err.message};
 	});
 }
 
