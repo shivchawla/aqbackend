@@ -1355,29 +1355,60 @@ paths:
         description: "auth token"
         type: "string"
         required: true
-      - name: following 
+      - name: all
         in: query
-        type: integer
+        type: boolean
         required: false
-        default: 1
-        description: Followed Advices only
-      - name: subscribed 
+        default: true
+        description: select all advices flag
+      - name: trending
         in: query
-        type: integer
+        type: boolean
         required: false
-        default: 1
-        description: Subscribed Advices only
-      - name: personal 
+        default: false
+        description: select trending advices flag
+      - name: subscribed
         in: query
-        type: integer
+        type: boolean
         required: false
-        default: 1
-        description: Self-authored Advices only
+        default: false
+        description: select subscribed advice flag
+      - name: following
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: select wishlist advice flag
+      - name: maxNotional
+        in: query
+        required: false
+        type: string
+        default: "100000,200000,30000,40000,50000,1000000"    
+        description: maximum value of advice
+      - name: rebalance
+        in: query
+        required: false
+        type: string
+        default: "Daily,Weekly,Bi-Weekly,Monthly,Quartely"
+        description: rebalance frequency
+      - name: advisor
+        in: query
+        type: string
+        format: uuid
+        required: false
+        description: advisor id
+      - name: personal
+        in: query
+        type: string
+        required: false
+        default: "0,1"
+        description: advice owner
       - name: approved
         in: query
-        type: integer
+        type: string
+        default: "0,1"
         required: false
-        description: only approved advices
+        description: approval status
       - name: skip
         in: query
         type: integer
@@ -1388,7 +1419,7 @@ paths:
         in: query
         type: integer
         required: false
-        default: 5
+        default: 10
         description: total number of advice
       - name: sort
         in: query
