@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-06 18:38:05
+* @Last Modified time: 2018-03-06 18:55:43
 */
 
 'use strict';
@@ -160,7 +160,7 @@ module.exports.getAdvices = function(args, res, next) {
 
 	options.orderParam = orderParam;
 
-    options.fields = 'name description heading createdDate updatedDate advisor public approved maxNotional rebalance latestPerformance';
+    options.fields = 'name description heading createdDate updatedDate advisor public approved maxNotional rebalance latestPerformance latestAnalytics';
 
     var query = {deleted: false};
 
