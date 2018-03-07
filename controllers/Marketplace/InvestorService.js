@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-06 14:27:37
+* @Last Modified time: 2018-03-07 11:28:41
 */
 
 'use strict';
@@ -53,8 +53,7 @@ module.exports.getInvestorSummary = function(args, res, next) {
 	const investorId = args.investorId.value;
    	
    	const options = {};
-    options.fields = 'user defaultPortfolio portfolios followingAdvices subscribedAdvices';
-    options.populate = 'followingAdvices subscribedAdvices';
+    options.fields = 'user defaultPortfolio profile';
     options.insert = true;
 
     const userId = args.user._id;
@@ -62,27 +61,17 @@ module.exports.getInvestorSummary = function(args, res, next) {
     return InvestorModel.fetchInvestor({user: userId, _id: investorId}, options)
     .then(investor => {
     	if(investor) {
-    		if(investor.portfolios) {
-				return Promise.all([investor, 
-						Promise.map(investor.portfolios, function(item) {
-							return PortfolioModel.fetchPortfolio({_id: item}, {fields: '_id name deleted'});
-						}),
-						investor.defaultPortfolio ? PortfolioHelper.getUpdatedPortfolio(investor.defaultPortfolio, 'name detail benchmark') : null]);
-			} else {
-				return [investor, []];	
-			}
+			return Promise.all([
+				investor, 
+				investor.defaultPortfolio ? PortfolioHelper.getUpdatedPortfolio(investor.defaultPortfolio, 'name detail benchmark') : null,
+				investor.defaultPortfolio ? PerformanceHelper.getLatestPerformance(investor.defaultPortfolio) : null
+			]);
     	} else {
-    		APIError.throwJsonError({investorId: investorId, message:"Investor not found or unauthorized"});
+    		APIError.throwJsonError({investorId: investorId, message:"Investor not found or not authorized"});
     	}
     })
-    .then(([investor, portfolios, updatedDefaultPortfolio]) => {
-    	//Added check on item for NULL values - 27/02/2018
-    	investor.portfolios = portfolios.filter(item => {return item ? !item.deleted : false;});
-    	investor.subscribedAdvices = investor.subscribedAdvices.filter(item => {return item ? item.active && !item.advice.deleted : false; });
-    	investor.followingAdvices = investor.followingAdvices.filter(item => {return item ? item.active && !item.advice.deleted : false;});
-
-    	investor.defaultPortfolio = updatedDefaultPortfolio;
-    	return res.status(200).json(investor);
+    .then(([investor, updatedDefaultPortfolio, updatedDefaultPerformance]) => {
+    	return res.status(200).send(Object.assign(investor.toObject(), {defaultPortfolio: updatedDefaultPortfolio, defaultPerformance: updatedDefaultPerformance}));
     })
 	.catch(err => {
 		return res.status(400).send(err.message);
@@ -280,19 +269,18 @@ module.exports.getInvestorPortfolios = function(args, res, next) {
 	//GET all advices of user with stock in it. 
 	//GET all portfolios of investors with stock in it
 
-	return InvestorModel.fetchInvestor({user: userId, _id:investorId}, {fields: 'portfolios', insert: true})
+	return InvestorModel.fetchInvestor({user: userId, _id:investorId}, {fields: 'portfolios defaultPortfolio', insert: true})
 	.then(investor => {
 		if (investor) {
 			if(investor.portfolios) {
 				return Promise.map(investor.portfolios, function(item) {
-					var fields = 'name benchmark createdDate updatedDate';
+					var fields = '_id name benchmark createdDate updatedDate';
 					return Promise.all([
 						item ? PortfolioModel.fetchPortfolio({_id: item, deleted: false}, {fields: fields}) : {message:"Portfolio not valid"},
 						item ? PerformanceHelper.getPerformanceSummary(item) : null		
 					])
 					.then(([portfolio, performanceSummary]) => {
-						return portfolio ? Object.assign({performance: performanceSummary}, portfolio.toObject()) : null;
-					
+						return portfolio ? Object.assign({performance: performanceSummary, isDefaultPortfolio: investor.defaultPortfolio.equals(portfolio._id)}, portfolio.toObject()) : null;
 					});
 				});
 			} else {
