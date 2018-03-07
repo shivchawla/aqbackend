@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 16:20:51
+* @Last Modified time: 2018-03-07 13:24:27
 */
 'use strict';
 
@@ -11,6 +11,17 @@ const Schema = mongoose.Schema;
 
 const Performance = require('./Performance');
 const Investor = require('./Investor');
+
+
+const Address = new Schema({
+  	line1: String,
+  	line2: String,
+  	line3: String,
+    city: String,
+    state: String,
+    pincode: String,
+    country: String
+});
 
 const AdvisorAnalytics = new Schema({
     date: Date,
@@ -32,7 +43,7 @@ const Advisor = new Schema({
     	default: false,
     },
 
-    approvedDate: Date,  
+    approvedDate: Date, 
 
     followers: [{
     	investor: {
@@ -48,9 +59,23 @@ const Advisor = new Schema({
         updatedDate: Date
     }],
        
-    profile: Schema.Types.Mixed,
+    profile: {
+    	isCompany:Boolean,
+    	isIndividual:Boolean,
+    	companyName: String,
+    	isRegistered: Boolean,
+    	registrationNumber: String,
+    	address: Address,
+    	phone: String, 
+    	linkedIn: String,
+    	facebook: String,
+    	twitter:String,
+    	webUrl:String
+    },
 
-    analytics: [AdvisorAnalytics]
+    analytics: [AdvisorAnalytics],
+
+    latestAnalytics: AdvisorAnalytics
 });
 
 Advisor.statics.saveAdvisor = function(advisorDetail) {
@@ -76,25 +101,6 @@ Advisor.statics.updateFollowers = function(query, userId) {
             	advisor.followers[idx].active = false;
             	advisor.followers[idx].updatedDate = new Date();
             }
-            
-            //Now update history
-            /*var followersHistory = advisor.followersHistory;
-            idx = followersHistory.map(x => x.investor.toString()).lastIndexOf(id);
-            
-            if(idx == -1) {
-            	//Insert the investor
-            	followersHistory.addToSet({startDate: new Date(), endDate: farfuture(), investor:id});
-            } else {
-            	// Get the enddate
-            	var endTime = followersHistory[idx].endDate.getTime();
-            	// Check if already following
-            	if (endTime == farfuture().getTime()) {
-            		//Set end date as NOW
-            		followersHistory[idx].endDate = new Date();
-            	} else {
-            		followersHistory.addToSet({startDate: new Date(), endDate: farfuture(), investor:id});
-            	}
-            }*/
         
         	return advisor.saveAsync();
     	}
@@ -106,8 +112,6 @@ Advisor.statics.fetchAdvisors = function(query, options) {
 	var q = this.find(query)
 				.populate('user', 'firstName lastName');
 
-	console.log(options);
-
 	if(options.skip) {
 		q = q.skip(options.skip) 	
 	}
@@ -117,22 +121,12 @@ Advisor.statics.fetchAdvisors = function(query, options) {
 	}			
 	
 	if(options.fields) {
-		//options.fields = options.fields.replace(',',' ');
 		q = q.select(options.fields);
 	}
 
-	if((options.fields && options.fields.indexOf('advices')) || !options.fields) {
-		q = q.populate('advices', null, { _id: { $ne: null }})
-	}
-
-	if((options.fields && options.fields.indexOf('followers')) || !options.fields) {
-		q = q.populate('followers.user', 'firstName lastName', { _id: { $ne: null }})
-	}
-
-	if(options.sort) {
-		options.sort = options.sort.replace(',',' ');
-		q = q.sort(options.sort);
-	}
+	if (options.orderParam && options.order) {
+        q = q.sort({[options.orderParam]: options.order});
+    }
 	
 	return q.execAsync();
 };
@@ -185,29 +179,35 @@ Advisor.statics.removeAdvice = function(query, adviceId) {
 	});
 };
 
-Advisor.statics.updateAdvisor = function(query, updates) {
-	return this.findOneAndUpdate(query, updates, {upsert: true, new: true, setDefaultsOnInsert: true});
+Advisor.statics.updateAdvisor = function(query, updates, options) {
+	return this.findOneAndUpdate(query, updates, options);
 };
 
-Advisor.statics.updateAnalytics = function(query, analytics) {
+Advisor.statics.updateAnalytics = function(query, latestAnalytics) {
     return this.findOne(query, {analytics:1})
     .then(advisor => {
         var advisorAnalytics = advisor.analytics;
-        var analyticsDate = analytics.date;
+        var latestAnalyticsDate = latestAnalytics.date;
 
         if (!advisorAnalytics) {
         	advisor.analytics = [];
         }
 
         //Find date
-        var idx = advisorAnalytics.map(item => item.date.getTime()).indexOf(analyticsDate.getTime());
+        var idx = advisorAnalytics.map(item => item.date.getTime()).indexOf(latestAnalyticsDate.getTime());
         if (idx == -1) {
-            advisorAnalytics.push(analytics);
+            advisorAnalytics.push(latestAnalytics);
         } else {
-            Object.keys(analytics).forEach(key => {
-                advisorAnalytics[idx][key] = analytics[key];
+            Object.keys(latestAnalytics).forEach(key => {
+                advisorAnalytics[idx][key] = latestAnalytics[key];
             });
         }
+
+        if(!advisor.latestAnalytics) {
+        	advisor.latestAnalytics = {};
+        }
+
+        advisor.latestAnalytics = latestAnalytics;
 
         return advisor.saveAsync();
 

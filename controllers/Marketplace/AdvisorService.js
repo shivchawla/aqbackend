@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-05 19:54:21
+* @Last Modified time: 2018-03-07 13:19:30
 */
 
 'use strict';
@@ -11,6 +11,7 @@ const InvestorModel = require('../../models/Marketplace/Investor');
 const AdviceModel = require('../../models/Marketplace/Advice');
 const APIError = require('../../utils/error');
 const Promise = require('bluebird');
+const config = require('config');
 
 module.exports.createAdvisor = function(args, res, next) {
     const userId = args.user._id;
@@ -40,31 +41,25 @@ module.exports.getAdvisors = function(args, res, next) {
     const options = {};
     options.limit = args.limit.value;
     options.skip = args.skip.value;
-    options.fields = args.fields.value;
-    options.sort = args.sort.value;
+    options.fields = 'approved latestAnalytics user ';
+
+    var publicProfileFields = config.get('advisor_public_profile_fields').map(item => "profile."+item).join(" ");
+
+    options.fields= options.fields.concat(publicProfileFields);
+
+    options.orderParam = "latestAnalytics."+(args.orderParam.value || 'rating');
+    options.order = args.order.value || -1;
+
     const userId = args.user._id;
 
     return AdvisorModel.fetchAdvisors({}, options)
     .then(advisors => {
     	if(advisors) {
-    		return Promise.all([advisors, 
-    			Promise.map(advisors, function(advisor) {
-    				return AdviceModel.fetchAdvices({advisor: advisor, deleted: false}, {});
-    			})
-			])
-		} else {
-    		APIError.throwJsonError({message:"No advisors found"});
-    	}
-	})
-	.then(([advisors, advices]) => {
-		
-		advisors = JSON.parse(JSON.stringify(advisors));
-		
-		advisors.forEach((advisor, i) => {
-			advisor["adviceCount"] = advices[i].length;
-		});
 
-		return res.status(200).json(advisors);
+			return res.status(200).json(advisors);
+		} else {
+			APIError.throwJsonError({message: "No advisors found"});
+		}
     })
     .catch(err => {
     	res.status(400).send(err.message);
@@ -74,26 +69,39 @@ module.exports.getAdvisors = function(args, res, next) {
 module.exports.getAdvisorSummary = function(args, res, next) {
 	const advisorId = args.advisorId.value;
    	const userId = args.user._id;
+   	const dashboard = args.dashboard.value;
     
     const options = {};
-    options.fields = 'user analytics followers profile'
+ 	var publicProfileFields = config.get('advisor_public_profile_fields').map(item => "profile."+item).join(" ");
     
- 	return Promise.all([AdvisorModel.fetchAdvisor({_id: advisorId}, options), 
- 		//Fetch advice performance (aggregate it or send the summary for each advisr.
- 		//NEEDS summary definition)
- 		AdviceModel.fetchAdvices({advisor: advisorId, deleted: false}, {fields:''})])
+    return AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id'})
+    .then(userAdvisor => {
+    	let adviceQuery = {deleted: false, advisor: advisorId};
+    	const adviceOptions = {};
+
+    	adviceOptions.fields = '_id name latestAnalytics latestPerformance';
+
+    	if(!userAdvisor._id.equals(advisorId)) {
+    		options.fields = 'approved latestAnalytics user ' + publicProfileFields;
+    		adviceQuery.public = true;
+    		adviceOptions.fields= '_id name latestAnalytics latestPerformance';
+    	} else if(userAdvisor._id.equals(advisorId) && dashboard) {
+    		options.fields = '-followers ';
+    		adviceOptions.fields = '_id name analytics';
+    	} else {
+    		options.fields = '-followers -analytics';
+    	}
+    
+ 		return Promise.all([
+ 			AdvisorModel.fetchAdvisor({_id: advisorId}, options),
+ 			AdviceModel.fetchAdvices(adviceQuery, adviceOptions)
+		]);
+	})
   	.then(([advisor, advices]) => {
-  		if(advisor && advices) {
-  			advisor = Object.assign({}, advisor.toObject());
-		  	advisor["adviceCount"] = advices.length;
-		  	advisor.followers = advisor.followers.map(item => {return item.active == true;}).length; 
-		  	advisor.rating = advisor.rating.length > 0 ? advisor.rating[advisor.rating.length - 1] : 0.0;
-		  	
-		  	delete advisor.advices;
-		  	
-		  	return res.status(200).json(advisor);
+  		if(advisor) {
+		  	return res.status(200).send(Object.assign({advices: advices ? advices : []}, advisor.toObject()));
  		} else {
- 			APIError.throwJsonError({advisorId: advisorId, message: "Advisor/Advices not found"});
+ 			APIError.throwJsonError({advisorId: advisorId, message: "Advisor not found"});
  		}
   	})
   	.catch(err => {
@@ -101,26 +109,27 @@ module.exports.getAdvisorSummary = function(args, res, next) {
   	});
 };
 
-//NEEDS more work..Wha to return??
-module.exports.getAdvisorDetail = function(args, res, next) {
-	const advisorId = args.advisorId.value;
-    const userId = args.user._id;
-
-    //TODO: options when user is investor/advisor
-    const options = {};
-    options.fields = args.fields.value;
+module.exports.updateAdvisorProfile = function(args, res, next) {
     
-	return AdvisorModel.fetchAdvisor({user: userId}, options)
-  	.then(advisor => {
-  		if(advisor && advisor._id.equals(advisorId)) {
-  			return res.status(200).json(advisor);
+    const profile = args.body.value;
+
+    const userId = args.user._id;
+    const advisorId = args.advisorId.value;
+
+    return AdvisorModel.fetchAdvisor({user:userId, _id:advisorId}, {fields: '_id'})
+    .then(advisor => {
+    	if(advisor) {
+			return AdvisorModel.updateAdvisor({_id:advisorId}, {profile: profile}, {new:true, fields:'-followers -analytics'})
 		} else {
-			APIError.throwJsonError({message:"Advisor not found or not authorized"});
+			APIError.throwJsonError({message: "No advisor found/Not authorized"});
 		}
-  	})
-  	.catch(err => {
-      	return res.status(400).send(err.message);
-  	});
+    })
+    .then(advisor => {
+    	return res.status(200).send(advisor);
+	})
+    .catch(err => {
+    	return res.status(400).send(err.message);
+    });
 };
 
 module.exports.followAdvisor = function(args, res, next) {

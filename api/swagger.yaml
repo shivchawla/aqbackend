@@ -1194,6 +1194,11 @@ paths:
         description: "auth token"
         type: "string"
         required: true
+      - name: search
+        in: query
+        type: string
+        description: search advices by text
+        required: false
       - name: skip
         in: query
         description: skip number of records
@@ -1205,16 +1210,19 @@ paths:
         type: integer
         required: false
         default: 10 
-      - name: sort
+      - name: orderParam
         in: query
         type: string
         required: false
+        enum: [rating, numSubscribers, numAdvices]
+        default: rating
         description: sort criteria
-      - name: fields
+      - name: order
         in: query
-        type: string
+        type: integer
         required: false
-        description: selection fields
+        default: -1
+        description: sort criteria
       responses:
         200:
           description: "get advisors"
@@ -1246,11 +1254,51 @@ paths:
         required: true
         description: advisorId
         type: string
+      - name: dashboard
+        in: query
+        type: integer
+        required: false
+        default: 0
+        description: include dashboard related info
       responses:
         200:
           description: "get advisor"
           schema:
             $ref: "#/definitions/Advisor"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Advisor"
+
+  /advisor/{advisorId}/profile:
+    put:
+      tags:
+      - advisor
+      summary: update advisor profile
+      description: update advisor profile
+      operationId: updateAdvisorProfile
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: string
+        required: true
+      - name: advisorId
+        in: path
+        required: true
+        description: advisorId
+        type: string
+      - name: body
+        in: body
+        required: true
+        schema: 
+          $ref: '#/definitions/AdvisorProfile'
+      responses:
+        200:
+          description: "updated advisor profile"
         400:
           description: "Not Authorized"
           schema:
@@ -2640,8 +2688,7 @@ definitions:
     required:
       - preview
       - action
-      - transactions
-      
+      - transactions     
     properties:
       preview:
         type: boolean
@@ -2749,6 +2796,44 @@ definitions:
   Advisor:
     type: object
 
+# Advisor Profile
+  AdvisorProfile:
+    type: object
+    properties:
+      isCompany: 
+        type: boolean
+        default: false
+      isIndividual: 
+        type: boolean
+        default: true
+      companyName: 
+        type: string
+        default: ""
+      isRegistered: 
+        type: boolean
+        default: false
+      registrationNumber:
+        type: string
+        default: ""
+      webUrl: 
+        type: string
+        default: ""
+      address: 
+        $ref: '#/definitions/Address'
+      phone: 
+        type: string
+        default: ""
+      linkedIn:
+        type: string
+        default: ""
+      facebook: 
+        type: string
+        default: ""
+      twitter:
+        type: string
+        default: ""
+      
+
 # Security-Time (for watchlist)
   SecurityTime:
     type: object
@@ -2775,4 +2860,34 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/SecurityTime'
+
+  Address:
+    type: object
+    required:
+      - line1
+      - city
+      - state
+      - pincode
+      - country
+    properties:
+      line1:
+        type: string
+        default: ""
+      line2:
+        type: string
+        default: ""
+      line3:
+        type: string
+        default: ""
+      city: 
+        type: string
+        default: ""
+      state: 
+        type: string
+        default: ""
+      pincode: 
+        type: number
+      country:
+        type: string
+        default: "IN"
 
