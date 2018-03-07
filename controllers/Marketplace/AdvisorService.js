@@ -2,10 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-07 13:19:30
+* @Last Modified time: 2018-03-07 16:11:03
 */
 
 'use strict';
+const UserModel = require('../../models/user');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -45,7 +46,7 @@ module.exports.getAdvisors = function(args, res, next) {
 
     var publicProfileFields = config.get('advisor_public_profile_fields').map(item => "profile."+item).join(" ");
 
-    options.fields= options.fields.concat(publicProfileFields);
+    options.fields = options.fields.concat(publicProfileFields);
 
     options.orderParam = "latestAnalytics."+(args.orderParam.value || 'rating');
     options.order = args.order.value || -1;
@@ -55,7 +56,6 @@ module.exports.getAdvisors = function(args, res, next) {
     return AdvisorModel.fetchAdvisors({}, options)
     .then(advisors => {
     	if(advisors) {
-
 			return res.status(200).json(advisors);
 		} else {
 			APIError.throwJsonError({message: "No advisors found"});
@@ -116,10 +116,28 @@ module.exports.updateAdvisorProfile = function(args, res, next) {
     const userId = args.user._id;
     const advisorId = args.advisorId.value;
 
-    return AdvisorModel.fetchAdvisor({user:userId, _id:advisorId}, {fields: '_id'})
+    return new Promise((resolve, reject) => {
+    	if((profile.isCompany && profile.isIndividual) || (profile.isCompany && profile.isIndividual)) {
+    		APIError.throwJsonError({message: "Can't be both a Company and an Individual"});
+    	} 
+		
+		if(profile.isCompany && (!profile.isCompany || profile.companyName =="")) {
+			APIError.throwJsonError({message: "Company name required if advisor a company"});
+		}
+
+		resolve(true);
+
+    })	
+    .then(valid => {
+    	if (valid) {
+    		return AdvisorModel.fetchAdvisor({user:userId, _id:advisorId}, {fields: '_id'});
+		} else {
+			APIError.throwJsonError({message: "Invalid profile settings"});
+		}
+	})
     .then(advisor => {
     	if(advisor) {
-			return AdvisorModel.updateAdvisor({_id:advisorId}, {profile: profile}, {new:true, fields:'-followers -analytics'})
+			return AdvisorModel.updateAdvisor({_id:advisorId}, {profile: profile}, {new:true, fields:'profile'})
 		} else {
 			APIError.throwJsonError({message: "No advisor found/Not authorized"});
 		}
@@ -168,6 +186,32 @@ module.exports.followAdvisor = function(args, res, next) {
     .catch(err => {
     	return res.status(400).send(err.message);
     });
+};
+
+module.exports.approveAdvisor = function(args, res, next) {
+	const userId = args.user._id;
+	const advisorId = args.advisorId.value;
+	const approval = args.body.value;
+
+	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {fields:'_id'})
+	.then(users => {
+		console.log(users);
+		if(users) {
+			if(users.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
+				return AdvisorModel.updateApproval({_id:advisorId}, Object.assign({user: userId}, approval));
+			} else {
+				APIError.throwJsonError({message: "User not authorized to approve"});
+			}
+		} else {
+			APIError.throwJsonError({message: " No authorized user found to approve"});
+		}
+	})
+	.then(advisor => {
+		return res.status(200).send({message: "Approval updated"});
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
 };
 
 function farfuture() {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-06 18:42:56
+* @Last Modified time: 2018-03-07 15:50:58
 */
 'use strict';
 const mongoose = require('../index');
@@ -83,7 +83,28 @@ const Advice = new Schema({
         default: false
     },
 
-    approvedDate: Date,
+    approvalMessages:[{
+        user: {
+            type: Schema.Types.ObjectId,
+            ref:'User',
+            required: true
+        },
+        
+        date: {
+            type: Date,
+            required: true  
+        },
+
+        message: {
+            type: String,
+            required: true,
+        },
+
+        approved: {
+            type: Boolean,
+            required: true
+        },
+    }],
 
     deleted: {
         type: Boolean,
@@ -169,8 +190,6 @@ Advice.statics.fetchAdvices = function(query, options) {
     }
 	
     if (options.orderParam && options.order) {
-        console.log(options.orderParam);
-        console.log(options.order);
         q = q.sort({[options.orderParam]: options.order});
     }
 
@@ -349,6 +368,24 @@ Advice.statics.fetchAdvicePortfolio = function(query, date) {
         });    
     }
 };
+
+Advice.statics.updateApproval = function(query, latestApproval) {
+    
+    var approvalMessage = latestApproval.message;
+    var approvedStatus = latestApproval.approved;
+    var user = latestApproval.user;
+
+    const approvedMessage = ({
+        date: new Date(), 
+        message: approvalMessage,
+        approved: approvedStatus,
+        user: user
+    });
+
+    const updates = {'$set':{approved: approvedStatus}, '$push':{approvalMessages: approvedMessage}};       
+
+    return this.findOneAndUpdate(query, updates);
+}
 
 function farfuture() {
 	return new Date(2200, 1, 1);

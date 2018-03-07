@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-07 13:24:27
+* @Last Modified time: 2018-03-07 15:51:04
 */
 'use strict';
 
@@ -43,7 +43,28 @@ const Advisor = new Schema({
     	default: false,
     },
 
-    approvedDate: Date, 
+    approvalMessages:[{
+    	user: {
+    		type: Schema.Types.ObjectId,
+        	ref:'User',
+        	required: true
+    	},
+    	
+    	date: {
+    		type: Date,
+    		required: true	
+		},
+
+    	message: {
+    		type: String,
+    		required: true,
+    	},
+
+    	approved: {
+			type: Boolean,
+    		required: true
+		},
+    }],
 
     followers: [{
     	investor: {
@@ -214,6 +235,23 @@ Advisor.statics.updateAnalytics = function(query, latestAnalytics) {
     });
 };
 
+Advisor.statics.updateApproval = function(query, latestApproval) {
+	
+	var approvalMessage = latestApproval.message;
+	var approvedStatus = latestApproval.approved;
+	var user = latestApproval.user;
+
+	const approvedMessage = ({
+		date: new Date(), 
+		message: approvalMessage,
+		approved: approvedStatus,
+		user: user
+	});
+
+	const updates = {'$set':{approved: approvedStatus}, '$push':{approvalMessages: approvedMessage}};		
+
+	return this.findOneAndUpdate(query, updates);
+}
 
 function getTime(d) {
 	return d.getTime();

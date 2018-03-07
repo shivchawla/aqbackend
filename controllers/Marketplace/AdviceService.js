@@ -2,10 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-06 18:55:43
+* @Last Modified time: 2018-03-07 16:45:28
 */
 
 'use strict';
+const UserModel = require('../../models/user');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -528,3 +529,29 @@ module.exports.subscribeAdvice = function(args, res, next) {
     	return res.status(400).send(err.message);
     });
 };
+
+module.exports.approveAdvice = function(args, res, next) {
+	const userId = args.user._id;
+	const adviceId = args.adviceId.value;
+	const approval = args.body.value;
+
+	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {fields:'_id'})
+	.then(users => {
+		if(users) {
+			if(users.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
+				return AdviceModel.updateApproval({_id:adviceId}, Object.assign({user: userId}, approval));
+			} else {
+				APIError.throwJsonError({message: "User not authorized to approve"});
+			}
+		} else {
+			APIError.throwJsonError({message: " No authorized user found to approve"});
+		}
+	})
+	.then(advice => {
+		return res.status(200).send({message: "Approval updated"});
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
+};
+

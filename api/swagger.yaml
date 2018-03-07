@@ -36,7 +36,6 @@ tags:
   description: "operations on Julia Notebook" 
 - name: "performance"
   description: "operations on Performance" 
-
   externalDocs:
     description: "Find out more about us"
     url: "http://www.aimsquant.com"
@@ -1304,39 +1303,6 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Advisor"
-
-  /advisor/{advisorId}/detail:
-    get:
-      tags:
-      - advisor
-      summary: get advisor detail
-      description: get advisor for id
-      operationId: getAdvisorDetail
-      security:
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: advisorId
-        in: path
-        required: true
-        type: string
-      - name: fields
-        in: query
-        type: string
-        required: false
-        description: selection fields
-      responses:
-        200:
-          description: "get advisor for id"
-        400:
-          description: "Not Authorized"
-          schema:
-            $ref: "#/definitions/Error"
-      x-swagger-router-controller: "Advisor"
   
   /advisor/{advisorId}/follow:
     post:
@@ -1357,6 +1323,35 @@ paths:
         in: path
         type: string
         required: true
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advisor"
+
+  /advisor/{advisorId}/approve:
+    post:
+      tags:
+      - 'advisor'
+      summary: add aproval or approval related message
+      description: Approve an advisor
+      operationId: approveAdvisor
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: advisorId
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/ApprovalMessage'
       responses:
         200:
           description: OK
@@ -1716,6 +1711,35 @@ paths:
           description: OK
       x-swagger-router-controller: "Advice"
 
+  /advice/{adviceId}/approve:
+    post:
+      tags:
+      - 'advice'
+      summary: add aproval or approval related message
+      description: Approve an advice
+      operationId: approveAdvice
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/ApprovalMessage'
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advice"
+     
   /investor:
     post:
       tags:
@@ -2890,4 +2914,16 @@ definitions:
       country:
         type: string
         default: "IN"
+
+  ApprovalMessage:
+    type: object
+    required:
+      - message
+      - approved
+    properties:
+      message: 
+        type: string
+      approved:
+        type: boolean
+
 
