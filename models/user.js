@@ -36,12 +36,8 @@ const User = new Schema({
         type: String,
         required: true
     },
-    createdAt: {
-        type: Date,
-        //required: true,
-    },
-    updatedAt: Date
 
+    createdDate: Date
 });
 
 User.index({

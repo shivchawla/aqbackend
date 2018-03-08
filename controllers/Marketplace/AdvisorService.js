@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-07 16:11:03
+* @Last Modified time: 2018-03-08 11:06:17
 */
 
 'use strict';
@@ -74,18 +74,20 @@ module.exports.getAdvisorSummary = function(args, res, next) {
     const options = {};
  	var publicProfileFields = config.get('advisor_public_profile_fields').map(item => "profile."+item).join(" ");
     
-    return AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id'})
+	return AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id'})
     .then(userAdvisor => {
     	let adviceQuery = {deleted: false, advisor: advisorId};
     	const adviceOptions = {};
 
     	adviceOptions.fields = '_id name latestAnalytics latestPerformance';
 
-    	if(!userAdvisor._id.equals(advisorId)) {
-    		options.fields = 'approved latestAnalytics user ' + publicProfileFields;
+    	var isOwner = userAdvisor._id.equals(advisorId);
+
+    	if(!isOwner) {
+    		options.fields = 'approved latestAnalytics user followers ' + publicProfileFields;
     		adviceQuery.public = true;
     		adviceOptions.fields= '_id name latestAnalytics latestPerformance';
-    	} else if(userAdvisor._id.equals(advisorId) && dashboard) {
+    	} else if(isOwner && dashboard) {
     		options.fields = '-followers ';
     		adviceOptions.fields = '_id name analytics';
     	} else {
@@ -93,13 +95,19 @@ module.exports.getAdvisorSummary = function(args, res, next) {
     	}
     
  		return Promise.all([
+ 			!isOwner ? InvestorModel.fetchInvestor({user:userId}, {fields: '_id'}) : null,
  			AdvisorModel.fetchAdvisor({_id: advisorId}, options),
  			AdviceModel.fetchAdvices(adviceQuery, adviceOptions)
 		]);
 	})
-  	.then(([advisor, advices]) => {
+  	.then(([investor, advisor, advices]) => {
   		if(advisor) {
-		  	return res.status(200).send(Object.assign({advices: advices ? advices : []}, advisor.toObject()));
+  			var isOwner = !investor;
+  			var isFollowing = !isOwner ? advisor.followers ? advisor.followers.filter(item => item.active).map(item => item.investor.toString()).indexOf(investor._id.toString) != -1 : false: false;
+  			const nAdvisor = Object.assign({advices: advices ? advices : [], isOwner: isOwner, isFollowing: isFollowing}, advisor.toObject());
+		  	delete nAdvisor.followers;
+
+		  	return res.status(200).send(nAdvisor);
  		} else {
  			APIError.throwJsonError({advisorId: advisorId, message: "Advisor not found"});
  		}

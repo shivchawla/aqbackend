@@ -16,7 +16,8 @@ exports.registerUser = function(args, res, next) {
         firstName: args.body.value.firstName,
         lastName: args.body.value.lastName,
         password: args.body.value.password,
-        code: uuid.v4()
+        code: uuid.v4(),
+        createdDate: new Date(),
     };
 
     hashUtil.genHash(user.password)
