@@ -21,6 +21,7 @@ function getConnectionForFt() {
         FORWARD TEST CONTROL
 ===================================== */
 
+/*********SEEMS LIKE NOT IN USE***********/ 
 // Manual trigger of a particular forward test
 function runForwardTest(forwardtestId) {
     execForwardTest(forwardtestId, server, function(err, updateData) {
@@ -112,6 +113,30 @@ function handleExecForwardTest(forwardtestId) {
     });
 }
 
+function filterForwardTest(fTest) {
+    const nFt = Object.assign({}, fTest);
+
+    //Filter out VariableTracker LogTracker TransactionTracker OrderTracker
+     var serializedData = nFt.serializedData;
+     
+     delete serializedData.variabletracker;
+     delete serializedData.logTracker;
+     delete serializedData.transactionTracker;
+     delete serializedData.orderTracker;
+
+     //Also, just send the latest Cash Tracker and Account Tracker
+     var allCashDates = Object.keys(serializedData.cashtracker).map(item => new Date(item).getTime()).sort();
+     var lastCashDate = allCashDates.length > 0 ? new Date(allCashDates[allCashDates.length - 1]).toDateString() : null;
+     serializedData.cashtracker = lastCashDate ? {lastCashDate: serializedData.cashtracker[lastCashDate]} : {}
+
+          //Also, just send the latest Cash Tracker and Account Tracker
+     var allAccountDates = Object.keys(serializedData.accounttracker).map(item => new Date(item).getTime()).sort();
+     var lastAccoutDate = allAccountDates.length > 0 ? new Date(allAccountDates[allAccountDates.length - 1]).toDateString() : null;
+     serializedData.accounttracker = lastAccountDate ? {lastAccountDate: serializedData.accounttracker[lastAccountDate]} : {};
+
+     return nFt;
+}
+
 // Forward test executer
 // Will start running a forward test on the Julia server
 function execForwardTest(forwardtestId, cb) {
@@ -120,12 +145,22 @@ function execForwardTest(forwardtestId, cb) {
     var connection = getConnectionForFt();
     console.log(`Choosing connection: ${connection}`)
 
-    ForwardTestModel.fetchForwardTest({
-        _id: forwardtestId, active: true, error: false, deleted: false}, {})
+
+    //Pick specific fields of forward test to keep the object 
+    //as light as possible
+    //VariableTracker, LogTracker, TransactionTracker, OrderTracker
+    //are ****NOT REQUIRED****
+    //ALSO, only the LATEST CashTracker and AccountTracker
+    ForwardTestModel.fetchForwardTest(
+        {_id: forwardtestId, active: true, error: false, deleted: false}, 
+        {})
     .then(ft => {
         if(!ft) {
             throw new Error("Invalid Forward Test");
         }
+
+        //Filter data to send only the relevant data
+        ft = ft.serializedData ? filterForwardTest(ft.toObject()) : ft;
 
         let args = [];
         // If there is serialized data available then pass it as command line arg
@@ -342,9 +377,19 @@ function saveData(forwardtestId, cb, juliaError) {
 // Update foward test output data + serialized data to database
 function updateForwardTestResult(forwardtestId, data) {
     console.log(`Updating Forward Test: ${forwardtestId}`);
-    ForwardTestModel.updateForwardTest({
-        _id: forwardtestId
-    }, data);
+    
+    //We will merge the data with exisiting Object
+    //This is because incoming serialed data has JUST THE LATEST data
+    //for MOST entities
+    return data.serializedData ? ForwardTestModel.fetchForwardTest(
+        {_id: forwardtestId, active: true, error: false, deleted: false}, 
+        {select: 'serializedData'}) : null
+    .then(ft => {
+        var updateData = ft ? Object.assign(ft.toObject(), data) : data;
+
+        return ForwardTestModel.updateForwardTest({
+            _id: forwardtestId}, updateData);
+    });
 }
 
 // Function to cancel particular forward test
