@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-07 15:51:04
+* @Last Modified time: 2018-03-08 16:21:05
 */
 'use strict';
 
@@ -96,7 +96,16 @@ const Advisor = new Schema({
 
     analytics: [AdvisorAnalytics],
 
-    latestAnalytics: AdvisorAnalytics
+    latestAnalytics: AdvisorAnalytics,
+
+    /*investorGroups:[{
+    	groupName: String,
+    	investors:[{
+    		type: Schema.Types.ObjectId,
+        	ref:'User',
+        	required: true 
+    	}],
+    }]*/
 });
 
 Advisor.statics.saveAdvisor = function(advisorDetail) {
@@ -155,7 +164,7 @@ Advisor.statics.fetchAdvisors = function(query, options) {
 Advisor.statics.fetchAdvisor = function(query, options) {
 	//FETCH creates a new document with default if insert is TRUE
 	var q = this.findOneAndUpdate(query, {}, {upsert: options.insert, new: options.insert, setDefaultsOnInsert: options.insert})
-			.populate('user', 'firstName lastName');
+			.populate('user', 'firstName lastName createdDate');
 
 	if(options.fields) {
 		//options.fields = options.fields.replace(',',' ');

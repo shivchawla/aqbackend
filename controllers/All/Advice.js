@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 14:59:47
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-07 16:44:10
+* @Last Modified time: 2018-03-08 15:45:06
 */
 
 'use strict';
@@ -54,4 +54,8 @@ module.exports.subscribeAdvice = function(req, res, next) {
 
 module.exports.approveAdvice = function(req, res, next) {
     Advice.approveAdvice(req.swagger.params, res, next);
+};
+
+module.exports.postAdviceForInvestorGroup = function(req, res, next) {
+    Advice.postAdviceForInvestorGroup(req.swagger.params, res, next);
 };

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:53:13
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-01 19:27:51
+* @Last Modified time: 2018-03-08 17:08:39
 */
 
 'use strict';
@@ -76,6 +76,23 @@ const Investor = new Schema({
 
     profile: Schema.Types.Mixed,
 
+    invitationsFromAdvice: [{
+        accept: {
+            type: Boolean,
+            default: false
+        },
+
+        reject: {
+            type: Boolean,
+            default: false
+        },
+        
+        advice: {
+            type: Schema.Types.ObjectId,
+            ref:'Advice',
+            required: true 
+        }
+    }],
 });
 
 Investor.statics.saveInvestor = function(investorDetails) {
@@ -115,6 +132,7 @@ Investor.statics.fetchInvestor = function(query, options) {
 };
 
 Investor.statics.updateInvestor = function(query, updates) {
+    
     return this.findOneAndUpdate(query, updates);
 };
 
@@ -190,7 +208,75 @@ Investor.statics.addPortfolio = function(query, portfolioId){
     });
 };
 
+Investor.statics.acceptInvitationFromAdvice = function(query, adviceId) {
+    return this.findOne(query).select('invitationsFromAdvice')
+    .then(investor => {
+        var allInvitations = investor.invitationsFromAdvice;
+        var invitedAdvices = allInvitations ? allInvitations.map(item => item.advice) : [];
+        
+        var idx = invitedAdvices ? invitedAdvices.map(item => item.toString()).indexOf(adviceId.toString()) : -1;
+        if(idx !=-1) {
+            investor.invitationsFromAdvice[idx].accept = true;
+            advice.invitationsFromAdvice[idx].reject = false;
+            return investor.saveAsync();
+        } else {
+            throw new Error("No Invitation found");
+        }
+    })
+    .then(investor => {
+        return null;
+    }); 
+};
+
+Investor.statics.rejectInvitationFromAdvice = function(query, adviceId) {
+    return this.findOne(query).select('invitationsFromAdvice')
+    .then(investor => {
+        var allInvitations = investor.invitationsFromAdvice;
+        var invitedAdvices = allInvitations ? allInvitations.map(item => item.advice) : [];
+        
+        var idx = invitedAdvices ? invitedAdvices.map(item => item.toString()).indexOf(adviceId.toString()) : -1;
+        if(idx !=-1) {
+            investor.invitationsFromAdvice[idx].accept = false;
+            advice.invitationsFromAdvice[idx].reject = true;
+            return investor.saveAsync();
+        } else {
+            throw new Error("No Invitation found");
+        }
+    })
+    .then(investor => {
+        return null;
+    }); 
+};
+
+Investor.statics.addAdviceInvite = function(query, adviceId) {
+    return this.findOne(query).select('invitationsFromAdvice')
+    .then(investor => {
+        var allInvitations = investor.invitationsFromAdvice;
+        var invitedAdvices = allInvitations ? allInvitations.map(item => item.advice) : [];
+        var idx = invitedAdvices ? invitedAdvices.map(item => item.toString()).indexOf(adviceId.toString()) : -1;
+        
+        if(idx == -1) {     
+            invitationsFromAdvice.push({accept: false, reject: false, advice: adviceId});
+        } else {
+            var reject = invitationsFromAdvice[idx].reject;
+
+            if(reject) {
+                throw new Error("Already rejected");            
+            }
+
+            throw new Error("Invitation already present");            
+
+        }
+        
+    })
+    .then(advice => {
+        return null;
+    }) 
+};
+
+
 function farfuture() {
+
 	return new Date(2200, 1, 1);
 }
 

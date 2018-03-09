@@ -1658,6 +1658,16 @@ paths:
         in: path
         type: string
         required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            category:
+              type: string
+              default: public
+              enum: [public, closed]
       responses:
         200:
           description: OK
@@ -1738,8 +1748,49 @@ paths:
       responses:
         200:
           description: OK
-      x-swagger-router-controller: "Advice"
-     
+      x-swagger-router-controller: "Advice" 
+  
+  /advice/{adviceId}/investorGroup:
+    post:
+      tags:
+      - advice
+      summary: add an investor to private group
+      description: add investor to private group
+      operationId: postAdviceForInvestorGroup
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        schema:
+          type: object
+          properties:
+            operation:
+              type: string
+              default: accept
+              enum: [accept, reject, invite]
+            investor:
+              type: string
+              format: uuid
+              default: ""
+            email:
+              type: string
+              default: ""
+        required: true
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advice"     
+
   /investor:
     post:
       tags:
@@ -2153,6 +2204,49 @@ paths:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Investor"
 
+  /investor/{investorId}/adviceInvestorGroup/{adviceId}:
+    post:
+      tags:
+      - investor
+      summary: request advisor to access advice
+      description: request advisor to access advice
+      operationId: postAdviceForInvestorGroup
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: investorId
+        in: path
+        required: true
+        type: string
+      - name: adviceId
+        in: path
+        required: true
+        type: string
+      - name: body
+        in: body
+        schema:
+          type: object
+          properties:
+            operation:
+              type: string
+              default: accept
+              enum: [accept, reject, request]
+        required: true
+
+      responses:
+        200:
+          description: "Request sent successfully"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Investor"
+
   /stock:
     get:
       tags:
@@ -2545,7 +2639,7 @@ definitions:
       message:
         type: "string"
 
-# strategy definitions
+#strategy definitions
   Strategy:
     type: object
     required:
@@ -2811,6 +2905,8 @@ definitions:
       maxNotional:
         type: string
         enum: ['100000', '200000', '300000', '500000', '750000', '1000000']
+      groupName:
+        type: string
 
 #Investor
   Investor:
@@ -2857,7 +2953,6 @@ definitions:
         type: string
         default: ""
       
-
 # Security-Time (for watchlist)
   SecurityTime:
     type: object

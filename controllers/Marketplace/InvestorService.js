@@ -2,12 +2,13 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-07 11:28:41
+* @Last Modified time: 2018-03-08 16:40:18
 */
 
 'use strict';
 const InvestorModel = require('../../models/Marketplace/Investor');
 const PortfolioModel = require('../../models/Marketplace/Portfolio');
+const AdviceModel = require('../../models/Marketplace/Advice');
 const APIError = require('../../utils/error');
 const Promise = require('bluebird');
 const HelperFunctions = require("../helpers");
@@ -575,6 +576,9 @@ module.exports.deleteInvestorPortfolio = function(args, res, next) {
 	})
 };
 
+/*
+* Update default portfolio
+*/
 module.exports.updateInvestorDefaultPortfolio = function(args, res, next) {
 	const userId = args.user._id;
 	const investorId = args.investorId.value;
@@ -602,3 +606,49 @@ module.exports.updateInvestorDefaultPortfolio = function(args, res, next) {
 		return res.status(400).send(err.message);
 	})
 };
+
+/*
+* Handle investor originated operations for private investor group
+*/
+module.exports.postAdviceForInvestorGroup = function(args, res, next) { 
+	const userId = args.user._id;
+	const investorId = args.investorId.value;
+	const adviceId = args.adviceId.value;
+
+	const operation = args.body.value.operation;
+	
+	return Promise.all([
+		AdviceModel.fetchAdvice({_id: adviceId}, {fields:'_id investorInvitation'}),
+		InvestorModel.fetchInvestor({user: userId, _id: investorId}, {fields: '_id'})
+	])
+	.then(([advice, investor]) => {
+		if(advice && investor) {
+			
+			console.log("Holaaaaa -1");
+
+			if(operation == "accept") {
+				return AdviceModel.acceptInvitationFromAdvice({_id: adviceId}, investorId);	
+			} else if(operation == "reject") {
+				return AdviceModel.rejectInvitationFromAdvice({_id: adviceId}, investorId);	
+			} else if(operation == "request") {
+				return AdviceModel.requestAccessToAdvice({_id: adviceId}, investorId);	
+			} else {
+				APIError.throwJsonError({message: "Illegal operation"});
+			}
+		} else {
+			if (!advice) {
+				APIError.throwJsonError({advice: adviceId, message: "Not a valid advice"});
+			} else if(!investor) {
+				APIError.throwJsonError({investor: investorId, message: "No investor found"});
+			}
+		}
+	})
+	.then(advice => {
+		return res.status(200).send({message: "Operation executed successfully"});
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	});
+};
+
+
