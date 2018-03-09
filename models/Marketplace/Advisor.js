@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-07 15:51:04
+* @Last Modified time: 2018-03-09 18:47:38
 */
 'use strict';
 
@@ -82,7 +82,6 @@ const Advisor = new Schema({
        
     profile: {
     	isCompany:Boolean,
-    	isIndividual:Boolean,
     	companyName: String,
     	isRegistered: Boolean,
     	registrationNumber: String,
@@ -108,24 +107,21 @@ Advisor.statics.saveAdvisor = function(advisorDetail) {
 //Keeps a history of followers
 //Adds if not following.
 //Updates enddate if already following
-Advisor.statics.updateFollowers = function(query, userId) {
-	const id = userId.toString();
-
+Advisor.statics.updateFollowers = function(query, investorId) {
     return this.findOne(query)
     .then(advisor => {
         if (advisor) {
-            var idx = advisor.followers.indexOf(id)
+            var idx = advisor.followers.map(item => item.investor.toString()).indexOf(investorId.toString());
            
             if(idx == -1) {
-        		advisor.followers.addToSet({user: id, updatedDate:new Date()});
+        		advisor.followers.addToSet({investor: investorId, active: true, updatedDate:new Date()});
             } else {
-            	advisor.followers[idx].active = false;
+            	advisor.followers[idx].active = !advisor.followers[idx].active;
             	advisor.followers[idx].updatedDate = new Date();
             }
         
         	return advisor.saveAsync();
     	}
-        
     });
 };
 

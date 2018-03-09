@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-08 11:06:17
+* @Last Modified time: 2018-03-09 18:56:46
 */
 
 'use strict';
@@ -89,7 +89,7 @@ module.exports.getAdvisorSummary = function(args, res, next) {
     		adviceOptions.fields= '_id name latestAnalytics latestPerformance';
     	} else if(isOwner && dashboard) {
     		options.fields = '-followers ';
-    		adviceOptions.fields = '_id name analytics';
+    		adviceOptions.fields = '_id name analytics latestAnalytics latestPerformance';
     	} else {
     		options.fields = '-followers -analytics';
     	}
@@ -125,11 +125,7 @@ module.exports.updateAdvisorProfile = function(args, res, next) {
     const advisorId = args.advisorId.value;
 
     return new Promise((resolve, reject) => {
-    	if((profile.isCompany && profile.isIndividual) || (profile.isCompany && profile.isIndividual)) {
-    		APIError.throwJsonError({message: "Can't be both a Company and an Individual"});
-    	} 
-		
-		if(profile.isCompany && (!profile.isCompany || profile.companyName =="")) {
+		if(profile.isCompany && (!profile.companyName || profile.companyName =="")) {
 			APIError.throwJsonError({message: "Company name required if advisor a company"});
 		}
 
@@ -184,7 +180,7 @@ module.exports.followAdvisor = function(args, res, next) {
 	})
 	.then(([advisor, investor]) => {
 		if (advisor && investor) {
-			return res.status(200).json({count: advisor.followers.length}); 
+			return res.status(200).json({count: advisor.followers.filter(item => item.active).length}); 
 		} else if(!investor) {
 			APIError.throwJsonError({userId:userId, message: "Advisor can't be updated"});
 		} else if(!advisor) {

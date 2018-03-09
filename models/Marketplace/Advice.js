@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-07 15:50:58
+* @Last Modified time: 2018-03-09 18:18:25
 */
 'use strict';
 const mongoose = require('../index');
@@ -161,6 +161,8 @@ Advice.index({
     heading: 'text',
     description: 'text'
 });
+
+Advice.index({name: 1, advisor: 1}, {unique: true});
 
 Advice.statics.saveAdvice = function(adviceDetails) {
     const advice = new this(adviceDetails);

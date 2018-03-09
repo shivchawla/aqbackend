@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-07 16:45:28
+* @Last Modified time: 2018-03-09 18:19:49
 */
 
 'use strict';
@@ -51,7 +51,6 @@ module.exports.createAdvice = function(args, res, next) {
 	})
 	.then(port => {
 		if(port) {
-
 			const adv = {
 				name: advice.name,
 				heading: advice.heading,
@@ -441,9 +440,10 @@ module.exports.followAdvice = function(args, res, next) {
     const userId = args.user._id;
   	const adviceId = args.adviceId.value;
 
-  	Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
+  	Promise.all([
+  		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
   		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true}), 
-  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true}, {field:'advisor'})])
+		AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true}, {field:'advisor'})])
   	.then(([advisor, investor, advice]) => {
   		if(advisor && investor && advice) {			
     		const investorId = investor._id; 

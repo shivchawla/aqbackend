@@ -2827,9 +2827,6 @@ definitions:
       isCompany: 
         type: boolean
         default: false
-      isIndividual: 
-        type: boolean
-        default: true
       companyName: 
         type: string
         default: ""
