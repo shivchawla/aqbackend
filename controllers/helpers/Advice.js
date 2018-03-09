@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-06 18:39:51
+* @Last Modified time: 2018-03-09 16:09:21
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -15,29 +15,39 @@ const APIError = require('../../utils/error');
 
 module.exports.computeAdviceSubscriptionDetail = function(adviceId, advisorId, investorId) {
 	
-	return AdviceModel.fetchAdvice({_id:adviceId}, {field:'advisor subscribers followers'})
+	return AdviceModel.fetchAdvice({_id:adviceId, deleted: false}, {fields:'advisor subscribers followers privateInvestorGroup'})
 	.then(advice => {
-		var isFollowing = false;
-		var isSubscribed = false;
-		var isOwner = advisorId.equals(advice.advisor._id);
+		if (advice) {
+			var isFollowing = false;
+			var isSubscribed = false;
+			var isOwner = advisorId.equals(advice.advisor);
 
-		var activeSubscribers = advice.subscribers.filter(item => {return item.active == true});
-		var activeFollowers = advice.followers.filter(item => {return item.active == true});
-		var numSubscribers = activeSubscribers.length;
-		var numFollowers = activeFollowers.length;
+			var activeSubscribers = advice.subscribers.filter(item => {return item.active == true});
+			var activeFollowers = advice.followers.filter(item => {return item.active == true});
+			var numSubscribers = activeSubscribers.length;
+			var numFollowers = activeFollowers.length;
 
-		if(!advisorId.equals(advice.advisor._id)) {
-			isFollowing = activeFollowers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
-			isSubscribed = activeSubscribers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
-		} 
-		
-		return {
-			isFollowing: isFollowing, 
-			isSubscribed: isSubscribed, 
-			isOwner: isOwner,
-			numFollowers: numFollowers,
-			numSubscribers: numSubscribers
-		};
+			if(!advisorId.equals(advice.advisor._id)) {
+				isFollowing = activeFollowers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
+				isSubscribed = activeSubscribers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
+			}
+
+			var privateInvestors = advice && advice.privateInvestorGroup && advice.privateInvestorGroup.investors ? advice.privateInvestorGroup.investors : []; 
+			var isGroup = privateInvestors.map(item => item.toString()).indexOf(investorId.toString()) != -1; 
+			var groupName = advice && advice.privateInvestorGroup && advice.privateInvestorGroup.groupName ? advice.privateInvestorGroup.groupName : "";
+
+			return {
+				isFollowing: isFollowing, 
+				isSubscribed: isSubscribed, 
+				isOwner: isOwner,
+				numFollowers: numFollowers,
+				numSubscribers: numSubscribers,
+				isGroup: isGroup,
+				groupName: groupName
+			};
+		} else {
+			return {};
+		}
 	});
 };
 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-07 16:45:28
+* @Last Modified time: 2018-03-09 16:08:02
 */
 
 'use strict';
@@ -18,6 +18,11 @@ const PortfolioHelper = require("../helpers/Portfolio");
 const PerformanceHelper = require("../helpers/Performance");
 const AdviceHelper = require("../helpers/Advice");
 const APIError = require('../../utils/error');
+
+function _userAuthorizedPrivateInvestorGroup(privateInvestorGroup, investorId) {
+	return privateInvestorGroup && privateInvestorGroup.investors ? 
+		privateInvestorGroup.investors.map(item => item.toString()).indexOf(investorId.toString()) !=-1 : false;
+}
 
 module.exports.createAdvice = function(args, res, next) {
 	const userId = args.user._id;
@@ -61,8 +66,15 @@ module.exports.createAdvice = function(args, res, next) {
 				advisor: advisorId,
 		       	portfolio: port._id,
 		       	createdDate: new Date(),
-		       	updatedDate: new Date(),
+		       	updatedDate: new Date()
 		    };
+
+		    //Update the advice for private group
+		    if(advice.groupName && advice.groupName != "") {
+		    	adv.privateInvestorGroup = {groupName: advice.groupName, investors: []};
+		    	adv.semiPublic = true;
+		    }
+
 		    return AdviceModel.saveAdvice(adv);
 	    } else {
 	    	APIError.throwJsonError({userId: userId, message:"Invalid Portfolio: Create Advice"});
@@ -85,7 +97,7 @@ module.exports.updateAdvice = function(args, res, next) {
 	const userId = args.user._id;
 	const newAdvice = args.body.value;
 	
-	var adviceFields = 'advisor public portfolio name heading description';
+	var adviceFields = 'advisor publishDetails portfolio name heading description';
 
 	return Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
 					AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, {fields: adviceFields})])
@@ -95,8 +107,8 @@ module.exports.updateAdvice = function(args, res, next) {
 			if(advice.advisor.equals(advisor._id)) {
 
 				let allowedKeys;
-				if (advice.public == false) {
-					allowedKeys = ['public', 'name', 'heading', 'description', 'portfolio', 'maxNotional', 'rebalance']; 
+				if (advice.publishDetails.status == false) {
+					allowedKeys = ['name', 'heading', 'description', 'portfolio', 'maxNotional', 'rebalance']; 
 				} else {
 					allowedKeys = ['portfolio']; 
 				}
@@ -110,7 +122,7 @@ module.exports.updateAdvice = function(args, res, next) {
 				});
 
 				return Promise.all([advice,
-					  advice.public == true ? HelperFunctions.validateAdvice(newAdvice, advice) : HelperFunctions.validateAdvice(newAdvice)]);
+					  advice.publishDetails.status == true ? HelperFunctions.validateAdvice(newAdvice, advice) : HelperFunctions.validateAdvice(newAdvice)]);
 			} else {
 				APIError.throwJsonError({message: "Not Authorized"});
 			}
@@ -124,7 +136,7 @@ module.exports.updateAdvice = function(args, res, next) {
 		delete adviceUpdates.portfolio;
 		
 		if (validAdvice) {
-			return Promise.all([PortfolioModel.updatePortfolio({_id:advice.portfolio}, newAdvice.portfolio, {}, advice.public == true), 
+			return Promise.all([PortfolioModel.updatePortfolio({_id:advice.portfolio}, newAdvice.portfolio, {}, advice.publishDetails.status == true), 
 				AdviceModel.updateAdvice({_id: adviceId}, adviceUpdates)]);
 		} else {
 			APIError.throwJsonError({message:"Invalid Advice"});
@@ -172,6 +184,12 @@ module.exports.getAdvices = function(args, res, next) {
     const personal = args.personal.value;
     
     const advisorId = args.advisor.value;
+
+    /*const groups = args.groups.value;
+    if(groups) {
+    	var groupCategories = groups.split(",");
+
+    }*/
 
     const search = args.search.value;
     if (search) {
@@ -224,7 +242,20 @@ module.exports.getAdvices = function(args, res, next) {
 	    	}
 
 	    	if (personalCategories.indexOf("0") !=-1) {
-	    		advisorQuery.push({advisor:{'$ne': userAdvisorId}, public: true});
+	    				
+	    		//[(advisor != self && (public == true || investor in closedgroup) || -- ALL
+				//(advisor != self) - q1
+				var q1 = {advisor:{'$ne': userAdvisorId}};
+				
+				//(publishedStatus == true) && (category == public || (category == closed && investor in closedgroup)) - q2
+    			
+    			var q21 = {'publishDetails.status':true};
+    			var q221 = {'publishDetails.category':'public'};
+    			var q222 = {'$and': [{'publishDetails.category':'closed'}, {'privateInvestorGroup.investors':userInvestorId}]};
+    			var q22 = {'$or': [q221,q222]};
+    			var q2 = {'$and': [q21,q22]};
+    			
+	    		advisorQuery.push({'$and': [q1,q2]});
 	    	}
 
 	    	query = {'$and': [query, {'$or': advisorQuery}]}
@@ -234,12 +265,19 @@ module.exports.getAdvices = function(args, res, next) {
      	if(advisorId) {
 	    	query.advisor = advisorId;
 	    	if (!userAdvisorId.equals(advisorId)) {
-	    		query.public = true;	
+
+	    		var q21 = {'publishDetails.status':true};
+    			var q221 = {'publishDetails.category':'public'};
+    			var q222 = {'$and': [{'publishDetails.category':'closed'}, {'privateInvestorGroup.investors':userInvestorId}]};
+    			var q22 = {'$or': [q221,q222]};
+    			var q2 = {'$and': [q21, q22]};
+
+	    		query = {'$and':[query, q2]};	
 	    	}
 	    }
 
 	    //  (deleted == false && subscribed == true) && 
-	    //	[(advisor != self && public == true) || -- ALL
+	    //	[(advisor != self && (public == true || investor in closedgruop) || -- ALL
 	    //  (advisor == self)   -- PERSONAL]  && 
 	    //  (advisor == specific && public == true)
 
@@ -270,33 +308,46 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const userId = args.user._id;
 	
 	const options = {};
-	options.fields = 'name heading description createdDate updatedDate advisor public approved portfolio rebalance maxNotional latestPerformance latestAnalytics';
+	options.fields = 'name heading description createdDate updatedDate advisor approved portfolio rebalance maxNotional latestPerformance latestAnalytics';
 	options.populate = 'advisor benchmark';
 	
 	return Promise.all([
 		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
-		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, options),
+		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, {fields:'advisor'}),
 		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true})
 	])
  	.then(([advisor, advice, investor]) => {
  		if(advice && advisor && investor) {
- 			const advisorId = advisor._id;
- 			const investorId = investor._id;
-	 		if((!advisorId.equals(advice.advisor._id) && advice.public == true)  
-	 			|| advisorId.equals(advice.advisor._id)) { 
-	 			
-				return AdviceHelper.computeAdviceSubscriptionDetail(adviceId, advisorId, investorId)
-				.then(subscriptionDetail => {
-					var nAdvice = Object.assign(subscriptionDetail, advice.toObject());
-					return res.status(200).send(nAdvice);
-				});
+ 			const userAdvisorId = advisor._id;
+ 			const userInvestorId = investor._id;
 
-			} else {
-				APIError.throwJsonError({userId: userId, adviceId: adviceId, message:"Not authorized to view this advice"});
-			}
+ 			var query = {_id:adviceId, deleted: false};
+ 			if (!userAdvisorId.equals(advice.advisor)) {
+	    		var q21 = {'publishDetails.status':true};
+    			var q221 = {'publishDetails.category':'public'};
+    			var q222 = {'$and': [{'publishDetails.category':'closed'}, {'privateInvestorGroup.investors':userInvestorId}]};
+    			var q22 = {'$or': [q221,q222]};
+    			var q2 = {'$and': [q21, q22]};
+
+	    		query = {'$and':[query, q2]};	
+	    	} 
+ 			
+ 			return Promise.all([
+ 				AdviceModel.fetchAdvice(query, options),
+ 				AdviceHelper.computeAdviceSubscriptionDetail(adviceId, userAdvisorId, userInvestorId)
+ 			]);
+
 		} else {
 			APIError.throwJsonError({message:'No advice found'});
 		}
+ 	})
+ 	.then(([advice, subscriptionDetail]) => {
+ 		if(advice) {
+ 			const nAdvice = Object.assign(subscriptionDetail, advice.toObject());
+ 			return res.status(200).send(nAdvice);
+ 		} else {
+ 			APIError.throwJsonError({message: "No advice found or unauthorized"});
+ 		}
  	})
  	.catch(err => {
     	return res.status(400).send(err.message);
@@ -382,7 +433,7 @@ module.exports.deleteAdvice = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const userId = args.user._id;
 	
-	AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id'})
+	return AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id'})
 	.then(advisor => {
 		if(advisor) {
 			//return //Promise.all([AdvisorModel.removeAdvice({_id: advisorId}, adviceId),
@@ -404,9 +455,10 @@ module.exports.deleteAdvice = function(args, res, next) {
 module.exports.publishAdvice = function(args, res, next) {
     const userId = args.user._id;
   	const adviceId = args.adviceId.value;
+  	const publishCategory = args.body.value.category;
 
   	Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
-  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: false}, {field:'advisor'})])
+  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, 'publishDetails.status': false}, {field:'advisor'})])
   	.then(([advisor, advice]) => {
   		if(advisor && advice) {			
     		const advisorId = advisor._id;
@@ -415,7 +467,7 @@ module.exports.publishAdvice = function(args, res, next) {
     			APIError.throwJsonError({message: "Advisor can't publish his advice"});
     		}
 
-    		return AdviceModel.updateAdvice({_id: adviceId}, {public: true, publishDate: new Date()});
+    		return AdviceModel.updateAdvice({_id: adviceId}, {publishDetails: {status: true, date: new Date(), category: publishCategory}});
 						
 		} else {
 			if (!advice) {
@@ -443,7 +495,7 @@ module.exports.followAdvice = function(args, res, next) {
 
   	Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
   		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true}), 
-  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true}, {field:'advisor'})])
+  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, 'publishDetails.status': true}, {field:'advisor privateInvestorGroup publishDetails'})])
   	.then(([advisor, investor, advice]) => {
   		if(advisor && investor && advice) {			
     		const investorId = investor._id; 
@@ -451,6 +503,10 @@ module.exports.followAdvice = function(args, res, next) {
 
     		if(advice.advisor.equals(advisorId)) {
     			APIError.throwJsonError({message: "Advisor can't follow his advice"});
+    		}
+
+    		if (advice.publishDetails.category == 'closed' && !_userAuthorizedPrivateInvestorGroup(advice.privateInvestorGroup, investorId)) {
+    			APIError.throwJsonError({message: "Investor not authorized to follow a closed advice"});
     		}
 
     		return Promise.all([AdviceModel.updateFollowers({
@@ -488,8 +544,9 @@ module.exports.subscribeAdvice = function(args, res, next) {
   	const adviceId = args.adviceId.value;
 
   	return Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
-  			InvestorModel.fetchInvestor({user: userId}, {fields: '_id', insert:true}), 
-  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true}, {})])
+		InvestorModel.fetchInvestor({user: userId}, {fields: '_id', insert:true}), 
+		AdviceModel.fetchAdvice({_id: adviceId, deleted: false, 'publishDetails.status': true}, {fields: 'privateInvestorGroup publishDetails'})
+	])
   	.then(([advisor, investor, advice]) => {
   		if(investor && advice) {
   				
@@ -498,6 +555,10 @@ module.exports.subscribeAdvice = function(args, res, next) {
 
     		if(advice.advisor.equals(advisorId)) {
     			APIError.throwJsonError({message: "Advisor can't subscribe his advice"});
+    		}
+
+    		if (advice.publishDetails.category == 'closed' && !_userAuthorizedPrivateInvestorGroup(advice.privateInvestorGroup, investorId)) {
+    			APIError.throwJsonError({message: "Investor not authorized to subscribe a closed advice"});
     		}
 
     		return Promise.all([AdviceModel.updateSubscribers({
@@ -555,3 +616,68 @@ module.exports.approveAdvice = function(args, res, next) {
 	})
 };
 
+/*
+* Handle advisors/advice originated operations for private investor group
+*/
+module.exports.postAdviceForInvestorGroup = function(args, res, next) {
+	const userId = args.user._id;
+	const adviceId = args.adviceId.value;
+	const email = args.body.value.email;
+	const investorId = args.body.value.investor;
+	const operation = args.body.value.operation;
+
+	return new Promise((resolve, reject) => {
+		if (email && email!="" ) {
+			return UserModel.fetchUser({email: email}, {fields: '_id active'})
+			.then(user => {
+				resolve(InvestorModel.fetchInvestor({user: user._id}, {fields: '_id'}));
+			})
+		} else if(investorId && investorId!="") {
+			resolve(InvestorModel.fetchInvestor({_id: investorId}, {fields: '_id'}));
+		} else {
+			APIError.throwJsonError({message: "No investor or email provided"});
+		}
+	})
+	.then(investor => {
+		if(investor) {
+			return Promise.all([
+				AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'advisor'}),
+				AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
+				investor
+			]);	
+		} else {
+			APIError.throwJsonError({message: "No Investor Found"});
+		}
+	})
+	.then(([advice, advisor, investor]) => {
+		if(advice && advisor && investor) {
+			if(advice.advisor.equals(advisor._id)) {
+				if (operation == "accept") {
+					return AdviceModel.acceptInvestorToGroup({_id: adviceId}, investor._id)
+				} else if(operation == "reject") {
+					return AdviceModel.rejectInvestorFromGroup({_id: adviceId}, investor._id);
+				} else if(operation == "invite") {
+					return InvestorModel.addAdviceInvite({_id: investor}, advice._id);
+				} else {
+					APIError.throwJsonError({message: "Illegal operation"});
+				}
+			} else {
+				APIError.throwJsonError({message: "Not authorized"});
+			}
+		} else {
+			if (!advice) {
+				APIError.throwJsonError({advice: adviceId, message:"No advice found"});
+			} else if(!advisor) {
+				APIError.throwJsonError({user: userIdId, message:"No advisor found"});
+			} else if (!user) {
+				APIError.throwJsonError({email: email, message:"No user found"});
+			}
+		}
+	})
+	.then(advice => {
+		return res.status(200).send({message: "Operation executed successfully"});
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
+};

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-07 15:50:58
+* @Last Modified time: 2018-03-09 16:09:03
 */
 'use strict';
 const mongoose = require('../index');
@@ -69,14 +69,44 @@ const Advice = new Schema({
         required: true
     },
 
-    public: {
-        type: Boolean,
-        default: false,
+    publishDetails: {
+        status: {
+            type: Boolean,
+            default: false,
+        },
+
+        category: {
+            type: String,
+            default: "",
+        },
+
+        date: Date,
     },
 
-    publishDate: {
-        type: Date,
-    }, 
+    privateInvestorGroup: {
+        groupName: String,
+        investors: [{
+            type: Schema.Types.ObjectId,
+            ref:'Investor',
+            required: true 
+        }],
+    },
+
+    accessRequestFromInvestor: [{
+        granted: {
+            type: Boolean,
+            default: false,
+        },
+        denied: {
+            type: Boolean,
+            default: false,
+        },
+        investor: {
+            type: Schema.Types.ObjectId,
+            ref: 'Investor',
+            required: true 
+        },
+    }],
 
     approved: {
         type:Boolean,
@@ -386,6 +416,79 @@ Advice.statics.updateApproval = function(query, latestApproval) {
 
     return this.findOneAndUpdate(query, updates);
 }
+
+Advice.statics.requestAccessToAdvice = function(query, investorId) {
+    return this.findOne(query).select('accessRequestFromInvestor privateInvestorsGroup')
+    .then(advice => {
+        var privateInvestors = advice.privateInvestorGroup.investors;
+        var idx = privateInvestors ? privateInvestors.map(item => item.toString()).indexOf(investorId.toString()) : -1;
+        
+        if(idx == -1) {
+            //Allow if not already a private investors
+            idx = advice.accessRequestFromInvestor.map(item => item.investor.toString()).indexOf(investorId.toString()); 
+            if(idx == -1) {
+                var request = {denied: false, granted: false, investor: investorId};
+                advice.accessRequestFromInvestor.push(request);
+            }
+            
+            return advice.saveAsync();
+        } else {
+            throw new Error("Already a member of the group");
+        }
+        
+    })
+    .then(advice => {
+        return null;
+    })
+};
+
+Advice.statics.acceptInvestorToGroup = function(query, investorId) {
+    return this.findOne(query).select('privateInvestorGroup accessRequestFromInvestor')
+    .then(advice => {
+        var idx = advice.accessRequestFromInvestor.map(item => item.investor.toString()).indexOf(investorId.toString()); 
+        if(idx != -1) {
+            advice.accessRequestFromInvestor[idx].granted = true;
+            advice.accessRequestFromInvestor[idx].denied = false;
+            
+            var privateInvestors = advice.privateInvestorGroup.investors;
+            idx = privateInvestors ? privateInvestors.map(item => item.toString()).indexOf(investorId.toString()) : -1;
+            if(idx == -1) {
+                privateInvestors.push(investorId);
+            }    
+            
+            return advice.saveAsync();
+        } else {
+            throw new Error("No access request found");
+        }
+    })
+    .then(advice => {
+        return null;
+    }) 
+};
+
+Advice.statics.rejectInvestorFromGroup = function(query, investorId) {
+    return this.findOne(query).select('privateInvestorGroup accessRequestFromInvestor')
+    .then(advice => {
+        var idx = advice.accessRequestFromInvestor.map(item => item.investor.toString()).indexOf(investorId.toString()); 
+        if(idx != -1) {
+            advice.accessRequestFromInvestor[idx].denied = true;
+            advice.accessRequestFromInvestor[idx].granted = false;
+        
+            var privateInvestors = advice.privateInvestorGroup.investors;
+            idx = privateInvestors ? privateInvestors.map(item => item.toString()).indexOf(investorId.toString()) : -1;
+            if(idx !=-1) {
+                advice.privateInvestorGroup.investors.splice(idx, 1);
+            }
+            
+            return advice.saveAsync();
+        } else {
+            throw new Error("No access request found");
+        }
+    })
+    .then(advice => {
+        return null;
+    }) 
+};
 
 function farfuture() {
 	return new Date(2200, 1, 1);
