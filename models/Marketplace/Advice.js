@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-09 18:18:25
+* @Last Modified time: 2018-03-09 19:14:58
 */
 'use strict';
 const mongoose = require('../index');
@@ -254,6 +254,7 @@ Advice.statics.deleteAdvice = function(query) {
             if(!advice.deleted) {
                 advice.deleted = true;
                 advice.deletedDate = new Date();
+                advice.name = advice.name+"_deleted_"+new Date().getTime();
 	            return advice.saveAsync(); 
             } else {
                 throw new Error("Advice already deleted");
