@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-12 12:40:18
+* @Last Modified time: 2018-03-12 15:17:46
 */
 
 'use strict';
@@ -10,6 +10,7 @@ const UserModel = require('../../models/user');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
 const AdviceModel = require('../../models/Marketplace/Advice');
+const HelperFunctions = require("../helpers");
 const APIError = require('../../utils/error');
 const Promise = require('bluebird');
 const config = require('config');
@@ -75,14 +76,20 @@ module.exports.getAdvisorSummary = function(args, res, next) {
  	var publicProfileFields = config.get('advisor_public_profile_fields').map(item => "profile."+item).join(" ");
     
     let isOwner;
-	return AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id'})
-    .then(userAdvisor => {
+    let isAdmin;
+
+    return Promise.all([
+    	HelperFunctions.getAdminAdvisor(userId),
+		AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id'})
+	])
+    .then(([adminAdvisor, userAdvisor]) => {
     	let adviceQuery = {deleted: false, advisor: advisorId};
     	const adviceOptions = {};
 
     	adviceOptions.fields = '_id name latestAnalytics latestPerformance';
 
-    	var isOwner = userAdvisor._id.equals(advisorId);
+    	isAdmin = adminAdvisor && userAdvisor ? userAdvisor._id.equals(adminAdvisor._id) : false;
+    	isOwner = userAdvisor && advisorId ? userAdvisor._id.equals(advisorId) : false;
 
     	if(!isOwner) {
     		options.fields = 'approved latestAnalytics user followers ' + publicProfileFields;
@@ -104,7 +111,7 @@ module.exports.getAdvisorSummary = function(args, res, next) {
   	.then(([investor, advisor, advices]) => {
   		if(advisor) {
   			var isFollowing = !isOwner ? advisor.followers ? advisor.followers.filter(item => item.active).map(item => item.investor.toString()).indexOf(investor._id.toString()) != -1 : false : false;
-  			const nAdvisor = Object.assign({advices: advices ? advices : [], isOwner: isOwner, isFollowing: isFollowing}, advisor.toObject());
+  			const nAdvisor = Object.assign({advices: advices ? advices : [], isOwner: isOwner, isAdmin: isAdmin, isFollowing: isFollowing}, advisor.toObject());
 		  	delete nAdvisor.followers;
 
 		  	return res.status(200).send(nAdvisor);
