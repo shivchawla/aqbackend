@@ -2,14 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-06 10:40:21
+* @Last Modified time: 2018-03-12 13:06:40
 */
 
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
-const InvestorModel = require('../../models/Marketplace/Investor');
-const AdviceModel = require('../../models/Marketplace/Advice');
-const PortfolioModel = require('../../models/Marketplace/Portfolio');
 const PerformanceModel = require('../../models/Marketplace/Performance');
 const UserModel = require('../../models/user');
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -304,3 +301,27 @@ module.exports.updateStockLatestDetail = function(q, security) {
 module.exports.getDate = function(dateTime) {
 	return new Date(dateTime.toDateString());
 };
+
+module.exports.getAdminAdvisors = function() {
+	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {fields:'_id'})
+	.then(users => {
+		if(users) {
+			var userIds = users.map(item => item._id); 
+			return AdvisorModel.fetchAdvisors({user:{$in: userIds}}, {fields: '_id'});
+		} else {
+			return [];
+		}
+	});
+};
+
+module.exports.getAdminAdvisor = function(userId) {
+	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {fields:'_id'})
+	.then(users => {
+		if(users && users.map(item => item._id.toString()).indexOf(userId.toString()) != -1) {
+			return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'});
+		} else {
+			return null;
+		}
+	});
+};
+

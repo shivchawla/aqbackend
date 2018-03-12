@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-06 18:39:51
+* @Last Modified time: 2018-03-12 12:52:49
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -10,31 +10,59 @@ const InvestorModel = require('../../models/Marketplace/Investor');
 const AdviceModel = require('../../models/Marketplace/Advice');
 const Promise = require('bluebird');
 const config = require('config');
+const HelperFunctions = require("../helpers");
 const PerformanceHelper = require("../helpers/Performance");
 const APIError = require('../../utils/error');
 
-module.exports.computeAdviceSubscriptionDetail = function(adviceId, advisorId, investorId) {
+module.exports.getAdviceAccessStatus = function(adviceId, userId) {
+	return Promise.all([
+		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
+		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, {fields: 'advisor'}),
+		HelperFunctions.getAdminAdvisor(userId)
+	])
+	.then(([advisor, advice, adminAdvisor]) => {
+
+		return  {
+			isAdmin: advisor && adminAdvisor ? advisor.equals(adminAdvisor._id) : false,
+			isOwner: advisor && advice.advisor ? advisor.equal(advice.advisor) : false
+		};
+	});
+};
+
+module.exports.computeAdviceSubscriptionDetail = function(adviceId, userId) {
 	
-	return AdviceModel.fetchAdvice({_id:adviceId}, {field:'advisor subscribers followers'})
-	.then(advice => {
+	return Promise.all([
+		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
+		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true}),
+		AdviceModel.fetchAdvice({_id:adviceId}, {field:'advisor subscribers followers'}),
+		HelperFunctions.getAdminAdvisor(userId)
+	])
+	//return AdviceModel.fetchAdvice({_id:adviceId}, {field:'advisor subscribers followers'})
+	.then(([advisor, investor, advice, adminAdvisor]) => {
+		
+		const investorId = investor._id;
 		var isFollowing = false;
 		var isSubscribed = false;
-		var isOwner = advisorId.equals(advice.advisor._id);
+		
+		var isAdmin = adminAdvisor && advisor ? advisor.equals(adminAdvisor._id) : false;
+		var isOwner = advisor && advice.advisor ? advisor.equals(advice.advisor) : false;
+		//var isOwner = advisorId.equals(advice.advisor._id);
+
+		//var isAdmin = adminAdvisors.map(item => item.toString()).indexOf(advisorId.toString());
 
 		var activeSubscribers = advice.subscribers.filter(item => {return item.active == true});
 		var activeFollowers = advice.followers.filter(item => {return item.active == true});
 		var numSubscribers = activeSubscribers.length;
 		var numFollowers = activeFollowers.length;
 
-		if(!advisorId.equals(advice.advisor._id)) {
-			isFollowing = activeFollowers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
-			isSubscribed = activeSubscribers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
-		} 
+		var isFollowing = activeFollowers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
+		var isSubscribed = activeSubscribers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
 		
 		return {
 			isFollowing: isFollowing, 
 			isSubscribed: isSubscribed, 
 			isOwner: isOwner,
+			isAdmin: isAdmin,
 			numFollowers: numFollowers,
 			numSubscribers: numSubscribers
 		};

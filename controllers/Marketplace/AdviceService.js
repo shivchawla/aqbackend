@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-09 18:19:49
+* @Last Modified time: 2018-03-12 12:45:27
 */
 
 'use strict';
@@ -247,7 +247,7 @@ module.exports.getAdvices = function(args, res, next) {
     .then(advices => {
     	if(advices) {
 	    	return Promise.map(advices , function(advice) {
-    			return AdviceHelper.computeAdviceSubscriptionDetail(advice._id, userAdvisorId, userInvestorId)
+    			return AdviceHelper.computeAdviceSubscriptionDetail(advice._id, userId)
     			.then(subscriptionDetail => {
     				return Object.assign(subscriptionDetail, advice.toObject());
     			});
@@ -273,23 +273,18 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	options.populate = 'advisor benchmark';
 	
 	return Promise.all([
-		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
 		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, options),
-		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true})
+		AdviceHelper.computeAdviceSubscriptionDetail(adviceId, userId)	
 	])
- 	.then(([advisor, advice, investor]) => {
- 		if(advice && advisor && investor) {
- 			const advisorId = advisor._id;
- 			const investorId = investor._id;
-	 		if((!advisorId.equals(advice.advisor._id) && advice.public == true)  
-	 			|| advisorId.equals(advice.advisor._id)) { 
-	 			
-				return AdviceHelper.computeAdviceSubscriptionDetail(adviceId, advisorId, investorId)
-				.then(subscriptionDetail => {
-					var nAdvice = Object.assign(subscriptionDetail, advice.toObject());
-					return res.status(200).send(nAdvice);
-				});
-
+ 	.then(([advice, adviceSubscriptionDetail]) => {
+ 		if(advice && adviceSubscriptionDetail) {
+	 		var accessAllowed = adviceSubscriptionDetail.isOwner || adviceSubscriptionDetail.isAdmin;
+	 		var accessAllowed = accessAllowed || (!accessAllowed && advice.public == true); 
+	 		
+	 		if(accessAllowed) {
+				var nAdvice = Object.assign(adviceSubscriptionDetail, advice.toObject());
+				return res.status(200).send(nAdvice);
+				
 			} else {
 				APIError.throwJsonError({userId: userId, adviceId: adviceId, message:"Not authorized to view this advice"});
 			}

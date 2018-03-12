@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-09 18:56:46
+* @Last Modified time: 2018-03-12 12:40:18
 */
 
 'use strict';
@@ -74,6 +74,7 @@ module.exports.getAdvisorSummary = function(args, res, next) {
     const options = {};
  	var publicProfileFields = config.get('advisor_public_profile_fields').map(item => "profile."+item).join(" ");
     
+    let isOwner;
 	return AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id'})
     .then(userAdvisor => {
     	let adviceQuery = {deleted: false, advisor: advisorId};
@@ -102,8 +103,7 @@ module.exports.getAdvisorSummary = function(args, res, next) {
 	})
   	.then(([investor, advisor, advices]) => {
   		if(advisor) {
-  			var isOwner = !investor;
-  			var isFollowing = !isOwner ? advisor.followers ? advisor.followers.filter(item => item.active).map(item => item.investor.toString()).indexOf(investor._id.toString) != -1 : false: false;
+  			var isFollowing = !isOwner ? advisor.followers ? advisor.followers.filter(item => item.active).map(item => item.investor.toString()).indexOf(investor._id.toString()) != -1 : false : false;
   			const nAdvisor = Object.assign({advices: advices ? advices : [], isOwner: isOwner, isFollowing: isFollowing}, advisor.toObject());
 		  	delete nAdvisor.followers;
 
@@ -199,7 +199,6 @@ module.exports.approveAdvisor = function(args, res, next) {
 
 	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {fields:'_id'})
 	.then(users => {
-		console.log(users);
 		if(users) {
 			if(users.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
 				return AdvisorModel.updateApproval({_id:advisorId}, Object.assign({user: userId}, approval));
