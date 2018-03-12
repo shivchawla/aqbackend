@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-09 18:47:38
+* @Last Modified time: 2018-03-12 11:16:03
 */
 'use strict';
 
@@ -12,7 +12,6 @@ const Schema = mongoose.Schema;
 const Performance = require('./Performance');
 const Investor = require('./Investor');
 
-
 const Address = new Schema({
   	line1: String,
   	line2: String,
@@ -21,6 +20,12 @@ const Address = new Schema({
     state: String,
     pincode: String,
     country: String
+});
+
+const SocialProfile = new Schema({
+	url: String,
+	photoUrl: String,
+	userId: String
 });
 
 const AdvisorAnalytics = new Schema({
@@ -87,10 +92,11 @@ const Advisor = new Schema({
     	registrationNumber: String,
     	address: Address,
     	phone: String, 
-    	linkedIn: String,
-    	facebook: String,
-    	twitter:String,
-    	webUrl:String
+    	linkedIn: SocialProfile,
+    	facebook: SocialProfile,
+    	twitter: SocialProfile,
+    	webUrl: String,
+    	photoUrl: String
     },
 
     analytics: [AdvisorAnalytics],
@@ -179,9 +185,6 @@ Advisor.statics.addAdvice = function(query, adviceId) {
 
 		return advisor.saveAsync();
 	});
-	/*.then(advisor => {
-		return {addedAdvice: adviceId, advices: advisor.advices};
-	})*/
 };
 
 Advisor.statics.removeAdvice = function(query, adviceId) {

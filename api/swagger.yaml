@@ -2839,21 +2839,20 @@ definitions:
       webUrl: 
         type: string
         default: ""
+      photoUrl:
+        type: string
+        default: ""
       address: 
         $ref: '#/definitions/Address'
       phone: 
         type: string
         default: ""
       linkedIn:
-        type: string
-        default: ""
+        $ref: '#/definitions/SocialProfile'
       facebook: 
-        type: string
-        default: ""
+        $ref: '#/definitions/SocialProfile'
       twitter:
-        type: string
-        default: ""
-      
+        $ref: '#/definitions/SocialProfile'
 
 # Security-Time (for watchlist)
   SecurityTime:
@@ -2923,4 +2922,12 @@ definitions:
       approved:
         type: boolean
 
-
+  SocialProfile:
+    type: object
+    properties:
+      url:
+        type: string
+      photoUrl: 
+        type: string
+      userId:
+        type: string
