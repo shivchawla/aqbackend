@@ -78,7 +78,12 @@ wsh = WebSocketHandler() do req, ws_client
 
         if action == "validate_advice"
           valid = false
-          valid = _validate_advice(parsemsg["advice"], parsemsg["lastAdvice"] == "" ? Dict{String,Any}() : parsemsg["lastAdvice"] ) 
+          
+          currentAdvice = parsemsg["advice"]
+          lastAdvice = parsemsg["lastAdvice"] == "" ? Dict{String,Any}() : parsemsg["lastAdvice"]
+          strictNetValue = parsemsg["strictNetValue"]
+          
+          valid = _validate_advice(currentAdvice, lastAdvice, strictNetValue) 
           parsemsg["valid"] = valid
 
         elseif action == "validate_portfolio"

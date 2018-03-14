@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-06 18:22:14
+* @Last Modified time: 2018-03-14 18:12:47
 */
 
 'use strict';
@@ -58,9 +58,9 @@ function _computePortfolioValue(portfolio, startDate, endDate) {
 	    		var output = data['netValue'];
 	    		resolve(Object.keys(output).sort().map(key => {return {date: new Date(key), netValue: output[key]};}));
 			} else if (data["error"] != "") {
-				reject(new Error(data["error"]));
+				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				reject(new Error("Error computing netvalue of portfolio"))
+				resolve(APIError.throwJsonError({message: "Internal error computing netvalue of portfolio", errorCode: 2101}));
 			}
 		});
     });
@@ -90,9 +90,9 @@ function _computePerformance_portfolioValues(portfolioValues, benchmark) {
 	    	if(data['error'] == '' && data['performance']) {
 	    		resolve(data['performance']);
 			} else if (data["error"] != "") {
-				reject(new Error(data["error"]));
+				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				reject(new Error("Error computing netvalue of portfolio performance"))
+				resolve(APIError.throwJsonError({message: "Internal error computing netvalue of portfolio performance", errorCode: 2101}));
 			}
 		});
 
@@ -132,9 +132,9 @@ function _computeConstituentPerformance_portfolio(portfolio, startDate, endDate,
 	    	if(data['error'] == '' && data['constituentPerformance']) {
 	    		resolve(data['constituentPerformance']);
 			} else if (data['error'] != '') {
-				reject(new Error(data["error"]));
+				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				reject(new Error("Internal error computing constituents performance"))
+				resolve(APIError.throwJsonError({message: "Internal error computing constituents performance", errorCode: 2101}));
 			}
 		});
 	});
@@ -177,9 +177,9 @@ function _computePortfolioComposition_portfolio(portfolio, startDate, endDate, b
 	    	if(data['error'] == '' && data['portfolioComposition']) {
 	    		resolve(data['portfolioComposition']);
 			} else if (data['error'] != '') {
-				reject(new Error(data["error"]));
+				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				reject(new Error("Internal error computing constituents performance"))
+				resolve(APIError.throwJsonError({message: "Internal error computing constituents performance", errorCode: 2101}));
 			}
 		});
 	});
@@ -230,9 +230,9 @@ function _computePerformance_portfolioHistory(portfolioHistory, benchmark) {
 	    		resolve(performance);
 
 			} else if (data['error'] != '') {
-				reject(new Error(data["error"]));
+				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				reject(new Error("Internal error computing performance"))
+				resolve(APIError.throwJsonError({message: "Internal error computing performance", errorCode: 2101}));
 			}
 		});
 	});
@@ -364,16 +364,6 @@ function _computeSimulatedPerformance(portfolioId) {
 	});
 }
 
-/*module.exports.computeLatestPerformance = function(portfolioId) {
-	
-	return _computeLatestPerformance(portfolioId);
-};*/
-
-/*module.exports.computeSimulatedPerformance = function(portfolioId) {
-	
-	return _computeSimulatedPerformance(portfolioId);
-};*/
-
 module.exports.computePerformanceHypthetical = function(portfolio) {
 	return new Promise((resolve,reject) => {
 		if(portfolio) {
@@ -391,7 +381,7 @@ module.exports.computePerformanceHypthetical = function(portfolio) {
 			])
 		} else if(!validPortfolio) {
 			//this should not be called but in any-case
-			APIError.throwJsonError({message: "Invalid portfolio composition"});
+			APIError.throwJsonError({message: "Invalid Portfolio composition", errorCode: 1405});
 		} 
 	})
 	.then(([portfolioComposition, constituentPerformance, portfolioPerformance]) => {
@@ -421,7 +411,7 @@ module.exports.updatePerformanceAllAdvices = function() {
 				}
 			});
 		} else {
-			APIError.throwJsonError({message: "No Advices found"})
+			APIError.throwJsonError({message: "No advices found", errorCode: 1118})
 		}
 	})
 	.then(updates => {
@@ -457,7 +447,11 @@ module.exports.getLatestPerformance = function(portfolioId) {
 			return PerformanceModel.fetchPerformance({portfolio: portfolioId});
 		}
 		
-	});
+	})
+	.catch(err => {
+		console.log(err);
+		return PerformanceModel.fetchPerformance({portfolio: portfolioId});
+	})
 }
 
 module.exports.getPerformanceSummaryOLD = function(portfolioId) {
@@ -493,12 +487,30 @@ module.exports.getPerformanceSummary = function(portfolioId) {
 
 			const summary = Object.assign({}, performance.current.toObject());
 
+			var netValueArray = summary && summary.portfolioValues && summary.portfolioValues.length > 0 ? summary.portfolioValues.slice(-2) : null;
+
+			var dailyChange = 0.0;
+			if(netValueArray && netValueArray.length > 1){
+				var prices = netValueArray.map(item => item.netValue);
+				dailyChange = prices[0] > 0.0 ? (prices[1] - prices[0])/prices[0] : 0.0;
+			}
+
+			dailyChange = parseFloat(dailyChange.toPrecision(4));
+
+			var latestPortfolioValue = netValueArray && netValueArray.length > 0 ? netValueArray[netValueArray.length - 1] : null
+			var currentMetrics = summary && summary.metrics && summary.metrics.portfolioPerformance ? summary.metrics.portfolioPerformance : null; 
+			
 			return {
-				return: summary && summary.metrics && summary.metrics.returns ? summary.metrics.returns.totalreturn : 0.0,
-				volatility: summary && summary.metrics && summary.metrics.deviation ? summary.metrics.deviation.annualstandarddeviation : 0.0,
-				sharpe: summary && summary.metrics && summary.metrics.ratios ? summary.metrics.ratios.sharperatio : 0.0,
-				beta: summary && summary.metrics && summary.metrics.ratios ? summary.metrics.ratios.beta : 0.0, 
-				maxloss: summary && summary.metrics && summary.metrics.metrics ? summary.metrics.drawdown : 0.0	
+				date: summary.updateDate,
+				return: currentMetrics && currentMetrics.returns ? currentMetrics.returns.totalreturn : 0.0,
+				volatility: currentMetrics && currentMetrics.deviation ? currentMetrics.deviation.annualstandarddeviation : 0.0,
+				sharpe: currentMetrics && currentMetrics.ratios ? currentMetrics.ratios.sharperatio : 0.0,
+				beta: currentMetrics && currentMetrics.ratios ? currentMetrics.ratios.beta : 0.0, 
+				maxLoss: currentMetrics && currentMetrics.drawdown ? currentMetrics.drawdown.maxdrawdown : 0.0,	
+				currentLoss: currentMetrics && currentMetrics.drawdown ? currentMetrics.drawdown.currentdrawdown : 0.0,	
+				dailyChange: dailyChange,
+				netValue: latestPortfolioValue ? latestPortfolioValue.netValue : null,
+				netValueDate: latestPortfolioValue ? latestPortfolioValue.date : null,
 			} 
 		} else {
 			return null;

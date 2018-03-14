@@ -114,7 +114,7 @@ end
 # Internal Function
 # Validate advice (portfolio and notional limits)
 ###
-function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, Any})
+function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, Any}, strictNetValue)
     
     # Validate 3 components of portfolio
     #a. positions
@@ -179,8 +179,8 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
 
         if portval == nothing
             error("Can't compute portfolio prices | missing prices")
-        elseif portval > 1.1 * maxnotional #Allow 10% 
-            error("Portfolio value exceeds maxnotional:$(maxnotional) + 10% bound")
+        elseif portval > 1.05 * maxnotional && strictNetValue #Allow 5% 
+            error("Portfolio value exceeds inital:$(maxnotional) + 5% bound")
         else
             return true
         end

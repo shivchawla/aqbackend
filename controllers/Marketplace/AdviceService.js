@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-12 12:45:27
+* @Last Modified time: 2018-03-14 18:23:10
 */
 
 'use strict';
@@ -32,21 +32,21 @@ module.exports.createAdvice = function(args, res, next) {
 			advisorId = advisor._id;
 			return AdviceModel.fetchAdvices({advisor: advisorId, deleted:false}, {fields:'_id'})
 		} else {
-			APIError.throwJsonError({message:"Advisor doesn't exist", errorCode: 5});
+			APIError.throwJsonError({message:"Advisor not found", errorCode: 1201});
 		}
 	})
 	.then(advices => {
 		if(advices.length < config.get('max_advices_per_advisor')) {
-			return HelperFunctions.validateAdvice(advice);
+			return HelperFunctions.validateAdvice(advice, "", true);
 		} else {
-			APIError.throwJsonError({advisorId: advisorId, message:"Cannot add more advices", errorCode: 5});
+			APIError.throwJsonError({advisorId: advisorId, message:"Advice limit exceed. Can't add more advices.", errorCode: 1109});
 		}
 	})
 	.then(valid => {
 		if(valid) {
 			return PortfolioModel.savePortfolio(advice.portfolio);
 		} else {
-			APIError.throwJsonError({message: "Invalid Portfolio Composition"});
+			APIError.throwJsonError({message: "Invalid portfolio composition", errorCode: 1405});
 		}
 	})
 	.then(port => {
@@ -55,7 +55,7 @@ module.exports.createAdvice = function(args, res, next) {
 				name: advice.name,
 				heading: advice.heading,
 				description: advice.description,
-				maxNotional:parseFloat(advice.maxNotional),
+				maxNotional: advice.maxNotional,
 				rebalance: advice.rebalance,
 				advisor: advisorId,
 		       	portfolio: port._id,
@@ -64,14 +64,14 @@ module.exports.createAdvice = function(args, res, next) {
 		    };
 		    return AdviceModel.saveAdvice(adv);
 	    } else {
-	    	APIError.throwJsonError({userId: userId, message:"Invalid Portfolio: Create Advice"});
+	    	APIError.throwJsonError({userId: userId, message:"Invalid Portfolio! Can't create advice with invalid portfolio", errorCode: 1110});
 	    }
 	})
     .then(advice => {
     	if(advice) {
     		return res.status(200).json(advice);
     	} else {
-    		APIError.throwJsonError({message: "Advice not added to advisor"});	
+    		APIError.throwJsonError({message: "Error adding advice to advisor", errorCode: 1111});	
     	}
     })
 	.catch(err => {
@@ -103,7 +103,7 @@ module.exports.updateAdvice = function(args, res, next) {
 				Object.keys(newAdvice).forEach(key => {
 					if (key != "portfolio") {
 						if(allowedKeys.indexOf(key) == -1 && newAdvice[key] != advice[key]) {
-							APIError.throwJsonError({message: key + ": Not Authorized to modify"}); 
+							APIError.throwJsonError({message:"Advisor not allowed to modify " + key, errorCode:1106}); 
 						}
 					} 
 				});
@@ -111,10 +111,10 @@ module.exports.updateAdvice = function(args, res, next) {
 				return Promise.all([advice,
 					  advice.public == true ? HelperFunctions.validateAdvice(newAdvice, advice) : HelperFunctions.validateAdvice(newAdvice)]);
 			} else {
-				APIError.throwJsonError({message: "Not Authorized"});
+				APIError.throwJsonError({message: "Advisor not authorized to update", errorCode: 1107});
 			}
 		} else {
-			APIError.throwJsonError({userId:userId, adviceId:adviceId, message: "Advice not found"});
+			APIError.throwJsonError({userId:userId, adviceId:adviceId, message: "Advice not found", errorCode: 1101});
 		}
 	})
 	.then(([advice, validAdvice]) => {
@@ -124,9 +124,9 @@ module.exports.updateAdvice = function(args, res, next) {
 		
 		if (validAdvice) {
 			return Promise.all([PortfolioModel.updatePortfolio({_id:advice.portfolio}, newAdvice.portfolio, {}, advice.public == true), 
-				AdviceModel.updateAdvice({_id: adviceId}, adviceUpdates)]);
+				AdviceModel.updateAdvice({_id: adviceId}, adviceUpdates, {new:true, fields: adviceFields})]);
 		} else {
-			APIError.throwJsonError({message:"Invalid Advice"});
+			APIError.throwJsonError({message:"Advice validation failed", errorCode: 1108});
 		}
 	})
 	.then(([updatedPortfolio, updatedAdvice]) => {
@@ -152,7 +152,7 @@ module.exports.getAdvices = function(args, res, next) {
     options.order = args.order.value || 1;
 
     var orderParam = args.orderParam.value || "rating";
-	if (["return", "volatility", "sharpe", "maxloss"].indexOf(orderParam) != -1) {
+	if (["return", "volatility", "sharpe", "maxLoss", "currentLoss", "dailyChange", "netValue"].indexOf(orderParam) != -1) {
 		orderParam = "latestPerformance."+orderParam;
 	} else if(["rating", "numFollowers", "numSubscribers"].indexOf(orderParam) !=-1) {
 		orderParam = "latestAnalytics."+orderParam;
@@ -160,9 +160,19 @@ module.exports.getAdvices = function(args, res, next) {
 
 	options.orderParam = orderParam;
 
-    options.fields = 'name description heading createdDate updatedDate advisor public approved maxNotional rebalance latestPerformance latestAnalytics';
+    options.fields = 'name description heading createdDate updatedDate advisor public approvalStatus maxNotional rebalance latestPerformance latestAnalytics';
 
     var query = {deleted: false};
+
+    const maxNetValue = args.maxNetValue.value;
+    if(maxNetValue) {
+        query = {'$and': [query, {'latestPerformance.netValue': {'$lt': maxNetValue}}]}; 
+    }
+
+    const minNetValue = args.minNetValue.value;
+    if(minNetValue) {
+        query = {'$and': [query, {'latestPerformance.netValue': {'$gt': minNetValue}}]}; 
+    }
 
     const following = args.following.value;
    
@@ -180,13 +190,17 @@ module.exports.getAdvices = function(args, res, next) {
     const approved = args.approved.value;
     if(approved) {
         var approvedCategories = approved.split(",");    
-        query.approved = {$in: approvedCategories};
-    }
+        //query.approved = {$in: approvedCategories};
+        var unappr = approvedCategories.indexOf("0") != -1 ? true : false;
+        var	appr = approvedCategories.indexOf("1") != -1 ? true : false;
 
-    const maxNotional = args.maxNotional.value;
-    if(approved) {
-        var maxNotionalCategories = maxNotional.split(",");    
-        query.maxNotional = {$in: maxNotionalCategories.map(item => parseFloat(item))};
+        if (!appr && unappr) {
+        	query.approvalStatus = {$ne:'approved'};
+        }
+
+        if (appr && !unappr) {
+        	query.approvalStatus = 'approved';
+        } 
     }
 
     const rebalance = args.rebalance.value;
@@ -253,7 +267,7 @@ module.exports.getAdvices = function(args, res, next) {
     			});
 			});
 		} else {
-			APIError.throwJsonError({message: "No advices found"});
+			APIError.throwJsonError({message: "No advices found", errorCode: 1110});
 		}
     })
     .then(updatedAdvices => {
@@ -274,22 +288,23 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	
 	return Promise.all([
 		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, options),
-		AdviceHelper.computeAdviceSubscriptionDetail(adviceId, userId)	
+		AdviceHelper.computeAdviceSubscriptionDetail(adviceId, userId),
+		AdviceHelper.computeAdvicePerformanceSummary(adviceId)	
 	])
- 	.then(([advice, adviceSubscriptionDetail]) => {
+ 	.then(([advice, adviceSubscriptionDetail, performanceSummary]) => {
  		if(advice && adviceSubscriptionDetail) {
 	 		var accessAllowed = adviceSubscriptionDetail.isOwner || adviceSubscriptionDetail.isAdmin;
 	 		var accessAllowed = accessAllowed || (!accessAllowed && advice.public == true); 
 	 		
 	 		if(accessAllowed) {
-				var nAdvice = Object.assign(adviceSubscriptionDetail, advice.toObject());
+				var nAdvice = Object.assign(performanceSummary, adviceSubscriptionDetail, advice.toObject());
 				return res.status(200).send(nAdvice);
 				
 			} else {
-				APIError.throwJsonError({userId: userId, adviceId: adviceId, message:"Not authorized to view this advice"});
+				APIError.throwJsonError({userId: userId, adviceId: adviceId, message:"Investor not authorized to view advice", errorCode: 1113});
 			}
 		} else {
-			APIError.throwJsonError({message:'No advice found'});
+			APIError.throwJsonError({message:'Advice not found', errorCode: 1101});
 		}
  	})
  	.catch(err => {
@@ -317,7 +332,7 @@ module.exports.getAdviceDetail = function(args, res, next) {
 			return AdviceModel.fetchAdvice({_id:adviceId}, options);
 		
 		} else {
-			APIError.throwJsonError({message:"Not authorized to view advice detail"});
+			APIError.throwJsonError({message:"Investor not authorized to view advice detail", errorCode: 1112});
 		}
 	})
 	.then(advice => {
@@ -354,7 +369,7 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 			//Re-run the query after checking 
 			return AdviceModel.fetchAdvicePortfolio({_id:adviceId}, date);
 		} else {
-			APIError.throwJsonError({message:"Not authorized to view advice detail"});
+			APIError.throwJsonError({message:"Investor not authorized to view advice detail", errorCode: 1112});
 		}
 	})
 	.then(portfolioDetail => {
@@ -376,18 +391,29 @@ module.exports.deleteAdvice = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const userId = args.user._id;
 	
-	AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id'})
-	.then(advisor => {
-		if(advisor) {
-			//return //Promise.all([AdvisorModel.removeAdvice({_id: advisorId}, adviceId),
-			 return AdviceModel.deleteAdvice({_id: adviceId, advisor: advisor._id});//]);
-		} else {
-			APIError.throwJsonError({userId: userId, message:"Not authorized"}); 
+	return Promise.all([
+		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id'}),
+		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, {fields: '_id advisor'})
+	])
+	.then(([advisor, advice]) => {
+		if(advisor && advice) {
+		 	var isOwner = advisor._id.equals(advice.advisor);
+		 	if (isOwner) {
+		 		return AdviceModel.deleteAdvice({_id: adviceId, advisor: advisor._id});
+	 		} else {
+	 			APIError.throwJsonError({userId: userId, message:"Advisor not authorized to delete", errorCode: 1114}); 
+	 		}
+		} else if(!advisor) {
+			APIError.throwJsonError({userId: userId, message:"Advisor not found", errorCode: 1201}); 
+		} else if(!advice){
+			APIError.throwJsonError({userId: userId, message:"Advice not found", errorCode: 1101}); 
 		}
 	})
 	.then(advice => {
 		if(advice) {
-			return res.status(200).send({adviceId:adviceId, message:"Advice deleted"});
+			return res.status(200).send({adviceId:adviceId, message:"Advice deleted successfully"});
+		} else {
+			APIError.throwJsonError({userId: userId, message:"Internal error deleting advice", errorCode: 1115}); 
 		}
 	})
   	.catch(err => {
@@ -406,24 +432,24 @@ module.exports.publishAdvice = function(args, res, next) {
     		const advisorId = advisor._id;
 
     		if(!advice.advisor.equals(advisorId)) {
-    			APIError.throwJsonError({message: "Advisor can't publish his advice"});
+    			APIError.throwJsonError({message: "Advisor is not authorized to publish the advice", errorCode: 1102});
     		}
 
-    		return AdviceModel.updateAdvice({_id: adviceId}, {public: true, publishDate: new Date()});
+    		return AdviceModel.updateAdvice({_id: adviceId}, {public: true, publishDate: new Date()}, {new: true, fields:'_id public'});
 						
 		} else {
 			if (!advice) {
-				APIError.throwJsonError({adviceId: adviceId, message: "Advice not found or already public"});
+				APIError.throwJsonError({adviceId: adviceId, message: "Advice not found", errorCode: 1101});
 			} else if(!advisor) {
-				APIError.throwJsonError({userId:userId, message: "Advisor not found"});
+				APIError.throwJsonError({userId:userId, message: "Advisor not found", errorCode: 1201});
 			}
 		}
 	})
 	.then(advice => {
 		if (advice) {
-			return res.status(200).json({adviceId: adviceId, message: "Successfully published"}); 
+			return res.status(200).json({adviceId: adviceId, message: "Advice successfully published"}); 
 		} else {
-			APIError.throwJsonError({adviceId: adviceId, message: "Error publishing advice"});
+			APIError.throwJsonError({adviceId: adviceId, message: "Error publishing advice", errorCode: 1103});
 		}
 	})
     .catch(err => {
@@ -445,7 +471,7 @@ module.exports.followAdvice = function(args, res, next) {
     		const advisorId = advisor._id;
 
     		if(advice.advisor.equals(advisorId)) {
-    			APIError.throwJsonError({message: "Advisor can't follow his advice"});
+    			APIError.throwJsonError({message: "Advisor can't follow personal advice", errorCode: 1104});
     		}
 
     		return Promise.all([AdviceModel.updateFollowers({
@@ -456,11 +482,11 @@ module.exports.followAdvice = function(args, res, next) {
 						    		)]);
 		} else {
 			if(!investor) {
-				APIError.throwJsonError({userId: userId, message: "Investor not found"});
+				APIError.throwJsonError({userId: userId, message: "Investor not found", errorCode: 1301});
 			} else if (!advice) {
-				APIError.throwJsonError({adviceId: adviceId, message: "Advice not found"});
+				APIError.throwJsonError({adviceId: adviceId, message: "Advice not found", errorCode: 1101});
 			} else if(!advisor) {
-				APIError.throwJsonError({userId:userId, message: "Advisor not found"});
+				APIError.throwJsonError({userId:userId, message: "Advisor not found", errorCode: 1201});
 			}
 		}
 	})
@@ -468,9 +494,9 @@ module.exports.followAdvice = function(args, res, next) {
 		if (advice && investor) {
 			return res.status(200).json({userId: userId, adviceId: adviceId, count: advice.followers.filter(item => {return item.active==true}).length}); 
 		} else if(!investor) {
-			APIError.throwJsonError({userId:userId, message: "No Investor found"});
+			APIError.throwJsonError({userId:userId, message: "Investor not found", errorCode: 1301});
 		} else if(!advice) {
-			APIError.throwJsonError({adviceId: adviceId, message: "No Advice found"});
+			APIError.throwJsonError({adviceId: adviceId, message: "Advice not found", errorCode: 1101});
 		}
 	})
     .catch(err => {
@@ -492,7 +518,7 @@ module.exports.subscribeAdvice = function(args, res, next) {
     		const advisorId = advisor._id;
 
     		if(advice.advisor.equals(advisorId)) {
-    			APIError.throwJsonError({message: "Advisor can't subscribe his advice"});
+    			APIError.throwJsonError({message: "Advisor can't subscribe to personal advice", errorCode: 1105});
     		}
 
     		return Promise.all([AdviceModel.updateSubscribers({
@@ -503,11 +529,11 @@ module.exports.subscribeAdvice = function(args, res, next) {
 						    		)]);
 		} else {
 			if(!investor) {
-				APIError.throwJsonError({userId: userId, message: "Investor not found"});	
+				APIError.throwJsonError({userId: userId, message: "Investor not found", errorCode: 1301});	
 			} else if (!advice) {
-				APIError.throwJsonError({adviceId: adviceId, message: "Advice not found"});	
+				APIError.throwJsonError({adviceId: adviceId, message: "Advice not found", errorCode: 1101});	
 			} else if(!advisor) {
-				APIError.throwJsonError({userId:userId, message: "Advisor not found"});
+				APIError.throwJsonError({userId:userId, message: "Advisor not found", errorCode: 1201});
 			}
 		}
 	})
@@ -515,9 +541,9 @@ module.exports.subscribeAdvice = function(args, res, next) {
 		if (advice && investor) {
 			return res.status(200).json({userId: userId, adviceId: adviceId, count: advice.subscribers.filter(item => {return item.active==true}).length}); 
 		} else if(!investor) {
-			APIError.throwJsonError({userId:userId, message: "No Investor found"});
+			APIError.throwJsonError({userId:userId, message: "Investor not found", errorCode: 1301});
 		} else if(!advice) {
-			APIError.throwJsonError({adviceId: adviceId, message: "No Advice found"});
+			APIError.throwJsonError({adviceId: adviceId, message: "Advice not found", errorCode: 1101});
 		}
 	})
     .catch(err => {
@@ -536,14 +562,41 @@ module.exports.approveAdvice = function(args, res, next) {
 			if(users.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
 				return AdviceModel.updateApproval({_id:adviceId}, Object.assign({user: userId}, approval));
 			} else {
-				APIError.throwJsonError({message: "User not authorized to approve"});
+				APIError.throwJsonError({message: "User not authorized to approve", errorCode: 1505});
 			}
 		} else {
-			APIError.throwJsonError({message: " No authorized user found to approve"});
+			APIError.throwJsonError({message: "No authorized user found to approve", errorCode: 1501});
 		}
 	})
 	.then(advice => {
-		return res.status(200).send({message: "Approval updated"});
+		return res.status(200).send({message: "Approval updated successfully"});
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
+};
+
+module.exports.requestApproveAdvice = function(args, res, next) {
+	const userId = args.user._id;
+	const adviceId = args.adviceId.value;
+	return Promise.all([
+		AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id'}),
+		AdviceModel.fetchAdvice({_id: adviceId}, {fields:'advisor'})
+	])
+	.then(([advisor, advice]) => {
+		var isOwner = advisor && advice ? advisor._id.equals(advice.advisor) : false;
+		if(isOwner) {
+			return AdviceModel.updateAdvice({_id:adviceId}, {approvalStatus: "pending"}, {new: true, fields:'approvalStatus'});
+		} else {
+			APIError.throwJsonError({message: "Advisor not authorized", errorCode:1116});
+		}
+	})
+	.then(advice => {
+		if (advice) {
+			return res.status(200).send(advice);
+		} else {
+			APIError.throwJsonError({message: "Internal error updating approval status", errorCode: 1117});
+		}
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);

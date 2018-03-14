@@ -364,8 +364,8 @@ function history_nostrict(tickers, dtype::String, res::Symbol, sd::DateTime, ed:
 end
 
 function compute_pnl_stats(pos::Position)
-    pnl = pos.lastprice > 0.0 ? pos.lastprice - pos.averageprice : 0.0
-    pnlpct = pos.averageprice > 0.0 ? round(pnl * 100/pos.averageprice, 2) : 0.0
+    pnl = pos.lastprice > 0.0 ? pos.quantity * (pos.lastprice - pos.averageprice) : 0.0
+    pnlpct = pos.averageprice > 0.0 ? round(pos.lastprice * 100/pos.averageprice, 2) : 0.0
     return Dict{String, Any}("pnl" => pnl, "pnl_pct" => pnlpct)
 end
 

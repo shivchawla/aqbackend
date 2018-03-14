@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-05 10:30:14
+* @Last Modified time: 2018-03-14 15:16:21
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -98,7 +98,7 @@ function _computeUpdatedPortfolioForStockTransactionsEachDate(portfolio, transac
 						};
 				});	
 			} else  {
-				return {positions : subPositionsForAdviceId};
+				return {positions: subPositionsForAdviceId};
 			}		
 		})
 	])
@@ -146,10 +146,12 @@ function _updatePositionsForTransactions(positions, transactions) {
 
 	    wsClient.on('message', function(msg) {
 	    	var data = JSON.parse(msg);
-	    	if(data['portfolio']) {
+	    	if(data['portfolio'] && data["error"] == "") {
     			resolve(data['portfolio']);
+			} else if(data["error"] != "") {
+				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				resolve(null);
+				resolve(APIError.throwJsonError({message: "Internal error in updating positions for transactions", errorCode: 2101}));
 			}
 		});
 	});
@@ -182,9 +184,9 @@ function _updatePositionsForPrice(positions, date) {
 	        	if (data["error"] == "" && data["updatedPositions"]) {
 				    resolve(data["updatedPositions"]);
 			    } else if (data["error"] != "") {
-			    	reject(new Error(data["error"]));
+			    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 			    } else {
-			    	reject(new Error("Unknown error in updating portfolio for latest price"));
+			    	resolve(APIError.throwJsonError({message: "Internal error in updating portfolio for latest price", errorCode: 2101}));
 			    }
 		    });
 	    })
@@ -264,10 +266,10 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 						//3. Validate transactions against advice portfolio as of that date
 						return HelperFunctions.validateTransactions(transactionsForAdviceIdForDate, advicePortfolio)
 						.catch(err => {
-							APIError.throwJsonError({message: "Validation failed for transactions - Invalid transactions (Reason: " + err.message +")", advice: adviceId, date: date});
+							APIError.throwJsonError({message: "Invalid transactions (Reason: " + err.message +")", advice: adviceId, date: date, errorCode: 1406});
 						});
 					} else {
-						APIError.throwJsonError({message: "Validation failed for transactions - Portfolio not present", advice: adviceId, date: date});
+						APIError.throwJsonError({message: "Validation failed for transactions - Portfolio not found", advice: adviceId, date: date, errorCode: 1401});
 					}
 				});
 			})
@@ -278,7 +280,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 			var onlyStockTransactions = transactions.filter(item => {return !item.advice});
 			return HelperFunctions.validateTransactions(onlyStockTransactions)
 			.catch(err => {
-				APIError.throwJsonError({message: "Validation failed for stock transactions - Invalid transactions (Reason: "+ err.message +")"});
+				APIError.throwJsonError({message: "Invalid transactions (Reason: "+ err.message +")", errorCode: 1406});
 			});
 		}
 	})
@@ -337,7 +339,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 				}
 			}
 		} else {
-			APIError.throwJsonError({message: "Invalid transactions or portfolio not found"})
+			APIError.throwJsonError({message: "Invalid transactions", errorCode: 1406})
 		}
 	})
 	.then(portfolio => { //Has updated transaction but portfolio is STALE
@@ -397,7 +399,7 @@ module.exports.getUpdatedPortfolio = function(portfolioId, fields) {
 				_computeUpdatedPortfolioForPrice(portfolio.toObject()):
 				[false,  portfolio];
 		} else {
-			APIError.throwJsonError({portfolioId: portfolioId, message: "No portfolio found"});
+			APIError.throwJsonError({portfolioId: portfolioId, message: "Portfolio not found", errorCode: 1401});
 		}
 	})
 	.then(([updated, latestPricePortfolio]) => {
@@ -426,9 +428,9 @@ module.exports.comparePortfolioDetail = function(oldPortfolioDetail, newPortfoli
 	    	if(data['error'] == '' && data['compare']) {
 	    		resolve(data['compare']);
 			} else if (data['error'] != '') {
-				reject(new Error(data["error"]));
+				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				reject(new Error("Internal error in comparing portfolios"))
+				resolve(APIError.throwJsonError({message: "Internal error in comparing portfolios", errorCode: 2101}));
 			}
 		});
 	});

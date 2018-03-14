@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-12 12:52:49
+* @Last Modified time: 2018-03-14 11:57:28
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -40,6 +40,18 @@ module.exports.computeAdviceSubscriptionDetail = function(adviceId, userId) {
 	//return AdviceModel.fetchAdvice({_id:adviceId}, {field:'advisor subscribers followers'})
 	.then(([advisor, investor, advice, adminAdvisor]) => {
 		
+		if(!advisor) {
+			APIError.throwJsonError({message: "Advisor not found", errorCode: 1201});
+		}
+
+		if(!investor) {
+			APIError.throwJsonError({message: "Advisor not found", errorCode: 1301});	
+		}
+
+		if(!advice) {
+			APIError.throwJsonError({message: "Advice not found", errorCode: 1101});	
+		}
+
 		const investorId = investor._id;
 		var isFollowing = false;
 		var isSubscribed = false;
@@ -86,11 +98,11 @@ module.exports.isUserAuthorizedToViewAdviceDetail = function(userId, adviceId) {
 			return advice.advisor.equals(advisorId) || activeSubscribers.indexOf(investorId) != -1;
 				
 		} else if(!investor) {
-			APIError.throwJsonError({message:"Investor not found"});
+			APIError.throwJsonError({message:"Investor not found", errorCode: 1301});
 		} else if(!advisor) {
-			APIError.throwJsonError({message:"Advisor not found"});
+			APIError.throwJsonError({message:"Advisor not found", errorCode: 1201});
 		} else if (!advice) {
-			APIError.throwJsonError({message:"Advice not found"});
+			APIError.throwJsonError({message:"Advice not found", errorCode: 1101});
 		} 
 	});
 }
@@ -98,12 +110,16 @@ module.exports.isUserAuthorizedToViewAdviceDetail = function(userId, adviceId) {
 module.exports.computeAdvicePerformanceSummary = function(adviceId) {
 	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio'})
 	.then(advice => {
-		return PerformanceHelper.getPerformanceSummary(advice.portfolio)
+		if (advice) {
+			return PerformanceHelper.getPerformanceSummary(advice.portfolio)
+		} else {
+			return null;
+		}
 	})
 	.then(performanceSummary => {
 		return {performance: performanceSummary};
 	})
 	.catch(err => {
-		return {error: err.message};
+		return {performance: {error: err.message}};
 	});
 };

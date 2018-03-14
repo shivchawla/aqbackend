@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-12 15:17:46
+* @Last Modified time: 2018-03-13 12:48:56
 */
 
 'use strict';
@@ -23,14 +23,14 @@ module.exports.createAdvisor = function(args, res, next) {
 		if(!advisor) {
 			return AdvisorModel.saveAdvisor({user:userId})
 		} else {
-			APIError.throwJsonError({userId: userId, message:"Advisor already exists"});
+			APIError.throwJsonError({userId: userId, message:"Advisor already exists", errorCode: 1202});
 		}	
 	})
 	.then(advisor => {
 		if(advisor) {
 			return res.status(200).json(advisor);
 		} else {
-			APIError.throwJsonError({userId: userId, message:"Advisor can't be created"});
+			APIError.throwJsonError({userId: userId, message:"Internal error creating advisor", errorCode: 1203});
 		}
 	})
 	.catch(err => {
@@ -59,7 +59,7 @@ module.exports.getAdvisors = function(args, res, next) {
     	if(advisors) {
 			return res.status(200).json(advisors);
 		} else {
-			APIError.throwJsonError({message: "No advisors found"});
+			APIError.throwJsonError({message: "No advisors found", errorCode: 1204});
 		}
     })
     .catch(err => {
@@ -116,7 +116,7 @@ module.exports.getAdvisorSummary = function(args, res, next) {
 
 		  	return res.status(200).send(nAdvisor);
  		} else {
- 			APIError.throwJsonError({advisorId: advisorId, message: "Advisor not found"});
+ 			APIError.throwJsonError({advisorId: advisorId, message: "Advisor not found", errorCode: 1201});
  		}
   	})
   	.catch(err => {
@@ -143,14 +143,14 @@ module.exports.updateAdvisorProfile = function(args, res, next) {
     	if (valid) {
     		return AdvisorModel.fetchAdvisor({user:userId, _id:advisorId}, {fields: '_id'});
 		} else {
-			APIError.throwJsonError({message: "Invalid profile settings"});
+			APIError.throwJsonError({message: "Invalid profile settings", errorCode: 1205});
 		}
 	})
     .then(advisor => {
     	if(advisor) {
 			return AdvisorModel.updateAdvisor({_id:advisorId}, {profile: profile}, {new:true, fields:'profile'})
 		} else {
-			APIError.throwJsonError({message: "No advisor found/Not authorized"});
+			APIError.throwJsonError({message: "Advisor not authorized to update profile", errorCode: 1206});
 		}
     })
     .then(advisor => {
@@ -165,8 +165,10 @@ module.exports.followAdvisor = function(args, res, next) {
     const userId = args.user._id;
   	const advisorId = args.advisorId.value;
 
-  	return Promise.all([AdvisorModel.fetchAdvisor({_id: advisorId, user:{$ne:userId}}, {fields:'_id'}),
-  					InvestorModel.fetchInvestor({user:userId}, {fields:'_id', insert:true})])
+  	return Promise.all([
+  		AdvisorModel.fetchAdvisor({_id: advisorId, user:{$ne:userId}}, {fields:'_id'}),
+		InvestorModel.fetchInvestor({user:userId}, {fields:'_id', insert:true})
+	])
   	.then(([advisor, investor]) => {
   		if(advisor && investor) {
     		const investorId = investor._id; 
@@ -179,9 +181,9 @@ module.exports.followAdvisor = function(args, res, next) {
 			);
 		} else {
 			if(!investor) {
-				APIError.throwJsonError({userId: userId, message: "Investor not found"});
+				APIError.throwJsonError({userId: userId, message: "Investor not found", errorCode: 1301});
 			} else if(!advisor) {
-				APIError.throwJsonError({userId: userId, message: "Advisor not found or Advisor same as user"});
+				APIError.throwJsonError({userId: userId, message: "Advisor not found or Advisor same as user", errorCode: 1201});
 			}
 		}
 	})
@@ -189,9 +191,9 @@ module.exports.followAdvisor = function(args, res, next) {
 		if (advisor && investor) {
 			return res.status(200).json({count: advisor.followers.filter(item => item.active).length}); 
 		} else if(!investor) {
-			APIError.throwJsonError({userId:userId, message: "Advisor can't be updated"});
+			APIError.throwJsonError({userId:userId, message: "Internal error updating advisor", errorCode: 1207});
 		} else if(!advisor) {
-			APIError.throwJsonError({advisorId: advisorId, message: "Investor can't be updated"});
+			APIError.throwJsonError({advisorId: advisorId, message: "Internal error updating investor", errorCode: 1307});
 		}
 	})
     .catch(err => {
@@ -210,14 +212,14 @@ module.exports.approveAdvisor = function(args, res, next) {
 			if(users.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
 				return AdvisorModel.updateApproval({_id:advisorId}, Object.assign({user: userId}, approval));
 			} else {
-				APIError.throwJsonError({message: "User not authorized to approve"});
+				APIError.throwJsonError({message: "User not authorized to approve", errorCode: 1505});
 			}
 		} else {
-			APIError.throwJsonError({message: " No authorized user found to approve"});
+			APIError.throwJsonError({message: " No authorized user found to approve", errorCode: 1501});
 		}
 	})
 	.then(advisor => {
-		return res.status(200).send({message: "Approval updated"});
+		return res.status(200).send({message: "Approval updated successfully"});
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);

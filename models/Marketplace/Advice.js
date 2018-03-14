@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-09 19:14:58
+* @Last Modified time: 2018-03-14 18:24:19
 */
 'use strict';
 const mongoose = require('../index');
@@ -78,9 +78,9 @@ const Advice = new Schema({
         type: Date,
     }, 
 
-    approved: {
-        type:Boolean,
-        default: false
+    approvalStatus: {
+        type: String,
+        default: "pending"
     },
 
     approvalMessages:[{
@@ -242,15 +242,14 @@ Advice.statics.getAdviceHistory = function(query, options) {
 	return q.execAsync();
 };
 
-Advice.statics.updateAdvice = function(query, updates) {
-    return this.findOneAndUpdate(query, updates, {upsert:true, new: true});
+Advice.statics.updateAdvice = function(query, updates, options) {
+    return this.findOneAndUpdate(query, updates, options);
 };
 
 Advice.statics.deleteAdvice = function(query) {
 	return this.findOne(query)
 	.then(advice => {
 		if(advice){
-			
             if(!advice.deleted) {
                 advice.deleted = true;
                 advice.deletedDate = new Date();
@@ -374,18 +373,17 @@ Advice.statics.fetchAdvicePortfolio = function(query, date) {
 
 Advice.statics.updateApproval = function(query, latestApproval) {
     
-    var approvalMessage = latestApproval.message;
-    var approvedStatus = latestApproval.approved;
+    var approvalStatus = latestApproval.approved ? "approved" : "rejected" ;
     var user = latestApproval.user;
 
-    const approvedMessage = ({
+    const approvedMessage = {
         date: new Date(), 
-        message: approvalMessage,
-        approved: approvedStatus,
+        message: latestApproval.message,
+        approved: latestApproval.approved,
         user: user
-    });
+    };
 
-    const updates = {'$set':{approved: approvedStatus}, '$push':{approvalMessages: approvedMessage}};       
+    const updates = {'$set':{approvalStatus: approvalStatus}, '$push':{approvalMessages: approvedMessage}};       
 
     return this.findOneAndUpdate(query, updates);
 }

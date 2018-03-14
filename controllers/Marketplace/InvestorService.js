@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-07 11:28:41
+* @Last Modified time: 2018-03-14 17:50:34
 */
 
 'use strict';
@@ -11,6 +11,7 @@ const PortfolioModel = require('../../models/Marketplace/Portfolio');
 const APIError = require('../../utils/error');
 const Promise = require('bluebird');
 const HelperFunctions = require("../helpers");
+const AdviceHelper = require("../helpers/Advice");
 const PortfolioHelper = require("../helpers/Portfolio");
 const PerformanceHelper = require("../helpers/Performance");
 var ObjectId = require('mongoose').Types.ObjectId;
@@ -31,12 +32,12 @@ function _compareIds(x, y) {
 module.exports.createInvestor = function(args, res, next) {
     const userId = args.user._id;
 
-	InvestorModel.fetchInvestor({user:userId}, {fields:'_id', insert:true})
+	return InvestorModel.fetchInvestor({user:userId}, {fields:'_id', insert:true})
 	.then(investor => {
 		if(investor) {
 			return res.status(200).json(investor);
 		} else {
-			APIError.throwJsonError({userId: userId, message: "No investor could be created"});
+			APIError.throwJsonError({userId: userId, message: "Internal error creating investor", errorCode: 1308});
 		}
 	})
 	.catch(err => {
@@ -67,7 +68,7 @@ module.exports.getInvestorSummary = function(args, res, next) {
 				investor.defaultPortfolio ? PerformanceHelper.getLatestPerformance(investor.defaultPortfolio) : null
 			]);
     	} else {
-    		APIError.throwJsonError({investorId: investorId, message:"Investor not found or not authorized"});
+    		APIError.throwJsonError({investorId: investorId, message:"Investor not found/not authorized", errorCode: 1302});
     	}
     })
     .then(([investor, updatedDefaultPortfolio, updatedDefaultPerformance]) => {
@@ -96,7 +97,7 @@ module.exports.getInvestorDetail = function(args, res, next) {
 		if(investor) {
 			return res.status(200).json(investor);
 		} else {
-			APIError.throwJsonError({investorId: investorId, message:"No Investor Found or not authorized"});
+			APIError.throwJsonError({investorId: investorId, message:"Investor not found/not authorized", errorCode: 1302});
 		}
 	})
 	.catch(err => {
@@ -121,6 +122,8 @@ module.exports.getFollowingAdvices = function(args, res, next) {
     		var count = following.length;
     		following = following.splice(skip, limit);
     		return res.status(200).json({"followingAdvices":following, count: count});	
+    	} else {
+    		APIError.throwJsonError({message: "Investor not found", errorCode: 1301});
     	}
     })
     .catch(err => {
@@ -145,6 +148,8 @@ module.exports.getFollowingAdvisors = function(args, res, next) {
     		var count = following.length;
     		following = following.splice(skip, limit);
     		return res.status(200).json({"followingAdvisors": following, count: count});	
+    	} else {
+    		APIError.throwJsonError({message: "Investor not found", errorCode: 1301});
     	}
     })
     .catch(err => {
@@ -171,7 +176,7 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 	};
 
 	if (portfolio.name == "" && !preview) {
-		return res.status(400).send({message:"Portfolio name can't be empty"});
+		return res.status(400).send({message:"Portfolio name can't be empty", errorCode: 1403});
 	}
 
 	transactions.forEach(item => {
@@ -183,15 +188,19 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 
 	return InvestorModel.fetchInvestor({user: userId}, {fields:'_id portfolios'})
 	.then(investor => {
-		if(investor._id.equals(investorId)) {
-			return Promise.all([
-				!preview ? Promise.map(investor.portfolios, function(portfolioId) {
-					return PortfolioModel.fetchPortfolio({_id:portfolioId}, {fields: 'name deleted'});
-				}):[],
-				HelperFunctions.validatePortfolio(portfolio),
-				HelperFunctions.validateTransactions(transactions)])	
+		if (investor){
+			if(investor._id.equals(investorId)) {
+				return Promise.all([
+					!preview ? Promise.map(investor.portfolios, function(portfolioId) {
+						return PortfolioModel.fetchPortfolio({_id:portfolioId}, {fields: 'name deleted'});
+					}):[],
+					HelperFunctions.validatePortfolio(portfolio),
+					HelperFunctions.validateTransactions(transactions)])	
+			} else {
+				APIError.throwJsonError({message: "Investor not authorized to add transactions", errorCode: 1303});
+			}
 		} else {
-			APIError.throwJsonError({message: "Not Authorized"});
+			APIError.throwJsonError({message: "Investor not found", errorCode: 1301})
 		}
 	})
 	.then(([otherPortfolios, validPortfolio, validTransactions]) => {
@@ -205,15 +214,17 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 			}
 
 			return !preview ? PortfolioModel.savePortfolio(portfolio) : portfolio;
-		} else {
-			APIError.throwJsonError({message: "Invalid Portfolio or transactions"});
+		} else if (!validPortfolio) {
+			APIError.throwJsonError({message: "Invalid Portfolio Composition", errorCode: 1406});
+		} else if (!validTransactions) {
+			APIError.throwJsonError({message: "Invalid transactions", errorCode: 1407});
 		}
 	})
 	.then(portfolio => {
 		if(portfolio) {
 			return Promise.all([portfolio, !preview ? InvestorModel.addPortfolio({_id: investorId, user:userId}, portfolio._id) : {}]);
 		} else {
-			APIError.throwJsonError({message: "Unable to create Portfolio"});
+			APIError.throwJsonError({message: "Internal error creating portfolio", errorCode: 1405});
 		}
 	})
     .then(([portfolio, investor]) => {
@@ -225,14 +236,14 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 			//and hence doesn't match the type requirement 
 			return transactions.length > 0 ? PortfolioHelper.updatePortfolioForStockTransactions(portfolio, transactions, "add", preview) : portfolio;
 		} else {
-			APIError.throwJsonError({message: "Could not create portfolio for investor"});
+			APIError.throwJsonError({message: "Internal error adding portfolio", errorCode: 1309});
 		}
     })
     .then(portfolio => {
     	if(portfolio) {
 			return res.status(200).json(portfolio); 
 		} else {
-			APIError.throwJsonError({messsage: "Can't update portfolio for transactions"});
+			APIError.throwJsonError({messsage: "Internal error updating portfolio for stock transactions", errorCode: 1407});
 		}
     })
 	.catch(err => {
@@ -284,11 +295,11 @@ module.exports.getInvestorPortfolios = function(args, res, next) {
 					});
 				});
 			} else {
-				APIError.throwJsonError({userId: userId, message: "No Portfolios found"})
+				APIError.throwJsonError({userId: userId, message: "No Portfolios found", errorCode: 1402})
 			}
 			
 		} else {
-			APIError.throwJsonError({userId: userId, message: "No Investor found or not authorized"});
+			APIError.throwJsonError({userId: userId, message: "No Investor found/not authorized", errorCode: 1302});
 		}
 	})
 	.then(portfolios => {
@@ -317,7 +328,7 @@ module.exports.getInvestorPortfolios = function(args, res, next) {
 			}
 			
 		} else {
-			APIError.throwJsonError({message: "No portfolios found"});
+			APIError.throwJsonError({message: "No portfolios found", errorCode: 1402});
 		}
 	})
 	.catch(err => {
@@ -349,21 +360,35 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 						APIError.throwJsonError({userId: userId, portfolioId: portfolioId, message: "Not a valid portfolio for investor"})
 					}
 				} else {
-					APIError.throwJsonError({userId: userId, message: "No Portfolios found"})
+					APIError.throwJsonError({userId: userId, message: "No Portfolios found", errorCode: 1402})
 				}
 			} else {
-				APIError.throwJsonError({userId: userId, message: "Not Authorized to view"})
+				APIError.throwJsonError({userId: userId, message: "Investor not authorized to view", errorCode: 1304})
 			}
 			
 		} else {
-			APIError.throwJsonError({userId: userId, message: "No Investor found"});
+			APIError.throwJsonError({userId: userId, message: "Investor not found", errorCode: 1301});
 		}
 	})
 	.then(updatedPortfolio => {
 		if(updatedPortfolio) {
-			return res.status(200).send(updatedPortfolio);
+
+			var subPositions = updatedPortfolio.detail && updatedPortfolio.detail.subPositions ? updatedPortfolio.detail.subPositions : []; 
+			var advices = subPositions.filter(item => {return item.advice && item.advice._id && item.advice._id!=""}).map(item => item.advice._id);
+			
+			return Promise.map(advices, function(adviceId) {
+				return AdviceHelper.computeAdvicePerformanceSummary(adviceId)
+				.then(performance => {
+					return Object.assign({advice: adviceId}, performance);
+				});
+			})
+			.then(performances => {
+				updatedPortfolio = Object.assign({advicePerformance : performances}, updatedPortfolio.toObject());	
+				return res.status(200).send(updatedPortfolio);
+			});
+			
 		} else {
-			APIError.throwJsonError({message: "Invalid updated portfolio"});
+			APIError.throwJsonError({message: "Portfolio not found", errorCode: 1401});
 		}
 	})
 	.catch(err => {
@@ -372,7 +397,7 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 };
 
 /*
-* UPDATE portfolio  
+* UPDATE portfolio  --- IS THIS IN USE???
 */
 module.exports.updateInvestorPortfolio = function(args, res, next) {
 	
@@ -396,14 +421,14 @@ module.exports.updateInvestorPortfolio = function(args, res, next) {
 				APIError.throwJsonError({portfolioId:portfolioId, message: "Portfolio not found"})
 			}
 		} else {
-			APIError.throwJsonError({investorId:investorId, message: "Investor or Portfolios not found"})
+			APIError.throwJsonError({investorId:investorId, message: "Investor not found", errorCode: 1301})
 		}
 	})
 	.then(portfolio => {
 		if(portfolio) {
 			return res.status(200).json(portfolio); 
 		} else {
-			APIError.throwJsonError({messsage: "Can't update portfolio for transactions"});
+			APIError.throwJsonError({messsage: "Inernal error updating portfolio", errorCode: 1308});
 		}	
 	})
 	.catch(err => {
@@ -445,20 +470,26 @@ module.exports.updateInvestorPortfolioForTransactions = function(args, res, next
 				if(transactions) {
 					return PortfolioHelper.updatePortfolioForStockTransactions(portfolio.toObject(), transactions, action, preview);
 				}  else {
-					APIError.throwJsonError({message: "Invalid transactions"});
+					APIError.throwJsonError({message: "Invalid transactions", errorCode: 1406});
 				}
 			} else {
-				APIError.throwJsonError({portfolioId:portfolioId, message: "Portfolio not found"})
+				APIError.throwJsonError({portfolioId:portfolioId, message: "Portfolio not found", errorCode: 1401})
 			}
-		} else {
-			APIError.throwJsonError({investorId:investorId, message: "Investor or Portfolios not found"})
+		} else if(!investor) {
+			APIError.throwJsonError({investor:investorId, message: "Investor not found", errorCode: 1301})
+		} else if(!portfolio){
+			APIError.throwJsonError({portfolio: portfolioId, message: "No portfolios found", errorCode: 1402})
+		} else if(!investor.portfolios){
+			APIError.throwJsonError({message: "No investor porfolios found", errorCode: 1305})
+		} else if(investor._id.equals(investorId)) {
+			APIError.throwJsonError({message: "Investor not authorized to add transactions", errorCode: 1303});
 		}
 	})
 	.then(portfolio => {
 		if(portfolio) {
 			return res.status(200).json(portfolio); 
 		} else {
-			APIError.throwJsonError({messsage: "Can't update portfolio for transactions"});
+			APIError.throwJsonError({messsage: "Internal error updating portfolio for stock transactions", errorCode: 1407});
 		}	
 	})
 	.catch(err => {
@@ -496,10 +527,10 @@ module.exports.getInvestorPortfolioPosition = function(args, res, next) {
 					return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted: false},{fields: 'detail transactions'});
 				}
 			} else {
-				APIError.throwJsonError({portfolioId: portfolioId, message:"Portfolio not found"});
+				APIError.throwJsonError({investor: investorId, message:"No investor porfolios found", errorCode: 1305});
 			}
 		} else {
-			APIError.throwJsonError({userId: userId, message: "No Investor found"});
+			APIError.throwJsonError({userId: userId, message: "Investor not found", errorCode: 1301});
 		}
 	})
 	.then(portfolio => {
@@ -514,7 +545,7 @@ module.exports.getInvestorPortfolioPosition = function(args, res, next) {
 
 			return res.status(200).json(positionDetail);
 		} else {
-			APIError.throwJsonError({userId:userId, portfolioId:portfolioId, message: "No portfolio found"});
+			APIError.throwJsonError({portfolio:portfolioId, message: "Portfolio not found", errorCode: 1401});
 		}
 	})
 	.catch(err => {
@@ -533,10 +564,18 @@ module.exports.deleteInvestorPortfolio = function(args, res, next) {
 
 	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios defaultPortfolio'})
 	.then(investor => {
-
-		return Promise.all([investor, Promise.map(investor.portfolios, function(item) {
-			return PortfolioModel.fetchPortfolio({_id:item}, {fields:'_id deleted'})
-		})]);
+		if(investor && investor.portfolios) {
+			return Promise.all([
+				investor, 
+				Promise.map(investor.portfolios, function(item) {
+					return PortfolioModel.fetchPortfolio({_id:item}, {fields:'_id deleted'})
+				})
+			]);
+		} else if(!investor){
+			APIError.throwJsonError({message: "Investor not found", errorCode: 1301});
+		} else if(!investor.portfolios) {
+			APIError.throwJsonError({message: "No investor porfolios found", errorCode: 1305});
+		}
 	})
 	.then(([investor, populatedPortfolios]) => {
 		if(investor && investor._id.equals(investorId)) {
@@ -557,17 +596,17 @@ module.exports.deleteInvestorPortfolio = function(args, res, next) {
 				return Promise.all([PortfolioModel.updatePortfolio({_id: portfolioId}, {deleted: true, updatedDate: new Date()}, {fields: 'deleted'}),
 					InvestorModel.updateInvestor({_id:investorId}, {defaultPortfolio: defaultId})]); 
 			} else {
-				APIError.throwJsonError({portfolioId: portfolioId, message: "No portfolio found "});
+				APIError.throwJsonError({portfolio: portfolioId, message: "Portfolio not found", errorCode: 1401});
 			}
 		} else {
-			APIError.throwJsonError({investorId: investorId, message: "Not a valid investor or not authorized"});
+			APIError.throwJsonError({investorId: investorId, message: "Investor not found/not authorized", errorCode: 1302});
 		}
 	})
 	.then(([portfolio, investor]) => {
 		if(portfolio && portfolio.deleted) {
 			return res.status(200).send({investorId: investorId, portfolioId: portfolioId, message:"Successfully deleted"});
 		} else {
-			APIError.throwJsonError({investorId: investorId, portfolioId: portfolioId, message: "Error deleting the portfolio"})
+			APIError.throwJsonError({investorId: investorId, portfolioId: portfolioId, message: "Internl error deleting the portfolio", errorCode: 1409})
 		}
 	})
 	.catch(err => {
@@ -582,20 +621,24 @@ module.exports.updateInvestorDefaultPortfolio = function(args, res, next) {
 
 	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios'})
 	.then(investor => {
-		if (investor.portfolios.indexOf(portfolioId) !=- 1) {
-			return PortfolioModel.fetchPortfolio({_id:portfolioId}, {fields:'_id deleted'})
-			.then(portfolio => {
-				if(portfolio && !portfolio.deleted) {
-					return InvestorModel.updateInvestor({_id: investorId}, {defaultPortfolio: portfolioId});
-				} else {
-					APIError.throwJsonError({message: "Portfolio doesn't exist or deleted", portfolio: portfolioId});
-				}
-			})
+		if (investor && investor.portfolios && investor.portfolios.indexOf(portfolioId) !=- 1) {
+			return PortfolioModel.fetchPortfolio({_id:portfolioId}, {fields:'_id deleted'});
+		} else if(!investor) {
+			APIError.throwJsonError({message: "Investor not found", errorCode: 1301});
+		} else if(investor.portfolios) {
+			APIError.throwJsonError({message: "No investor porfolios found", errorCode: 1305});
 		} else {
-			APIError.throwJsonError({investor: investorId, portfolio: portfolioId, message: "Not authorized to change. Not the owner of the portfolio"});
+			APIError.throwJsonError({investor: investorId, portfolio: portfolioId, message: "Investor not authorized to update portfolio", errorCode: 1306});
 		}
 	})
-	.then(updated => {
+	.then(portfolio => {
+		if(portfolio && !portfolio.deleted) {
+			return InvestorModel.updateInvestor({_id: investorId}, {defaultPortfolio: portfolioId});
+		} else {
+			APIError.throwJsonError({message: "Portfolio not found", portfolio: portfolioId, errorCode: 1401});
+		}
+	})
+	.then(updatedInvestor => {
 		return res.status(200).send({message: "Default portfolio updated successfully"});
 	})
 	.catch(err => {

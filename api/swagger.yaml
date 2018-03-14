@@ -1427,11 +1427,17 @@ paths:
         required: false
         default: false
         description: select wishlist advice flag
-      - name: maxNotional
+      - name: minNetValue
         in: query
         required: false
-        type: string
-        default: "100000,200000,30000,40000,50000,1000000"    
+        type: integer
+        default: 0
+        description: minimum value of advice
+      - name: maxNetValue
+        in: query
+        required: false
+        type: integer
+        default: 100000000
         description: maximum value of advice
       - name: rebalance
         in: query
@@ -1475,7 +1481,7 @@ paths:
         type: string
         required: false
         default: rating
-        enum: [name, rating, return, volatility, sharpe, maxloss, numFollowers, numSubscribers, createdDate]
+        enum: [name, rating, return, volatility, sharpe, maxLoss, currentLoss, netValue, dailyChange, numFollowers, numSubscribers, createdDate]
       - name: order
         type: number
         required: true
@@ -1735,6 +1741,30 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/ApprovalMessage'
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advice"
+
+  /advice/{adviceId}/requestapproval:
+    post:
+      tags:
+      - 'advice'
+      summary: request approval of advice 
+      description: Request approval of an advice
+      operationId: requestApproveAdvice
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        type: string
+        required: true
       responses:
         200:
           description: OK
@@ -2809,8 +2839,8 @@ definitions:
         type: string
         enum: ['Daily', 'Weekly', 'Bi-Weekly', 'Monthly', 'Quartely']
       maxNotional:
-        type: string
-        enum: ['100000', '200000', '300000', '500000', '750000', '1000000']
+        type: integer
+        enum: [10000, 20000, 50000, 75000, 100000, 200000, 300000, 500000, 750000, 1000000]
 
 #Investor
   Investor:

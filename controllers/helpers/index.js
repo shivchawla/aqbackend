@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-12 13:06:40
+* @Last Modified time: 2018-03-14 15:03:42
 */
 
 'use strict';
@@ -34,6 +34,7 @@ function _compareDates(d1, d2) {
 }
 
 module.exports.compareDates = function(date1, date2) {
+	
 	return _compareDates(date1, date2);
 };
 
@@ -58,15 +59,15 @@ module.exports.compareSecurity = function(oldSecurity, newSecurity) {
 	    	if(data['error'] == '' && data['compare']) {
 	    		resolve(data['compare']);
 			} else if (data['error'] != '') {
-				reject(new Error(data["error"]));
+				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				reject(new Error("Internal error in comparing Security"))
+				resolve(APIError.throwJsonError({message: "Internal error in comparing security", errorCode: 2101}));
 			}
 		});
 	});
 }
 
-module.exports.validateAdvice = function(advice, oldAdvice) {
+module.exports.validateAdvice = function(advice, oldAdvice, strictNetValue) {
 
 	return new Promise((resolve, reject) => {
 
@@ -78,7 +79,8 @@ module.exports.validateAdvice = function(advice, oldAdvice) {
             console.log(connection);
             var msg = JSON.stringify({action:"validate_advice", 
             						advice: advice,
-            						lastAdvice: oldAdvice ? oldAdvice : ""});
+            						lastAdvice: oldAdvice ? oldAdvice : "",
+            						strictNetValue: strictNetValue ? strictNetValue : false});
 
          	wsClient.send(msg);
         });
@@ -89,9 +91,9 @@ module.exports.validateAdvice = function(advice, oldAdvice) {
         	if (data["error"] == "") {
 			    resolve(data["valid"]);
 		    } else if (data["error"] != "") {
-		    	reject(new Error(data["error"]))
+		    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 		    } else {
-		    	reject(new Error("Error validating the advice"))
+		    	resolve(APIError.throwJsonError({message: "Internal error validating the advice", errorCode: 2101}));
 		    }
 	    });
     })
@@ -119,9 +121,9 @@ module.exports.validatePortfolio = function(portfolio) {
 		    if (data["error"] == "") {
 			    resolve(data["valid"]);
 		    } else if (data["error"] != "") {
-		    	reject(new Error(data["error"]));
+		    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 		    } else {
-		    	reject(new Error("Unknown error in validating portfolio"));
+		    	resolve(APIError.throwJsonError({message: "Unknown error in validating portfolio", errorCode: 2101}));
 		    }
 	    });
     })
@@ -134,7 +136,7 @@ module.exports.validateTransactions = function(transactions, portfolio) {
 	tomorrow.setDate(tomorrow.getDate()+1);
 	transactions.forEach(transaction => {
 		if (_compareDates(transaction.date, tomorrow) != -1) {
-			APIError.throwJsonError({message: "Illegal Transaction. Transactions later than today are not allowed"});
+			APIError.throwJsonError({message: "Illegal Transactions. Transactions later than today are not allowed", errorCode: 1410});
 		}
 	});
 
@@ -159,9 +161,9 @@ module.exports.validateTransactions = function(transactions, portfolio) {
 		    if (data["error"] == "" && data["valid"]) {
 			    resolve(data["valid"]);
 		    } else if (data["error"] != "") {
-		    	reject(new Error(data["error"]));
+		    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 		    } else {
-		    	reject(new Error("Unknown error in validating transactions"));
+		    	resolve(APIError.throwJsonError({message: "Internal error in validating transactions", errorCode: 2101}));
 		    }
 	    });
     })
@@ -188,9 +190,9 @@ module.exports.updateStockStaticPerformanceDetail = function(q, security) {
         	if (data["error"] == "" && data["performance"]) {
 			    resolve(data["performance"]);
 		    } else if (data["error"] != "") {
-		    	reject(new Error(data["error"]));
+		    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 		    } else {
-		    	reject(new Error("Unknown error in computing stock static performance detail"));
+		    	resolve(APIError.throwJsonError({message: "Internal error in computing stock static performance detail", errorCode: 2101}));
 		    }
 	    });
     })
@@ -220,9 +222,9 @@ module.exports.updateStockRollingPerformanceDetail = function(q, security) {
         	if (data["error"] == "" && data["performance"]) {
 			    resolve(data["performance"]);
 		    } else if (data["error"] != "") {
-		    	reject(new Error(data["error"]));
+		    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 		    } else {
-		    	reject(new Error("Unknown error in computing stock rolling performance detail"));
+		    	resolve(APIError.throwJsonError({message: "Internal error in computing stock rolling performance detail", errorCode: 2101}));
 		    }
 	    });
     })
@@ -251,9 +253,9 @@ module.exports.updateStockPriceHistory = function(q, security) {
         	if (data["error"] == "" && data["priceHistory"]) {
 			    resolve(data["priceHistory"]);
 		    } else if (data["error"] != "") {
-		    	reject(new Error(data["error"]));
+		    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 		    } else {
-		    	reject(new Error("Unknown error in computing stock price history"));
+		    	resolve(APIError.throwJsonError({message: "Internal error in computing stock price history", errorCode: 2101}));
 		    }
 	    });
     })
@@ -261,7 +263,7 @@ module.exports.updateStockPriceHistory = function(q, security) {
     	if(priceHistory) {	
     		return SecurityPerformanceModel.updatePriceHistory(q, priceHistory);
 		} else {
-			APIError.throwJsonError({message: "Invalid price history data. Can't update!!"});
+			APIError.throwJsonError({message: "Uanble to update. Invalid price history data provided"});
 		}
     });
 };
@@ -287,9 +289,9 @@ module.exports.updateStockLatestDetail = function(q, security) {
         	if (data["error"] == "" && data["latestDetail"]) {
 			    resolve(data["latestDetail"]);
 		    } else if (data["error"] != "") {
-		    	reject(new Error(data["error"]));
+		    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
 		    } else {
-		    	reject(new Error("Unknown error in computing stock latest detail"));
+		    	resolve(APIError.throwJsonError({message: "Internal error in computing stock latest detail", errorCode: 2101}));
 		    }
 	    });
     })

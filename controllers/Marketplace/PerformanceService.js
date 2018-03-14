@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-03 10:34:30
+* @Last Modified time: 2018-03-14 10:29:42
 */
 
 'use strict'
@@ -29,24 +29,24 @@ module.exports.getPerformanceInvestorPortfolio = function(args, res, next) {
 					if (investor.portfolios.filter(item => !item.deleted).map(item => item.toString()).indexOf(portfolioId) != -1) {
 						return PerformanceHelper.getLatestPerformance(portfolioId);
 					} else {
-						APIError.throwJsonError({userId: userId, message: "PortfolioId is not a valid portfolio for investor"})
+						APIError.throwJsonError({userId: userId, message: "Investor not authorized to view", errorCode: 1304});
 					}
 				} else {
-					APIError.throwJsonError({userId: userId, message: "No Portfolios found"})
+					APIError.throwJsonError({userId: userId, message: "No investor porfolios found", errorCode: 1305});
 				}
 			} else {
-				APIError.throwJsonError({userId: userId, message: "Not Authorized to view"})
+				APIError.throwJsonError({userId: userId, message: "Investor not authorized to view", errorCode: 1304})
 			}
 			
 		} else {
-			APIError.throwJsonError({userId: userId, message: "No Investor found"});
+			APIError.throwJsonError({userId: userId, message: "Investor not found", errorCode: 1301});
 		}
 	})
 	.then(performance => {
 		if (performance) {
 			return res.status(200).send(performance);
 		} else {
-			APIError.throwJsonError({message: "Invalid performance"});
+			APIError.throwJsonError({message: "Internal calulating portfolio performance", errorCode: 1604});
 		}
 	})
 	.catch(err => {
@@ -67,25 +67,24 @@ module.exports.getPerformanceAdvicePortfolio = function(args, res, next) {
 			InvestorModel.fetchInvestor({user:userId}, {fields:'_id', insert: true})])
 	.then(([advice, advisor, investor]) => {
 		if (advice && advisor) {
-
 			const advisorId = advisor._id;
 			var activeSubscribers = advice.subscribers.filter(item => {return item.active == true}).map(item => item.investor.toString());
 			const investorId = investor._id.toString();
 
 			showDetail = advice.advisor.equals(advisorId) || activeSubscribers.indexOf(investorId) != -1;
 			if (advice.advisor.equals(advisorId) || advice.public == true) {
-				
 				portfolioId = advice.portfolio;
 				return PerformanceHelper.getLatestPerformance(portfolioId);
 			} else {
-				APIError.throwJsonError({userId: userId, message:"Not Authorized"});
+				APIError.throwJsonError({userId: userId, message:"Investor not authorized to view", errorCode: 1304});
 			}
-		} else {
-			APIError.throwJsonError({userId: userId, message: "No Advice/Advisor found"});
+		} else if(!advice) {
+			APIError.throwJsonError({userId: userId, message: "Advice not found", errorCode: 1101});
+		} else if(!advisor) {
+			APIError.throwJsonError({userId: userId, message: "Advisor not found", errorCode: 1201});
 		}
 	})
 	.then(performance => {
-
 		if(performance) {
 			var currentPerformance = performance.current;
 			if (!showDetail && currentPerformance) {
@@ -97,7 +96,7 @@ module.exports.getPerformanceAdvicePortfolio = function(args, res, next) {
 
 			return res.status(200).send(performance);
 		} else {
-			APIError.throwJsonError({message: "Error updating performance"});
+			APIError.throwJsonError({message: "Internal calulating portfolio performance", errorCode: 1604});
 		}
 	})
 	.catch(err => {

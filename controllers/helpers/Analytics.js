@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:56:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-06 16:56:10
+* @Last Modified time: 2018-03-13 15:08:28
 */
 
 const PerformanceModel = require('../../models/Marketplace/Performance');
@@ -42,7 +42,7 @@ function _computeAggregateRating (adviceIds) {
 			//FIND a logic to combine all ratings
 			return 0.5;
 		} else {
-			APIError.throwJsonError({message: "Advices not available while computing aggregate ratings"});
+			APIError.throwJsonError({message: "No advices found", errorCode: 1118});
 		}
 	});
 }
@@ -50,7 +50,8 @@ function _computeAggregateRating (adviceIds) {
 function _updateAdvisorAnalytics(advisorId) {
 	return Promise.all([
 		AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: '_id subscribers followers'}),
-		AdviceModel.fetchAdvices({advisor: advisorId, deleted: false, public: true}, {fields:'_id'})])
+		AdviceModel.fetchAdvices({advisor: advisorId, deleted: false}, {fields:'_id'})
+	])
 	.then(([advisor, advices]) => {
 		if(advisor && advices) {
 			return _computeAggregateRating(advices)
@@ -64,9 +65,9 @@ function _updateAdvisorAnalytics(advisorId) {
 			});
 		} else {
 			if(!advisor) {
-				APIError.throwJsonError({advisor: advisorId, message: "Advisor not found while updating analytics"});
+				APIError.throwJsonError({advisor: advisorId, message: "Advisor not found", errorCode: 1201});
 			} else if(!advices) {
-				APIError.throwJsonError({advisor: advisorId, message: "Null advices for advisor"});
+				APIError.throwJsonError({advisor: advisorId, message: "No advices found", errorCode: 1118});
 			}
 		}
 	})
@@ -85,7 +86,7 @@ function _updateAdviceAnalytics(adviceId) {
 			followers = advice.followers;
 			return PerformanceHelper.getPerformanceSummary(advice.portfolio);
 		} else {
-			APIError.throwJsonError({advice: adviceId, message: "Advice not found while updating analytics"});
+			APIError.throwJsonError({advice: adviceId, message: "Advice not found", errorCode: 1101});
 		}
 	})
 	.then(performance => {
@@ -117,7 +118,7 @@ module.exports.updateAllAdvisorAnalytics = function() {
 				return _updateAdvisorAnalytics(advisor._id);
 			});
 		} else {
-			APIError.throwJsonError({message: "Advisors not found while updating analytics"});
+			APIError.throwJsonError({message: "Advisors not found", errorCode:1208});
 		}
 	});
 };
@@ -130,7 +131,7 @@ module.exports.updateAllAdviceAnalytics = function() {
 				return _updateAdviceAnalytics(advice._id);
 			});
 		} else {
-			APIError.throwJsonError({message: "Advices not found while updating analytics"});
+			APIError.throwJsonError({message: "No qdvices found", errorCode: 1118});
 		}
 	});
 };
