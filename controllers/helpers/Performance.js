@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-14 18:12:47
+* @Last Modified time: 2018-03-15 18:15:46
 */
 
 'use strict';
@@ -145,7 +145,8 @@ function _computeConstituentPerformance(portfolioId) {
 	.then(portfolio => {
 		if(portfolio && portfolio.detail) {
 			var currentPortfolio = portfolio.detail;
-			var startDate = HelperFunctions.getDate(currentPortfolio.startDate);
+			//Check if start date is present (Added: 15/03/2018)
+			var startDate = HelperFunctions.getDate(currentPortfolio.startDate ? currentPortfolio.startDate : new Date());
 			var endDate = new Date();
 			return _computeConstituentPerformance_portfolio(currentPortfolio, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
 		} else {

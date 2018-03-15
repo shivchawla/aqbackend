@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-14 17:50:34
+* @Last Modified time: 2018-03-15 18:44:24
 */
 
 'use strict';
@@ -23,6 +23,22 @@ function _compareIds(x, y) {
 		return false;
 	} else {
 		return x.equals(y)
+	}
+}
+
+function _getPerformanceOfAdvices(portfolio) {
+	if(portfolio) {
+		var subPositions = portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions : []; 
+		var advices = subPositions.filter(item => {return item.advice && item.advice._id && item.advice._id!=""}).map(item => item.advice._id);
+			
+		return Promise.map(advices, function(adviceId) {
+			return AdviceHelper.computeAdvicePerformanceSummary(adviceId)
+			.then(performance => {
+				return Object.assign({advice: adviceId}, performance);
+			});
+		})
+	} else {
+		return [];
 	}
 }
 
@@ -72,7 +88,11 @@ module.exports.getInvestorSummary = function(args, res, next) {
     	}
     })
     .then(([investor, updatedDefaultPortfolio, updatedDefaultPerformance]) => {
-    	return res.status(200).send(Object.assign(investor.toObject(), {defaultPortfolio: updatedDefaultPortfolio, defaultPerformance: updatedDefaultPerformance}));
+    	return _getPerformanceOfAdvices(updatedDefaultPortfolio.toObject())
+    	.then(advicePerformance => {
+    		updatedDefaultPortfolio = Object.assign({advicePerformance : advicePerformance}, updatedDefaultPortfolio.toObject());	
+    		return res.status(200).send(Object.assign(investor.toObject(), {defaultPortfolio: updatedDefaultPortfolio, defaultPerformance: updatedDefaultPerformance}));
+    	});
     })
 	.catch(err => {
 		return res.status(400).send(err.message);
@@ -372,21 +392,11 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 	})
 	.then(updatedPortfolio => {
 		if(updatedPortfolio) {
-
-			var subPositions = updatedPortfolio.detail && updatedPortfolio.detail.subPositions ? updatedPortfolio.detail.subPositions : []; 
-			var advices = subPositions.filter(item => {return item.advice && item.advice._id && item.advice._id!=""}).map(item => item.advice._id);
-			
-			return Promise.map(advices, function(adviceId) {
-				return AdviceHelper.computeAdvicePerformanceSummary(adviceId)
-				.then(performance => {
-					return Object.assign({advice: adviceId}, performance);
-				});
-			})
-			.then(performances => {
-				updatedPortfolio = Object.assign({advicePerformance : performances}, updatedPortfolio.toObject());	
+			return _getPerformanceOfAdvices(updatedPortfolio.toObject())
+			.then(advicePerformance => {
+				updatedPortfolio = Object.assign({advicePerformance : advicePerformance}, updatedPortfolio.toObject());	
 				return res.status(200).send(updatedPortfolio);
-			});
-			
+			})
 		} else {
 			APIError.throwJsonError({message: "Portfolio not found", errorCode: 1401});
 		}

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-20 16:45:00
+* @Last Modified time: 2018-03-15 14:54:59
 */
 
 'use strict';
@@ -37,7 +37,8 @@ const Security = new Schema({
 	},
 	endDate: {
 		type: Date,
-	}
+	},
+	detail: Schema.Types.Mixed,
 
 });
 

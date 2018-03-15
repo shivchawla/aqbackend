@@ -9,12 +9,14 @@ using TimeSeries
 
 function convert(::Type{Dict{String,Any}}, security::Security)                  
     try
+
         s = Dict{String, Any}()
         s["ticker"] = security.symbol.ticker
         s["exchange"] = security.exchange
         s["country"] = security.country
         s["securityType"] = security.securitytype
         s["name"] = security.name
+        s["detail"] = security.detail != nothing ? security.detail : Dict{String, Any}()
 
         return s
     catch err
@@ -165,7 +167,7 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
         if lastStartDate != DateTime() && lastEndDate != DateTime() && startDate <= lastEndDate 
             error("Empty dates or startDate less than or equal to end date of current advice")
         end=#
-            
+    
         #Validating positions and benchmark
         (valid_port, port) = _validate_portfolio(portfolio, checkbenchmark = false)
 
@@ -175,7 +177,7 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
 
         portval = _compute_latest_portfoliovalue(port, convert(Float64, get(portfoliodetail,"cash", 0.0)))
 
-        maxnotional = convert(Float64, parse(get(advice, "maxNotional", "0.0")))
+        maxnotional = get(advice, "maxNotional", 1000000.0)
 
         if portval == nothing
             error("Can't compute portfolio prices | missing prices")

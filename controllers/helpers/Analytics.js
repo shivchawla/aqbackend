@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:56:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-13 15:08:28
+* @Last Modified time: 2018-03-15 22:42:48
 */
 
 const PerformanceModel = require('../../models/Marketplace/Performance');
@@ -12,8 +12,21 @@ const APIError = require('../../utils/error');
 const Promise = require('bluebird');
 const HelperFunctions = require('./index');
 const PerformanceHelper = require('./Performance');
+const PortfolioHelper = require('./Portfolio');
 
-function _computePerformanceRating (performance) {
+function _computePortfolioAnalytics(portfolio) {
+	var positions = portfolio && portfolio.detail ? portfolio.detail.positions : [];
+	var distinctSectors = positions.map(item => {return item && item.security && item.security.detail ? item.security.detail.Sector : "";}).filter(item => {return item && item != ""});
+	var distinctIndustries = positions.map(item => {return item && item.security && item.security.detail ? item.security.detail.Industry : "";}).filter(item => {return item && item != ""});
+	
+	return {
+		nstocks: positions.length,
+		sectors: distinctSectors,
+		industries: distinctIndustries
+	}; 
+}
+
+function _computePerformanceRating(performance) {
 	//return PerformanceModel.fetchPerformance({portfolio: portfolioId})
 	//.then(performance => {
 		//WRITE RATING LOGIC HERE
@@ -79,28 +92,32 @@ function _updateAdvisorAnalytics(advisorId) {
 function _updateAdviceAnalytics(adviceId) {
 	let subscribers;
 	let followers;
-	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio subscribers followers'})
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio subscribers followers', populate:'portfolio'})
 	.then(advice => {
 		if (advice) {
 			subscribers = advice.subscribers;
 			followers = advice.followers;
-			return PerformanceHelper.getPerformanceSummary(advice.portfolio);
+			return Promise.all([
+				advice.portfolio,
+				PerformanceHelper.getPerformanceSummary(advice.portfolio)
+			])
 		} else {
 			APIError.throwJsonError({advice: adviceId, message: "Advice not found", errorCode: 1101});
 		}
 	})
-	.then(performance => {
-		return Promise.all([performance, _computePerformanceRating(performance)])
+	.then(([portfolio, performance]) => {
+		return Promise.all([performance, _computePortfolioAnalytics(portfolio), _computePerformanceRating(performance)])
 	})
-	.then(([performance, rating]) => {
+	.then(([performance, portfolioAnalytics, rating]) => {
 		var updateObj = { 
 			analytics: {
 				date: HelperFunctions.getDate(new Date()),
 				numSubscribers: subscribers.filter(item => {return item.active == true}).length,
 				numFollowers: followers.filter(item => {return item.active == true}).length,
 				rating: rating,
-			},
-			latestPerformance: performance
+			}, 
+
+			latestPerformance: Object.assign(portfolioAnalytics, performance),
 		};
 
 		return updateObj;
