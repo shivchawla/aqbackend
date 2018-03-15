@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-14 18:23:10
+* @Last Modified time: 2018-03-15 10:32:29
 */
 
 'use strict';
@@ -148,7 +148,6 @@ module.exports.getAdvices = function(args, res, next) {
     const options = {};
 	options.skip = args.skip.value;
     options.limit = args.limit.value;
-
     options.order = args.order.value || 1;
 
     var orderParam = args.orderParam.value || "rating";
@@ -164,22 +163,26 @@ module.exports.getAdvices = function(args, res, next) {
 
     var query = {deleted: false};
 
-    const maxNetValue = args.maxNetValue.value;
-    if(maxNetValue) {
-        query = {'$and': [query, {'latestPerformance.netValue': {'$lt': maxNetValue}}]}; 
-    }
+    var performanceAnalyticsFilters = [
+    	["netValue", "sharpe", "volatility", "return", "maxLoss", "currentLoss", "beta"],
+    	["rating"]];
 
-    const minNetValue = args.minNetValue.value;
-    if(minNetValue) {
-        query = {'$and': [query, {'latestPerformance.netValue': {'$gt': minNetValue}}]}; 
-    }
+    performanceAnalyticsFilters.forEach((filterArray, i) => {
+    	var majorKey = i == 0 ? 'latestPerformance.' : 'latestAnalytics.';
+    	filterArray.forEach(item => {
+	    	if(args[item]) {
+	    		var values = args[item].value;
+		    	var valueCategories = values.split(",").map(item => parseFloat(item.trim()));
+		    	var key = majorKey + item;
+		    	query = valueCategories.length > 0 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$gt': valueCategories[0]}}]}]} : query; 
+		    	query = valueCategories.length > 1 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$lt': valueCategories[1]}}]}]} : query; 
+			}
+	    });
+    });
 
     const following = args.following.value;
-   
     const subscribed = args.subscribed.value;
-    
     const personal = args.personal.value;
-    
     const advisorId = args.advisor.value;
 
     const search = args.search.value;

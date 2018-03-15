@@ -40,7 +40,7 @@ tags:
     description: "Find out more about us"
     url: "http://www.aimsquant.com"
 schemes:
-- "https"
+- "http"
 produces:
 - "application/json"
 paths:
@@ -1427,18 +1427,36 @@ paths:
         required: false
         default: false
         description: select wishlist advice flag
-      - name: minNetValue
+      - name: netValue
         in: query
         required: false
-        type: integer
-        default: 0
-        description: minimum value of advice
-      - name: maxNetValue
+        type: string
+        default: "0,100000000"
+        description: filter on netvalue of advice
+      - name: sharpe
         in: query
         required: false
-        type: integer
-        default: 100000000
-        description: maximum value of advice
+        type: string
+        default: "-100,100"
+        description: filter on sharpe ratio of advice
+      - name: return
+        in: query
+        required: false
+        type: string
+        default: "-100,100"
+        description: filter on return of advice
+      - name: volatility
+        in: query
+        required: false
+        type: string
+        default: "0,500"
+        description: filter on volatility of advice
+      - name: rating
+        in: query
+        required: false
+        type: string
+        default: "0,10"
+        description: filter on value of advice
       - name: rebalance
         in: query
         required: false
