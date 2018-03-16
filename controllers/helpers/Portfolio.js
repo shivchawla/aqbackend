@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-15 22:54:22
+* @Last Modified time: 2018-03-16 15:08:24
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -404,7 +404,7 @@ module.exports.getUpdatedPortfolio = function(portfolioId, fields) {
 		}
 	})
 	.then(([updated, latestPricePortfolio]) => {
-		return updated ? PortfolioModel.updatePortfolio({_id: portfolioId}, latestPricePortfolio, {fields: fields}) : latestPricePortfolio;
+		return updated ? PortfolioModel.updatePortfolio({_id: portfolioId}, latestPricePortfolio, {fields: fields}).toObject() : latestPricePortfolio;
 	})
 };
 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:56:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-16 13:27:58
+* @Last Modified time: 2018-03-16 15:12:25
 */
 
 const PerformanceModel = require('../../models/Marketplace/Performance');
@@ -16,8 +16,8 @@ const PortfolioHelper = require('./Portfolio');
 
 function _computePortfolioAnalytics(portfolio) {
 	var positions = portfolio && portfolio.detail ? portfolio.detail.positions : [];
-	var distinctSectors = positions.map(item => {return item && item.security && item.security.detail ? item.security.detail.Sector : "";}).filter(item => {return item && item != ""});
-	var distinctIndustries = positions.map(item => {return item && item.security && item.security.detail ? item.security.detail.Industry : "";}).filter(item => {return item && item != ""});
+	var distinctSectors = Array.from(new Set(positions.map(item => {return item && item.security && item.security.detail ? item.security.detail.Sector : "";}).filter(item => {return item && item != ""})));
+	var distinctIndustries = Array.from(new Set(positions.map(item => {return item && item.security && item.security.detail ? item.security.detail.Industry : "";}).filter(item => {return item && item != ""})));
 	
 	return {
 		nstocks: positions.length,
@@ -98,7 +98,7 @@ function _updateAdviceAnalytics(adviceId) {
 			subscribers = advice.subscribers;
 			followers = advice.followers;
 			return Promise.all([
-				PortfolioHelper.getUpdatedPortfolio(advice.portfolio, 'details'),
+				PortfolioHelper.getUpdatedPortfolio(advice.portfolio, 'detail'),
 				PerformanceHelper.getPerformanceSummary(advice.portfolio)
 			])
 		} else {
