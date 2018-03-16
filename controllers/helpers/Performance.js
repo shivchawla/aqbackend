@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-15 18:15:46
+* @Last Modified time: 2018-03-16 19:50:49
 */
 
 'use strict';
@@ -58,9 +58,9 @@ function _computePortfolioValue(portfolio, startDate, endDate) {
 	    		var output = data['netValue'];
 	    		resolve(Object.keys(output).sort().map(key => {return {date: new Date(key), netValue: output[key]};}));
 			} else if (data["error"] != "") {
-				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				resolve(APIError.throwJsonError({message: "Internal error computing netvalue of portfolio", errorCode: 2101}));
+				reject(APIError.jsonError({message: "Internal error computing netvalue of portfolio", errorCode: 2101}));
 			}
 		});
     });
@@ -90,9 +90,9 @@ function _computePerformance_portfolioValues(portfolioValues, benchmark) {
 	    	if(data['error'] == '' && data['performance']) {
 	    		resolve(data['performance']);
 			} else if (data["error"] != "") {
-				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				resolve(APIError.throwJsonError({message: "Internal error computing netvalue of portfolio performance", errorCode: 2101}));
+				reject(APIError.jsonError({message: "Internal error computing netvalue of portfolio performance", errorCode: 2101}));
 			}
 		});
 
@@ -132,9 +132,9 @@ function _computeConstituentPerformance_portfolio(portfolio, startDate, endDate,
 	    	if(data['error'] == '' && data['constituentPerformance']) {
 	    		resolve(data['constituentPerformance']);
 			} else if (data['error'] != '') {
-				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				resolve(APIError.throwJsonError({message: "Internal error computing constituents performance", errorCode: 2101}));
+				reject(APIError.jsonError({message: "Internal error computing constituents performance", errorCode: 2101}));
 			}
 		});
 	});
@@ -178,9 +178,9 @@ function _computePortfolioComposition_portfolio(portfolio, startDate, endDate, b
 	    	if(data['error'] == '' && data['portfolioComposition']) {
 	    		resolve(data['portfolioComposition']);
 			} else if (data['error'] != '') {
-				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				resolve(APIError.throwJsonError({message: "Internal error computing constituents performance", errorCode: 2101}));
+				reject(APIError.jsonError({message: "Internal error computing constituents performance", errorCode: 2101}));
 			}
 		});
 	});
@@ -231,9 +231,9 @@ function _computePerformance_portfolioHistory(portfolioHistory, benchmark) {
 	    		resolve(performance);
 
 			} else if (data['error'] != '') {
-				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				resolve(APIError.throwJsonError({message: "Internal error computing performance", errorCode: 2101}));
+				reject(APIError.jsonError({message: "Internal error computing performance", errorCode: 2101}));
 			}
 		});
 	});
@@ -450,7 +450,6 @@ module.exports.getLatestPerformance = function(portfolioId) {
 		
 	})
 	.catch(err => {
-		console.log(err);
 		return PerformanceModel.fetchPerformance({portfolio: portfolioId});
 	})
 }
@@ -476,7 +475,6 @@ module.exports.getPerformanceSummaryOLD = function(portfolioId) {
 		//ERROR in performance calculation
 		//Logging the error (needs IMPROVEMENT)
 		//Instead of hard fail, computation continues with error message
-		console.log(err.message);
 		return {error: err.message};
 	});
 }
@@ -521,7 +519,6 @@ module.exports.getPerformanceSummary = function(portfolioId) {
 		//ERROR in performance calculation
 		//Logging the error (needs IMPROVEMENT)
 		//Instead of hard fail, computation continues with error message
-		console.log(err.message);
 		return {error: err.message};
 	});
 }

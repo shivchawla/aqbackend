@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-14 11:57:28
+* @Last Modified time: 2018-03-16 19:48:47
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -37,7 +37,6 @@ module.exports.computeAdviceSubscriptionDetail = function(adviceId, userId) {
 		AdviceModel.fetchAdvice({_id:adviceId}, {field:'advisor subscribers followers'}),
 		HelperFunctions.getAdminAdvisor(userId)
 	])
-	//return AdviceModel.fetchAdvice({_id:adviceId}, {field:'advisor subscribers followers'})
 	.then(([advisor, investor, advice, adminAdvisor]) => {
 		
 		if(!advisor) {
@@ -58,9 +57,6 @@ module.exports.computeAdviceSubscriptionDetail = function(adviceId, userId) {
 		
 		var isAdmin = adminAdvisor && advisor ? advisor.equals(adminAdvisor._id) : false;
 		var isOwner = advisor && advice.advisor ? advisor.equals(advice.advisor) : false;
-		//var isOwner = advisorId.equals(advice.advisor._id);
-
-		//var isAdmin = adminAdvisors.map(item => item.toString()).indexOf(advisorId.toString());
 
 		var activeSubscribers = advice.subscribers.filter(item => {return item.active == true});
 		var activeFollowers = advice.followers.filter(item => {return item.active == true});

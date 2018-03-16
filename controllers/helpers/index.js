@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-14 15:03:42
+* @Last Modified time: 2018-03-16 19:20:36
 */
 
 'use strict';
@@ -59,9 +59,9 @@ module.exports.compareSecurity = function(oldSecurity, newSecurity) {
 	    	if(data['error'] == '' && data['compare']) {
 	    		resolve(data['compare']);
 			} else if (data['error'] != '') {
-				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				resolve(APIError.throwJsonError({message: "Internal error in comparing security", errorCode: 2101}));
+				reject(APIError.jsonError({message: "Internal error in comparing security", errorCode: 2101}));
 			}
 		});
 	});
@@ -91,9 +91,9 @@ module.exports.validateAdvice = function(advice, oldAdvice, strictNetValue) {
         	if (data["error"] == "") {
 			    resolve(data["valid"]);
 		    } else if (data["error"] != "") {
-		    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 		    } else {
-		    	resolve(APIError.throwJsonError({message: "Internal error validating the advice", errorCode: 2101}));
+		    	reject(APIError.jsonError({message: "Internal error validating the advice", errorCode: 2101}));
 		    }
 	    });
     })
@@ -121,9 +121,9 @@ module.exports.validatePortfolio = function(portfolio) {
 		    if (data["error"] == "") {
 			    resolve(data["valid"]);
 		    } else if (data["error"] != "") {
-		    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 		    } else {
-		    	resolve(APIError.throwJsonError({message: "Unknown error in validating portfolio", errorCode: 2101}));
+		    	reject(APIError.jsonError({message: "Unknown error in validating portfolio", errorCode: 2101}));
 		    }
 	    });
     })
@@ -161,9 +161,9 @@ module.exports.validateTransactions = function(transactions, portfolio) {
 		    if (data["error"] == "" && data["valid"]) {
 			    resolve(data["valid"]);
 		    } else if (data["error"] != "") {
-		    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 		    } else {
-		    	resolve(APIError.throwJsonError({message: "Internal error in validating transactions", errorCode: 2101}));
+		    	reject(APIError.jsonError({message: "Internal error in validating transactions", errorCode: 2101}));
 		    }
 	    });
     })
@@ -190,9 +190,9 @@ module.exports.updateStockStaticPerformanceDetail = function(q, security) {
         	if (data["error"] == "" && data["performance"]) {
 			    resolve(data["performance"]);
 		    } else if (data["error"] != "") {
-		    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 		    } else {
-		    	resolve(APIError.throwJsonError({message: "Internal error in computing stock static performance detail", errorCode: 2101}));
+		    	reject(APIError.jsonError({message: "Internal error in computing stock static performance detail", errorCode: 2101}));
 		    }
 	    });
     })
@@ -222,9 +222,9 @@ module.exports.updateStockRollingPerformanceDetail = function(q, security) {
         	if (data["error"] == "" && data["performance"]) {
 			    resolve(data["performance"]);
 		    } else if (data["error"] != "") {
-		    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 		    } else {
-		    	resolve(APIError.throwJsonError({message: "Internal error in computing stock rolling performance detail", errorCode: 2101}));
+		    	reject(APIError.jsonError({message: "Internal error in computing stock rolling performance detail", errorCode: 2101}));
 		    }
 	    });
     })
@@ -253,9 +253,9 @@ module.exports.updateStockPriceHistory = function(q, security) {
         	if (data["error"] == "" && data["priceHistory"]) {
 			    resolve(data["priceHistory"]);
 		    } else if (data["error"] != "") {
-		    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 		    } else {
-		    	resolve(APIError.throwJsonError({message: "Internal error in computing stock price history", errorCode: 2101}));
+		    	reject(APIError.jsonError({message: "Internal error in computing stock price history", errorCode: 2101}));
 		    }
 	    });
     })
@@ -289,9 +289,9 @@ module.exports.updateStockLatestDetail = function(q, security) {
         	if (data["error"] == "" && data["latestDetail"]) {
 			    resolve(data["latestDetail"]);
 		    } else if (data["error"] != "") {
-		    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 		    } else {
-		    	resolve(APIError.throwJsonError({message: "Internal error in computing stock latest detail", errorCode: 2101}));
+		    	reject(APIError.jsonError({message: "Internal error in computing stock latest detail", errorCode: 2101}));
 		    }
 	    });
     })

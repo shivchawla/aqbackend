@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-16 15:08:24
+* @Last Modified time: 2018-03-16 19:45:25
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -131,7 +131,7 @@ function _updatePositionsForTransactions(positions, transactions) {
 	        console.log('Connection Open');
 	        console.log(connection);
 
-	        //WHy Cash == 0.0: So that output potfolio has cash generated
+	        //WHy Cash == 0.0: So that output portfolio has cash generated
 	        const portfolio = {
 	        	positions: positions,
 	        	cash: 0.0
@@ -149,9 +149,9 @@ function _updatePositionsForTransactions(positions, transactions) {
 	    	if(data['portfolio'] && data["error"] == "") {
     			resolve(data['portfolio']);
 			} else if(data["error"] != "") {
-				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				resolve(APIError.throwJsonError({message: "Internal error in updating positions for transactions", errorCode: 2101}));
+				reject(APIError.jsonError({message: "Internal error in updating positions for transactions", errorCode: 2101}));
 			}
 		});
 	});
@@ -184,9 +184,9 @@ function _updatePositionsForPrice(positions, date) {
 	        	if (data["error"] == "" && data["updatedPositions"]) {
 				    resolve(data["updatedPositions"]);
 			    } else if (data["error"] != "") {
-			    	resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+			    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 			    } else {
-			    	resolve(APIError.throwJsonError({message: "Internal error in updating portfolio for latest price", errorCode: 2101}));
+			    	reject(APIError.jsonError({message: "Internal error in updating portfolio for latest price", errorCode: 2101}));
 			    }
 		    });
 	    })
@@ -196,6 +196,7 @@ function _updatePositionsForPrice(positions, date) {
 }
 
 function _computeUpdatedPortfolioForPrice(portfolio, date) {
+	
 	return Promise.all([
 		_updatePositionsForPrice(portfolio.detail.positions, date),
 		
@@ -213,7 +214,6 @@ function _computeUpdatedPortfolioForPrice(portfolio, date) {
 		})
 	])
 	.then(([updatedPositions, updatedSubPositions]) => { 
-		
 		if(updatedPositions || updatedSubPositions) {
 			var updatedPortfolio = Object.assign({}, portfolio);
 			
@@ -392,7 +392,7 @@ module.exports.computeUpdatedPortfolioForPrice = function(portfolio, date) {
 
 module.exports.getUpdatedPortfolio = function(portfolioId, fields) {
 	//Append new fields to some basic fields (ADD SPACE - V. IMP)
-	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted:false}, {fields: fields + ' ' + 'detail updatedDate'})
+	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted:false}, {fields:'detail updatedDate'})
 	.then(portfolio => {
 		if(portfolio) {
 			var updateRequired = portfolio.updatedDate ? HelperFunctions.getDate(portfolio.updatedDate) < HelperFunctions.getDate(new Date()) : true;
@@ -404,7 +404,7 @@ module.exports.getUpdatedPortfolio = function(portfolioId, fields) {
 		}
 	})
 	.then(([updated, latestPricePortfolio]) => {
-		return updated ? PortfolioModel.updatePortfolio({_id: portfolioId}, latestPricePortfolio, {fields: fields}).toObject() : latestPricePortfolio;
+		return updated ? PortfolioModel.updatePortfolio({_id: portfolioId}, latestPricePortfolio, {fields: fields}) : latestPricePortfolio;
 	})
 };
 
@@ -429,9 +429,9 @@ module.exports.comparePortfolioDetail = function(oldPortfolioDetail, newPortfoli
 	    	if(data['error'] == '' && data['compare']) {
 	    		resolve(data['compare']);
 			} else if (data['error'] != '') {
-				resolve(APIError.throwJsonError({message: data["error"], errorCode: 2102}));
+				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 			} else {
-				resolve(APIError.throwJsonError({message: "Internal error in comparing portfolios", errorCode: 2101}));
+				reject(APIError.jsonError({message: "Internal error in comparing portfolios", errorCode: 2101}));
 			}
 		});
 	});

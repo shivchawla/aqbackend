@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:56:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-16 15:12:25
+* @Last Modified time: 2018-03-16 15:56:36
 */
 
 const PerformanceModel = require('../../models/Marketplace/Performance');
@@ -148,7 +148,7 @@ module.exports.updateAllAdviceAnalytics = function() {
 				return _updateAdviceAnalytics(advice._id);
 			});
 		} else {
-			APIError.throwJsonError({message: "No qdvices found", errorCode: 1118});
+			APIError.throwJsonError({message: "No advices found", errorCode: 1118});
 		}
 	});
 };
