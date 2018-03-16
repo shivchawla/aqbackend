@@ -40,7 +40,7 @@ tags:
     description: "Find out more about us"
     url: "http://www.aimsquant.com"
 schemes:
-- "http"
+- "https"
 produces:
 - "application/json"
 paths:
