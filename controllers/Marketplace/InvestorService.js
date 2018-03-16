@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-15 18:44:24
+* @Last Modified time: 2018-03-16 13:21:23
 */
 
 'use strict';
@@ -88,7 +88,7 @@ module.exports.getInvestorSummary = function(args, res, next) {
     	}
     })
     .then(([investor, updatedDefaultPortfolio, updatedDefaultPerformance]) => {
-    	return _getPerformanceOfAdvices(updatedDefaultPortfolio.toObject())
+    	return _getPerformanceOfAdvices(updatedDefaultPortfolio)
     	.then(advicePerformance => {
     		updatedDefaultPortfolio = Object.assign({advicePerformance : advicePerformance}, updatedDefaultPortfolio.toObject());	
     		return res.status(200).send(Object.assign(investor.toObject(), {defaultPortfolio: updatedDefaultPortfolio, defaultPerformance: updatedDefaultPerformance}));
@@ -392,7 +392,7 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 	})
 	.then(updatedPortfolio => {
 		if(updatedPortfolio) {
-			return _getPerformanceOfAdvices(updatedPortfolio.toObject())
+			return _getPerformanceOfAdvices(updatedPortfolio)
 			.then(advicePerformance => {
 				updatedPortfolio = Object.assign({advicePerformance : advicePerformance}, updatedPortfolio.toObject());	
 				return res.status(200).send(updatedPortfolio);

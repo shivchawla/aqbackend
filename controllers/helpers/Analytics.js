@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:56:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-15 22:42:48
+* @Last Modified time: 2018-03-16 13:27:58
 */
 
 const PerformanceModel = require('../../models/Marketplace/Performance');
@@ -92,13 +92,13 @@ function _updateAdvisorAnalytics(advisorId) {
 function _updateAdviceAnalytics(adviceId) {
 	let subscribers;
 	let followers;
-	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio subscribers followers', populate:'portfolio'})
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio subscribers followers'})
 	.then(advice => {
 		if (advice) {
 			subscribers = advice.subscribers;
 			followers = advice.followers;
 			return Promise.all([
-				advice.portfolio,
+				PortfolioHelper.getUpdatedPortfolio(advice.portfolio, 'details'),
 				PerformanceHelper.getPerformanceSummary(advice.portfolio)
 			])
 		} else {
