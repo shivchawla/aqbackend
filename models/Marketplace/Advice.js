@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-14 18:24:19
+* @Last Modified time: 2018-03-20 05:19:58
 */
 'use strict';
 const mongoose = require('../index');
@@ -112,6 +112,11 @@ const Advice = new Schema({
     },
 
     deletedDate: Date,
+
+    prohibited: {
+        type: Boolean,
+        default: false
+    },
 
     subscribers: [{
         investor:{
@@ -331,7 +336,7 @@ Advice.statics.updateAnalyticsAndPerformance = function(query, analyticsAndPerfo
             });
         }
 
-        var latestPerformance = analyticsAndPerformance.latestPerformance;
+        var latestPerformance = analyticsAndPerformance.performance;
 
         if(!advice.latestPerformance) {
             advice.latestPerformance = {};
@@ -348,24 +353,33 @@ Advice.statics.fetchAdvicePortfolio = function(query, date) {
     if (!date || date == '') {
         return this.findOne(query).select('portfolio').populate('portfolio', 'detail').execAsync()
         .then(advice => {
-            return advice.portfolio.detail;
+            return advice && advice.portfolio && advice.portfolio.detail ? advice.portfolio.detail : null; 
         });
     } else {
         return this.findOne(query).select('portfolio').populate('portfolio','detail history').execAsync()
         .then(advice => {
-            var advicePortfolio = advice.portfolio;
-            if (_compareDates(date, advicePortfolio.detail.startDate) != -1) {
-                return advice.portfolio.detail;
-            } else {
-                var detail = null;
-                for(var historicalDetail of advicePortfolio.history){
-                    if (_compareDates(date, historicalDetail.startDate) != -1) {
-                        detail = historicalDetail;
-                        break;
-                    } 
-                }
+            if (advice && advice.portfolio) {
+                var advicePortfolio = advice.portfolio;    
+                //If Date is greater than or equal to current portfolio startDate
+                if (_compareDates(date, advicePortfolio.detail.startDate) != -1) {
+                    return advice.portfolio.detail;
+                } else {
+                    var detail = null;
+                    for(var historicalDetail of advicePortfolio.history){
+                        //If Date is greater than or equal to historical portfolio startDate
+                        //AND
+                        //Date is less than historical portfolio endDate
+                        if (_compareDates(date, historicalDetail.startDate) != -1 && 
+                                _compareDates(historicalDetail.endDate, date) != -1) {
+                            detail = historicalDetail;
+                            break;
+                        } 
+                    }
 
-                return detail;
+                    return detail;
+                }
+            } else {
+                return null;
             }
         });    
     }
@@ -376,6 +390,8 @@ Advice.statics.updateApproval = function(query, latestApproval) {
     var approvalStatus = latestApproval.approved ? "approved" : "rejected" ;
     var user = latestApproval.user;
 
+    var prohibited = latestApproval.prohibit;
+
     const approvedMessage = {
         date: new Date(), 
         message: latestApproval.message,
@@ -383,13 +399,9 @@ Advice.statics.updateApproval = function(query, latestApproval) {
         user: user
     };
 
-    const updates = {'$set':{approvalStatus: approvalStatus}, '$push':{approvalMessages: approvedMessage}};       
+    const updates = {'$set':{approvalStatus: approvalStatus, prohibited: prohibited}, '$push':{approvalMessages: approvedMessage}};       
 
     return this.findOneAndUpdate(query, updates);
-}
-
-function farfuture() {
-	return new Date(2200, 1, 1);
 }
 
 function _compareDates(d1, d2) {

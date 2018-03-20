@@ -96,10 +96,14 @@ wsh = WebSocketHandler() do req, ws_client
         elseif action == "validate_transactions"
             
           transactions = convert(Vector{Dict{String,Any}}, parsemsg["transactions"])
-          portfolio = parsemsg["portfolio"]
+          advicePortfolio = get(parsemsg, "advicePortfolio", "")
+          investorPortfolio = get(parsemsg, "investorPortfolio", "")
+
+          advicePortfolio = advicePortfolio != "" ? advicePortfolio : Dict{String,Any}()
+          investorPortfolio = investorPortfolio != "" ? investorPortfolio : Dict{String,Any}()
 
           #Check if portfolio is NOT null
-          valid = _validate_transactions(transactions, portfolio != "" ? portfolio : Dict{String,Any}()) 
+          valid = _validate_transactions(transactions, advicePortfolio, investorPortfolio) 
 
           parsemsg["valid"] = valid
          
@@ -268,7 +272,7 @@ wsh = WebSocketHandler() do req, ws_client
 
         elseif action == "update_portfolio_transactions"
             portfolio = parsemsg["portfolio"]
-            transactions = parsemsg["transactions"]
+            transactions = convert(Vector{Dict{String,Any}}, parsemsg["transactions"])
 
             # TODO: update function to compute portfolio stats etc.
             # TODO: if price is not give (or zero price), assume EOD price for the day

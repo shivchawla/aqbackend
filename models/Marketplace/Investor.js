@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:53:13
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-01 19:27:51
+* @Last Modified time: 2018-03-19 19:35:15
 */
 
 'use strict';
@@ -174,7 +174,7 @@ Investor.statics.updateSubscription = function(query, adviceId) {
 
 Investor.statics.addPortfolio = function(query, portfolioId){
     return this.findOne(query)
-    .select('portfolios')
+    .select('portfolios defaultPortfolio')
     .then(investor => {
         if(investor.portfolios) {
             investor.portfolios.push(portfolioId);
@@ -187,6 +187,27 @@ Investor.statics.addPortfolio = function(query, portfolioId){
         }
 
         return investor.saveAsync();
+    });
+};
+
+Investor.statics.removePortfolio = function(query, portfolioId){
+    return this.findOne(query)
+    .select('portfolios defaultPortfolio')
+    .then(investor => {
+        if(investor.portfolios) {
+            var idx = investor.portfolios.map(item => item.toString()).indexOf(portfolioId.toString());
+            if(idx != -1) {
+                investor.portfolios.splice(idx,1);    
+            }
+
+            if (investor.defaultPortfolio.equals(portfolioId)) {
+                investor.defaultPortfolio = investor.portfolios.length > 0 ? investor.portfolios[0] : null;
+            }
+            
+            return investor.saveAsync();
+        } else {
+            return investor;
+        } 
     });
 };
 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-16 19:20:36
+* @Last Modified time: 2018-03-17 13:14:29
 */
 
 'use strict';
@@ -129,7 +129,7 @@ module.exports.validatePortfolio = function(portfolio) {
     })
 };
 
-module.exports.validateTransactions = function(transactions, portfolio) {
+module.exports.validateTransactions = function(transactions, advicePortfolio, investorPortfolio) {
 
 	//Addding a checking for valid transaction date (05-03-2018)
 	var tomorrow = exports.getDate(new Date());
@@ -150,7 +150,8 @@ module.exports.validateTransactions = function(transactions, portfolio) {
             console.log(connection);
             var msg = JSON.stringify({action:"validate_transactions", 
             						transactions: transactions,
-        							portfolio: portfolio ? portfolio : ""});
+        							advicePortfolio: advicePortfolio ? advicePortfolio : "",
+        							investorPortfolio: investorPortfolio ? investorPortfolio : ""});
 
          	wsClient.send(msg);
         });

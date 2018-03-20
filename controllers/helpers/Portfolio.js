@@ -2,11 +2,12 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-16 19:45:25
+* @Last Modified time: 2018-03-19 18:58:27
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
 const PortfolioModel = require('../../models/Marketplace/Portfolio');
+const PerformanceModel = require('../../models/Marketplace/Performance');
 const APIError = require('../../utils/error');
 const WebSocket = require('ws'); 
 const config = require('config');
@@ -14,6 +15,15 @@ const Promise = require('bluebird');
 const HelperFunctions = require('./index');
 var ObjectId = require('mongoose').Types.ObjectId;
 
+function _filterPortfolioForAdvice(portfolio, adviceId) {
+	var advicePositions = portfolio && 
+						portfolio.detail && 
+						portfolio.detail.subPositions ? 
+						portfolio.detail.subPositions.filter(item => {return item.advice && item.advice._id!="" && item.advice._id.toString() == adviceId.toString()}) :
+						[];
+
+	return {positions: advicePositions};
+}		
 
 //Common function to handle stock and stock/advice transactions
 function _computeUpdatedPortfolioForStockTransaction(initialPortfolio, allTransactions) {
@@ -234,6 +244,21 @@ function _computeUpdatedPortfolioForPrice(portfolio, date) {
 	});
 }
 
+module.exports.computePortfolioAnalytics = function(portfolioId) {
+	return exports.getUpdatedPortfolio(portfolioId, 'detail')
+	.then(portfolio => {
+		var positions = portfolio && portfolio.detail ? portfolio.detail.positions : [];
+		var distinctSectors = Array.from(new Set(positions.map(item => {return item && item.security && item.security.detail ? item.security.detail.Sector : "";}).filter(item => {return item && item != ""})));
+		var distinctIndustries = Array.from(new Set(positions.map(item => {return item && item.security && item.security.detail ? item.security.detail.Industry : "";}).filter(item => {return item && item != ""})));
+		
+		return {
+			nstocks: positions.length,
+			sectors: distinctSectors,
+			industries: distinctIndustries
+		}; 
+	});
+};
+
 module.exports.updatePortfolioForStockTransactions = function(portfolio, transactions, action, preview) {
 	
 	//LOGIC
@@ -253,7 +278,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 			//TRANSACTION WITH ADVICE_ID are just like stock transaction 
 			//but have adviceId  
 			//1. Get Transactions for a date
-			var uniqueDates = Array.from(new Set(transactionsForAdviceId.map(item => new Date(item.date).getTime()))).map(item => new Date(item));
+			var uniqueDates = Array.from(new Set(transactionsForAdviceId.map(item => new Date(item.date).getTime()))).map(item => new Date(item)).sort();
 
 			//2. Filter out transaction for the date
 			return Promise.map(uniqueDates, function(date){
@@ -263,8 +288,10 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 				return AdviceModel.fetchAdvicePortfolio({_id: adviceId}, date)
 				.then(advicePortfolio => {
 					if(advicePortfolio) {
+						
 						//3. Validate transactions against advice portfolio as of that date
-						return HelperFunctions.validateTransactions(transactionsForAdviceIdForDate, advicePortfolio)
+						var investorCurrentPortfolioInAdvice = _filterPortfolioForAdvice(portfolio, adviceId);
+						return HelperFunctions.validateTransactions(transactionsForAdviceIdForDate, advicePortfolio, investorCurrentPortfolioInAdvice)
 						.catch(err => {
 							APIError.throwJsonError({message: "Invalid transactions (Reason: " + err.message +")", advice: adviceId, date: date, errorCode: 1406});
 						});
@@ -286,6 +313,8 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 	})
 	.then(validFlags => {
 
+		//TO BE IMPORVED: TRANSACTIONS SHOULD BE ADDED/DELETED/UPDATED
+		//after portfolio update process
 		if (validFlags.every(function(item){return item;}) && portfolio) {
 
 			if(action == "update") {
@@ -383,7 +412,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 			});
 		}
 	});
-}
+};
 
 module.exports.computeUpdatedPortfolioForPrice = function(portfolio, date) {
 	
@@ -435,5 +464,4 @@ module.exports.comparePortfolioDetail = function(oldPortfolioDetail, newPortfoli
 			}
 		});
 	});
-}
-
+};

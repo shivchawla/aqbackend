@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-22 14:19:01
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-01 15:39:12
+* @Last Modified time: 2018-03-20 15:06:07
 */
 
 'use strict';
@@ -27,8 +27,11 @@ const PerformanceDetail = new Schema({
 const Performance  = new Schema({  	
   	portfolio:{
   		type: Schema.Types.ObjectId,
-  		ref: 'Portfolio'
+  		ref: 'Portfolio',
+      required: true
   	},
+
+    summary: Schema.Types.Mixed,
 
     current: PerformanceDetail,
 
@@ -37,7 +40,7 @@ const Performance  = new Schema({
 
 Performance.statics.savePerformance = function(performanceDetail) {
     const performance = new this(performanceDetail);
-    return performance.save();
+    return performance.saveAsync();
 };
 
 Performance.statics.fetchPerformance = function(query, fields) {
@@ -48,16 +51,15 @@ Performance.statics.fetchPerformance = function(query, fields) {
         options.fields = fields;
     }
 
-    return this.findOneAndUpdate(query, {}, options);
-
+    return this.findOneAndUpdateAsync(query, {}, options);
 };
 
-Performance.statics.updatePerformance = function(query, updates) {
-    return this.findOneAndUpdate(query, updates, {upsert:true, new: true}).execAsync();
+Performance.statics.updatePerformance = function(query, updates, options) {
+    return this.findOneAndUpdateAsync(query, updates, Object.assign(options ? options : {}, {upsert:true, new: true}))
 };
 
 Performance.statics.updatePerformanceByType = function(query, latestPerformanceDetail, type) {
-    return this.findOneAndUpdate(query, {}, {upsert:true, new: true})
+    return this.findOneAndUpdateAsync(query, {}, {upsert:true, new: true})
     .then(performance => {
        if (performance) {
 
@@ -99,7 +101,7 @@ Performance.statics.updatePerformanceByType = function(query, latestPerformanceD
 };
 
 Performance.statics.addPerformance = function(query, latestPerformance) {
-    return this.findOneAndUpdate(query, {}, {upsert:true, new: true})
+    return this.findOneAndUpdateAsync(query, {}, {upsert:true, new: true})
     .then(performance => {
         if (performance) {
             var types = ["current", "simulated"];

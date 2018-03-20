@@ -2,49 +2,16 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:56:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-16 15:56:36
+* @Last Modified time: 2018-03-19 16:46:33
 */
 
-const PerformanceModel = require('../../models/Marketplace/Performance');
 const AdviceModel = require('../../models/Marketplace/Advice');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const APIError = require('../../utils/error');
 const Promise = require('bluebird');
 const HelperFunctions = require('./index');
+const AdviceHelper = require('./Advice');
 const PerformanceHelper = require('./Performance');
-const PortfolioHelper = require('./Portfolio');
-
-function _computePortfolioAnalytics(portfolio) {
-	var positions = portfolio && portfolio.detail ? portfolio.detail.positions : [];
-	var distinctSectors = Array.from(new Set(positions.map(item => {return item && item.security && item.security.detail ? item.security.detail.Sector : "";}).filter(item => {return item && item != ""})));
-	var distinctIndustries = Array.from(new Set(positions.map(item => {return item && item.security && item.security.detail ? item.security.detail.Industry : "";}).filter(item => {return item && item != ""})));
-	
-	return {
-		nstocks: positions.length,
-		sectors: distinctSectors,
-		industries: distinctIndustries
-	}; 
-}
-
-function _computePerformanceRating(performance) {
-	//return PerformanceModel.fetchPerformance({portfolio: portfolioId})
-	//.then(performance => {
-		//WRITE RATING LOGIC HERE
-		if (performance) {
-			//Use Sharpe Ratio Fractional Rnking
-			//Use Information Ratio Fractional Ranking
-			//Use Calmar Ratio Fractional Ranking
-			//Use Total Return Fractional Ranking
-			//Use Inverse of Volatility Fractional Ranking
-			//Use Tracking Error Fractional Ranking
-
-			return 5.0;
-		} else {
-			return 5.0
-			//APIError.throwJsonError({portfolioId: portfolioId, message: "Performance not available"});
-		}
-	//});
-}
 
 function _computeAggregateRating (adviceIds) {
 	return Promise.map(adviceIds, function(adviceId) {
@@ -90,40 +57,14 @@ function _updateAdvisorAnalytics(advisorId) {
 }
 
 function _updateAdviceAnalytics(adviceId) {
-	let subscribers;
-	let followers;
-	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio subscribers followers'})
-	.then(advice => {
-		if (advice) {
-			subscribers = advice.subscribers;
-			followers = advice.followers;
-			return Promise.all([
-				PortfolioHelper.getUpdatedPortfolio(advice.portfolio, 'detail'),
-				PerformanceHelper.getPerformanceSummary(advice.portfolio)
-			])
-		} else {
-			APIError.throwJsonError({advice: adviceId, message: "Advice not found", errorCode: 1101});
-		}
-	})
-	.then(([portfolio, performance]) => {
-		return Promise.all([performance, _computePortfolioAnalytics(portfolio), _computePerformanceRating(performance)])
-	})
-	.then(([performance, portfolioAnalytics, rating]) => {
-		var updateObj = { 
-			analytics: {
-				date: HelperFunctions.getDate(new Date()),
-				numSubscribers: subscribers.filter(item => {return item.active == true}).length,
-				numFollowers: followers.filter(item => {return item.active == true}).length,
-				rating: rating,
-			}, 
-
-			latestPerformance: Object.assign(portfolioAnalytics, performance),
-		};
-
-		return updateObj;
-	})
-	.then(adviceAnalyticsAndPerformance => {
-		return AdviceModel.updateAnalyticsAndPerformance({_id: adviceId}, adviceAnalyticsAndPerformance);
+	
+	return Promise.all([
+		AdviceHelper.getAdviceAnalytics(adviceId, true),
+		AdviceHelper.getAdvicePerformanceSummary(adviceId, true)
+	])
+	.then(([adviceAnalytics, advicePerformanceSummary]) => {
+		var rating = advicePerformanceSummary && advicePerformanceSummary.rating ? advicePerformanceSummary.rating : 0.0;
+		return AdviceModel.updateAnalyticsAndPerformance({_id: adviceId}, {analytics: Object.assign({rating:rating}, adviceAnalytics), performance: advicePerformanceSummary});
 	});
 }
 

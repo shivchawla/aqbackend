@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-12 11:16:03
+* @Last Modified time: 2018-03-20 09:55:47
 */
 'use strict';
 
@@ -88,8 +88,9 @@ const Advisor = new Schema({
     profile: {
     	isCompany:Boolean,
     	companyName: String,
-    	isRegistered: Boolean,
-    	registrationNumber: String,
+    	companyRegistrationNum: String,
+    	isSebiRegistered: Boolean,
+    	sebiRegistrationNum: String,
     	address: Address,
     	phone: String, 
     	linkedIn: SocialProfile,
@@ -102,6 +103,10 @@ const Advisor = new Schema({
     analytics: [AdvisorAnalytics],
 
     latestAnalytics: AdvisorAnalytics
+});
+
+Advisor.index({
+    'profile.companyName': 'text'
 });
 
 Advisor.statics.saveAdvisor = function(advisorDetail) {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-13 12:48:56
+* @Last Modified time: 2018-03-20 14:06:34
 */
 
 'use strict';
@@ -52,12 +52,30 @@ module.exports.getAdvisors = function(args, res, next) {
     options.orderParam = "latestAnalytics."+(args.orderParam.value || 'rating');
     options.order = args.order.value || -1;
 
+    const search = args.search.value;
+    var query = {};
+    if (search) {
+        query.$text = {$search: search};
+    }
+
+    const registered = args.registered.value;
+    if (registered) {
+    	var registeredCategories = registered.split(",").map(item => item.trim());
+    	query = {$and:[query, {'profile.isSebiRegistered':{$in: registeredCategories}}]};
+    }
+
+    const company = args.company.value;
+    if (company) {
+    	var companyCategories = company.split(",").map(item => item.trim());
+    	query = {$and:[query, {'profile.isCompany':{$in: companyCategories}}]};
+    }
+
     const userId = args.user._id;
 
-    return AdvisorModel.fetchAdvisors({}, options)
+    return AdvisorModel.fetchAdvisors(query, options)
     .then(advisors => {
     	if(advisors) {
-			return res.status(200).json(advisors);
+			return res.status(200).json(advisors.filter(item => {return item && item.user}));
 		} else {
 			APIError.throwJsonError({message: "No advisors found", errorCode: 1204});
 		}
@@ -132,8 +150,12 @@ module.exports.updateAdvisorProfile = function(args, res, next) {
     const advisorId = args.advisorId.value;
 
     return new Promise((resolve, reject) => {
-		if(profile.isCompany && (!profile.companyName || profile.companyName =="")) {
-			APIError.throwJsonError({message: "Company name required if advisor a company"});
+		if(profile.isCompany && (!profile.companyName || profile.companyName =="") && (!profile.companyRegistrationNum || profile.companyRegistrationNum =="")) {
+			APIError.throwJsonError({message: "Company name and/or registration number required if advisor a company"});
+		}
+
+		if(profile.isSebiRegistered && (!profile.sebiRegistrationNum || !profile.sebiRegistrationNum =="")) {
+			APIError.throwJsonError({message: "SEBI registration number required if company/individual registered with SEBI"});
 		}
 
 		resolve(true);

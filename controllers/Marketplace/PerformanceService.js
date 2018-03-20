@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-14 10:29:42
+* @Last Modified time: 2018-03-19 15:34:54
 */
 
 'use strict'
@@ -24,10 +24,10 @@ module.exports.getPerformanceInvestorPortfolio = function(args, res, next) {
 	return InvestorModel.fetchInvestor({user: userId}, {fields: 'user portfolios', insert: true})
 	.then(investor => {
 		if (investor) {
-			if (investor.user.equals(userId)){
+			if (investor.user.equals(userId)) {
 				if(investor.portfolios) {
 					if (investor.portfolios.filter(item => !item.deleted).map(item => item.toString()).indexOf(portfolioId) != -1) {
-						return PerformanceHelper.getLatestPerformance(portfolioId);
+						return PerformanceHelper.getAllPerformance(portfolioId);
 					} else {
 						APIError.throwJsonError({userId: userId, message: "Investor not authorized to view", errorCode: 1304});
 					}
@@ -74,7 +74,7 @@ module.exports.getPerformanceAdvicePortfolio = function(args, res, next) {
 			showDetail = advice.advisor.equals(advisorId) || activeSubscribers.indexOf(investorId) != -1;
 			if (advice.advisor.equals(advisorId) || advice.public == true) {
 				portfolioId = advice.portfolio;
-				return PerformanceHelper.getLatestPerformance(portfolioId);
+				return PerformanceHelper.getAllPerformance(portfolioId);
 			} else {
 				APIError.throwJsonError({userId: userId, message:"Investor not authorized to view", errorCode: 1304});
 			}

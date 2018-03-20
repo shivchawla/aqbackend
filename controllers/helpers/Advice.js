@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-16 19:48:47
+* @Last Modified time: 2018-03-19 17:58:07
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -12,6 +12,7 @@ const Promise = require('bluebird');
 const config = require('config');
 const HelperFunctions = require("../helpers");
 const PerformanceHelper = require("../helpers/Performance");
+const PortfolioHelper = require("../helpers/Portfolio");
 const APIError = require('../../utils/error');
 
 module.exports.getAdviceAccessStatus = function(adviceId, userId) {
@@ -107,15 +108,59 @@ module.exports.computeAdvicePerformanceSummary = function(adviceId) {
 	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio'})
 	.then(advice => {
 		if (advice) {
-			return PerformanceHelper.getPerformanceSummary(advice.portfolio)
+			return Promise.all([
+				PerformanceHelper.computePerformanceSummary(advice.portfolio),
+				PortfolioHelper.computePortfolioAnalytics(advice.portfolio)
+			]);
 		} else {
-			return null;
+			APIError.throwJsonError({message: "Advice not found", errorCode:1102});
 		}
 	})
-	.then(performanceSummary => {
-		return {performance: performanceSummary};
+	.then(([performanceSummary, portfolioAnalytics]) => {
+		return Object.assign(performanceSummary, portfolioAnalytics);
 	})
 	.catch(err => {
-		return {performance: {error: err.message}};
+		return {error: err.message};
+	});
+};
+
+module.exports.getAdvicePerformanceSummary = function(adviceId, recalculate) {
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio latestPerformance'})
+	.then(advice => {
+		if (!advice.latestPerformance || recalculate) {
+			return exports.computeAdvicePerformanceSummary(adviceId);
+		} else {
+			return advice.latestPerformance;
+		}
+	})
+};
+
+module.exports.computeAdviceAnalytics = function(adviceId) {
+	let subscribers;
+	let followers;
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'subscribers followers'})
+	.then(advice => {
+		if (advice) {
+			subscribers = advice.subscribers;
+			followers = advice.followers;
+			return {
+				date: HelperFunctions.getDate(new Date()),
+				numSubscribers: subscribers.filter(item => {return item.active == true}).length,
+				numFollowers: followers.filter(item => {return item.active == true}).length,
+			};
+		} else {
+			APIError.throwJsonError({message: "Advice not found", errorCode: 1101});
+		}
+	}); 
+};
+
+module.exports.getAdviceAnalytics = function(adviceId, recalculate) {
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio latestAnalytics'})
+	.then(advice => {
+		if (!advice.latestAnalytics || recalculate) {
+			return exports.computeAdviceAnalytics(adviceId);
+		} else {
+			return advice.latestAnalytics;
+		}
 	});
 };

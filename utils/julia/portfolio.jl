@@ -134,7 +134,7 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
         #If portfolio has benchmark
         if haskey(portfolio, "benchmark") 
             benchmark = convert(Raftaar.Security, portfolio["benchmark"])
-                
+             
             if haskey(oldPortfolio, "benchmark")
                 benchmark_old = convert(Raftaar.Security, oldPortfolio["benchmark"])
                 if benchmark != benchmark_old
@@ -167,7 +167,7 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
         if lastStartDate != DateTime() && lastEndDate != DateTime() && startDate <= lastEndDate 
             error("Empty dates or startDate less than or equal to end date of current advice")
         end=#
-    
+        
         #Validating positions and benchmark
         (valid_port, port) = _validate_portfolio(portfolio, checkbenchmark = false)
 
@@ -504,7 +504,8 @@ end
 ###
 # Function to update portfolio with transactions
 ###
-function updateportfolio_transactions(port::Dict{String, Any}, transactions::Vector{Any})
+function updateportfolio_transactions(port::Dict{String, Any}, transactions::Vector{Dict{String,Any}})
+    
     try
         portfolio = convert(Raftaar.Portfolio, port)
 
@@ -639,38 +640,54 @@ function convert_to_node_portfolio(port::Portfolio)
     end
 end
 
-function _validate_transactions(transactions::Vector{Dict{String,Any}}, port::Dict{String, Any})
+function _validate_transactions(transactions::Vector{Dict{String,Any}}, advicePort::Dict{String, Any}, investorPort::Dict{String, Any})
     try
-        transactions_raftaar = Raftaar.OrderFill[];
-
-        for (i, transaction) in enumerate(transactions)
-            try
-                push!(transactions_raftaar, convert(Raftaar.OrderFill, transaction))
-                #Can add a check by comparing the price...but not important 
-            catch err
-                rethrow(err)
+        if advicePort != Dict{String,Any}()
+            effInvPortfolio = Portfolio()
+            
+            #Update investor portfolio with advice transactions
+            #get effective investor portfolio
+            if investorPort != Dict{String, Any}()
+                (cash, effInvPortfolio) = updateportfolio_transactions(investorPort, transactions)
+            else
+                (cash, effInvPortfolio) = updateportfolio_transactions(Dict("positions" => []), transactions);
             end
-        end
 
-        if port != Dict{String,Any}()
-            portfolio = convert(Raftaar.Portfolio, port)
+            #=transactions_raftaar = Raftaar.OrderFill[];
+
+            for (i, transaction) in enumerate(transactions)
+                try
+                    push!(transactions_raftaar, convert(Raftaar.OrderFill, transaction))
+                    #Can add a check by comparing the price...but not important 
+                catch err
+                    rethrow(err)
+                end
+            end=#
+        
+            advPortfolio = convert(Raftaar.Portfolio, advicePort)
             multiple = Int64[]
 
-            for (i, txn) in enumerate(transactions_raftaar)
-                sym = txn.securitysymbol
-                pos = get(portfolio.positions, sym, nothing)
+            if length(keys(advPortfolio.positions)) != length(keys(effInvPortfolio.positions))
+                return false
+            end
+            
+            for sym in keys(advPortfolio.positions)
+                
+                #sym = txn.securitysymbol
+                posAdvice = get(advPortfolio.positions, sym, nothing)
+                posInvestor = get(effInvPortfolio.positions, sym, nothing)
 
-                if(pos == nothing)
+                if(posAdvice == nothing || posInvestor == nothing)
                     error("Transaction in Invalid Position: $(sym.ticker)")
                 end
 
-                remainder = txn.fillquantity % pos.quantity
+                remainder = posInvestor.quantity % posAdvice.quantity
                 
                 if(abs(remainder) > 0)
                     error("Invalid quantity in $(sym.ticker)")
                 end
 
-                push!(multiple, round(txn.fillquantity / pos.quantity))
+                push!(multiple, round(posInvestor.quantity / posAdvice.quantity))
 
             end
 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 18:29:11
+* @Last Modified time: 2018-03-19 19:02:54
 */
 
 'use strict';
@@ -54,7 +54,7 @@ const Portfolio = new Schema({
 	history: [PortfolioDetail]
 });
 
-Portfolio.statics.savePortfolio = function(portfolio) {
+Portfolio.statics.savePortfolio = function(portfolio, isAdvice) {
 	
 	//Convert security strings to upper case
 	if(portfolio.detail) {
@@ -70,10 +70,12 @@ Portfolio.statics.savePortfolio = function(portfolio) {
 		portfolio.detail = {cash: 0.0, positions:[], subPositions:[]};
 	}
 
-	if(!portfolio.detail.subPositions && portfolio.detail.positions) {
+	if(!portfolio.detail.subPositions && portfolio.detail.positions && !isAdvice) {
 		portfolio.detail.subPositions = portfolio.detail.positions;
 	}
- 
+
+	//There is no end date of active portfolio
+	portfolio.detail.endDate = farfuture()
 	portfolio.createdDate = new Date();
 
 	const port = new this(portfolio);
@@ -181,27 +183,38 @@ Portfolio.statics.deleteTransactions = function(query, transactions) {
 	});
 };
 
-
 Portfolio.statics.updatePortfolio = function(query, updates, options, addNew) {
 	var q = this.findOne(query);
 	
 	if (addNew) {
-		q = q.select('detail history');
+		q = q.select('detail');
 	}
 
 	return q.execAsync()
 	.then(portfolio => {
 		
+		//update the end date of current portfolio before sending to history
+		//EndDate of historical entry = startDate of new portfolio - 1 day
+		if (updates.detail) {
+			portfolio = Object.assign({}, portfolio.toObject());
+			var d = new Date(updates.detail.startDate);
+			d.setDate(d.getDate()-1);
+			portfolio.detail.endDate = d;
+
+			//Also update the endDate of current portfolio
+			updates.detail.endDate = farfuture();
+		}
+
 		var fupdate = {$set: Object.assign({updatedDate: new Date()}, updates)};
 
 		if (addNew) {
-			var history = updates.history ? updates.history : [];
 			var modifiedUpdates = Object.assign({}, updates);
+			var newHistory = updates.history ? updates.history : [portfolio.detail]; 
 
 			delete modifiedUpdates.history;
 
 			//assuming history is array;
-			fupdate = {$set: modifiedUpdates, $push:{history: {$each: history}} };
+			fupdate = {$set: Object.assign({updatedDate: new Date()}, modifiedUpdates), $push:{history: {$each: newHistory}}};
 		}
 
 		return this.findOneAndUpdate(query, fupdate);
@@ -214,6 +227,10 @@ Portfolio.statics.updatePortfolio = function(query, updates, options, addNew) {
 		}
 	});
 }
+
+Portfolio.statics.deletePortfolio = function(query) {
+	return this.findOneAndRemove(query);
+};
 
 Portfolio.statics.updatePortfolioWithTransactions = function(query, updates) {
 	return this.findOne(query)
@@ -258,6 +275,10 @@ Portfolio.statics.updatePortfolioWithTransactions = function(query, updates) {
 		return null;
 	})
 };
+
+function farfuture() {
+	return new Date(2200, 1, 1);
+}
 
 const PortfolioModel = mongoose.model('Portfolio', Portfolio);
 module.exports = PortfolioModel;

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-16 13:21:23
+* @Last Modified time: 2018-03-20 12:42:23
 */
 
 'use strict';
@@ -27,19 +27,15 @@ function _compareIds(x, y) {
 }
 
 function _getPerformanceOfAdvices(portfolio) {
-	if(portfolio) {
-		var subPositions = portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions : []; 
-		var advices = subPositions.filter(item => {return item.advice && item.advice._id && item.advice._id!=""}).map(item => item.advice._id);
-			
-		return Promise.map(advices, function(adviceId) {
-			return AdviceHelper.computeAdvicePerformanceSummary(adviceId)
-			.then(performance => {
-				return Object.assign({advice: adviceId}, performance);
-			});
-		})
-	} else {
-		return [];
-	}
+	var subPositions = portfolio && portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions : []; 
+	var advices = subPositions.filter(item => {return item.advice && item.advice._id && item.advice._id!=""}).map(item => item.advice._id);
+		
+	return Promise.map(advices, function(adviceId) {
+		return AdviceHelper.getAdvicePerformanceSummary(adviceId)
+		.then(performance => {
+			return Object.assign({advice: adviceId}, {performance: performance});
+		});
+	});
 }
 
 /*
@@ -80,8 +76,8 @@ module.exports.getInvestorSummary = function(args, res, next) {
     	if(investor) {
 			return Promise.all([
 				investor, 
-				investor.defaultPortfolio ? PortfolioHelper.getUpdatedPortfolio(investor.defaultPortfolio, 'name detail benchmark') : null,
-				investor.defaultPortfolio ? PerformanceHelper.getLatestPerformance(investor.defaultPortfolio) : null
+				investor.defaultPortfolio ? PortfolioHelper.getUpdatedPortfolio(investor.defaultPortfolio, 'name detail benchmark').catch(err => {return null;}) : null,
+				investor.defaultPortfolio ? PerformanceHelper.getLatestPerformance(investor.defaultPortfolio).catch(err => {return {error: err.message};}) : null
 			]);
     	} else {
     		APIError.throwJsonError({investorId: investorId, message:"Investor not found/not authorized", errorCode: 1302});
@@ -90,7 +86,7 @@ module.exports.getInvestorSummary = function(args, res, next) {
     .then(([investor, updatedDefaultPortfolio, updatedDefaultPerformance]) => {
     	return _getPerformanceOfAdvices(updatedDefaultPortfolio)
     	.then(advicePerformance => {
-    		updatedDefaultPortfolio = Object.assign({advicePerformance : advicePerformance}, updatedDefaultPortfolio.toObject());	
+    		updatedDefaultPortfolio = Object.assign({advicePerformance : advicePerformance}, updatedDefaultPortfolio ? updatedDefaultPortfolio.toObject() : {});	
     		return res.status(200).send(Object.assign(investor.toObject(), {defaultPortfolio: updatedDefaultPortfolio, defaultPerformance: updatedDefaultPerformance}));
     	});
     })
@@ -126,7 +122,7 @@ module.exports.getInvestorDetail = function(args, res, next) {
 };
 
 /*
-* Get following advices
+* Get following advices (Don't need to use this..Use Advice Service)
 */
 module.exports.getFollowingAdvices = function(args, res, next) {
 
@@ -205,6 +201,7 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 		item._id = item._id != "" ? ObjectId(item._id) : null;
 	});
 
+	let portfolioId;
 
 	return InvestorModel.fetchInvestor({user: userId}, {fields:'_id portfolios'})
 	.then(investor => {
@@ -242,6 +239,7 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 	})
 	.then(portfolio => {
 		if(portfolio) {
+			portfolioId = portfolio._id;
 			return Promise.all([portfolio, !preview ? InvestorModel.addPortfolio({_id: investorId, user:userId}, portfolio._id) : {}]);
 		} else {
 			APIError.throwJsonError({message: "Internal error creating portfolio", errorCode: 1405});
@@ -254,7 +252,9 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 			//Need this for PREVIEW feature
 			//In case of PREVIEW, input transaction object is not saved 
 			//and hence doesn't match the type requirement 
-			return transactions.length > 0 ? PortfolioHelper.updatePortfolioForStockTransactions(portfolio, transactions, "add", preview) : portfolio;
+			return transactions.length > 0 ? 
+				PortfolioHelper.updatePortfolioForStockTransactions(portfolio, transactions, "add", preview) : 
+				portfolio;
 		} else {
 			APIError.throwJsonError({message: "Internal error adding portfolio", errorCode: 1309});
 		}
@@ -267,7 +267,13 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 		}
     })
 	.catch(err => {
-    	return res.status(400).send(err.message);
+		return Promise.all([
+			portfolioId ? InvestorModel.removePortfolio({_id: investorId}, portfolioId) : null, 
+			portfolioId ? PortfolioModel.deletePortfolio({_id:portfolioId}) : null
+		]) 
+		.then(([investor, portfolio])=> {
+			return res.status(400).send(err.message);
+		});
     });
 };
 

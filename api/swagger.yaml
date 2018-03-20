@@ -1198,6 +1198,18 @@ paths:
         type: string
         description: search advices by text
         required: false
+      - name: registered
+        in: query
+        type: string
+        required: false
+        default: "0,1"
+        description: sebi registration status of a
+      - name: company
+        in: query
+        type: string
+        default: "0,1"
+        required: false
+        description: company or individual advisor
       - name: skip
         in: query
         description: skip number of records
@@ -2878,10 +2890,13 @@ definitions:
       companyName: 
         type: string
         default: ""
-      isRegistered: 
+      companyRegistrationNum:
+        type: string
+        default: ""
+      isSebiRegistered: 
         type: boolean
         default: false
-      registrationNumber:
+      sebiRegistrationNum:
         type: string
         default: ""
       webUrl: 
@@ -2964,11 +2979,15 @@ definitions:
     required:
       - message
       - approved
+      - prohibit
     properties:
       message: 
         type: string
       approved:
         type: boolean
+      prohibit:
+        type: boolean
+
 
   SocialProfile:
     type: object

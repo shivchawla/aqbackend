@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-15 10:32:29
+* @Last Modified time: 2018-03-20 05:23:42
 */
 
 'use strict';
@@ -44,7 +44,7 @@ module.exports.createAdvice = function(args, res, next) {
 	})
 	.then(valid => {
 		if(valid) {
-			return PortfolioModel.savePortfolio(advice.portfolio);
+			return PortfolioModel.savePortfolio(advice.portfolio, true);
 		} else {
 			APIError.throwJsonError({message: "Invalid portfolio composition", errorCode: 1405});
 		}
@@ -69,10 +69,16 @@ module.exports.createAdvice = function(args, res, next) {
 	})
     .then(advice => {
     	if(advice) {
-    		return res.status(200).json(advice);
+    		return Promise.all([
+    			advice,
+    			AdviceHelper.getAdvicePerformanceSummary(advice._id)
+			]);
     	} else {
     		APIError.throwJsonError({message: "Error adding advice to advisor", errorCode: 1111});	
     	}
+    })
+    .then(([advice, performanceSummary]) => {
+    	return res.status(200).send(Object.assign({latestPerformance: performanceSummary}, advice.toObject()));
     })
 	.catch(err => {
 		return res.status(400).send(err.message);
@@ -84,10 +90,15 @@ module.exports.updateAdvice = function(args, res, next) {
 	const userId = args.user._id;
 	const newAdvice = args.body.value;
 	
-	var adviceFields = 'advisor public portfolio name heading description';
+	let advicePortfolioId;
+	let isPublic;
 
-	return Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
-					AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, {fields: adviceFields})])
+	var adviceFields = 'advisor public portfolio name heading description maxNotional rebalance';
+
+	return Promise.all([
+		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
+		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, {fields: adviceFields, populate: 'portfolio'})
+	])
 	.then(([advisor, advice]) => {
 
 		if(advisor && advice) {
@@ -108,8 +119,10 @@ module.exports.updateAdvice = function(args, res, next) {
 					} 
 				});
 
-				return Promise.all([advice,
-					  advice.public == true ? HelperFunctions.validateAdvice(newAdvice, advice) : HelperFunctions.validateAdvice(newAdvice)]);
+				isPublic = advice.public;
+				advicePortfolioId = advice.portfolio._id;
+				return 	isPublic ? HelperFunctions.validateAdvice(newAdvice, advice) : HelperFunctions.validateAdvice(newAdvice);
+			
 			} else {
 				APIError.throwJsonError({message: "Advisor not authorized to update", errorCode: 1107});
 			}
@@ -117,13 +130,13 @@ module.exports.updateAdvice = function(args, res, next) {
 			APIError.throwJsonError({userId:userId, adviceId:adviceId, message: "Advice not found", errorCode: 1101});
 		}
 	})
-	.then(([advice, validAdvice]) => {
+	.then(validAdvice => {
 		
 		var adviceUpdates = Object.assign({}, newAdvice);
 		delete adviceUpdates.portfolio;
-		
+
 		if (validAdvice) {
-			return Promise.all([PortfolioModel.updatePortfolio({_id:advice.portfolio}, newAdvice.portfolio, {}, advice.public == true), 
+			return Promise.all([PortfolioModel.updatePortfolio({_id:advicePortfolioId}, newAdvice.portfolio, {new:true, fields: 'detail'}, isPublic), 
 				AdviceModel.updateAdvice({_id: adviceId}, adviceUpdates, {new:true, fields: adviceFields})]);
 		} else {
 			APIError.throwJsonError({message:"Advice validation failed", errorCode: 1108});
@@ -161,7 +174,7 @@ module.exports.getAdvices = function(args, res, next) {
 
     options.fields = 'name description heading createdDate updatedDate advisor public approvalStatus maxNotional rebalance latestPerformance latestAnalytics';
 
-    var query = {deleted: false};
+    var query = {deleted: false, $or: [{prohibited:{'$exists':false}}, {prohibited: false}]};
 
     var performanceAnalyticsFilters = [
     	["netValue", "sharpe", "volatility", "return", "maxLoss", "currentLoss", "beta"],
@@ -240,7 +253,7 @@ module.exports.getAdvices = function(args, res, next) {
 	    	}
 
 	    	if (personalCategories.indexOf("0") !=-1) {
-	    		advisorQuery.push({advisor:{'$ne': userAdvisorId}, public: true});
+	    		advisorQuery.push({advisor:{'$ne': userAdvisorId}, public: true, $or:[{prohibited: {$exists: false}}, {prohibited: false}]});
 	    	}
 
 	    	query = {'$and': [query, {'$or': advisorQuery}]}
@@ -286,29 +299,49 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const userId = args.user._id;
 	
 	const options = {};
-	options.fields = 'name heading description createdDate updatedDate advisor public approved portfolio rebalance maxNotional latestPerformance latestAnalytics';
+	options.fields = 'name heading description createdDate updatedDate advisor public prohibited approved portfolio rebalance maxNotional';
 	options.populate = 'advisor benchmark';
 	
 	return Promise.all([
 		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, options),
-		AdviceHelper.computeAdviceSubscriptionDetail(adviceId, userId),
-		AdviceHelper.computeAdvicePerformanceSummary(adviceId)	
+		AdviceHelper.computeAdviceSubscriptionDetail(adviceId, userId)
 	])
- 	.then(([advice, adviceSubscriptionDetail, performanceSummary]) => {
+ 	.then(([advice, adviceSubscriptionDetail]) => {
+ 		let nAdvice; 
+
  		if(advice && adviceSubscriptionDetail) {
 	 		var accessAllowed = adviceSubscriptionDetail.isOwner || adviceSubscriptionDetail.isAdmin;
-	 		var accessAllowed = accessAllowed || (!accessAllowed && advice.public == true); 
+	 		var accessAllowed = accessAllowed || (!accessAllowed && advice.public == true && !advice.prohibited); 
 	 		
 	 		if(accessAllowed) {
-				var nAdvice = Object.assign(performanceSummary, adviceSubscriptionDetail, advice.toObject());
-				return res.status(200).send(nAdvice);
-				
+				nAdvice = Object.assign(adviceSubscriptionDetail, advice.toObject());
 			} else {
 				APIError.throwJsonError({userId: userId, adviceId: adviceId, message:"Investor not authorized to view advice", errorCode: 1113});
 			}
 		} else {
 			APIError.throwJsonError({message:'Advice not found', errorCode: 1101});
 		}
+
+		return Promise.all([
+			nAdvice,
+			AdviceHelper.getAdvicePerformanceSummary(adviceId),
+			//AdviceHelper.getAdviceAnalytics(adviceId),
+		]);
+
+ 	})
+ 	.then(([advice, performanceSummary, analyticsSummary]) => {
+		var nAdvice = advice;
+
+		if (performanceSummary) {
+			nAdvice = Object.assign({latestPerformance: performanceSummary.summary}, nAdvice);
+		}
+
+		/*if (analyticsSummary) {
+			nAdvice = Object.assign({latestAnalytics: analyticsSummary}, nAdvice);
+		}*/ 
+
+		return res.status(200).send(nAdvice);
+		
  	})
  	.catch(err => {
     	return res.status(400).send(err.message);
@@ -379,7 +412,7 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 		if (portfolioDetail) {
 			return PortfolioHelper.computeUpdatedPortfolioForPrice({detail: portfolioDetail}, date);
 		} else {
-			return [false, {portfolio: null}];
+			APIError.throwJsonError({message: "No portfolio found for advice"});
 		}
 	})
 	.then(([updated, updatedPortfolio]) => {
@@ -467,7 +500,7 @@ module.exports.followAdvice = function(args, res, next) {
   	Promise.all([
   		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
   		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true}), 
-		AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true}, {field:'advisor'})])
+		AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true, $or:[{prohibited: {$exists: false}}, {prohibited: false}]}, {field:'advisor'})])
   	.then(([advisor, investor, advice]) => {
   		if(advisor && investor && advice) {			
     		const investorId = investor._id; 
@@ -513,7 +546,7 @@ module.exports.subscribeAdvice = function(args, res, next) {
 
   	return Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
   			InvestorModel.fetchInvestor({user: userId}, {fields: '_id', insert:true}), 
-  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true}, {})])
+  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true, $or:[{prohibited: {$exists: false}}, {prohibited: false}]}, {})])
   	.then(([advisor, investor, advice]) => {
   		if(investor && advice) {
   				

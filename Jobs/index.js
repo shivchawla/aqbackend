@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 12:52:57
+* @Last Modified time: 2018-03-19 16:44:37
 */
 
 'use strict';
@@ -16,10 +16,7 @@ schedule.scheduleJob("0 * * * * *", function() {
 
 
 function updateAllAnalytics() {
-	return PerformanceHelper.updatePerformanceAllAdvices()
-	.then(updated => {
-		return AnalyticsHelper.updateAllAdviceAnalytics();
-	})
+	return AnalyticsHelper.updateAllAdviceAnalytics()
 	.then(updated => {
 		return AnalyticsHelper.updateAllAdvisorAnalytics();	
 	})
