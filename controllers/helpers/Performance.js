@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-20 15:07:49
+* @Last Modified time: 2018-03-21 13:24:22
 */
 
 'use strict';
@@ -359,6 +359,52 @@ function _computeSimulatedPerformance(portfolioId) {
 	});
 }
 
+function _extractPerformanceSummary(currentPerformance) {
+	
+	let performanceSummary;
+	if (currentPerformance) {
+		const summary = Object.assign({}, currentPerformance);
+
+		var netValueArray = summary && summary.portfolioValues && summary.portfolioValues.length > 0 ? summary.portfolioValues.slice(-2) : null;
+
+		var dailyChange = 0.0;
+		if(netValueArray && netValueArray.length > 1){
+			var prices = netValueArray.map(item => item.netValue);
+			dailyChange = prices[0] > 0.0 ? (prices[1] - prices[0])/prices[0] : 0.0;
+		}
+
+		dailyChange = parseFloat(dailyChange.toPrecision(4));
+
+		var latestPortfolioValue = netValueArray && netValueArray.length > 0 ? netValueArray[netValueArray.length - 1] : null
+		var currentMetrics = summary && summary.metrics && summary.metrics.portfolioPerformance ? summary.metrics.portfolioPerformance : null; 
+		
+		performanceSummary = {
+			date: summary.updateDate,
+			return: currentMetrics && currentMetrics.returns ? currentMetrics.returns.totalreturn : 0.0,
+			volatility: currentMetrics && currentMetrics.deviation ? currentMetrics.deviation.annualstandarddeviation : 0.0,
+			sharpe: currentMetrics && currentMetrics.ratios ? currentMetrics.ratios.sharperatio : 0.0,
+			beta: currentMetrics && currentMetrics.ratios ? currentMetrics.ratios.beta : 0.0, 
+			maxLoss: currentMetrics && currentMetrics.drawdown ? currentMetrics.drawdown.maxdrawdown : 0.0,	
+			currentLoss: currentMetrics && currentMetrics.drawdown ? currentMetrics.drawdown.currentdrawdown : 0.0,	
+			dailyChange: dailyChange,
+			netValue: latestPortfolioValue ? latestPortfolioValue.netValue : null,
+			netValueDate: latestPortfolioValue ? latestPortfolioValue.date : null,
+		} 
+	} else {
+		performanceSummary = null;
+	}
+
+	return Promise.all([
+		performanceSummary,
+		performanceSummary ? exports.computePerformanceRating(performanceSummary) : 0.0
+	])
+	.then(([performanceSummary, rating]) => {
+		var summary = Object.assign(performanceSummary ? performanceSummary : {}, {rating: rating});
+		return summary;
+	});
+			
+}
+
 module.exports.computePerformanceHypthetical = function(portfolio) {
 	return new Promise((resolve,reject) => {
 		if(portfolio) {
@@ -427,8 +473,14 @@ module.exports.computeAllPerformance = function(portfolioId) {
 		 	_computeLatestPerformance(portfolioId)
 	 	])
 		.then(([simulatedPerformance, currentPerformance]) => {
-
-			if (simulatedPerformance || currentPerformance) {
+			return Promise.all([
+				simulatedPerformance,
+				currentPerformance,
+				_extractPerformanceSummary(currentPerformance)
+			])
+		})
+		.then(([simulatedPerformance, currentPerformance, performanceSummary]) => {
+			if (simulatedPerformance || currentPerformance || performanceSummary) {
 				const updates = {};
 				if (simulatedPerformance) {
 					updates["simulated"] = simulatedPerformance;
@@ -438,7 +490,11 @@ module.exports.computeAllPerformance = function(portfolioId) {
 					updates["current"] = currentPerformance;
 				}
 
-				return PerformanceModel.updatePerformance({portfolio: portfolioId}, {$set: updates}, {fields: 'current simulated'});
+				if(performanceSummary) {
+					updates["summary"] = performanceSummary;
+				}
+
+				return PerformanceModel.updatePerformance({portfolio: portfolioId}, {$set: updates}, {fields: 'current simulated summary'});
 			} else {
 				return PerformanceModel.fetchPerformance({portfolio: portfolioId});
 				//APIError.throwJsonError({message: "Error computing either the simulated or latest performance", portfolio: portfolioId});	
@@ -448,6 +504,7 @@ module.exports.computeAllPerformance = function(portfolioId) {
 			resolve(pf);
 		})
 		.catch(err => {
+			console.log(err);
 			PerformanceModel.fetchPerformance({portfolio: portfolioId}).
 			then(pf => {
 				resolve(pf);
@@ -458,7 +515,7 @@ module.exports.computeAllPerformance = function(portfolioId) {
 
 module.exports.getAllPerformance = function(portfolioId) {
 	if (portfolioId) {
-		return PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: 'current simulated'})
+		return PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: 'current simulated summary'})
 		.then(performance => {
 			var updateRequired = _checkPerformanceUpdateRequired(performance ? performance.current : null);
 			return updateRequired ? exports.computeAllPerformance(portfolioId) : performance;
@@ -472,49 +529,9 @@ module.exports.computePerformanceSummary = function(portfolioId) {
 	return new Promise(resolve => {
 		exports.getLatestPerformance(portfolioId)
 		.then(performance => {
-			let performanceSummary;
-			if (performance && performance.current) {
-
-				const summary = Object.assign({}, performance.current.toObject());
-
-				var netValueArray = summary && summary.portfolioValues && summary.portfolioValues.length > 0 ? summary.portfolioValues.slice(-2) : null;
-
-				var dailyChange = 0.0;
-				if(netValueArray && netValueArray.length > 1){
-					var prices = netValueArray.map(item => item.netValue);
-					dailyChange = prices[0] > 0.0 ? (prices[1] - prices[0])/prices[0] : 0.0;
-				}
-
-				dailyChange = parseFloat(dailyChange.toPrecision(4));
-
-				var latestPortfolioValue = netValueArray && netValueArray.length > 0 ? netValueArray[netValueArray.length - 1] : null
-				var currentMetrics = summary && summary.metrics && summary.metrics.portfolioPerformance ? summary.metrics.portfolioPerformance : null; 
-				
-				performanceSummary = {
-					date: summary.updateDate,
-					return: currentMetrics && currentMetrics.returns ? currentMetrics.returns.totalreturn : 0.0,
-					volatility: currentMetrics && currentMetrics.deviation ? currentMetrics.deviation.annualstandarddeviation : 0.0,
-					sharpe: currentMetrics && currentMetrics.ratios ? currentMetrics.ratios.sharperatio : 0.0,
-					beta: currentMetrics && currentMetrics.ratios ? currentMetrics.ratios.beta : 0.0, 
-					maxLoss: currentMetrics && currentMetrics.drawdown ? currentMetrics.drawdown.maxdrawdown : 0.0,	
-					currentLoss: currentMetrics && currentMetrics.drawdown ? currentMetrics.drawdown.currentdrawdown : 0.0,	
-					dailyChange: dailyChange,
-					netValue: latestPortfolioValue ? latestPortfolioValue.netValue : null,
-					netValueDate: latestPortfolioValue ? latestPortfolioValue.date : null,
-				} 
-
-			} else {
-				performanceSummary = null;
-			}
-
-			return Promise.all([
-				performanceSummary,
-				performanceSummary ? exports.computePerformanceRating(performanceSummary) : 0.0
-			]);
-
+			return performance && performance.current ? _extractPerformanceSummary(performance.current) : null;
 		})
-		.then(([performanceSummary, rating]) => {
-			var summary = Object.assign(performanceSummary ? performanceSummary : {}, {rating: rating});
+		.then(performanceSummary => {
 			if (performanceSummary) {
 				return PerformanceModel.updatePerformance({portfolio: portfolioId}, {$set: {summary: summary}}, {fields: 'summary'}).then(pf => {return pf.summary;});
 			} else {

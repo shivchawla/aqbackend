@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-19 15:34:54
+* @Last Modified time: 2018-03-21 12:34:37
 */
 
 'use strict'
@@ -96,7 +96,7 @@ module.exports.getPerformanceAdvicePortfolio = function(args, res, next) {
 
 			return res.status(200).send(performance);
 		} else {
-			APIError.throwJsonError({message: "Internal calulating portfolio performance", errorCode: 1604});
+			APIError.throwJsonError({message: "Internal calculating portfolio performance", errorCode: 1604});
 		}
 	})
 	.catch(err => {
