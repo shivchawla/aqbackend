@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-20 05:23:42
+* @Last Modified time: 2018-03-21 15:56:24
 */
 
 'use strict';
@@ -158,6 +158,8 @@ module.exports.getAdvices = function(args, res, next) {
 
 	const userId = args.user._id;
     
+    console.log(args.personal.value);
+
     const options = {};
 	options.skip = args.skip.value;
     options.limit = args.limit.value;
@@ -172,9 +174,9 @@ module.exports.getAdvices = function(args, res, next) {
 
 	options.orderParam = orderParam;
 
-    options.fields = 'name description heading createdDate updatedDate advisor public approvalStatus maxNotional rebalance latestPerformance latestAnalytics';
+    options.fields = 'name description heading createdDate updatedDate advisor public approvalStatus prohibited maxNotional rebalance latestPerformance latestAnalytics';
 
-    var query = {deleted: false, $or: [{prohibited:{'$exists':false}}, {prohibited: false}]};
+    var query = {deleted: false};
 
     var performanceAnalyticsFilters = [
     	["netValue", "sharpe", "volatility", "return", "maxLoss", "currentLoss", "beta"],
@@ -253,17 +255,17 @@ module.exports.getAdvices = function(args, res, next) {
 	    	}
 
 	    	if (personalCategories.indexOf("0") !=-1) {
-	    		advisorQuery.push({advisor:{'$ne': userAdvisorId}, public: true, $or:[{prohibited: {$exists: false}}, {prohibited: false}]});
+	    		advisorQuery.push({advisor:{'$ne': userAdvisorId}, public: true, prohibited: false});
 	    	}
 
 	    	query = {'$and': [query, {'$or': advisorQuery}]}
-
 	    }
 
      	if(advisorId) {
 	    	query.advisor = advisorId;
 	    	if (!userAdvisorId.equals(advisorId)) {
-	    		query.public = true;	
+	    		query.public = true;
+	    		query.prohibited = false;	
 	    	}
 	    }
 
@@ -500,7 +502,7 @@ module.exports.followAdvice = function(args, res, next) {
   	Promise.all([
   		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
   		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true}), 
-		AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true, $or:[{prohibited: {$exists: false}}, {prohibited: false}]}, {field:'advisor'})])
+		AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true, prohibited:false}, {field:'advisor'})])
   	.then(([advisor, investor, advice]) => {
   		if(advisor && investor && advice) {			
     		const investorId = investor._id; 
@@ -546,7 +548,7 @@ module.exports.subscribeAdvice = function(args, res, next) {
 
   	return Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
   			InvestorModel.fetchInvestor({user: userId}, {fields: '_id', insert:true}), 
-  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true, $or:[{prohibited: {$exists: false}}, {prohibited: false}]}, {})])
+  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true, prohibited: false}, {})])
   	.then(([advisor, investor, advice]) => {
   		if(investor && advice) {
   				
