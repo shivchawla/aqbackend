@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-21 15:28:28
+* @Last Modified time: 2018-03-21 16:18:49
 */
 
 'use strict';
@@ -71,9 +71,9 @@ module.exports.getInvestorSummary = function(args, res, next) {
 
     const userId = args.user._id;
 
-    return InvestorModel.fetchInvestor({user: userId, _id: investorId}, options)
+    return InvestorModel.fetchInvestor({user: userId}, options)
     .then(investor => {
-    	if(investor) {
+    	if(investor && investor._id && investor._id.equals(investorId)) {
 			return Promise.all([
 				investor, 
 				investor.defaultPortfolio ? PortfolioHelper.getUpdatedPortfolio(investor.defaultPortfolio, 'name detail benchmark').catch(err => {return null;}) : null,
@@ -108,9 +108,9 @@ module.exports.getInvestorDetail = function(args, res, next) {
     options.insert = true;
     //options.populate = 'defaultPortfolio followingAdvices subscribedAdvices';
 	
-    return InvestorModel.fetchInvestor({user: userId, _id:investorId}, options)
+    return InvestorModel.fetchInvestor({user: userId}, options)
 	.then(investor => {
-		if(investor) {
+		if(investor && investor._id && investor._id.equals(investorId)) {
 			return res.status(200).json(investor);
 		} else {
 			APIError.throwJsonError({investorId: investorId, message:"Investor not found/not authorized", errorCode: 1302});
@@ -306,9 +306,9 @@ module.exports.getInvestorPortfolios = function(args, res, next) {
 	//GET all advices of user with stock in it. 
 	//GET all portfolios of investors with stock in it
 
-	return InvestorModel.fetchInvestor({user: userId, _id:investorId}, {fields: 'portfolios defaultPortfolio', insert: true})
+	return InvestorModel.fetchInvestor({user: userId}, {fields: 'portfolios defaultPortfolio', insert: true})
 	.then(investor => {
-		if (investor) {
+		if (investor && investor._id && investor._id.equals(investorId)) {
 			if(investor.portfolios) {
 				return Promise.map(investor.portfolios, function(item) {
 					var fields = '_id name benchmark createdDate updatedDate';
@@ -378,7 +378,7 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 	return InvestorModel.fetchInvestor({user: userId}, {fields: 'user portfolios', insert: true})
 	.then(investor => {
 		if (investor) {
-			if (investor.user.equals(userId)){
+			if (investor._id.equals(investorId)){
 				if(investor.portfolios) {
 					if (investor.portfolios.map(item => item.toString()).indexOf(portfolioId) != -1) {
 						return PortfolioHelper.getUpdatedPortfolio(portfolioId, fields);
@@ -578,9 +578,9 @@ module.exports.deleteInvestorPortfolio = function(args, res, next) {
 	const investorId = args.investorId.value;
 	const portfolioId = args.portfolioId.value;
 
-	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios defaultPortfolio'})
+	return InvestorModel.fetchInvestor({user: userId}, {fields:'_id portfolios defaultPortfolio'})
 	.then(investor => {
-		if(investor && investor.portfolios) {
+		if(investor && investor.portfolios && investor._id.equals(investorId)) {
 			return Promise.all([
 				investor, 
 				Promise.map(investor.portfolios, function(item) {
@@ -637,7 +637,7 @@ module.exports.updateInvestorDefaultPortfolio = function(args, res, next) {
 
 	return InvestorModel.fetchInvestor({user: userId}, {fields:'portfolios'})
 	.then(investor => {
-		if (investor && investor.portfolios && investor.portfolios.indexOf(portfolioId) !=- 1) {
+		if (investor && investor.portfolios && investor.portfolios.indexOf(portfolioId) !=- 1 && investor._id.equals(investorId)) {
 			return PortfolioModel.fetchPortfolio({_id:portfolioId}, {fields:'_id deleted'});
 		} else if(!investor) {
 			APIError.throwJsonError({message: "Investor not found", errorCode: 1301});
