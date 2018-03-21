@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:53:13
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-19 19:35:15
+* @Last Modified time: 2018-03-21 16:32:38
 */
 
 'use strict';
@@ -77,6 +77,8 @@ const Investor = new Schema({
     profile: Schema.Types.Mixed,
 
 });
+
+Investor.index({user: 1}, {unique: true});
 
 Investor.statics.saveInvestor = function(investorDetails) {
     const investor = new this(investorDetails);

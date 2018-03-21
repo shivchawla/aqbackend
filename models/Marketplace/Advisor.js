@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-20 09:55:47
+* @Last Modified time: 2018-03-21 16:32:50
 */
 'use strict';
 
@@ -108,6 +108,8 @@ const Advisor = new Schema({
 Advisor.index({
     'profile.companyName': 'text'
 });
+
+Advisor.index({user: 1}, {unique: true});
 
 Advisor.statics.saveAdvisor = function(advisorDetail) {
     const advisor = new this(advisorDetail);

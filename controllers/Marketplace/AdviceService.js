@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-21 15:56:24
+* @Last Modified time: 2018-03-21 16:37:17
 */
 
 'use strict';
@@ -158,8 +158,6 @@ module.exports.getAdvices = function(args, res, next) {
 
 	const userId = args.user._id;
     
-    console.log(args.personal.value);
-
     const options = {};
 	options.skip = args.skip.value;
     options.limit = args.limit.value;

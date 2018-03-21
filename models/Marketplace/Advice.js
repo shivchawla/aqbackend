@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-20 05:19:58
+* @Last Modified time: 2018-03-21 16:39:01
 */
 'use strict';
 const mongoose = require('../index');
@@ -168,6 +168,8 @@ Advice.index({
 });
 
 Advice.index({name: 1, advisor: 1}, {unique: true});
+Advice.index({advisor: 1}, {unique: false});
+Advice.index({portfolio: 1}, {unique: true});
 
 Advice.statics.saveAdvice = function(adviceDetails) {
     const advice = new this(adviceDetails);

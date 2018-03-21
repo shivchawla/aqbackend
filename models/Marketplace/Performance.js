@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-22 14:19:01
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-20 15:06:07
+* @Last Modified time: 2018-03-21 16:32:24
 */
 
 'use strict';
@@ -37,6 +37,8 @@ const Performance  = new Schema({
 
     simulated: PerformanceDetail,
 });
+
+Performance.index({portfolio: 1}, {unique: true});
 
 Performance.statics.savePerformance = function(performanceDetail) {
     const performance = new this(performanceDetail);
