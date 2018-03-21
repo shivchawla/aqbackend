@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-20 14:06:34
+* @Last Modified time: 2018-03-21 13:36:33
 */
 
 'use strict';
@@ -104,7 +104,7 @@ module.exports.getAdvisorSummary = function(args, res, next) {
     	let adviceQuery = {deleted: false, advisor: advisorId};
     	const adviceOptions = {};
 
-    	adviceOptions.fields = '_id name latestAnalytics latestPerformance';
+    	adviceOptions.fields = '_id name approvalStatus prohibited latestAnalytics latestPerformance';
 
     	isAdmin = adminAdvisor && userAdvisor ? userAdvisor._id.equals(adminAdvisor._id) : false;
     	isOwner = userAdvisor && advisorId ? userAdvisor._id.equals(advisorId) : false;
@@ -112,10 +112,10 @@ module.exports.getAdvisorSummary = function(args, res, next) {
     	if(!isOwner) {
     		options.fields = 'approved latestAnalytics user followers ' + publicProfileFields;
     		adviceQuery.public = true;
-    		adviceOptions.fields= '_id name latestAnalytics latestPerformance';
+    		//adviceOptions.fields= '_id name latestAnalytics latestPerformance';
     	} else if(isOwner && dashboard) {
     		options.fields = '-followers ';
-    		adviceOptions.fields = '_id name analytics latestAnalytics latestPerformance';
+    		adviceOptions.fields = adviceOptions.fields.concat(" ").concat("analytics");
     	} else {
     		options.fields = '-followers -analytics';
     	}

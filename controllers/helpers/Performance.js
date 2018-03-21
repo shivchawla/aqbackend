@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-21 13:24:22
+* @Last Modified time: 2018-03-21 15:12:34
 */
 
 'use strict';
@@ -377,7 +377,7 @@ function _extractPerformanceSummary(currentPerformance) {
 
 		var latestPortfolioValue = netValueArray && netValueArray.length > 0 ? netValueArray[netValueArray.length - 1] : null
 		var currentMetrics = summary && summary.metrics && summary.metrics.portfolioPerformance ? summary.metrics.portfolioPerformance : null; 
-		
+
 		performanceSummary = {
 			date: summary.updateDate,
 			return: currentMetrics && currentMetrics.returns ? currentMetrics.returns.totalreturn : 0.0,
@@ -504,7 +504,6 @@ module.exports.computeAllPerformance = function(portfolioId) {
 			resolve(pf);
 		})
 		.catch(err => {
-			console.log(err);
 			PerformanceModel.fetchPerformance({portfolio: portfolioId}).
 			then(pf => {
 				resolve(pf);
@@ -529,11 +528,12 @@ module.exports.computePerformanceSummary = function(portfolioId) {
 	return new Promise(resolve => {
 		exports.getLatestPerformance(portfolioId)
 		.then(performance => {
-			return performance && performance.current ? _extractPerformanceSummary(performance.current) : null;
+			const pf = Object.assign({}, performance.toObject());
+			return pf && pf.current ? _extractPerformanceSummary(pf.current) : null;
 		})
 		.then(performanceSummary => {
 			if (performanceSummary) {
-				return PerformanceModel.updatePerformance({portfolio: portfolioId}, {$set: {summary: summary}}, {fields: 'summary'}).then(pf => {return pf.summary;});
+				return PerformanceModel.updatePerformance({portfolio: portfolioId}, {$set: {summary: performanceSummary}}, {fields: 'summary'}).then(pf => {return pf.summary;});
 			} else {
 				return PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: 'summary'}).then(pf => {return pf.summary;});
 			}
