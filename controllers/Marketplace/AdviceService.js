@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-21 16:37:17
+* @Last Modified time: 2018-03-21 18:34:57
 */
 
 'use strict';
@@ -325,23 +325,17 @@ module.exports.getAdviceSummary = function(args, res, next) {
 		return Promise.all([
 			nAdvice,
 			AdviceHelper.getAdvicePerformanceSummary(adviceId),
-			//AdviceHelper.getAdviceAnalytics(adviceId),
 		]);
 
  	})
- 	.then(([advice, performanceSummary, analyticsSummary]) => {
+ 	.then(([advice, performanceSummary]) => {
 		var nAdvice = advice;
 
 		if (performanceSummary) {
-			nAdvice = Object.assign({latestPerformance: performanceSummary.summary}, nAdvice);
+			nAdvice = Object.assign({latestPerformance: performanceSummary}, nAdvice);
 		}
 
-		/*if (analyticsSummary) {
-			nAdvice = Object.assign({latestAnalytics: analyticsSummary}, nAdvice);
-		}*/ 
-
 		return res.status(200).send(nAdvice);
-		
  	})
  	.catch(err => {
     	return res.status(400).send(err.message);
