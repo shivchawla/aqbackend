@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-20 12:42:23
+* @Last Modified time: 2018-03-21 15:28:28
 */
 
 'use strict';
@@ -77,7 +77,7 @@ module.exports.getInvestorSummary = function(args, res, next) {
 			return Promise.all([
 				investor, 
 				investor.defaultPortfolio ? PortfolioHelper.getUpdatedPortfolio(investor.defaultPortfolio, 'name detail benchmark').catch(err => {return null;}) : null,
-				investor.defaultPortfolio ? PerformanceHelper.getLatestPerformance(investor.defaultPortfolio).catch(err => {return {error: err.message};}) : null
+				investor.defaultPortfolio ? PerformanceHelper.getAllPerformance(investor.defaultPortfolio).catch(err => {return {error: err.message};}) : null
 			]);
     	} else {
     		APIError.throwJsonError({investorId: investorId, message:"Investor not found/not authorized", errorCode: 1302});
