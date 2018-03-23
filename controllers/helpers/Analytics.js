@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:56:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-23 13:25:41
+* @Last Modified time: 2018-03-23 19:11:56
 */
 
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -77,9 +77,11 @@ function _updateAdvisorAnalytics(advisorId) {
 
 function _updateAdviceAnalytics(adviceId) {
 	
+	//REPLACING GET TO CALCULATE - 23/03/2018
+	//BECAUSE WE SHOULDN"T RELY OF STALE VALUE
 	return Promise.all([
-		AdviceHelper.getAdviceAnalytics(adviceId, true),
-		AdviceHelper.getAdvicePerformanceSummary(adviceId, true)
+		AdviceHelper.computeAdviceAnalytics(adviceId, true),
+		AdviceHelper.computeAdvicePerformanceSummary(adviceId, true)
 	])
 	.then(([adviceAnalytics, advicePerformanceSummary]) => {
 		return AdviceModel.updateAnalyticsAndPerformance({_id: adviceId}, {analytics: adviceAnalytics, performanceSummary: advicePerformanceSummary});
@@ -115,6 +117,9 @@ module.exports.updateAllAdviceAnalytics = function() {
 	})
 	.then(allAdviceAnalytics => {
 		var ratingTypes = ["current", "simulated"];
+
+		//NEXT STEPS: 1. Group by benchmarks
+		//2. Scale Ranking by benchmark performance (benchmark = 0.5 (scale of 1.0))
 
 		return Promise.map(ratingTypes, function(ratingType) {
 			var allPerformances = allAdviceAnalytics.map(item => {return {advice: item._id, performance: item.performanceSummary[ratingType]}}); 

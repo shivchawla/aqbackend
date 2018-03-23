@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-23 11:28:41
+* @Last Modified time: 2018-03-23 19:15:34
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -128,6 +128,7 @@ module.exports.computeAdvicePerformanceSummary = function(adviceId) {
 	});
 };
 
+//RECALCULATE IS NOT USED - 23/03/2018
 module.exports.getAdvicePerformanceSummary = function(adviceId, recalculate) {
 	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio performanceSummary'})
 	.then(advice => {
@@ -158,6 +159,8 @@ module.exports.computeAdviceAnalytics = function(adviceId) {
 	}); 
 };
 
+
+//RECALCULATE IS NOT USED - 23/03/2018
 module.exports.getAdviceAnalytics = function(adviceId, recalculate) {
 	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio latestAnalytics'})
 	.then(advice => {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-22 13:05:11
+* @Last Modified time: 2018-03-23 18:52:16
 */
 
 'use strict';
@@ -302,7 +302,12 @@ module.exports.updateStockLatestDetail = function(q, security) {
 };
 
 module.exports.getDate = function(dateTime) {
-	return new Date(dateTime.toDateString());
+	//return new Date(dateTime.toDateString());
+	//1. Convert DateTime to IST
+	//2. Convert to date string in IST
+	//3. Convert to date time (of purely date)
+
+	return new Date(new Date(new Date(dateTime).toLocaleString("en-US", {timeZone: "Asia/Kolkata"})).toDateString());
 };
 
 module.exports.getAdminAdvisors = function() {

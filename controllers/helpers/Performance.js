@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-23 12:32:54
+* @Last Modified time: 2018-03-23 19:45:27
 */
 
 'use strict';
@@ -20,16 +20,16 @@ function _checkPerformanceUpdateRequired(performanceDetail) {
 		return true;
 	}
 
-	if(performanceDetail && performanceDetail.updatedDate) {
-        if(HelperFunctions.getDate(performanceDetail.updatedDate) < HelperFunctions.getDate(new Date())) {
+	if(performanceDetail && performanceDetail.updateDate) {
+        
+        if(HelperFunctions.getDate(performanceDetail.updateDate) < HelperFunctions.getDate(new Date())) {
         	 return true;
         }
     } else {
     	return true; 
     } 
 
-	var performanceDetailMetrics = performanceDetail.metrics ? performanceDetail.metrics : [];
-    if(performanceDetailMetrics.length == 0) {
+    if(!performanceDetail.metrics) {
     	return true;
     }
         
@@ -435,7 +435,7 @@ module.exports.computePerformanceSummary = function(portfolioId, flag) {
 	var summaryType = !flag ? "current" : "simulated";
 
 	return new Promise(resolve => {
-		exports.getPerformance(portfolioId, summaryType, flag) 
+		exports.computePerformance(portfolioId, summaryType, flag)
 		.then(performance => {
 			const pf = Object.assign({}, performance.toObject());
 			return pf && pf[summaryType] ? _extractPerformanceSummary(pf[summaryType]) : null;
