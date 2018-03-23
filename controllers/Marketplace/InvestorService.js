@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-21 16:18:49
+* @Last Modified time: 2018-03-23 13:49:56
 */
 
 'use strict';
@@ -33,7 +33,7 @@ function _getPerformanceOfAdvices(portfolio) {
 	return Promise.map(advices, function(adviceId) {
 		return AdviceHelper.getAdvicePerformanceSummary(adviceId)
 		.then(performance => {
-			return Object.assign({advice: adviceId}, {performance: performance});
+			return Object.assign({advice: adviceId}, {performance: performance.current});
 		});
 	});
 }

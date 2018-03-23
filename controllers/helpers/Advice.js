@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-19 17:58:07
+* @Last Modified time: 2018-03-23 11:28:41
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -109,7 +109,7 @@ module.exports.computeAdvicePerformanceSummary = function(adviceId) {
 	.then(advice => {
 		if (advice) {
 			return Promise.all([
-				PerformanceHelper.computePerformanceSummary(advice.portfolio),
+				PerformanceHelper.computeAllPerformanceSummary(advice.portfolio),
 				PortfolioHelper.computePortfolioAnalytics(advice.portfolio)
 			]);
 		} else {
@@ -117,7 +117,11 @@ module.exports.computeAdvicePerformanceSummary = function(adviceId) {
 		}
 	})
 	.then(([performanceSummary, portfolioAnalytics]) => {
-		return Object.assign(performanceSummary, portfolioAnalytics);
+
+		var currentPeformanceSummary = performanceSummary.current;
+		performanceSummary.current = Object.assign(currentPeformanceSummary, portfolioAnalytics);
+
+		return performanceSummary;
 	})
 	.catch(err => {
 		return {error: err.message};
@@ -125,12 +129,12 @@ module.exports.computeAdvicePerformanceSummary = function(adviceId) {
 };
 
 module.exports.getAdvicePerformanceSummary = function(adviceId, recalculate) {
-	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio latestPerformance'})
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio performanceSummary'})
 	.then(advice => {
-		if (!advice.latestPerformance || recalculate) {
+		if (!advice.performanceSummary || recalculate) {
 			return exports.computeAdvicePerformanceSummary(adviceId);
 		} else {
-			return advice.latestPerformance;
+			return advice.performanceSummary
 		}
 	})
 };

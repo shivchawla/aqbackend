@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-21 18:34:57
+* @Last Modified time: 2018-03-23 13:20:10
 */
 
 'use strict';
@@ -78,7 +78,7 @@ module.exports.createAdvice = function(args, res, next) {
     	}
     })
     .then(([advice, performanceSummary]) => {
-    	return res.status(200).send(Object.assign({latestPerformance: performanceSummary}, advice.toObject()));
+    	return res.status(200).send(Object.assign({performanceSummary: performanceSummary}, advice.toObject()));
     })
 	.catch(err => {
 		return res.status(400).send(err.message);
@@ -165,33 +165,47 @@ module.exports.getAdvices = function(args, res, next) {
 
     var orderParam = args.orderParam.value || "rating";
 	if (["return", "volatility", "sharpe", "maxLoss", "currentLoss", "dailyChange", "netValue"].indexOf(orderParam) != -1) {
-		orderParam = "latestPerformance."+orderParam;
-	} else if(["rating", "numFollowers", "numSubscribers"].indexOf(orderParam) !=-1) {
+		orderParam = "performanceSummary."+orderParam;
+	} else if(["numFollowers", "numSubscribers"].indexOf(orderParam) !=-1) {
 		orderParam = "latestAnalytics."+orderParam;
+	} else if(["rating"].indexOf(orderParam) != -1) {
+		orderParam = "rating";
 	}
 
 	options.orderParam = orderParam;
 
-    options.fields = 'name description heading createdDate updatedDate advisor public approvalStatus prohibited maxNotional rebalance latestPerformance latestAnalytics';
+    options.fields = 'name description heading createdDate updatedDate advisor public approvalStatus prohibited maxNotional rebalance performanceSummary rating';
 
     var query = {deleted: false};
 
-    var performanceAnalyticsFilters = [
-    	["netValue", "sharpe", "volatility", "return", "maxLoss", "currentLoss", "beta"],
-    	["rating"]];
+    var performanceFilters = ["netValue", "sharpe", "volatility", "return", "maxLoss", "currentLoss", "beta"];
 
-    performanceAnalyticsFilters.forEach((filterArray, i) => {
-    	var majorKey = i == 0 ? 'latestPerformance.' : 'latestAnalytics.';
-    	filterArray.forEach(item => {
-	    	if(args[item]) {
-	    		var values = args[item].value;
-		    	var valueCategories = values.split(",").map(item => parseFloat(item.trim()));
-		    	var key = majorKey + item;
-		    	query = valueCategories.length > 0 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$gt': valueCategories[0]}}]}]} : query; 
-		    	query = valueCategories.length > 1 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$lt': valueCategories[1]}}]}]} : query; 
-			}
-	    });
+	const performanceType = args.performanceType.value;
+	var pType = "current";
+	if(performanceType) {
+		pType = performanceType;
+	}
+	
+	performanceFilters.forEach(item => {
+		var majorKey = 'performanceSummary.' + pType + "."; //performanceSummary.current.return
+    	if(args[item]) {
+    		var values = args[item].value;
+	    	var valueCategories = values.split(",").map(item => parseFloat(item.trim()));
+	    	var key = majorKey + item;
+	    	console.log(key);
+	    	query = valueCategories.length > 0 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$gt': valueCategories[0]}}]}]} : query; 
+	    	query = valueCategories.length > 1 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$lt': valueCategories[1]}}]}]} : query; 
+		}
     });
+
+    if (args["rating"]){
+    	var key = "rating." + pType; 
+    	var values = args["rating"].value;
+    	var valueCategories = values.split(",").map(item => parseFloat(item.trim()));
+    	
+    	query = valueCategories.length > 0 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$gt': valueCategories[0]}}]}]} : query; 
+    	query = valueCategories.length > 1 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$lt': valueCategories[1]}}]}]} : query; 
+    }
 
     const following = args.following.value;
     const subscribed = args.subscribed.value;
@@ -299,7 +313,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const userId = args.user._id;
 	
 	const options = {};
-	options.fields = 'name heading description createdDate updatedDate advisor public prohibited approved portfolio rebalance maxNotional';
+	options.fields = 'name heading description createdDate updatedDate advisor public prohibited approved portfolio rebalance maxNotional rating';
 	options.populate = 'advisor benchmark';
 	
 	return Promise.all([
@@ -332,7 +346,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 		var nAdvice = advice;
 
 		if (performanceSummary) {
-			nAdvice = Object.assign({latestPerformance: performanceSummary}, nAdvice);
+			nAdvice = Object.assign({performanceSummary: performanceSummary}, nAdvice);
 		}
 
 		return res.status(200).send(nAdvice);
@@ -346,7 +360,7 @@ module.exports.getAdviceDetail = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const userId = args.user._id;
 
-	var defaultFields = 'subscribers followers createdDate updatedDate advisor portfolio rebalance maxNotional';
+	var defaultFields = 'subscribers followers createdDate updatedDate advisor portfolio rebalance maxNotional rating';
 	const options = {};
    	options.fields = args.fields.value != "" ? args.fields.value : defaultFields;
    	options.populate = 'advisor';

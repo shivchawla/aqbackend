@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-17 13:14:29
+* @Last Modified time: 2018-03-22 13:05:11
 */
 
 'use strict';
@@ -327,4 +327,34 @@ module.exports.getAdminAdvisor = function(userId) {
 		}
 	});
 };
+
+module.exports.computeFractionalRanking = function(values, scale) {
+	return new Promise((resolve, reject) => {
+
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
+
+		wsClient.on('open', function open() {
+            console.log('Connection Open');
+            console.log(connection);
+            var msg = JSON.stringify({action:"compute_fractional_ranking", 
+            						values: values,
+            						scale: scale ? scale : ""});
+
+         	wsClient.send(msg);
+        });
+
+        wsClient.on('message', function(msg) {
+        	var data = JSON.parse(msg);
+
+        	if (data["error"] == "" && data["fractionalRanking"]) {
+			    resolve(data["fractionalRanking"]);
+		    } else if (data["error"] != "") {
+		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
+		    } else {
+		    	reject(APIError.jsonError({message: "Internal error in computing fractionalRanking", errorCode: 2101}));
+		    }
+	    });
+    })
+}
 

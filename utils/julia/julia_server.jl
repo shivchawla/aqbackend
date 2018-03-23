@@ -177,15 +177,15 @@ wsh = WebSocketHandler() do req, ws_client
 
           parsemsg["constituentPerformance"] = Dict("date" => date, "value" => performance)
 
-        elseif action == "compute_portfolio_composition"
+        elseif action == "compute_portfolio_metrics"
 
           startDate = DateTime(parsemsg["startDate"], jsdateformat)
           endDate = DateTime(parsemsg["endDate"], jsdateformat)
           benchmark = get(parsemsg, "benchmark", Dict("ticker"=>"NIFTY_50"))
 
-          (date, composition) = JSON.parse(JSON.json(compute_portfolio_composition(parsemsg["portfolio"], startDate, endDate, benchmark)))
+          (date, metrics) = JSON.parse(JSON.json(compute_portfolio_metrics(parsemsg["portfolio"], startDate, endDate, benchmark)))
           
-          parsemsg["portfolioComposition"] = Dict("date" => date, "value" => composition)
+          parsemsg["portfolioMetrics"] = Dict("date" => date, "value" => metrics)
         
         elseif action == "compute_portfolio_value_history"
 
@@ -294,6 +294,19 @@ wsh = WebSocketHandler() do req, ws_client
             #Update, the positions to match the object structure in Node
             parsemsg["updatedPositions"] = convert_to_node_portfolio(updated_positions)["positions"]
             
+        elseif action == "compute_fractional_ranking"
+            
+            vals = Dict{String, Float64}()
+            for (k,v) in parsemsg["values"]
+              vals[k] = v == nothing ? NaN : v;
+            end
+
+            scale = parsemsg["scale"]
+            scale = scale == "" ? 0.0 : convert(Float64, scale)
+
+            fractional_ranking = compute_fractional_ranking(vals, scale)
+            parsemsg["fractionalRanking"] = fractional_ranking
+
         elseif action == "compare_security"
             oldSecurity = convert(Raftaar.Security, parsemsg["oldSecurity"])
             newSecurity = convert(Raftaar.Security, parsemsg["newSecurity"])

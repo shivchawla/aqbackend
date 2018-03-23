@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-21 16:32:50
+* @Last Modified time: 2018-03-23 12:29:30
 */
 'use strict';
 
@@ -28,9 +28,14 @@ const SocialProfile = new Schema({
 	userId: String
 });
 
+const Rating = new Schema({
+    current: Number,
+    simulated: Number,
+});
+
 const AdvisorAnalytics = new Schema({
     date: Date,
-    rating: Number,
+    rating: Rating,
     numFollowers: Number,
     numAdvices: Number
 });

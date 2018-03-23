@@ -1439,6 +1439,12 @@ paths:
         required: false
         default: false
         description: select wishlist advice flag
+      - name: performanceType
+        in: query
+        required: false
+        type: string
+        default: "current"
+        description: filter type of performance
       - name: netValue
         in: query
         required: false

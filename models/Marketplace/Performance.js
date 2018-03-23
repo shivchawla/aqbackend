@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-22 14:19:01
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-21 16:32:24
+* @Last Modified time: 2018-03-23 01:53:49
 */
 
 'use strict';
@@ -12,7 +12,7 @@ const Portfolio = require('./Portfolio');
 
 const PerformanceMetrics = new Schema({
     date: Date,
-    portfolioComposition: Schema.Types.Mixed,
+    portfolioMetrics: Schema.Types.Mixed,
     constituentPerformance: Schema.Types.Mixed,
     portfolioPerformance: Schema.Types.Mixed
 });
@@ -45,14 +45,8 @@ Performance.statics.savePerformance = function(performanceDetail) {
     return performance.saveAsync();
 };
 
-Performance.statics.fetchPerformance = function(query, fields) {
-    
-    var options = {upsert: true, new:true};
-    
-    if(fields) {
-        options.fields = fields;
-    }
-
+Performance.statics.fetchPerformance = function(query, options) {
+    var options = Object.assign(options ? options : {}, {upsert: true, new:true});
     return this.findOneAndUpdateAsync(query, {}, options);
 };
 

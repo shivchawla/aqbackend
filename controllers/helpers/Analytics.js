@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:56:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-19 16:46:33
+* @Last Modified time: 2018-03-23 13:25:41
 */
 
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -15,12 +15,31 @@ const PerformanceHelper = require('./Performance');
 
 function _computeAggregateRating (adviceIds) {
 	return Promise.map(adviceIds, function(adviceId) {
-		return AdviceModel.fetchAdvice({_id: adviceId}, {fields:'portfolio analytics'}, {populate: 'portfolio'});
+		return AdviceModel.fetchAdvice({_id: adviceId}, {fields:'rating'});
 	})
 	.then(advices => {
 		if (advices) {
 			//FIND a logic to combine all ratings
-			return 0.5;
+			var sumCurrent = 0.0;
+			var denomCurrent = 0;
+
+			var sumSim = 0.0;
+			var denomSim = 0;
+			advices.forEach(item => {
+				if(item.rating && item.rating.current) {
+					sumCurrent += item.rating.current;
+					denomCurrent += 1;
+				}
+
+				if(item.rating && item.rating.simulated) {
+					sumSim += item.rating.simulated;
+					denomSim += 1;
+				}
+			});
+
+			return {current: denomCurrent > 0 ? sumCurrent/denomCurrent : 0.0, 
+					simulated: denomSim > 0 ? sumSim/denomSim : 0.0};
+
 		} else {
 			APIError.throwJsonError({message: "No advices found", errorCode: 1118});
 		}
@@ -63,8 +82,7 @@ function _updateAdviceAnalytics(adviceId) {
 		AdviceHelper.getAdvicePerformanceSummary(adviceId, true)
 	])
 	.then(([adviceAnalytics, advicePerformanceSummary]) => {
-		var rating = advicePerformanceSummary && advicePerformanceSummary.rating ? advicePerformanceSummary.rating : 0.0;
-		return AdviceModel.updateAnalyticsAndPerformance({_id: adviceId}, {analytics: Object.assign({rating:rating}, adviceAnalytics), performance: advicePerformanceSummary});
+		return AdviceModel.updateAnalyticsAndPerformance({_id: adviceId}, {analytics: adviceAnalytics, performanceSummary: advicePerformanceSummary});
 	});
 }
 
@@ -82,14 +100,55 @@ module.exports.updateAllAdvisorAnalytics = function() {
 };
 
 module.exports.updateAllAdviceAnalytics = function() {
+	
+	let adviceIds;
 	return AdviceModel.fetchAdvices({deleted: false}, {fields: '_id'})
 	.then(advices => {
 		if (advices) {
+			adviceIds = advices.map(item => item._id);
 			return Promise.map(advices, function(advice) {
 				return _updateAdviceAnalytics(advice._id);
 			});
 		} else {
 			APIError.throwJsonError({message: "No advices found", errorCode: 1118});
 		}
+	})
+	.then(allAdviceAnalytics => {
+		var ratingTypes = ["current", "simulated"];
+
+		return Promise.map(ratingTypes, function(ratingType) {
+			var allPerformances = allAdviceAnalytics.map(item => {return {advice: item._id, performance: item.performanceSummary[ratingType]}}); 
+			var ratingFields = [{field:"maxLoss", multiplier:-1}, {field:"sharpe", multiplier:1}, {field:"annualReturn", multiplier:1}, {field:"information", multiplier:1}, {field:"volatility", multiplier:-1}, {field:"calmar", multiplier:1}, {field:"alpha", multiplier:1}];
+
+			return Promise.map(ratingFields, function(ratingField){
+
+				var valueRatingField = {};
+				allPerformances.forEach(item => {
+					var key = item.advice; 
+					valueRatingField[key] = item.performance && item.performance[ratingField.field] ?  ratingField.multiplier * item.performance[ratingField.field] : NaN ;
+				});
+				
+				return HelperFunctions.computeFractionalRanking(valueRatingField);
+
+			})
+			.then(allFrs => {
+				var totalRankings = {};
+				adviceIds.forEach(adviceId => {
+					sum = 0.0
+					allFrs.forEach(rankings => {
+						sum += rankings[adviceId];
+					});
+
+					totalRankings[adviceId] = sum;
+				});
+
+				return HelperFunctions.computeFractionalRanking(totalRankings, 5.0);
+			});
+		})
+		.then(([currentRatings, simulatedRatings])  => {
+			return Promise.map(adviceIds, function(adviceId) {
+				return AdviceModel.updateRating({_id: adviceId}, {date: HelperFunctions.getDate(new Date()), rating: {current: currentRatings[adviceId], simulated: simulatedRatings[adviceId]}});
+			});
+		});
 	});
 };

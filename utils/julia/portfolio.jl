@@ -6,6 +6,7 @@ using Raftaar: updateportfolio_fill!, updateportfolio_price!
 
 import Base: convert
 using TimeSeries
+using StatsBase
 
 function convert(::Type{Dict{String,Any}}, security::Security)                  
     try
@@ -364,7 +365,7 @@ end
 # Internal Function
 # Function to compute portfolio composition on a specific date
 ###
-function _compute_portfolio_composition(port::Dict{String, Any}, date::DateTime)
+function _compute_portfolio_metrics(port::Dict{String, Any}, date::DateTime)
     try
         
         portfolio = convert(Raftaar.Portfolio, port)
@@ -384,7 +385,7 @@ function _compute_portfolio_composition(port::Dict{String, Any}, date::DateTime)
 
         if prices == nothing
             println("Price data not available")
-            return [Dict("weight" => 1.0, "ticker" => "CASH_INR")]
+            return ([Dict("weight" => 1.0, "ticker" => "CASH_INR")], 0.0)
         end
         
         equity_value_wt = Vector{Float64}(length(allkeys))
@@ -401,7 +402,9 @@ function _compute_portfolio_composition(port::Dict{String, Any}, date::DateTime)
         composition = [Dict("weight" => cash_wt, "ticker" => "CASH_INR")]
         append!(composition, [Dict("weight" => equity_value_wt[i], "ticker" => tickers[i]) for i in 1:length(allkeys)])
         
-        return composition
+        concentration =  sqrt(sum(equity_value_wt.^2))
+
+        return (composition, concentration)
     catch err
         rethrow(err)
     end
@@ -576,7 +579,7 @@ end
 ###
 # Function to compute portfolio WEIGHT composition for the LAST available day (in a period)
 ###
-function compute_portfolio_composition(port::Dict{String, Any}, start_date::DateTime, end_date::DateTime, benchmark::Dict{String,Any} = Dict("ticker"=>"NIFTY_50"))
+function compute_portfolio_metrics(port::Dict{String, Any}, start_date::DateTime, end_date::DateTime, benchmark::Dict{String,Any} = Dict("ticker"=>"NIFTY_50"))
     composition = nothing
     
     benchmark_ticker = "NIFTY_50"
@@ -600,20 +603,20 @@ function compute_portfolio_composition(port::Dict{String, Any}, start_date::Date
 
     if prices_benchmark == nothing
         #Return the default output
-        return (Date(now()), [Dict("weight" => 1.0, "ticker" => "CASH_INR")])
+        return (Date(now()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
 
     elseif prices_benchmark.timestamp[end] < Date(start_date)
-        return (Date(now()), [Dict("weight" => 1.0, "ticker" => "CASH_INR")])
+        return (Date(now()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
 
     elseif length(prices_benchmark.timestamp) > 0 
         date = prices_benchmark.timestamp[end]
-        composition = _compute_portfolio_composition(port, DateTime(date))
+        (composition, concentration) = _compute_portfolio_metrics(port, DateTime(date))
 
-        return (date, composition != nothing ? composition : "")
+        return (date, Dict("composition" => composition != nothing ? composition : "", "concentration" => concentration))
     else 
         println("Empty data: Portfolio Composition can't be calculated")
         #Return the default output
-        return (Date(now()), [Dict("weight" => 1.0, "ticker" => "CASH_INR")])
+        return (Date(now()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
     end
 end
 
@@ -696,6 +699,48 @@ function _validate_transactions(transactions::Vector{Dict{String,Any}}, advicePo
         else
             return true
         end
+
+    catch err
+        rethrow(err)
+    end
+end
+
+function compute_fractional_ranking(vals::Dict{String, Float64}, scale::Float64)
+    try
+        ks = [k for (k,v) in vals]
+        vs = [v for (k,v) in vals]
+        
+        ksWithNaN = ks[isnan.(vs)]
+        ksWithoutNaN = ks[!isnan.(vs)]
+        vsWithoutNaN = vs[!isnan.(vs)]
+
+        fr = (tiedrank(vsWithoutNaN)-0.5)/length(vsWithoutNaN)
+
+        if scale !=0.0
+            mx = maximum(fr)
+            mn = minimum(fr)
+            
+            scaleMax = scale
+            scaleMin = 0.5
+
+            #Logic to alter the scale
+            mult = (scaleMax - scaleMin)/(mx-mn)
+            shift = (mx*scaleMin -mn*scaleMax)/(mx-mn) 
+            
+            fr = fr*mult + shift
+        end
+
+        frDict = Dict{String, Float64}()
+        
+        for (i, k) in enumerate(ksWithoutNaN)
+            frDict[k] = fr[i]
+        end
+
+        for (i, k) in enumerate(ksWithNaN)
+            frDict[k] = 0.0
+        end
+
+        return frDict
 
     catch err
         rethrow(err)

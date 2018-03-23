@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-21 16:39:01
+* @Last Modified time: 2018-03-23 15:28:15
 */
 'use strict';
 const mongoose = require('../index');
@@ -14,9 +14,14 @@ const Transaction = require('./Transaction');
 const Performance = require('./Performance');
 const Advisor = require('./Advisor');
 
+const Rating = new Schema({
+    current: Number,
+    simulated: Number,
+});
+
 const AdviceAnalytics = new Schema({
     date: Date,
-    rating: Number,
+    rating: Rating,
     numSubscribers: Number,
     numFollowers: Number 
 });
@@ -150,9 +155,11 @@ const Advice = new Schema({
 
     analytics: [AdviceAnalytics],
 
-    latestPerformance: Schema.Types.Mixed,
-
     latestAnalytics: AdviceAnalytics,
+
+    performanceSummary: Schema.Types.Mixed,
+
+    rating: Rating
     
 });
 
@@ -318,7 +325,7 @@ Advice.statics.updateSubscribers = function(query, investorId) {
 };
 
 Advice.statics.updateAnalyticsAndPerformance = function(query, analyticsAndPerformance) {
-    return this.findOne(query, {analytics:1, latestPerformance:1})
+    return this.findOne(query, {analytics:1, performanceSummary:1, latestAnalytics:1})
     .then(advice => {
         var adviceAnalytics = advice.analytics;
         var latestAnalytics = analyticsAndPerformance.analytics;
@@ -338,14 +345,46 @@ Advice.statics.updateAnalyticsAndPerformance = function(query, analyticsAndPerfo
             });
         }
 
-        var latestPerformance = analyticsAndPerformance.performance;
+        var performanceSummary = analyticsAndPerformance.performanceSummary;
 
-        if(!advice.latestPerformance) {
-            advice.latestPerformance = {};
+        if(!advice.performanceSummary) {
+            advice.performanceSummary = {};
         }
 
-        advice.latestPerformance = latestPerformance;
+        if(!advice.latestAnalytics) {
+            advice.latestAnalytics = {};
+        }
+
+        advice.performanceSummary = performanceSummary;
         advice.latestAnalytics = latestAnalytics;
+
+        return advice.saveAsync();
+    });
+};
+
+Advice.statics.updateRating = function(query, latestRating) {
+    return this.findOne(query, {analytics:1, rating: 1})
+    .then(advice => { 
+
+        if(!advice.analytics) {
+            advice.analytics = [];
+        }
+
+        var adviceAnalytics = advice.analytics;
+
+        //Find date
+        var idx = adviceAnalytics.map(item => item.date.getTime()).indexOf(latestRating.date.getTime());
+        if (idx == -1) {
+            adviceAnalytics.push(latestRating);
+        } else {
+            adviceAnalytics[idx]["rating"] = latestRating.rating;
+        }
+
+        if(!advice.rating) {
+            advice.rating = {};
+        }   
+
+        advice.rating = latestRating.rating;
 
         return advice.saveAsync();
     });
