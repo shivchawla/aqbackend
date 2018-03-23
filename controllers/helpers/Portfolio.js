@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-19 18:58:27
+* @Last Modified time: 2018-03-23 17:22:09
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -206,41 +206,46 @@ function _updatePositionsForPrice(positions, date) {
 }
 
 function _computeUpdatedPortfolioForPrice(portfolio, date) {
-	
-	return Promise.all([
-		_updatePositionsForPrice(portfolio.detail.positions, date),
-		
-		//Each subposition is sent separately as JULIA portfolio can't handle 
-		//redundant securities
-		Promise.map(portfolio.detail.subPositions, function(position) {
-			return _updatePositionsForPrice([position], date)
-			.then(updatedPositions => {
-				if (updatedPositions){
-					return updatedPositions.length == 1 ? updatedPositions[0] : null;
-				} else {
-					return null;
+	return new Promise(resolve => {
+		Promise.all([
+			_updatePositionsForPrice(portfolio.detail.positions, date),
+			
+			//Each subposition is sent separately as JULIA portfolio can't handle 
+			//redundant securities
+			Promise.map(portfolio.detail.subPositions, function(position) {
+				return _updatePositionsForPrice([position], date)
+				.then(updatedPositions => {
+					if (updatedPositions){
+						return updatedPositions.length == 1 ? updatedPositions[0] : null;
+					} else {
+						return null;
+					}
+				});
+			})
+		])
+		.then(([updatedPositions, updatedSubPositions]) => { 
+			if(updatedPositions || updatedSubPositions) {
+				var updatedPortfolio = Object.assign({}, portfolio);
+				
+				if(updatedPositions) {
+					updatedPortfolio.detail.positions = updatedPositions;
 				}
-			});
-		})
-	])
-	.then(([updatedPositions, updatedSubPositions]) => { 
-		if(updatedPositions || updatedSubPositions) {
-			var updatedPortfolio = Object.assign({}, portfolio);
-			
-			if(updatedPositions) {
-				updatedPortfolio.detail.positions = updatedPositions;
-			}
-			
-			if(updatedSubPositions) {
-				//Filter out the NULL values
-				updatedPortfolio.detail.subPositions = updatedSubPositions.filter(item => item);
-			}
+				
+				if(updatedSubPositions) {
+					//Filter out the NULL values
+					updatedPortfolio.detail.subPositions = updatedSubPositions.filter(item => item);
+				}
 
-			return [true, updatedPortfolio];
-		} else {
-			return [false, portfolio];
-		}
-		
+				resolve([true, updatedPortfolio]);
+			} else {
+				resolve([false, portfolio]);
+			}
+			
+		})
+		.catch(err => {
+			console.log(err);
+			resolve([false, portfolio]);
+		})
 	});
 }
 

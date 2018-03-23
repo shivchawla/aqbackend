@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-23 13:20:10
+* @Last Modified time: 2018-03-23 17:21:47
 */
 
 'use strict';
@@ -192,7 +192,6 @@ module.exports.getAdvices = function(args, res, next) {
     		var values = args[item].value;
 	    	var valueCategories = values.split(",").map(item => parseFloat(item.trim()));
 	    	var key = majorKey + item;
-	    	console.log(key);
 	    	query = valueCategories.length > 0 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$gt': valueCategories[0]}}]}]} : query; 
 	    	query = valueCategories.length > 1 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$lt': valueCategories[1]}}]}]} : query; 
 		}
