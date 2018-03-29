@@ -75,8 +75,15 @@ wsh = WebSocketHandler() do req, ws_client
         action = parsemsg["action"]
         
       try  
+        if action == "validate_security"
+          valid = false
+          
+          security = parsemsg["security"]
+          
+          valid = _validate_security(security) 
+          parsemsg["valid"] = valid
 
-        if action == "validate_advice"
+        elseif action == "validate_advice"
           valid = false
           
           currentAdvice = parsemsg["advice"]
@@ -250,7 +257,7 @@ wsh = WebSocketHandler() do req, ws_client
             
             parsemsg["performance"] = ""
             static_performance = compute_stock_static_performance(parsemsg["security"])
-            
+
             if static_performance != nothing
                 static_performance_dict = Dict{String, Any}()
                 static_performance_dict["yearly"] = Dict{String, Any}()
@@ -289,7 +296,8 @@ wsh = WebSocketHandler() do req, ws_client
         elseif action == "update_portfolio_price"    
             portfolio = parsemsg["portfolio"]
             date = parsemsg["date"]
-            updated_positions = updateportfolio_price(portfolio, date == "" ? now() : DateTime(date))
+            typ = parsemsg["type"]
+            updated_positions = updateportfolio_price(portfolio, date == "" ? now() : DateTime(date), typ)
             
             #Update, the positions to match the object structure in Node
             parsemsg["updatedPositions"] = convert_to_node_portfolio(updated_positions)["positions"]
@@ -307,6 +315,9 @@ wsh = WebSocketHandler() do req, ws_client
             fractional_ranking = compute_fractional_ranking(vals, scale)
             parsemsg["fractionalRanking"] = fractional_ranking
 
+        elseif action == "update_realtime_prices"
+            parsemsg["success"] = update_realtime_prices()
+
         elseif action == "compare_security"
             oldSecurity = convert(Raftaar.Security, parsemsg["oldSecurity"])
             newSecurity = convert(Raftaar.Security, parsemsg["newSecurity"])
@@ -318,6 +329,17 @@ wsh = WebSocketHandler() do req, ws_client
             newPorfolo = convert(Raftaar.Portfolio, parsemsg["newPortfolio"])
 
             parsemsg["compare"] = oldPortfolio == newPortfolio
+
+        elseif action == "find_securities"
+          hint = parsemsg["hint"]
+          ct = parsemsg["limit"]
+          outputType = parsemsg["outputType"]
+          parsemsg["securities"] = findsecurities(hint, ct, outputType)
+            
+        elseif action == "get_security_detail"
+          security = parsemsg["security"]
+          detail  = convert(Raftaar.Security, security).detail
+          parsemsg["securityDetail"] = detail
 
         elseif action == "compute_attribution"
             #parsemsg["portfolio"] = updated_portfolio

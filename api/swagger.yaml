@@ -2219,7 +2219,7 @@ paths:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Investor"
 
-  /stock:
+  /stock/detail:
     get:
       tags:
       - stock
@@ -2257,6 +2257,18 @@ paths:
         required: false
         default: "EQ"
         description: security type
+      - name: startDate
+        in: query
+        type: string
+        required: false
+        format: date
+        description: start date of priceHistory
+      - name: endDate
+        in: query
+        type: string
+        required: false
+        format: date
+        description: end date of priceHistory
       - name: field
         in: query
         type: string
@@ -2266,6 +2278,35 @@ paths:
       responses:
         200:
           description: "get stock performance detail"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Stock"
+
+  /stock:
+    get:
+      tags:
+      - stock
+      summary: get stock list matching criteria
+      description: get stock list matching criteria
+      operationId: getStocks
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: search
+        in: query
+        type: string
+        required: false
+        default: ""
+      responses:
+        200:
+          description: "get list of stocks matching criteria"
         400:
           description: "Not Authorized"
           schema:

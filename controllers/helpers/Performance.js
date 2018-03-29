@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-23 19:45:27
+* @Last Modified time: 2018-03-29 20:02:10
 */
 
 'use strict';
@@ -14,6 +14,7 @@ const config = require('config');
 const WebSocket = require('ws'); 
 const Promise = require('bluebird');
 const HelperFunctions = require('./index');
+const PortfolioHelper= require('./Portfolio');
 
 function _checkPerformanceUpdateRequired(performanceDetail) {
 	if(!performanceDetail) {
@@ -306,7 +307,7 @@ function _computeLatestPerformance(portfolioId) {
 		_computeConstituentPerformance(portfolioId)
 	]) 
 	.then(([latestPerformance, portfolioMetrics, constituentPerformance]) => {
-		
+	
 		if (latestPerformance && portfolioMetrics && constituentPerformance) {
 			var latestPerformanceDate = new Date(latestPerformance.date);
 	      	var portfolioMetricsDate = new Date(portfolioMetrics.date);
@@ -319,6 +320,7 @@ function _computeLatestPerformance(portfolioId) {
 	  			updateMessage: updateMessage, 
 				updateDate: new Date(),
 				metrics: {
+					//earliest Date is IST date
 					date:  HelperFunctions.getDate(earliestDate),
 					portfolioMetrics: portfolioMetrics.value,
 					portfolioPerformance: latestPerformance.value,
@@ -342,6 +344,7 @@ function _computeSimulatedPerformance(portfolioId) {
 	])
 	.then(([simulatedPerformance, simulatedPortfolioMetrics]) => {
 		if (simulatedPerformance && simulatedPortfolioMetrics) {
+			
 			var updates = {updateMessage: "Updated Successfully",
 				updateDate: new Date(),
 				metrics: {
@@ -409,7 +412,7 @@ function _extractPerformanceSummary(currentPerformance) {
 module.exports.computePerformanceHypthetical = function(portfolio) {
 	return new Promise((resolve,reject) => {
 		if(portfolio) {
-			resolve(HelperFunctions.validatePortfolio(portfolio));
+			resolve(PortfolioHelper.validatePortfolio(portfolio));
 		} else {
 			resolve(false);
 		}
@@ -501,6 +504,7 @@ module.exports.computePerformance = function(portfolioId, fields, flag) {
 			resolve(pf);
 		})
 		.catch(err => {
+			console.log(err);
 			PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: fields})
 			.then(pf => {
 				resolve(pf);

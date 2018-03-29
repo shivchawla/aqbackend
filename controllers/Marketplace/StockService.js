@@ -2,14 +2,14 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-01-26 17:41:33
+* @Last Modified time: 2018-03-29 18:59:54
 */
 
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
 const Promise = require('bluebird');
 const config = require('config');
-const HelperFunctions = require("../helpers");
+const SecurityHelper = require("../helpers/Security");
 const APIError = require('../../utils/error');
 
 function getDate(date) {
@@ -98,20 +98,79 @@ function _checkIfStockLatestDetailUpdateRequired(detail) {
     return false;
 }
 
-function getStockPriceHistory(res, q, security) {
+function getStockPriceHistory(res, security, startDate, endDate) {
+	var query = {'security.ticker': security.ticker,
+					'security.exchange': security.exchange,
+					'security.securityType': security.securityType,
+					'security.country': security.country};
 
-	SecurityPerformanceModel.fetchPriceHistory(q)
+	return SecurityPerformanceModel.fetchPriceHistory(query)
 	.then(securityPerformance => {
 		var update = securityPerformance ? _checkIfStockPriceHistoryUpdateRequired(securityPerformance.priceHistory) : true;
 		if(update) {
-			return Promise.all([true, HelperFunctions.updateStockPriceHistory(q, security)]);
+			return SecurityHelper.computeStockPriceHistory(security).then(ph => {return SecurityPerformanceModel.updatePriceHistory(query, ph);});
 		} else {
-			return [false, securityPerformance];
+			return securityPerformance;
 		}
 	})
-	.then(([updated, securityPerformance]) => {
-		if(updated) {
-			return SecurityPerformanceModel.fetchPriceHistory(q);
+	.then(securityPerformance => {
+		var ph = securityPerformance.priceHistory.values;
+		if (startDate) {
+			var idx = ph.map(item => item.date).findIndex(item => {return new Date(item).getTime() >= new Date(startDate).getTime();});
+			ph = idx != -1 ? ph.slice(idx, ph.length) : ph;
+		}
+
+		if (endDate) {
+			var idx = ph.map(item => item.date).findIndex(item => {return new Date(item).getTime() >= new Date(endDate).getTime()});
+
+			idx =  new Date(ph[idx].date).getTime() == new Date(endDate).getTime() ? idx : idx > 0 ? idx - 1 : idx;
+			ph = idx != -1 ? ph.slice(0, idx+1) : ph;
+		}
+
+		return res.status(200).json({security: securityPerformance.security, priceHistory: ph});
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
+};
+
+function getStockRollingPerformance(res, security) {
+
+	var query = {'security.ticker': security.ticker,
+					'security.exchange': security.exchange,
+					'security.securityType': security.securityType,
+					'security.country': security.country
+				};
+
+	return SecurityPerformanceModel.fetchRollingPerformance(query)
+	.then(securityPerformance => {
+		var update = securityPerformance ? _checkIfStockRollingPerformanceUpdateRequired(securityPerformance.rollingPerformance) : true;
+		if(update) {
+			return SecurityHelper.computeStockRollingPerformanceDetail(security).then(rp => {return SecurityPerformanceModel.updateRollingPerformance(query, rp);});;
+		} else {
+			return securityPerformance;
+		}
+	})
+	.then(securityPerformance => {
+		return res.status(200).json(securityPerformance);
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
+}
+
+function getStockStaticPerformance(res, security) {
+
+	var query = {'security.ticker': security.ticker,
+					'security.exchange': security.exchange,
+					'security.securityType': security.securityType,
+					'security.country': security.country};
+
+	return SecurityPerformanceModel.fetchStaticPerformance(query)
+	.then(securityPerformance => {
+		var update = securityPerformance ? _checkIfStockStaticPerformanceUpdateRequired(securityPerformance.staticPerformance) : true;
+		if(update) {
+			return SecurityHelper.computeStockStaticPerformanceDetail(security).then(sp => {return SecurityPerformanceModel.updateStaticPerformance(query, sp);});
 		} else {
 			return securityPerformance;
 		}
@@ -124,98 +183,19 @@ function getStockPriceHistory(res, q, security) {
 	})
 };
 
-function getStockRollingPerformance(res, q, security) {
+function getStockLatestDetail(res, security) {
+	var query = {'security.ticker': security.ticker,
+					'security.exchange': security.exchange,
+					'security.securityType': security.securityType,
+					'security.country': security.country};
 
-	/*const ticker = args.ticker.value;
-	const exchange = args.exchange.value;
-	const securityType = args.securityType.value;
-	const country = args.country.value;
-
-	const security = {ticker: ticker,
-						exchange: exchange,
-						securityType: securityType,
-						country: country};
-
-	console.log(security);*/
-
-	SecurityPerformanceModel.fetchRollingPerformance(q)
-	.then(securityPerformance => {
-		var update = securityPerformance ? _checkIfStockRollingPerformanceUpdateRequired(securityPerformance.rollingPerformance) : true;
-		if(update) {
-			return Promise.all([true, HelperFunctions.updateStockRollingPerformanceDetail(q, security)]);
-		} else {
-			return [false, securityPerformance];
-		}
-	})
-
-	.then(([updated, securityPerformance]) => {
-		if(updated) {
-			return SecurityPerformanceModel.fetchRollingPerformance(q);
-		} else {
-			return securityPerformance;//{security: security, rollingPerformance: performance};
-		}
-	})
-	.then(securityPerformance => {
-		return res.status(200).json(securityPerformance);
-	})
-	.catch(err => {
-		return res.status(400).send(err.message);
-	})
-}
-
-function getStockStaticPerformance(res, q, security) {
-
-	/*const ticker = args.ticker.value;
-	const exchange = args.exchange.value;
-	const securityType = args.securityType.value;
-	const country = args.country.value;
-
-	const security = {ticker: ticker,
-						exchange: exchange,
-						securityType: securityType,
-						country: country};
-
-	console.log(security);*/
-
-	SecurityPerformanceModel.fetchStaticPerformance(q)
-	.then(securityPerformance => {
-		var update = securityPerformance ? _checkIfStockStaticPerformanceUpdateRequired(securityPerformance.staticPerformance) : true;
-		if(update) {
-			return Promise.all([true, HelperFunctions.updateStockStaticPerformanceDetail(q, security)]);
-		} else {
-			return [false, securityPerformance];
-		}
-	})
-	.then(([updated, securityPerformance]) => {
-		if(updated) {
-			return SecurityPerformanceModel.fetchStaticPerformance(q);
-		} else {
-			return securityPerformance;//{security: security, staticPerformance: performance};
-		}
-	})
-	.then(securityPerformance => {
-		return res.status(200).json(securityPerformance);
-	})
-	.catch(err => {
-		return res.status(400).send(err.message);
-	})
-};
-
-function getStockLatestDetail(res, q, security) {
-	SecurityPerformanceModel.fetchLatestDetail(q)
+	return SecurityPerformanceModel.fetchLatestDetail(query)
 	.then(securityPerformance => {
 		var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
 		if(update) {
-			return Promise.all([true, HelperFunctions.updateStockLatestDetail(q, security)]);
+			return SecurityHelper.computeStockLatestDetail(security).then(latestDetail => {return SecurityPerformanceModel.updateLatestDetail(query, latestDetail);});
 		} else {
-			return [false, securityPerformance];
-		}
-	})
-	.then(([updated, securityPerformance]) => {
-		if(updated) {
-			return SecurityPerformanceModel.fetchLatestDetail(q);
-		} else {
-			return securityPerformance;//{security: security, staticPerformance: performance};
+			return securityPerformance;
 		}
 	})
 	.then(securityPerformance => {
@@ -232,6 +212,8 @@ module.exports.getStockDetail = function(args, res, next) {
 	const exchange = args.exchange.value;
 	const securityType = args.securityType.value;
 	const country = args.country.value;
+	const startDate = args.startDate.value;
+	const endDate = args.endDate.value;
 
 	const field = args.field.value;
 	const security = {ticker: ticker,
@@ -239,12 +221,12 @@ module.exports.getStockDetail = function(args, res, next) {
 						securityType: securityType,
 						country: country};
 
-	var q = {'security.ticker': ticker,
+	var query = {'security.ticker': ticker,
 					'security.exchange': exchange,
 					'security.securityType': securityType,
 					'security.country': country};
 
-	SecurityPerformanceModel.fetchSecurityPerformance(q, {fields:field})
+	return SecurityPerformanceModel.fetchSecurityPerformance(query, {fields:field})
 	.then(securityPerformance => {
 		if(!securityPerformance) {
 			return SecurityPerformanceModel.saveSecurityPerformance({security: security})
@@ -254,15 +236,28 @@ module.exports.getStockDetail = function(args, res, next) {
 	})
 	.then(securityPerformance => {
 		if(field == "priceHistory") {
-			return getStockPriceHistory(res, q, security);
+			return getStockPriceHistory(res, security, startDate, endDate);
 		} else if (field == "staticPerformance") {
-			return getStockStaticPerformance(res, q, security);
+			return getStockStaticPerformance(res, security);
 		} else if (field == "rollingPerformance") {
-			return getStockRollingPerformance(res, q, security);
+			return getStockRollingPerformance(res, security);
 		} else if (field == "latestDetail") {
-			return getStockLatestDetail(res, q, security);
+			return getStockLatestDetail(res, security);
 		}
-
 	});
+
 };
 
+module.exports.getStocks = function(args, res, next) {
+	const search = args.search.value ? args.search.value : "" 
+	
+	var query = {$or: [{'security.ticker': {$regex: search, $options: "i"}}, {'security.detail.Nse_Name': {$regex: search, $options: "i"}}]}
+
+	return SecurityPerformanceModel.fetchSecurityPerformances(query, {fields:'security', limit: 10})
+	.then(sp => {
+		return res.status(200).send(sp.map(item => item.security));
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	}); 
+};

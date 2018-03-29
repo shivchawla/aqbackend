@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-23 17:22:09
+* @Last Modified time: 2018-03-29 09:17:26
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -167,7 +167,7 @@ function _updatePositionsForTransactions(positions, transactions) {
 	});
 }
 
-function _updatePositionsForPrice(positions, date) {
+function _updatePositionsForPrice(positions, date, type) {
 	if (positions) {
 		return new Promise((resolve, reject) => {
 
@@ -184,7 +184,8 @@ function _updatePositionsForPrice(positions, date) {
 	            console.log(connection);
 	            var msg = JSON.stringify({action:"update_portfolio_price", 
 	            						portfolio: portfolio,
-	            						date: !date || date == "" ? "" : date});
+	            						date: !date || date == "" ? "" : date,
+	            						type: type ? type : "EOD"});
 	         	wsClient.send(msg);
 	        });
 
@@ -205,15 +206,15 @@ function _updatePositionsForPrice(positions, date) {
 	}
 }
 
-function _computeUpdatedPortfolioForPrice(portfolio, date) {
+function _computeUpdatedPortfolioForPrice(portfolio, date, type) {
 	return new Promise(resolve => {
 		Promise.all([
-			_updatePositionsForPrice(portfolio.detail.positions, date),
+			_updatePositionsForPrice(portfolio.detail.positions, date, type),
 			
 			//Each subposition is sent separately as JULIA portfolio can't handle 
 			//redundant securities
 			Promise.map(portfolio.detail.subPositions, function(position) {
-				return _updatePositionsForPrice([position], date)
+				return _updatePositionsForPrice([position], date, type)
 				.then(updatedPositions => {
 					if (updatedPositions){
 						return updatedPositions.length == 1 ? updatedPositions[0] : null;
@@ -243,7 +244,7 @@ function _computeUpdatedPortfolioForPrice(portfolio, date) {
 			
 		})
 		.catch(err => {
-			console.log(err);
+			//console.log(err);
 			resolve([false, portfolio]);
 		})
 	});
@@ -442,6 +443,27 @@ module.exports.getUpdatedPortfolio = function(portfolioId, fields) {
 	})
 };
 
+module.exports.getUpdatedPortfolioForRtPrices = function(portfolioId) {
+	//Append new fields to some basic fields (ADD SPACE - V. IMP)
+	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted:false}, {fields:'detail'})
+	.then(portfolio => {
+		if(portfolio) {
+			return _computeUpdatedPortfolioForPrice(portfolio.toObject(), null, "RT");
+		} else {
+			APIError.throwJsonError({portfolioId: portfolioId, message: "Portfolio not found", errorCode: 1401});
+		}
+	})
+	.then(([updated, latestPricePortfolio]) => {
+		if(updated) {
+			//Async updates the data base
+			PortfolioModel.updatePortfolio({_id: portfolioId}, latestPricePortfolio, {});
+		}
+
+		//continues with output
+		return latestPricePortfolio;
+	});
+}
+
 module.exports.comparePortfolioDetail = function(oldPortfolioDetail, newPortfolioDetail) {
 	return new Promise(function(resolve, reject) {
 		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
@@ -470,3 +492,34 @@ module.exports.comparePortfolioDetail = function(oldPortfolioDetail, newPortfoli
 		});
 	});
 };
+
+module.exports.validatePortfolio = function(portfolio) {
+
+	return new Promise((resolve, reject) => {
+
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
+
+		wsClient.on('open', function open() {
+            console.log('Connection Open');
+            console.log(connection);
+            var msg = JSON.stringify({action:"validate_portfolio", 
+            						portfolio: portfolio});
+
+         	wsClient.send(msg);
+        });
+
+        wsClient.on('message', function(msg) {
+        	var data = JSON.parse(msg);
+
+		    if (data["error"] == "") {
+			    resolve(data["valid"]);
+		    } else if (data["error"] != "") {
+		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
+		    } else {
+		    	reject(APIError.jsonError({message: "Unknown error in validating portfolio", errorCode: 2101}));
+		    }
+	    });
+    })
+};
+

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-23 17:21:47
+* @Last Modified time: 2018-03-29 19:43:28
 */
 
 'use strict';
@@ -37,7 +37,7 @@ module.exports.createAdvice = function(args, res, next) {
 	})
 	.then(advices => {
 		if(advices.length < config.get('max_advices_per_advisor')) {
-			return HelperFunctions.validateAdvice(advice, "", true);
+			return AdviceHelper.validateAdvice(advice, "", true);
 		} else {
 			APIError.throwJsonError({advisorId: advisorId, message:"Advice limit exceed. Can't add more advices.", errorCode: 1109});
 		}
@@ -121,7 +121,7 @@ module.exports.updateAdvice = function(args, res, next) {
 
 				isPublic = advice.public;
 				advicePortfolioId = advice.portfolio._id;
-				return 	isPublic ? HelperFunctions.validateAdvice(newAdvice, advice) : HelperFunctions.validateAdvice(newAdvice);
+				return 	isPublic ? AdviceHelper.validateAdvice(newAdvice, advice) : AdviceHelper.validateAdvice(newAdvice);
 			
 			} else {
 				APIError.throwJsonError({message: "Advisor not authorized to update", errorCode: 1107});

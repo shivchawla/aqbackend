@@ -7,6 +7,12 @@ using Raftaar: updateportfolio_fill!, updateportfolio_price!
 import Base: convert
 using TimeSeries
 using StatsBase
+using ZipFile
+
+include("./readNSEFiles.jl")
+
+const _realtimePrices = Dict{SecuritySymbol, TradeBar}()
+#const _codeToTicker = readSecurityFile("/Users/shivkumarchawla/Desktop/Securities.dat")
 
 function convert(::Type{Dict{String,Any}}, security::Security)                  
     try
@@ -175,6 +181,8 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
         if !valid_port
             return valid_port
         end
+
+        #ADD CHECK FOR ZERO PRICES (OR PRICES DIFFERENT FROM CLOSE ON THE DATE)
 
         portval = _compute_latest_portfoliovalue(port, convert(Float64, get(portfoliodetail,"cash", 0.0)))
 
@@ -410,6 +418,154 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, date::DateTime)
     end
 end
 
+function _updateportolio_EODprice(port::Portfolio, date::DateTime)
+    
+    alltickers = [sym.ticker for (sym, pos) in port.positions]
+    #Check if portoflio has any non-zero number of stock positions
+    if length(alltickers) > 0
+        start_date = DateTime(Date(date) - Dates.Week(52))
+        end_date = date
+        
+        stock_value_52w = YRead.history(alltickers, "Close", :Day, start_date, end_date)
+        benchmark_value_52w =  history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date) 
+
+        #Check if stock values are valid 
+        if stock_value_52w != nothing && benchmark_value_52w != nothing
+            merged_prices = to(merge(stock_value_52w, benchmark_value_52w), benchmark_value_52w.timestamp[end])
+            
+            latest_values = merged_prices[end]
+            latest_dt = DateTime(latest_values.timestamp[end])
+
+            tradebars = Dict{SecuritySymbol, Vector{TradeBar}}()
+            for (sym, pos) in port.positions
+                tradebars[sym] = [Raftaar.TradeBar(latest_dt, 0.0, 0.0, 0.0, latest_values[sym.ticker].values[1])]
+            end
+
+            Raftaar.updateportfolio_price!(port, tradebars, latest_dt)
+        end
+    end
+
+    return port
+end
+
+function _updateportolio_RTprice(port::Portfolio)
+    
+    alltickers = [sym.ticker for (sym, pos) in port.positions]
+    #Check if portoflio has any non-zero number of stock positions
+    if length(alltickers) > 0
+
+        tradebars = Dict{SecuritySymbol, Vector{TradeBar}}()
+        for (sym, pos) in port.positions
+            latest_tradebar = get(_realtimePrices, sym, TradeBar())
+            #tradebars[sym] = [Raftaar.TradeBar(latest_dt, 0.0, 0.0, 0.0, latest_prices["close"])]
+            tradebars[sym] = [latest_tradebar]
+        end
+
+        Raftaar.updateportfolio_price!(port, tradebars, DateTime())
+    end
+
+    return port
+end
+
+function _download_realtime_prices()
+    source_dir = Base.source_dir()
+    try
+        zip_data=source_dir*"/rtdata/zip_data"
+        token = "MX4zkypoSjUzp8CyotQg"
+        download("https://www.quandl.com/api/v3/databases/XNSE/data?auth_token=$(token)&download_type=partial", zip_data)
+
+        fname = ""
+        r = ZipFile.Reader(zip_data)
+        fdir=source_dir*"/rtdata/"
+
+        if length(r.files) > 0
+            f = r.files[1]
+            println("Extracting file")
+            fname = f.name
+            if !isfile(fdir*fname)
+                writedlm(fdir*fname, readdlm(f))
+            else
+                println("File already exists. Skipping extraction")
+            end
+        end
+
+        #Delete the downloaded file
+        println("Deleting the downloaded zip file")
+        rm(zip_data)
+
+        return fname
+    catch err
+        rethrow(err)
+    end  
+end
+
+function _read_realtime_prices(file::String)
+    try 
+        file_fullpath = Base.source_dir()*"/rtdata/$(file)"
+        if (file == "" || !isfile(file_fullpath)) 
+            println("Invalid RT file")
+            return 
+        end
+
+        dlm_data = readdlm(file_fullpath, ',', Any)
+        (nrows,ncols) = size(dlm_data)
+        if nrows > 0
+            for i = 1:nrows
+                # Convert ticker to string(in case ticker is a number)
+                ticker = String(dlm_data[i,1])
+                if length(ticker[search(ticker, "UADJ")]) != 0
+                    continue
+                end
+                security = YRead.getsecurity(ticker)
+                if security == Security()
+                    continue
+                end
+                open = dlm_data[i,3]
+                high = dlm_data[i,4]
+                low = dlm_data[i,5]
+                close = dlm_data[i,6]
+                volume = dlm_data[i,7]
+                tradebar = TradeBar(DateTime(), open, high, low, close, volume)
+                
+                #update the global variable
+                _realtimePrices[security.symbol] = tradebar 
+            end
+        end
+    catch err
+       rethrow(err)
+    end
+end
+
+###
+# Function to download and update realtime prices (from 15 minutes delayed feed)
+function update_realtime_prices()
+    try
+        #First download prices
+        #function to fetch data from NSE rt servers
+        #1. save the file 
+        #latest_file = _download_realtime_prices()
+        
+        #2. Load the data in _readTimePrices
+        #_read_realtime_prices("XNSE_20180323.partial.csv")
+        mktPrices = readMktFile("/Users/shivkumarchawla/Desktop/DelayedSnapshotCM30_02022018/100.mkt")
+        
+        for (k,v) in mktPrices
+            ticker = get(_codeToTicker, k, "")
+            if ticker != ""
+                security = YRead.getsecurity(ticker)
+                _realtimePrices[security.symbol] = v
+            end
+        end
+
+        #println(_realtimePrices)
+        
+        return true
+    catch err
+        rethrow(err)
+    end   
+end
+
+
 ###
 # Function to validate a security (against database data)
 ###
@@ -541,36 +697,16 @@ end
 ###
 # Function to update portfolio with latest price
 ###
-function updateportfolio_price(port::Dict{String, Any}, end_date::DateTime = now())
+function updateportfolio_price(port::Dict{String, Any}, end_date::DateTime = now(), typ::String = "EOD")
     try
-        portfolio = convert(Raftaar.Portfolio, port)
+        portfolio = convert(Raftaar.Portfolio, port)    
 
-        alltickers = [sym.ticker for (sym, pos) in portfolio.positions]
-        
-        #Check if portoflio has any non-zero number of stock positions
-        if length(alltickers) > 0
-            start_date = DateTime(Date(end_date) - Dates.Week(52))
-
-            stock_value_52w = YRead.history(alltickers, "Close", :Day, start_date, end_date)
-            benchmark_value_52w =  history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date) 
-
-            #Check if stock values are valid 
-            if stock_value_52w != nothing && benchmark_value_52w != nothing
-                merged_prices = to(merge(stock_value_52w, benchmark_value_52w), benchmark_value_52w.timestamp[end])
-                
-                latest_values = merged_prices[end]
-                latest_dt = DateTime(latest_values.timestamp[end])
-
-                tradebars = Dict{SecuritySymbol, Vector{TradeBar}}()
-                for (sym, pos) in portfolio.positions
-                    tradebars[sym] = [Raftaar.TradeBar(latest_dt, 0.0, 0.0, 0.0, latest_values[sym.ticker].values[1])]
-                end
-
-                Raftaar.updateportfolio_price!(portfolio, tradebars, latest_dt)
-            end
+        if (typ == "EOD")
+            _updateportolio_EODprice(portfolio, end_date)
+        elseif (typ == "RT")
+            _updateportolio_RTprice(portfolio)
         end
         
-        return portfolio
     catch err
         rethrow(err)
     end
@@ -633,7 +769,7 @@ function convert_to_node_portfolio(port::Portfolio)
             n_pos["profit"] = pos.lasttradepnl
             n_pos["lastPrice"] = pos.lastprice
             n_pos["advice"] = pos.advice == "" ? nothing : pos.advice
-            
+
             push!(output["positions"], n_pos) 
         end
 
@@ -743,6 +879,31 @@ function compute_fractional_ranking(vals::Dict{String, Float64}, scale::Float64)
         return frDict
 
     catch err
+        rethrow(err)
+    end
+end
+
+
+###
+# Fucntion to search security in securites database
+###
+function findsecurities(hint::String, limit::Int, outputType::String) 
+    try
+        securities = YRead.getsecurities(hint, limit, outputType)
+
+        if outputType == "count"
+            return securities
+        else
+            securities_dict_format = []
+            for security in securities
+                push!(securities_dict_format, convert(Dict{String,Any}, security))
+            end
+
+            return securities_dict_format
+        end    
+
+    catch err
+        println(err)
         rethrow(err)
     end
 end

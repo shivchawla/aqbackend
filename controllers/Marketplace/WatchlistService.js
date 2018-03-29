@@ -2,9 +2,10 @@
 const WatchlistModel = require('../../models/Marketplace/Watchlist');
 const Promise = require('bluebird');
 const APIError = require('../../utils/error');
+const SecurityHelper = require("../helpers/Security");
 
 function _checkIfValidSecurity(security) {
-	return true;
+	return SecurityHelper.validateSecurity(security);
 }
 
 module.exports.createWatchlist = function(args, res, next) {
@@ -20,10 +21,10 @@ module.exports.createWatchlist = function(args, res, next) {
     };
 
     const securities = values.securities;
-    Promise.map(securities, function(security) {
+    return Promise.map(securities, function(security) {
     	return _checkIfValidSecurity(security);})
     .then(flags => {
-    	if (flags.indexOf(false) == -1) {
+    	if (flags.indexOf(false) == -1 || length(flags) == 0) {
     		return WatchlistModel.saveWatchlist(watchlist);
     	} else {
     		var idx = flags.indexOf(false);

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-09-04 12:40:05
+* @Last Modified time: 2018-03-29 17:06:31
 */
 
 'use strict';
@@ -35,6 +35,14 @@ const SecurityPerformance = new Schema({
 	}
 });
 
+SecurityPerformance.index({'security.ticker': 1}, {unique: true});
+
+SecurityPerformance.index({
+    'security.ticker': 'text',
+    'security.name': 'text',
+    'security.detail.NSE_Name': 'text'
+});
+
 
 SecurityPerformance.statics.saveSecurityPerformance = function(securityPerformance) {
 	const sp = new this(securityPerformance);
@@ -47,55 +55,35 @@ SecurityPerformance.statics.fetchSecurityPerformance = function(query, options) 
 	.execAsync();
 };
 
+SecurityPerformance.statics.fetchSecurityPerformances = function(query, options) {
+	return this.find(query)
+	.select(options.fields)
+	.limit(options.limit ? options.limit : 0)
+	.execAsync();
+};
 
-SecurityPerformance.statics.updatePerformance = function(query, updates) {
-	return this.findOne(query)
-	.then(securityPerformance => {
-		Object.keys(updates).forEach(key => {
-			securityPerformance[key] = updates[key];
-		});	
-	})
+SecurityPerformance.statics.updateSecurityPerformance = function(query, updates) {
+	return this.findOneAndUpdate(query, {'$set': updates}, {upsert: true})
 };
 
 SecurityPerformance.statics.updatePriceHistory = function(query, priceHistory) {
-	return this.findOne(query)
-	.then(securityPerformance => {
-		//console.log("Update History");
-		//console.log(priceHistory);
-		/*var ph = [];
-		
-		Object.keys(priceHistory).forEach(key => {
-			ph.push({date: new Date(key), price: priceHistory[key]});
-		});*/
-
-		securityPerformance["priceHistory"] = {values: priceHistory, updatedDate: new Date()};
-		//console.log(securityPerformance);
-		return securityPerformance.save();	
-	})
+	var updates = {priceHistory: {values: priceHistory, updatedDate: new Date()}};
+	return this.findOneAndUpdate(query, {$set: updates}, {fields: 'security priceHistory', new:true});
 };
 
 SecurityPerformance.statics.updateRollingPerformance = function(query, rollingPerformance) {
-	return this.findOne(query)
-	.then(securityPerformance => {
-		securityPerformance["rollingPerformance"] = {detail: rollingPerformance, updatedDate: new Date()};
-		return securityPerformance.save();	
-	})
+	var updates = {rollingPerformance: {detail: rollingPerformance, updatedDate: new Date()}};
+	return this.findOneAndUpdate(query, {$set: updates}, {fields: 'security rollingPerformance', new:true});
 };
 
 SecurityPerformance.statics.updateStaticPerformance = function(query, staticPerformance) {
-	return this.findOne(query)
-	.then(securityPerformance => {
-		securityPerformance["staticPerformance"] = {detail: staticPerformance, updatedDate: new Date()};
-		return securityPerformance.save();	
-	})
+	var updates = {staticPerformance: {detail: staticPerformance, updatedDate: new Date()}};
+	return this.findOneAndUpdate(query, {$set: updates}, {fields: 'security staticPerformance', new:true});
 };
 
 SecurityPerformance.statics.updateLatestDetail = function(query, latestDetail) {
-	return this.findOne(query)
-	.then(securityPerformance => {
-		securityPerformance["latestDetail"] = {values: latestDetail, updatedDate: new Date()};
-		return securityPerformance.save();	
-	})
+	var updates = {latestDetail: {values: latestDetail, updatedDate: new Date()}};
+	return this.findOneAndUpdate(query, {$set: updates}, {fields: 'security latestDetail', new:true});
 };
 
 SecurityPerformance.statics.fetchPerformance = function(query) {
@@ -106,13 +94,13 @@ SecurityPerformance.statics.fetchPerformance = function(query) {
 
 SecurityPerformance.statics.fetchStaticPerformance = function(query) {
 	return this.findOne(query)
-	.select('staticPerformance')
+	.select('staticPerformance security')
 	.execAsync();
 };
 
 SecurityPerformance.statics.fetchRollingPerformance = function(query) {
 	return this.findOne(query)
-	.select('rollingPerformance')
+	.select('rollingPerformance security')
 	.execAsync();
 };
 

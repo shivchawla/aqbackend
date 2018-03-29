@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-21 12:34:37
+* @Last Modified time: 2018-03-29 19:00:07
 */
 
 'use strict'
@@ -13,7 +13,6 @@ const PortfolioModel = require('../../models/Marketplace/Portfolio');
 const PerformanceModel = require('../../models/Marketplace/Performance');
 const APIError = require('../../utils/error');
 const Promise = require('bluebird');
-const HelperFunctions = require("../helpers");
 const PerformanceHelper = require("../helpers/Performance");
 
 module.exports.getPerformanceInvestorPortfolio = function(args, res, next) {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-05-10 13:06:04
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-23 18:52:16
+* @Last Modified time: 2018-03-29 19:13:30
 */
 
 'use strict';
@@ -36,97 +36,6 @@ function _compareDates(d1, d2) {
 module.exports.compareDates = function(date1, date2) {
 	
 	return _compareDates(date1, date2);
-};
-
-module.exports.compareSecurity = function(oldSecurity, newSecurity) {
-	return new Promise(function(resolve, reject) {
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-	        console.log('Connection Open');
-	        console.log(connection);
-	        var msg = JSON.stringify({action:"compare_security", 
-	        				oldSecurity: oldSecurity,
-	        				newSecurity: newSecurity});
-
-	     	wsClient.send(msg);
-	    });
-
-	    wsClient.on('message', function(msg) {
-	    	var data = JSON.parse(msg);
-	    	
-	    	if(data['error'] == '' && data['compare']) {
-	    		resolve(data['compare']);
-			} else if (data['error'] != '') {
-				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-			} else {
-				reject(APIError.jsonError({message: "Internal error in comparing security", errorCode: 2101}));
-			}
-		});
-	});
-}
-
-module.exports.validateAdvice = function(advice, oldAdvice, strictNetValue) {
-
-	return new Promise((resolve, reject) => {
-
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-            console.log('Connection Open');
-            console.log(connection);
-            var msg = JSON.stringify({action:"validate_advice", 
-            						advice: advice,
-            						lastAdvice: oldAdvice ? oldAdvice : "",
-            						strictNetValue: strictNetValue ? strictNetValue : false});
-
-         	wsClient.send(msg);
-        });
-
-        wsClient.on('message', function(msg) {
-        	var data = JSON.parse(msg);
-			
-        	if (data["error"] == "") {
-			    resolve(data["valid"]);
-		    } else if (data["error"] != "") {
-		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-		    } else {
-		    	reject(APIError.jsonError({message: "Internal error validating the advice", errorCode: 2101}));
-		    }
-	    });
-    })
-};
-
-module.exports.validatePortfolio = function(portfolio) {
-
-	return new Promise((resolve, reject) => {
-
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-            console.log('Connection Open');
-            console.log(connection);
-            var msg = JSON.stringify({action:"validate_portfolio", 
-            						portfolio: portfolio});
-
-         	wsClient.send(msg);
-        });
-
-        wsClient.on('message', function(msg) {
-        	var data = JSON.parse(msg);
-
-		    if (data["error"] == "") {
-			    resolve(data["valid"]);
-		    } else if (data["error"] != "") {
-		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-		    } else {
-		    	reject(APIError.jsonError({message: "Unknown error in validating portfolio", errorCode: 2101}));
-		    }
-	    });
-    })
 };
 
 module.exports.validateTransactions = function(transactions, advicePortfolio, investorPortfolio) {
@@ -170,144 +79,46 @@ module.exports.validateTransactions = function(transactions, advicePortfolio, in
     })
 };
 
-module.exports.updateStockStaticPerformanceDetail = function(q, security) {
-	return new Promise((resolve, reject) => {
-
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-            console.log('Connection Open');
-            console.log(connection);
-            var msg = JSON.stringify({action:"compute_stock_static_performance", 
-            						security: security});
-
-         	wsClient.send(msg);
-        });
-
-        wsClient.on('message', function(msg) {
-        	var data = JSON.parse(msg);
-			
-        	if (data["error"] == "" && data["performance"]) {
-			    resolve(data["performance"]);
-		    } else if (data["error"] != "") {
-		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-		    } else {
-		    	reject(APIError.jsonError({message: "Internal error in computing stock static performance detail", errorCode: 2101}));
-		    }
-	    });
-    })
-    .then(performance => {
-    	return SecurityPerformanceModel.updateStaticPerformance(q, performance);
-    });
-};
-
-module.exports.updateStockRollingPerformanceDetail = function(q, security) {
-	return new Promise((resolve, reject) => {
-
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-            console.log('Connection Open');
-            console.log(connection);
-            var msg = JSON.stringify({action:"compute_stock_rolling_performance", 
-            						security: security});
-
-         	wsClient.send(msg);
-        });
-
-        wsClient.on('message', function(msg) {
-
-        	var data = JSON.parse(msg);
-        	if (data["error"] == "" && data["performance"]) {
-			    resolve(data["performance"]);
-		    } else if (data["error"] != "") {
-		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-		    } else {
-		    	reject(APIError.jsonError({message: "Internal error in computing stock rolling performance detail", errorCode: 2101}));
-		    }
-	    });
-    })
-    .then(performance => {
-    	return SecurityPerformanceModel.updateRollingPerformance(q, performance);
-    })
-};
-
-module.exports.updateStockPriceHistory = function(q, security) {
-	return new Promise((resolve, reject) => {
-
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-            console.log('Connection Open');
-            console.log(connection);
-            var msg = JSON.stringify({action:"compute_stock_price_history", 
-            						security: security});
-         	wsClient.send(msg);
-        });
-
-        wsClient.on('message', function(msg) {
-        	var data = JSON.parse(msg);
-
-        	if (data["error"] == "" && data["priceHistory"]) {
-			    resolve(data["priceHistory"]);
-		    } else if (data["error"] != "") {
-		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-		    } else {
-		    	reject(APIError.jsonError({message: "Internal error in computing stock price history", errorCode: 2101}));
-		    }
-	    });
-    })
-    .then(priceHistory => {
-    	if(priceHistory) {	
-    		return SecurityPerformanceModel.updatePriceHistory(q, priceHistory);
-		} else {
-			APIError.throwJsonError({message: "Uanble to update. Invalid price history data provided"});
-		}
-    });
-};
-
-module.exports.updateStockLatestDetail = function(q, security) {
-	return new Promise((resolve, reject) => {
-
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-            console.log('Connection Open');
-            console.log(connection);
-            var msg = JSON.stringify({action:"compute_stock_price_latest", 
-            						security: security});
-
-         	wsClient.send(msg);
-        });
-
-        wsClient.on('message', function(msg) {
-        	var data = JSON.parse(msg);
-
-        	if (data["error"] == "" && data["latestDetail"]) {
-			    resolve(data["latestDetail"]);
-		    } else if (data["error"] != "") {
-		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-		    } else {
-		    	reject(APIError.jsonError({message: "Internal error in computing stock latest detail", errorCode: 2101}));
-		    }
-	    });
-    })
-    .then(latestDetail => {
-    	return SecurityPerformanceModel.updateLatestDetail(q, latestDetail);
-    });
-};
-
-module.exports.getDate = function(dateTime) {
+//Return dateTime formatted to Current Date and Time as 5:30AM IST 
+//Applies offset before formatting
+module.exports.getLocalDate = function(dateTime, offset) {
 	//return new Date(dateTime.toDateString());
 	//1. Convert DateTime to IST
 	//2. Convert to date string in IST
 	//3. Convert to date time (of purely date)
+	
+	//Get time as supplied	
+	var _d = dateTime ? new Date(dateTime): new Date();
 
-	return new Date(new Date(new Date(dateTime).toLocaleString("en-US", {timeZone: "Asia/Kolkata"})).toDateString());
+	if (offset){
+		//Introduce offset
+		_d.setHours(_d.getHours() - offset);
+	}
+
+	//Get datetime in IST time zone
+	var _dtLocalStr = _d.toLocaleString("en-US", {timeZone: "Asia/Kolkata"});
+	
+	//extract date in IST time zone
+	var _dLocalStr = _dtLocalStr.split(",")[0]; //date in India
+	var ymd = _dLocalStr.split("/").map(item => parseInt(item));
+
+	//Create UTC date with offset Indian date and time as 12:30 PM (this can be mdinight too)
+	//THe output in Indian machines will make it to IST 6 PM
+	var _od = new Date(ymd[2], ymd[0]-1, ymd[1]);
+
+	var offsetTZ = _od.getTimezoneOffset();
+	if(offsetTZ != 0) {
+		//offset on Indian machines in -330 minutes
+		//add 330 minutes on local machines
+		_od.setMinutes(_od.getMinutes() - offsetTZ); 
+	}
+	
+	return _od;
+};
+
+//Return dateTime formatted to Current Date and Time as 5:30AM IST
+module.exports.getDate = function(dateTime) {
+	return exports.getLocalDate(dateTime, 0);
 };
 
 module.exports.getAdminAdvisors = function() {
@@ -361,5 +172,34 @@ module.exports.computeFractionalRanking = function(values, scale) {
 		    }
 	    });
     })
-}
+};
+
+module.exports.updateRealtimePrices = function() {
+	return new Promise((resolve, reject) => {
+
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
+
+		wsClient.on('open', function open() {
+            console.log('Connection Open');
+            console.log(connection);
+            var msg = JSON.stringify({action:"update_realtime_prices"});
+
+         	wsClient.send(msg);
+        });
+
+        wsClient.on('message', function(msg) {
+        	var data = JSON.parse(msg);
+			
+        	if (data["error"] == "") {
+			    resolve(data["success"]);
+		    } else if (data["error"] != "") {
+		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
+		    } else {
+		    	reject(APIError.jsonError({message: "Internal error updating realtime prices", errorCode: 2101}));
+		    }
+	    });
+    })
+
+};
 

@@ -27,7 +27,7 @@ const Watchlist = new Schema({
 
     deletedAt: Date,
 
-    securities: [{updatedAt: Date, security: Security}],
+    securities: [Security],
 });
 
 Watchlist.index({user: 1,name: 1}, {unique:true});
@@ -46,21 +46,19 @@ Watchlist.statics.fetchAllWatchlists = function(query) {
     return this.find(query).execAsync();
 };
 
-Watchlist.statics.addWatchlist = function(query, security) {
+Watchlist.statics.addSecurity = function(query, security) {
     return this.findOne(query)
     .then(watchlist => {
         watchlist.securities.push(security);
-        watchlist.updatedAt = new Date();
-        return watchlist.save();
+        return watchlist.saveAsync();
     });
 };
 
-Watchlist.statics.addWatchlist = function(query, securities) {
+Watchlist.statics.addSecurities = function(query, securities) {
     return this.findOne(query)
     .then(watchlist => {
         watchlist.securities.append(securities);
-        watchlist.updatedAt = new Date();
-        return watchlist.save();
+        return watchlist.saveAsync();
     });
 };
 
@@ -73,7 +71,7 @@ Watchlist.statics.updateWatchlist = function(query, updates) {
                 watchlist[key] = updates[key];
             });
             watchlist.updatedAt = new Date();
-            return watchlist.save();
+            return watchlist.saveAsync();
         }
     });
 };
@@ -85,7 +83,7 @@ Watchlist.statics.deleteWatchlist = function(query) {
             if(!watchlist.deleted) {
                 watchlist.deleted = true;
                 watchlist.deletedAt = new Date();
-                return watchlist.save();
+                return watchlist.saveAsync();
             } else {
                 throw new Error("Watchlist already deleted");
             }

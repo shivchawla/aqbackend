@@ -2,13 +2,14 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-23 19:15:34
+* @Last Modified time: 2018-03-29 19:27:34
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
 const AdviceModel = require('../../models/Marketplace/Advice');
 const Promise = require('bluebird');
+const WebSocket = require('ws'); 
 const config = require('config');
 const HelperFunctions = require("../helpers");
 const PerformanceHelper = require("../helpers/Performance");
@@ -82,7 +83,7 @@ module.exports.isUserAuthorizedToViewAdviceDetail = function(userId, adviceId) {
 	return Promise.all([
 		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert: true}),
 		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert: true}),
-		AdviceModel.fetchAdvice({_id: adviceId, deleted:false}, {fields:'advisor followers subscribers'})])
+		AdviceModel.fetchAdvice({_id: adviceId, deleted:false}, {fields:'advisor subscribers'})])
 	.then(([investor, advisor, advice])  => {
 		if(investor && advisor && advice) {
 			const advisorId = advisor._id;
@@ -93,6 +94,28 @@ module.exports.isUserAuthorizedToViewAdviceDetail = function(userId, adviceId) {
 			//PERSONAL or subscribers
 			//get to see expanded portfolio if chosen
 			return advice.advisor.equals(advisorId) || activeSubscribers.indexOf(investorId) != -1;
+				
+		} else if(!investor) {
+			APIError.throwJsonError({message:"Investor not found", errorCode: 1301});
+		} else if(!advisor) {
+			APIError.throwJsonError({message:"Advisor not found", errorCode: 1201});
+		} else if (!advice) {
+			APIError.throwJsonError({message:"Advice not found", errorCode: 1101});
+		} 
+	});
+}
+
+module.exports.isUserAuthorizedToViewAdviceSummary = function(userId, adviceId) {
+	return Promise.all([
+		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert: true}),
+		AdviceModel.fetchAdvice({_id: adviceId, deleted:false}, {fields:'advisor prohibited public subscribers'})])
+	.then(([advisor, advice])  => {
+		if(advisor && advice) {
+			const advisorId = advisor._id;
+			
+			//PERSONAL or subscribers
+			//get to see expanded portfolio if chosen
+			return advice.advisor.equals(advisorId) || (advice.public == true && advice.prohibited == false)
 				
 		} else if(!investor) {
 			APIError.throwJsonError({message:"Investor not found", errorCode: 1301});
@@ -159,7 +182,6 @@ module.exports.computeAdviceAnalytics = function(adviceId) {
 	}); 
 };
 
-
 //RECALCULATE IS NOT USED - 23/03/2018
 module.exports.getAdviceAnalytics = function(adviceId, recalculate) {
 	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio latestAnalytics'})
@@ -170,4 +192,36 @@ module.exports.getAdviceAnalytics = function(adviceId, recalculate) {
 			return advice.latestAnalytics;
 		}
 	});
+};
+
+module.exports.validateAdvice = function(advice, oldAdvice, strictNetValue) {
+
+	return new Promise((resolve, reject) => {
+
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
+
+		wsClient.on('open', function open() {
+            console.log('Connection Open');
+            console.log(connection);
+            var msg = JSON.stringify({action:"validate_advice", 
+            						advice: advice,
+            						lastAdvice: oldAdvice ? oldAdvice : "",
+            						strictNetValue: strictNetValue ? strictNetValue : false});
+
+         	wsClient.send(msg);
+        });
+
+        wsClient.on('message', function(msg) {
+        	var data = JSON.parse(msg);
+			
+        	if (data["error"] == "") {
+			    resolve(data["valid"]);
+		    } else if (data["error"] != "") {
+		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
+		    } else {
+		    	reject(APIError.jsonError({message: "Internal error validating the advice", errorCode: 2101}));
+		    }
+	    });
+    })
 };
