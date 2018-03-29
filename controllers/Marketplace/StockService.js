@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-29 18:59:54
+* @Last Modified time: 2018-03-29 21:03:08
 */
 
 'use strict';
@@ -249,10 +249,27 @@ module.exports.getStockDetail = function(args, res, next) {
 };
 
 module.exports.getStocks = function(args, res, next) {
-	const search = args.search.value ? args.search.value : "" 
+	const search = args.search.value ? args.search.value : ""; 
 	
-	var query = {$or: [{'security.ticker': {$regex: search, $options: "i"}}, {'security.detail.Nse_Name': {$regex: search, $options: "i"}}]}
+	var containsSearch = `^(.*?(${search})[^$]*)$`;
+	var q1 = {$or: [{'security.ticker': {$regex: containsSearch, $options: "i"}}, {'security.detail.Nse_Name': {$regex: containsSearch, $options: "i"}}]}
 
+	var nostartwithCNX = "^((?!^CNX).)*$"
+    var q2 = {'security.ticker': {$regex: nostartwithCNX}};
+
+    var nostartwithMF = "^((?!^MF).)*$"
+    var q3 = {'security.ticker': {$regex: nostartwithMF}};
+
+    var nostartwithLIC = "^((?!^LIC).)*$"
+    var q4 = {'security.ticker': {$regex: nostartwithLIC}};
+
+    var nostartwithICNX = "^((?!^ICNX).)*$"
+    var q5 = {'security.ticker': {$regex: nostartwithICNX}};
+
+    var nostartwithSPCNX = "^((?!^SPCNX).)*$"
+    var q6 = {'security.ticker': {$regex: nostartwithSPCNX}};
+
+    var query = {$and: [q1, q2, q3, q4, q5, q6]};
 	return SecurityPerformanceModel.fetchSecurityPerformances(query, {fields:'security', limit: 10})
 	.then(sp => {
 		return res.status(200).send(sp.map(item => item.security));
