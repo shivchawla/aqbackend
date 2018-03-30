@@ -108,13 +108,13 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
         
         all_securities = Raftaar.Security[]
         for pos in get(port, "positions", Vector{Dict{String,Any}}())
-            (valid, security) = validate_security(pos["security"])
+            (valid, security) = _validate_security(pos["security"])
             if valid 
                 push!(all_securities, security)
             end
         end
 
-        (valid, benchmark_security) = validate_security(benchmark)
+        (valid, benchmark_security) = _validate_security(benchmark)
         edate = end_date
         sdate = DateTime(min(Date(start_date), Date(end_date) - Dates.Week(52)))
         benchmark_prices = history_nostrict([benchmark_security.symbol.ticker], "Close", :Day, sdate, edate)
@@ -149,8 +149,8 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
 
     benchmark_ticker = "NIFTY_50"
     try
-        (valid, benchmark_security) = validate_security(benchmark)
-        if !validate_security
+        (valid, benchmark_security) = _validate_security(benchmark)
+        if !valid
             error("Invalid Benchmark")
         else
             benchmark_ticker = benchmark["ticker"]
@@ -164,7 +164,7 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
             error("Start date is greater than end date. Can't compute stock performance")
         end
 
-        (valid, security) = validate_security(security)
+        (valid, security) = _validate_security(security)
         
         if valid
             benchmark_prices = history_nostrict([benchmark_ticker], "Close", :Day, start_date, end_date)
@@ -212,7 +212,7 @@ end
 function compute_stock_rolling_performance(security_dict::Dict{String,Any})
 
     try
-        (valid, security) = validate_security(security_dict)
+        (valid, security) = _validate_security(security_dict)
         
         if valid
             start_date = DateTime("2001-01-01")
@@ -252,7 +252,7 @@ end
 ###
 function compute_stock_static_performance(security_dict::Dict{String,Any}; benchmark::String="NIFTY_50")
     try
-        (valid, security) = validate_security(security_dict)
+        (valid, security) = _validate_security(security_dict)
         
         if valid
             start_date = DateTime("2001-01-01")
@@ -293,7 +293,7 @@ end
 function get_stock_price_history(security_dict::Dict{String,Any})
     
     try
-        (valid, security) = validate_security(security_dict)
+        (valid, security) = _validate_security(security_dict)
         
         if valid
             start_date = DateTime("2001-01-01")
@@ -328,7 +328,7 @@ end
 function get_stock_price_latest(security_dict::Dict{String,Any})
     
     try
-        (valid, security) = validate_security(security_dict)
+        (valid, security) = _validate_security(security_dict)
     
         if valid
             end_date = Date(now())

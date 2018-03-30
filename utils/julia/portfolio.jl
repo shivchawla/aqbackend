@@ -425,7 +425,7 @@ function _updateportolio_EODprice(port::Portfolio, date::DateTime)
     if length(alltickers) > 0
         start_date = DateTime(Date(date) - Dates.Week(52))
         end_date = date
-        
+
         stock_value_52w = YRead.history(alltickers, "Close", :Day, start_date, end_date)
         benchmark_value_52w =  history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date) 
 
@@ -569,7 +569,7 @@ end
 ###
 # Function to validate a security (against database data)
 ###
-function validate_security(security::Dict{String, Any})
+function _validate_security(security::Dict{String, Any})
     
     try
         security_raftaar = convert(Raftaar.Security, security)
@@ -720,7 +720,7 @@ function compute_portfolio_metrics(port::Dict{String, Any}, start_date::DateTime
     
     benchmark_ticker = "NIFTY_50"
     try
-        (valid, benchmark_security) = validate_security(benchmark)
+        (valid, benchmark_security) = _validate_security(benchmark)
 
         if !valid
             error("Invalid benchmark")

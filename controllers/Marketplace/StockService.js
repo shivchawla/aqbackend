@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-30 11:14:17
+* @Last Modified time: 2018-03-30 12:25:27
 */
 
 'use strict';
@@ -98,7 +98,7 @@ function _checkIfStockLatestDetailUpdateRequired(detail) {
     return false;
 }
 
-function getStockPriceHistory(res, security, startDate, endDate) {
+function getStockPriceHistory(security, startDate, endDate) {
 	var query = {'security.ticker': security.ticker,
 					'security.exchange': security.exchange,
 					'security.securityType': security.securityType,
@@ -127,14 +127,11 @@ function getStockPriceHistory(res, security, startDate, endDate) {
 			ph = idx != -1 ? ph.slice(0, idx+1) : ph;
 		}
 
-		return res.status(200).json({security: securityPerformance.security, priceHistory: ph});
-	})
-	.catch(err => {
-		return res.status(400).send(err.message);
-	})
+		return {security: securityPerformance.security, priceHistory: ph};
+	});
 };
 
-function getStockRollingPerformance(res, security) {
+function getStockRollingPerformance(security) {
 
 	var query = {'security.ticker': security.ticker,
 					'security.exchange': security.exchange,
@@ -151,15 +148,9 @@ function getStockRollingPerformance(res, security) {
 			return securityPerformance;
 		}
 	})
-	.then(securityPerformance => {
-		return res.status(200).json(securityPerformance);
-	})
-	.catch(err => {
-		return res.status(400).send(err.message);
-	})
 }
 
-function getStockStaticPerformance(res, security) {
+function getStockStaticPerformance(security) {
 
 	var query = {'security.ticker': security.ticker,
 					'security.exchange': security.exchange,
@@ -174,16 +165,10 @@ function getStockStaticPerformance(res, security) {
 		} else {
 			return securityPerformance;
 		}
-	})
-	.then(securityPerformance => {
-		return res.status(200).json(securityPerformance);
-	})
-	.catch(err => {
-		return res.status(400).send(err.message);
-	})
+	});
 };
 
-function getStockLatestDetail(res, security) {
+function getStockLatestDetail(security) {
 	var query = {'security.ticker': security.ticker,
 					'security.exchange': security.exchange,
 					'security.securityType': security.securityType,
@@ -197,13 +182,7 @@ function getStockLatestDetail(res, security) {
 		} else {
 			return securityPerformance;
 		}
-	})
-	.then(securityPerformance => {
-		return res.status(200).json(securityPerformance);
-	})
-	.catch(err => {
-		return res.status(400).send(err.message);
-	})
+	});
 };
 
 module.exports.getStockDetail = function(args, res, next) {
@@ -229,23 +208,35 @@ module.exports.getStockDetail = function(args, res, next) {
 	return SecurityPerformanceModel.fetchSecurityPerformance(query, {fields:field})
 	.then(securityPerformance => {
 		if(!securityPerformance) {
-			return SecurityPerformanceModel.saveSecurityPerformance({security: security})
+			return SecurityHelper.validateSecurity(security)
+			.then(valid => {
+				if (valid) {
+					return SecurityPerformanceModel.saveSecurityPerformance({security: security});
+				} else {
+					APIError.throwJSONError({message: "Invalid Security"});
+				}
+			});
 		} else {
 			return securityPerformance;
 		}
 	})
 	.then(securityPerformance => {
 		if(field == "priceHistory") {
-			return getStockPriceHistory(res, security, startDate, endDate);
+			return getStockPriceHistory(security, startDate, endDate);
 		} else if (field == "staticPerformance") {
-			return getStockStaticPerformance(res, security);
+			return getStockStaticPerformance(security);
 		} else if (field == "rollingPerformance") {
-			return getStockRollingPerformance(res, security);
+			return getStockRollingPerformance(security);
 		} else if (field == "latestDetail") {
-			return getStockLatestDetail(res, security);
+			return getStockLatestDetail(security);
 		}
+	})
+	.then(output => {
+		return res.status(200).send(output);
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
 	});
-
 };
 
 module.exports.getStocks = function(args, res, next) {
