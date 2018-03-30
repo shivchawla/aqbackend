@@ -2313,38 +2313,6 @@ paths:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Stock"
 
-  /stock/weight:
-    post:
-      tags:
-      - stock
-      summary: update stock weight
-      description: update stock weight
-      operationId: updateStockWeight
-      security:
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: body
-        in: body
-        schema:
-          type: object
-          properties:
-            ticker:
-              type: string
-              default: ""
-      responses:
-        200:
-          description: "update the weight of stock"
-        400:
-          description: "Not Authorized"
-          schema:
-            $ref: "#/definitions/Error"
-      x-swagger-router-controller: "Stock"
-
   /performance/investor/{investorId}/{portfolioId}:
     get:
       tags:

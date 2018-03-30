@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-30 12:25:27
+* @Last Modified time: 2018-03-30 12:45:14
 */
 
 'use strict';
@@ -96,6 +96,19 @@ function _checkIfStockLatestDetailUpdateRequired(detail) {
     }
 
     return false;
+}
+
+function updateStockWeight(query) {
+	return SecurityPerformanceModel.fetchSecurityPerformance(query, {fields: 'weight'})
+	.then(sp => {
+		if(sp) {
+			var nWeight = sp.weight ? sp.weight + 0.001 : 0.001;
+			return SecurityPerformanceModel.updateSecurityPerformance(query, {weight: nWeight});
+		} else{
+			return {};
+			//APIError.throwJSONError({message: "Security not found. Can't update weight"});
+		}
+	})
 }
 
 function getStockPriceHistory(security, startDate, endDate) {
@@ -204,9 +217,11 @@ module.exports.getStockDetail = function(args, res, next) {
 					'security.exchange': exchange,
 					'security.securityType': securityType,
 					'security.country': country};
-
-	return SecurityPerformanceModel.fetchSecurityPerformance(query, {fields:field})
-	.then(securityPerformance => {
+return Promise.all([
+		SecurityPerformanceModel.fetchSecurityPerformance(query, {fields:field}),
+		updateStockWeight(query)
+	])
+	.then(([securityPerformance, updatedWeight]) => {
 		if(!securityPerformance) {
 			return SecurityHelper.validateSecurity(security)
 			.then(valid => {
