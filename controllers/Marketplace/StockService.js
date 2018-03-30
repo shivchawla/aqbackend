@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-29 21:03:08
+* @Last Modified time: 2018-03-30 11:14:17
 */
 
 'use strict';
@@ -251,28 +251,61 @@ module.exports.getStockDetail = function(args, res, next) {
 module.exports.getStocks = function(args, res, next) {
 	const search = args.search.value ? args.search.value : ""; 
 	
+	var startWithSearch = `(^${search}.*)$`; 
+	var q1 = {'security.ticker': {$regex: startWithSearch, $options: "i"}};
+
 	var containsSearch = `^(.*?(${search})[^$]*)$`;
-	var q1 = {$or: [{'security.ticker': {$regex: containsSearch, $options: "i"}}, {'security.detail.Nse_Name': {$regex: containsSearch, $options: "i"}}]}
+	var q2 = {$or: [{'security.ticker': {$regex: containsSearch, $options: "i"}}, {'security.detail.Nse_Name': {$regex: containsSearch, $options: "i"}}]}
 
 	var nostartwithCNX = "^((?!^CNX).)*$"
-    var q2 = {'security.ticker': {$regex: nostartwithCNX}};
+    var q3 = {'security.ticker': {$regex: nostartwithCNX}};
 
     var nostartwithMF = "^((?!^MF).)*$"
-    var q3 = {'security.ticker': {$regex: nostartwithMF}};
+    var q4 = {'security.ticker': {$regex: nostartwithMF}};
 
     var nostartwithLIC = "^((?!^LIC).)*$"
-    var q4 = {'security.ticker': {$regex: nostartwithLIC}};
+    var q5 = {'security.ticker': {$regex: nostartwithLIC}};
 
     var nostartwithICNX = "^((?!^ICNX).)*$"
-    var q5 = {'security.ticker': {$regex: nostartwithICNX}};
+    var q6 = {'security.ticker': {$regex: nostartwithICNX}};
 
     var nostartwithSPCNX = "^((?!^SPCNX).)*$"
-    var q6 = {'security.ticker': {$regex: nostartwithSPCNX}};
+    var q7 = {'security.ticker': {$regex: nostartwithSPCNX}};
 
-    var query = {$and: [q1, q2, q3, q4, q5, q6]};
-	return SecurityPerformanceModel.fetchSecurityPerformances(query, {fields:'security', limit: 10})
+    var q7 = {'security.ticker':{$ne: ""}};
+
+    var query_1 = {$and: [q1, q3, q4, q5, q6, q7]}
+    var query_2 = {$and: [q2, q3, q4, q5, q6, q7]};
+
+	return Promise.all([
+		SecurityPerformanceModel.fetchSecurityPerformances(query_1, {fields:'security', limit: 10, sort:{weight: -1}}),
+		SecurityPerformanceModel.fetchSecurityPerformances(query_2, {fields:'security', limit: 10, sort:{weight: -1}})
+	])
+	.then(([exactMatch, nearMatch]) => {
+		var securitiesExactMatch = exactMatch.map(item => item.security);
+		var securitiesNearMatch = nearMatch.map(item => item.security);
+
+		var totalSecurities = Array.from(new Set(securitiesExactMatch.concat(securitiesNearMatch))).slice(0, 10);
+		return res.status(200).send(totalSecurities);
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	}); 
+};
+
+module.exports.updateStockWeight = function(args, res, next) {
+	const ticker = args.body.value.ticker;
+	return SecurityPerformanceModel.fetchSecurityPerformance({'security.ticker': ticker}, {fields: 'weight'})
 	.then(sp => {
-		return res.status(200).send(sp.map(item => item.security));
+		if(sp) {
+			var nWeight = sp.weight ? sp.weight + 0.001 : 0.001;
+			return SecurityPerformanceModel.updateSecurityPerformance({'security.ticker': ticker}, {weight: nWeight});
+		} else{
+			APIError.throwJSONError({message: "Security not found. Can't update weight"});
+		}
+	})
+	.then(updated => {
+		return res.sendStatus(200);
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);

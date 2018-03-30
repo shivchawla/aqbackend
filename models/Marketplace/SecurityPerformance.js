@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-29 17:06:31
+* @Last Modified time: 2018-03-30 11:11:47
 */
 
 'use strict';
@@ -13,6 +13,11 @@ const Security = require('./Security');
 const SecurityPerformance = new Schema({
 	
 	security: Security,
+
+	weight: {
+		type: Number,
+		default: 0
+	},
 
 	priceHistory: {
 		updatedDate: Date,
@@ -59,10 +64,11 @@ SecurityPerformance.statics.fetchSecurityPerformances = function(query, options)
 	return this.find(query)
 	.select(options.fields)
 	.limit(options.limit ? options.limit : 0)
+	.sort(options.sort ? options.sort : {})
 	.execAsync();
 };
 
-SecurityPerformance.statics.updateSecurityPerformance = function(query, updates) {
+SecurityPerformance.statics.updateSecurityPerformance = function(query, updates, fields) {
 	return this.findOneAndUpdate(query, {'$set': updates}, {upsert: true})
 };
 
