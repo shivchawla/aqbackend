@@ -22,7 +22,7 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
         if benchmark_value != nothing && portfolio_value != nothing
             #merge and drop observations before benchmark lastdate
             merged_value = to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end])
-            merged_returns = percentchange(merged_value, :log)
+            merged_returns = percentchange(merged_value)
             
             if length(merged_returns.timestamp) == 0
                 return Performance()
@@ -30,10 +30,6 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
 
             portfolio_returns = merged_returns["Portfolio"].values
             benchmark_returns = merged_returns[benchmark].values
-
-            # replace NaN with zeros
-            portfolio_returns[isnan.(portfolio_returns)] = 0.0
-            benchmark_returns[isnan.(benchmark_returns)] = 0.0
 
             performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns)
             performance.portfoliostats.netvalue = portfolio_value.values[end]
@@ -69,19 +65,15 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
     if portfolio_value != nothing && benchmark_value != nothing && length(ts) > 2
         #merge and drop observations before benchmark lastdate
         merged_value = to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end])
-        merged_returns = percentchange(merged_value, :log)
+        merged_returns = percentchange(merged_value)
         
         if length(merged_returns.timestamp) == 0
             #Can we pick a better date???
-            return (Date(now()) ,Performance())
+            return (Date(now()), Performance())
         end
 
         portfolio_returns = merged_returns["Portfolio"].values
         benchmark_returns = merged_returns[benchmark].values
-
-        # replace NaN with zeros
-        portfolio_returns[isnan.(portfolio_returns)] = 0.0
-        benchmark_returns[isnan.(benchmark_returns)] = 0.0
 
         performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns)
         
@@ -185,10 +177,6 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
 
                 stock_returns = merged_returns["stock"].values
                 benchmark_returns = merged_returns["benchmark"].values
-
-                # replace NaN with zeros
-                stock_returns[isnan.(stock_returns)] = 0.0
-                benchmark_returns[isnan.(benchmark_returns)] = 0.0
 
                 performance = Raftaar.calculateperformance(stock_returns, benchmark_returns)
         
