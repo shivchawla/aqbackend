@@ -371,7 +371,7 @@ end
 
 function compute_pnl_stats(pos::Position)
     pnl = pos.lastprice > 0.0 ? pos.quantity * (pos.lastprice - pos.averageprice) : 0.0
-    pnlpct = pos.averageprice > 0.0 ? round(pos.lastprice * 100/pos.averageprice, 2) : 0.0
+    pnlpct = pos.averageprice > 0.0 ? round(100.0 * (pos.lastprice/pos.averageprice - 1.0), 2) : 0.0
     return Dict{String, Any}("pnl" => pnl, "pnl_pct" => pnlpct)
 end
 

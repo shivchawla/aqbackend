@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-02 12:17:02
+* @Last Modified time: 2018-04-02 16:17:30
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -23,6 +23,22 @@ function _filterPortfolioForAdvice(portfolio, adviceId) {
 						[];
 
 	return {positions: advicePositions};
+}
+
+function _updatePortfolioWeights(portfolio) {
+	var portfolio = Object.assign({}, portfolio);
+	var totalVal = portfolio.detail.cash;
+	var positions = portfolio.detail.positions;
+
+	positions.forEach(item => {
+	 	totalVal += item.quantity*item.lastPrice;
+	});
+
+	positions.forEach(item => {
+		item.weightInPortfolio = totalVal > 0.0 ? (item.quantity*item.lastPrice)/totalVal : 0.0;
+	});
+
+	return portfolio;
 }
 
 function _updatePortfolioForSplitsAndDividends(portfolio) {
@@ -523,6 +539,9 @@ module.exports.getUpdatedPortfolio = function(portfolioId, fields) {
 	.then(([updated, latestPricePortfolio]) => {
 		return updated ? PortfolioModel.updatePortfolio({_id: portfolioId}, latestPricePortfolio, {fields: fields}) : latestPricePortfolio;
 	})
+	.then(latestPricePortfolio => {
+		return _updatePortfolioWeights(latestPricePortfolio.toObject());
+	});
 };
 
 module.exports.getUpdatedPortfolioForRtPrices = function(portfolioId) {

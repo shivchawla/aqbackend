@@ -797,7 +797,7 @@ function convert_to_node_portfolio(port::Portfolio)
             n_pos["security"] = convert(Dict{String,Any}, getsecurity(pos.securitysymbol.id))
             n_pos["quantity"] = pos.quantity
             n_pos["avgPrice"] = pos.averageprice
-            n_pos["profit"] = pos.lasttradepnl
+            n_pos["unrealizedPnL"] = pos.lasttradepnl
             n_pos["lastPrice"] = pos.lastprice
             n_pos["advice"] = pos.advice == "" ? nothing : pos.advice
 

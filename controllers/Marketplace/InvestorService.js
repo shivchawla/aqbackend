@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-02 12:58:34
+* @Last Modified time: 2018-04-02 16:23:00
 */
 
 'use strict';
@@ -26,15 +26,47 @@ function _compareIds(x, y) {
 	}
 }
 
+function _computePnlStats(positions) {
+	var totalPnl = 0.0;
+	var pnlPct = 0.0;
+	var cost = 0.0;
+	var netValue = 0.0;
+	positions.forEach(item => {
+		cost += item.quantity * item.avgPrice;
+		totalPnl += item.quantity * (item.lastPrice - item.avgPrice);
+		netValue += item.quantity * item.lastPrice;
+	});
+
+	pnlPct = cost > 0.0 ? totalPnl/cost : 0.0;
+
+	var x = {pnl: totalPnl, pnlPct: pnlPct, cost: cost, netValue: netValue};
+	return x;
+}
+
 function _getPerformanceOfAdvices(portfolio) {
 	var subPositions = portfolio && portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions : []; 
-	var advices = subPositions.filter(item => {return item.advice && item.advice._id && item.advice._id!=""}).map(item => item.advice._id);
+	var advices = subPositions.filter(item => {return item.advice && item.advice._id}).map(item => item.advice._id);
 		
 	return Promise.map(advices, function(adviceId) {
-		return AdviceHelper.getAdvicePerformanceSummary(adviceId)
-		.then(performance => {
-			return Object.assign({advice: adviceId}, {performance: performance.current});
+		return Promise.all([
+			adviceId !="" ? AdviceHelper.getAdvicePerformanceSummary(adviceId) : {current: {}},
+			_computePnlStats(subPositions.filter(item => {return item.advice._id.toString() == adviceId.toString();}))
+		])
+		.then(([performance, pnlStats]) => {
+			return Object.assign({advice: adviceId}, performance.current, {personal: pnlStats});
 		});
+	})
+	.then(allPerformances => {
+		var totalValue = portfolio.detail.cash;
+		allPerformances.forEach(item => {
+			totalValue += item.netValue;
+		});
+
+		allPerformances.forEach(item => {
+			item.personal.weightInPortfolio = item.netValue/totalValue;
+		});
+
+		return allPerformances;
 	});
 }
 
@@ -86,7 +118,7 @@ module.exports.getInvestorSummary = function(args, res, next) {
     .then(([investor, updatedDefaultPortfolio, updatedDefaultPerformance]) => {
     	return _getPerformanceOfAdvices(updatedDefaultPortfolio)
     	.then(advicePerformance => {
-    		updatedDefaultPortfolio = Object.assign({advicePerformance : advicePerformance}, updatedDefaultPortfolio ? updatedDefaultPortfolio.toObject() : {});	
+    		updatedDefaultPortfolio = Object.assign({advicePerformance : advicePerformance}, updatedDefaultPortfolio ? updatedDefaultPortfolio : {});	
     		return res.status(200).send(Object.assign(investor.toObject(), {defaultPortfolio: updatedDefaultPortfolio, defaultPerformance: updatedDefaultPerformance}));
     	});
     })
