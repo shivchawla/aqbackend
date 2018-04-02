@@ -1457,7 +1457,7 @@ paths:
         type: string
         default: "-100,100"
         description: filter on sharpe ratio of advice
-      - name: return
+      - name: totalReturn
         in: query
         required: false
         type: string
@@ -2138,46 +2138,6 @@ paths:
         400:
           description: 'Invalid input'
       x-swagger-router-controller: "Investor" 
-
-  /investor/{investorId}/followingAdvices:
-    get:
-      tags:
-      - investor
-      summary: get advice followed by investor
-      description: get advice followed by investor
-      operationId: getFollowingAdvices
-      security:
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: investorId
-        in: path
-        required: true
-        type: string
-      - name: skip
-        in: query
-        type: integer
-        required: false
-        default: 0
-        description: skip records
-      - name: limit
-        in: query
-        type: integer
-        required: false
-        default: 5
-        description: total number of advice
-      responses:
-        200:
-          description: "get advice followed by investor"
-        400:
-          description: "Not Authorized"
-          schema:
-            $ref: "#/definitions/Error"
-      x-swagger-router-controller: "Investor"
 
   /investor/{investorId}/followingAdvisors:
     get:

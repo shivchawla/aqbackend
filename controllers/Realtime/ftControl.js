@@ -1,13 +1,13 @@
 'use strict';
 var redis = require("redis");
-const redisUtils = require('../utils/RedisUtils');
+const redisUtils = require('../../utils/RedisUtils');
 const CryptoJS = require('crypto-js');
 const config = require('config');
 const WebSocket = require('ws');
 const schedule = require('node-schedule');
-const ForwardTestModel = require('../models/Research/forwardtest');
+const ForwardTestModel = require('../../models/Research/forwardtest');
 const SettingsParser = require('./btSettings.js');
-const serverPort = require('../index').serverPort;
+const serverPort = require('../../index').serverPort;
 
 var numAttempts = {};
 var numRequests = 0;

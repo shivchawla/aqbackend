@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-29 19:47:09
+* @Last Modified time: 2018-03-31 11:47:44
 */
 
 'use strict';
@@ -102,11 +102,9 @@ module.exports.getInvestorDetail = function(args, res, next) {
 
     const options = {};
     var defaultFields = 'user defaultPortfolio portfolios followingAdvices subscribedAdvices';
-    //options.populate = 'defaultPortfolio followingAdvices subscribedAdvices';
     
     options.fields = args.fields.value != "" ? args.fields.value : defaultFields; 
     options.insert = true;
-    //options.populate = 'defaultPortfolio followingAdvices subscribedAdvices';
 	
     return InvestorModel.fetchInvestor({user: userId}, options)
 	.then(investor => {
@@ -121,31 +119,6 @@ module.exports.getInvestorDetail = function(args, res, next) {
 	});  
 };
 
-/*
-* Get following advices (Don't need to use this..Use Advice Service)
-*/
-module.exports.getFollowingAdvices = function(args, res, next) {
-
-	const skip = args.skip.value;
-	const limit = args.limit.value;
-	const userId = args.user._id;
-	const investorId = args.investorId.value;
-
-	return InvestorModel.fetchInvestor({user: userId}, {fields: 'followingAdvices', insert: true})
-    .then(investor => {
-    	if(investor && investor.followingAdvices) {
-    		var following = investor.followingAdvices.filter(item => {return item.active == true;});
-    		var count = following.length;
-    		following = following.splice(skip, limit);
-    		return res.status(200).json({"followingAdvices":following, count: count});	
-    	} else {
-    		APIError.throwJsonError({message: "Investor not found", errorCode: 1301});
-    	}
-    })
-    .catch(err => {
-    	return res.status(400).send(err.message);
-    });
-};
 
 /*
 * Get following advisors
@@ -157,15 +130,15 @@ module.exports.getFollowingAdvisors = function(args, res, next) {
 	const userId = args.user._id;
 	const investorId = args.investorId.value;
 
-	return InvestorModel.fetchInvestor({user: userId}, {fields: 'followingAdvisors', insert: true})
-    .then(investor => {
-    	if(investor.followingAdvisors) {
-    		var following = investor.followingAdvisors.filter(item => {return item.active == true;});
-    		var count = following.length;
-    		following = following.splice(skip, limit);
-    		return res.status(200).json({"followingAdvisors": following, count: count});	
+	var profileFields = config.get('advisor_public_profile_fields').map(item => {return "profile."+item});
+	var allFields = `${profileFields} latestAnalytics`;
+
+	return AdvisorModel.fetchAdvisors({followers: {$elemMatch: {investor: investorId, active:true}}}, {fields: allFields})
+    .then(advisors => {
+    	if(advisors) {
+    		return res.status(200).send(advisors);
     	} else {
-    		APIError.throwJsonError({message: "Investor not found", errorCode: 1301});
+    		APIError.throwJsonError({message: "Advisors not found", errorCode: 1201});
     	}
     })
     .catch(err => {

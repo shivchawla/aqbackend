@@ -160,7 +160,7 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
         
         if valid
             benchmark_prices = history_nostrict([benchmark_ticker], "Close", :Day, start_date, end_date)
-            stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date)
+            stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
             
             if(benchmark_prices != nothing && stock_prices != nothing)
                 
@@ -208,7 +208,7 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
 
             benchmark = "NIFTY_50"
             benchmark_prices = history_nostrict([benchmark], "Close", :Day, start_date, end_date)
-            stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date)
+            stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
             if stock_prices == nothing
                 stock_prices = history_nostrict([security.symbol.ticker], "Close", :Day, start_date, end_date)
             end
@@ -248,7 +248,7 @@ function compute_stock_static_performance(security_dict::Dict{String,Any}; bench
 
             benchmark_prices = history_nostrict([benchmark], "Close", :Day, start_date, end_date)
             
-            stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date)
+            stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
 
             if stock_prices == nothing
                 stock_prices = history_nostrict([security.symbol.ticker], "Close", :Day, start_date, end_date)
@@ -287,7 +287,7 @@ function get_stock_price_history(security_dict::Dict{String,Any})
             start_date = DateTime("2001-01-01")
             end_date = now()
 
-            stock_value = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date)
+            stock_value = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
             if stock_value == nothing
                 stock_value = history_nostrict([security.symbol.ticker], "Close", :Day, start_date, end_date)
             end
@@ -322,7 +322,7 @@ function get_stock_price_latest(security_dict::Dict{String,Any})
             end_date = Date(now())
             start_date = end_date - Dates.Week(52)
 
-            stock_value_52w = YRead.history(security.symbol.id, ["Open","High","Low","Close"], :Day, DateTime(start_date), DateTime(end_date))
+            stock_value_52w = YRead.history(security.symbol.id, ["Open","High","Low","Close"], :Day, DateTime(start_date), DateTime(end_date), displaylogs=false)
             if stock_value_52w == nothing 
                 stock_value_52w = history_nostrict(security.symbol.id, ["Open","High","Low","Close"], :Day, DateTime(start_date), DateTime(end_date))
             end
@@ -360,12 +360,12 @@ end
 # Function to fetch PRICE HISTORY (without strict priority policy)
 ###
 function history_nostrict(tickers, dtype::String, res::Symbol, sd::DateTime, ed::DateTime)
-    data = YRead.history(tickers, dtype, res, sd, ed, strict = false)
+    data = YRead.history(tickers, dtype, res, sd, ed, strict = false, displaylogs=false)
     return data
 end
 
 function history_nostrict(ticker, dtypes::Vector{String}, res::Symbol, sd::DateTime, ed::DateTime)
-    data = YRead.history(ticker, dtypes, res, sd, ed, strict = false)
+    data = YRead.history(ticker, dtypes, res, sd, ed, strict = false, displaylogs=false)
     return data
 end
 

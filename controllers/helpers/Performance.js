@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-29 20:02:10
+* @Last Modified time: 2018-03-31 20:29:01
 */
 
 'use strict';
@@ -13,8 +13,8 @@ const APIError = require('../../utils/error');
 const config = require('config');
 const WebSocket = require('ws'); 
 const Promise = require('bluebird');
-const HelperFunctions = require('./index');
-const PortfolioHelper= require('./Portfolio');
+const PortfolioHelper = require('./Portfolio');
+const DateHelper = require('../../utils/Date');
 
 function _checkPerformanceUpdateRequired(performanceDetail) {
 	if(!performanceDetail) {
@@ -23,7 +23,7 @@ function _checkPerformanceUpdateRequired(performanceDetail) {
 
 	if(performanceDetail && performanceDetail.updateDate) {
         
-        if(HelperFunctions.getDate(performanceDetail.updateDate) < HelperFunctions.getDate(new Date())) {
+        if(DateHelper.getDate(performanceDetail.updateDate) < DateHelper.getCurrentDate()) {
         	 return true;
         }
     } else {
@@ -147,7 +147,7 @@ function _computeConstituentPerformance(portfolioId) {
 		if(portfolio && portfolio.detail) {
 			var currentPortfolio = portfolio.detail;
 			//Check if start date is present (Added: 15/03/2018)
-			var startDate = HelperFunctions.getDate(currentPortfolio.startDate ? currentPortfolio.startDate : new Date());
+			var startDate = DateHelper.getDate(currentPortfolio.startDate);
 			var endDate = new Date();
 			return _computeConstituentPerformance_portfolio(currentPortfolio, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
 		} else {
@@ -321,7 +321,7 @@ function _computeLatestPerformance(portfolioId) {
 				updateDate: new Date(),
 				metrics: {
 					//earliest Date is IST date
-					date:  HelperFunctions.getDate(earliestDate),
+					date:  DateHelper.getDate(earliestDate),
 					portfolioMetrics: portfolioMetrics.value,
 					portfolioPerformance: latestPerformance.value,
 					constituentPerformance: constituentPerformance.value
@@ -348,7 +348,7 @@ function _computeSimulatedPerformance(portfolioId) {
 			var updates = {updateMessage: "Updated Successfully",
 				updateDate: new Date(),
 				metrics: {
-					date:  HelperFunctions.getDate(new Date(simulatedPerformance.date)),
+					date:  DateHelper.getDate(simulatedPerformance.date),
 					portfolioMetrics: simulatedPortfolioMetrics.value,
 					portfolioPerformance: simulatedPerformance.value,
 					constituentPerformance: null,
@@ -606,24 +606,4 @@ module.exports.getAllPerformance = function(portfolioId) {
 	} else {
 		APIError.throwJsonError({message: "Invalid Portfolio", portfolioId: portfolioId});
 	}
-};
-
-module.exports.computePerformanceRating = function(performance) {
-	//return PerformanceModel.fetchPerformance({portfolio: portfolioId})
-	//.then(performance => {
-		//WRITE RATING LOGIC HERE
-		if (performance) {
-			//Use Sharpe Ratio Fractional Rnking
-			//Use Information Ratio Fractional Ranking
-			//Use Calmar Ratio Fractional Ranking
-			//Use Total Return Fractional Ranking
-			//Use Inverse of Volatility Fractional Ranking
-			//Use Tracking Error Fractional Ranking
-
-			return 5.0;
-		} else {
-			return 5.0
-			//APIError.throwJsonError({portfolioId: portfolioId, message: "Performance not available"});
-		}
-	//});
 };

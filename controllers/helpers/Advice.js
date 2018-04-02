@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-29 19:27:34
+* @Last Modified time: 2018-04-02 11:36:59
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -11,16 +11,17 @@ const AdviceModel = require('../../models/Marketplace/Advice');
 const Promise = require('bluebird');
 const WebSocket = require('ws'); 
 const config = require('config');
-const HelperFunctions = require("../helpers");
 const PerformanceHelper = require("../helpers/Performance");
 const PortfolioHelper = require("../helpers/Portfolio");
+const AdvisorHelper = require("../helpers/Advisor");
+const DateHelper = require("../../utils/Date");
 const APIError = require('../../utils/error');
 
 module.exports.getAdviceAccessStatus = function(adviceId, userId) {
 	return Promise.all([
 		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
 		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, {fields: 'advisor'}),
-		HelperFunctions.getAdminAdvisor(userId)
+		AdvisorHelper.getAdminAdvisor(userId)
 	])
 	.then(([advisor, advice, adminAdvisor]) => {
 
@@ -37,7 +38,7 @@ module.exports.computeAdviceSubscriptionDetail = function(adviceId, userId) {
 		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
 		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true}),
 		AdviceModel.fetchAdvice({_id:adviceId}, {field:'advisor subscribers followers'}),
-		HelperFunctions.getAdminAdvisor(userId)
+		AdvisorHelper.getAdminAdvisor(userId)
 	])
 	.then(([advisor, investor, advice, adminAdvisor]) => {
 		
@@ -153,7 +154,7 @@ module.exports.computeAdvicePerformanceSummary = function(adviceId) {
 
 //RECALCULATE IS NOT USED - 23/03/2018
 module.exports.getAdvicePerformanceSummary = function(adviceId, recalculate) {
-	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio performanceSummary'})
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'performanceSummary'})
 	.then(advice => {
 		if (!advice.performanceSummary || recalculate) {
 			return exports.computeAdvicePerformanceSummary(adviceId);
@@ -172,7 +173,7 @@ module.exports.computeAdviceAnalytics = function(adviceId) {
 			subscribers = advice.subscribers;
 			followers = advice.followers;
 			return {
-				date: HelperFunctions.getDate(new Date()),
+				date: DateHelper.getCurrentDate(),
 				numSubscribers: subscribers.filter(item => {return item.active == true}).length,
 				numFollowers: followers.filter(item => {return item.active == true}).length,
 			};
@@ -225,3 +226,21 @@ module.exports.validateAdvice = function(advice, oldAdvice, strictNetValue) {
 	    });
     })
 };
+
+module.exports.updateAdviceAnalyticsAndPerformanceSummary = function(adviceId) {
+	return Promise.all([
+			exports.computeAdviceAnalytics(adviceId),
+			exports.computeAdvicePerformanceSummary(adviceId)
+	])
+	.then(([adviceAnalytics, advicePerformanceSummary]) => {
+		return AdviceModel.updateAnalyticsAndPerformance({_id: adviceId}, {analytics: adviceAnalytics, performanceSummary: advicePerformanceSummary});
+	})
+	.then(advice => {
+		if (advice) {
+			return {latestAnalytics: advice.latestAnalytics, performanceSummary: advice.performanceSummary};
+		} else{
+			return {latestAnalytics: null, performanceSummary: null};
+		}
+	});
+};
+

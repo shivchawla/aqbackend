@@ -1,31 +1,36 @@
 'use strict';
-const ws = require('../index').ws;
-const jwtUtil = require('../utils/jwttoken');
-const redisUtils = require('../utils/RedisUtils');
+const ws = require('../../index').ws;
+const jwtUtil = require('../../utils/jwttoken');
+const redisUtils = require('../../utils/RedisUtils');
 const BacktestController = require('./btControl.js');
 const ForwardTestController = require('./ftControl.js');
+const MarketPlaceController = require('./mktControl.js');
+const UserModel = require('../../models/user');
+const APIError = require('../../utils/error');
+const Promise = require('bluebird');
 
 // Listen to requests from UI
 ws.on('connection', function connection(res) {
     res.on('message', function(message) {
         let req;
 
-        try {
+        Promise.resolve()
+        .then(x => {
+            if (!req || !req['aimsquant-token']) {
+                APIError.message({message: "Token missing"});
+            }
+        
             req = JSON.parse(message);
-        } catch (e) {
-            return res.send('not valid json');
-        }
-
-        if (!req || !req['aimsquant-token']) {
-            console.error("Token missing");
-            return;
-        }
-
-        jwtUtil.verifyToken(req['aimsquant-token'])
+            return req;
+        })
+        .then(req => {
+            return jwtUtil.verifyToken(req['aimsquant-token'])
+        })
         .then(decoded => {
             if (decoded.exp*1000 <= Date.now()) {
-                res.send('token expired');
-                return;
+                APIError.throwJSONError({message: "Token expired"});
+            } else {
+                return UserModel.fetchUser({_id: decoded._id});
             }
 
             // Call function based on action type
@@ -35,7 +40,18 @@ ws.on('connection', function connection(res) {
             // 3. run-all-forwardtest
             // 4. run-forwardtest
             // 5. stop-forwardtest
-            exports.handleAction(req, res);
+            
+        })
+        .then(user => {
+            if (user) {
+                req.userId = user._id;
+                exports.handleAction(req, res);
+            } else {
+                APIError.throwJSONError({message: "User is not Authorized"});
+            }
+        })
+        .catch(err => {
+            res.send(err.message);
         });
     });
 });
@@ -61,5 +77,8 @@ exports.handleAction = function(req, res) {
     }
     else if(req.action === 'stop-forwardtest') {
         return ForwardTestController.cancelTest(req.forwardtestId);
+    } 
+    else if(req.action === 'subscribe-mktplace') {
+        return MarketPlaceRtController.handleMktPlaceSubscription(req, res);
     }
 };

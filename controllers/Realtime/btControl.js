@@ -1,14 +1,14 @@
 'use strict';
 var redis = require('redis');
-const redisUtils = require('../utils/RedisUtils');
+const redisUtils = require('../../utils/RedisUtils');
 const config = require('config');
 const WebSocket = require('ws');
-const BacktestModel = require('../models/Research/backtest');
-const StrategyModel = require('../models/Research/strategy');
+const BacktestModel = require('../../models/Research/backtest');
+const StrategyModel = require('../../models/Research/strategy');
 const schedule = require('node-schedule');
 var fs = require('fs');
 const SettingsParser = require('./btSettings.js');
-const serverPort = require('../index').serverPort;
+const serverPort = require('../../index').serverPort;
 
 schedule.scheduleJob("0 * * * * *", function() {
     processBacktest(null);

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:53:13
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-21 16:32:38
+* @Last Modified time: 2018-04-02 12:33:27
 */
 
 'use strict';
@@ -29,49 +29,6 @@ const Investor = new Schema({
     portfolios: [{
         type: Schema.Types.ObjectId,
         ref: 'Portfolio'
-    }],
-
-    subscribedAdvices:[{
-        advice: {
-	       type: Schema.Types.ObjectId,
-	       ref: 'Advice'
-       },
-
-       updatedDate: Date,
-
-       active: {
-            type: Boolean,
-            default: true,
-       }
-    }],
-   	
-    followingAdvices: [{
-
-        advice: {
-	       type: Schema.Types.ObjectId,
-            ref: 'Advice'
-        },
-
-        updatedDate: Date,
-
-        active: {
-            type: Boolean,
-            default: true,
-       }
-    }],
-
-    followingAdvisors: [{
-        advisor: {
-            type: Schema.Types.ObjectId,
-            ref: 'Advisor'
-        },
-
-        updatedDate: Date,
-
-        active: {
-            type: Boolean,
-            default: true,
-        }
     }],
 
     profile: Schema.Types.Mixed,
@@ -118,60 +75,6 @@ Investor.statics.fetchInvestor = function(query, options) {
 
 Investor.statics.updateInvestor = function(query, updates) {
     return this.findOneAndUpdate(query, updates);
-};
-
-Investor.statics.updateFollowing = function(query, id, type) {
-	
-    return this.findOne(query, {followingAdvisors:1, followingAdvices:1})
-    .then(investor => {
-        if (investor) {
-
-            let array = '';
-            let idx = '';
-            if (type=="advisor") {
-            	array = investor.followingAdvisors;
-            	idx = array.map(item => item.advisor.toString()).indexOf(id.toString());
-            } else {
-            	array = investor.followingAdvices;
-            	idx = array.map(item => item.advice.toString()).indexOf(id.toString());
-            }
-           
-            if(idx == -1) {
-                if (type=="advisor") {
-                    array.addToSet({advisor: id, active: true, updatedDate: new Date()});
-                } else {
-                    array.addToSet({advice: id, active: true, updatedDate: new Date()});
-                }
-            } else {
-            	array[idx].active = !array[idx].active;
-                array[idx].updatedDate = new Date();
-        	}
-            	
-        	return investor.saveAsync();
-    	}
-    });
-};
-
-Investor.statics.updateSubscription = function(query, adviceId) {
-	var adviceId = adviceId.toString(); 
-
-    return this.findOne(query, {subscribedAdvices: 1})
-    .then(investor => {
-        if (investor) {
-            
-            var array = investor.subscribedAdvices;
-            var idx = array.map(item => item.advice.toString()).indexOf(adviceId);
-           
-            if(idx == -1) {
-                array.addToSet({advice: adviceId, active: true, updatedDate: new Date()});
-            } else {
-                array[idx].active = !array[idx].active;
-                array[idx].updatedDate = new Date();
-            }
-                
-            return investor.saveAsync();
-        }
-    });
 };
 
 Investor.statics.addPortfolio = function(query, portfolioId){

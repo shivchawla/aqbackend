@@ -1,5 +1,5 @@
 using YRead
-using Raftaar: Security, SecuritySymbol, Portfolio, Position, OrderFill, TradeBar
+using Raftaar: Security, SecuritySymbol, Portfolio, Position, OrderFill, TradeBar, Adjustment
 using Raftaar: Performance, PortfolioStats 
 using Raftaar: calculateperformance
 using Raftaar: updateportfolio_fill!, updateportfolio_price!
@@ -274,7 +274,7 @@ function _compute_latest_portfoliovalue(portfolio::Portfolio, cash::Float64)
         secids = [sym.id for sym in keys(portfolio.positions)]    
 
         #get the unadjusted prices for tickers in the portfolio
-        prices = YRead.history_unadj(secids, "Close", :Day, 1, now(), offset = -1)
+        prices = YRead.history_unadj(secids, "Close", :Day, 1, now(), offset = -1, displaylogs=false)
 
         if prices == nothing
             println("Price data not available")
@@ -312,7 +312,7 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
         secids = [sym.id for sym in keys(portfolio.positions)]    
 
         #Get the Adjusted prices for tickers in the portfolio
-        prices = YRead.history(secids, "Close", :Day, start_date, end_date)
+        prices = YRead.history(secids, "Close", :Day, start_date, end_date, displaylogs=false)
 
         if prices == nothing
             println("Price data not available")
@@ -389,7 +389,7 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, date::DateTime)
         tickers = [sym.ticker for sym in allkeys]    
 
         #Get the Adjusted prices for tickers in the portfolio
-        prices = YRead.history(secids, "Close", :Day, date, date)
+        prices = YRead.history(secids, "Close", :Day, date, date, displaylogs=false)
 
         if prices == nothing
             println("Price data not available")
@@ -426,7 +426,7 @@ function _updateportolio_EODprice(port::Portfolio, date::DateTime)
         start_date = DateTime(Date(date) - Dates.Week(52))
         end_date = date
 
-        stock_value_52w = YRead.history(alltickers, "Close", :Day, start_date, end_date)
+        stock_value_52w = YRead.history(alltickers, "Close", :Day, start_date, end_date, displaylogs=false)
         benchmark_value_52w =  history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date) 
 
         #Check if stock values are valid 
@@ -711,6 +711,37 @@ function updateportfolio_price(port::Dict{String, Any}, end_date::DateTime = now
         rethrow(err)
     end
 end
+
+
+function updatedportfolio_splits_dividends(portfolio::Dict{String,Any}, date::DateTime = now())
+    port = convert(Raftaar.portfolio, portfolio)
+    adjustments = YRead.getadjustments([sym.ticker for sym in keys(portfolio.positions)], date, date)
+    cashfromdividends = 0.0
+    updated = false
+
+    if adjustments != nothing && length(keys(adjustments)) > 0
+        updated = true
+        adjs = Dict{SecuritySymbol, Adjustment}()
+
+        #THIS LOGIC SHOULD BE IN RAFTAAR but is not there yet...
+        #It's thee in getdatastores Function
+        if haskey(adjustments, security.symbol.id)
+            if haskey(adjustments[security.symbol.id], date)
+                adj = adjustments[security.symbol.id][date]
+                adjs[security.symbol] = Adjustment(adj[1], string(adj[3]), adj[2])
+            end
+        end
+
+        Raftaar.updateportfolio_splits_dividends!(port, adjs)
+        
+        for (symbol, adjustment) in adjustments
+            cashfromdividends += (adjustment.adjustmenttype == "17.0") ? port[symbol].quantity * adjustment.adjustmentfactor : 0.0
+        end
+    end
+
+    return (updated, cashfromdividends, port)
+
+end    
 
 ###
 # Function to compute portfolio WEIGHT composition for the LAST available day (in a period)

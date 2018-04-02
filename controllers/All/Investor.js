@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 20:45:19
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-28 20:49:56
+* @Last Modified time: 2018-03-31 10:40:51
 */
 
 'use strict';
@@ -22,10 +22,6 @@ module.exports.getInvestorDetail = function(req, res, next) {
 
 module.exports.getFollowingAdvisors = function(req, res, next) {
     Investor.getFollowingAdvisors(req.swagger.params, res, next);
-};
-
-module.exports.getFollowingAdvices = function(req, res, next) {
-    Investor.getFollowingAdvices(req.swagger.params, res, next);
 };
 
 //Investor Portfolio Related

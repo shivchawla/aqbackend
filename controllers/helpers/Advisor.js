@@ -1,30 +1,14 @@
 /*
 * @Author: Shiv Chawla
-* @Date:   2017-05-10 13:06:04
+* @Date:   2018-03-31 19:44:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-02 12:31:21
+* @Last Modified time: 2018-03-31 19:46:01
 */
 
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
-const PerformanceModel = require('../../models/Marketplace/Performance');
 const UserModel = require('../../models/user');
-const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
-const APIError = require('../../utils/error');
 const config = require('config');
-const WebSocket = require('ws'); 
-const Promise = require('bluebird');
-var ObjectId= require('mongoose').Types.ObjectId;
-
-function _compareIds(x, y) {
-	if(!x && !y) {
-		return true;
-	} else if(!x || !y) {
-		return false;
-	} else {
-		return x.equals(y);
-	}
-}
 
 module.exports.getAdminAdvisors = function() {
 	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {fields:'_id'})

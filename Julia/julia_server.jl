@@ -40,7 +40,7 @@ fname = ""
   
 
 function close_connection(client)  
-    println("Closing Connection: $client")
+    #println("Closing Connection: $client")
     try
         close(client)
     catch
@@ -301,7 +301,14 @@ wsh = WebSocketHandler() do req, ws_client
             
             #Update, the positions to match the object structure in Node
             parsemsg["updatedPositions"] = convert_to_node_portfolio(updated_positions)["positions"]
-            
+       
+
+        elseif action == "updated_portfolio_splits_dividends"
+            portfolio = parsemsg["portfolio"]
+            date = parsemsg["date"]   
+            (updated, cashgenerated, updated_portfolio) = updatedportfolio_splits_dividends(portfolio, date == "" ? now() : DateTime(date))
+            parsemsg["updates"] = Dict("cashgenerated" => cashgenerated, "positions" => convert_to_node_portfolio(updated_positions)["positions"], "hasChanged" => updated)
+
         elseif action == "compute_fractional_ranking"
             
             vals = Dict{String, Float64}()

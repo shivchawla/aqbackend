@@ -2,16 +2,19 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:56:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-23 19:11:56
+* @Last Modified time: 2018-03-31 20:37:09
 */
 
 const AdviceModel = require('../../models/Marketplace/Advice');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const APIError = require('../../utils/error');
 const Promise = require('bluebird');
-const HelperFunctions = require('./index');
+const WebSocket = require('ws'); 
+const config = require('config');
 const AdviceHelper = require('./Advice');
 const PerformanceHelper = require('./Performance');
+const DateHelper = require('../../utils/Date');
+
 
 function _computeAggregateRating (adviceIds) {
 	return Promise.map(adviceIds, function(adviceId) {
@@ -46,6 +49,36 @@ function _computeAggregateRating (adviceIds) {
 	});
 }
 
+function _computeFractionalRanking(values, scale) {
+	return new Promise((resolve, reject) => {
+
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
+
+		wsClient.on('open', function open() {
+            console.log('Connection Open');
+            console.log(connection);
+            var msg = JSON.stringify({action:"compute_fractional_ranking", 
+            						values: values,
+            						scale: scale ? scale : ""});
+
+         	wsClient.send(msg);
+        });
+
+        wsClient.on('message', function(msg) {
+        	var data = JSON.parse(msg);
+
+        	if (data["error"] == "" && data["fractionalRanking"]) {
+			    resolve(data["fractionalRanking"]);
+		    } else if (data["error"] != "") {
+		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
+		    } else {
+		    	reject(APIError.jsonError({message: "Internal error in computing fractionalRanking", errorCode: 2101}));
+		    }
+	    });
+    })
+}
+
 function _updateAdvisorAnalytics(advisorId) {
 	return Promise.all([
 		AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: '_id subscribers followers'}),
@@ -56,7 +89,7 @@ function _updateAdvisorAnalytics(advisorId) {
 			return _computeAggregateRating(advices)
 			.then(rating => {
 				return {
-					date: HelperFunctions.getDate(new Date()),
+					date: DateHelper.getDate(),
 					numFollowers: advisor.followers.filter(item => {return item.active == true;}).length,
 					rating: rating,
 					numAdvices: advices.length
@@ -80,8 +113,8 @@ function _updateAdviceAnalytics(adviceId) {
 	//REPLACING GET TO CALCULATE - 23/03/2018
 	//BECAUSE WE SHOULDN"T RELY OF STALE VALUE
 	return Promise.all([
-		AdviceHelper.computeAdviceAnalytics(adviceId, true),
-		AdviceHelper.computeAdvicePerformanceSummary(adviceId, true)
+		AdviceHelper.computeAdviceAnalytics(adviceId),
+		AdviceHelper.computeAdvicePerformanceSummary(adviceId)
 	])
 	.then(([adviceAnalytics, advicePerformanceSummary]) => {
 		return AdviceModel.updateAnalyticsAndPerformance({_id: adviceId}, {analytics: adviceAnalytics, performanceSummary: advicePerformanceSummary});
@@ -133,7 +166,7 @@ module.exports.updateAllAdviceAnalytics = function() {
 					valueRatingField[key] = item.performance && item.performance[ratingField.field] ?  ratingField.multiplier * item.performance[ratingField.field] : NaN ;
 				});
 				
-				return HelperFunctions.computeFractionalRanking(valueRatingField);
+				return _computeFractionalRanking(valueRatingField);
 
 			})
 			.then(allFrs => {
@@ -147,12 +180,12 @@ module.exports.updateAllAdviceAnalytics = function() {
 					totalRankings[adviceId] = sum;
 				});
 
-				return HelperFunctions.computeFractionalRanking(totalRankings, 5.0);
+				return _computeFractionalRanking(totalRankings, 5.0);
 			});
 		})
 		.then(([currentRatings, simulatedRatings])  => {
 			return Promise.map(adviceIds, function(adviceId) {
-				return AdviceModel.updateRating({_id: adviceId}, {date: HelperFunctions.getDate(new Date()), rating: {current: currentRatings[adviceId], simulated: simulatedRatings[adviceId]}});
+				return AdviceModel.updateRating({_id: adviceId}, {date: DateHelper.getCurrentDate(), rating: {current: currentRatings[adviceId], simulated: simulatedRatings[adviceId]}});
 			});
 		});
 	});

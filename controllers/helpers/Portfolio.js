@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-29 09:17:26
+* @Last Modified time: 2018-04-02 12:17:02
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -12,7 +12,7 @@ const APIError = require('../../utils/error');
 const WebSocket = require('ws'); 
 const config = require('config');
 const Promise = require('bluebird');
-const HelperFunctions = require('./index');
+const DateHelper= require('../../utils/Date');
 var ObjectId = require('mongoose').Types.ObjectId;
 
 function _filterPortfolioForAdvice(portfolio, adviceId) {
@@ -23,6 +23,42 @@ function _filterPortfolioForAdvice(portfolio, adviceId) {
 						[];
 
 	return {positions: advicePositions};
+}
+
+function _updatePortfolioForSplitsAndDividends(portfolio) {
+	//Julia computes the updated portfolio	
+	//HEAVY DUTY WORK IS DONE BY JULIA
+	return new Promise(function(resolve, reject) {
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
+
+		wsClient.on('open', function open() {
+	        console.log('Connection Open');
+	        console.log(connection);
+
+	        //WHy Cash == 0.0: So that output portfolio has cash generated
+	        const portfolio = {
+	        	positions: positions,
+	        	cash: 0.0
+	        };
+
+	        var msg = JSON.stringify({action:"update_portfolio_splits_dividends", 
+        								portfolio: portfolio}); 
+
+	     	wsClient.send(msg);
+	    });
+
+	    wsClient.on('message', function(msg) {
+	    	var data = JSON.parse(msg);
+	    	if(data['updates'] && data["error"] == "") {
+    			resolve(data['updates']);
+			} else if(data["error"] != "") {
+				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
+			} else {
+				reject(APIError.jsonError({message: "Internal error in updating positions for transactions", errorCode: 2101}));
+			}
+		});
+	});
 }		
 
 //Common function to handle stock and stock/advice transactions
@@ -250,6 +286,52 @@ function _computeUpdatedPortfolioForPrice(portfolio, date, type) {
 	});
 }
 
+function _computeUpdatedPortfolioDetailForSplits(portfolioDetail, date) {
+	return new Promise(resolve => {
+		Promise.all([
+			_updatePositionsForSplitsAndDividends(portfolioDetail.positions, date)
+			.then(updates => { //contains updted positions, cashgenerates and haschanged flag
+				return [updates.cashgenerated, updates.positions, updates.hasChanged];
+			}),
+
+			//Each subposition is sent separately as JULIA portfolio can't handle 
+			//redundant securities
+			Promise.map(portfolioDetail.subPositions, function(position) {
+				return _updatePositionsForSplitsAndDividends([position], date)
+				.then(updates => { //updates include (cashgenerated , positions and isChanged flag)
+					if (updates.positions){
+						return updates.positions.length == 1 ? updated.positions[0] : null;
+					} else {
+						return null;
+					}
+				});
+			})
+		])
+		.then(([[cashgen, updatedPositions, hasChanged], updatedSubPositions]) => {
+			if(hasChanged) {
+				var updatedPortfolioDetail = Object.assign({}, portfolioDetail);
+				
+				if(updatedPositions) {
+					updatedPortfolioDetail.positions = updatedPositions;
+				}
+
+				if (cashgen) {
+					updatedPortfolioDetail.cash += cashgen;
+				}
+				
+				if(updatedSubPositions) {
+					//Filter out the NULL values
+					updatedPortfolioDetail.subPositions = updatedSubPositions.filter(item => item);
+				}
+
+				resolve([hasChanged, updatedPortfolio]);
+			} else {
+				resolve([false, portfolioDetail]);
+			}
+		});
+	});
+}
+
 module.exports.computePortfolioAnalytics = function(portfolioId) {
 	return exports.getUpdatedPortfolio(portfolioId, 'detail')
 	.then(portfolio => {
@@ -289,7 +371,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 			//2. Filter out transaction for the date
 			return Promise.map(uniqueDates, function(date){
 
-				var transactionsForAdviceIdForDate = transactionsForAdviceId.filter(item => {return HelperFunctions.compareDates(item.date, date) == 0;});
+				var transactionsForAdviceIdForDate = transactionsForAdviceId.filter(item => {return DateHelper.compareDates(item.date, date) == 0;});
 				
 				return AdviceModel.fetchAdvicePortfolio({_id: adviceId}, date)
 				.then(advicePortfolio => {
@@ -297,7 +379,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 						
 						//3. Validate transactions against advice portfolio as of that date
 						var investorCurrentPortfolioInAdvice = _filterPortfolioForAdvice(portfolio, adviceId);
-						return HelperFunctions.validateTransactions(transactionsForAdviceIdForDate, advicePortfolio, investorCurrentPortfolioInAdvice)
+						return exports.validateTransactions(transactionsForAdviceIdForDate, advicePortfolio, investorCurrentPortfolioInAdvice)
 						.catch(err => {
 							APIError.throwJsonError({message: "Invalid transactions (Reason: " + err.message +")", advice: adviceId, date: date, errorCode: 1406});
 						});
@@ -311,7 +393,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 			})
 		} else {
 			var onlyStockTransactions = transactions.filter(item => {return !item.advice});
-			return HelperFunctions.validateTransactions(onlyStockTransactions)
+			return exports.validateTransactions(onlyStockTransactions)
 			.catch(err => {
 				APIError.throwJsonError({message: "Invalid transactions (Reason: "+ err.message +")", errorCode: 1406});
 			});
@@ -338,7 +420,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 				if(nTransactions > 0) {
 					//sort transaction by date
 					oldTransactions.sort((item1, item2) => {
-						return HelperFunctions.compareDates(item1, item2);
+						return DateHelper.compareDates(item1, item2);
 					});
 
 					//get the last transaction's date
@@ -347,7 +429,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 					//Also, sort the new transactions by dates
 					//First convert to JS dates from string dates
 					transactions.sort((item1, item2) => {
-						return HelperFunctions.compareDates(item1, item2);
+						return DateHelper.compareDates(item1, item2);
 					});
 
 					//get first transaction date
@@ -355,7 +437,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 
 					//If earliest date of new transaction is hgher than latest date of old transactions,
 					//then APPEND
-					if (HelperFunctions.compareDates(firstDateNew, lastDateOld) == 1) {
+					if (DateHelper.compareDates(firstDateNew, lastDateOld) == 1) {
 						updateMethod = 'Append';
 					}
 				}
@@ -430,7 +512,7 @@ module.exports.getUpdatedPortfolio = function(portfolioId, fields) {
 	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted:false}, {fields:'detail updatedDate'})
 	.then(portfolio => {
 		if(portfolio) {
-			var updateRequired = portfolio.updatedDate ? HelperFunctions.getDate(portfolio.updatedDate) < HelperFunctions.getDate(new Date()) : true;
+			var updateRequired = portfolio.updatedDate ? DateHelper.getDate(portfolio.updatedDate) < DateHelper.getCurrentDate() : true;
 			return updateRequired ? 
 				_computeUpdatedPortfolioForPrice(portfolio.toObject()):
 				[false,  portfolio];
@@ -523,3 +605,57 @@ module.exports.validatePortfolio = function(portfolio) {
     })
 };
 
+module.exports.validateTransactions = function(transactions, advicePortfolio, investorPortfolio) {
+
+	//Addding a checking for valid transaction date (05-03-2018)
+	var tomorrow = DateHelper.getCurrentDate();
+	tomorrow.setDate(tomorrow.getDate()+1);
+	transactions.forEach(transaction => {
+		if (DateHelper.compareDates(transaction.date, tomorrow) != -1) {
+			APIError.throwJsonError({message: "Illegal Transactions. Transactions later than today are not allowed", errorCode: 1410});
+		}
+	});
+
+	return new Promise((resolve, reject) => {
+
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
+
+		wsClient.on('open', function open() {
+            console.log('Connection Open');
+            console.log(connection);
+            var msg = JSON.stringify({action:"validate_transactions", 
+            						transactions: transactions,
+        							advicePortfolio: advicePortfolio ? advicePortfolio : "",
+        							investorPortfolio: investorPortfolio ? investorPortfolio : ""});
+
+         	wsClient.send(msg);
+        });
+
+        wsClient.on('message', function(msg) {
+        	var data = JSON.parse(msg);
+
+		    if (data["error"] == "" && data["valid"]) {
+			    resolve(data["valid"]);
+		    } else if (data["error"] != "") {
+		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
+		    } else {
+		    	reject(APIError.jsonError({message: "Internal error in validating transactions", errorCode: 2101}));
+		    }
+	    });
+    })
+};
+
+module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
+	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields: 'detail'})
+	.then(portfolio => {
+		if (portfolio && portfolio.detail) {
+			return _computeUpdatedPortfolioDetailForSplits(portfolio.detail);
+		} else {
+			return [false, null];
+		}
+	})
+	.then(([updated, updateDetail]) => {
+		return PortfolioModel.updatePortfolio({_id: portfolioId}, {detail: updatedDetail}, {}, updated)
+	})
+};

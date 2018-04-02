@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-23 15:28:15
+* @Last Modified time: 2018-04-02 12:13:52
 */
 'use strict';
 const mongoose = require('../index');
@@ -13,6 +13,8 @@ const Security = require('./Security');
 const Transaction = require('./Transaction');
 const Performance = require('./Performance');
 const Advisor = require('./Advisor');
+
+const DateHelper = require('../../utils/Date');
 
 const Rating = new Schema({
     current: Number,
@@ -135,7 +137,16 @@ const Advice = new Schema({
             default: true
         },
 
-        dateUpdated: Date,
+        updatedDate: Date,
+
+        startDate: Date,
+       
+        endDate: Date,
+
+        discontinueRequested: {
+            type: Boolean,
+            default: false
+        },
     }],
     	
 	followers: [{
@@ -150,7 +161,7 @@ const Advice = new Schema({
             default: true
         },
 
-        dateUpdated: Date,
+        updatedDate: Date,
     }],
 
     analytics: [AdviceAnalytics],
@@ -308,15 +319,42 @@ Advice.statics.updateSubscribers = function(query, investorId) {
     return this.findOne(query, {subscribers: 1})
     .then(advice => {
         if (advice) {
-            var idx = advice.subscribers.map(item => item.investor.toString()).indexOf(investorId.toString());
+            var advSubs = advice.subscribers; 
+            var idx = advSubs.map(item => item.investor.toString()).indexOf(investorId.toString());
+            
+            var currentDate = DateHelper.getCurrentDate();
+            var oneMonthLater = DateHelper.getDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0));         
             
             if(idx == -1) {
-                advice.subscribers.addToSet({investor:investorId, active:true, dateUpdated: new Date()});
+                advSubs.addToSet({investor:investorId, active:true, updatedDate: new Date(), startDate: currentDate, endDate: oneMonthLater});
             } else {
-                var subscriber = advice.subscribers[idx];
-                subscriber.active = !subscriber.active;
-                subscriber.dateUpdated = new Date();
-                advice.subscribers[idx] = subscriber;
+                
+                var subscriber = advSubs[idx];
+
+                //IF SUBSCRIBED 
+                //and END date is greater than current date, then set request as TRUE
+                //Don't Change the subscription status
+                //ELSE Change to inactive or active and set expiry time to 1 month for now 
+               
+                /****CHANGE DATES COMPARISON TO JUST MATCH DATES (NOT TIME)****/
+                
+                var endDate = subscriber.endDate ? subscriber.endDate : oneMonthLater;
+
+                console.log(subscriber);
+                console.log(endDate);
+                console.log(currentDate);
+                console.log(DateHelper.compareDates(endDate, currentDate));
+
+                if (subscriber.active && DateHelper.compareDates(endDate, currentDate) != -1) {
+                    subscriber.discontinueRequested = true;
+                } else if(subscriber.active) {
+                     subscriber.active = false;
+                } else {
+                    subscriber.active = true;
+                    subscriber.endDate = oneMonthLater;
+                }
+                
+                advSubs[idx] = subscriber;
             }
 
             return advice.saveAsync();
@@ -402,7 +440,7 @@ Advice.statics.fetchAdvicePortfolio = function(query, date) {
             if (advice && advice.portfolio) {
                 var advicePortfolio = advice.portfolio;    
                 //If Date is greater than or equal to current portfolio startDate
-                if (_compareDates(date, advicePortfolio.detail.startDate) != -1) {
+                if (DateHelper.compareDates(date, advicePortfolio.detail.startDate) != -1) {
                     return advice.portfolio.detail;
                 } else {
                     var detail = null;
@@ -410,8 +448,8 @@ Advice.statics.fetchAdvicePortfolio = function(query, date) {
                         //If Date is greater than or equal to historical portfolio startDate
                         //AND
                         //Date is less than historical portfolio endDate
-                        if (_compareDates(date, historicalDetail.startDate) != -1 && 
-                                _compareDates(historicalDetail.endDate, date) != -1) {
+                        if (DateHelper.compareDates(date, historicalDetail.startDate) != -1 && 
+                                DateHelper.compareDates(historicalDetail.endDate, date) != -1) {
                             detail = historicalDetail;
                             break;
                         } 
@@ -443,13 +481,6 @@ Advice.statics.updateApproval = function(query, latestApproval) {
     const updates = {'$set':{approvalStatus: approvalStatus, prohibited: prohibited}, '$push':{approvalMessages: approvedMessage}};       
 
     return this.findOneAndUpdate(query, updates);
-}
-
-function _compareDates(d1, d2) {
-	var t1 = new Date(d1).getTime();
-	var t2 = new Date(d2).getTime();
-
-	return (t1 < t2) ? -1 : (t1 == t2) ? 0 : 1;
 }
 
 const AdviceModel = mongoose.model('Advice', Advice);

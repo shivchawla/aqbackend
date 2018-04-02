@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-29 19:43:28
+* @Last Modified time: 2018-04-02 12:05:33
 */
 
 'use strict';
@@ -71,14 +71,14 @@ module.exports.createAdvice = function(args, res, next) {
     	if(advice) {
     		return Promise.all([
     			advice,
-    			AdviceHelper.getAdvicePerformanceSummary(advice._id)
-			]);
+    			AdviceHelper.updateAdviceAnalyticsAndPerformanceSummary(advice._id)
+   			]);
     	} else {
     		APIError.throwJsonError({message: "Error adding advice to advisor", errorCode: 1111});	
     	}
     })
-    .then(([advice, performanceSummary]) => {
-    	return res.status(200).send(Object.assign({performanceSummary: performanceSummary}, advice.toObject()));
+    .then(([advice, analyticsAndPerformance]) => {
+    	return res.status(200).send(Object.assign(analyticsAndPerformance, advice.toObject()));
     })
 	.catch(err => {
 		return res.status(400).send(err.message);
@@ -178,7 +178,7 @@ module.exports.getAdvices = function(args, res, next) {
 
     var query = {deleted: false};
 
-    var performanceFilters = ["netValue", "sharpe", "volatility", "return", "maxLoss", "currentLoss", "beta"];
+    var performanceFilters = ["netValue", "sharpe", "volatility", "totalReturn", "maxLoss", "currentLoss", "beta"];
 
 	const performanceType = args.performanceType.value;
 	var pType = "current";
@@ -192,8 +192,8 @@ module.exports.getAdvices = function(args, res, next) {
     		var values = args[item].value;
 	    	var valueCategories = values.split(",").map(item => parseFloat(item.trim()));
 	    	var key = majorKey + item;
-	    	query = valueCategories.length > 0 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$gt': valueCategories[0]}}]}]} : query; 
-	    	query = valueCategories.length > 1 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$lt': valueCategories[1]}}]}]} : query; 
+	    	query = valueCategories.length > 0 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$gte': valueCategories[0]}}]}]} : query; 
+	    	query = valueCategories.length > 1 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$lte': valueCategories[1]}}]}]} : query; 
 		}
     });
 
@@ -202,8 +202,8 @@ module.exports.getAdvices = function(args, res, next) {
     	var values = args["rating"].value;
     	var valueCategories = values.split(",").map(item => parseFloat(item.trim()));
     	
-    	query = valueCategories.length > 0 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$gt': valueCategories[0]}}]}]} : query; 
-    	query = valueCategories.length > 1 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$lt': valueCategories[1]}}]}]} : query; 
+    	query = valueCategories.length > 0 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$gte': valueCategories[0]}}]}]} : query; 
+    	query = valueCategories.length > 1 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$lte': valueCategories[1]}}]}]} : query; 
     }
 
     const following = args.following.value;
@@ -551,25 +551,24 @@ module.exports.subscribeAdvice = function(args, res, next) {
     const userId = args.user._id;
   	const adviceId = args.adviceId.value;
 
+  	let investorId;
+
   	return Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
   			InvestorModel.fetchInvestor({user: userId}, {fields: '_id', insert:true}), 
   			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true, prohibited: false}, {})])
   	.then(([advisor, investor, advice]) => {
   		if(investor && advice) {
   				
-    		const investorId = investor._id; 
+    		investorId = investor._id; 
     		const advisorId = advisor._id;
 
     		if(advice.advisor.equals(advisorId)) {
     			APIError.throwJsonError({message: "Advisor can't subscribe to personal advice", errorCode: 1105});
     		}
 
-    		return Promise.all([AdviceModel.updateSubscribers({
-    						_id: adviceId}, investorId),
-
-						InvestorModel.updateSubscription({
-			    			_id: investorId}, adviceId
-						    		)]);
+    		//First find the current Subscribed Advies
+    		return AdviceModel.fetchAdvices({subscribers:{$elemMatch:{investor: investorId, active: true}}}, {fields: '_id'});
+						
 		} else {
 			if(!investor) {
 				APIError.throwJsonError({userId: userId, message: "Investor not found", errorCode: 1301});	
@@ -580,12 +579,24 @@ module.exports.subscribeAdvice = function(args, res, next) {
 			}
 		}
 	})
-	.then(([advice, investor]) => {
-		if (advice && investor) {
+	.then(listSubscribedAdvices => {
+		var subscriptionAllowed = true;
+		if(listSubscribedAdvices) {
+			subscriptionAllowed = listSubscribedAdvices.length < config.get('max_subscription_per_investor');
+		} 
+
+		var unsubscriptionAllowed = listSubscribedAdvices.map(item => item._id.toString()).indexOf(adviceId.toString()) !=-1;
+		
+		if (subscriptionAllowed || unsubscriptionAllowed) {
+			return AdviceModel.updateSubscribers({_id: adviceId}, investorId);
+		} else {
+			APIError.throwJsonError({message: "Advice can't be subscribed. Exceeded the limit", advice: adviceId});
+		}
+	})
+	.then(advice => {
+		if (advice) {
 			return res.status(200).json({userId: userId, adviceId: adviceId, count: advice.subscribers.filter(item => {return item.active==true}).length}); 
-		} else if(!investor) {
-			APIError.throwJsonError({userId:userId, message: "Investor not found", errorCode: 1301});
-		} else if(!advice) {
+		} else {
 			APIError.throwJsonError({adviceId: adviceId, message: "Advice not found", errorCode: 1101});
 		}
 	})
@@ -645,4 +656,3 @@ module.exports.requestApproveAdvice = function(args, res, next) {
 		return res.status(400).send(err.message);
 	})
 };
-

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-29 16:49:32
+* @Last Modified time: 2018-03-31 20:00:57
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -11,8 +11,38 @@ const WebSocket = require('ws');
 const config = require('config');
 const Promise = require('bluebird');
 
-module.exports.countSecurities = function() {
-	return exports.findSecurities("", 0, "count");
+function _getSecurityDetail(security) {
+	return new Promise((resolve, reject) => {
+
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
+
+		wsClient.on('open', function open() {
+            console.log('Connection Open');
+            console.log(connection);
+            var msg = JSON.stringify({action:"get_security_detail", 
+            							security: security});
+
+         	wsClient.send(msg);
+        });
+
+        wsClient.on('message', function(msg) {
+        	var data = JSON.parse(msg);
+
+        	if (data["error"] == "" && data["securityDetail"]) {
+			    resolve(data["securityDetail"]);
+		    } else if (data["error"] != "") {
+		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
+		    } else {
+		    	reject(APIError.jsonError({message: "Internal error in computing stock latest detail", errorCode: 2101}));
+		    }
+	    });
+    })
+};
+
+module.exports.countSecurities = function(hint) {
+	
+	return exports.findSecurities(hint, 0, "count");
 };
 
 module.exports.findSecurities = function(hint, limit, outputType) {
@@ -220,35 +250,6 @@ module.exports.computeStockLatestDetail = function(security) {
     })
 };
 
-function _getSecurityDetail(security) {
-	return new Promise((resolve, reject) => {
-
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-            console.log('Connection Open');
-            console.log(connection);
-            var msg = JSON.stringify({action:"get_security_detail", 
-            							security: security});
-
-         	wsClient.send(msg);
-        });
-
-        wsClient.on('message', function(msg) {
-        	var data = JSON.parse(msg);
-
-        	if (data["error"] == "" && data["securityDetail"]) {
-			    resolve(data["securityDetail"]);
-		    } else if (data["error"] != "") {
-		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-		    } else {
-		    	reject(APIError.jsonError({message: "Internal error in computing stock latest detail", errorCode: 2101}));
-		    }
-	    });
-    })
-};
-
 module.exports.computeStockPerformance = function(security) {
 	console.log(security);
 	return new Promise(resolve => {
@@ -308,10 +309,31 @@ module.exports.updateStockList = function() {
 	})
 };
 
+module.exports.updateRealtimePrices = function() {
+	return new Promise((resolve, reject) => {
 
+		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
+		var wsClient = new WebSocket(connection);
 
+		wsClient.on('open', function open() {
+            console.log('Connection Open');
+            console.log(connection);
+            var msg = JSON.stringify({action:"update_realtime_prices"});
 
+         	wsClient.send(msg);
+        });
 
-
-
+        wsClient.on('message', function(msg) {
+        	var data = JSON.parse(msg);
+			
+        	if (data["error"] == "") {
+			    resolve(data["success"]);
+		    } else if (data["error"] != "") {
+		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
+		    } else {
+		    	reject(APIError.jsonError({message: "Internal error updating realtime prices", errorCode: 2101}));
+		    }
+	    });
+    })
+};
 
