@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-02 16:17:30
+* @Last Modified time: 2018-04-02 19:25:25
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -25,8 +25,8 @@ function _filterPortfolioForAdvice(portfolio, adviceId) {
 	return {positions: advicePositions};
 }
 
-function _updatePortfolioWeights(portfolio) {
-	var portfolio = Object.assign({}, portfolio);
+function _updatePortfolioWeights(port) {
+	var portfolio = Object.assign({}, port);
 	var totalVal = portfolio.detail.cash;
 	var positions = portfolio.detail.positions;
 
@@ -34,8 +34,8 @@ function _updatePortfolioWeights(portfolio) {
 	 	totalVal += item.quantity*item.lastPrice;
 	});
 
-	positions.forEach(item => {
-		item.weightInPortfolio = totalVal > 0.0 ? (item.quantity*item.lastPrice)/totalVal : 0.0;
+	positions.map(item => {
+		item["weightInPortfolio"] = totalVal > 0.0 ? (item.quantity*item.lastPrice)/totalVal : 0.0;
 	});
 
 	return portfolio;
@@ -372,9 +372,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 	//2b. Update current portfolio if the transactions are new
 	var updateMethod = 'Create';
 	var portfolioId = portfolio._id;
-
-	var uniqueAdviceIds = Array.from(new Set(transactions.map(item => item.advice)));
-	
+	var uniqueAdviceIds = Array.from(new Set(transactions.map(item => item.advice.toString())));
 	return Promise.map(uniqueAdviceIds, function(adviceId){
 		if (adviceId) {
 			var transactionsForAdviceId = transactions.filter(item => {return item.advice == adviceId;});
@@ -383,7 +381,6 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 			//but have adviceId  
 			//1. Get Transactions for a date
 			var uniqueDates = Array.from(new Set(transactionsForAdviceId.map(item => new Date(item.date).getTime()))).map(item => new Date(item)).sort();
-
 			//2. Filter out transaction for the date
 			return Promise.map(uniqueDates, function(date){
 
@@ -496,7 +493,10 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 			updates.detail = updatedPortfolio.detail;
 			updates.history = history;
 
-			return PortfolioModel.updatePortfolio({_id:portfolioId}, updates, {new: true, fields:'name detail benchmark updatedDate'}, updateMethod == "Append");
+			return PortfolioModel.updatePortfolio({_id:portfolioId}, updates, {new: true, fields:'name detail benchmark updatedDate'}, updateMethod == "Append")
+			.then(updatedPortfolio => {
+				return _updatePortfolioWeights(updatedPortfolio.toObject());
+			});
 		} else {
 			//POPULATE ADVICE NAME - 05/03/2018
 			return Promise.map(updatedPortfolio.detail.subPositions, function(position) {
@@ -512,15 +512,18 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 				}
 			}).then(updatedSubPositions => {
 				updatedPortfolio.detail.subPositions = updatedSubPositions;
-				return updatedPortfolio;
-			});
+				return _updatePortfolioWeights(updatedPortfolio);
+			})
 		}
 	});
 };
 
 module.exports.computeUpdatedPortfolioForPrice = function(portfolio, date) {
 	
-	return _computeUpdatedPortfolioForPrice(portfolio, date);
+	return _computeUpdatedPortfolioForPrice(portfolio, date)
+	.then(([updated, latestPricePortfolio]) => {
+		return _updatePortfolioWeights(latestPricePortfolio);
+	});
 };
 
 module.exports.getUpdatedPortfolio = function(portfolioId, fields) {

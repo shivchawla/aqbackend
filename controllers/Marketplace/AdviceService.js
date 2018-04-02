@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-02 12:05:33
+* @Last Modified time: 2018-04-02 18:48:20
 */
 
 'use strict';
@@ -381,11 +381,8 @@ module.exports.getAdviceDetail = function(args, res, next) {
 	.then(advice => {
 		if (options.fields.indexOf('portfolio') != -1 && advice.portfolio) {
 			return PortfolioHelper.computeUpdatedPortfolioForPrice(advice.portfolio.toObject())
-			.then(([updated, updatedPortfolio]) => {
-				if(updated) {
-					advice.portfolio = updatedPortfolio;
-				}
-
+			.then(updatedPortfolio => {
+				advice.portfolio = updatedPortfolio;
 				return advice;
 			});
 		} else {
@@ -417,12 +414,12 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 	})
 	.then(portfolioDetail => {
 		if (portfolioDetail) {
-			return PortfolioHelper.computeUpdatedPortfolioForPrice({detail: portfolioDetail}, date);
+			return PortfolioHelper.computeUpdatedPortfolioForPrice({detail: portfolioDetail.toObject()}, date);
 		} else {
 			APIError.throwJsonError({message: "No portfolio found for advice"});
 		}
 	})
-	.then(([updated, updatedPortfolio]) => {
+	.then(updatedPortfolio => {
 		return res.status(200).send(updatedPortfolio);
 	})
  	.catch(err => {

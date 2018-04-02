@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-02 17:40:30
+* @Last Modified time: 2018-04-02 19:02:04
 */
 
 'use strict';
@@ -15,6 +15,7 @@ const AdviceHelper = require("../helpers/Advice");
 const PortfolioHelper = require("../helpers/Portfolio");
 const PerformanceHelper = require("../helpers/Performance");
 var ObjectId = require('mongoose').Types.ObjectId;
+const DateHelper = require('../../utils/Date');
 
 function _compareIds(x, y) {
 	if(!x && !y) {
@@ -202,7 +203,7 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 
 	transactions.forEach(item => {
 		item.advice = item.advice != "" ? ObjectId(item.advice) : null;
-		item.date = new Date(item.date);
+		item.date = DateHelper.getDate(item.date);
 		item._id = item._id != "" ? ObjectId(item._id) : null;
 	});
 
