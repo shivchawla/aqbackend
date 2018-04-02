@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-02 16:23:00
+* @Last Modified time: 2018-04-02 17:40:30
 */
 
 'use strict';
@@ -45,12 +45,12 @@ function _computePnlStats(positions) {
 
 function _getPerformanceOfAdvices(portfolio) {
 	var subPositions = portfolio && portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions : []; 
-	var advices = subPositions.filter(item => {return item.advice && item.advice._id}).map(item => item.advice._id);
-		
+	var advices = Array.from(new Set(subPositions.map(item => {return item.advice ? item.advice._id : "";})));
+	
 	return Promise.map(advices, function(adviceId) {
 		return Promise.all([
 			adviceId !="" ? AdviceHelper.getAdvicePerformanceSummary(adviceId) : {current: {}},
-			_computePnlStats(subPositions.filter(item => {return item.advice._id.toString() == adviceId.toString();}))
+			_computePnlStats(subPositions.filter(item => {return adviceId!="" ? item.advice && item.advice._id.toString() == adviceId.toString() : !item.advice || item.advice=="";}))
 		])
 		.then(([performance, pnlStats]) => {
 			return Object.assign({advice: adviceId}, performance.current, {personal: pnlStats});
@@ -59,11 +59,11 @@ function _getPerformanceOfAdvices(portfolio) {
 	.then(allPerformances => {
 		var totalValue = portfolio.detail.cash;
 		allPerformances.forEach(item => {
-			totalValue += item.netValue;
+			totalValue += item.personal.netValue;
 		});
 
 		allPerformances.forEach(item => {
-			item.personal.weightInPortfolio = item.netValue/totalValue;
+			item.personal.weightInPortfolio = item.personal.netValue/totalValue;
 		});
 
 		return allPerformances;
