@@ -3,7 +3,6 @@ const StrategyModel = require('../../models/Research/strategy');
 const BacktestService = require('./BacktestService');
 const BacktestModel = require('../../models/Research/backtest');
 const ForwardtestModel = require('../../models/Research/forwardtest');
-var constants = require('../../utils/Constants.js');
 const Promise = require('bluebird');
 var CryptoJS = require("crypto-js");
 const config = require('config');

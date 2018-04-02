@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-31 11:47:44
+* @Last Modified time: 2018-04-02 12:58:34
 */
 
 'use strict';
@@ -185,7 +185,7 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 						return PortfolioModel.fetchPortfolio({_id:portfolioId}, {fields: 'name deleted'});
 					}):[],
 					PortfolioHelper.validatePortfolio(portfolio),
-					HelperFunctions.validateTransactions(transactions)])	
+					PortfolioHelper.validateTransactions(transactions)])	
 			} else {
 				APIError.throwJsonError({message: "Investor not authorized to add transactions", errorCode: 1303});
 			}
