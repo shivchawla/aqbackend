@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-03 11:39:42
+* @Last Modified time: 2018-04-03 12:13:39
 */
 
 'use strict';
@@ -45,30 +45,34 @@ function _computePnlStats(positions) {
 }
 
 function _getPerformanceOfAdvices(portfolio) {
-	var subPositions = portfolio && portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions : []; 
-	var advices = Array.from(new Set(subPositions.map(item => {return item.advice ? item.advice._id : "";})));
-	
-	return Promise.map(advices, function(adviceId) {
-		return Promise.all([
-			adviceId !="" ? AdviceHelper.getAdvicePerformanceSummary(adviceId) : {current: {}},
-			_computePnlStats(subPositions.filter(item => {return adviceId!="" ? item.advice && item.advice._id.toString() == adviceId.toString() : !item.advice || item.advice=="";}))
-		])
-		.then(([performance, pnlStats]) => {
-			return Object.assign({advice: adviceId}, performance.current, {personal: pnlStats});
-		});
-	})
-	.then(allPerformances => {
-		var totalValue = portfolio.detail && portfolio.detail.cash ? portfolio.detail.cash : 0.0;
-		allPerformances.forEach(item => {
-			totalValue += item.personal.netValue;
-		});
+	if (portfolio) {
+		var subPositions = portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions : []; 
+		var advices = Array.from(new Set(subPositions.map(item => {return item.advice ? item.advice._id : "";})));
+		
+		return Promise.map(advices, function(adviceId) {
+			return Promise.all([
+				adviceId !="" ? AdviceHelper.getAdvicePerformanceSummary(adviceId) : {current: {}},
+				_computePnlStats(subPositions.filter(item => {return adviceId!="" ? item.advice && item.advice._id.toString() == adviceId.toString() : !item.advice || item.advice=="";}))
+			])
+			.then(([performance, pnlStats]) => {
+				return Object.assign({advice: adviceId}, performance.current, {personal: pnlStats});
+			});
+		})
+		.then(allPerformances => {
+			var totalValue = portfolio.detail && portfolio.detail.cash ? portfolio.detail.cash : 0.0;
+			allPerformances.forEach(item => {
+				totalValue += item.personal.netValue;
+			});
 
-		allPerformances.forEach(item => {
-			item.personal.weightInPortfolio = item.personal.netValue/totalValue;
-		});
+			allPerformances.forEach(item => {
+				item.personal.weightInPortfolio = item.personal.netValue/totalValue;
+			});
 
-		return allPerformances;
-	});
+			return allPerformances;
+		});
+	} else {
+		return [];
+	}
 }
 
 /*
