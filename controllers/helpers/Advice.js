@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-02 11:36:59
+* @Last Modified time: 2018-04-03 23:30:38
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -142,7 +142,7 @@ module.exports.computeAdvicePerformanceSummary = function(adviceId) {
 	})
 	.then(([performanceSummary, portfolioAnalytics]) => {
 
-		var currentPeformanceSummary = performanceSummary.current;
+		var currentPeformanceSummary = performanceSummary.current ? performanceSummary.current : {};
 		performanceSummary.current = Object.assign(currentPeformanceSummary, portfolioAnalytics);
 
 		return performanceSummary;

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-03 19:08:22
+* @Last Modified time: 2018-04-03 23:32:43
 */
 
 'use strict';
@@ -248,12 +248,14 @@ function _computeTruePerformance(portfolioId) {
 		
 		if(portfolio && portfolio.detail) {
 			var currentPortfolio = portfolio.detail;
-			portfolioHistory.push({startDate: currentPortfolio.startDate, 
-										endDate: new Date(),//currentPortfolio.endDate,
-										portfolio: {
-											positions: currentPortfolio.positions,
-											cash: currentPortfolio.cash}
-										});
+			if (DateHelper.compareDates(currentPortfolio.startDate, DateHelper.getCurrentDate()) != 1) {
+				portfolioHistory.push({startDate: currentPortfolio.startDate, 
+											endDate: new Date(),//currentPortfolio.endDate,
+											portfolio: {
+												positions: currentPortfolio.positions,
+												cash: currentPortfolio.cash}
+											});
+			}
 		}
 
 		if(portfolio && portfolio.history && portfolio.history.length > 0) {							
@@ -282,8 +284,8 @@ function _computeSimulatedPerformanceCurrentPortfolio(portfolioId) {
 		if(portfolio && portfolio.detail){
 			var currentPortfolio = portfolio.detail;
 
-			var startDate = new Date(); //new Date(currentPortfolio.startDate);
-			startDate = new Date(startDate.setDate(startDate.getDate() - 365));
+			var startDate = DateHelper.getCurrentDate(); 
+			startDate = DateHelper.getDate(startDate.setDate(startDate.getDate() - 365));
 
 			var portfolioHistory = [{startDate: startDate, 
 										endDate: new Date(), 
@@ -309,11 +311,11 @@ function _computeLatestPerformance(portfolioId) {
 	.then(([latestPerformance, portfolioMetrics, constituentPerformance]) => {
 	
 		if (latestPerformance && portfolioMetrics && constituentPerformance) {
-			var latestPerformanceDate = new Date(latestPerformance.date);
-	      	var portfolioMetricsDate = new Date(portfolioMetrics.date);
-	      	var constituentPerformanceDate = new Date(constituentPerformance.date);
+			var latestPerformanceDate = DateHelper.getDate(latestPerformance.date);
+	      	var portfolioMetricsDate = DateHelper.getDate(portfolioMetrics.date);
+	      	var constituentPerformanceDate = DateHelper.getDate(constituentPerformance.date);
 
-	      	var earliestDate = new Date(Math.min(latestPerformanceDate.getTime(), portfolioMetricsDate.getTime(), constituentPerformanceDate.getTime()));
+	      	var earliestDate = DateHelper.getDate(Math.min(latestPerformanceDate.getTime(), portfolioMetricsDate.getTime(), constituentPerformanceDate.getTime()));
 			var updateMessage = "Updated successfully";
 
 	  		var updates = {
@@ -448,8 +450,12 @@ module.exports.computePerformanceSummary = function(portfolioId, flag) {
 	return new Promise(resolve => {
 		exports.computePerformance(portfolioId, summaryType, flag)
 		.then(performance => {
-			const pf = Object.assign({}, performance.toObject());
-			return pf && pf[summaryType] ? _extractPerformanceSummary(pf[summaryType]) : null;
+			if (performance){
+				const pf = Object.assign({}, performance.toObject());
+				return pf && pf[summaryType] ? _extractPerformanceSummary(pf[summaryType]) : null;
+			} else {
+				return null;
+			}
 		})
 		.then(performanceSummary => {
 			if (performanceSummary) {

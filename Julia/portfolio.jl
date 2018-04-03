@@ -156,7 +156,8 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
             error("Advice doesn't contain benchmark Security")
         end
 
-        portfoliodetail = get(portfolio, "detail", Dict{String, Any}())
+        portfolioDetail = get(portfolio, "detail", Dict{String, Any}())
+        oldPortfolioDetail = get(oldPortfolio, "detail", Dict{String, Any}())
        
         #Validate dates
         #=format = "yyyy-mm-ddTHH:MM:SS.sssZ"
@@ -174,6 +175,16 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
         if lastStartDate != DateTime() && lastEndDate != DateTime() && startDate <= lastEndDate 
             error("Empty dates or startDate less than or equal to end date of current advice")
         end=#
+
+        startDate = haskey(portfolioDetail, "startDate") ? DateTime(portfolioDetail["startDate"]) : Date()
+        if startDate <= DateTime(Date(now()))
+            error("Startdate of new advice: $(startDate) can't be today or before today")
+        end
+
+        oldStartDate = haskey(oldPortfolioDetail, "startDate") ? DateTime(oldPortfolioDetail["startDate"]) : Date()
+        if (startDate <= oldStartDate) 
+            error("Startdate of new advice: $(startDate) can't be same or before Startdate of current Advice: $(oldStartDate)")
+        end
         
         #Validating positions and benchmark
         (valid_port, port) = _validate_portfolio(portfolio, checkbenchmark = false)
@@ -184,7 +195,7 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
 
         #ADD CHECK FOR ZERO PRICES (OR PRICES DIFFERENT FROM CLOSE ON THE DATE)
 
-        portval = _compute_latest_portfoliovalue(port, convert(Float64, get(portfoliodetail,"cash", 0.0)))
+        portval = _compute_latest_portfoliovalue(port, convert(Float64, get(portfolioDetail,"cash", 0.0)))
 
         maxnotional = get(advice, "maxNotional", 1000000.0)
 
