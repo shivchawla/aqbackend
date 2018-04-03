@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-02 19:02:04
+* @Last Modified time: 2018-04-03 11:39:42
 */
 
 'use strict';
@@ -58,7 +58,7 @@ function _getPerformanceOfAdvices(portfolio) {
 		});
 	})
 	.then(allPerformances => {
-		var totalValue = portfolio.detail.cash;
+		var totalValue = portfolio.detail && portfolio.detail.cash ? portfolio.detail.cash : 0.0;
 		allPerformances.forEach(item => {
 			totalValue += item.personal.netValue;
 		});

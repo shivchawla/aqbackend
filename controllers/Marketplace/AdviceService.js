@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-02 18:48:20
+* @Last Modified time: 2018-04-03 10:47:56
 */
 
 'use strict';
@@ -136,16 +136,22 @@ module.exports.updateAdvice = function(args, res, next) {
 		delete adviceUpdates.portfolio;
 
 		if (validAdvice) {
-			return Promise.all([PortfolioModel.updatePortfolio({_id:advicePortfolioId}, newAdvice.portfolio, {new:true, fields: 'detail'}, isPublic), 
+			return Promise.all([PortfolioModel.updatePortfolio({_id:advicePortfolioId}, newAdvice.portfolio, {new:true, fields: 'detail', updateHistory: isPublic}), 
 				AdviceModel.updateAdvice({_id: adviceId}, adviceUpdates, {new:true, fields: adviceFields})]);
 		} else {
 			APIError.throwJsonError({message:"Advice validation failed", errorCode: 1108});
 		}
 	})
 	.then(([updatedPortfolio, updatedAdvice]) => {
-		updatedAdvice.portfolio = updatedPortfolio; 
-		return res.status(200).send({advice: updatedAdvice, message: "Advice updated successfully"});
+		updatedAdvice.portfolio = updatedPortfolio;
+		return Promise.all([
+			updatedAdvice,
+			AdviceHelper.updateAdviceAnalyticsAndPerformanceSummary(updatedAdvice._id)
+		]); 
 	})
+	.then(([advice, analyticsAndPerformance]) => {
+    	return res.status(200).send(Object.assign(analyticsAndPerformance, advice.toObject()));
+    })
 	.catch(err => {
 		return res.status(400).json(err.message);	
 	})

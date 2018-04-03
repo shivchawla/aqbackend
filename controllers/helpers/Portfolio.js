@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-02 19:25:25
+* @Last Modified time: 2018-04-03 10:18:05
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -41,7 +41,7 @@ function _updatePortfolioWeights(port) {
 	return portfolio;
 }
 
-function _updatePortfolioForSplitsAndDividends(portfolio) {
+function _updatePortfolioForSplitsAndDividends(portfolio, date) {
 	//Julia computes the updated portfolio	
 	//HEAVY DUTY WORK IS DONE BY JULIA
 	return new Promise(function(resolve, reject) {
@@ -59,7 +59,8 @@ function _updatePortfolioForSplitsAndDividends(portfolio) {
 	        };
 
 	        var msg = JSON.stringify({action:"update_portfolio_splits_dividends", 
-        								portfolio: portfolio}); 
+        								portfolio: portfolio,
+        								date: date}); 
 
 	     	wsClient.send(msg);
 	    });
@@ -302,10 +303,10 @@ function _computeUpdatedPortfolioForPrice(portfolio, date, type) {
 	});
 }
 
-function _computeUpdatedPortfolioDetailForSplits(portfolioDetail, date) {
+function _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolioDetail, date) {
 	return new Promise(resolve => {
 		Promise.all([
-			_updatePositionsForSplitsAndDividends(portfolioDetail.positions, date)
+			_updatePortfolioForSplitsAndDividends({detail: portfolioDetail.positions}, date)
 			.then(updates => { //contains updted positions, cashgenerates and haschanged flag
 				return [updates.cashgenerated, updates.positions, updates.hasChanged];
 			}),
@@ -313,7 +314,7 @@ function _computeUpdatedPortfolioDetailForSplits(portfolioDetail, date) {
 			//Each subposition is sent separately as JULIA portfolio can't handle 
 			//redundant securities
 			Promise.map(portfolioDetail.subPositions, function(position) {
-				return _updatePositionsForSplitsAndDividends([position], date)
+				return _updatePositionsForSplitsAndDividends({detail: [position]}, date)
 				.then(updates => { //updates include (cashgenerated , positions and isChanged flag)
 					if (updates.positions){
 						return updates.positions.length == 1 ? updated.positions[0] : null;
@@ -493,7 +494,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 			updates.detail = updatedPortfolio.detail;
 			updates.history = history;
 
-			return PortfolioModel.updatePortfolio({_id:portfolioId}, updates, {new: true, fields:'name detail benchmark updatedDate'}, updateMethod == "Append")
+			return PortfolioModel.updatePortfolio({_id:portfolioId}, updates, {new: true, fields:'name detail benchmark updatedDate', updateHistory: updateMethod == "Append"})
 			.then(updatedPortfolio => {
 				return _updatePortfolioWeights(updatedPortfolio.toObject());
 			});
@@ -672,12 +673,27 @@ module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
 	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields: 'detail'})
 	.then(portfolio => {
 		if (portfolio && portfolio.detail) {
-			return _computeUpdatedPortfolioDetailForSplits(portfolio.detail);
+			return _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolio.detail);
 		} else {
 			return [false, null];
 		}
 	})
 	.then(([updated, updateDetail]) => {
-		return PortfolioModel.updatePortfolio({_id: portfolioId}, {detail: updatedDetail}, {}, updated)
-	})
+		//If updated flag is TRUE, then only update the portfolio
+		//ELSE return NULL
+		console.log(updated);
+		console.log(updatedDetail);
+		return null;
+		return updated ? PortfolioModel.updatePortfolio({_id: portfolioId}, {detail: updatedDetail}, {updateHistory: true}) : null;
+	});
 };
+
+module.exports.updateAllPortfoliosForSplitsAndDividends = function() {
+	return PortfolioModel.fetchPortfolio({}, {fields: '_id'})
+	.then(portfolios => {
+		Promise.mapSeries(portfolios, function(portfolio) {
+			return exports.updatePortfolioForSplitsAndDividends(portfolio._id);
+		});
+	});
+};
+
