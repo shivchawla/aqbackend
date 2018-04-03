@@ -127,7 +127,7 @@ wsh = WebSocketHandler() do req, ws_client
                     vals[i,1] = val
                 end
                   
-                (lastdate, performance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
+                (lastdate, performance, dperformance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
                 
                 nVDict = Dict{String, Any}()
 
@@ -136,7 +136,7 @@ wsh = WebSocketHandler() do req, ws_client
                 end
 
                 parsemsg["performance"] = Dict{String, Any}("date" => lastdate, 
-                                          "value" => serialize(performance), 
+                                          "value" => Dict("true" => serialize(performance), "diff" => serialize(dperformance)), 
                                           "portfolioValues" => nVDict)
             else 
                 parsemsg["performance"] = Dict{String, Any}("date" => Date(now()), 
@@ -145,6 +145,8 @@ wsh = WebSocketHandler() do req, ws_client
                 #error("Missing Input")
             end
 
+        #NOT IN USE
+        #IF USE COMES, FIX THE OUTPUT FORMAT    
         elseif action == "compute_portfolio_performance"
            
           performance = Dict{String, Any}()
@@ -154,7 +156,7 @@ wsh = WebSocketHandler() do req, ws_client
           endDate = DateTime(parsemsg["endDate"], jsdateformat)
 
           performance = compute_performance(parsemsg["portfolio"], startDate, endDate)
-          performance = JSON.parse(JSON.json(performance))
+          performance = serialize(performance)
           parsemsg["performance"] = Dict("date" => endDate, "value" => performance)
 
         elseif action == "compute_performance_netvalue"
@@ -170,9 +172,9 @@ wsh = WebSocketHandler() do req, ws_client
             vals[i,1] = val
           end
           
-          (lastdate, performance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
+          (lastdate, performance, dperformance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
 
-          parsemsg["performance"] = Dict("date" => lastdate, "value" => serialize(performance))
+          parsemsg["performance"] = Dict("date" => lastdate, "value" => Dict("true" => serialize(performance), "diff" => serialize(dperformance)))
         
         elseif action == "compute_portfolio_constituents_performance"
 

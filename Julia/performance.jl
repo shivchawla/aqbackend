@@ -32,15 +32,17 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             benchmark_returns = merged_returns[benchmark].values
 
             performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns)
+            dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns)
+            
             performance.portfoliostats.netvalue = portfolio_value.values[end]
             
-            return (merged_value.timestamp[end], performance)
+            return (merged_value.timestamp[end], performance, dperformance)
         
         elseif benchmark_value != nothing
-            return (benchmark_value.timestamp[end], Performance())
+            return (benchmark_value.timestamp[end], Performance(), Performance())
         
         else
-            return (Date(now()), Performance())
+            return (Date(now()), Performance(), Performance())
         end
     catch err
         rethrow(err)
@@ -76,14 +78,15 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
         benchmark_returns = merged_returns[benchmark].values
 
         performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns)
+        dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns)
         
-        return (merged_value.timestamp[end], performance)
+        return (merged_value.timestamp[end], performance, dperformance)
     
     elseif benchmark_value != nothing
-        return (benchmark_value.timestamp[end], Performance())
+        return (benchmark_value.timestamp[end], Performance(), Performance())
 
     else
-        return (Date(now()), Performance())
+        return (Date(now()), Performance(), Performance())
     end
 end
 

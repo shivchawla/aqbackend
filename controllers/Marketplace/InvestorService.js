@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-03 12:13:39
+* @Last Modified time: 2018-04-03 19:06:09
 */
 
 'use strict';
@@ -45,34 +45,30 @@ function _computePnlStats(positions) {
 }
 
 function _getPerformanceOfAdvices(portfolio) {
-	if (portfolio) {
-		var subPositions = portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions : []; 
-		var advices = Array.from(new Set(subPositions.map(item => {return item.advice ? item.advice._id : "";})));
-		
-		return Promise.map(advices, function(adviceId) {
-			return Promise.all([
-				adviceId !="" ? AdviceHelper.getAdvicePerformanceSummary(adviceId) : {current: {}},
-				_computePnlStats(subPositions.filter(item => {return adviceId!="" ? item.advice && item.advice._id.toString() == adviceId.toString() : !item.advice || item.advice=="";}))
-			])
-			.then(([performance, pnlStats]) => {
-				return Object.assign({advice: adviceId}, performance.current, {personal: pnlStats});
-			});
-		})
-		.then(allPerformances => {
-			var totalValue = portfolio.detail && portfolio.detail.cash ? portfolio.detail.cash : 0.0;
-			allPerformances.forEach(item => {
-				totalValue += item.personal.netValue;
-			});
-
-			allPerformances.forEach(item => {
-				item.personal.weightInPortfolio = item.personal.netValue/totalValue;
-			});
-
-			return allPerformances;
+	var subPositions = portfolio && portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions : []; 
+	var advices = Array.from(new Set(subPositions.map(item => {return item.advice ? item.advice._id : "";})));
+	
+	return Promise.map(advices, function(adviceId) {
+		return Promise.all([
+			adviceId !="" ? AdviceHelper.getAdvicePerformanceSummary(adviceId) : {current: {}},
+			_computePnlStats(subPositions.filter(item => {return adviceId!="" ? item.advice && item.advice._id.toString() == adviceId.toString() : !item.advice || item.advice=="";}))
+		])
+		.then(([performance, pnlStats]) => {
+			return Object.assign({advice: adviceId}, performance.current, {personal: pnlStats});
 		});
-	} else {
-		return [];
-	}
+	})
+	.then(allPerformances => {
+		var totalValue = portfolio && portfolio.detail && portfolio.detail.cash ? portfolio.detail.cash : 0.0;
+		allPerformances.forEach(item => {
+			totalValue += item.personal.netValue;
+		});
+
+		allPerformances.forEach(item => {
+			item.personal.weightInPortfolio = item.personal.netValue/totalValue;
+		});
+
+		return allPerformances;
+	});
 }
 
 /*
@@ -410,7 +406,7 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 		if(updatedPortfolio) {
 			return _getPerformanceOfAdvices(updatedPortfolio)
 			.then(advicePerformance => {
-				updatedPortfolio = Object.assign({advicePerformance : advicePerformance}, updatedPortfolio.toObject());	
+				updatedPortfolio = Object.assign({advicePerformance : advicePerformance}, updatedPortfolio);	
 				return res.status(200).send(updatedPortfolio);
 			})
 		} else {

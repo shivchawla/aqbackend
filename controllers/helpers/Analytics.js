@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:56:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-31 20:37:09
+* @Last Modified time: 2018-04-03 19:03:43
 */
 
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -125,7 +125,7 @@ module.exports.updateAllAdvisorAnalytics = function() {
 	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
 	.then(advisors => {
 		if (advisors) {
-			return Promise.map(advisors, function(advisor) {
+			return Promise.mapSeries(advisors, function(advisor) {
 				return _updateAdvisorAnalytics(advisor._id);
 			});
 		} else {
@@ -141,7 +141,7 @@ module.exports.updateAllAdviceAnalytics = function() {
 	.then(advices => {
 		if (advices) {
 			adviceIds = advices.map(item => item._id);
-			return Promise.map(advices, function(advice) {
+			return Promise.mapSeries(advices, function(advice) {
 				return _updateAdviceAnalytics(advice._id);
 			});
 		} else {
@@ -152,18 +152,27 @@ module.exports.updateAllAdviceAnalytics = function() {
 		var ratingTypes = ["current", "simulated"];
 
 		//NEXT STEPS: 1. Group by benchmarks
-		//2. Scale Ranking by benchmark performance (benchmark = 0.5 (scale of 1.0))
+		//2. Scale Ranking by benchmark performance (benchmark = 0.5 (scale of 1.0)) 
+		//2[Updated]: Fixed this benchmark issue by computing ranking of diff performance rather than true performance
 
 		return Promise.map(ratingTypes, function(ratingType) {
 			var allPerformances = allAdviceAnalytics.map(item => {return {advice: item._id, performance: item.performanceSummary[ratingType]}}); 
-			var ratingFields = [{field:"maxLoss", multiplier:-1}, {field:"sharpe", multiplier:1}, {field:"annualReturn", multiplier:1}, {field:"information", multiplier:1}, {field:"volatility", multiplier:-1}, {field:"calmar", multiplier:1}, {field:"alpha", multiplier:1}];
+			//var ratingFields = [{field:"maxLoss", multiplier:-1}, {field:"sharpe", multiplier:1}, {field:"annualReturn", multiplier:1}, {field:"information", multiplier:1}, {field:"volatility", multiplier:-1}, {field:"calmar", multiplier:1}, {field:"alpha", multiplier:1}];
+			var ratingFields = [
+				{field:"maxLoss", multiplier:-1}, 
+				{field:"sharpe", multiplier:1}, 
+				{field:"annualReturn", multiplier:1}, 
+				//{field:"information", multiplier:1}, 
+				{field:"volatility", multiplier:-1}, 
+				{field:"calmar", multiplier:1}, 
+				{field:"alpha", multiplier:1}];
 
 			return Promise.map(ratingFields, function(ratingField){
 
 				var valueRatingField = {};
 				allPerformances.forEach(item => {
 					var key = item.advice; 
-					valueRatingField[key] = item.performance && item.performance[ratingField.field] ?  ratingField.multiplier * item.performance[ratingField.field] : NaN ;
+					valueRatingField[key] = item.performance && item.performance.diff && item.performance.diff[ratingField.field] ?  ratingField.multiplier * item.performance.diff[ratingField.field] : NaN ;
 				});
 				
 				return _computeFractionalRanking(valueRatingField);

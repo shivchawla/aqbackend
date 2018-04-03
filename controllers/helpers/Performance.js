@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-31 20:29:01
+* @Last Modified time: 2018-04-03 19:08:22
 */
 
 'use strict';
@@ -365,11 +365,26 @@ function _computeSimulatedPerformance(portfolioId) {
 	});
 }
 
-function _extractPerformanceSummary(currentPerformance) {
-	let performanceSummary;
-	if (currentPerformance) {
+function _extractMetrics(allMetrics) {
+	return {
+		totalReturn: allMetrics && allMetrics.returns ? allMetrics.returns.totalreturn : 0.0,
+		annualReturn: allMetrics && allMetrics.returns ? allMetrics.returns.annualreturn : 0.0,
+		volatility: allMetrics && allMetrics.deviation ? allMetrics.deviation.annualstandarddeviation : 0.0,
+		sharpe: allMetrics && allMetrics.ratios ? allMetrics.ratios.sharperatio : 0.0,
+		beta: allMetrics && allMetrics.ratios ? allMetrics.ratios.beta : 0.0, 
+		calmar: allMetrics && allMetrics.ratios ? allMetrics.ratios.calmarratio : 0.0, 
+		information: allMetrics && allMetrics.ratios ? allMetrics.ratios.informationratio : 0.0, 
+		alpha: allMetrics && allMetrics.ratios ? allMetrics.ratios.alpha : 0.0, 
+		maxLoss: allMetrics && allMetrics.drawdown ? allMetrics.drawdown.maxdrawdown : 0.0,	
+		currentLoss: allMetrics && allMetrics.drawdown ? allMetrics.drawdown.currentdrawdown : 0.0,
+	};
+}
 
-		const summary = Object.assign({}, currentPerformance);
+function _extractPerformanceSummary(performance) {
+	let performanceSummary;
+	if (performance) {
+
+		const summary = Object.assign({}, performance);
 
 		var netValueArray = summary && summary.portfolioValues && summary.portfolioValues.length > 0 ? summary.portfolioValues.slice(-2) : null;
 
@@ -382,26 +397,19 @@ function _extractPerformanceSummary(currentPerformance) {
 		dailyChange = parseFloat(dailyChange.toPrecision(4));
 
 		var latestPortfolioValue = netValueArray && netValueArray.length > 0 ? netValueArray[netValueArray.length - 1] : null
-		var currentMetrics = summary && summary.metrics && summary.metrics.portfolioPerformance ? summary.metrics.portfolioPerformance : null; 
+		var trueMetrics = summary && summary.metrics && summary.metrics.portfolioPerformance && summary.metrics.portfolioPerformance.true ? summary.metrics.portfolioPerformance.true : null; 
+		var diffMetrics = summary && summary.metrics && summary.metrics.portfolioPerformance && summary.metrics.portfolioPerformance.diff ? summary.metrics.portfolioPerformance.diff : null; 
 
-		performanceSummary = {
-			date: summary.updateDate,
-			totalReturn: currentMetrics && currentMetrics.returns ? currentMetrics.returns.totalreturn : 0.0,
-			annualReturn: currentMetrics && currentMetrics.returns ? currentMetrics.returns.annualreturn : 0.0,
-			volatility: currentMetrics && currentMetrics.deviation ? currentMetrics.deviation.annualstandarddeviation : 0.0,
-			sharpe: currentMetrics && currentMetrics.ratios ? currentMetrics.ratios.sharperatio : 0.0,
-			beta: currentMetrics && currentMetrics.ratios ? currentMetrics.ratios.beta : 0.0, 
-			calmar: currentMetrics && currentMetrics.ratios ? currentMetrics.ratios.calmarratio : 0.0, 
-			information: currentMetrics && currentMetrics.ratios ? currentMetrics.ratios.informationratio : 0.0, 
-			alpha: currentMetrics && currentMetrics.ratios ? currentMetrics.ratios.alpha : 0.0, 
-			maxLoss: currentMetrics && currentMetrics.drawdown ? currentMetrics.drawdown.maxdrawdown : 0.0,	
-			currentLoss: currentMetrics && currentMetrics.drawdown ? currentMetrics.drawdown.currentdrawdown : 0.0,	
-			dailyChange: dailyChange,
-			netValue: latestPortfolioValue ? latestPortfolioValue.netValue : null,
-			netValueDate: latestPortfolioValue ? latestPortfolioValue.date : null,
-			concentration: summary && summary.metrics && summary.metrics.portfolioMetrics ? summary.metrics.portfolioMetrics.concentration : 1.0,
-			weights: summary && summary.metrics && summary.metrics.portfolioMetrics ? summary.metrics.portfolioMetrics.composition.map(item => item.weight) : [],
-		} 
+		performanceSummary = Object.assign({diff: _extractMetrics(diffMetrics)}, 
+			Object.assign({date: summary.updateDate,	
+				dailyChange: dailyChange,
+				netValue: latestPortfolioValue ? latestPortfolioValue.netValue : null,
+				netValueDate: latestPortfolioValue ? latestPortfolioValue.date : null,
+				concentration: summary && summary.metrics && summary.metrics.portfolioMetrics ? summary.metrics.portfolioMetrics.concentration : 1.0,
+				weights: summary && summary.metrics && summary.metrics.portfolioMetrics ? summary.metrics.portfolioMetrics.composition.map(item => item.weight) : []
+			}, 
+			_extractMetrics(trueMetrics))); 
+
 	} else {
 		performanceSummary = null;
 	}
