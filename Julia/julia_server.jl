@@ -8,7 +8,8 @@ using BufferedStreams
 
 using Raftaar: Performance, Returns, Drawdown, Ratios, Deviation, PortfolioStats
 using Raftaar: serialize
-  
+
+include("readNSEFiles.jl")  
 include("portfolio.jl")
 include("performance.jl")
 
@@ -196,6 +197,7 @@ wsh = WebSocketHandler() do req, ws_client
           
           parsemsg["portfolioMetrics"] = Dict("date" => date, "value" => metrics)
         
+        ##NOT IN USE
         elseif action == "compute_portfolio_value_history"
 
           portfolioHistory = parsemsg["portfolioHistory"]
@@ -218,6 +220,7 @@ wsh = WebSocketHandler() do req, ws_client
 
           parsemsg["netValue"] = nVDict
 
+        #NOT IN USE
         elseif action == "compute_portfolio_value_date"
           netvalue = 0.0
           lastdate = DateTime()
@@ -302,7 +305,6 @@ wsh = WebSocketHandler() do req, ws_client
             #Update, the positions to match the object structure in Node
             parsemsg["updatedPositions"] = convert_to_node_portfolio(updated_portfolio)["positions"]
        
-
         elseif action == "updated_portfolio_splits_dividends"
             portfolio = parsemsg["portfolio"]
             date = parsemsg["date"]   

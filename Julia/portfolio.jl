@@ -9,8 +9,6 @@ using TimeSeries
 using StatsBase
 using ZipFile
 
-include("./readNSEFiles.jl")
-
 const _realtimePrices = Dict{SecuritySymbol, TradeBar}()
 #const _codeToTicker = readSecurityFile("/Users/shivkumarchawla/Desktop/Securities.dat")
 
@@ -335,7 +333,17 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
         #Get the Adjusted prices for tickers in the portfolio
         prices = YRead.history(secids, "Close", :Day, start_date, end_date, displaylogs=false)
 
-        if prices == nothing
+        #Using benchmark prices to filter out days when benchmark is not available
+        #Remove benchmark prices where it's NaN
+        #This is imortant becuse Qaundl/XNSE has data for holidays as well
+        benchmark_prices = history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date)
+        merged_prices = nothing
+
+        if prices != nothing && benchmark_prices != nothing
+            merged_prices = dropnan(to(from(merge(prices, benchmark_prices, :right), Date(start_date)), Date(end_date)), :any)
+        end
+
+        if merged_prices == nothing
             println("Price data not available")
             dt_array = Date(start_date):Date(end_date)
             if length(dt_array) == 0
@@ -344,7 +352,7 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
             return TimeArray([dt for dt in dt_array], portfolio.cash*ones(length(dt_array)), ["Portfolio"])
         end
 
-        ts = prices.timestamp
+        ts = merged_prices.timestamp
 
         nrows = length(ts)
         portfolio_value = zeros(nrows, 1)
@@ -357,8 +365,11 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
 
                 ticker = sym.ticker
                 
-                close = (prices[ticker][date]).values[1]
-                equity_value += pos.quantity * (!isnan(close) ? close : 0.0)
+                #IMPROVEMENT: Using Last Non-NaN prices 
+                _temp_ts_close_non_nan = values(dropnan(to(merged_prices[ticker], date), :any))
+                _last_valid_close = length(_temp_ts_close_non_nan) > 0 ? _temp_ts_close_non_nan[end] : 0.0
+                
+                equity_value += pos.quantity * _last_valid_close
             end
 
             portfolio_value[i, 1] = equity_value + portfolio.cash
@@ -445,7 +456,7 @@ function _updateportolio_EODprice(port::Portfolio, date::DateTime)
 
         #Check if stock values are valid 
         if stock_value_52w != nothing && benchmark_value_52w != nothing
-            merged_prices = to(merge(stock_value_52w, benchmark_value_52w), benchmark_value_52w.timestamp[end])
+            merged_prices = dropnan(to(merge(stock_value_52w, benchmark_value_52w), benchmark_value_52w.timestamp[end]), :any)
             
             latest_values = merged_prices[end]
             latest_dt = DateTime(latest_values.timestamp[end])
@@ -760,7 +771,6 @@ function updatedportfolio_splits_dividends(portfolio::Dict{String,Any}, date::Da
     port.cash += cashfromdividends
 
     return (updated, port)
-
 end    
 
 ###

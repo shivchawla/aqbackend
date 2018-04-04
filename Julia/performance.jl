@@ -21,7 +21,7 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
         
         if benchmark_value != nothing && portfolio_value != nothing
             #merge and drop observations before benchmark lastdate
-            merged_value = to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end])
+            merged_value = dropnan(to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end]), :any)
             merged_returns = percentchange(merged_value)
             
             if length(merged_returns.timestamp) == 0
@@ -120,6 +120,7 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
             return (Date(now()), [merge(Dict("ticker" => ticker), empty_pnl()) for ticker in all_tickers])
 
         elseif (benchmark_prices != nothing)
+            benchmark_prices = dropnan(benchmark_prices, :any)
             updatedPortfolio = updateportfolio_price(port_raftaar, DateTime(benchmark_prices.timestamp[end]))
             
             lastdate = benchmark_prices.timestamp[end] 
@@ -167,7 +168,7 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
             if(benchmark_prices != nothing && stock_prices != nothing)
                 
                 #Merge and drop observations after the last date of benchmark                
-                merged_prices = to(merge(stock_prices, benchmark_prices, :outer), benchmark_prices.timestamp[end])
+                merged_prices = dropNaN(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
                 merged_returns = percentchange(merged_prices)
 
                 ##Empty timeseries output of pctchange when length == 1 
@@ -210,13 +211,14 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
 
             benchmark = "NIFTY_50"
             benchmark_prices = history_nostrict([benchmark], "Close", :Day, start_date, end_date)
+            
             stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
             if stock_prices == nothing
                 stock_prices = history_nostrict([security.symbol.ticker], "Close", :Day, start_date, end_date)
             end
 
             if benchmark_prices != nothing && stock_prices != nothing
-                merged_prices = to(merge(stock_prices, benchmark_prices, :outer), benchmark_prices.timestamp[end])
+                merged_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
                 merged_returns = percentchange(merged_prices)
                 if length(merged_returns.timestamp) == 0
                     return Performance()
@@ -249,7 +251,6 @@ function compute_stock_static_performance(security_dict::Dict{String,Any}; bench
             end_date = now()
 
             benchmark_prices = history_nostrict([benchmark], "Close", :Day, start_date, end_date)
-            
             stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
 
             if stock_prices == nothing
@@ -257,7 +258,7 @@ function compute_stock_static_performance(security_dict::Dict{String,Any}; bench
             end
 
             if benchmark_prices != nothing && stock_prices != nothing
-                merged_prices = to(merge(stock_prices, benchmark_prices, :outer), benchmark_prices.timestamp[end])
+                merged_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
                 merged_returns = percentchange(merged_prices)
                 if length(merged_returns.timestamp) == 0
                     return Performance()
@@ -289,13 +290,17 @@ function get_stock_price_history(security_dict::Dict{String,Any})
             start_date = DateTime("2001-01-01")
             end_date = now()
 
-            stock_value = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
-            if stock_value == nothing
-                stock_value = history_nostrict([security.symbol.ticker], "Close", :Day, start_date, end_date)
+            stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
+            if stock_prices == nothing
+                stock_prices = history_nostrict([security.symbol.ticker], "Close", :Day, start_date, end_date)
             end
 
-            if stock_value != nothing
-                (ts, prices) = (stock_value[security.symbol.ticker].timestamp, stock_value[security.symbol.ticker].values) 
+            benchmark_prices = history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date)
+            
+            if stock_prices != nothing && benchmark_prices != nothing
+                stock_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
+
+                (ts, prices) = (stock_prices[security.symbol.ticker].timestamp, stock_prices[security.symbol.ticker].values) 
                 
                 history = Vector{Dict{String, Any}}()
                 for i = 1:length(ts)
