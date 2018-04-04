@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-04 10:14:33
+* @Last Modified time: 2018-04-04 11:17:25
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -530,7 +530,7 @@ module.exports.computeUpdatedPortfolioForPrice = function(portfolio, date) {
 
 module.exports.getUpdatedPortfolio = function(portfolioId, fields) {
 	//Append new fields to some basic fields (ADD SPACE - V. IMP)
-	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted:false}, {fields:'detail updatedDate'})
+	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted:false}, {fields:fields.concat(' detail updatedDate')})
 	.then(portfolio => {
 		if(portfolio) {
 			var updateRequired = portfolio.updatedDate ? DateHelper.getDate(portfolio.updatedDate) < DateHelper.getCurrentDate() : true;
