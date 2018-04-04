@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-30 12:45:14
+* @Last Modified time: 2018-04-04 20:17:37
 */
 
 'use strict';
@@ -217,7 +217,7 @@ module.exports.getStockDetail = function(args, res, next) {
 					'security.exchange': exchange,
 					'security.securityType': securityType,
 					'security.country': country};
-return Promise.all([
+	return Promise.all([
 		SecurityPerformanceModel.fetchSecurityPerformance(query, {fields:field}),
 		updateStockWeight(query)
 	])
@@ -261,7 +261,7 @@ module.exports.getStocks = function(args, res, next) {
 	var q1 = {'security.ticker': {$regex: startWithSearch, $options: "i"}};
 
 	var containsSearch = `^(.*?(${search})[^$]*)$`;
-	var q2 = {$or: [{'security.ticker': {$regex: containsSearch, $options: "i"}}, {'security.detail.Nse_Name': {$regex: containsSearch, $options: "i"}}]}
+	var q2 = {$or: [{'security.ticker': {$regex: containsSearch, $options: "i"}}, {'security.detail.Nse_Name': {$regex: containsSearch, $options: "i"}}]};
 
 	var nostartwithCNX = "^((?!^CNX).)*$"
     var q3 = {'security.ticker': {$regex: nostartwithCNX}};
@@ -278,40 +278,30 @@ module.exports.getStocks = function(args, res, next) {
     var nostartwithSPCNX = "^((?!^SPCNX).)*$"
     var q7 = {'security.ticker': {$regex: nostartwithSPCNX}};
 
-    var q7 = {'security.ticker':{$ne: ""}};
+    var q8 = {'security.ticker':{$ne: ""}};
 
-    var query_1 = {$and: [q1, q3, q4, q5, q6, q7]}
-    var query_2 = {$and: [q2, q3, q4, q5, q6, q7]};
+    var q9 = {'security.detail.Nse_Name': {$exists: true}};
+
+    var containsNIFTY = "^NIFTY.*$";
+    var q10 = {'security.ticker': {$regex: containsNIFTY}}; 
+    
+    var query_1 = {$and: [q1, q3, q4, q5, q6, q7, q8, q9]}; 
+    var query_2 = {$and: [q2, q3, q4, q5, q6, q7, q8, q9]};
+    var query_3 = {$and: [q1, q3, q4, q5, q6, q7, q8, q10]};
 
 	return Promise.all([
+		SecurityPerformanceModel.fetchSecurityPerformances(query_3, {fields:'security', limit: 10, sort:{weight: -1}}),
 		SecurityPerformanceModel.fetchSecurityPerformances(query_1, {fields:'security', limit: 10, sort:{weight: -1}}),
 		SecurityPerformanceModel.fetchSecurityPerformances(query_2, {fields:'security', limit: 10, sort:{weight: -1}})
 	])
-	.then(([exactMatch, nearMatch]) => {
+	.then(([niftyMatch, exactMatch, nearMatch]) => {
 		var securitiesExactMatch = exactMatch.map(item => item.security);
 		var securitiesNearMatch = nearMatch.map(item => item.security);
+		var securitiesNiftyMatch = niftyMatch.map(item => item.security);
 
-		var totalSecurities = Array.from(new Set(securitiesExactMatch.concat(securitiesNearMatch))).slice(0, 10);
+		var totalSecurities = securitiesNiftyMatch.concat(securitiesExactMatch).concat(securitiesNearMatch);
+		var totalSecurities = totalSecurities.filter((item, pos, arr) => {return arr.map(itemS => itemS["ticker"]).indexOf(item["ticker"])==pos;}).slice(0, 10);;
 		return res.status(200).send(totalSecurities);
-	})
-	.catch(err => {
-		return res.status(400).send(err.message);
-	}); 
-};
-
-module.exports.updateStockWeight = function(args, res, next) {
-	const ticker = args.body.value.ticker;
-	return SecurityPerformanceModel.fetchSecurityPerformance({'security.ticker': ticker}, {fields: 'weight'})
-	.then(sp => {
-		if(sp) {
-			var nWeight = sp.weight ? sp.weight + 0.001 : 0.001;
-			return SecurityPerformanceModel.updateSecurityPerformance({'security.ticker': ticker}, {weight: nWeight});
-		} else{
-			APIError.throwJSONError({message: "Security not found. Can't update weight"});
-		}
-	})
-	.then(updated => {
-		return res.sendStatus(200);
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);
