@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-04 11:17:25
+* @Last Modified time: 2018-04-04 12:03:47
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -51,12 +51,6 @@ function _updatePortfolioForSplitsAndDividends(portfolio, date) {
 		wsClient.on('open', function open() {
 	        console.log('Connection Open');
 	        console.log(connection);
-
-	        //WHy Cash == 0.0: So that output portfolio has cash generated
-	        const portfolio = {
-	        	positions: positions,
-	        	cash: 0.0
-	        };
 
 	        var msg = JSON.stringify({action:"update_portfolio_splits_dividends", 
         								portfolio: portfolio,
@@ -306,9 +300,9 @@ function _computeUpdatedPortfolioForPrice(portfolio, date, type) {
 function _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolioDetail, date) {
 	return new Promise(resolve => {
 		Promise.all([
-			_updatePortfolioForSplitsAndDividends({detail: portfolioDetail.positions}, date)
+			_updatePortfolioForSplitsAndDividends(portfolioDetail, date)
 			.then(updates => { //contains updted positions, cashgenerates and haschanged flag
-				return [updates.cashgenerated, updates.positions, updates.hasChanged];
+				return [updates.updatedPortfolioDetail, updates.hasChanged];
 			}),
 
 			//Each subposition is sent separately as JULIA portfolio can't handle 
@@ -324,25 +318,15 @@ function _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolioDetail, da
 				});
 			})
 		])
-		.then(([[cashgen, updatedPositions, hasChanged], updatedSubPositions]) => {
+		.then(([[updatedPortfolioDetail, hasChanged], updatedSubPositions]) => {
 			if(hasChanged) {
-				var updatedPortfolioDetail = Object.assign({}, portfolioDetail);
-				
-				if(updatedPositions) {
-					updatedPortfolioDetail.positions = updatedPositions;
-					//updatedPortfolioDetail.startDate = Date
-				}
-
-				if (cashgen) {
-					updatedPortfolioDetail.cash += cashgen;
-				}
-				
+								
 				if(updatedSubPositions) {
 					//Filter out the NULL values
 					updatedPortfolioDetail.subPositions = updatedSubPositions.filter(item => item);
 				}
 
-				resolve([hasChanged, updatedPortfolio]);
+				resolve([hasChanged, updatedPortfolioDetail]);
 			} else {
 				resolve([false, portfolioDetail]);
 			}

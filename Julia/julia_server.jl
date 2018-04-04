@@ -287,29 +287,27 @@ wsh = WebSocketHandler() do req, ws_client
             # TODO: if price is not give (or zero price), assume EOD price for the day
             ##
             ##
-            (cash, updated_portfolio) = updateportfolio_transactions(portfolio, transactions)
+            updated_portfolio = updateportfolio_transactions(portfolio, transactions)
             
             #Update, the positions to match the object structure in Node
             updated_portfolio = convert_to_node_portfolio(updated_portfolio)
-            
-            updated_portfolio["cash"] = cash
             parsemsg["portfolio"] = updated_portfolio
 
         elseif action == "update_portfolio_price"    
             portfolio = parsemsg["portfolio"]
             date = parsemsg["date"]
             typ = parsemsg["type"]
-            updated_positions = updateportfolio_price(portfolio, date == "" ? now() : DateTime(date), typ)
+            updated_portfolio = updateportfolio_price(portfolio, date == "" ? now() : DateTime(date), typ)
             
             #Update, the positions to match the object structure in Node
-            parsemsg["updatedPositions"] = convert_to_node_portfolio(updated_positions)["positions"]
+            parsemsg["updatedPositions"] = convert_to_node_portfolio(updated_portfolio)["positions"]
        
 
         elseif action == "updated_portfolio_splits_dividends"
             portfolio = parsemsg["portfolio"]
             date = parsemsg["date"]   
-            (updated, cashgenerated, updated_portfolio) = updatedportfolio_splits_dividends(portfolio, date == "" ? now() : DateTime(date))
-            parsemsg["updates"] = Dict("cashgenerated" => cashgenerated, "positions" => convert_to_node_portfolio(updated_positions)["positions"], "hasChanged" => updated)
+            (updated, updated_portfolio) = updatedportfolio_splits_dividends(portfolio, date == "" ? now() : DateTime(date))
+            parsemsg["updates"] = Dict("updatedPortfolio" => convert_to_node_portfolio(updated_portfolio), "hasChanged" => updated)
 
         elseif action == "compute_fractional_ranking"
             

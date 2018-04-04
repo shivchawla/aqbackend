@@ -101,12 +101,11 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
         end
         performance_allstocks = Dict{String, Any}[]
         
-        all_securities = Raftaar.Security[]
-        for pos in get(port, "positions", Vector{Dict{String,Any}}())
-            (valid, security) = _validate_security(pos["security"])
-            if valid 
-                push!(all_securities, security)
-            end
+        port_raftaar = convert(Raftaar.Portfolio, port)
+        
+        all_tickers = String[]
+        for (sym, pos) in port_raftaar.positions
+            push!(all_tickers, sym.ticker)
         end
 
         (valid, benchmark_security) = _validate_security(benchmark)
@@ -115,16 +114,16 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
         benchmark_prices = history_nostrict([benchmark_security.symbol.ticker], "Close", :Day, sdate, edate)
 
         if benchmark_prices == nothing
-            return (Date(now()), [merge(Dict("ticker" => security.symbol.ticker), empty_pnl()) for security in all_securities])
+            return (Date(now()), [merge(Dict("ticker" => ticker), empty_pnl()) for ticker in all_tickers])
         
         elseif benchmark_prices.timestamp[end] < Date(start_date)
-            return (Date(now()), [merge(Dict("ticker" => security.symbol.ticker), empty_pnl()) for security in all_securities])
+            return (Date(now()), [merge(Dict("ticker" => ticker), empty_pnl()) for ticker in all_tickers])
 
         elseif (benchmark_prices != nothing)
-            portfolio = updateportfolio_price(port, DateTime(benchmark_prices.timestamp[end]))
+            updatedPortfolio = updateportfolio_price(port_raftaar, DateTime(benchmark_prices.timestamp[end]))
             
             lastdate = benchmark_prices.timestamp[end] 
-            performance_allstocks = [merge(Dict("ticker" => sym.ticker), compute_pnl_stats(pos)) for (sym,pos) in portfolio.positions]
+            performance_allstocks = [merge(Dict("ticker" => sym.ticker), compute_pnl_stats(pos)) for (sym,pos) in updatedPortfolio.positions]
             
             return (lastdate, performance_allstocks)
         

@@ -84,7 +84,12 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
                     security = convert(Raftaar.Security, pos["security"])
                     
                     if security == Security()
-                        error("Invalid portfolio composition (Invalid Security: $(pos["security"]["ticker"]))")
+                        if pos["security"]["ticker"] == "CASH_INR" 
+                            portfolio.cash += convert(Float64, get(pos, "quantity", 0.0))
+                            continue
+                        else
+                            error("Invalid portfolio composition (Invalid Security: $(pos["security"]["ticker"]))")
+                        end
                     end
 
                     qty = get(pos, "quantity", 0)
@@ -110,6 +115,11 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
             end
         else
             error("Positions key is missing")
+        end
+
+        if haskey(port, "cash")
+            cash = convert(Float64, port["cash"])
+            portfolio.cash += cash
         end
 
         return portfolio        
@@ -195,7 +205,7 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
 
         #ADD CHECK FOR ZERO PRICES (OR PRICES DIFFERENT FROM CLOSE ON THE DATE)
 
-        portval = _compute_latest_portfoliovalue(port, convert(Float64, get(portfolioDetail,"cash", 0.0)))
+        portval = _compute_latest_portfoliovalue(port)
 
         maxnotional = get(advice, "maxNotional", 1000000.0)
 
@@ -278,7 +288,7 @@ end
 # Compute portfolio value on latest date
 # OUTPUT: portfolio value 
 ###
-function _compute_latest_portfoliovalue(portfolio::Portfolio, cash::Float64)
+function _compute_latest_portfoliovalue(portfolio::Portfolio)
    
     try
         # Get the list of ticker
@@ -306,7 +316,7 @@ function _compute_latest_portfoliovalue(portfolio::Portfolio, cash::Float64)
             equity_value += pos.quantity * close 
         end
 
-        portfolio_value = equity_value + cash 
+        portfolio_value = equity_value + portfolio.cash
     catch err
         rethrow(err)
     end
@@ -317,7 +327,7 @@ end
 # Compute portfolio value over a period
 # OUTPUT: portfolio value vector
 ###
-function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime, cash::Float64)
+function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime)
     try
         # Get the list of ticker
         secids = [sym.id for sym in keys(portfolio.positions)]    
@@ -331,7 +341,7 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
             if length(dt_array) == 0
                 return nothing
             end
-            return TimeArray([dt for dt in dt_array], cash*ones(length(dt_array)), ["Portfolio"])
+            return TimeArray([dt for dt in dt_array], portfolio.cash*ones(length(dt_array)), ["Portfolio"])
         end
 
         ts = prices.timestamp
@@ -351,7 +361,7 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
                 equity_value += pos.quantity * (!isnan(close) ? close : 0.0)
             end
 
-            portfolio_value[i, 1] = equity_value + cash
+            portfolio_value[i, 1] = equity_value + portfolio.cash
         end
 
         return TimeArray(ts, portfolio_value, ["Portfolio"])
@@ -368,11 +378,7 @@ end
 function _compute_portfoliovalue(port::Dict{String, Any}, date::DateTime)
     try
         portfolio = convert(Raftaar.Portfolio, port)
-
-        cash = haskey(port, "cash") ? port["cash"] : 0.0
-        cash = convert(Float64, cash)
-
-        portfolio_value = _compute_portfoliovalue(portfolio, date, date, cash)
+        portfolio_value = _compute_portfoliovalue(portfolio, date, date)
 
         return portfolio_value.values[1]
     catch err
@@ -389,10 +395,7 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, date::DateTime)
         
         portfolio = convert(Raftaar.Portfolio, port)
 
-        cash = haskey(port, "cash") ? port["cash"] : 0.0
-        cash = convert(Float64, cash)
-
-        portfolio_value = _compute_portfoliovalue(portfolio, date, date, cash).values[1]
+        portfolio_value = _compute_portfoliovalue(portfolio, date, date).values[1]
 
         # Get the list of ticker
         allkeys = keys(portfolio.positions)
@@ -416,7 +419,7 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, date::DateTime)
             equity_value_wt[i] = portfolio_value > 0.0 ? equity_value/portfolio_value : 0.0;
         end
 
-        cash_wt = portfolio_value > 0.0 ? cash/portfolio_value : 0.0
+        cash_wt = portfolio_value > 0.0 ? portfolio.cash/portfolio_value : 0.0
 
         composition = [Dict("weight" => cash_wt, "ticker" => "CASH_INR")]
         append!(composition, [Dict("weight" => equity_value_wt[i], "ticker" => tickers[i]) for i in 1:length(allkeys)])
@@ -585,7 +588,7 @@ function _validate_security(security::Dict{String, Any})
     try
         security_raftaar = convert(Raftaar.Security, security)
         if security_raftaar == Security()
-            error("Inavlid Security")
+            error("Invalid Security")
         end
 
         return (true, security_raftaar)
@@ -610,8 +613,6 @@ function compute_portfoliohistory_netvalue(portfolioHistory)
             port = collection["portfolio"]
 
             portfolio = convert(Raftaar.Portfolio, port)
-            cash = haskey(port, "cash") ? port["cash"] : 0.0
-            cash = convert(Float64, cash)
 
             startDate = DateTime(collection["startDate"], format)
             endDate = DateTime(collection["endDate"], format)
@@ -622,7 +623,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory)
                 error("Start date in portfolio greater then End date. Can't compute portoflio value")    
             end
 
-            portfolio_value_ta = _compute_portfoliovalue(portfolio, startDate, endDate, cash)
+            portfolio_value_ta = _compute_portfoliovalue(portfolio, startDate, endDate)
 
             if portfolio_value_ta != nothing 
                 push!(ts, portfolio_value_ta)
@@ -660,10 +661,7 @@ function compute_portfolio_value_period(port, startDate::DateTime, endDate::Date
         #endDate = DateTime(endDate[1:end-1])
 
         portfolio = convert(Raftaar.Portfolio, port)
-        cash = haskey(port, "cash") ? port["cash"] : 0.0
-        cash = convert(Float64, cash)
-
-        portfolio_value = _compute_portfoliovalue(portfolio, startDate, endDate, cash)
+        portfolio_value = _compute_portfoliovalue(portfolio, startDate, endDate)
 
         return (portfolio_value.values, portfolio_value.timestamp)
     catch err
@@ -678,9 +676,7 @@ function updateportfolio_transactions(port::Dict{String, Any}, transactions::Vec
     
     try
         portfolio = convert(Raftaar.Portfolio, port)
-
-        cash = haskey(port, "cash") ? port["cash"] : 0.0
-        cash = convert(Float64, cash)
+        cash = 0.0
         
         fills = Vector{OrderFill}()
         for transaction in transactions
@@ -695,11 +691,12 @@ function updateportfolio_transactions(port::Dict{String, Any}, transactions::Vec
         end
 
         if length(fills) > 0
-            nd = Raftaar.updateportfolio_fills!(portfolio, fills)
-            cash += nd
+            Raftaar.updateportfolio_fills!(portfolio, fills)
         end
 
-        return (cash, portfolio)
+        portfolio.cash += cash
+
+        return portfolio
     catch err
         rethrow(err)
     end
@@ -711,7 +708,17 @@ end
 function updateportfolio_price(port::Dict{String, Any}, end_date::DateTime = now(), typ::String = "EOD")
     try
         portfolio = convert(Raftaar.Portfolio, port)    
+        updateportfolio_price(portfolio, end_date, typ)
+    catch err
+        rethrow(err)
+    end
+end
 
+###
+# Function to update portfolio with latest price
+###
+function updateportfolio_price(portfolio::Portfolio, end_date::DateTime = now(), typ::String = "EOD")
+    try
         if (typ == "EOD")
             _updateportolio_EODprice(portfolio, end_date)
         elseif (typ == "RT")
@@ -750,7 +757,9 @@ function updatedportfolio_splits_dividends(portfolio::Dict{String,Any}, date::Da
         end
     end
 
-    return (updated, cashfromdividends, port)
+    port.cash += cashfromdividends
+
+    return (updated, port)
 
 end    
 
@@ -800,7 +809,7 @@ end
 
 function convert_to_node_portfolio(port::Portfolio)
     try
-        output = Dict{String, Any}("positions" => [])
+        output = Dict{String, Any}("positions" => [], "cash" => port.cash)
 
         for (sym, pos) in port.positions
             n_pos = Dict{String, Any}()
