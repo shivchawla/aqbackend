@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-21 13:36:33
+* @Last Modified time: 2018-04-04 10:42:37
 */
 
 'use strict';
@@ -104,7 +104,7 @@ module.exports.getAdvisorSummary = function(args, res, next) {
     	let adviceQuery = {deleted: false, advisor: advisorId};
     	const adviceOptions = {};
 
-    	adviceOptions.fields = '_id name approvalStatus prohibited latestAnalytics latestPerformance';
+    	adviceOptions.fields = '_id name approvalStatus prohibited latestAnalytics performanceSummary';
 
     	isAdmin = adminAdvisor && userAdvisor ? userAdvisor._id.equals(adminAdvisor._id) : false;
     	isOwner = userAdvisor && advisorId ? userAdvisor._id.equals(advisorId) : false;
