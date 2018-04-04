@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-03 10:18:05
+* @Last Modified time: 2018-04-04 10:14:33
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -330,6 +330,7 @@ function _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolioDetail, da
 				
 				if(updatedPositions) {
 					updatedPortfolioDetail.positions = updatedPositions;
+					//updatedPortfolioDetail.startDate = Date
 				}
 
 				if (cashgen) {
@@ -373,9 +374,9 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 	//2b. Update current portfolio if the transactions are new
 	var updateMethod = 'Create';
 	var portfolioId = portfolio._id;
-	var uniqueAdviceIds = Array.from(new Set(transactions.map(item => item.advice.toString())));
-	return Promise.map(uniqueAdviceIds, function(adviceId){
-		if (adviceId) {
+	var uniqueAdviceIds = Array.from(new Set(transactions.map(item => item.advice ? item.advice.toString() : "")));
+	return Promise.map(uniqueAdviceIds, function(adviceId) {
+		if (adviceId != "") {
 			var transactionsForAdviceId = transactions.filter(item => {return item.advice == adviceId;});
 			
 			//TRANSACTION WITH ADVICE_ID are just like stock transaction 
