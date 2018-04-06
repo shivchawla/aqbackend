@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:56:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-03 19:03:43
+* @Last Modified time: 2018-04-05 11:28:30
 */
 
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -199,3 +199,14 @@ module.exports.updateAllAdviceAnalytics = function() {
 		});
 	});
 };
+
+module.exports.updateAllAnalytics = function() {
+	return exports.updateAllAdviceAnalytics()
+	.then(updated => {
+		return exports.updateAllAdvisorAnalytics();	
+	})
+	.catch(err => {
+		console.log(err.message);
+	});
+}
+

@@ -305,10 +305,10 @@ wsh = WebSocketHandler() do req, ws_client
             #Update, the positions to match the object structure in Node
             parsemsg["updatedPositions"] = convert_to_node_portfolio(updated_portfolio)["positions"]
        
-        elseif action == "updated_portfolio_splits_dividends"
+        elseif action == "update_portfolio_splits_dividends"
             portfolio = parsemsg["portfolio"]
-            date = parsemsg["date"]   
-            (updated, updated_portfolio) = updatedportfolio_splits_dividends(portfolio, date == "" ? now() : DateTime(date))
+            date = parsemsg["date"]
+            (updated, updated_portfolio) = updatedportfolio_splits_dividends(portfolio, date == "" ? now() : DateTime(date, jsdateformat))
             parsemsg["updates"] = Dict("updatedPortfolio" => convert_to_node_portfolio(updated_portfolio), "hasChanged" => updated)
 
         elseif action == "compute_fractional_ranking"

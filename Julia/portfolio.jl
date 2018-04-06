@@ -96,6 +96,8 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
                     #price is 0.0 
                     price = convert(Float64, get(pos, "avgPrice", 0.0))
 
+                    lastprice = convert(Float64, get(pos, "lastPrice", 0.0))                    
+
                     #Link the position to an advice (Used in marketplace Sub-Portfolio)
                     advice = get(pos, "advice", "")
 
@@ -106,8 +108,11 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
 
                     advice = advice == nothing ? "" : advice
 
+                    pos = Position(security.symbol, qty, price, advice)
+
+                    pos.lastprice = lastprice
                     # Append to position dictionary
-                    portfolio.positions[security.symbol] = Position(security.symbol, qty, price, advice)
+                    portfolio.positions[security.symbol] = pos
                        
                 end
             end
@@ -249,6 +254,85 @@ function _validate_adviceportfolio(advicePortfolio::Dict{String, Any}, lastAdvic
 end 
 
 ###
+# Function to validate a security (against database data)
+###
+function _validate_security(security::Dict{String, Any})
+    
+    try
+        security_raftaar = convert(Raftaar.Security, security)
+        if security_raftaar == Security()
+            error("Invalid Security")
+        end
+
+        return (true, security_raftaar)
+    catch err
+        rethrow(err)
+    end
+end
+
+function _validate_transactions(transactions::Vector{Dict{String,Any}}, advicePort::Dict{String, Any}, investorPort::Dict{String, Any})
+    try
+        if advicePort != Dict{String,Any}()
+            effInvPortfolio = Portfolio()
+            
+            #Update investor portfolio with advice transactions
+            #get effective investor portfolio
+            if investorPort != Dict{String, Any}()
+                (cash, effInvPortfolio) = updateportfolio_transactions(investorPort, transactions)
+            else
+                (cash, effInvPortfolio) = updateportfolio_transactions(Dict("positions" => []), transactions);
+            end
+
+            #=transactions_raftaar = Raftaar.OrderFill[];
+
+            for (i, transaction) in enumerate(transactions)
+                try
+                    push!(transactions_raftaar, convert(Raftaar.OrderFill, transaction))
+                    #Can add a check by comparing the price...but not important 
+                catch err
+                    rethrow(err)
+                end
+            end=#
+        
+            advPortfolio = convert(Raftaar.Portfolio, advicePort)
+            multiple = Int64[]
+
+            if length(keys(advPortfolio.positions)) != length(keys(effInvPortfolio.positions))
+                return false
+            end
+            
+            for sym in keys(advPortfolio.positions)
+                
+                #sym = txn.securitysymbol
+                posAdvice = get(advPortfolio.positions, sym, nothing)
+                posInvestor = get(effInvPortfolio.positions, sym, nothing)
+
+                if(posAdvice == nothing || posInvestor == nothing)
+                    error("Transaction in Invalid Position: $(sym.ticker)")
+                end
+
+                remainder = posInvestor.quantity % posAdvice.quantity
+                
+                if(abs(remainder) > 0)
+                    error("Invalid quantity in $(sym.ticker)")
+                end
+
+                push!(multiple, round(posInvestor.quantity / posAdvice.quantity))
+
+            end
+
+            #check if all are equal
+            return all(y->y==multiple[1], multiple)
+        else
+            return true
+        end
+
+    catch err
+        rethrow(err)
+    end
+end
+
+###
 # Internal Function
 # Validate portfolio for positions (and internal stocks)
 ###
@@ -325,13 +409,20 @@ end
 # Compute portfolio value over a period
 # OUTPUT: portfolio value vector
 ###
-function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime)
+function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime, typ::String="Adj")
     try
         # Get the list of ticker
         secids = [sym.id for sym in keys(portfolio.positions)]    
 
-        #Get the Adjusted prices for tickers in the portfolio
-        prices = YRead.history(secids, "Close", :Day, start_date, end_date, displaylogs=false)
+        price = nothing
+        
+        if typ == "Adj" 
+            #Get the Adjusted prices for tickers in the portfolio
+            prices = YRead.history(secids, "Close", :Day, start_date, end_date, displaylogs=false)
+        elseif typ == "UnAdj"
+            #Get the Adjusted prices for tickers in the portfolio
+            prices = YRead.history_unadj(secids, "Close", :Day, start_date, end_date, displaylogs=false)
+        end
 
         #Using benchmark prices to filter out days when benchmark is not available
         #Remove benchmark prices where it's NaN
@@ -451,7 +542,7 @@ function _updateportolio_EODprice(port::Portfolio, date::DateTime)
         start_date = DateTime(Date(date) - Dates.Week(52))
         end_date = date
 
-        stock_value_52w = YRead.history(alltickers, "Close", :Day, start_date, end_date, displaylogs=false)
+        stock_value_52w = YRead.history_unadj(alltickers, "Close", :Day, start_date, end_date, displaylogs=false)
         benchmark_value_52w =  history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date) 
 
         #Check if stock values are valid 
@@ -561,6 +652,120 @@ function _read_realtime_prices(file::String)
     end
 end
 
+function _get_dividends(date::DateTime)
+    (data, headers) = readcsv(Base.source_dir()*"/dividends.csv", header=true)
+
+    dividends = Dict{SecuritySymbol, Float64}()
+    for row in 1:size(data)[1]
+        ticker = data[row, find(headers.=="ticker")[1]]
+        security = getsecurity(String(ticker))
+        fv = convert(Float64, data[row, find(headers.=="fv")[1]])
+        pct = convert(Float64, data[row, find(headers.=="percentage")[1]])*0.01
+        fdate = Date(data[row, find(headers.=="date")[1]])
+
+        if Date(fdate) == Date(date)
+            dividends[security.symbol] = fv*pct
+        end
+
+    end
+
+    return dividends
+end
+
+function _get_splits(date::DateTime)
+    (data, headers) = readcsv(Base.source_dir()*"/splits.csv", header=true)
+
+    splits = Dict{SecuritySymbol, Float64}()
+    for row in 1:size(data)[1]
+        ticker = data[row, find(headers.=="ticker")[1]]
+        security = getsecurity(String(ticker))
+        ofv = convert(Float64, data[row, find(headers.=="ofv")[1]])
+        nfv = convert(Float64, data[row, find(headers.=="nfv")[1]])
+        fdate = Date(data[row, find(headers.=="date")[1]])
+
+        if Date(fdate) == Date(date)
+            splits[security.symbol] = ofv > 0.0 ? nfv/ofv : 1.0
+        end
+
+    end
+
+    return splits
+end
+
+function _get_bonus(date::DateTime)
+    (data, headers) = readcsv(Base.source_dir()*"/bonus.csv", header=true)
+
+    bonus = Dict{SecuritySymbol, Float64}()
+    for row in 1:size(data)[1]
+        ticker = data[row, find(headers.=="ticker")[1]]
+        security = getsecurity(String(ticker))
+        ratio = data[row, find(headers.=="ratio")[1]]
+        fdate = Date(data[row, find(headers.=="date")[1]])
+
+        n = parse(split(ratio,':')[1])
+        d = parse(split(ratio,':')[2])
+
+        if Date(fdate) == Date(date)
+            bonus[security.symbol] = d/(n+d)
+        end
+
+    end
+
+    return bonus
+end
+
+function _update_portfolio_dividends(port::Portfolio, date::DateTime = now())
+    dividends = _get_dividends(date)
+    cashgen = 0.0
+    updated = false
+    for (sym,dividend) in dividends
+        pos = port[sym]
+        if pos.quantity > 0
+            updated = true
+            cashgen += pos.quantity * dividend
+            pos.lastprice = pos.lastprice > 0 ? pos.lastprice - dividend : 0.0
+        end
+    end
+
+    port.cash += cashgen
+
+    return (updated, port)
+end
+
+function _update_portfolio_splits(port::Portfolio, date::DateTime = now())
+    splits = _get_splits(date)
+
+    updated = false
+    for (sym, splt) in splits
+        pos = port[sym]
+        if pos.quantity > 0
+            updated = true
+            pos.quantity = Int(round(pos.quantity * 1.0/splt, 0))
+            pos.lastprice = pos.lastprice * splt
+            pos.averageprice = pos.averageprice * splt
+        end
+    end
+
+    return (updated, port)
+end
+
+function _update_portfolio_bonus(port::Portfolio, date::DateTime = now())
+    bonus = _get_bonus(date)
+
+    updated = false
+    for (sym, bns) in bonus
+        pos = port[sym]
+        if pos.quantity > 0
+            updated = true
+            pos.quantity = Int(round(pos.quantity * 1.0/bns, 0))
+            pos.lastprice = pos.lastprice * bns
+            pos.averageprice = pos.averageprice * bns
+        end
+    end
+
+    return (updated, port)
+end
+
 ###
 # Function to download and update realtime prices (from 15 minutes delayed feed)
 function update_realtime_prices()
@@ -572,7 +777,7 @@ function update_realtime_prices()
         
         #2. Load the data in _readTimePrices
         #_read_realtime_prices("XNSE_20180323.partial.csv")
-        mktPrices = readMktFile("/Users/shivkumarchawla/Desktop/DelayedSnapshotCM30_02022018/100.mkt")
+        mktPrices = readMktFile("/Users/shivkumarchawla/Desktop/DelayedSnapshotCM30_02022018/101.mkt")
         
         for (k,v) in mktPrices
             ticker = get(_codeToTicker, k, "")
@@ -582,30 +787,10 @@ function update_realtime_prices()
             end
         end
 
-        #println(_realtimePrices)
-        
         return true
     catch err
         rethrow(err)
     end   
-end
-
-
-###
-# Function to validate a security (against database data)
-###
-function _validate_security(security::Dict{String, Any})
-    
-    try
-        security_raftaar = convert(Raftaar.Security, security)
-        if security_raftaar == Security()
-            error("Invalid Security")
-        end
-
-        return (true, security_raftaar)
-    catch err
-        rethrow(err)
-    end
 end
 
 #=
@@ -634,7 +819,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory)
                 error("Start date in portfolio greater then End date. Can't compute portoflio value")    
             end
 
-            portfolio_value_ta = _compute_portfoliovalue(portfolio, startDate, endDate)
+            portfolio_value_ta = _compute_portfoliovalue(portfolio, startDate, endDate, "UnAdj")
 
             if portfolio_value_ta != nothing 
                 push!(ts, portfolio_value_ta)
@@ -743,34 +928,13 @@ end
 
 
 function updatedportfolio_splits_dividends(portfolio::Dict{String,Any}, date::DateTime = now())
-    port = convert(Raftaar.portfolio, portfolio)
-    adjustments = YRead.getadjustments([sym.ticker for sym in keys(portfolio.positions)], date, date)
-    cashfromdividends = 0.0
-    updated = false
-
-    if adjustments != nothing && length(keys(adjustments)) > 0
-        updated = true
-        adjs = Dict{SecuritySymbol, Adjustment}()
-
-        #THIS LOGIC SHOULD BE IN RAFTAAR but is not there yet...
-        #It's thee in getdatastores Function
-        if haskey(adjustments, security.symbol.id)
-            if haskey(adjustments[security.symbol.id], date)
-                adj = adjustments[security.symbol.id][date]
-                adjs[security.symbol] = Adjustment(adj[1], string(adj[3]), adj[2])
-            end
-        end
-
-        Raftaar.updateportfolio_splits_dividends!(port, adjs)
-        
-        for (symbol, adjustment) in adjustments
-            cashfromdividends += (adjustment.adjustmenttype == "17.0") ? port[symbol].quantity * adjustment.adjustmentfactor : 0.0
-        end
-    end
-
-    port.cash += cashfromdividends
-
-    return (updated, port)
+    port = convert(Raftaar.Portfolio, portfolio)
+    
+    (updated_div, port) = _update_portfolio_dividends(port, date)
+    (updated_splt, port) = _update_portfolio_splits(port, date)
+    (updated_bns, port) = _update_portfolio_bonus(port, date)
+    
+    return (updated_div || updated_splt || updated_bns, port)
 end    
 
 ###
@@ -835,68 +999,6 @@ function convert_to_node_portfolio(port::Portfolio)
         end
 
         return output
-    catch err
-        rethrow(err)
-    end
-end
-
-function _validate_transactions(transactions::Vector{Dict{String,Any}}, advicePort::Dict{String, Any}, investorPort::Dict{String, Any})
-    try
-        if advicePort != Dict{String,Any}()
-            effInvPortfolio = Portfolio()
-            
-            #Update investor portfolio with advice transactions
-            #get effective investor portfolio
-            if investorPort != Dict{String, Any}()
-                (cash, effInvPortfolio) = updateportfolio_transactions(investorPort, transactions)
-            else
-                (cash, effInvPortfolio) = updateportfolio_transactions(Dict("positions" => []), transactions);
-            end
-
-            #=transactions_raftaar = Raftaar.OrderFill[];
-
-            for (i, transaction) in enumerate(transactions)
-                try
-                    push!(transactions_raftaar, convert(Raftaar.OrderFill, transaction))
-                    #Can add a check by comparing the price...but not important 
-                catch err
-                    rethrow(err)
-                end
-            end=#
-        
-            advPortfolio = convert(Raftaar.Portfolio, advicePort)
-            multiple = Int64[]
-
-            if length(keys(advPortfolio.positions)) != length(keys(effInvPortfolio.positions))
-                return false
-            end
-            
-            for sym in keys(advPortfolio.positions)
-                
-                #sym = txn.securitysymbol
-                posAdvice = get(advPortfolio.positions, sym, nothing)
-                posInvestor = get(effInvPortfolio.positions, sym, nothing)
-
-                if(posAdvice == nothing || posInvestor == nothing)
-                    error("Transaction in Invalid Position: $(sym.ticker)")
-                end
-
-                remainder = posInvestor.quantity % posAdvice.quantity
-                
-                if(abs(remainder) > 0)
-                    error("Invalid quantity in $(sym.ticker)")
-                end
-
-                push!(multiple, round(posInvestor.quantity / posAdvice.quantity))
-
-            end
-
-            #check if all are equal
-            return all(y->y==multiple[1], multiple)
-        else
-            return true
-        end
-
     catch err
         rethrow(err)
     end
@@ -968,5 +1070,3 @@ function findsecurities(hint::String, limit::Int, outputType::String)
         rethrow(err)
     end
 end
-
-

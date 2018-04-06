@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-03 10:51:40
+* @Last Modified time: 2018-04-06 12:18:57
 */
 
 'use strict';
@@ -54,7 +54,7 @@ const Portfolio = new Schema({
 
 	history: [PortfolioDetail],
 
-	adjustmentHistory: [{date: Date}],
+	adjustmentHistory: [Date],
 });
 
 Portfolio.statics.savePortfolio = function(portfolio, isAdvice) {
@@ -97,6 +97,16 @@ Portfolio.statics.fetchPortfolio = function(query, options) {
 		q = q.populate('detail.subPositions.advice', '_id name', {_id:{$ne:null}});
 	}
 
+	return q.execAsync();
+};
+
+Portfolio.statics.fetchPortfolios = function(query, options) {
+	var q = this.find(query);
+		
+	if(options.fields) {
+		q = q.select(options.fields);	
+	}
+	
 	return q.execAsync();
 };
 
@@ -188,7 +198,6 @@ Portfolio.statics.deleteTransactions = function(query, transactions) {
 
 Portfolio.statics.updatePortfolio = function(query, updates, options) {
 	var q = this.findOne(query);
-		
 	var updateHistoryFlag =  options && options.updateHistory;
 	
 	return q.execAsync()
@@ -213,14 +222,23 @@ Portfolio.statics.updatePortfolio = function(query, updates, options) {
 		if (updateHistoryFlag) {
 			var modifiedUpdates = Object.assign({}, updates);
 			var newHistory = updates.history ? updates.history : [portfolio.detail]; 
+			var adjustmentHistory = updates.adjustmentHistory ?  updates.adjustmentHistory : null;
 
 			delete modifiedUpdates.history;
+			delete modifiedUpdates.adjustmentHistory;
 
 			//assuming history is array;
-			fupdate = {
-						$set: Object.assign({updatedDate: new Date()}, modifiedUpdates), 
-						$push:{history: {$each: newHistory}}
-					};
+			if(adjustmentHistory) {
+				fupdate = {
+					$set: Object.assign({updatedDate: new Date()}, modifiedUpdates), 
+					$push:{history: {$each: newHistory}, adjustmentHistory: adjustmentHistory}
+				};
+			} else {
+				fupdate = {
+					$set: Object.assign({updatedDate: new Date()}, modifiedUpdates), 
+					$push:{history: {$each: newHistory}}
+				};
+			}
 		}
 
 		return this.findOneAndUpdate(query, fupdate);

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-04 12:03:47
+* @Last Modified time: 2018-04-06 12:16:14
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -299,28 +299,37 @@ function _computeUpdatedPortfolioForPrice(portfolio, date, type) {
 
 function _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolioDetail, date) {
 	return new Promise(resolve => {
+		if (!(portfolioDetail && portfolioDetail.positions)) {
+				console.log("No Positions");
+				console.log(portfolioDetail)
+			}
+
 		Promise.all([
 			_updatePortfolioForSplitsAndDividends(portfolioDetail, date)
 			.then(updates => { //contains updted positions, cashgenerates and haschanged flag
-				return [updates.updatedPortfolioDetail, updates.hasChanged];
+				return [updates.updatedPortfolio, updates.hasChanged];
 			}),
 
 			//Each subposition is sent separately as JULIA portfolio can't handle 
 			//redundant securities
 			Promise.map(portfolioDetail.subPositions, function(position) {
-				return _updatePositionsForSplitsAndDividends({detail: [position]}, date)
+				const port = {positions: [position], cash: 0.0};
+				return _updatePortfolioForSplitsAndDividends(port, date)
 				.then(updates => { //updates include (cashgenerated , positions and isChanged flag)
-					if (updates.positions){
-						return updates.positions.length == 1 ? updated.positions[0] : null;
+					if (updates.updatedPortfolio && updates.updatedPortfolio.positions){
+						return updates.updatedPortfolio.positions.length == 1 ? updates.updatedPortfolio.positions[0] : null;
 					} else {
 						return null;
 					}
 				});
 			})
+			//null,
 		])
 		.then(([[updatedPortfolioDetail, hasChanged], updatedSubPositions]) => {
 			if(hasChanged) {
-								
+
+				updatedPortfolioDetail.startDate = DateHelper.getCurrentDate();
+
 				if(updatedSubPositions) {
 					//Filter out the NULL values
 					updatedPortfolioDetail.subPositions = updatedSubPositions.filter(item => item);
@@ -330,6 +339,11 @@ function _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolioDetail, da
 			} else {
 				resolve([false, portfolioDetail]);
 			}
+		})
+		.catch(err => {
+			console.log("Shivaaaa");
+			console.log(err);
+			resolve([false, portfolioDetail]);
 		});
 	});
 }
@@ -655,30 +669,31 @@ module.exports.validateTransactions = function(transactions, advicePortfolio, in
 };
 
 module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
-	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields: 'detail'})
+	var currentDate = DateHelper.getCurrentDate();
+
+	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields: 'detail adjustmentHistory'})
 	.then(portfolio => {
-		if (portfolio && portfolio.detail) {
-			return _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolio.detail);
+		//Check if currentDate already exist in adjustmentHistory
+		var alreadyAdjusted = portfolio.adjustmentHistory ? portfolio.adjustmentHistory.map(item => item.getTime()).indexOf(currentDate.getTime()) != -1 : false;
+
+		if (portfolio && portfolio.detail && !alreadyAdjusted) {
+			return _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolio.detail, currentDate.toISOString());
 		} else {
 			return [false, null];
 		}
 	})
-	.then(([updated, updateDetail]) => {
+	.then(([updated, updatedDetail]) => {
 		//If updated flag is TRUE, then only update the portfolio
 		//ELSE return NULL
-		console.log(updated);
-		console.log(updatedDetail);
-		return null;
-		return updated ? PortfolioModel.updatePortfolio({_id: portfolioId}, {detail: updatedDetail}, {updateHistory: true}) : null;
+		return updated && updatedDetail ? PortfolioModel.updatePortfolio({_id: portfolioId}, {detail: updatedDetail, adjustmentHistory: currentDate}, {updateHistory: true}) : null;
 	});
 };
 
 module.exports.updateAllPortfoliosForSplitsAndDividends = function() {
-	return PortfolioModel.fetchPortfolio({}, {fields: '_id'})
+	return PortfolioModel.fetchPortfolios({}, {fields: '_id'})
 	.then(portfolios => {
 		Promise.mapSeries(portfolios, function(portfolio) {
 			return exports.updatePortfolioForSplitsAndDividends(portfolio._id);
 		});
 	});
 };
-

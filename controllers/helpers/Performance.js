@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-03 23:32:43
+* @Last Modified time: 2018-04-06 12:07:59
 */
 
 'use strict';
@@ -391,12 +391,15 @@ function _extractPerformanceSummary(performance) {
 		var netValueArray = summary && summary.portfolioValues && summary.portfolioValues.length > 0 ? summary.portfolioValues.slice(-2) : null;
 
 		var dailyChange = 0.0;
+		var dailyChangePct = 0.0;
 		if(netValueArray && netValueArray.length > 1){
 			var prices = netValueArray.map(item => item.netValue);
-			dailyChange = prices[0] > 0.0 ? (prices[1] - prices[0])/prices[0] : 0.0;
+			dailyChange = (prices[1] - prices[0]);
+			dailyChangePct = prices[0] > 0.0 ? dailyChange/prices[0] : 0.0;
 		}
 
-		dailyChange = parseFloat(dailyChange.toPrecision(4));
+		dailyChange = parseFloat(dailyChange.toPrecision(2));
+		dailyChangePct = parseFloat(dailyChangePct.toPrecision(4));
 
 		var latestPortfolioValue = netValueArray && netValueArray.length > 0 ? netValueArray[netValueArray.length - 1] : null
 		var trueMetrics = summary && summary.metrics && summary.metrics.portfolioPerformance && summary.metrics.portfolioPerformance.true ? summary.metrics.portfolioPerformance.true : null; 
@@ -405,6 +408,7 @@ function _extractPerformanceSummary(performance) {
 		performanceSummary = Object.assign({diff: _extractMetrics(diffMetrics)}, 
 			Object.assign({date: summary.updateDate,	
 				dailyChange: dailyChange,
+				dailyChangePct: dailyChangePct,
 				netValue: latestPortfolioValue ? latestPortfolioValue.netValue : null,
 				netValueDate: latestPortfolioValue ? latestPortfolioValue.date : null,
 				concentration: summary && summary.metrics && summary.metrics.portfolioMetrics ? summary.metrics.portfolioMetrics.concentration : 1.0,
