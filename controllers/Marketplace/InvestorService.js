@@ -2,12 +2,13 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-03 19:06:09
+* @Last Modified time: 2018-04-07 13:01:00
 */
 
 'use strict';
 const InvestorModel = require('../../models/Marketplace/Investor');
 const PortfolioModel = require('../../models/Marketplace/Portfolio');
+const AdviceModel = require('../../models/Marketplace/Advice');
 const APIError = require('../../utils/error');
 const Promise = require('bluebird');
 const HelperFunctions = require("../helpers");
@@ -25,6 +26,33 @@ function _compareIds(x, y) {
 	} else {
 		return x.equals(y)
 	}
+}
+
+function _hasAdviceChanged(myPositions, adviceId) {
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio', populate: 'portfolio'})
+	.then(advice => {
+		var changed = false;
+		if (advice && advice.portfolio && advice.portfolio.detail) {
+			var advicePositions = advice.portfolio.detail.positions;
+			for (var pos of advicePositions) {
+				//find postions in myPositions
+				var ticker = pos.security.ticker;
+				var idx = myPositions.map(item => item.security.ticker).indexOf(ticker);
+				if (idx == -1) {
+					changed = true;
+					break;
+				} else {
+					changed == pos.quantity != myPositions[idx].quantity;
+
+					if (changed == true) {
+						break;
+					} 
+				}
+			}
+		} 
+
+		return changed;
+	});
 }
 
 function _computePnlStats(positions) {
@@ -49,12 +77,14 @@ function _getPerformanceOfAdvices(portfolio) {
 	var advices = Array.from(new Set(subPositions.map(item => {return item.advice ? item.advice._id : "";})));
 	
 	return Promise.map(advices, function(adviceId) {
+		var advicePositions = subPositions.filter(item => {return adviceId!="" ? item.advice && item.advice._id.toString() == adviceId.toString() : !item.advice || item.advice=="";});
 		return Promise.all([
 			adviceId !="" ? AdviceHelper.getAdvicePerformanceSummary(adviceId) : {current: {}},
-			_computePnlStats(subPositions.filter(item => {return adviceId!="" ? item.advice && item.advice._id.toString() == adviceId.toString() : !item.advice || item.advice=="";}))
+			_computePnlStats(advicePositions),
+			adviceId !="" ? _hasAdviceChanged(advicePositions, adviceId) : false
 		])
-		.then(([performance, pnlStats]) => {
-			return Object.assign({advice: adviceId}, performance.current, {personal: pnlStats});
+		.then(([performance, pnlStats, hasChanged]) => {
+			return Object.assign({advice: adviceId}, performance.current, {hasChanged: hasChanged}, {personal: pnlStats});
 		});
 	})
 	.then(allPerformances => {
