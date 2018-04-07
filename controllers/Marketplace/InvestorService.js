@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-07 13:01:00
+* @Last Modified time: 2018-04-07 18:10:14
 */
 
 'use strict';
@@ -74,7 +74,7 @@ function _computePnlStats(positions) {
 
 function _getPerformanceOfAdvices(portfolio) {
 	var subPositions = portfolio && portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions : []; 
-	var advices = Array.from(new Set(subPositions.map(item => {return item.advice ? item.advice._id : "";})));
+	var advices = Array.from(new Set(subPositions.map(item => {return item.advice ? item.advice._id.toString() : "";})));
 	
 	return Promise.map(advices, function(adviceId) {
 		var advicePositions = subPositions.filter(item => {return adviceId!="" ? item.advice && item.advice._id.toString() == adviceId.toString() : !item.advice || item.advice=="";});

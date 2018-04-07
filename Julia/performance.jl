@@ -21,7 +21,7 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
         
         if benchmark_value != nothing && portfolio_value != nothing
             #merge and drop observations before benchmark lastdate
-            merged_value = dropnan(to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end]), :any)
+            merged_value = filternan(to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end]))
             merged_returns = percentchange(merged_value)
             
             if length(merged_returns.timestamp) == 0
@@ -218,7 +218,7 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
             end
 
             if benchmark_prices != nothing && stock_prices != nothing
-                merged_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
+                merged_prices = filternan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]))
                 merged_returns = percentchange(merged_prices)
                 if length(merged_returns.timestamp) == 0
                     return Performance()
@@ -258,7 +258,7 @@ function compute_stock_static_performance(security_dict::Dict{String,Any}; bench
             end
 
             if benchmark_prices != nothing && stock_prices != nothing
-                merged_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
+                merged_prices = filternan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]))
                 merged_returns = percentchange(merged_prices)
                 if length(merged_returns.timestamp) == 0
                     return Performance()
@@ -298,7 +298,7 @@ function get_stock_price_history(security_dict::Dict{String,Any})
             benchmark_prices = history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date)
             
             if stock_prices != nothing && benchmark_prices != nothing
-                stock_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
+                stock_prices = filternan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]))
 
                 (ts, prices) = (stock_prices[security.symbol.ticker].timestamp, stock_prices[security.symbol.ticker].values) 
                 

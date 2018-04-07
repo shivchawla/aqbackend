@@ -12,6 +12,13 @@ using ZipFile
 const _realtimePrices = Dict{SecuritySymbol, TradeBar}()
 #const _codeToTicker = readSecurityFile("/Users/shivkumarchawla/Desktop/Securities.dat")
 
+function filternan(ta::TimeArray, col = "")
+    (nrows, ncols) = size(ta)
+    lastname = col == "" ? colnames(ta)[ncols] : col
+    ta[.!isnan.(ta[lastname].values)]
+end    
+
+
 function convert(::Type{Dict{String,Any}}, security::Security)                  
     try
 
@@ -414,7 +421,7 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
         # Get the list of ticker
         secids = [sym.id for sym in keys(portfolio.positions)]    
 
-        price = nothing
+        prices = nothing
         
         if typ == "Adj" 
             #Get the Adjusted prices for tickers in the portfolio
@@ -431,7 +438,7 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
         merged_prices = nothing
 
         if prices != nothing && benchmark_prices != nothing
-            merged_prices = dropnan(to(from(merge(prices, benchmark_prices, :right), Date(start_date)), Date(end_date)), :any)
+            merged_prices = filternan(to(from(merge(prices, benchmark_prices, :right), Date(start_date)), Date(end_date)))
         end
 
         if merged_prices == nothing
@@ -547,7 +554,7 @@ function _updateportolio_EODprice(port::Portfolio, date::DateTime)
 
         #Check if stock values are valid 
         if stock_value_52w != nothing && benchmark_value_52w != nothing
-            merged_prices = dropnan(to(merge(stock_value_52w, benchmark_value_52w), benchmark_value_52w.timestamp[end]), :any)
+            merged_prices = filternan(to(merge(stock_value_52w, benchmark_value_52w), benchmark_value_52w.timestamp[end]))
             
             latest_values = merged_prices[end]
             latest_dt = DateTime(latest_values.timestamp[end])
