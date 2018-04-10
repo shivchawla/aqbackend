@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-03 23:30:38
+* @Last Modified time: 2018-04-10 16:31:30
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -16,6 +16,10 @@ const PortfolioHelper = require("../helpers/Portfolio");
 const AdvisorHelper = require("../helpers/Advisor");
 const DateHelper = require("../../utils/Date");
 const APIError = require('../../utils/error');
+
+function _filterActive(objs) {
+	return objs ? objs.filter(item => {return item.active == true}).length : 0;	
+} 
 
 module.exports.getAdviceAccessStatus = function(adviceId, userId) {
 	return Promise.all([
@@ -167,16 +171,40 @@ module.exports.getAdvicePerformanceSummary = function(adviceId, recalculate) {
 module.exports.computeAdviceAnalytics = function(adviceId) {
 	let subscribers;
 	let followers;
-	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'subscribers followers'})
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'subscribers followers adviceAnalytics'})
 	.then(advice => {
 		if (advice) {
-			subscribers = advice.subscribers;
-			followers = advice.followers;
+			var analyticsLastTwoDays = advice.adviceAnalytics ? advice.adviceAnalytics.slice(-2) : [];
+			var currentDate = DateHelper.getCurrentDate();
+
+			var currentDayData = analyticsLastTwoDays.length > 1 ? analyticsLastTwoDays[1] : analyticsLastTwoDays.length > 0 ? analyticsLastTwoDays[0] : null;
+			var lastDayData = analyticsLastTwoDays.length > 1 ? analyticsLastTwoDays[0] : null;
+
+			var datePresent = false;
+			if (currentDayData) {
+				console.log(currentDayData);
+				datePresent =  currentDayData.date ? DateHelper.compareDates(currentDayData.date, currentDate) == 0 : false;
+			}
+
+			var numSubscribers = _filterActive(advice.subscribers);
+			var numFollowers = _filterActive(advice.followers);
+			var dailyChgSubscribers = datePresent ? 
+					numSubscribers - (lastDayData ? lastDayData.numSubscribers : 0) :
+					numSubscribers - (currentDayData ? currentDayData.numSubscribers : 0); 
+
+			var dailyChgFollowers = datePresent ? 
+					numFollowers - (lastDayData ? lastDayData.numFollowers : 0) :
+					numFollowers - (currentDayData ? currentDayData.numFollowers : 0); 
+			
+			
 			return {
-				date: DateHelper.getCurrentDate(),
-				numSubscribers: subscribers.filter(item => {return item.active == true}).length,
-				numFollowers: followers.filter(item => {return item.active == true}).length,
+				date: currentDate,
+				numSubscribers: numSubscribers,
+				numFollowers: numFollowers,
+				dailyChgFollowers: dailyChgFollowers,
+				dailyChgSubscribers: dailyChgSubscribers
 			};
+		
 		} else {
 			APIError.throwJsonError({message: "Advice not found", errorCode: 1101});
 		}

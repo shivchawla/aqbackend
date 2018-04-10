@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-10 15:46:04
+* @Last Modified time: 2018-04-10 16:17:50
 */
 
 'use strict';
@@ -250,7 +250,7 @@ function _computeTruePerformance(portfolioId) {
 			var currentPortfolio = portfolio.detail;
 			if (DateHelper.compareDates(currentPortfolio.startDate, DateHelper.getCurrentDate()) != 1) {
 				portfolioHistory.push({startDate: DateHelper.getDate(currentPortfolio.startDate), 
-											endDate: DateHelper.getCurrentDate()
+											endDate: DateHelper.getCurrentDate(),
 											portfolio: {
 												positions: currentPortfolio.positions,
 												cash: currentPortfolio.cash}

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-07 15:57:56
+* @Last Modified time: 2018-04-10 15:51:29
 */
 'use strict';
 const mongoose = require('../index');
@@ -25,7 +25,9 @@ const AdviceAnalytics = new Schema({
     date: Date,
     rating: Rating,
     numSubscribers: Number,
-    numFollowers: Number 
+    numFollowers: Number ,
+    dailyChgSubscribers: Number,
+    dailyChgFollowers:Number
 });
 
 const Advice = new Schema({
