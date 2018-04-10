@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-10 16:31:30
+* @Last Modified time: 2018-04-10 16:41:40
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -171,10 +171,10 @@ module.exports.getAdvicePerformanceSummary = function(adviceId, recalculate) {
 module.exports.computeAdviceAnalytics = function(adviceId) {
 	let subscribers;
 	let followers;
-	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'subscribers followers adviceAnalytics'})
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'subscribers followers analytics'})
 	.then(advice => {
 		if (advice) {
-			var analyticsLastTwoDays = advice.adviceAnalytics ? advice.adviceAnalytics.slice(-2) : [];
+			var analyticsLastTwoDays = advice.analytics ? advice.analytics.slice(-2) : [];
 			var currentDate = DateHelper.getCurrentDate();
 
 			var currentDayData = analyticsLastTwoDays.length > 1 ? analyticsLastTwoDays[1] : analyticsLastTwoDays.length > 0 ? analyticsLastTwoDays[0] : null;
