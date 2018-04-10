@@ -2859,7 +2859,6 @@ definitions:
     required:
       - name
       - description
-      - heading
       - portfolio
       - rebalance
       - maxNotional
@@ -2868,8 +2867,6 @@ definitions:
         type: string
       description:
         type: string
-      heading:
-        type: string  
       portfolio:
         $ref: "#/definitions/Portfolio"
       rebalance:

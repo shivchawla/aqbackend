@@ -499,12 +499,19 @@ end
 # Internal Function
 # Function to compute portfolio composition on a specific date
 ###
-function _compute_portfolio_metrics(port::Dict{String, Any}, date::DateTime)
+function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, edate::DateTime)
     try
         
         portfolio = convert(Raftaar.Portfolio, port)
 
-        portfolio_value = _compute_portfoliovalue(portfolio, date, date).values[1]
+        portfolio_values = dropnan(_compute_portfoliovalue(portfolio, sdate, edate), :any)
+
+        if portfolio_values == nothing || length(portfolio_values) == 0 
+            return ([Dict("weight" => 1.0, "ticker" => "CASH_INR")], 0.0)
+        end
+
+        portfolio_value = values(portfolio_values)[end]
+        latest_date = DateTime(portfolio_values.timestamp[end])
 
         # Get the list of ticker
         allkeys = keys(portfolio.positions)
@@ -512,19 +519,22 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, date::DateTime)
         tickers = [sym.ticker for sym in allkeys]    
 
         #Get the Adjusted prices for tickers in the portfolio
-        prices = YRead.history(secids, "Close", :Day, date, date, displaylogs=false)
+        prices = YRead.history(secids, "Close", :Day, sdate, edate, displaylogs=false)
 
         if prices == nothing
             println("Price data not available")
-            return ([Dict("weight" => 1.0, "ticker" => "CASH_INR")], 0.0)
+            return (DateTime(), [Dict("weight" => 1.0, "ticker" => "CASH_INR")], 0.0)
         end
         
         equity_value_wt = Vector{Float64}(length(allkeys))
 
         for (i, sym) in enumerate(allkeys)
             ticker = sym.ticker
-            close = (prices[ticker]).values[1]
-            equity_value = portfolio.positions[sym].quantity * close
+            
+            _temp_ts_close_non_nan = values(dropnan(prices[ticker], :any))
+            _last_valid_close = length(_temp_ts_close_non_nan) > 0 ? _temp_ts_close_non_nan[end] : 0.0
+
+            equity_value = portfolio.positions[sym].quantity * _last_valid_close
             equity_value_wt[i] = portfolio_value > 0.0 ? equity_value/portfolio_value : 0.0;
         end
 
@@ -535,26 +545,31 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, date::DateTime)
         
         concentration =  sqrt(sum(equity_value_wt.^2))
 
-        return (composition, concentration)
+        return (latest_date, composition, concentration)
     catch err
         rethrow(err)
     end
 end
 
-function _updateportolio_EODprice(port::Portfolio, date::DateTime)
+function _updateportfolio_EODprice(port::Portfolio, date::DateTime)
     
+    updated = false
+    updatedDate = now()
+
     alltickers = [sym.ticker for (sym, pos) in port.positions]
     #Check if portoflio has any non-zero number of stock positions
     if length(alltickers) > 0
         start_date = DateTime(Date(date) - Dates.Week(52))
         end_date = date
 
-        stock_value_52w = YRead.history_unadj(alltickers, "Close", :Day, start_date, end_date, displaylogs=false)
+        #fetch stock data and drop where all values are NaN
+        stock_value_52w = dropnan(YRead.history_unadj(alltickers, "Close", :Day, start_date, end_date, displaylogs=false), :all)
         benchmark_value_52w =  history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date) 
 
         #Check if stock values are valid 
         if stock_value_52w != nothing && benchmark_value_52w != nothing
-            merged_prices = filternan(to(merge(stock_value_52w, benchmark_value_52w), benchmark_value_52w.timestamp[end]))
+            #merge LEFT (that is if data is present in stock_values_52w)
+            merged_prices = filternan(to(merge(stock_value_52w, benchmark_value_52w, :left), benchmark_value_52w.timestamp[end]))
             
             latest_values = merged_prices[end]
             latest_dt = DateTime(latest_values.timestamp[end])
@@ -564,15 +579,18 @@ function _updateportolio_EODprice(port::Portfolio, date::DateTime)
                 tradebars[sym] = [Raftaar.TradeBar(latest_dt, 0.0, 0.0, 0.0, latest_values[sym.ticker].values[1])]
             end
 
+            updatedDate = latest_dt
             Raftaar.updateportfolio_price!(port, tradebars, latest_dt)
         end
     end
 
-    return port
+    return (updated, updatedDate, port)
 end
 
-function _updateportolio_RTprice(port::Portfolio)
+function _updateportfolio_RTprice(port::Portfolio)
     
+    updated = false
+    updatedDate = now()  
     alltickers = [sym.ticker for (sym, pos) in port.positions]
     #Check if portoflio has any non-zero number of stock positions
     if length(alltickers) > 0
@@ -584,10 +602,11 @@ function _updateportolio_RTprice(port::Portfolio)
             tradebars[sym] = [latest_tradebar]
         end
 
+        updated = true 
         Raftaar.updateportfolio_price!(port, tradebars, DateTime())
     end
 
-    return port
+    return (updated, updatedDate, port)
 end
 
 function _download_realtime_prices()
@@ -784,11 +803,13 @@ function update_realtime_prices()
         
         #2. Load the data in _readTimePrices
         #_read_realtime_prices("XNSE_20180323.partial.csv")
-        mktPrices = readMktFile("/Users/shivkumarchawla/Desktop/DelayedSnapshotCM30_02022018/101.mkt")
+
+        mktPrices = readMktFile("/Users/shivkumarchawla/Desktop/DelayedSnapshotCM30_02022018/35.mkt")
         
         for (k,v) in mktPrices
             ticker = get(_codeToTicker, k, "")
-            if ticker != ""
+
+            if ticker != ""        
                 security = YRead.getsecurity(ticker)
                 _realtimePrices[security.symbol] = v
             end
@@ -923,9 +944,9 @@ end
 function updateportfolio_price(portfolio::Portfolio, end_date::DateTime = now(), typ::String = "EOD")
     try
         if (typ == "EOD")
-            _updateportolio_EODprice(portfolio, end_date)
+            _updateportfolio_EODprice(portfolio, end_date)
         elseif (typ == "RT")
-            _updateportolio_RTprice(portfolio)
+            _updateportfolio_RTprice(portfolio)
         end
         
     catch err
@@ -977,8 +998,8 @@ function compute_portfolio_metrics(port::Dict{String, Any}, start_date::DateTime
         return (Date(now()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
 
     elseif length(prices_benchmark.timestamp) > 0 
-        date = prices_benchmark.timestamp[end]
-        (composition, concentration) = _compute_portfolio_metrics(port, DateTime(date))
+        #date = prices_benchmark.timestamp[end]
+        (date, composition, concentration) = _compute_portfolio_metrics(port, sdate, edate)
 
         return (date, Dict("composition" => composition != nothing ? composition : "", "concentration" => concentration))
     else 

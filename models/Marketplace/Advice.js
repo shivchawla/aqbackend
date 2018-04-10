@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-02 12:13:52
+* @Last Modified time: 2018-04-07 15:57:56
 */
 'use strict';
 const mongoose = require('../index');
@@ -36,11 +36,6 @@ const Advice = new Schema({
     },
 
     name: {
-        type: String,
-        required: true
-    },
-
-    heading: {
         type: String,
         required: true
     },

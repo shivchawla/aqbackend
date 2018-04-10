@@ -63,7 +63,7 @@ function geterrormsg(err::Any)
 end
 
 jsdateformat = "yyyy-mm-ddTHH:MM:SS.sssZ"
- 
+
 wsh = WebSocketHandler() do req, ws_client
      
     msg = decode_message(read(ws_client))
@@ -300,7 +300,7 @@ wsh = WebSocketHandler() do req, ws_client
             portfolio = parsemsg["portfolio"]
             date = parsemsg["date"]
             typ = parsemsg["type"]
-            updated_portfolio = updateportfolio_price(portfolio, date == "" ? now() : DateTime(date), typ)
+            (updated, updtedDate , updated_portfolio) = updateportfolio_price(portfolio, date == "" ? now() : DateTime(date), typ)
             
             #Update, the positions to match the object structure in Node
             parsemsg["updatedPositions"] = convert_to_node_portfolio(updated_portfolio)["positions"]

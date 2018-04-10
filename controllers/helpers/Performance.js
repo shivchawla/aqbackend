@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-07 18:54:20
+* @Last Modified time: 2018-04-10 15:46:04
 */
 
 'use strict';
@@ -148,7 +148,7 @@ function _computeConstituentPerformance(portfolioId) {
 			var currentPortfolio = portfolio.detail;
 			//Check if start date is present (Added: 15/03/2018)
 			var startDate = DateHelper.getDate(currentPortfolio.startDate);
-			var endDate = new Date();
+			var endDate = DateHelper.getCurrentDate()
 			return _computeConstituentPerformance_portfolio(currentPortfolio, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
 		} else {
 			APIError.throwJsonError({message: "Error computing constituent performance. Portfolio not found"});
@@ -194,8 +194,8 @@ function _computePortfolioMetrics(portfolioId) {
 		if(portfolio && portfolio.detail) {
 			var currentPortfolio = portfolio.detail;
 
-			var startDate = new Date(currentPortfolio.startDate);
-			var endDate = new Date();
+			var startDate = DateHelper.getDate(currentPortfolio.startDate);
+			var endDate = DateHelper.getCurrentDate();
 
 			return _computePortfolioMetrics_portfolio(currentPortfolio, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
 		} else {
@@ -249,8 +249,8 @@ function _computeTruePerformance(portfolioId) {
 		if(portfolio && portfolio.detail) {
 			var currentPortfolio = portfolio.detail;
 			if (DateHelper.compareDates(currentPortfolio.startDate, DateHelper.getCurrentDate()) != 1) {
-				portfolioHistory.push({startDate: currentPortfolio.startDate, 
-											endDate: new Date(),//currentPortfolio.endDate,
+				portfolioHistory.push({startDate: DateHelper.getDate(currentPortfolio.startDate), 
+											endDate: DateHelper.getCurrentDate()
 											portfolio: {
 												positions: currentPortfolio.positions,
 												cash: currentPortfolio.cash}
@@ -287,8 +287,8 @@ function _computeSimulatedPerformanceCurrentPortfolio(portfolioId) {
 			var startDate = DateHelper.getCurrentDate(); 
 			startDate = DateHelper.getDate(startDate.setDate(startDate.getDate() - 365));
 
-			var portfolioHistory = [{startDate: startDate, 
-										endDate: new Date(), 
+			var portfolioHistory = [{startDate: startDate,
+										endDate: DateHelper.getCurrentDate(),
 										portfolio: {
 											positions: currentPortfolio.positions,
 											cash: currentPortfolio.cash}
@@ -434,8 +434,8 @@ module.exports.computePerformanceHypthetical = function(portfolio) {
 	.then(validPortfolio => {	
 		if (validPortfolio) { 
 
-			var startDate = new Date(portfolio.detail.startDate);
-			var endDate = new Date(portfolio.detail.endDate);
+			var startDate = DateHelper.getDate(portfolio.detail.startDate);
+			var endDate = DateHelper.getDate(portfolio.detail.endDate);
 
 			return Promise.all([
 				_computePortfolioMetrics_portfolio(portfolio.detail, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'}),

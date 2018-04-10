@@ -121,12 +121,11 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
 
         elseif (benchmark_prices != nothing)
             benchmark_prices = dropnan(benchmark_prices, :any)
-            updatedPortfolio = updateportfolio_price(port_raftaar, DateTime(benchmark_prices.timestamp[end]))
+            (updated, updatedDate, updatedPortfolio) = updateportfolio_price(port_raftaar, now())
             
-            lastdate = benchmark_prices.timestamp[end] 
             performance_allstocks = [merge(Dict("ticker" => sym.ticker), compute_pnl_stats(pos)) for (sym,pos) in updatedPortfolio.positions]
             
-            return (lastdate, performance_allstocks)
+            return (Date(updatedDate), performance_allstocks)
         
         end
             
@@ -168,7 +167,7 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
             if(benchmark_prices != nothing && stock_prices != nothing)
                 
                 #Merge and drop observations after the last date of benchmark                
-                merged_prices = dropNaN(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
+                merged_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
                 merged_returns = percentchange(merged_prices)
 
                 ##Empty timeseries output of pctchange when length == 1 
@@ -218,7 +217,7 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
             end
 
             if benchmark_prices != nothing && stock_prices != nothing
-                merged_prices = filternan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]))
+                merged_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
                 merged_returns = percentchange(merged_prices)
                 if length(merged_returns.timestamp) == 0
                     return Performance()
@@ -258,7 +257,7 @@ function compute_stock_static_performance(security_dict::Dict{String,Any}; bench
             end
 
             if benchmark_prices != nothing && stock_prices != nothing
-                merged_prices = filternan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]))
+                merged_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
                 merged_returns = percentchange(merged_prices)
                 if length(merged_returns.timestamp) == 0
                     return Performance()
@@ -298,7 +297,7 @@ function get_stock_price_history(security_dict::Dict{String,Any})
             benchmark_prices = history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date)
             
             if stock_prices != nothing && benchmark_prices != nothing
-                stock_prices = filternan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]))
+                stock_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
 
                 (ts, prices) = (stock_prices[security.symbol.ticker].timestamp, stock_prices[security.symbol.ticker].values) 
                 
