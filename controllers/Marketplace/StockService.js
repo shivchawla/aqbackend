@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-04 20:40:40
+* @Last Modified time: 2018-04-12 12:39:07
 */
 
 'use strict';
@@ -11,6 +11,7 @@ const Promise = require('bluebird');
 const config = require('config');
 const SecurityHelper = require("../helpers/Security");
 const APIError = require('../../utils/error');
+const DateHelper = require('../../utils/Date');
 
 function getDate(date) {
     var d = date.getDate();
@@ -33,8 +34,8 @@ function _checkIfStockStaticPerformanceUpdateRequired(performance) {
 		var currentMonth = d.getYear().toString()+"_"+(d.getMonth()+1).toString();
 		var currentYear = d.getYear().toString();
 
-		if(getDate(new Date()) <= getDate(performance.updatedDate)) {
-			return false;
+		if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(performance.updatedDate)) == -1) {
+			return true;
 		}
 
         if(months.indexOf(currentMonth) == -1 || years.indexOf(currentYear) == -1) {
@@ -55,8 +56,8 @@ function _checkIfStockRollingPerformanceUpdateRequired(performance) {
 
 	if(performance && performance.updatedDate) {
 
-		if(getDate(new Date()) <= getDate(performance.updatedDate)) {
-			return false;
+		if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(performance.updatedDate)) == -1) {
+			return true;
 		}
 
     } else {
@@ -72,7 +73,7 @@ function _checkIfStockPriceHistoryUpdateRequired(history) {
 	}
 
 	if(history && history.updatedDate) {
-        if(getDate(new Date()) > getDate(history.updatedDate)) {
+        if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(history.updatedDate)) == -1) {
         	return true;
         }
     } else {
@@ -88,7 +89,7 @@ function _checkIfStockLatestDetailUpdateRequired(detail) {
 	}
 
 	if(detail && detail.updatedDate) {
-        if(getDate(new Date()) > getDate(detail.updatedDate)) {
+        if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(detail.updatedDate)) == -1) {
         	return true;
         }
     } else {
