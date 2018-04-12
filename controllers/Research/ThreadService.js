@@ -34,7 +34,7 @@ exports.createThread = function(args, res, next) {
             thread.tags = args.body.value.tags;
         }
 
-        var backtestQuery = {_id: thread.backtestId};
+        backtestQuery = {_id: thread.backtestId};
 
         return ThreadModel.saveThread(thread)
     })

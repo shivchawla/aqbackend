@@ -299,8 +299,10 @@ wsh = WebSocketHandler() do req, ws_client
         elseif action == "update_portfolio_price"    
             portfolio = parsemsg["portfolio"]
             date = parsemsg["date"]
+            date = date == "" ? now() : DateTime(date, jsdateformat)
+
             typ = parsemsg["type"]
-            (updated, updtedDate , updated_portfolio) = updateportfolio_price(portfolio, date == "" ? now() : DateTime(date), typ)
+            (updated, updtedDate , updated_portfolio) = updateportfolio_price(portfolio, date, typ)
             
             #Update, the positions to match the object structure in Node
             parsemsg["updatedPositions"] = convert_to_node_portfolio(updated_portfolio)["positions"]
@@ -325,7 +327,8 @@ wsh = WebSocketHandler() do req, ws_client
             parsemsg["fractionalRanking"] = fractional_ranking
 
         elseif action == "update_realtime_prices"
-            parsemsg["success"] = update_realtime_prices()
+            fname = parsemsg["filename"]
+            parsemsg["success"] = update_realtime_prices(fname)
 
         elseif action == "compare_security"
             oldSecurity = convert(Raftaar.Security, parsemsg["oldSecurity"])

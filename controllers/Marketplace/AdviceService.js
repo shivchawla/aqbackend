@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-03 10:47:56
+* @Last Modified time: 2018-04-12 12:02:03
 */
 
 'use strict';
@@ -18,6 +18,7 @@ const PortfolioHelper = require("../helpers/Portfolio");
 const PerformanceHelper = require("../helpers/Performance");
 const AdviceHelper = require("../helpers/Advice");
 const APIError = require('../../utils/error');
+const DateHelper = require('../../utils/Date');
 
 module.exports.createAdvice = function(args, res, next) {
 	const userId = args.user._id;
@@ -131,7 +132,6 @@ module.exports.updateAdvice = function(args, res, next) {
 		}
 	})
 	.then(validAdvice => {
-		
 		var adviceUpdates = Object.assign({}, newAdvice);
 		delete adviceUpdates.portfolio;
 
@@ -420,7 +420,7 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 	})
 	.then(portfolioDetail => {
 		if (portfolioDetail) {
-			return PortfolioHelper.computeUpdatedPortfolioForPrice({detail: portfolioDetail.toObject()}, date);
+			return PortfolioHelper.computeUpdatedPortfolioForPrice({detail: portfolioDetail.toObject()}, DateHelper.getDate(date));
 		} else {
 			APIError.throwJsonError({message: "No portfolio found for advice"});
 		}

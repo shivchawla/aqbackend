@@ -145,6 +145,7 @@ end
 ###
 function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, Any}, strictNetValue)
     
+    jsFormat = "yyyy-mm-ddTHH:MM:SS.sssZ"
     # Validate 3 components of portfolio
     #a. positions
     #b. start and end dates
@@ -179,29 +180,13 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
         portfolioDetail = get(portfolio, "detail", Dict{String, Any}())
         oldPortfolioDetail = get(oldPortfolio, "detail", Dict{String, Any}())
        
-        #Validate dates
-        #=format = "yyyy-mm-ddTHH:MM:SS.sssZ"
-        startDate = haskey(portfolioDetail, "startDate") ? DateTime(portfolioDetail["startDate"], format) : DateTime()
-        endDate = haskey(portfolioDetail, "endDate") ? DateTime(portfolioDetail["endDate"], format) : DateTime()
-        if startDate >= endDate || startDate == DateTime() || endDate == DateTime()
-            error("Empty dates or startDate less than or equal to end date")
-        end
-
-        #Check for old advice if oldAdvice is not empty
-        oldPortfolioDetail = get(oldPortfolio, "detail", Dict{String, Any}())
-        lastStartDate = haskey(oldPortfolioDetail, "startDate") ? DateTime(oldPortfolioDetail["startDate"], format) : DateTime()
-        lastEndDate = haskey(oldPortfolioDetail, "endDate") ? DateTime(oldPortfolioDetail["endDate"], format) : DateTime()
-
-        if lastStartDate != DateTime() && lastEndDate != DateTime() && startDate <= lastEndDate 
-            error("Empty dates or startDate less than or equal to end date of current advice")
-        end=#
-
-        startDate = haskey(portfolioDetail, "startDate") ? DateTime(portfolioDetail["startDate"]) : Date()
-        if startDate <= DateTime(Date(now()))
+        startDate = haskey(portfolioDetail, "startDate") ? Date(DateTime(portfolioDetail["startDate"])) : Date()
+        if startDate <= Date(now())
             error("Startdate of new advice: $(startDate) can't be today or before today")
         end
 
-        oldStartDate = haskey(oldPortfolioDetail, "startDate") ? DateTime(oldPortfolioDetail["startDate"]) : Date()
+        #this date comes from js object and is in jsformat - 12/04/2018
+        oldStartDate = haskey(oldPortfolioDetail, "startDate") ? Date(DateTime(oldPortfolioDetail["startDate"], jsFormat)) : Date()
         if (startDate <= oldStartDate) 
             error("Startdate of new advice: $(startDate) can't be same or before Startdate of current Advice: $(oldStartDate)")
         end
@@ -231,6 +216,7 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
     end
 end 
 
+#NOT IN USE
 function _validate_adviceportfolio(advicePortfolio::Dict{String, Any}, lastAdvicePortfolio::Dict{String, Any})
     
     try
@@ -794,17 +780,10 @@ end
 
 ###
 # Function to download and update realtime prices (from 15 minutes delayed feed)
-function update_realtime_prices()
+function update_realtime_prices(fname::String)
     try
-        #First download prices
-        #function to fetch data from NSE rt servers
-        #1. save the file 
-        #latest_file = _download_realtime_prices()
-        
-        #2. Load the data in _readTimePrices
-        #_read_realtime_prices("XNSE_20180323.partial.csv")
-
-        mktPrices = readMktFile("/Users/shivkumarchawla/Desktop/DelayedSnapshotCM30_02022018/35.mkt")
+       
+        mktPrices = readMktFile(fname)
         
         for (k,v) in mktPrices
             ticker = get(_codeToTicker, k, "")

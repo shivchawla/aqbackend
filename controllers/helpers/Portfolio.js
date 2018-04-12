@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-06 12:16:14
+* @Last Modified time: 2018-04-12 11:15:35
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -485,7 +485,10 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 		}
 	})
 	.then(([updatedPortfolioForTransactions, history]) => {
-		return Promise.all([_computeUpdatedPortfolioForPrice({detail:updatedPortfolioForTransactions}), history])
+		return Promise.all([
+			_computeUpdatedPortfolioForPrice({detail:updatedPortfolioForTransactions}), 
+			history
+		]);
 	})
 	.then(([[priceUpdated, updatedPortfolio], history]) => {
 		if(!preview) {
