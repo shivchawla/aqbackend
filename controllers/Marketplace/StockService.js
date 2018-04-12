@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-12 12:39:07
+* @Last Modified time: 2018-04-12 12:44:57
 */
 
 'use strict';
@@ -12,14 +12,6 @@ const config = require('config');
 const SecurityHelper = require("../helpers/Security");
 const APIError = require('../../utils/error');
 const DateHelper = require('../../utils/Date');
-
-function getDate(date) {
-    var d = date.getDate();
-    var m = date.getMonth() + 1;
-    var y = date.getYear();
-
-    return d+"-"+m+"-"+y;
-}
 
 function _checkIfStockStaticPerformanceUpdateRequired(performance) {
 	if (!performance) {
@@ -34,7 +26,7 @@ function _checkIfStockStaticPerformanceUpdateRequired(performance) {
 		var currentMonth = d.getYear().toString()+"_"+(d.getMonth()+1).toString();
 		var currentYear = d.getYear().toString();
 
-		if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(performance.updatedDate)) == -1) {
+		if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(performance.updatedDate)) == 1) {
 			return true;
 		}
 
@@ -56,7 +48,7 @@ function _checkIfStockRollingPerformanceUpdateRequired(performance) {
 
 	if(performance && performance.updatedDate) {
 
-		if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(performance.updatedDate)) == -1) {
+		if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(performance.updatedDate)) == 1) {
 			return true;
 		}
 
@@ -73,7 +65,7 @@ function _checkIfStockPriceHistoryUpdateRequired(history) {
 	}
 
 	if(history && history.updatedDate) {
-        if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(history.updatedDate)) == -1) {
+        if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(history.updatedDate)) == 1) {
         	return true;
         }
     } else {
@@ -89,7 +81,7 @@ function _checkIfStockLatestDetailUpdateRequired(detail) {
 	}
 
 	if(detail && detail.updatedDate) {
-        if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(detail.updatedDate)) == -1) {
+        if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(detail.updatedDate)) == 1) {
         	return true;
         }
     } else {
