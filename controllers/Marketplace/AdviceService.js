@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-12 12:02:03
+* @Last Modified time: 2018-04-12 15:53:16
 */
 
 'use strict';
@@ -426,7 +426,7 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 		}
 	})
 	.then(updatedPortfolio => {
-		return res.status(200).send(updatedPortfolio);
+		return res.status(200).send(Object.assign({adviceId: adviceId}, updatedPortfolio));
 	})
  	.catch(err => {
     	return res.status(400).send(err.message);

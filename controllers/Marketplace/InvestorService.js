@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-07 18:10:14
+* @Last Modified time: 2018-04-12 16:13:18
 */
 
 'use strict';
@@ -34,15 +34,20 @@ function _hasAdviceChanged(myPositions, adviceId) {
 		var changed = false;
 		if (advice && advice.portfolio && advice.portfolio.detail) {
 			var advicePositions = advice.portfolio.detail.positions;
-			for (var pos of advicePositions) {
+			var tickersInAdvice = advicePositions.map(item => item.security.ticker);
+			var tickersInPortfolio  = myPositions.map(item => item.security.ticker);
+			var allTickers = Array.from(new Set(tickersInPortfolio.concat(tickersInAdvice)));
+
+			for (var ticker of allTickers) {
 				//find postions in myPositions
-				var ticker = pos.security.ticker;
-				var idx = myPositions.map(item => item.security.ticker).indexOf(ticker);
-				if (idx == -1) {
+				
+				var idxInPositions = myPositions.map(item => item.security.ticker).indexOf(ticker);
+				var idxInAdvice = advicePositions.map(item => item.security.ticker).indexOf(ticker);
+				if ((idxInPositions == -1 && idxInAdvice != -1)  || (idxInPositions != -1 && idxInAdvice == -1)) {
 					changed = true;
 					break;
 				} else {
-					changed == pos.quantity != myPositions[idx].quantity;
+					changed == myPositions[idxInPositions].quantity != advicePositions[idxInAdvice].quantity;
 
 					if (changed == true) {
 						break;
@@ -72,33 +77,47 @@ function _computePnlStats(positions) {
 	return x;
 }
 
-function _getPerformanceOfAdvices(portfolio) {
+function _getUniqueAdvices(portfolio) {
 	var subPositions = portfolio && portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions : []; 
-	var advices = Array.from(new Set(subPositions.map(item => {return item.advice ? item.advice._id.toString() : "";})));
-	
-	return Promise.map(advices, function(adviceId) {
-		var advicePositions = subPositions.filter(item => {return adviceId!="" ? item.advice && item.advice._id.toString() == adviceId.toString() : !item.advice || item.advice=="";});
-		return Promise.all([
-			adviceId !="" ? AdviceHelper.getAdvicePerformanceSummary(adviceId) : {current: {}},
-			_computePnlStats(advicePositions),
-			adviceId !="" ? _hasAdviceChanged(advicePositions, adviceId) : false
+	return Array.from(new Set(subPositions.map(item => {return item.advice ? item.advice._id.toString() : "";})));
+}
+
+function _getAdvicePerformanceInPortfolio(portfolio, adviceId) {
+	var advicePositions = portfolio && portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions.filter(item => {return adviceId!="" ? item.advice && item.advice._id.toString() == adviceId.toString() : !item.advice || item.advice=="";}) : [];
+	return Promise.all([
+		adviceId !="" ? AdviceHelper.getAdvicePerformanceSummary(adviceId) : {current: {}},
+		_computePnlStats(advicePositions),
+		adviceId !="" ? _hasAdviceChanged(advicePositions, adviceId) : false
+	])
+	.then(([performance, pnlStats, hasChanged]) => {
+		return Object.assign({advice: adviceId}, performance.current, {hasChanged: hasChanged}, {personal: pnlStats});
+	});
+}
+
+function _getAdviceStatsInPortfolio(portfolio, userId) {
+	var uniqueAdvices = _getUniqueAdvices(portfolio);
+    	
+	return Promise.map(uniqueAdvices, function(adviceId) {
+    	return Promise.all([
+    		_getAdvicePerformanceInPortfolio(portfolio, adviceId),
+    		adviceId != "" ? AdviceHelper.computeAdviceSubscriptionDetail(adviceId, userId) : {}
 		])
-		.then(([performance, pnlStats, hasChanged]) => {
-			return Object.assign({advice: adviceId}, performance.current, {hasChanged: hasChanged}, {personal: pnlStats});
-		});
+		.then(([advicePerformance, adviceSubscriptionDetail]) => {
+			return Object.assign(advicePerformance, adviceSubscriptionDetail);
+		}) 
 	})
-	.then(allPerformances => {
+	.then(allAdvicePerformances => {
 		var totalValue = portfolio && portfolio.detail && portfolio.detail.cash ? portfolio.detail.cash : 0.0;
-		allPerformances.forEach(item => {
+		allAdvicePerformances.forEach(item => {
 			totalValue += item.personal.netValue;
 		});
 
-		allPerformances.forEach(item => {
+		allAdvicePerformances.forEach(item => {
 			item.personal.weightInPortfolio = item.personal.netValue/totalValue;
 		});
 
-		return allPerformances;
-	});
+		return allAdvicePerformances;
+	})
 }
 
 /*
@@ -147,9 +166,9 @@ module.exports.getInvestorSummary = function(args, res, next) {
     	}
     })
     .then(([investor, updatedDefaultPortfolio, updatedDefaultPerformance]) => {
-    	return _getPerformanceOfAdvices(updatedDefaultPortfolio)
-    	.then(advicePerformance => {
-    		updatedDefaultPortfolio = Object.assign({advicePerformance : advicePerformance}, updatedDefaultPortfolio ? updatedDefaultPortfolio : {});	
+    	return _getAdviceStatsInPortfolio(updatedDefaultPortfolio, userId)
+    	.then(finalOutput => {
+    		updatedDefaultPortfolio = Object.assign({advicePerformance : finalOutput}, updatedDefaultPortfolio ? updatedDefaultPortfolio : {});	
     		return res.status(200).send(Object.assign(investor.toObject(), {defaultPortfolio: updatedDefaultPortfolio, defaultPerformance: updatedDefaultPerformance}));
     	});
     })
@@ -434,9 +453,9 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 	})
 	.then(updatedPortfolio => {
 		if(updatedPortfolio) {
-			return _getPerformanceOfAdvices(updatedPortfolio)
-			.then(advicePerformance => {
-				updatedPortfolio = Object.assign({advicePerformance : advicePerformance}, updatedPortfolio);	
+			return _getAdviceStatsInPortfolio(updatedPortfolio, userId)
+			.then(finalOutput => {
+				updatedPortfolio = Object.assign({advicePerformance : finalOutput}, updatedPortfolio);	
 				return res.status(200).send(updatedPortfolio);
 			})
 		} else {
