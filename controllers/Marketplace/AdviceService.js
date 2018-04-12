@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-12 19:35:34
+* @Last Modified time: 2018-04-12 22:33:44
 */
 
 'use strict';
@@ -552,7 +552,7 @@ module.exports.followAdvice = function(args, res, next) {
 
   	Promise.all([
   		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
-  		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true}), 
+  		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true}),
 		AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true, prohibited:false}, {field:'advisor'})])
   	.then(([advisor, investor, advice]) => {
   		if(advisor && investor && advice) {			
@@ -563,12 +563,8 @@ module.exports.followAdvice = function(args, res, next) {
     			APIError.throwJsonError({message: "Advisor can't follow personal advice", errorCode: 1104});
     		}
 
-    		return Promise.all([AdviceModel.updateFollowers({
-    						_id: adviceId}, investorId),
-
-						InvestorModel.updateFollowing({
-			    			_id: investorId}, adviceId, "advice"
-						    		)]);
+    		return AdviceModel.updateFollowers({_id: adviceId}, investorId);
+						
 		} else {
 			if(!investor) {
 				APIError.throwJsonError({userId: userId, message: "Investor not found", errorCode: 1301});
@@ -579,12 +575,10 @@ module.exports.followAdvice = function(args, res, next) {
 			}
 		}
 	})
-	.then(([advice, investor]) => {
-		if (advice && investor) {
-			return res.status(200).json({userId: userId, adviceId: adviceId, count: advice.followers.filter(item => {return item.active==true}).length}); 
-		} else if(!investor) {
-			APIError.throwJsonError({userId:userId, message: "Investor not found", errorCode: 1301});
-		} else if(!advice) {
+	.then(advice => {
+		if (advice) {
+			return res.status(200).json({userId: userId, adviceId: adviceId, message: "Updated wishlist successfully"}); 
+		} else {
 			APIError.throwJsonError({adviceId: adviceId, message: "Advice not found", errorCode: 1101});
 		}
 	})
@@ -598,18 +592,24 @@ module.exports.subscribeAdvice = function(args, res, next) {
   	const adviceId = args.adviceId.value;
 
   	let investorId;
+  	let currentSubscriptionStatus;
 
   	return Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
   			InvestorModel.fetchInvestor({user: userId}, {fields: '_id', insert:true}), 
-  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true, prohibited: false}, {})])
+  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true, prohibited: false}, {subscribers:1, advisor:1})])
   	.then(([advisor, investor, advice]) => {
-  		if(investor && advice) {
+  		if(advisor && investor && advice) {
   				
     		investorId = investor._id; 
     		const advisorId = advisor._id;
 
     		if(advice.advisor.equals(advisorId)) {
     			APIError.throwJsonError({message: "Advisor can't subscribe to personal advice", errorCode: 1105});
+    		}
+
+    		var idx = advice.subscribers.map(item => item.investor.toString()).indexOf(investorId.toString());
+    		if (idx != -1) {
+    			currentSubscriptionStatus = advice.subscribers[idx].active;
     		}
 
     		//First find the current Subscribed Advies
@@ -636,14 +636,26 @@ module.exports.subscribeAdvice = function(args, res, next) {
 		if (subscriptionAllowed || unsubscriptionAllowed) {
 			return AdviceModel.updateSubscribers({_id: adviceId}, investorId);
 		} else {
-			APIError.throwJsonError({message: "Advice can't be subscribed. Exceeded the limit", advice: adviceId});
+			return null;
 		}
 	})
 	.then(advice => {
 		if (advice) {
-			return res.status(200).json({userId: userId, adviceId: adviceId, count: advice.subscribers.filter(item => {return item.active==true}).length}); 
+
+			var idx = advice.subscribers.map(item => item.investor.toString()).indexOf(investorId.toString());
+    		if (idx != -1) {
+    			var newSubsriptionStatus = advice.subscribers[idx].active; 
+    			if (newSubsriptionStatus && currentSubscriptionStatus) {
+    				return res.status(200).json({adviceId: adviceId, message: "Unsubscription request accepted. Will unsubscribe at the end of subscription period."}); 
+    			} else if(!newSubsriptionStatus && currentSubscriptionStatus) {
+    				return res.status(200).json({adviceId: adviceId, message: "Unsubscribed successfully"}); 
+    			} else if(newSubsriptionStatus && !currentSubscriptionStatus) {
+    				return res.status(200).json({adviceId: adviceId, message: "Subscribed successfully"}); 
+    			}
+    		}
+			
 		} else {
-			APIError.throwJsonError({adviceId: adviceId, message: "Advice not found", errorCode: 1101});
+			return res.status(200).send({message: "Advice can't be subscribed. Exceeded the limit", advice: adviceId});
 		}
 	})
     .catch(err => {
