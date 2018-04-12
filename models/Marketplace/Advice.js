@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-10 15:51:29
+* @Last Modified time: 2018-04-12 19:31:29
 */
 'use strict';
 const mongoose = require('../index');
@@ -426,39 +426,34 @@ Advice.statics.updateRating = function(query, latestRating) {
 };
 
 Advice.statics.fetchAdvicePortfolio = function(query, date) {
-    if (!date || date == '') {
-        return this.findOne(query).select('portfolio').populate('portfolio', 'detail').execAsync()
-        .then(advice => {
-            return advice && advice.portfolio && advice.portfolio.detail ? advice.portfolio.detail : null; 
-        });
-    } else {
-        return this.findOne(query).select('portfolio').populate('portfolio','detail history').execAsync()
-        .then(advice => {
-            if (advice && advice.portfolio) {
-                var advicePortfolio = advice.portfolio;    
-                //If Date is greater than or equal to current portfolio startDate
-                if (DateHelper.compareDates(date, advicePortfolio.detail.startDate) != -1) {
-                    return advice.portfolio.detail;
-                } else {
-                    var detail = null;
-                    for(var historicalDetail of advicePortfolio.history){
-                        //If Date is greater than or equal to historical portfolio startDate
-                        //AND
-                        //Date is less than historical portfolio endDate
-                        if (DateHelper.compareDates(date, historicalDetail.startDate) != -1 && 
-                                DateHelper.compareDates(historicalDetail.endDate, date) != -1) {
-                            detail = historicalDetail;
-                            break;
-                        } 
-                    }
-
-                    return detail;
-                }
+    var ndate = !date || date == '' ? DateHelper.getCurrentDate() : DateHelper.getDate(date); 
+    
+    return this.findOne(query).select('portfolio').populate('portfolio','detail history').execAsync()
+    .then(advice => {
+        if (advice && advice.portfolio) {
+            var advicePortfolio = advice.portfolio;    
+            //If Date is greater than or equal to current portfolio startDate
+            if (DateHelper.compareDates(ndate, advicePortfolio.detail.startDate) != -1) {
+                return advice.portfolio.detail;
             } else {
-                return null;
+                var detail = null;
+                for(var historicalDetail of advicePortfolio.history){
+                    //If Date is greater than or equal to historical portfolio startDate
+                    //AND
+                    //Date is less than historical portfolio endDate
+                    if (DateHelper.compareDates(ndate, historicalDetail.startDate) != -1 && 
+                            DateHelper.compareDates(historicalDetail.endDate, ndate) != -1) {
+                        detail = historicalDetail;
+                        break;
+                    } 
+                }
+
+                return detail;
             }
-        });    
-    }
+        } else {
+            return null;
+        }
+    });    
 };
 
 Advice.statics.updateApproval = function(query, latestApproval) {

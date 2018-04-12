@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-12 15:53:16
+* @Last Modified time: 2018-04-12 19:35:34
 */
 
 'use strict';
@@ -121,6 +121,42 @@ module.exports.updateAdvice = function(args, res, next) {
 				});
 
 				isPublic = advice.public;
+
+				//If updating a public advice's PORTFOLIO
+				if (Object.keys(newAdvice).indexOf["portfolio"] != -1) {
+					var newStartDate = DateHelper.getDate(newAdvice.portfolio.detail.startDate);
+					var rebalanceFrequency = advice.rebalance;
+					
+					var nextValidDate = DateHelper.getNextWeekday();;
+
+					if (isPublic) {
+						if (rebalanceFrequency == "Daily") {
+							nextValidDate = DateHelper.getNextWeekday();
+						} else if (rebalanceFrequency == "Weekly") {
+							//Get the nextWeek Monday
+							nextValidDate = DateHelper.getFirstMonday("1W");
+						} else if(rebalanceFrequency == "Bi-Weekly") {
+							//Get the monday after 2 weeks
+							nextValidDate = DateHelper.getFirstMonday("2W");
+						} else if(rebalanceFrequency == "Monthly") {
+							//Get 1st Monday of next Month
+							nextValidDate = DateHelper.getFirstMonday("1M");
+						} else if(rebalanceFrequency == "Quartely") {
+							//Get 1st Monday of after 3 months Month
+							nextValidDate = DateHelper.getFirstMonday("3M");
+						}
+
+						if (DateHelper.compareDates(newStartDate, nextValidDate) != 0) {
+							APIError.throwJsonError({message: `Invalid start date. Valid start date: ${nextValidDate}`});
+						}
+					} else {
+						if (DateHelper.compareDates(newStartDate, nextValidDate) == -1 || newStartDate.getDay() == 0 || newStartDate.getDay() == 6) {
+							APIError.throwJsonError({message: `Invalid start date. Valid start date: ${nextValidDate} or higher`});
+						}
+					} 
+
+				}
+
 				advicePortfolioId = advice.portfolio._id;
 				return 	isPublic ? AdviceHelper.validateAdvice(newAdvice, advice) : AdviceHelper.validateAdvice(newAdvice);
 			
@@ -408,19 +444,26 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 	const userId = args.user._id;
 	const date = args.date.value;
 
+	let ndate;
 	return AdviceHelper.isUserAuthorizedToViewAdviceDetail(userId, adviceId)
 	.then(allowed => {
-
 		if(allowed) {
+			
+			ndate = !date || date == '' ? DateHelper.getCurrentDate() : DateHelper.getDate(date); 
+			var currentDate = DateHelper.getCurrentDate();
+			if (DateHelper.compareDates(ndate, currentDate) == 1) {
+				APIError.throwJsonError({message: "Can't see advice portfolio for dates later than today", adviceId: adviceId});
+			}
+
 			//Re-run the query after checking 
-			return AdviceModel.fetchAdvicePortfolio({_id:adviceId}, date);
+			return AdviceModel.fetchAdvicePortfolio({_id:adviceId}, ndate);
 		} else {
 			APIError.throwJsonError({message:"Investor not authorized to view advice detail", errorCode: 1112});
 		}
 	})
 	.then(portfolioDetail => {
 		if (portfolioDetail) {
-			return PortfolioHelper.computeUpdatedPortfolioForPrice({detail: portfolioDetail.toObject()}, DateHelper.getDate(date));
+			return PortfolioHelper.computeUpdatedPortfolioForPrice({detail: portfolioDetail.toObject()}, DateHelper.getDate(ndate));
 		} else {
 			APIError.throwJsonError({message: "No portfolio found for advice"});
 		}
