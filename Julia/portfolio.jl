@@ -271,9 +271,9 @@ function _validate_transactions(transactions::Vector{Dict{String,Any}}, advicePo
             #Update investor portfolio with advice transactions
             #get effective investor portfolio
             if investorPort != Dict{String, Any}()
-                (cash, effInvPortfolio) = updateportfolio_transactions(investorPort, transactions)
+                effInvPortfolio = updateportfolio_transactions(investorPort, transactions)
             else
-                (cash, effInvPortfolio) = updateportfolio_transactions(Dict("positions" => []), transactions);
+                effInvPortfolio = updateportfolio_transactions(Dict("positions" => []), transactions);
             end
 
             #=transactions_raftaar = Raftaar.OrderFill[];
@@ -286,7 +286,7 @@ function _validate_transactions(transactions::Vector{Dict{String,Any}}, advicePo
                     rethrow(err)
                 end
             end=#
-        
+            
             advPortfolio = convert(Raftaar.Portfolio, advicePort)
             multiple = Int64[]
 
@@ -303,7 +303,6 @@ function _validate_transactions(transactions::Vector{Dict{String,Any}}, advicePo
                 if(posAdvice == nothing || posInvestor == nothing)
                     error("Transaction in Invalid Position: $(sym.ticker)")
                 end
-
                 remainder = posInvestor.quantity % posAdvice.quantity
                 
                 if(abs(remainder) > 0)
@@ -316,6 +315,7 @@ function _validate_transactions(transactions::Vector{Dict{String,Any}}, advicePo
 
             #check if all are equal
             return all(y->y==multiple[1], multiple)
+
         else
             return true
         end
@@ -878,6 +878,7 @@ end
 function updateportfolio_transactions(port::Dict{String, Any}, transactions::Vector{Dict{String,Any}})
     
     try
+
         portfolio = convert(Raftaar.Portfolio, port)
         cash = 0.0
         
@@ -898,7 +899,6 @@ function updateportfolio_transactions(port::Dict{String, Any}, transactions::Vec
         end
 
         portfolio.cash += cash
-
         return portfolio
     catch err
         rethrow(err)
