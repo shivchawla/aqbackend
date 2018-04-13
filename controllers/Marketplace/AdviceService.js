@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-12 22:33:44
+* @Last Modified time: 2018-04-13 10:33:59
 */
 
 'use strict';
@@ -154,7 +154,6 @@ module.exports.updateAdvice = function(args, res, next) {
 							APIError.throwJsonError({message: `Invalid start date. Valid start date: ${nextValidDate} or higher`});
 						}
 					} 
-
 				}
 
 				advicePortfolioId = advice.portfolio._id;
@@ -401,31 +400,32 @@ module.exports.getAdviceDetail = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const userId = args.user._id;
 
-	var defaultFields = 'subscribers followers createdDate updatedDate advisor portfolio rebalance maxNotional rating';
+	var defaultFields = 'subscribers followers createdDate updatedDate advisor rebalance maxNotional rating';
 	const options = {};
    	options.fields = args.fields.value != "" ? args.fields.value : defaultFields;
    	options.populate = 'advisor';
 	
 	return AdviceHelper.isUserAuthorizedToViewAdviceDetail(userId, adviceId)
-	.then(allowed => {
-		if(allowed) {		
-			if (options.fields.indexOf('portfolio') != -1) {
-				options.populate = options.populate.concat(' portfolio');
-			}
+	.then(authorizationStatus => {
+		if(authorizationStatus.authorized) {
 
 			//Re-run the query after checking 
-			return AdviceModel.fetchAdvice({_id:adviceId}, options);
+			//Add portfolio as of today to the detail
+			return Promise.all([
+				AdviceModel.fetchAdvice({_id:adviceId}, options),
+				options.fields.indexOf("portfolio") !=-1 ? AdviceModel.fetchAdvicePortfolio({_id:adviceId}) : null
+			])
 		
 		} else {
 			APIError.throwJsonError({message:"Investor not authorized to view advice detail", errorCode: 1112});
 		}
 	})
-	.then(advice => {
-		if (options.fields.indexOf('portfolio') != -1 && advice.portfolio) {
-			return PortfolioHelper.computeUpdatedPortfolioForPrice(advice.portfolio.toObject())
-			.then(updatedPortfolio => {
-				advice.portfolio = updatedPortfolio;
-				return advice;
+	.then(([advice, advicePortfolioDetail]) => {
+		if (advicePortfolioDetail) {
+			return PortfolioHelper.computeUpdatedPortfolioForPrice({detail: advicePortfolioDetail.toObject()})
+			.then(updatedAdvicePortfolio => {
+				var advicePortfolio = updatedAdvicePortfolio;
+				return Object.assign(advice.toObject(), {portfolio: advicePortfolio});
 			});
 		} else {
 			return advice;
@@ -446,13 +446,16 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 
 	let ndate;
 	return AdviceHelper.isUserAuthorizedToViewAdviceDetail(userId, adviceId)
-	.then(allowed => {
-		if(allowed) {
+	.then(authorizationStatus => {
+		if(authorizationStatus.authorized) {
 			
 			ndate = !date || date == '' ? DateHelper.getCurrentDate() : DateHelper.getDate(date); 
-			var currentDate = DateHelper.getCurrentDate();
-			if (DateHelper.compareDates(ndate, currentDate) == 1) {
-				APIError.throwJsonError({message: "Can't see advice portfolio for dates later than today", adviceId: adviceId});
+			
+			if (authorizationStatus.isSubscriber) {
+				var currentDate = DateHelper.getCurrentDate();
+				if (DateHelper.compareDates(ndate, currentDate) == 1) {
+					APIError.throwJsonError({message: "Can't see advice portfolio for dates later than today", adviceId: adviceId});
+				}
 			}
 
 			//Re-run the query after checking 

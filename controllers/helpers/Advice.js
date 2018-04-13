@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-10 16:41:40
+* @Last Modified time: 2018-04-13 10:01:33
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -98,7 +98,9 @@ module.exports.isUserAuthorizedToViewAdviceDetail = function(userId, adviceId) {
 			const investorId = investor._id.toString();
 			//PERSONAL or subscribers
 			//get to see expanded portfolio if chosen
-			return advice.advisor.equals(advisorId) || activeSubscribers.indexOf(investorId) != -1;
+			var isOwner = advice.advisor.equals(advisorId);
+			var isSubscriber = activeSubscribers.indexOf(investorId) != -1; 
+			return  {isOwner: isOwner, isSubscriber: isSubscriber, authorized : isOwner || isSubscriber}; 
 				
 		} else if(!investor) {
 			APIError.throwJsonError({message:"Investor not found", errorCode: 1301});
