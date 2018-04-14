@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 01:56:39
+* @Last Modified time: 2018-04-15 02:27:45
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -610,7 +610,7 @@ module.exports.getPortfolioHistory = function(portfolioId, date, options) {
                 //If Date is greater than the start Date of historical portfolios
                 //ADD
                 if (DateHelper.compareDates(__date, DateHelper.getDate(historicalDetail.startDate)) != -1) {
-                    __detail.push(historicalDetail)
+                    __history.push(historicalDetail)
                 } 
             }
 

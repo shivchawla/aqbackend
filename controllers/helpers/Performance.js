@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 01:58:55
+* @Last Modified time: 2018-04-15 03:23:18
 */
 
 'use strict';
@@ -426,10 +426,11 @@ module.exports.computePerformanceHypthetical = function(portfolio) {
 
 module.exports.computePerformanceSummary = function(portfolioId, options) {
 	
-	var summaryType = options && options.flag; ? "simulated" : "current";
+	var summaryType = options && options.flag ? "simulated" : "current";
 	
 	return new Promise(resolve => {
-		exports.computePerformance(portfolioId, Object.assign(options, {fields: summaryType}))
+		var opt = Object.assign(options ? options : {}, {fields: summaryType})
+		exports.computePerformance(portfolioId, opt)
 		.then(performance => {
 			if (performance){
 				const pf = Object.assign({}, performance.toObject());
@@ -533,7 +534,7 @@ module.exports.computeAllPerformanceSummary = function(portfolioId) {
 	})
 	.then(([latestPerformanceSummary, simulatedPerformanceSummary]) => {
 		return {current: latestPerformanceSummary, simulated: simulatedPerformanceSummary};
-	});
+	})
 };
 
 module.exports.computeAllPerformance = function(portfolioId) {
