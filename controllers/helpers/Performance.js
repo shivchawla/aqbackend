@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-10 16:17:50
+* @Last Modified time: 2018-04-15 00:40:55
 */
 
 'use strict';
@@ -142,7 +142,7 @@ function _computeConstituentPerformance_portfolio(portfolio, startDate, endDate,
 }
 
 function _computeConstituentPerformance(portfolioId) {
-	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'detail benchmark'})
+	return PortfolioHelper.getPortfolioForDate(portfolioId, null, {fields:'detail benchmark'})
 	.then(portfolio => {
 		if(portfolio && portfolio.detail) {
 			var currentPortfolio = portfolio.detail;
@@ -152,7 +152,6 @@ function _computeConstituentPerformance(portfolioId) {
 			return _computeConstituentPerformance_portfolio(currentPortfolio, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
 		} else {
 			APIError.throwJsonError({message: "Error computing constituent performance. Portfolio not found"});
-			//return null;
 		}
 	});
 }
@@ -189,7 +188,7 @@ function _computePortfolioMetrics_portfolio(portfolio, startDate, endDate, bench
 }
 
 function _computePortfolioMetrics(portfolioId) {
-	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'detail benchmark'})
+	return PortfolioHelper.getPortfolioForDate(portfolioId, null, {fields:'detail benchmark'})
 	.then(portfolio => {
 		if(portfolio && portfolio.detail) {
 			var currentPortfolio = portfolio.detail;
@@ -199,7 +198,6 @@ function _computePortfolioMetrics(portfolioId) {
 
 			return _computePortfolioMetrics_portfolio(currentPortfolio, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
 		} else {
-			//return null;
 			APIError.throwJsonError({message: "Error computing portfolio composition. Portfolio not found", portfolio: portfolioId});
 		}
 	});
@@ -241,45 +239,21 @@ function _computePerformance_portfolioHistory(portfolioHistory, benchmark) {
 	});
 }
 
+//Computes performance of true portfolio (using exact portfolio history) till date
 function _computeTruePerformance(portfolioId) {
-	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'detail benchmark history'})
-	.then(portfolio => {
-		var portfolioHistory = [];
-		
-		if(portfolio && portfolio.detail) {
-			var currentPortfolio = portfolio.detail;
-			if (DateHelper.compareDates(currentPortfolio.startDate, DateHelper.getCurrentDate()) != 1) {
-				portfolioHistory.push({startDate: DateHelper.getDate(currentPortfolio.startDate), 
-											endDate: DateHelper.getCurrentDate(),
-											portfolio: {
-												positions: currentPortfolio.positions,
-												cash: currentPortfolio.cash}
-											});
-			}
-		}
-
-		if(portfolio && portfolio.history && portfolio.history.length > 0) {							
-			portfolio.history.forEach(port => {
-				portfolioHistory.push({startDate: port.startDate ? port.startDate : port.endDate, 
-										endDate: port.endDate,
-										portfolio: {
-											positions: port.positions,
-											cash: port.cash
-										}
-									});
-			});
-		}
+	
+	return PortfolioHelper.getPortfolioHistory(portfolioId)
+	.then(portfolioHistory => {
 		if (portfolioHistory.length > 0) {
 			return _computePerformance_portfolioHistory(portfolioHistory, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
 		} else {
 			APIError.throwJsonError({message: "Error computing latest performance. Current portfolio and/or history missing"})
-			//return null;
 		}
 	});
 }
 
 function _computeSimulatedPerformanceCurrentPortfolio(portfolioId) {
-	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields:'detail benchmark'})
+	return PortfolioHelper.getPortfolioForDate(portfolioId, null, {fields:'detail benchmark'})
 	.then(portfolio => {
 		if(portfolio && portfolio.detail){
 			var currentPortfolio = portfolio.detail;
@@ -297,7 +271,6 @@ function _computeSimulatedPerformanceCurrentPortfolio(portfolioId) {
 			return _computePerformance_portfolioHistory(portfolioHistory, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
 		} else {
 			APIError.throwJsonError({message: "Error computing simulated performance. Portfolio not found"});
-			//return null;
 		}
 	});
 }
@@ -362,7 +335,6 @@ function _computeSimulatedPerformance(portfolioId) {
 			return updates;
 		} else {
 			APIError.throwJsonError({message: "Error computing simulated performance"});
-			//return null;
 		}
 	});
 }
@@ -452,11 +424,11 @@ module.exports.computePerformanceHypthetical = function(portfolio) {
 	});
 };
 
-module.exports.computePerformanceSummary = function(portfolioId, flag) {
-	var summaryType = !flag ? "current" : "simulated";
+module.exports.computePerformanceSummary = function(portfolioId, options) {
+	var summaryType = options && options.flag ? "simulated" : "current";
 
 	return new Promise(resolve => {
-		exports.computePerformance(portfolioId, summaryType, flag)
+		exports.computePerformance(portfolioId, {fields: summaryType, flag: options.flag})
 		.then(performance => {
 			if (performance){
 				const pf = Object.assign({}, performance.toObject());
@@ -468,7 +440,8 @@ module.exports.computePerformanceSummary = function(portfolioId, flag) {
 		.then(performanceSummary => {
 			if (performanceSummary) {
 				var nestedField = "summary."+summaryType;
-				return PerformanceModel.updatePerformance({portfolio: portfolioId}, {$set: {[nestedField]: performanceSummary}}, {fields: [nestedField]}).then(pf => {return pf.summary ? pf.summary[summaryType] : null;});
+				return PerformanceModel.updatePerformance({portfolio: portfolioId}, {$set: {[nestedField]: performanceSummary}}, {fields: [nestedField]})
+					.then(pf => {return pf.summary ? pf.summary[summaryType] : null;});
 			} else {
 				return PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: [nestedField]}).then(pf => {return pf.summary ? pf.summary[summaryType] : null;});
 			}
@@ -495,15 +468,15 @@ module.exports.getPerformanceSummary = function(portfolioId, flag) {
 		return PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: 'summary'.concat(' summaryType')})
 		.then(performance => {
 			var updateRequired = _checkPerformanceUpdateRequired(performance ? performance[summaryType] : null);
-			return updateRequired ? exports.computePerformanceSummary(portfolioId, flag) : performance.summary[summaryType];
+			return updateRequired ? exports.computePerformanceSummary(portfolioId, {flag: flag}) : performance.summary[summaryType];
 		})
 	} else {
 		APIError.throwJsonError({message: "Invalid Portfolio", portfolioId: portfolioId});
 	}	
 };
 
-module.exports.computePerformance = function(portfolioId, fields, flag) {
-	var performanceType = !flag ? "current" : "simulated";
+module.exports.computePerformance = function(portfolioId, options) {
+	var performanceType = options && options.flag ? "simulated" :  "current";
 	return new Promise(resolve => {
 		Promise.resolve()
 		.then(v => {
@@ -516,10 +489,9 @@ module.exports.computePerformance = function(portfolioId, fields, flag) {
 		.then(performance => {
 			if (performance) {
 				const updates = {$set: {[performanceType]: performance}};
-				return PerformanceModel.updatePerformance({portfolio: portfolioId}, updates, {fields: fields});
+				return PerformanceModel.updatePerformance({portfolio: portfolioId}, updates, {fields: options.fields});
 			} else {
-				return PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: fields});
-				//APIError.throwJsonError({message: "Error computing latest performance", portfolio:portfolioId});
+				return PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: options.fields});
 			}
 		})
 		.then(pf => {
@@ -527,7 +499,7 @@ module.exports.computePerformance = function(portfolioId, fields, flag) {
 		})
 		.catch(err => {
 			console.log(err);
-			PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: fields})
+			PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: options.fields})
 			.then(pf => {
 				resolve(pf);
 			});
@@ -535,14 +507,14 @@ module.exports.computePerformance = function(portfolioId, fields, flag) {
 	});
 };
 
-module.exports.getPerformance = function(portfolioId, fields, flag) {
-	var performanceType = !flag ? "current" : "simulated";
+module.exports.getPerformance = function(portfolioId, options) {
+	var performanceType = options && options.flag ? "simulated" :  "current" ;
 	if (portfolioId) {
-		fields = fields ? fields : "";
+		var fields = options && options.fields ? options.fields : "";
 		return PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: fields.concat(' ').concat(performanceType)})
 		.then(performance => {
 			var updateRequired = _checkPerformanceUpdateRequired(performance ? performance[performanceType] : null);
-			return updateRequired ? exports.computePerformance(portfolioId, fields, flag) : performance;
+			return updateRequired ? exports.computePerformance(portfolioId, {fields: fields, flag: flag}) : performance;
 		})
 	} else {
 		APIError.throwJsonError({message: "Invalid Portfolio", portfolioId: portfolioId});
@@ -555,7 +527,7 @@ module.exports.computeAllPerformanceSummary = function(portfolioId) {
 		return Promise.all([
 			latestPerformanceSummary,
 			//compute simulated performance summary
-			exports.computePerformanceSummary(portfolioId, true)
+			exports.computePerformanceSummary(portfolioId, {flag: true})
 		]);
 	})
 	.then(([latestPerformanceSummary, simulatedPerformanceSummary]) => {

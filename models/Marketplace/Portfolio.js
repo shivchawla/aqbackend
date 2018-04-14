@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-06 12:18:57
+* @Last Modified time: 2018-04-14 21:12:26
 */
 
 'use strict';
@@ -95,6 +95,10 @@ Portfolio.statics.fetchPortfolio = function(query, options) {
 	//Select advice name and 
 	if((options.fields && options.fields.indexOf('detail') !=-1 ) || !options.fields) {
 		q = q.populate('detail.subPositions.advice', '_id name', {_id:{$ne:null}});
+	}
+
+	if((options.fields && options.fields.indexOf('history') !=-1 ) || !options.fields) {
+		q = q.populate('history.subPositions.advice', '_id name', {_id:{$ne:null}});
 	}
 
 	return q.execAsync();

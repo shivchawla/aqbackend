@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-12 11:15:35
+* @Last Modified time: 2018-04-15 00:55:20
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -348,8 +348,9 @@ function _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolioDetail, da
 	});
 }
 
+//Compute Portfolio Analytics
 module.exports.computePortfolioAnalytics = function(portfolioId) {
-	return exports.getUpdatedPortfolio(portfolioId, 'detail')
+	return exports.getPortfolioForDate(portfolioId)
 	.then(portfolio => {
 		var positions = portfolio && portfolio.detail ? portfolio.detail.positions : [];
 		var distinctSectors = Array.from(new Set(positions.map(item => {return item && item.security && item.security.detail ? item.security.detail.Sector : "";}).filter(item => {return item && item != ""})));
@@ -363,6 +364,7 @@ module.exports.computePortfolioAnalytics = function(portfolioId) {
 	});
 };
 
+//Updates portfolio for transactions
 module.exports.updatePortfolioForStockTransactions = function(portfolio, transactions, action, preview) {
 	
 	//LOGIC
@@ -521,6 +523,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 	});
 };
 
+//Update portfolio for prices for any date
 module.exports.computeUpdatedPortfolioForPrice = function(portfolio, date) {
 	
 	return _computeUpdatedPortfolioForPrice(portfolio, date)
@@ -529,77 +532,116 @@ module.exports.computeUpdatedPortfolioForPrice = function(portfolio, date) {
 	});
 };
 
-module.exports.getUpdatedPortfolio = function(portfolioId, fields) {
-	//Append new fields to some basic fields (ADD SPACE - V. IMP)
-	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted:false}, {fields:fields.concat(' detail updatedDate')})
+//Gets portfolio for a specific date (Date could be in the history)
+module.exports.getPortfolioForDate = function(portfolioId, date, options) {
+	
+	var __fields = options && options.fields ? options.fields : "";
+	__fields = __fields.concat(" detail history");
+
+	var __date = !date || date =="" ? DateHelper.getCurrentDate() : DateHelper.getDate(date);
+
+	let __detail;
+ 	
+ 	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields: __fields})
+ 	.then(portfolio => {
+        if (portfolio) {
+            var portfolioDetail = portfolio.detail;
+            //If Date is greater than or equal to current portfolio startDate
+            if (DateHelper.compareDates(__date, portfolioDetail.startDate) != -1) {
+                __detail = portfolioDetail;
+            } else {
+                for(var historicalDetail of portfolio.history){
+                    //If Date is greater than or equal to historical portfolio startDate
+                    //AND
+                    //Date is less than historical portfolio endDate
+                    if (DateHelper.compareDates(__date, historicalDetail.startDate) != -1 && 
+                            DateHelper.compareDates(historicalDetail.endDate, __date) != -1) {
+                        __detail = historicalDetail;
+                        break;
+                    } 
+                }
+                
+            }
+
+            var __portfolio = Object.assign({}, portfolio);
+
+            delete __portfolio.history;
+            delete __portflio.detail;
+
+            return  Object.assign(__portfolio, {detail: __detail});
+
+        } else {
+        	APIError.throwJsonError({portfolioId: portfolioId, message: "Portfolio not found", errorCode: 1401});	
+        }
+
+    })
 	.then(portfolio => {
 		if(portfolio) {
-			var updateRequired = portfolio.updatedDate ? DateHelper.getDate(portfolio.updatedDate) < DateHelper.getCurrentDate() : true;
-			return updateRequired ? 
-				_computeUpdatedPortfolioForPrice(portfolio.toObject()):
-				[false,  portfolio];
+			return _computeUpdatedPortfolioForPrice(portfolio, __date);
 		} else {
-			APIError.throwJsonError({portfolioId: portfolioId, message: "Portfolio not found", errorCode: 1401});
+			APIError.throwJsonError({portfolioId: portfolioId, message: `Error getting portfolio for date: ${__date}`});
 		}
 	})
-	.then(([updated, latestPricePortfolio]) => {
-		return updated ? PortfolioModel.updatePortfolio({_id: portfolioId}, latestPricePortfolio, {fields: fields}) : latestPricePortfolio;
-	})
-	.then(latestPricePortfolio => {
-		return _updatePortfolioWeights(latestPricePortfolio.toObject());
+	.then(updatedPricePortfolio => {
+		return _updatePortfolioWeights(latestPricePortfolio);
 	});
 };
 
+//Gets the portfolio history till a specific date (Date could be in the history)
+module.exports.getPortfolioHistory = function(portfolioId, date, options) {
+	
+	var __fields = options && options.fields ? options.fields : "";
+	__fields = __fields.concat(" detail history");
+
+	var __date = !date || date =="" ? DateHelper.getCurrentDate() : DateHelper.getDate(date);
+
+	let __history = [];
+ 	
+ 	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields: __fields})
+ 	.then(portfolio => {
+        if (portfolio) {
+            var portfolioDetail = portfolio.detail;
+            //If Date is greater than or equal to current portfolio startDate
+            if (DateHelper.compareDates(__date, portfolioDetail.startDate) != -1) {
+                __history.push(portfolioDetail)
+            }
+
+            for(var historicalDetail of portfolio.history) {
+                //If Date is greater than the start Date of historical portfolios
+                //ADD
+                if (DateHelper.compareDates(__date, historicalDetail.startDate) != -1) {
+                    __detail.push(historicalDetail)
+                } 
+            }
+
+            var __portfolio = Object.assign({}, portfolio);
+
+            delete __portfolio.history;
+            delete __portflio.detail;
+
+            return  Object.assign(__portfolio, {history: __history});
+        }
+
+    });
+};
+
+//Get current portfolio with realtime prices
 module.exports.getUpdatedPortfolioForRtPrices = function(portfolioId) {
 	//Append new fields to some basic fields (ADD SPACE - V. IMP)
-	return PortfolioModel.fetchPortfolio({_id: portfolioId, deleted:false}, {fields:'detail'})
+	return exports.getPortfolioForDate(portfolioId)
 	.then(portfolio => {
 		if(portfolio) {
-			return _computeUpdatedPortfolioForPrice(portfolio.toObject(), null, "RT");
+			return _computeUpdatedPortfolioForPrice(portfolio, null, "RT");
 		} else {
 			APIError.throwJsonError({portfolioId: portfolioId, message: "Portfolio not found", errorCode: 1401});
 		}
 	})
 	.then(([updated, latestPricePortfolio]) => {
-		if(updated) {
-			//Async updates the data base
-			PortfolioModel.updatePortfolio({_id: portfolioId}, latestPricePortfolio, {});
-		}
-
-		//continues with output
 		return latestPricePortfolio;
 	});
 }
 
-module.exports.comparePortfolioDetail = function(oldPortfolioDetail, newPortfolioDetail) {
-	return new Promise(function(resolve, reject) {
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-	        console.log('Connection Open');
-	        console.log(connection);
-	        var msg = JSON.stringify({action:"compare_portfolio", 
-	        				oldPortfolio: oldPortfolio,
-	        				newPortfolio: newPortfolio});
-
-	     	wsClient.send(msg);
-	    });
-
-	    wsClient.on('message', function(msg) {
-	    	var data = JSON.parse(msg);
-	    	
-	    	if(data['error'] == '' && data['compare']) {
-	    		resolve(data['compare']);
-			} else if (data['error'] != '') {
-				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-			} else {
-				reject(APIError.jsonError({message: "Internal error in comparing portfolios", errorCode: 2101}));
-			}
-		});
-	});
-};
-
+//Validate portfolio
 module.exports.validatePortfolio = function(portfolio) {
 
 	return new Promise((resolve, reject) => {
@@ -630,6 +672,7 @@ module.exports.validatePortfolio = function(portfolio) {
     })
 };
 
+//Validate transactions
 module.exports.validateTransactions = function(transactions, advicePortfolio, investorPortfolio) {
 
 	//Addding a checking for valid transaction date (05-03-2018)
@@ -671,6 +714,7 @@ module.exports.validateTransactions = function(transactions, advicePortfolio, in
     })
 };
 
+//THIS WILL MOSTLY WORK BUT ADVICES with FUTURE PORTFOLIOS CAN BREAK
 module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
 	var currentDate = DateHelper.getCurrentDate();
 
@@ -692,8 +736,19 @@ module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
 	});
 };
 
+
+//Gets all portfolios for current date (used in Jobs)
+module.exports.getAllPortfoliosForDate = function(date, fields) {
+	return PortfolioModel.fetchPortfolios({}, {_id: 1})
+	.then(portfolios => {
+		return Promise.map(portfolios, function(portfolio) {
+			exports.getPortfolioForDate(portfolio._id, date, fields);
+		});
+	});
+}
+
 module.exports.updateAllPortfoliosForSplitsAndDividends = function() {
-	return PortfolioModel.fetchPortfolios({}, {fields: '_id'})
+	return exports.getAllPortfoliosForDate()
 	.then(portfolios => {
 		Promise.mapSeries(portfolios, function(portfolio) {
 			return exports.updatePortfolioForSplitsAndDividends(portfolio._id);

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-13 10:33:59
+* @Last Modified time: 2018-04-14 22:49:05
 */
 
 'use strict';
@@ -459,16 +459,16 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 			}
 
 			//Re-run the query after checking 
-			return AdviceModel.fetchAdvicePortfolio({_id:adviceId}, ndate);
+			return AdviceModel.fetchAdvice({_id:adviceId}, {portfolio:1});
 		} else {
 			APIError.throwJsonError({message:"Investor not authorized to view advice detail", errorCode: 1112});
 		}
 	})
-	.then(portfolioDetail => {
-		if (portfolioDetail) {
-			return PortfolioHelper.computeUpdatedPortfolioForPrice({detail: portfolioDetail.toObject()}, DateHelper.getDate(ndate));
+	.then(advice => {
+		if (advice) {
+			return PortfolioHelper.getPortfolioForDate(advice.portfolio, ndate);
 		} else {
-			APIError.throwJsonError({message: "No portfolio found for advice"});
+			APIError.throwJsonError({message: "No advice found"});
 		}
 	})
 	.then(updatedPortfolio => {
