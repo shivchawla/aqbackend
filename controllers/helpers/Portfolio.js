@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 00:55:20
+* @Last Modified time: 2018-04-15 01:56:39
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -547,15 +547,15 @@ module.exports.getPortfolioForDate = function(portfolioId, date, options) {
         if (portfolio) {
             var portfolioDetail = portfolio.detail;
             //If Date is greater than or equal to current portfolio startDate
-            if (DateHelper.compareDates(__date, portfolioDetail.startDate) != -1) {
+            if (DateHelper.compareDates(__date, DateHelper.getDate(portfolioDetail.startDate)) != -1) {
                 __detail = portfolioDetail;
             } else {
                 for(var historicalDetail of portfolio.history){
                     //If Date is greater than or equal to historical portfolio startDate
                     //AND
                     //Date is less than historical portfolio endDate
-                    if (DateHelper.compareDates(__date, historicalDetail.startDate) != -1 && 
-                            DateHelper.compareDates(historicalDetail.endDate, __date) != -1) {
+                    if (DateHelper.compareDates(__date, DateHelper.getDate(historicalDetail.startDate)) != -1 && 
+                            DateHelper.compareDates(DateHelper.getDate(historicalDetail.endDate), __date) != -1) {
                         __detail = historicalDetail;
                         break;
                     } 
@@ -563,10 +563,10 @@ module.exports.getPortfolioForDate = function(portfolioId, date, options) {
                 
             }
 
-            var __portfolio = Object.assign({}, portfolio);
+            var __portfolio = Object.assign({}, portfolio.toObject());
 
             delete __portfolio.history;
-            delete __portflio.detail;
+            delete __portfolio.detail;
 
             return  Object.assign(__portfolio, {detail: __detail});
 
@@ -582,7 +582,7 @@ module.exports.getPortfolioForDate = function(portfolioId, date, options) {
 			APIError.throwJsonError({portfolioId: portfolioId, message: `Error getting portfolio for date: ${__date}`});
 		}
 	})
-	.then(updatedPricePortfolio => {
+	.then(([updated, latestPricePortfolio]) => {
 		return _updatePortfolioWeights(latestPricePortfolio);
 	});
 };
@@ -602,14 +602,14 @@ module.exports.getPortfolioHistory = function(portfolioId, date, options) {
         if (portfolio) {
             var portfolioDetail = portfolio.detail;
             //If Date is greater than or equal to current portfolio startDate
-            if (DateHelper.compareDates(__date, portfolioDetail.startDate) != -1) {
+            if (DateHelper.compareDates(__date, DateHelper.getDate(portfolioDetail.startDate)) != -1) {
                 __history.push(portfolioDetail)
             }
 
             for(var historicalDetail of portfolio.history) {
                 //If Date is greater than the start Date of historical portfolios
                 //ADD
-                if (DateHelper.compareDates(__date, historicalDetail.startDate) != -1) {
+                if (DateHelper.compareDates(__date, DateHelper.getDate(historicalDetail.startDate)) != -1) {
                     __detail.push(historicalDetail)
                 } 
             }
@@ -617,7 +617,7 @@ module.exports.getPortfolioHistory = function(portfolioId, date, options) {
             var __portfolio = Object.assign({}, portfolio);
 
             delete __portfolio.history;
-            delete __portflio.detail;
+            delete __portfolio.detail;
 
             return  Object.assign(__portfolio, {history: __history});
         }

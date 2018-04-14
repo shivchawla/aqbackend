@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 00:40:55
+* @Last Modified time: 2018-04-15 01:58:55
 */
 
 'use strict';
@@ -242,10 +242,10 @@ function _computePerformance_portfolioHistory(portfolioHistory, benchmark) {
 //Computes performance of true portfolio (using exact portfolio history) till date
 function _computeTruePerformance(portfolioId) {
 	
-	return PortfolioHelper.getPortfolioHistory(portfolioId)
-	.then(portfolioHistory => {
-		if (portfolioHistory.length > 0) {
-			return _computePerformance_portfolioHistory(portfolioHistory, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
+	return PortfolioHelper.getPortfolioHistory(portfolioId, null, {benchmark:1})
+	.then(portfolio => {
+		if (portfolio.history.length > 0) {
+			return _computePerformance_portfolioHistory(portfolio.history, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
 		} else {
 			APIError.throwJsonError({message: "Error computing latest performance. Current portfolio and/or history missing"})
 		}
@@ -425,10 +425,11 @@ module.exports.computePerformanceHypthetical = function(portfolio) {
 };
 
 module.exports.computePerformanceSummary = function(portfolioId, options) {
-	var summaryType = options && options.flag ? "simulated" : "current";
-
+	
+	var summaryType = options && options.flag; ? "simulated" : "current";
+	
 	return new Promise(resolve => {
-		exports.computePerformance(portfolioId, {fields: summaryType, flag: options.flag})
+		exports.computePerformance(portfolioId, Object.assign(options, {fields: summaryType}))
 		.then(performance => {
 			if (performance){
 				const pf = Object.assign({}, performance.toObject());
