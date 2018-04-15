@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-14 22:49:05
+* @Last Modified time: 2018-04-15 03:40:27
 */
 
 'use strict';
@@ -466,7 +466,7 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 	})
 	.then(advice => {
 		if (advice) {
-			return PortfolioHelper.getPortfolioForDate(advice.portfolio, ndate);
+			return PortfolioHelper.getPortfolioForDate(advice.portfolio, {fields: 'detail'}, ndate);
 		} else {
 			APIError.throwJsonError({message: "No advice found"});
 		}

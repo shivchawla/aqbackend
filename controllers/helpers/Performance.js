@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 03:23:18
+* @Last Modified time: 2018-04-15 03:38:21
 */
 
 'use strict';
@@ -142,7 +142,7 @@ function _computeConstituentPerformance_portfolio(portfolio, startDate, endDate,
 }
 
 function _computeConstituentPerformance(portfolioId) {
-	return PortfolioHelper.getPortfolioForDate(portfolioId, null, {fields:'detail benchmark'})
+	return PortfolioHelper.getPortfolioForDate(portfolioId, {fields:'detail benchmark'})
 	.then(portfolio => {
 		if(portfolio && portfolio.detail) {
 			var currentPortfolio = portfolio.detail;
@@ -188,7 +188,7 @@ function _computePortfolioMetrics_portfolio(portfolio, startDate, endDate, bench
 }
 
 function _computePortfolioMetrics(portfolioId) {
-	return PortfolioHelper.getPortfolioForDate(portfolioId, null, {fields:'detail benchmark'})
+	return PortfolioHelper.getPortfolioForDate(portfolioId, {fields:'detail benchmark'})
 	.then(portfolio => {
 		if(portfolio && portfolio.detail) {
 			var currentPortfolio = portfolio.detail;
@@ -253,7 +253,7 @@ function _computeTruePerformance(portfolioId) {
 }
 
 function _computeSimulatedPerformanceCurrentPortfolio(portfolioId) {
-	return PortfolioHelper.getPortfolioForDate(portfolioId, null, {fields:'detail benchmark'})
+	return PortfolioHelper.getPortfolioForDate(portfolioId, {fields:'detail benchmark'})
 	.then(portfolio => {
 		if(portfolio && portfolio.detail){
 			var currentPortfolio = portfolio.detail;

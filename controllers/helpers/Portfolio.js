@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 02:27:45
+* @Last Modified time: 2018-04-15 03:39:12
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -341,7 +341,6 @@ function _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolioDetail, da
 			}
 		})
 		.catch(err => {
-			console.log("Shivaaaa");
 			console.log(err);
 			resolve([false, portfolioDetail]);
 		});
@@ -533,7 +532,7 @@ module.exports.computeUpdatedPortfolioForPrice = function(portfolio, date) {
 };
 
 //Gets portfolio for a specific date (Date could be in the history)
-module.exports.getPortfolioForDate = function(portfolioId, date, options) {
+module.exports.getPortfolioForDate = function(portfolioId, options, date) {
 	
 	var __fields = options && options.fields ? options.fields : "";
 	__fields = __fields.concat(" detail history");
@@ -742,7 +741,7 @@ module.exports.getAllPortfoliosForDate = function(date, fields) {
 	return PortfolioModel.fetchPortfolios({}, {_id: 1})
 	.then(portfolios => {
 		return Promise.map(portfolios, function(portfolio) {
-			exports.getPortfolioForDate(portfolio._id, date, fields);
+			exports.getPortfolioForDate(portfolio._id, {fields: fields}, date);
 		});
 	});
 }

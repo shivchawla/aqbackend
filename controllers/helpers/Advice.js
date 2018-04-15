@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-13 10:01:33
+* @Last Modified time: 2018-04-15 10:34:26
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -147,7 +147,6 @@ module.exports.computeAdvicePerformanceSummary = function(adviceId) {
 		}
 	})
 	.then(([performanceSummary, portfolioAnalytics]) => {
-
 		var currentPeformanceSummary = performanceSummary.current ? performanceSummary.current : {};
 		performanceSummary.current = Object.assign(currentPeformanceSummary, portfolioAnalytics);
 
@@ -184,7 +183,6 @@ module.exports.computeAdviceAnalytics = function(adviceId) {
 
 			var datePresent = false;
 			if (currentDayData) {
-				console.log(currentDayData);
 				datePresent =  currentDayData.date ? DateHelper.compareDates(currentDayData.date, currentDate) == 0 : false;
 			}
 

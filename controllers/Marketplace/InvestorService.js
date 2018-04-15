@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-14 23:49:37
+* @Last Modified time: 2018-04-15 03:40:50
 */
 
 'use strict';
@@ -158,7 +158,7 @@ module.exports.getInvestorSummary = function(args, res, next) {
     	if(investor && investor._id && investor._id.equals(investorId)) {
 			return Promise.all([
 				investor, 
-				investor.defaultPortfolio ? PortfolioHelper.getPortfolioForDate(investor.defaultPortfolio, null, 'name detail benchmark').catch(err => {return null;}) : null,
+				investor.defaultPortfolio ? PortfolioHelper.getPortfolioForDate(investor.defaultPortfolio, {fields: 'name detail benchmark'}).catch(err => {return null;}) : null,
 				investor.defaultPortfolio ? PerformanceHelper.getAllPerformance(investor.defaultPortfolio).catch(err => {return {error: err.message};}) : null
 			]);
     	} else {
@@ -368,6 +368,7 @@ module.exports.getInvestorPortfolios = function(args, res, next) {
 				return Promise.map(investor.portfolios, function(item) {
 					var fields = '_id name benchmark createdDate updatedDate';
 					return Promise.all([
+						//THIS IS BUGGY
 						item ? PortfolioModel.fetchPortfolio({_id: item, deleted: false}, {fields: fields}) : {message:"Portfolio not valid"},
 						item ? PerformanceHelper.getPerformanceSummary(item) : null		
 					])
@@ -436,8 +437,8 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 			if (investor._id.equals(investorId)){
 				if(investor.portfolios) {
 					if (investor.portfolios.map(item => item.toString()).indexOf(portfolioId) != -1) {
-						return PortfolioHelper.getPortfolioForDate(portfolioId, fields);
-					} else {F
+						return PortfolioHelper.getPortfolioForDate(portfolioId, {fields: fields});
+					} else {
 						APIError.throwJsonError({userId: userId, portfolioId: portfolioId, message: "Not a valid portfolio for investor"})
 					}
 				} else {
