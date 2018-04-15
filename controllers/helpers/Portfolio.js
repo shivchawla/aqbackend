@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 03:39:12
+* @Last Modified time: 2018-04-15 11:01:54
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -387,7 +387,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 
 				var transactionsForAdviceIdForDate = transactionsForAdviceId.filter(item => {return DateHelper.compareDates(item.date, date) == 0;});
 				
-				return AdviceModel.fetchAdvicePortfolio({_id: adviceId}, date)
+				return exports.getAdvicePortfolio(adviceId, date)
 				.then(advicePortfolio => {
 					if(advicePortfolio) {
 						
@@ -754,3 +754,15 @@ module.exports.updateAllPortfoliosForSplitsAndDividends = function() {
 		});
 	});
 };
+
+module.exports.getAdvicePortfolio = function(adviceId, date) {
+	return AdviceModel.fetchAdvice({_id: adviceId}, {portfolio:1})
+	.then(advice => {
+		if (advice) {
+			return exports.getPortfolioForDate(advice.portfolio, {fields: 'detail'}, date);
+		} else {
+			APIError.throwJsonError({message: "Advice not found"});
+		}
+	});
+};
+

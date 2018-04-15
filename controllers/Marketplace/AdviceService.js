@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 03:40:27
+* @Last Modified time: 2018-04-15 11:11:49
 */
 
 'use strict';
@@ -13,9 +13,7 @@ const AdviceModel = require('../../models/Marketplace/Advice');
 const PortfolioModel = require('../../models/Marketplace/Portfolio');
 const Promise = require('bluebird');
 const config = require('config');
-const HelperFunctions = require("../helpers");
 const PortfolioHelper = require("../helpers/Portfolio");
-const PerformanceHelper = require("../helpers/Performance");
 const AdviceHelper = require("../helpers/Advice");
 const APIError = require('../../utils/error');
 const DateHelper = require('../../utils/Date');
@@ -413,16 +411,16 @@ module.exports.getAdviceDetail = function(args, res, next) {
 			//Add portfolio as of today to the detail
 			return Promise.all([
 				AdviceModel.fetchAdvice({_id:adviceId}, options),
-				options.fields.indexOf("portfolio") !=-1 ? AdviceModel.fetchAdvicePortfolio({_id:adviceId}) : null
+				options.fields.indexOf("portfolio") !=-1 ? PortfolioHelper.getAdvicePortfolio(adviceId) : null
 			])
 		
 		} else {
 			APIError.throwJsonError({message:"Investor not authorized to view advice detail", errorCode: 1112});
 		}
 	})
-	.then(([advice, advicePortfolioDetail]) => {
-		if (advicePortfolioDetail) {
-			return PortfolioHelper.computeUpdatedPortfolioForPrice({detail: advicePortfolioDetail.toObject()})
+	.then(([advice, advicePortfolio]) => {
+		if (advicePortfolio) {
+			return PortfolioHelper.computeUpdatedPortfolioForPrice(advicePortfolio)
 			.then(updatedAdvicePortfolio => {
 				var advicePortfolio = updatedAdvicePortfolio;
 				return Object.assign(advice.toObject(), {portfolio: advicePortfolio});
@@ -459,16 +457,9 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 			}
 
 			//Re-run the query after checking 
-			return AdviceModel.fetchAdvice({_id:adviceId}, {portfolio:1});
+			return PortfolioHelper.getAdvicePortfolio(adviceId, {fields: 'detail'}, ndate);
 		} else {
 			APIError.throwJsonError({message:"Investor not authorized to view advice detail", errorCode: 1112});
-		}
-	})
-	.then(advice => {
-		if (advice) {
-			return PortfolioHelper.getPortfolioForDate(advice.portfolio, {fields: 'detail'}, ndate);
-		} else {
-			APIError.throwJsonError({message: "No advice found"});
 		}
 	})
 	.then(updatedPortfolio => {
