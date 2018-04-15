@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 16:30:44
+* @Last Modified time: 2018-04-15 17:45:31
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -568,7 +568,7 @@ module.exports.getPortfolioForDate = function(portfolioId, options, date) {
             delete __portfolio.history;
             delete __portfolio.detail;
 
-            return  Object.assign(__portfolio, {detail: __detail.toObject()});
+            return  Object.assign(__portfolio, {detail: __detail ? __detail.toObject() : null});
 
         } else {
         	APIError.throwJsonError({portfolioId: portfolioId, message: "Portfolio not found", errorCode: 1401});	
@@ -577,34 +577,38 @@ module.exports.getPortfolioForDate = function(portfolioId, options, date) {
     })
 	.then(portfolio => {
 		if(portfolio) {
-			return _computeUpdatedPortfolioForPrice(portfolio, __date);
+			return portfolio.detail ? _computeUpdatedPortfolioForPrice(portfolio, __date) : [false, null];
 		} else {
 			APIError.throwJsonError({portfolioId: portfolioId, message: `Error getting portfolio for date: ${__date}`});
 		}
 	})
 	.then(([updated, latestPricePortfolio]) => {
-		return _updatePortfolioWeights(latestPricePortfolio);
+		return latestPricePortfolio ? _updatePortfolioWeights(latestPricePortfolio) : null;
 	})
 	.then(latestWeightPortfolio => {
 		//Populate ADVICE NAME in sub-positions
-		var subPositions = latestWeightPortfolio.detail.subPositions;
 		
-		return Promise.map(subPositions, function(subPosition) {
-			if (subPosition.advice) {
-				return AdviceModel.fetchAdvice({_id: subPosition.advice}, {fields: 'name _id'})
-				.then(advice => {
-					subPosition.advice = advice;
+		if (latestWeightPortfolio) {
+			var subPositions = latestWeightPortfolio.detail.subPositions;
+			
+			return Promise.map(subPositions, function(subPosition) {
+				if (subPosition.advice) {
+					return AdviceModel.fetchAdvice({_id: subPosition.advice}, {fields: 'name _id'})
+					.then(advice => {
+						subPosition.advice = advice;
+						return subPosition;
+					})
+				} else {
 					return subPosition;
-				})
-			} else {
-				return subPosition;
-			}
-		})
-		.then(updatedSubPositions => {
-			latestWeightPortfolio.detail.subPositions = updatedSubPositions;
-			return latestWeightPortfolio;
-		})
-
+				}
+			})
+			.then(updatedSubPositions => {
+				latestWeightPortfolio.detail.subPositions = updatedSubPositions;
+				return latestWeightPortfolio;
+			})
+		} else {
+			return null;
+		}
 	});
 };
 

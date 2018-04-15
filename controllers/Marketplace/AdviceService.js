@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 11:11:49
+* @Last Modified time: 2018-04-15 17:39:40
 */
 
 'use strict';
@@ -457,7 +457,7 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 			}
 
 			//Re-run the query after checking 
-			return PortfolioHelper.getAdvicePortfolio(adviceId, {fields: 'detail'}, ndate);
+			return PortfolioHelper.getAdvicePortfolio(adviceId, ndate);
 		} else {
 			APIError.throwJsonError({message:"Investor not authorized to view advice detail", errorCode: 1112});
 		}
