@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 17:45:31
+* @Last Modified time: 2018-04-16 00:31:17
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -392,10 +392,10 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 				return exports.getAdvicePortfolio(adviceId, date)
 				.then(advicePortfolio => {
 					if(advicePortfolio) {
-						
+						  
 						//3. Validate transactions against advice portfolio as of that date
 						var investorCurrentPortfolioInAdvice = _filterPortfolioForAdvice(portfolio, adviceId);
-						return exports.validateTransactions(transactionsForAdviceIdForDate, advicePortfolio, investorCurrentPortfolioInAdvice)
+						return exports.validateTransactions(transactionsForAdviceIdForDate, advicePortfolio.detail, investorCurrentPortfolioInAdvice)
 						.catch(err => {
 							APIError.throwJsonError({message: "Invalid transactions (Reason: " + err.message +")", advice: adviceId, date: date, errorCode: 1406});
 						});
