@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 11:01:54
+* @Last Modified time: 2018-04-15 16:30:44
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -35,7 +35,9 @@ function _updatePortfolioWeights(port) {
 	});
 
 	positions.map(item => {
-		item["weightInPortfolio"] = totalVal > 0.0 ? (item.quantity*item.lastPrice)/totalVal : 0.0;
+		var weight = totalVal > 0.0 ? (item.quantity*item.lastPrice)/totalVal : 0.0;
+		item.weightInPortfolio = weight;
+		return item;
 	});
 
 	return portfolio;
@@ -559,7 +561,6 @@ module.exports.getPortfolioForDate = function(portfolioId, options, date) {
                         break;
                     } 
                 }
-                
             }
 
             var __portfolio = Object.assign({}, portfolio.toObject());
@@ -567,7 +568,7 @@ module.exports.getPortfolioForDate = function(portfolioId, options, date) {
             delete __portfolio.history;
             delete __portfolio.detail;
 
-            return  Object.assign(__portfolio, {detail: __detail});
+            return  Object.assign(__portfolio, {detail: __detail.toObject()});
 
         } else {
         	APIError.throwJsonError({portfolioId: portfolioId, message: "Portfolio not found", errorCode: 1401});	
@@ -583,6 +584,27 @@ module.exports.getPortfolioForDate = function(portfolioId, options, date) {
 	})
 	.then(([updated, latestPricePortfolio]) => {
 		return _updatePortfolioWeights(latestPricePortfolio);
+	})
+	.then(latestWeightPortfolio => {
+		//Populate ADVICE NAME in sub-positions
+		var subPositions = latestWeightPortfolio.detail.subPositions;
+		
+		return Promise.map(subPositions, function(subPosition) {
+			if (subPosition.advice) {
+				return AdviceModel.fetchAdvice({_id: subPosition.advice}, {fields: 'name _id'})
+				.then(advice => {
+					subPosition.advice = advice;
+					return subPosition;
+				})
+			} else {
+				return subPosition;
+			}
+		})
+		.then(updatedSubPositions => {
+			latestWeightPortfolio.detail.subPositions = updatedSubPositions;
+			return latestWeightPortfolio;
+		})
+
 	});
 };
 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 03:40:50
+* @Last Modified time: 2018-04-15 16:31:34
 */
 
 'use strict';
@@ -83,7 +83,7 @@ function _getUniqueAdvices(portfolio) {
 }
 
 function _getAdvicePerformanceInPortfolio(portfolio, adviceId) {
-	var advicePositions = portfolio && portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions.filter(item => {return adviceId!="" ? item.advice && item.advice._id.toString() == adviceId.toString() : !item.advice || item.advice=="";}) : [];
+	var advicePositions = portfolio && portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions.filter(item => {return adviceId!="" ? item.advice && item.advice._id && item.advice._id.toString() == adviceId.toString() : !item.advice || item.advice=="";}) : [];
 	return Promise.all([
 		adviceId !="" ? AdviceHelper.getAdvicePerformanceSummary(adviceId) : {current: {}},
 		_computePnlStats(advicePositions),
@@ -95,6 +95,7 @@ function _getAdvicePerformanceInPortfolio(portfolio, adviceId) {
 }
 
 function _getAdviceStatsInPortfolio(portfolio, userId) {
+
 	var uniqueAdvices = _getUniqueAdvices(portfolio);
     	
 	return Promise.map(uniqueAdvices, function(adviceId) {
