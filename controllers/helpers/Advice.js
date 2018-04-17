@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 10:34:26
+* @Last Modified time: 2018-04-17 18:08:56
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -20,6 +20,7 @@ const APIError = require('../../utils/error');
 function _filterActive(objs) {
 	return objs ? objs.filter(item => {return item.active == true}).length : 0;	
 } 
+
 
 module.exports.getAdviceAccessStatus = function(adviceId, userId) {
 	return Promise.all([
@@ -134,41 +135,6 @@ module.exports.isUserAuthorizedToViewAdviceSummary = function(userId, adviceId) 
 	});
 }
 
-module.exports.computeAdvicePerformanceSummary = function(adviceId) {
-	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio'})
-	.then(advice => {
-		if (advice) {
-			return Promise.all([
-				PerformanceHelper.computeAllPerformanceSummary(advice.portfolio),
-				PortfolioHelper.computePortfolioAnalytics(advice.portfolio)
-			]);
-		} else {
-			APIError.throwJsonError({message: "Advice not found", errorCode:1102});
-		}
-	})
-	.then(([performanceSummary, portfolioAnalytics]) => {
-		var currentPeformanceSummary = performanceSummary.current ? performanceSummary.current : {};
-		performanceSummary.current = Object.assign(currentPeformanceSummary, portfolioAnalytics);
-
-		return performanceSummary;
-	})
-	.catch(err => {
-		return {error: err.message};
-	});
-};
-
-//RECALCULATE IS NOT USED - 23/03/2018
-module.exports.getAdvicePerformanceSummary = function(adviceId, recalculate) {
-	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'performanceSummary'})
-	.then(advice => {
-		if (!advice.performanceSummary || recalculate) {
-			return exports.computeAdvicePerformanceSummary(adviceId);
-		} else {
-			return advice.performanceSummary
-		}
-	})
-};
-
 module.exports.computeAdviceAnalytics = function(adviceId) {
 	let subscribers;
 	let followers;
@@ -258,7 +224,7 @@ module.exports.validateAdvice = function(advice, oldAdvice, strictNetValue) {
 module.exports.updateAdviceAnalyticsAndPerformanceSummary = function(adviceId) {
 	return Promise.all([
 			exports.computeAdviceAnalytics(adviceId),
-			exports.computeAdvicePerformanceSummary(adviceId)
+			PerformanceHelper.computeAdvicePerformanceSummary(adviceId)
 	])
 	.then(([adviceAnalytics, advicePerformanceSummary]) => {
 		return AdviceModel.updateAnalyticsAndPerformance({_id: adviceId}, {analytics: adviceAnalytics, performanceSummary: advicePerformanceSummary});
@@ -271,4 +237,3 @@ module.exports.updateAdviceAnalyticsAndPerformanceSummary = function(adviceId) {
 		}
 	});
 };
-

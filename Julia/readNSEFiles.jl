@@ -34,14 +34,14 @@ function readMktFile(fname::String)
 	try
 		#open the file to read
 		f = open(fname)
+		output = Dict{String, Dict{Int16, TradeBar}}()
 
-		output = Dict{Int, TradeBar}()
+		output["RT"] = Dict{Int16, TradeBar}()
+		output["EOD"] = Dict{Int16, TradeBar}()
 
-		i= 0 
 		while !eof(f)
 			tcode = read(f, Int16)
 			timestamp = read(f, Int32)
-			println(timestamp)
 			msgLength = read(f, Int16)
 
 			stoken = read(f, Int16)
@@ -53,23 +53,25 @@ function readMktFile(fname::String)
 			bsp = read(f, Int32)/100
 			ttq = read(f, Int32)
 			atp = read(f, Int32)/100
-			x = read(f, Int32)
-			x = read(f, Int32)
 			open = read(f, Int32)/100
 			high = read(f, Int32)/100
 			low = read(f, Int32)/100
 			close = read(f, Int32)/100
-			x = read(f, Int32)
-			x = read(f, Int32)
-			x = read(f, Int32)
+			intHigh = read(f, Int32)/100
+			intLow = read(f, Int32)/100
+			intOpen = read(f, Int32)/100
+			intClose = read(f, Int32)/100
+			intTtq = read(f, Int32)
 			blank = read(f, Int32)
 			
-			tt = TradeBar(Dates.unix2datetime(timestamp), open, high, low, close, ttq)
+			ttd = TradeBar(Dates.unix2datetime(timestamp), open, high, low, close, Int64(ttq))
+			tt = TradeBar(Dates.unix2datetime(timestamp), intOpen, intHigh, intLow, intClose, Int64(intTtq))
 			
-			println(tt)
+			#println(ttd)
+			#println(tt)			
 
-			output[stoken] = tt
-						
+			output["RT"][stoken] = tt
+			output["EOD"][stoken] = ttd
 		end
 
 		#close the file
@@ -193,7 +195,7 @@ function readSecurityFile(fname::String)
 		#open the file to read
 		f = open(fname)
 
-		output = Dict{Int, String}()
+		output = Dict{Int16, String}()
 
 		#tcode = read(f, Int16)
 		#timestamp = read(f, Int32)
@@ -204,7 +206,7 @@ function readSecurityFile(fname::String)
 		
 		i = 0
 		while !eof(f)
-			println("")	
+			#println("")	
 			tcode = read(f, Int16)
 			timestamp = read(f, Int32)
 			msgLength = read(f, Int16)
@@ -212,46 +214,34 @@ function readSecurityFile(fname::String)
 
 			stoken = read(f, Int16) #2 Bytes 
 			symbol = String(read(f, 10)) #10 Bytes #char 12
-			println("Symbol: $(symbol)")
-			series = read(f, 2) #2 Bytes #char 14
-			println("Series: $(String(series))")
-
+			#println("Symbol: $(symbol)")
+			series = String(read(f, 2)) #2 Bytes #char 14
+			#println("Series: $(String(series))")
 			issuedCapital = read(f, Float64) #8 Bytes 22
-			println("Issue Capital: $(issuedCapital)")
-			
 			warningPct = read(f, Int16) #2 Bytes 24
 			freezePct = read(f, Int16) #2 Bytes 26
 
 			creditRating = String(read(f, 12)) #12 Bytes #char 38
-			println(creditRating)
-
-			#creditRating = String(read(f, 12)) #12 Bytes #char 38
-
 			issueRateShort = read(f, Int16) #2 Bytes 40
-
 			issueStartDate = read(f, Int32) #4 Bytes 44
-			println("Issue start Date: $(Dates.unix2datetime(issueStartDate))")
 			issuePDate = read(f, Int32) #4 Bytes 48
 			issueMaturityDate = read(f, Int32) #4 Bytes 52
-			println("Issue Maturity Date: $(Dates.unix2datetime(issueMaturityDate))")
 			lotQuantity = read(f, Int32) #4 Bytes 56
 			tickSize = read(f, Int32) #4 Bytes 60
-
-
 			nameCompany = String(read(f, 25)) #25 Bytes #char 85
-			println("Name: $(nameCompany)")
-
 			recordDate = read(f, Int32) #4 Bytes 89
 			expiryDate = read(f, Int32) #4 Bytes 93
 			noDeliveryStartDate = read(f, Int32) #4 Bytes 97
 			noDeliveryEndDate = read(f, Int32) #4 Bytes 101
 			bookClosureStartDate = read(f, Int32) #4 Bytes 105
 			bookClosureEndDate = read(f, Int32) #4 Bytes 109
-
+			
 			if series == "EQ"
-				output[stoken] = symbol #String(copy(symbol))
+				output[stoken] = replace(rstrip(symbol), r"[^a-zA-Z0-9]", "_")
 			end
 		end
+
+		println(output)
 
 		#close the file
 		close(f)

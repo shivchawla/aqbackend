@@ -2,15 +2,16 @@ using YRead
 using Raftaar: Security, SecuritySymbol, Portfolio, Position, OrderFill, TradeBar, Adjustment
 using Raftaar: Performance, PortfolioStats 
 using Raftaar: calculateperformance
-using Raftaar: updateportfolio_fill!, updateportfolio_price!
+using Raftaar: updateportfolio_fill!, updateportfolio_price!, updateportfolio_splits_dividends!
 
 import Base: convert
 using TimeSeries
 using StatsBase
 using ZipFile
 
-const _realtimePrices = Dict{SecuritySymbol, TradeBar}()
-#const _codeToTicker = readSecurityFile("/Users/shivkumarchawla/Desktop/Securities.dat")
+const _realtimePrices = Dict{String, TradeBar}()
+const _lastDayPrices = Dict{String, TradeBar}()
+const _codeToTicker = readSecurityFile("/Users/shivkumarchawla/Desktop/Securities.dat")
 
 function filternan(ta::TimeArray, col = "")
     (nrows, ncols) = size(ta)
@@ -181,7 +182,7 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
         oldPortfolioDetail = get(oldPortfolio, "detail", Dict{String, Any}())
        
         startDate = haskey(portfolioDetail, "startDate") ? Date(DateTime(portfolioDetail["startDate"])) : Date()
-        if startDate <= Date(now())
+        if startDate <= Date(currentIndiaTime())
             error("Startdate of new advice: $(startDate) can't be today or before today")
         end
 
@@ -370,7 +371,7 @@ function _compute_latest_portfoliovalue(portfolio::Portfolio)
         secids = [sym.id for sym in keys(portfolio.positions)]    
 
         #get the unadjusted prices for tickers in the portfolio
-        prices = YRead.history_unadj(secids, "Close", :Day, 1, now(), offset = -1, displaylogs=false)
+        prices = YRead.history_unadj(secids, "Close", :Day, 1, currentIndiaTime(), offset = -1, displaylogs=false)
 
         if prices == nothing
             println("Price data not available")
@@ -540,7 +541,7 @@ end
 function _updateportfolio_EODprice(port::Portfolio, date::DateTime)
     
     updated = false
-    updatedDate = now()
+    updatedDate = currentIndiaTime()
 
     alltickers = [sym.ticker for (sym, pos) in port.positions]
     #Check if portoflio has any non-zero number of stock positions
@@ -576,15 +577,13 @@ end
 function _updateportfolio_RTprice(port::Portfolio)
     
     updated = false
-    updatedDate = now()  
+    updatedDate = currentIndiaTime()  
     alltickers = [sym.ticker for (sym, pos) in port.positions]
     #Check if portoflio has any non-zero number of stock positions
     if length(alltickers) > 0
-
         tradebars = Dict{SecuritySymbol, Vector{TradeBar}}()
         for (sym, pos) in port.positions
-            latest_tradebar = get(_realtimePrices, sym, TradeBar())
-            #tradebars[sym] = [Raftaar.TradeBar(latest_dt, 0.0, 0.0, 0.0, latest_prices["close"])]
+            latest_tradebar = get(_realtimePrices, sym.ticker, TradeBar())
             tradebars[sym] = [latest_tradebar]
         end
 
@@ -627,6 +626,7 @@ function _download_realtime_prices()
     end  
 end
 
+# NOT IN USE
 function _read_realtime_prices(file::String)
     try 
         file_fullpath = Base.source_dir()*"/rtdata/$(file)"
@@ -726,7 +726,7 @@ function _get_bonus(date::DateTime)
     return bonus
 end
 
-function _update_portfolio_dividends(port::Portfolio, date::DateTime = now())
+function _update_portfolio_dividends(port::Portfolio, date::DateTime = currentIndiaTime())
     dividends = _get_dividends(date)
     cashgen = 0.0
     updated = false
@@ -744,7 +744,7 @@ function _update_portfolio_dividends(port::Portfolio, date::DateTime = now())
     return (updated, port)
 end
 
-function _update_portfolio_splits(port::Portfolio, date::DateTime = now())
+function _update_portfolio_splits(port::Portfolio, date::DateTime = currentIndiaTime())
     splits = _get_splits(date)
 
     updated = false
@@ -761,7 +761,7 @@ function _update_portfolio_splits(port::Portfolio, date::DateTime = now())
     return (updated, port)
 end
 
-function _update_portfolio_bonus(port::Portfolio, date::DateTime = now())
+function _update_portfolio_bonus(port::Portfolio, date::DateTime = currentIndiaTime())
     bonus = _get_bonus(date)
 
     updated = false
@@ -785,12 +785,22 @@ function update_realtime_prices(fname::String)
        
         mktPrices = readMktFile(fname)
         
-        for (k,v) in mktPrices
-            ticker = get(_codeToTicker, k, "")
+        @sync begin
+        
+            @async for (k,v) in mktPrices["RT"]
+                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
 
-            if ticker != ""        
-                security = YRead.getsecurity(ticker)
-                _realtimePrices[security.symbol] = v
+                if ticker != ""        
+                    _realtimePrices[ticker] = v
+                end
+            end
+
+            @async for (k,v) in mktPrices["EOD"]
+                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
+
+                if ticker != ""        
+                    _lastDayPrices[ticker] = v
+                end
             end
         end
 
@@ -908,7 +918,7 @@ end
 ###
 # Function to update portfolio with latest price
 ###
-function updateportfolio_price(port::Dict{String, Any}, end_date::DateTime = now(), typ::String = "EOD")
+function updateportfolio_price(port::Dict{String, Any}, end_date::DateTime = currentIndiaTime(), typ::String = "EOD")
     try
         portfolio = convert(Raftaar.Portfolio, port)    
         updateportfolio_price(portfolio, end_date, typ)
@@ -920,7 +930,7 @@ end
 ###
 # Function to update portfolio with latest price
 ###
-function updateportfolio_price(portfolio::Portfolio, end_date::DateTime = now(), typ::String = "EOD")
+function updateportfolio_price(portfolio::Portfolio, end_date::DateTime = currentIndiaTime(), typ::String = "EOD")
     try
         if (typ == "EOD")
             _updateportfolio_EODprice(portfolio, end_date)
@@ -934,14 +944,84 @@ function updateportfolio_price(portfolio::Portfolio, end_date::DateTime = now(),
 end
 
 
-function updatedportfolio_splits_dividends(portfolio::Dict{String,Any}, date::DateTime = now())
+function updateportfolio_splitsAndDividends(portfolio::Dict{String,Any}, startdate::DateTime = currentIndiaTime(), enddate::DateTime = currentIndiaTime())
     port = convert(Raftaar.Portfolio, portfolio)
-    
-    (updated_div, port) = _update_portfolio_dividends(port, date)
-    (updated_splt, port) = _update_portfolio_splits(port, date)
-    (updated_bns, port) = _update_portfolio_bonus(port, date)
-    
-    return (updated_div || updated_splt || updated_bns, port)
+    output = Vector{Dict{String, Any}}()
+
+    adjustmentsByDate = Dict{Date, Dict{SecuritySymbol, Adjustment}}()
+
+    if (port == Portfolio())
+        portfolio["startDate"] = startdate
+        portfolio["endDate"] = enddate
+        push!(output, portfolio)
+        return output
+    end
+
+    # Fethch adjustments till date using YRead    
+    secids = [sym.id for (sym, pos) in port.positions]
+    adjustments = YRead.getadjustments(secids, startdate, enddate)
+
+    for (secid, adjustments_security) in adjustments
+        for (date, adjs) in adjustments_security
+            if !haskey(adjustmentsByDate, date)
+                adjustmentsByDate[date] = Dict{SecuritySymbol, Adjustment}()
+            end
+
+            sym = YRead.getsecurity(secid).symbol;
+
+            adjustmentsByDate[date][sym] = Raftaar.Adjustment(adjs[1], string(round(adjs[3])), adjs[2])
+            
+        end
+    end
+
+    for (date, adjustmentsAllSecurities) in sort(collect(adjustmentsByDate), by=x->x[1])
+        portfolio = convert_to_node_portfolio(port)
+        portfolio["startDate"] = startdate
+        portfolio["endDate"] = DateTime(date) - Dates.Day(1)
+        push!(output, portfolio)
+
+        Raftaar.updateportfolio_splits_dividends!(port, adjustmentsAllSecurities)
+        startdate = date
+    end
+
+    portfolio = convert_to_node_portfolio(port)
+    portfolio["startDate"] = startdate
+    portfolio["endDate"] = enddate
+    push!(output, portfolio)
+
+    currentDate = Date(currentIndiaTime())
+
+    # Check if today's adjustments are already handled in historical adjustments
+    if Date(enddate) == currentDate && !haskey(adjustmentsByDate, currentDate)
+
+        println("Ohh  NO")
+        
+        temp = convert_to_node_portfolio(port)
+        temp["startDate"] = startdate
+        temp["endDate"] = currentDate - Dates.Day(1)
+
+        (updated_div, port) = _update_portfolio_dividends(port, enddate)
+        (updated_splt, port) = _update_portfolio_splits(port, enddate)
+        (updated_bns, port) = _update_portfolio_bonus(port, enddate)
+        
+        if (updated_div || updated_splt || updated_bns)
+            if length(output) == 0 # No historical adjustments
+                push!(output, temp)
+            else #Historical adjustments are already present
+                output[end]["endDate"] = currentDate - Dates.Day(1)
+            end
+           
+            portfolio = convert_to_node_portfolio(port)
+            portfolio["startDate"] = currentDate
+            portfolo["endDate"] = DateTime("2200-01-01")
+            push!(output, portfolio)
+
+        end
+
+    end
+
+    return output
+
 end    
 
 ###
@@ -971,10 +1051,10 @@ function compute_portfolio_metrics(port::Dict{String, Any}, start_date::DateTime
 
     if prices_benchmark == nothing
         #Return the default output
-        return (Date(now()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
+        return (Date(currentIndiaTime()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
 
     elseif prices_benchmark.timestamp[end] < Date(start_date)
-        return (Date(now()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
+        return (Date(currentIndiaTime()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
 
     elseif length(prices_benchmark.timestamp) > 0 
         #date = prices_benchmark.timestamp[end]
@@ -984,7 +1064,7 @@ function compute_portfolio_metrics(port::Dict{String, Any}, start_date::DateTime
     else 
         println("Empty data: Portfolio Composition can't be calculated")
         #Return the default output
-        return (Date(now()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
+        return (Date(currentIndiaTime()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
     end
 end
 

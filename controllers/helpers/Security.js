@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-31 20:00:57
+* @Last Modified time: 2018-04-17 12:36:58
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -221,7 +221,7 @@ module.exports.computeStockPriceHistory = function(security) {
     });
 };
 
-module.exports.computeStockLatestDetail = function(security) {
+module.exports.computeStockLatestDetail = function(security, type) {
 	return new Promise((resolve, reject) => {
 
 		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
@@ -231,7 +231,8 @@ module.exports.computeStockLatestDetail = function(security) {
             console.log('Connection Open');
             console.log(connection);
             var msg = JSON.stringify({action:"compute_stock_price_latest", 
-            						security: security});
+            						security: security,
+            						ptype: type ? type : "EOD"});
 
          	wsClient.send(msg);
         });
@@ -309,7 +310,7 @@ module.exports.updateStockList = function() {
 	})
 };
 
-module.exports.updateRealtimePrices = function() {
+module.exports.updateRealtimePrices = function(fname) {
 	return new Promise((resolve, reject) => {
 
 		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
@@ -318,7 +319,8 @@ module.exports.updateRealtimePrices = function() {
 		wsClient.on('open', function open() {
             console.log('Connection Open');
             console.log(connection);
-            var msg = JSON.stringify({action:"update_realtime_prices"});
+            var msg = JSON.stringify({action:"update_realtime_prices", 
+            					filename: fname});
 
          	wsClient.send(msg);
         });

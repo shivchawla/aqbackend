@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 03:38:21
+* @Last Modified time: 2018-04-17 22:59:24
 */
 
 'use strict';
@@ -22,8 +22,7 @@ function _checkPerformanceUpdateRequired(performanceDetail) {
 	}
 
 	if(performanceDetail && performanceDetail.updateDate) {
-        
-        if(DateHelper.getDate(performanceDetail.updateDate) < DateHelper.getCurrentDate()) {
+        if(DateHelper.compareDates(DateHelper.getDate(performanceDetail.updateDate), DateHelper.getCurrentDate()) == -1) {
         	 return true;
         }
     } else {
@@ -245,7 +244,18 @@ function _computeTruePerformance(portfolioId) {
 	return PortfolioHelper.getPortfolioHistory(portfolioId, null, {benchmark:1})
 	.then(portfolio => {
 		if (portfolio.history.length > 0) {
-			return _computePerformance_portfolioHistory(portfolio.history, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
+			var portfolioHistory = [];
+			portfolio.history.forEach(item => {
+				portfolioHistory.push({startDate: item.startDate, 
+					endDate: item.endDate,
+					portfolio: {
+						cash: item.cash,
+						positions: item.positions
+					}
+				});
+			});
+
+			return _computePerformance_portfolioHistory(portfolioHistory, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
 		} else {
 			APIError.throwJsonError({message: "Error computing latest performance. Current portfolio and/or history missing"})
 		}
@@ -467,7 +477,7 @@ module.exports.getPerformanceSummary = function(portfolioId, flag) {
 	var summaryType = !flag ? "current" : "simulated";
 
 	if (portfolioId) {
-		return PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: 'summary'.concat(' summaryType')})
+		return PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: 'summary '.concat(summaryType)})
 		.then(performance => {
 			var updateRequired = _checkPerformanceUpdateRequired(performance ? performance[summaryType] : null);
 			return updateRequired ? exports.computePerformanceSummary(portfolioId, {flag: flag}) : performance.summary[summaryType];
@@ -603,3 +613,40 @@ module.exports.getAllPerformance = function(portfolioId) {
 		APIError.throwJsonError({message: "Invalid Portfolio", portfolioId: portfolioId});
 	}
 };
+
+module.exports.computeAdvicePerformanceSummary = function(adviceId) {
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio'})
+	.then(advice => {
+		if (advice) {
+			return Promise.all([
+				PerformanceHelper.computeAllPerformanceSummary(advice.portfolio),
+				PortfolioHelper.computePortfolioAnalytics(advice.portfolio)
+			]);
+		} else {
+			APIError.throwJsonError({message: "Advice not found", errorCode:1102});
+		}
+	})
+	.then(([performanceSummary, portfolioAnalytics]) => {
+		var currentPeformanceSummary = performanceSummary.current ? performanceSummary.current : {};
+		performanceSummary.current = Object.assign(currentPeformanceSummary, portfolioAnalytics);
+
+		return performanceSummary;
+	})
+	.catch(err => {
+		return {error: err.message};
+	});
+};
+
+//RECALCULATE IS NOT USED - 23/03/2018
+module.exports.getAdvicePerformanceSummary = function(adviceId, recalculate) {
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'performanceSummary'})
+	.then(advice => {
+		if (!advice.performanceSummary || recalculate) {
+			return exports.computeAdvicePerformanceSummary(adviceId);
+		} else {
+			return advice.performanceSummary
+		}
+	})
+};
+
+

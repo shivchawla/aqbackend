@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 16:31:34
+* @Last Modified time: 2018-04-17 23:08:03
 */
 
 'use strict';
@@ -26,99 +26,6 @@ function _compareIds(x, y) {
 	} else {
 		return x.equals(y)
 	}
-}
-
-function _hasAdviceChanged(myPositions, adviceId) {
-	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio', populate: 'portfolio'})
-	.then(advice => {
-		var changed = false;
-		if (advice && advice.portfolio && advice.portfolio.detail) {
-			var advicePositions = advice.portfolio.detail.positions;
-			var tickersInAdvice = advicePositions.map(item => item.security.ticker);
-			var tickersInPortfolio  = myPositions.map(item => item.security.ticker);
-			var allTickers = Array.from(new Set(tickersInPortfolio.concat(tickersInAdvice)));
-
-			for (var ticker of allTickers) {
-				//find postions in myPositions
-				
-				var idxInPositions = myPositions.map(item => item.security.ticker).indexOf(ticker);
-				var idxInAdvice = advicePositions.map(item => item.security.ticker).indexOf(ticker);
-				if ((idxInPositions == -1 && idxInAdvice != -1)  || (idxInPositions != -1 && idxInAdvice == -1)) {
-					changed = true;
-					break;
-				} else {
-					changed == myPositions[idxInPositions].quantity != advicePositions[idxInAdvice].quantity;
-
-					if (changed == true) {
-						break;
-					} 
-				}
-			}
-		} 
-
-		return changed;
-	});
-}
-
-function _computePnlStats(positions) {
-	var totalPnl = 0.0;
-	var pnlPct = 0.0;
-	var cost = 0.0;
-	var netValue = 0.0;
-	positions.forEach(item => {
-		cost += item.quantity * item.avgPrice;
-		totalPnl += item.quantity * (item.lastPrice - item.avgPrice);
-		netValue += item.quantity * item.lastPrice;
-	});
-
-	pnlPct = cost > 0.0 ? totalPnl/cost : 0.0;
-
-	var x = {pnl: totalPnl, pnlPct: pnlPct, cost: cost, netValue: netValue};
-	return x;
-}
-
-function _getUniqueAdvices(portfolio) {
-	var subPositions = portfolio && portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions : []; 
-	return Array.from(new Set(subPositions.map(item => {return item.advice ? item.advice._id.toString() : "";})));
-}
-
-function _getAdvicePerformanceInPortfolio(portfolio, adviceId) {
-	var advicePositions = portfolio && portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions.filter(item => {return adviceId!="" ? item.advice && item.advice._id && item.advice._id.toString() == adviceId.toString() : !item.advice || item.advice=="";}) : [];
-	return Promise.all([
-		adviceId !="" ? AdviceHelper.getAdvicePerformanceSummary(adviceId) : {current: {}},
-		_computePnlStats(advicePositions),
-		adviceId !="" ? _hasAdviceChanged(advicePositions, adviceId) : false
-	])
-	.then(([performance, pnlStats, hasChanged]) => {
-		return Object.assign({advice: adviceId}, performance.current, {hasChanged: hasChanged}, {personal: pnlStats});
-	});
-}
-
-function _getAdviceStatsInPortfolio(portfolio, userId) {
-
-	var uniqueAdvices = _getUniqueAdvices(portfolio);
-    	
-	return Promise.map(uniqueAdvices, function(adviceId) {
-    	return Promise.all([
-    		_getAdvicePerformanceInPortfolio(portfolio, adviceId),
-    		adviceId != "" ? AdviceHelper.computeAdviceSubscriptionDetail(adviceId, userId) : {}
-		])
-		.then(([advicePerformance, adviceSubscriptionDetail]) => {
-			return Object.assign(advicePerformance, adviceSubscriptionDetail);
-		}) 
-	})
-	.then(allAdvicePerformances => {
-		var totalValue = portfolio && portfolio.detail && portfolio.detail.cash ? portfolio.detail.cash : 0.0;
-		allAdvicePerformances.forEach(item => {
-			totalValue += item.personal.netValue;
-		});
-
-		allAdvicePerformances.forEach(item => {
-			item.personal.weightInPortfolio = item.personal.netValue/totalValue;
-		});
-
-		return allAdvicePerformances;
-	})
 }
 
 /*
@@ -159,19 +66,15 @@ module.exports.getInvestorSummary = function(args, res, next) {
     	if(investor && investor._id && investor._id.equals(investorId)) {
 			return Promise.all([
 				investor, 
-				investor.defaultPortfolio ? PortfolioHelper.getPortfolioForDate(investor.defaultPortfolio, {fields: 'name detail benchmark'}).catch(err => {return null;}) : null,
+				investor.defaultPortfolio ? PortfolioHelper.getUpdatedPortfolioForEverything(investor.defaultPortfolio, {fields:'name detail benchmark'}).catch(err => {return null;}) : null,
 				investor.defaultPortfolio ? PerformanceHelper.getAllPerformance(investor.defaultPortfolio).catch(err => {return {error: err.message};}) : null
 			]);
     	} else {
     		APIError.throwJsonError({investorId: investorId, message:"Investor not found/not authorized", errorCode: 1302});
     	}
     })
-    .then(([investor, updatedDefaultPortfolio, updatedDefaultPerformance]) => {
-    	return _getAdviceStatsInPortfolio(updatedDefaultPortfolio, userId)
-    	.then(finalOutput => {
-    		updatedDefaultPortfolio = Object.assign({advicePerformance : finalOutput}, updatedDefaultPortfolio ? updatedDefaultPortfolio : {});	
-    		return res.status(200).send(Object.assign(investor.toObject(), {defaultPortfolio: updatedDefaultPortfolio, defaultPerformance: updatedDefaultPerformance}));
-    	});
+    .then(([investor, updatedDefaultPortfolio, updatedDefaultPerformance]) => {	
+    	return res.status(200).send(Object.assign(investor.toObject(), {defaultPortfolio: updatedDefaultPortfolio, defaultPerformance: updatedDefaultPerformance}));
     })
 	.catch(err => {
 		return res.status(400).send(err.message);
@@ -244,7 +147,7 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 	const portfolio = {
 		name: args.body.value.name, 
 		benchmark: args.body.value.benchmark,
-		detail: {startDate: new Date(), endDate: new Date(), positions: []}
+		detail: {startDate: DateHelper.getDate("1900-01-01"), endDate: DateHelper.getDate("2200-01-01"), positions: []}
 	};
 
 	if (portfolio.name == "" && !preview) {
@@ -252,7 +155,7 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 	}
 
 	transactions.forEach(item => {
-		item.advice = item.advice != "" ? ObjectId(item.advice) : null;
+		item.advice = item.advice != "" && item.advice ? ObjectId(item.advice) : null;
 		item.date = DateHelper.getDate(item.date);
 		item._id = item._id != "" ? ObjectId(item._id) : null;
 	});
@@ -277,7 +180,6 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 		}
 	})
 	.then(([otherPortfolios, validPortfolio, validTransactions]) => {
-		
 		if(validPortfolio && validTransactions) {
 			
 			var numSameNamePortfolios = otherPortfolios.filter(item => {return item ? item.name == portfolio.name && !item.deleted : false}).length;
@@ -438,7 +340,7 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 			if (investor._id.equals(investorId)){
 				if(investor.portfolios) {
 					if (investor.portfolios.map(item => item.toString()).indexOf(portfolioId) != -1) {
-						return PortfolioHelper.getPortfolioForDate(portfolioId, {fields: fields});
+						return PortfolioHelper.getUpdatedPortfolioForEverything(portfolioId, {fields: fields}, userId);
 					} else {
 						APIError.throwJsonError({userId: userId, portfolioId: portfolioId, message: "Not a valid portfolio for investor"})
 					}
@@ -454,12 +356,8 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 		}
 	})
 	.then(updatedPortfolio => {
-		if(updatedPortfolio) {
-			return _getAdviceStatsInPortfolio(updatedPortfolio, userId)
-			.then(finalOutput => {
-				updatedPortfolio = Object.assign({advicePerformance : finalOutput}, updatedPortfolio);	
-				return res.status(200).send(updatedPortfolio);
-			})
+		if (updatedPortfolio) {
+			return res.status(200).send(updatedPortfolio);
 		} else {
 			APIError.throwJsonError({message: "Portfolio not found", errorCode: 1401});
 		}

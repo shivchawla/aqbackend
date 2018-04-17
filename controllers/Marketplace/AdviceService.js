@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-15 17:39:40
+* @Last Modified time: 2018-04-17 18:25:48
 */
 
 'use strict';
@@ -14,6 +14,7 @@ const PortfolioModel = require('../../models/Marketplace/Portfolio');
 const Promise = require('bluebird');
 const config = require('config');
 const PortfolioHelper = require("../helpers/Portfolio");
+const PerformanceHelper = require("../helpers/Performance");
 const AdviceHelper = require("../helpers/Advice");
 const APIError = require('../../utils/error');
 const DateHelper = require('../../utils/Date');
@@ -169,7 +170,7 @@ module.exports.updateAdvice = function(args, res, next) {
 		delete adviceUpdates.portfolio;
 
 		if (validAdvice) {
-			return Promise.all([PortfolioModel.updatePortfolio({_id:advicePortfolioId}, newAdvice.portfolio, {new:true, fields: 'detail', updateHistory: isPublic}), 
+			return Promise.all([PortfolioModel.updatePortfolio({_id: advicePortfolioId}, newAdvice.portfolio, {new:true, fields: 'detail', appendHistory: isPublic}), 
 				AdviceModel.updateAdvice({_id: adviceId}, adviceUpdates, {new:true, fields: adviceFields})]);
 		} else {
 			APIError.throwJsonError({message:"Advice validation failed", errorCode: 1108});
@@ -376,7 +377,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 
 		return Promise.all([
 			nAdvice,
-			AdviceHelper.getAdvicePerformanceSummary(adviceId),
+			PerformanceHelper.getAdvicePerformanceSummary(adviceId),
 		]);
 
  	})

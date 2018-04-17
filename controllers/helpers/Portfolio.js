@@ -2,10 +2,12 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-16 00:31:17
+* @Last Modified time: 2018-04-17 23:03:23
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
+const AdviceHelper = require('./Advice');
+const PerformanceHelper = require('./Performance');
 const PortfolioModel = require('../../models/Marketplace/Portfolio');
 const PerformanceModel = require('../../models/Marketplace/Performance');
 const APIError = require('../../utils/error');
@@ -14,6 +16,103 @@ const config = require('config');
 const Promise = require('bluebird');
 const DateHelper= require('../../utils/Date');
 var ObjectId = require('mongoose').Types.ObjectId;
+
+function _findDateIndex(dateArray, date) {
+	return dateArray.map(item => new Date(item).getTime()).indexOf(new Date(date).getTime());
+}
+
+function _hasAdviceChanged(myPositions, adviceId) {
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio', populate: 'portfolio'})
+	.then(advice => {
+		var changed = false;
+		if (advice && advice.portfolio && advice.portfolio.detail) {
+			var advicePositions = advice.portfolio.detail.positions;
+			var tickersInAdvice = advicePositions.map(item => item.security.ticker);
+			var tickersInPortfolio  = myPositions.map(item => item.security.ticker);
+			var allTickers = Array.from(new Set(tickersInPortfolio.concat(tickersInAdvice)));
+
+			for (var ticker of allTickers) {
+				//find postions in myPositions
+				
+				var idxInPositions = myPositions.map(item => item.security.ticker).indexOf(ticker);
+				var idxInAdvice = advicePositions.map(item => item.security.ticker).indexOf(ticker);
+				if ((idxInPositions == -1 && idxInAdvice != -1)  || (idxInPositions != -1 && idxInAdvice == -1)) {
+					changed = true;
+					break;
+				} else {
+					changed == myPositions[idxInPositions].quantity != advicePositions[idxInAdvice].quantity;
+
+					if (changed == true) {
+						break;
+					} 
+				}
+			}
+		} 
+
+		return changed;
+	});
+}
+
+function _computePnlStats(positions) {
+	var totalPnl = 0.0;
+	var pnlPct = 0.0;
+	var cost = 0.0;
+	var netValue = 0.0;
+	positions.forEach(item => {
+		cost += item.quantity * item.avgPrice;
+		totalPnl += item.quantity * (item.lastPrice - item.avgPrice);
+		netValue += item.quantity * item.lastPrice;
+	});
+
+	pnlPct = cost > 0.0 ? totalPnl/cost : 0.0;
+
+	var x = {pnl: totalPnl, pnlPct: pnlPct, cost: cost, netValue: netValue};
+	return x;
+}
+
+function _getUniqueAdvices(portfolio) {
+	var subPositions = portfolio && portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions : []; 
+	return Array.from(new Set(subPositions.map(item => {return item.advice ? item.advice._id.toString() : "";})));
+};
+
+function _getAdvicePerformanceInPortfolio(portfolio, adviceId) {
+	var advicePositions = portfolio && portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions.filter(item => {return adviceId!="" ? item.advice && item.advice._id && item.advice._id.toString() == adviceId.toString() : !item.advice || item.advice=="";}) : [];
+	return Promise.all([
+		adviceId !="" ? PerformanceHelper.getAdvicePerformanceSummary(adviceId) : {current: {}},
+		_computePnlStats(advicePositions),
+		adviceId !="" ? _hasAdviceChanged(advicePositions, adviceId) : false
+	])
+	.then(([performance, pnlStats, hasChanged]) => {
+		return Object.assign({advice: adviceId}, performance.current, {hasChanged: hasChanged}, {personal: pnlStats});
+	});
+};
+
+function _getAdviceStats(portfolio, userId) {
+
+	var uniqueAdvices = _getUniqueAdvices(portfolio);
+    	
+	return Promise.map(uniqueAdvices, function(adviceId) {
+    	return Promise.all([
+    		_getAdvicePerformanceInPortfolio(portfolio, adviceId),
+    		adviceId != "" && userId ? AdviceHelper.computeAdviceSubscriptionDetail(adviceId, userId) : {}
+		])
+		.then(([advicePerformance, adviceSubscriptionDetail]) => {
+			return Object.assign(advicePerformance, adviceSubscriptionDetail);
+		}) 
+	})
+	.then(allAdvicePerformances => {
+		var totalValue = portfolio && portfolio.detail && portfolio.detail.cash ? portfolio.detail.cash : 0.0;
+		allAdvicePerformances.forEach(item => {
+			totalValue += item.personal.netValue;
+		});
+
+		allAdvicePerformances.forEach(item => {
+			item.personal.weightInPortfolio = item.personal.netValue/totalValue;
+		});
+
+		return allAdvicePerformances;
+	})
+}
 
 function _filterPortfolioForAdvice(portfolio, adviceId) {
 	var advicePositions = portfolio && 
@@ -25,25 +124,53 @@ function _filterPortfolioForAdvice(portfolio, adviceId) {
 	return {positions: advicePositions};
 }
 
-function _updatePortfolioWeights(port) {
-	var portfolio = Object.assign({}, port);
-	var totalVal = portfolio.detail.cash;
-	var positions = portfolio.detail.positions;
+function _populateWeights(portfolio) {
+	return new Promise(resolve => {
+		var port = Object.assign({}, portfolio);
+		var totalVal = port.detail.cash;
+		var positions = port.detail.positions;
 
-	positions.forEach(item => {
-	 	totalVal += item.quantity*item.lastPrice;
+		positions.forEach(item => {
+		 	totalVal += item.quantity*item.lastPrice;
+		});
+
+		positions.map(item => {
+			var weight = totalVal > 0.0 ? (item.quantity*item.lastPrice)/totalVal : 0.0;
+			item.weightInPortfolio = weight;
+			return item;
+		});
+
+		resolve(port);
 	});
-
-	positions.map(item => {
-		var weight = totalVal > 0.0 ? (item.quantity*item.lastPrice)/totalVal : 0.0;
-		item.weightInPortfolio = weight;
-		return item;
-	});
-
-	return portfolio;
 }
 
-function _updatePortfolioForSplitsAndDividends(portfolio, date) {
+function _populateAdvice(portfolio) {
+	return new Promise(resolve => {
+		if (portfolio) {
+			var subPositions = portfolio.detail.subPositions;
+			
+			return Promise.map(subPositions, function(subPosition) {
+				if (subPosition.advice) {
+					return AdviceModel.fetchAdvice({_id: subPosition.advice}, {fields: 'name _id'})
+					.then(advice => {
+						subPosition.advice = advice;
+						return subPosition;
+					})
+				} else {
+					return subPosition;
+				}
+			})
+			.then(updatedSubPositions => {
+				portfolio.detail.subPositions = updatedSubPositions;
+				resolve(portfolio);
+			})
+		} else {
+			resolve(null);
+		}
+	});
+}
+
+function _updatePortfolioForSplitsAndDividends(portfolio, startDate, endDate) {
 	//Julia computes the updated portfolio	
 	//HEAVY DUTY WORK IS DONE BY JULIA
 	return new Promise(function(resolve, reject) {
@@ -56,15 +183,16 @@ function _updatePortfolioForSplitsAndDividends(portfolio, date) {
 
 	        var msg = JSON.stringify({action:"update_portfolio_splits_dividends", 
         								portfolio: portfolio,
-        								date: date}); 
+        								startDate: startDate,
+        								endDate: endDate}); 
 
 	     	wsClient.send(msg);
 	    });
 
 	    wsClient.on('message', function(msg) {
 	    	var data = JSON.parse(msg);
-	    	if(data['updates'] && data["error"] == "") {
-    			resolve(data['updates']);
+	    	if(data['portfolioHistory'] && data["error"] == "") {
+    			resolve(data['portfolioHistory']);
 			} else if(data["error"] != "") {
 				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
 			} else {
@@ -72,11 +200,69 @@ function _updatePortfolioForSplitsAndDividends(portfolio, date) {
 			}
 		});
 	});
-}		
+}
+
+function _computeUpdatedPortfolioForSplitsAndDividends(portfolio, startDate, endDate) {
+	return new Promise(resolve => {
+		Promise.all([
+			_updatePortfolioForSplitsAndDividends(portfolio.detail, startDate, endDate),
+			
+			//Each subposition is sent separately as JULIA portfolio can't handle 
+			//redundant securities
+			Promise.map(portfolio.detail.subPositions, function(position) {
+				return _updatePortfolioForSplitsAndDividends({positions: [position]}, startDate, endDate)
+			})
+		])
+		.then(([historyUpdatedPortfolio, listHistoryUpdatedSubPortfolios]) => { 
+			if(historyUpdatedPortfolio || historyUpdatedSubPortfolio) {
+				var updatedPortfolio = Object.assign({}, portfolio);
+
+				var trueHistory = [];
+				//Initial empty portoflio comes here twice
+
+				for (let history of historyUpdatedPortfolio) {
+					var startDate = history.startDate;
+					var endDate = history.endDate;
+					
+					var subPositions = [];
+					for (let subPortfolioHistory of listHistoryUpdatedSubPortfolios) {
+						var sIdx = subPortfolioHistory.map(item => new Date(item.startDate).getTime()).findIndex(it => it >= new Date(startDate).getTime()); 
+						var eIdx = subPortfolioHistory.map(item => new Date(item.startDate).getTime()).findIndex(it => it <= new Date(endDate).getTime()); 
+
+						let mIdx;
+						if (sIdx != -1 || eIdx != -1) {
+							//Choose the maximum of the index
+							mIdx  = sIdx != -1 && eIdx != -1 ? Math.max(sIdx, eIdx) : sIdx != -1 ? sIdx : eIdx;
+						}
+
+						if (mIdx != -1) {
+							subPositions.push.apply(subPositions, subPortfolioHistory[mIdx].positions)
+						} else {
+							console.log("This shouldn't happen");
+						}
+					}
+
+					history.subPositions = subPositions;
+
+					trueHistory.push({detail: history});
+				}
+
+				
+				resolve(trueHistory);
+			} else {
+				resolve([portfolio]);
+			}
+			
+		})
+		.catch(err => {
+			console.log(err);
+			resolve([portfolio]);
+		})
+	});
+}
 
 //Common function to handle stock and stock/advice transactions
 function _computeUpdatedPortfolioForStockTransaction(initialPortfolio, allTransactions) {
-	
 	//Creating vector of unique dates
 	//by comparing getTime() component of date
 	var dates = Array.from(new Set(allTransactions.map(item => {return item.date.getTime()}))).map(item => new Date(item));
@@ -89,29 +275,31 @@ function _computeUpdatedPortfolioForStockTransaction(initialPortfolio, allTransa
 		tsByDates.push({transactions: ts});
 	});
 
-	let history = [];
+	let allPortfolioHistory = [];
 	var reducerArray = [initialPortfolio].concat(tsByDates);
 
 	return Promise.reduce(reducerArray, function(startPortfolio, tso) {
 		var transactionsByDay = tso.transactions;
-		
-		return _computeUpdatedPortfolioForStockTransactionsEachDate(startPortfolio, transactionsByDay)
-		.then(newPortfolio => {
 			
+		return _computeUpdatedPortfolioForSplitsAndDividends({detail: startPortfolio}, DateHelper.getDate(startPortfolio.startDate), DateHelper.getDate(transactionsByDay[0].date))
+		.then(updatedHistoricalPortfolios => {
+			//Push all split/dividend adjusted portfolios to history
+			allPortfolioHistory.push.apply(allPortfolioHistory, updatedHistoricalPortfolios.slice(0, -1));
+			var nextPortfolio = updatedHistoricalPortfolios.slice(-1)[0]
+			return _computeUpdatedPortfolioForStockTransactionsEachDate(nextPortfolio.detail, transactionsByDay)
+		})
+		.then(newPortfolio => {
+
 			var lastDate = new Date(transactionsByDay[0].date);
 			var lastTransactionDate = new Date(transactionsByDay[0].date);
 
 			//Push a portfolio to history
-			var lastPortfolio = Object.assign({}, startPortfolio);
-			//Last portfolio's enddate is one day before the transaction day 
-			lastDate = new Date(lastDate.setDate(lastDate.getDate() - 1));
-			lastPortfolio.endDate = lastDate;
-
-			history.push(lastPortfolio);
+			//var lastPortfolio = Object.assign({}, startPortfolio);
+			//Last portfolio's endDate is one day before the transaction day 
+			//lastDate = new Date(lastDate.setDate(lastDate.getDate() - 1));
+			//lastPortfolio.endDate = lastDate;
+			//allPortfolioHistory.push(lastPortfolio);
 				
-			//Update the start portfolio
-			//startPortfolio = newPortfolio;
-			//startPortfolio.startDate = lastTransactionDate;
 			newPortfolio.startDate = lastTransactionDate;
 
 			return newPortfolio;
@@ -119,8 +307,13 @@ function _computeUpdatedPortfolioForStockTransaction(initialPortfolio, allTransa
 		});
 	})
 	.then(finalPortfolio => {
-		return [finalPortfolio, history];
-	});
+		return _computeUpdatedPortfolioForSplitsAndDividends({detail: finalPortfolio}, DateHelper.getDate(finalPortfolio.startDate), DateHelper.getCurrentDate())
+	})
+	.then(finalPortfolioHistory => {
+		//Push all split/dividend adjusted portfolios to history
+		allPortfolioHistory.push.apply(allPortfolioHistory, finalPortfolioHistory);
+		return [allPortfolioHistory.slice(-1)[0], allPortfolioHistory];
+	})
 }
 
 function _computeUpdatedPortfolioForStockTransactionsEachDate(portfolio, transactions) {
@@ -286,19 +479,20 @@ function _computeUpdatedPortfolioForPrice(portfolio, date, type) {
 					updatedPortfolio.detail.subPositions = updatedSubPositions.filter(item => item);
 				}
 
-				resolve([true, updatedPortfolio]);
+				resolve(updatedPortfolio);
 			} else {
-				resolve([false, portfolio]);
+				resolve(portfolio);
 			}
 			
 		})
 		.catch(err => {
-			//console.log(err);
-			resolve([false, portfolio]);
+			resolve(portfolio);
 		})
 	});
 }
 
+
+//NOT IN USE
 function _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolioDetail, date) {
 	return new Promise(resolve => {
 		if (!(portfolioDetail && portfolioDetail.positions)) {
@@ -478,7 +672,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 	.then(portfolio => { //Has updated transaction but portfolio is STALE
 		if(portfolio) {
 			if (updateMethod == "Create") {
-				var initialPortfolio = {positions: [], subPositions: [], cash: 0.0};
+				var initialPortfolio = {positions: [], subPositions: [], cash: 0.0, startDate: DateHelper.getDate("1900-01-01")};
 				return _computeUpdatedPortfolioForStockTransaction(initialPortfolio, portfolio.transactions.filter(item => {return !item.deleted}));
 			} else if (updateMethod == "Append") {
 				//Updating the date format
@@ -487,49 +681,46 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 			}
 		}
 	})
-	.then(([updatedPortfolioForTransactions, history]) => {
-		return Promise.all([
-			_computeUpdatedPortfolioForPrice({detail:updatedPortfolioForTransactions}), 
-			history
-		]);
-	})
-	.then(([[priceUpdated, updatedPortfolio], history]) => {
+	.then(([updatedPortfolio, completeHistory])  => {
 		if(!preview) {
 			const updates = {};
 			updates.detail = updatedPortfolio.detail;
-			updates.history = history;
-
-			return PortfolioModel.updatePortfolio({_id:portfolioId}, updates, {new: true, fields:'name detail benchmark updatedDate', updateHistory: updateMethod == "Append"})
-			.then(updatedPortfolio => {
-				return _updatePortfolioWeights(updatedPortfolio.toObject());
+			//Take the last component out of the history
+			updates.history = completeHistory.slice(0, -1).map(item => item.detail);
+			//Update portfolio and portfolio history
+			return PortfolioModel.updatePortfolio({_id: portfolioId}, updates, {new: true, appendHistory: updateMethod == "Append"}) 
+			.then(updated => {
+				return exports.getUpdatedPortfolioForPrice(portfolioId);
 			});
 		} else {
-			//POPULATE ADVICE NAME - 05/03/2018
-			return Promise.map(updatedPortfolio.detail.subPositions, function(position) {
-				if (position.advice) {
-					 return AdviceModel.fetchAdvice({_id: position.advice}, {fields:'_id name'})
-					 .then(advice => {
-					 	position.advice = advice;
-					 	return position;
-					 });
 
-				} else {
-					return position;
-				}
-			}).then(updatedSubPositions => {
-				updatedPortfolio.detail.subPositions = updatedSubPositions;
-				return _updatePortfolioWeights(updatedPortfolio);
+			//In case of Preview!!!!
+			return _computeUpdatedPortfolioForPrice(updatedPortfolio)
+			.then(portfolio => {
+				return _populateWeights(portfolio)	
 			})
+			.then(portfolio => {
+				return _populateAdvice(portfolio);
+			});	
 		}
-	});
+	})
+	.then(portfolio => {
+		return _getAdviceStats(portfolio)
+		.then(advicePerformance => {
+			return Object.assign({advicePerformance : advicePerformance}, portfolio ? portfolio : {});	
+		});
+	})
 };
 
 //Update portfolio for prices for any date
-module.exports.computeUpdatedPortfolioForPrice = function(portfolio, date) {
+module.exports.computeUpdatedPortfolioForPrice = function(portfolio, date, type) {
 	
-	return _computeUpdatedPortfolioForPrice(portfolio, date)
-	.then(([updated, latestPricePortfolio]) => {
-		return _updatePortfolioWeights(latestPricePortfolio);
+	return _computeUpdatedPortfolioForPrice(portfolio, date, type)
+	.then(latestPricePortfolio => {
+		return _populateWeights(latestPricePortfolio);
+	})
+	.then(portfolio => {
+		return _populateAdvice(portfolio);
 	});
 };
 
@@ -551,22 +742,23 @@ module.exports.getPortfolioForDate = function(portfolioId, options, date) {
             if (DateHelper.compareDates(__date, DateHelper.getDate(portfolioDetail.startDate)) != -1) {
                 __detail = portfolioDetail;
             } else {
-                for(var historicalDetail of portfolio.history){
-                    //If Date is greater than or equal to historical portfolio startDate
-                    //AND
-                    //Date is less than historical portfolio endDate
-                    if (DateHelper.compareDates(__date, DateHelper.getDate(historicalDetail.startDate)) != -1 && 
-                            DateHelper.compareDates(DateHelper.getDate(historicalDetail.endDate), __date) != -1) {
-                        __detail = historicalDetail;
-                        break;
-                    } 
-                }
+
+	            for(var historicalDetail of portfolio.history){
+	                //If Date is greater than or equal to historical portfolio startDate
+	                //AND
+	                //Date is less than historical portfolio endDate
+	                if (DateHelper.compareDates(__date, DateHelper.getDate(historicalDetail.startDate)) != -1 && 
+	                        DateHelper.compareDates(DateHelper.getDate(historicalDetail.endDate), __date) != -1) {
+	                    __detail = historicalDetail;
+	                    break;
+	                } 
+	            }
             }
 
             var __portfolio = Object.assign({}, portfolio.toObject());
 
-            delete __portfolio.history;
             delete __portfolio.detail;
+            delete __portfolio.history;
 
             return  Object.assign(__portfolio, {detail: __detail ? __detail.toObject() : null});
 
@@ -574,41 +766,28 @@ module.exports.getPortfolioForDate = function(portfolioId, options, date) {
         	APIError.throwJsonError({portfolioId: portfolioId, message: "Portfolio not found", errorCode: 1401});	
         }
 
-    })
+    });
+};
+
+module.exports.getUpdatedPortfolioForPrice = function(portfolioId, options, type) {
+	return exports.getPortfolioForDate(portfolioId, options)
 	.then(portfolio => {
 		if(portfolio) {
-			return portfolio.detail ? _computeUpdatedPortfolioForPrice(portfolio, __date) : [false, null];
+			return portfolio.detail ? exports.computeUpdatedPortfolioForPrice(portfolio, DateHelper.getCurrentDate(), type) :  null;
 		} else {
-			APIError.throwJsonError({portfolioId: portfolioId, message: `Error getting portfolio for date: ${__date}`});
+			APIError.throwJsonError({portfolioId: portfolioId, message: `Error getting portfolio for date: ${DateHelper.getCurrentDate()}`});
 		}
 	})
-	.then(([updated, latestPricePortfolio]) => {
-		return latestPricePortfolio ? _updatePortfolioWeights(latestPricePortfolio) : null;
-	})
-	.then(latestWeightPortfolio => {
-		//Populate ADVICE NAME in sub-positions
-		
-		if (latestWeightPortfolio) {
-			var subPositions = latestWeightPortfolio.detail.subPositions;
-			
-			return Promise.map(subPositions, function(subPosition) {
-				if (subPosition.advice) {
-					return AdviceModel.fetchAdvice({_id: subPosition.advice}, {fields: 'name _id'})
-					.then(advice => {
-						subPosition.advice = advice;
-						return subPosition;
-					})
-				} else {
-					return subPosition;
-				}
-			})
-			.then(updatedSubPositions => {
-				latestWeightPortfolio.detail.subPositions = updatedSubPositions;
-				return latestWeightPortfolio;
-			})
-		} else {
-			return null;
-		}
+};
+
+module.exports.getUpdatedPortfolioForEverything = function(portfolioId, options, userId) {
+	return exports.getUpdatedPortfolioForPrice(portfolioId, options)
+	.then(portfolio => {
+		//This fucntion need to be takn out of here but how???
+		return _getAdviceStats(portfolio, userId)
+		.then(advicePerformance => {
+			return Object.assign({advicePerformance: advicePerformance}, portfolio ? portfolio : {});
+		});	
 	});
 };
 
@@ -625,6 +804,7 @@ module.exports.getPortfolioHistory = function(portfolioId, date, options) {
  	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields: __fields})
  	.then(portfolio => {
         if (portfolio) {
+
             var portfolioDetail = portfolio.detail;
             //If Date is greater than or equal to current portfolio startDate
             if (DateHelper.compareDates(__date, DateHelper.getDate(portfolioDetail.startDate)) != -1) {
@@ -645,25 +825,17 @@ module.exports.getPortfolioHistory = function(portfolioId, date, options) {
             delete __portfolio.detail;
 
             return  Object.assign(__portfolio, {history: __history});
+        } else {
+        	return null;
         }
 
     });
 };
 
 //Get current portfolio with realtime prices
-module.exports.getUpdatedPortfolioForRtPrices = function(portfolioId) {
+module.exports.getUpdatedPortfolioForRtPrice = function(portfolioId) {
 	//Append new fields to some basic fields (ADD SPACE - V. IMP)
-	return exports.getPortfolioForDate(portfolioId)
-	.then(portfolio => {
-		if(portfolio) {
-			return _computeUpdatedPortfolioForPrice(portfolio, null, "RT");
-		} else {
-			APIError.throwJsonError({portfolioId: portfolioId, message: "Portfolio not found", errorCode: 1401});
-		}
-	})
-	.then(([updated, latestPricePortfolio]) => {
-		return latestPricePortfolio;
-	});
+	return exports.getUpdatedPortfolioForPrice(portfolioId, {fields: 'detail'}, "RT");
 }
 
 //Validate portfolio
@@ -739,11 +911,12 @@ module.exports.validateTransactions = function(transactions, advicePortfolio, in
     })
 };
 
-//THIS WILL MOSTLY WORK BUT ADVICES with FUTURE PORTFOLIOS CAN BREAK
+
+//NOT IN USE --- needs to be be changed for newer setup
 module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
 	var currentDate = DateHelper.getCurrentDate();
 
-	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields: 'detail adjustmentHistory'})
+	return exports.getPortfolioForDate(portfolioId, {fields: 'detail adjustmentHistory'})
 	.then(portfolio => {
 		//Check if currentDate already exist in adjustmentHistory
 		var alreadyAdjusted = portfolio.adjustmentHistory ? portfolio.adjustmentHistory.map(item => item.getTime()).indexOf(currentDate.getTime()) != -1 : false;
@@ -757,12 +930,11 @@ module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
 	.then(([updated, updatedDetail]) => {
 		//If updated flag is TRUE, then only update the portfolio
 		//ELSE return NULL
+		//this update needs to be changed
 		return updated && updatedDetail ? PortfolioModel.updatePortfolio({_id: portfolioId}, {detail: updatedDetail, adjustmentHistory: currentDate}, {updateHistory: true}) : null;
 	});
 };
 
-
-//Gets all portfolios for current date (used in Jobs)
 module.exports.getAllPortfoliosForDate = function(date, fields) {
 	return PortfolioModel.fetchPortfolios({}, {_id: 1})
 	.then(portfolios => {

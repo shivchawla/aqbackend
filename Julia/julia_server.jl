@@ -9,6 +9,8 @@ using BufferedStreams
 using Raftaar: Performance, Returns, Drawdown, Ratios, Deviation, PortfolioStats
 using Raftaar: serialize
 
+currentIndiaTime() = now(Dates.UTC) + Dates.Hour(5) + Dates.Minute(30)
+
 include("readNSEFiles.jl")  
 include("portfolio.jl")
 include("performance.jl")
@@ -140,7 +142,7 @@ wsh = WebSocketHandler() do req, ws_client
                                           "value" => Dict("true" => serialize(performance), "diff" => serialize(dperformance)), 
                                           "portfolioValues" => nVDict)
             else 
-                parsemsg["performance"] = Dict{String, Any}("date" => Date(now()), 
+                parsemsg["performance"] = Dict{String, Any}("date" => Date(currentIndiaTime()), 
                                           "value" => serialize(Performance()), 
                                           "portfolioValues" => nVDict)
                 #error("Missing Input")
@@ -240,7 +242,7 @@ wsh = WebSocketHandler() do req, ws_client
             
         elseif action == "compute_stock_price_latest"
             parsemsg["latestDetail"] = ""
-            parsemsg["latestDetail"] = get_stock_price_latest(parsemsg["security"])
+            parsemsg["latestDetail"] = get_stock_price_latest(parsemsg["security"], parsemsg["ptype"])
         
         elseif action == "compute_stock_rolling_performance"
             parsemsg["performance"] = ""
@@ -299,19 +301,24 @@ wsh = WebSocketHandler() do req, ws_client
         elseif action == "update_portfolio_price"    
             portfolio = parsemsg["portfolio"]
             date = parsemsg["date"]
-            date = date == "" ? now() : DateTime(date, jsdateformat)
-
+            date = date == "" ? currentIndiaTime() : DateTime(date, jsdateformat)
             typ = parsemsg["type"]
-            (updated, updtedDate , updated_portfolio) = updateportfolio_price(portfolio, date, typ)
+            
+            (updated, updatedDate , updated_portfolio) = updateportfolio_price(portfolio, date, typ)
             
             #Update, the positions to match the object structure in Node
             parsemsg["updatedPositions"] = convert_to_node_portfolio(updated_portfolio)["positions"]
        
         elseif action == "update_portfolio_splits_dividends"
             portfolio = parsemsg["portfolio"]
-            date = parsemsg["date"]
-            (updated, updated_portfolio) = updatedportfolio_splits_dividends(portfolio, date == "" ? now() : DateTime(date, jsdateformat))
-            parsemsg["updates"] = Dict("updatedPortfolio" => convert_to_node_portfolio(updated_portfolio), "hasChanged" => updated)
+            startDate = parsemsg["startDate"]
+            endDate = parsemsg["endDate"]
+
+            startDate = startDate == "" || startDate == nothing ? currentIndiaTime() : DateTime(startDate, jsdateformat)
+            endDate = endDate == "" || endDate == nothing ? currentIndiaTime() : DateTime(endDate, jsdateformat)
+            #updatedPortfolios = [portfolio]
+              
+            parsemsg["portfolioHistory"] = updateportfolio_splitsAndDividends(portfolio, startDate, endDate)
 
         elseif action == "compute_fractional_ranking"
             

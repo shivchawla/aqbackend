@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:56:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-05 11:28:30
+* @Last Modified time: 2018-04-17 18:08:37
 */
 
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -114,7 +114,7 @@ function _updateAdviceAnalytics(adviceId) {
 	//BECAUSE WE SHOULDN"T RELY OF STALE VALUE
 	return Promise.all([
 		AdviceHelper.computeAdviceAnalytics(adviceId),
-		AdviceHelper.computeAdvicePerformanceSummary(adviceId)
+		PerformanceHelper.computeAdvicePerformanceSummary(adviceId)
 	])
 	.then(([adviceAnalytics, advicePerformanceSummary]) => {
 		return AdviceModel.updateAnalyticsAndPerformance({_id: adviceId}, {analytics: adviceAnalytics, performanceSummary: advicePerformanceSummary});

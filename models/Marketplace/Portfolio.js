@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-14 21:12:26
+* @Last Modified time: 2018-04-17 23:21:45
 */
 
 'use strict';
@@ -52,9 +52,8 @@ const Portfolio = new Schema({
 
 	transactions: [Transaction],
 
-	history: [PortfolioDetail],
-
-	adjustmentHistory: [Date],
+	//History contains everything...EXCEPT the latest Portfolio
+	history: [PortfolioDetail]
 });
 
 Portfolio.statics.savePortfolio = function(portfolio, isAdvice) {
@@ -202,47 +201,56 @@ Portfolio.statics.deleteTransactions = function(query, transactions) {
 
 Portfolio.statics.updatePortfolio = function(query, updates, options) {
 	var q = this.findOne(query);
-	var updateHistoryFlag =  options && options.updateHistory;
 	
+	/*var historyType = options && options.historyType ? options.historyType : "true";
+	if (historyType != "true" || historyType != "adjusted") {
+		throw error("Invalid history type while updating portfolio. Valid values: true/adjusted");
+	}*/
+
+	//History of portfolio needs to be updates if either updates contain history
+	//OR appendHistory flag is true 
+	//OR BOTH
+	var updateHistoryFlag = options.appendHistory || updates.history;
+
 	return q.execAsync()
 	.then(portfolio => {
-		
-		//update the end date of current portfolio before sending to history
+		//Update the end date of current portfolio before sending to history
 		//EndDate of historical entry = startDate of new portfolio - 1 day
+		let newHistoryItem;
 		if (updates.detail) {
 			if (updateHistoryFlag) {
 				portfolio = Object.assign({}, portfolio.toObject());
-				var d = DateHelper.getDate(updates.detail.startDate);
-				d.setDate(d.getDate()-1);
-				portfolio.detail.endDate = d;
+				var incomingStartDate = DateHelper.getDate(updates.detail.startDate);
+				var currenPortfolioStartDate = DateHelper.getDate(portfolio.detail.startDate);
+				
+				if (DateHelper.compareDates(incomingStartDate, currenPortfolioStartDate) != 1) {
+					throw error("Error in date of incoming portfolio");
+				}
+
+				newHistoryItem = portfolio.detail;
+					
+				var _d = DateHelper.getDate(incomingStartDate);
+				_d.setDate(_d.getDate() - 1);
+				newHistoryItem.endDate = _d;
 			}
 
-			//Also update the endDate of current portfolio
-			updates.detail.endDate = farfuture();
+			updates.detail.endDate = DateHelper.getDate(farfuture());
+			
 		}
 
 		var fupdate = {$set: Object.assign({updatedDate: new Date()}, updates)};
 
-		if (updateHistoryFlag) {
+		if (options.appendHistory) {
 			var modifiedUpdates = Object.assign({}, updates);
-			var newHistory = updates.history ? updates.history : [portfolio.detail]; 
-			var adjustmentHistory = updates.adjustmentHistory ?  updates.adjustmentHistory : null;
 
+			//Use history part of the updates or the NEW history item
+			var history = updates.history ? updates.history  : [newHistoryItem];
 			delete modifiedUpdates.history;
-			delete modifiedUpdates.adjustmentHistory;
-
-			//assuming history is array;
-			if(adjustmentHistory) {
-				fupdate = {
-					$set: Object.assign({updatedDate: new Date()}, modifiedUpdates), 
-					$push:{history: {$each: newHistory}, adjustmentHistory: adjustmentHistory}
-				};
-			} else {
-				fupdate = {
-					$set: Object.assign({updatedDate: new Date()}, modifiedUpdates), 
-					$push:{history: {$each: newHistory}}
-				};
-			}
+			
+			fupdate = {
+				$set: Object.assign({updatedDate: new Date()}, modifiedUpdates), 
+				$push: {history : {$each: history}}
+			};
 		}
 
 		return this.findOneAndUpdate(query, fupdate);
@@ -258,50 +266,6 @@ Portfolio.statics.updatePortfolio = function(query, updates, options) {
 
 Portfolio.statics.deletePortfolio = function(query) {
 	return this.findOneAndRemove(query);
-};
-
-Portfolio.statics.updatePortfolioWithTransactions = function(query, updates) {
-	return this.findOne(query)
-	.then(portfolio => {
-		
-		//Should end day be changed in the history ???
-		const history = {date: new Date(), startDate: portfolio.startDate, endDate: portfolio.endDate};
-		
-		if ("positions" in updates) {
-			history["positions"] = portfolio.positions;
-		}
-
-		if ("subPositions" in updates) {
-			history["subPositions"] = portfolio.subPositions;	
-		}
-
-		Object.keys(updates).forEach(key => {
-			if (key == "transactions") {
-				updates[key].forEach(transaction => {
-					portfolio[key].push(transaction);
-				});
-			} else if (key == "advices"){
-				portfolio[key].push(updates[key]);
-			} else {
-				portfolio[key] = updates[key];
-			}
-		});
-
-		if (Object.keys(history).length > 1) {
-			
-			if("history" in portfolio) {
-				portfolio["history"].push(history);
-			} else {
-				portfolio["history"] = [history];
-			}
-		}
-
-		return portfolio.saveAsync();
-	})
-	.catch(err => {
-		console.log(err);
-		return null;
-	})
 };
 
 function farfuture() {

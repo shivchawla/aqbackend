@@ -42,7 +42,7 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             return (benchmark_value.timestamp[end], Performance(), Performance())
         
         else
-            return (Date(now()), Performance(), Performance())
+            return (Date(currentIndiaTime()), Performance(), Performance())
         end
     catch err
         rethrow(err)
@@ -71,7 +71,7 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
         
         if length(merged_returns.timestamp) == 0
             #Can we pick a better date???
-            return (Date(now()), Performance())
+            return (Date(currentIndiaTime()), Performance())
         end
 
         portfolio_returns = merged_returns["Portfolio"].values
@@ -86,7 +86,7 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
         return (benchmark_value.timestamp[end], Performance(), Performance())
 
     else
-        return (Date(now()), Performance(), Performance())
+        return (Date(currentIndiaTime()), Performance(), Performance())
     end
 end
 
@@ -96,7 +96,7 @@ end
 function compute_performance_constituents(port::Dict{String, Any}, start_date::DateTime, end_date::DateTime, benchmark::Dict{String,Any} = Dict("ticker"=>"NIFTY_50"))
     
     try 
-        if end_date > now() || start_date > end_date
+        if end_date > currentIndiaTime() || start_date > end_date
             error("Invalid dates. Can't compute constituent performance.")
         end
         performance_allstocks = Dict{String, Any}[]
@@ -114,14 +114,14 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
         benchmark_prices = history_nostrict([benchmark_security.symbol.ticker], "Close", :Day, sdate, edate)
 
         if benchmark_prices == nothing
-            return (Date(now()), [merge(Dict("ticker" => ticker), empty_pnl()) for ticker in all_tickers])
+            return (Date(currentIndiaTime()), [merge(Dict("ticker" => ticker), empty_pnl()) for ticker in all_tickers])
         
         elseif benchmark_prices.timestamp[end] < Date(start_date)
-            return (Date(now()), [merge(Dict("ticker" => ticker), empty_pnl()) for ticker in all_tickers])
+            return (Date(currentIndiaTime()), [merge(Dict("ticker" => ticker), empty_pnl()) for ticker in all_tickers])
 
         elseif (benchmark_prices != nothing)
             benchmark_prices = dropnan(benchmark_prices, :any)
-            (updated, updatedDate, updatedPortfolio) = updateportfolio_price(port_raftaar, now())
+            (updated, updatedDate, updatedPortfolio) = updateportfolio_price(port_raftaar, currentIndiaTime())
             
             performance_allstocks = [merge(Dict("ticker" => sym.ticker), compute_pnl_stats(pos)) for (sym,pos) in updatedPortfolio.positions]
             
@@ -172,7 +172,7 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
 
                 ##Empty timeseries output of pctchange when length == 1 
                 if length(merged_returns.timestamp) == 0
-                    return (Date(now()), Performance())
+                    return (Date(currentIndiaTime()), Performance())
                 end
 
                 merged_returns = rename(merged_returns, ["stock", "benchmark"])
@@ -188,7 +188,7 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
                 return (benchmark_prices.timestamp[end], Performance())
 
             else
-                return (Date(now()), Performance())
+                return (Date(currentIndiaTime()), Performance())
             end
         end
     catch err
@@ -206,7 +206,7 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
         
         if valid
             start_date = DateTime("2001-01-01")
-            end_date = now()
+            end_date = currentIndiaTime()
 
             benchmark = "NIFTY_50"
             benchmark_prices = history_nostrict([benchmark], "Close", :Day, start_date, end_date)
@@ -247,7 +247,7 @@ function compute_stock_static_performance(security_dict::Dict{String,Any}; bench
         
         if valid
             start_date = DateTime("2001-01-01")
-            end_date = now()
+            end_date = currentIndiaTime()
 
             benchmark_prices = history_nostrict([benchmark], "Close", :Day, start_date, end_date)
             stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
@@ -287,7 +287,7 @@ function get_stock_price_history(security_dict::Dict{String,Any})
         
         if valid
             start_date = DateTime("2001-01-01")
-            end_date = now()
+            end_date = currentIndiaTime()
 
             stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
             if stock_prices == nothing
@@ -319,44 +319,62 @@ end
 ###
 # Function to fetch LATEST AVAIALBLE PRICE (and metrics) of a security
 ###
-function get_stock_price_latest(security_dict::Dict{String,Any})
+function get_stock_price_latest(security_dict::Dict{String,Any}, ptype::String="EOD")
     
     try
-        (valid, security) = _validate_security(security_dict)
-    
-        if valid
-            end_date = Date(now())
-            start_date = end_date - Dates.Week(52)
-
-            stock_value_52w = YRead.history(security.symbol.id, ["Open","High","Low","Close"], :Day, DateTime(start_date), DateTime(end_date), displaylogs=false)
-            if stock_value_52w == nothing 
-                stock_value_52w = history_nostrict(security.symbol.id, ["Open","High","Low","Close"], :Day, DateTime(start_date), DateTime(end_date))
-            end
-
-            output = Dict{String, Any}() 
-
-            if(length(stock_value_52w.values) > 0)
-                
-                highs = stock_value_52w["High"].values
-                lows = stock_value_52w["Low"].values 
-                
-                output["High_52w"] = maximum(highs)
-                output["Low_52w"] = minimum(lows)
-
-                output["Low"] = stock_value_52w["Low"].values[end]
-                output["High"] = stock_value_52w["High"].values[end]
-                output["Open"] = stock_value_52w["Open"].values[end]
-                output["Close"] = stock_value_52w["Close"].values[end]
-                output["Date"] = string(Date(stock_value_52w.timestamp[end]))
-                output["Change"] = length(stock_value_52w.timestamp) > 1 ? round(percentchange(stock_value_52w["Close"]).values[end] * 100.0, 2) : 0.0
+        output = Dict{String, Any}() 
+        
+        if ptype == "EOD"
+            (valid, security) = _validate_security(security_dict)
             
-                return output
-            else
+            if valid
+            
+                end_date = Date(currentIndiaTime())
+                start_date = end_date - Dates.Week(52)
+
+                stock_value_52w = YRead.history(security.symbol.id, ["Open","High","Low","Close"], :Day, DateTime(start_date), DateTime(end_date), displaylogs=false)
+                if stock_value_52w == nothing 
+                    stock_value_52w = history_nostrict(security.symbol.id, ["Open","High","Low","Close"], :Day, DateTime(start_date), DateTime(end_date))
+                end
+
+                if(length(stock_value_52w.values) > 0)
+                    
+                    highs = stock_value_52w["High"].values
+                    lows = stock_value_52w["Low"].values 
+                    
+                    output["High_52w"] = maximum(highs)
+                    output["Low_52w"] = minimum(lows)
+
+                    output["Low"] = stock_value_52w["Low"].values[end]
+                    output["High"] = stock_value_52w["High"].values[end]
+                    output["Open"] = stock_value_52w["Open"].values[end]
+                    output["Close"] = stock_value_52w["Close"].values[end]
+                    output["Date"] = string(Date(stock_value_52w.timestamp[end]))
+                    output["Change"] = length(stock_value_52w.timestamp) > 1 ? round(percentchange(stock_value_52w["Close"]).values[end] * 100.0, 2) : 0.0
+                
+                else
+                    error("Stock data for $(security.symbol.ticker) is not present")
+                end
+            else 
                 error("Stock data for $(security.symbol.ticker) is not present")
             end
-        else 
-            error("Stock data for $(security.symbol.ticker) is not present")
-        end
+        
+        elseif ptype == "RT"
+            ticker = security_dict["ticker"]
+            tb_rt = get(_realtimePrices, ticker, TradeBar())
+            tb_eod = get(_lastDayPrices, ticker, TradeBar())
+            output["close"] = tb_eod.close
+            output["price"] = tb_rt.close
+            output["low"] = tb_rt.low
+            output["high"] = tb_rt.high
+            output["open"] = tb_rt.open
+
+            output["change"] = output["price"] - output["close"]
+            output["changePct"] = output["close"] > 0 ? (output["price"] - output["close"])/output["close"] : 0.0
+        end 
+
+        return output     
+        
     catch err
         rethrow(err)
     end 
