@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-18 11:05:51
+* @Last Modified time: 2018-04-18 11:37:26
 */
 
 'use strict';
@@ -411,7 +411,6 @@ function __getLatestPortfolioData(portfolioId) {
 		var dailyChangePct = oldNav > 0.0 ? Number((dailyChange/oldNav).toFixed(4)) : 0.0;
 
 		rtEnhanced.summary = Object.assign(rtEnhanced.summary, {oldNav: oldNav, dailyChange: dailyChange, dailyChangePct: dailyChangePct});
-
 		return rtEnhanced;
 	})
 }
@@ -427,7 +426,7 @@ function _updatePortfoliosOnNewData() {
 		
 		return __getLatestPortfolioData(portfolioId)
 		.then(enhancedRtPortfolio => {
-			return _onDataUpdate(portfolioId, enhancedPortfolio, "portfolio");
+			return enhancedRtPortfolio ? _onDataUpdate(portfolioId, enhancedPortfolio, "portfolio") : null;
 		})
 	});
 }
@@ -445,7 +444,7 @@ function _updateAdvicesOnNewData() {
 			}
 		})
 		.then(enhancedPortfolio => {
-			return _onDataUpdate(adviceId, enhancedPortfolio, "advice");
+			return enhancedPortfolio ? _onDataUpdate(adviceId, enhancedPortfolio, "advice") : null;
 		})
 	}); 
 }

@@ -17,7 +17,7 @@ ws.on('connection', function connection(res) {
         Promise.resolve()
         .then(x => {
             if (!req || !req['aimsquant-token']) {
-                APIError.message({message: "Token missing"});
+                APIError.throwJSONError({message: "Token missing"});
             }
         
             req = JSON.parse(message);
