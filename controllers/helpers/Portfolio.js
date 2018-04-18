@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-17 23:03:23
+* @Last Modified time: 2018-04-18 14:03:56
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -409,7 +409,7 @@ function _updatePositionsForTransactions(positions, transactions) {
 	});
 }
 
-function _updatePositionsForPrice(positions, date, type) {
+function _updatePositionsForPrice(positions, type, date) {
 	if (positions) {
 		return new Promise((resolve, reject) => {
 
@@ -426,7 +426,7 @@ function _updatePositionsForPrice(positions, date, type) {
 	            console.log(connection);
 	            var msg = JSON.stringify({action:"update_portfolio_price", 
 	            						portfolio: portfolio,
-	            						date: !date || date == "" ? "" : date,
+	            						date: !date || date == "" ? DateHelper.getCurrentDate() : date,
 	            						type: type ? type : "EOD"});
 	         	wsClient.send(msg);
 	        });
@@ -448,15 +448,15 @@ function _updatePositionsForPrice(positions, date, type) {
 	}
 }
 
-function _computeUpdatedPortfolioForPrice(portfolio, date, type) {
+function _computeUpdatedPortfolioForPrice(portfolio, type, date) {
 	return new Promise(resolve => {
 		Promise.all([
-			_updatePositionsForPrice(portfolio.detail.positions, date, type),
+			_updatePositionsForPrice(portfolio.detail.positions, type, date),
 			
 			//Each subposition is sent separately as JULIA portfolio can't handle 
 			//redundant securities
 			Promise.map(portfolio.detail.subPositions, function(position) {
-				return _updatePositionsForPrice([position], date, type)
+				return _updatePositionsForPrice([position], type, date)
 				.then(updatedPositions => {
 					if (updatedPositions){
 						return updatedPositions.length == 1 ? updatedPositions[0] : null;
@@ -713,9 +713,10 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 };
 
 //Update portfolio for prices for any date
-module.exports.computeUpdatedPortfolioForPrice = function(portfolio, date, type) {
+module.exports.computeUpdatedPortfolioForPrice = function(portfolio, options, date) {
 	
-	return _computeUpdatedPortfolioForPrice(portfolio, date, type)
+	var priceType = options && options.type ? options.type : "EOD";
+	return _computeUpdatedPortfolioForPrice(portfolio, priceType, date)
 	.then(latestPricePortfolio => {
 		return _populateWeights(latestPricePortfolio);
 	})
@@ -769,11 +770,12 @@ module.exports.getPortfolioForDate = function(portfolioId, options, date) {
     });
 };
 
-module.exports.getUpdatedPortfolioForPrice = function(portfolioId, options, type) {
+module.exports.getUpdatedPortfolioForPrice = function(portfolioId, options, date) {
 	return exports.getPortfolioForDate(portfolioId, options)
 	.then(portfolio => {
 		if(portfolio) {
-			return portfolio.detail ? exports.computeUpdatedPortfolioForPrice(portfolio, DateHelper.getCurrentDate(), type) :  null;
+			var nDate = date ? DateHelper.getDate(date) : DateHelper.getCurrentDate();
+			return portfolio.detail ? exports.computeUpdatedPortfolioForPrice(portfolio, options, nDate) :  null;
 		} else {
 			APIError.throwJsonError({portfolioId: portfolioId, message: `Error getting portfolio for date: ${DateHelper.getCurrentDate()}`});
 		}
@@ -835,7 +837,7 @@ module.exports.getPortfolioHistory = function(portfolioId, date, options) {
 //Get current portfolio with realtime prices
 module.exports.getUpdatedPortfolioForRtPrice = function(portfolioId) {
 	//Append new fields to some basic fields (ADD SPACE - V. IMP)
-	return exports.getUpdatedPortfolioForPrice(portfolioId, {fields: 'detail'}, "RT");
+	return exports.getUpdatedPortfolioForPrice(portfolioId, {fields: 'detail', type:"RT"});
 }
 
 //Validate portfolio
@@ -957,7 +959,7 @@ module.exports.getAdvicePortfolio = function(adviceId, date) {
 	return AdviceModel.fetchAdvice({_id: adviceId}, {portfolio:1})
 	.then(advice => {
 		if (advice) {
-			return exports.getPortfolioForDate(advice.portfolio, {fields: 'detail'}, date);
+			return exports.getUpdatedPortfolioForPrice(advice.portfolio, {fields: 'detail'}, date);
 		} else {
 			APIError.throwJsonError({message: "Advice not found"});
 		}
