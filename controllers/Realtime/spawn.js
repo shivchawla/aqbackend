@@ -85,6 +85,6 @@ exports.handleAction = function(req, res) {
         return ForwardTestController.cancelTest(req.forwardtestId);
     } 
     else if(req.action === 'subscribe-mktplace') {
-        return MarketPlaceRtController.handleMktPlaceSubscription(req, res);
+        return MarketPlaceController.handleMktPlaceSubscription(req, res);
     }
 };
