@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-12 12:44:57
+* @Last Modified time: 2018-04-18 13:24:07
 */
 
 'use strict';
@@ -174,17 +174,20 @@ function getStockStaticPerformance(security) {
 	});
 };
 
-function getStockLatestDetail(security) {
+function getStockLatestDetail(security, type) {
 	var query = {'security.ticker': security.ticker,
 					'security.exchange': security.exchange,
 					'security.securityType': security.securityType,
 					'security.country': security.country};
 
-	return SecurityPerformanceModel.fetchLatestDetail(query)
+	return type=="EOD" ? SecurityPerformanceModel.fetchLatestDetail(query) : Promise.resolve(null)
 	.then(securityPerformance => {
 		var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
 		if(update) {
-			return SecurityHelper.computeStockLatestDetail(security).then(latestDetail => {return SecurityPerformanceModel.updateLatestDetail(query, latestDetail);});
+			return SecurityHelper.computeStockLatestDetail(security, type)
+			.then(latestDetail => {
+				return type=="EOD" ? SecurityPerformanceModel.updateLatestDetail(query, latestDetail) : latestDetail;
+			});
 		} else {
 			return securityPerformance;
 		}
@@ -236,7 +239,9 @@ module.exports.getStockDetail = function(args, res, next) {
 		} else if (field == "rollingPerformance") {
 			return getStockRollingPerformance(security);
 		} else if (field == "latestDetail") {
-			return getStockLatestDetail(security);
+			return getStockLatestDetail(security, "EOD");
+		} else if (field == "latestDetailRT") {
+			return getStockLatestDetail(security, "RT");
 		}
 	})
 	.then(output => {
