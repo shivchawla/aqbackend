@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-18 13:37:02
+* @Last Modified time: 2018-04-18 18:42:19
 */
 
 'use strict';
@@ -47,8 +47,16 @@ function _checkIfStockRollingPerformanceUpdateRequired(performance) {
 	}
 
 	if(performance && performance.updatedDate) {
-
 		if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(performance.updatedDate)) == 1) {
+			return true;
+		}
+
+    } else {
+    	return true;
+    }
+
+    if(performance.detail && performance.detail.date) {
+		if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(performance.detail.date)) == 1) {
 			return true;
 		}
 
@@ -64,8 +72,17 @@ function _checkIfStockPriceHistoryUpdateRequired(history) {
 		return true;
 	}
 
+	if (history.values && history.values.length == 0) {
+		return true;
+	}
+
 	if(history && history.updatedDate) {
         if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(history.updatedDate)) == 1) {
+        	return true;
+        }
+
+        var historyLastDate = DateHelper.getDate(history.values.splice(-1)[0].date);
+        if(DateHelper.compareDates(DateHelper.getCurrentDate(), historyLastDate) == 1) {
         	return true;
         }
     } else {
@@ -82,6 +99,10 @@ function _checkIfStockLatestDetailUpdateRequired(detail) {
 
 	if(detail && detail.updatedDate) {
         if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(detail.updatedDate)) == 1) {
+        	return true;
+        }
+
+        if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(detail.values.Date)) == 1) {
         	return true;
         }
     } else {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-18 14:03:56
+* @Last Modified time: 2018-04-18 17:47:21
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -427,7 +427,7 @@ function _updatePositionsForPrice(positions, type, date) {
 	            var msg = JSON.stringify({action:"update_portfolio_price", 
 	            						portfolio: portfolio,
 	            						date: !date || date == "" ? DateHelper.getCurrentDate() : date,
-	            						type: type ? type : "EOD"});
+	            						type: type ? type : "RT"});
 	         	wsClient.send(msg);
 	        });
 
@@ -835,9 +835,9 @@ module.exports.getPortfolioHistory = function(portfolioId, date, options) {
 };
 
 //Get current portfolio with realtime prices
-module.exports.getUpdatedPortfolioForRtPrice = function(portfolioId) {
+module.exports.getUpdatedPortfolioForEODPrice = function(portfolioId) {
 	//Append new fields to some basic fields (ADD SPACE - V. IMP)
-	return exports.getUpdatedPortfolioForPrice(portfolioId, {fields: 'detail', type:"RT"});
+	return exports.getUpdatedPortfolioForPrice(portfolioId, {fields: 'detail', type:"EOD"});
 }
 
 //Validate portfolio

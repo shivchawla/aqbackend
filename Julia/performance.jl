@@ -121,7 +121,7 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
 
         elseif (benchmark_prices != nothing)
             benchmark_prices = dropnan(benchmark_prices, :any)
-            (updated, updatedDate, updatedPortfolio) = updateportfolio_price(port_raftaar, currentIndiaTime())
+            (updatedDate, updatedPortfolio) = updateportfolio_price(port_raftaar, currentIndiaTime())
             
             performance_allstocks = [merge(Dict("ticker" => sym.ticker), compute_pnl_stats(pos)) for (sym,pos) in updatedPortfolio.positions]
             
@@ -220,15 +220,15 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
                 merged_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
                 merged_returns = percentchange(merged_prices)
                 if length(merged_returns.timestamp) == 0
-                    return Performance()
+                    return (Date(), Performance())
                 end
 
                 merged_returns = rename(merged_returns, ["algorithm", "benchmark"])
 
-                return Raftaar.calculateperformance_rollingperiods(merged_returns)
+                return  (merged_prices.timestamp[end], Raftaar.calculateperformance_rollingperiods(merged_returns))
             
             else 
-                return Performance()
+                return (Date(), Performance())
             end
         else
             error("Stock data for $(security.symbol.ticker) is not present")

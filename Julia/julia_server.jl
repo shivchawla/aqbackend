@@ -247,7 +247,7 @@ wsh = WebSocketHandler() do req, ws_client
         elseif action == "compute_stock_rolling_performance"
             parsemsg["performance"] = ""
 
-            rolling_performances = compute_stock_rolling_performance(parsemsg["security"])
+            (date, rolling_performances) = compute_stock_rolling_performance(parsemsg["security"])
             if rolling_performances != nothing
                 rolling_performance_dict = Dict{String, Any}()
                 
@@ -255,6 +255,7 @@ wsh = WebSocketHandler() do req, ws_client
                     rolling_performance_dict[k] = serialize(v)
                 end
 
+                rolling_performance_dict["date"] = date
                 parsemsg["performance"] = rolling_performance_dict
             else
                 parsemsg["error"] = "Empty Rolling Performance. Compute Error!!"
@@ -304,7 +305,7 @@ wsh = WebSocketHandler() do req, ws_client
             date = date == "" ? currentIndiaTime() : DateTime(date, jsdateformat)
             typ = parsemsg["type"]
             
-            (updated, updatedDate , updated_portfolio) = updateportfolio_price(portfolio, date, typ)
+            (updatedDate, updated_portfolio) = updateportfolio_price(portfolio, date, typ)
             
             #Update, the positions to match the object structure in Node
             parsemsg["updatedPositions"] = convert_to_node_portfolio(updated_portfolio)["positions"]

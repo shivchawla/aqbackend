@@ -540,9 +540,7 @@ end
 
 function _updateportfolio_EODprice(port::Portfolio, date::DateTime)
     
-    updated = false
     updatedDate = currentIndiaTime()
-
     alltickers = [sym.ticker for (sym, pos) in port.positions]
     #Check if portoflio has any non-zero number of stock positions
     if length(alltickers) > 0
@@ -571,27 +569,36 @@ function _updateportfolio_EODprice(port::Portfolio, date::DateTime)
         end
     end
 
-    return (updated, updatedDate, port)
+    return (updatedDate, port)
 end
 
 function _updateportfolio_RTprice(port::Portfolio)
     
-    updated = false
     updatedDate = currentIndiaTime()  
     alltickers = [sym.ticker for (sym, pos) in port.positions]
     #Check if portoflio has any non-zero number of stock positions
+    ctAvailableTradebars = 0
     if length(alltickers) > 0
         tradebars = Dict{SecuritySymbol, Vector{TradeBar}}()
         for (sym, pos) in port.positions
             latest_tradebar = get(_realtimePrices, sym.ticker, TradeBar())
+            
+            if latest_tradebar == TradeBar()
+                println("Using EOD price for $(sy.ticker)")
+                price = YRead.history([sym], "Close", :Day, 1, now())
+                if price != nothing
+                    val = values(price)[1]
+                    latest_tradebar = Raftaar.TradeBar(val, val, val, val, 0)
+                end
+            end
+            
             tradebars[sym] = [latest_tradebar]
         end
 
-        updated = true 
         Raftaar.updateportfolio_price!(port, tradebars, DateTime())
     end
 
-    return (updated, updatedDate, port)
+    return (updatedDate, port)
 end
 
 function _download_realtime_prices()
