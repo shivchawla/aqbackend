@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-17 23:10:12
+* @Last Modified time: 2018-04-18 11:05:51
 */
 
 'use strict';
@@ -195,7 +195,7 @@ module.exports.handleMktPlaceSubscription = function(req, res) {
     var type = req.subscriptionType;
 
     if (type == "stock") {
-    	_handleSingleStockSubscription(req, res);
+    	_handleStockSubscription(req, res);
     } else if(type == "watchlist") {
     	if (req.watchlistId) {
     		_handleWatchListSubscription(req, res);
@@ -305,6 +305,25 @@ function _handleStockSubscription(req, res) {
 	stockSubscribers[userId] = {response: res};
 }
 
+function _sendWSResponse(res, data, category, typeId) {
+	try {
+		if (res && res.readyState === WebSocket.OPEN) {
+			res.send(JSON.stringify({
+					type: category,
+					portfolioId: category == "portfolio" ? typeId : null,
+					adviceId: category == "advice" ? typeId : null,
+					ticker: category == "stock" ? typeId : null,
+					output: data}));
+		} else {
+			throw new Error("Websocket is not OPEN");
+		}
+	} catch (err) {
+		console.log(err);
+		return err.message;
+	}
+		
+}
+
 function _onDataUpdate(typeId, data, category) {
 	var subscribedUsers = subscribers[category][typeId];
 
@@ -314,22 +333,10 @@ function _onDataUpdate(typeId, data, category) {
 		var res = subscription.response;
 		var detail = subscription.detail;
 		console.log(data);
-
-		try {
-			if (res.readyState === WebSocket.OPEN) {
-				if (detail) {
-					res.send(JSON.stringify(data));
-				} else {
-					return _filterData(data, category)
-					.then(filteredData => {
-						res.send(JSON.stringify(filteredData));
-					});
-				}
-			} else {
-				return `Websocket is not OPEN for user:${userId} `;
-			}
-		} catch(err) {
-			return err.message;
+		if (detail) {
+			_sendWSResponse(res, data, category, typeId);
+		} else {
+			_sendWSResponse(res, _filterData(data, category), category, typeId);
 		}
 	});
 }
@@ -351,8 +358,8 @@ function _addSummaryPortfolio(portfolio, lastPortfolio) {
 			var pnl = 0.0;
 
 			positions.forEach(item => {
-				nav += item.quantity*item.lastPrice;
-				pnl += item.quantity*(item.lastPrice - item.avgPrice);
+				nav += Number((item.quantity*item.lastPrice).toFixed(2));
+				pnl += Number((item.quantity*(item.lastPrice - item.avgPrice)).toFixed(2));
 			});
 
 			nav += portfolio.detail.cash ? portfolio.detail.cash : 0.0;
@@ -400,8 +407,8 @@ function __getLatestPortfolioData(portfolioId) {
 	.then(([rtEnhanced, edEnhanced]) => {
 		var oldNav = edEnhanced.summary.nav;
 		var nav = rtEnhanced.summary.nav;
-		var dailyChange = nav - oldNav;
-		var dailyChangePct = oldNav > 0.0 ? dailyChange/oldNav : 0.0;
+		var dailyChange = Number((nav - oldNav).toFixed(2));
+		var dailyChangePct = oldNav > 0.0 ? Number((dailyChange/oldNav).toFixed(4)) : 0.0;
 
 		rtEnhanced.summary = Object.assign(rtEnhanced.summary, {oldNav: oldNav, dailyChange: dailyChange, dailyChangePct: dailyChangePct});
 
@@ -465,19 +472,7 @@ function _updateStockOnNewData() {
 
 					if (subscription && subscription.response) {
 						var res = subscription.response;
-						try {
-							if (res.readyState === WebSocket.OPEN) {
-								
-								res.send(JSON.stringify(stockData));
-								return true; 
-							} else {
-								console.log(`Websocket is not OPEN for user:${userId}`);
-								return false;
-							}
-						} catch(err) {
-							console.log("Error while sending WS data");
-							console.log(err.message);
-						} 
+						_sendWSResponse(res, stockData, "stock", ticker);
 					}
 				})
 			})
