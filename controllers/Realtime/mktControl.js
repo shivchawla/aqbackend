@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-18 11:37:26
+* @Last Modified time: 2018-04-18 13:04:23
 */
 
 'use strict';
@@ -21,6 +21,7 @@ var fs = require('fs');
 var path = require("path");
 const zlib = require('zlib');
 const APIError = require('../../utils/error');
+const WebSocket = require('ws');
 
 //Run when seconds = 10
 schedule.scheduleJob("5 * * * * *", function() {
@@ -115,18 +116,11 @@ function _downloadNSEData() {
 		var zipFileName = `${fileNumber}.mkt.gz`;
 		var nseFilePath =`/CM30/DATA/${nseDateStr}/${zipFileName}`;
 
-		//console.log("NSE File path")
-		//console.log(nseFilePath);
-		
 		var localPath = path.resolve(path.join(__dirname, `../../Julia/rtdata/${nseDateStr}`));
 		localZipFilePath = `${localPath}/${zipFileName}`;
 		
 		var unzipFileName = `${fileNumber}.mkt`;
 		localUnzipFilePath = `${localPath}/${unzipFileName}`;
-
-		//console.log("Local File path")
-		//console.log(localZipFilePath);
-		//console.log(localUnzipFilePath);
 
 		if (!fs.existsSync(localPath)) {
 		    fs.mkdirSync(localPath);	
@@ -134,26 +128,24 @@ function _downloadNSEData() {
 		
 	    return sftp.get(nseFilePath, false, null);
 	}).then(data => {
-		//console.log("Writing to local path");
-		//console.log(data);
-		//var wstream = fs.createWriteStream(localZipFilePath);
 		
 	    return new Promise((resolve, reject) => {
 	    	try {
-	    		//resolve(data.pipe(wstream));
 	    		var writeUnzipStream = fs.createWriteStream(localUnzipFilePath);
-	    		resolve(data.pipe(zlib.createUnzip()).pipe(writeUnzipStream));
+	    		data.pipe(zlib.createUnzip()).pipe(writeUnzipStream);
+	    		writeUnzipStream.on('finish', () => {
+				  	console.error('All writes are now complete.');
+				  	resolve(true);
+				});
     		} catch(err) {
     			reject(err);
     		}
 		});
 	})
 	.then(success => {
-		console.log("Done writing to local path!!!");
 		return localUnzipFilePath;
 	})
 	.catch(err => {
-		console.log("ERROR");
 	    console.log(err);
 	    throw err;
 	})
@@ -173,7 +165,7 @@ function processNewData() {
 		console.log("Successfully updated the stock prices");
 		return Promise.all([
 			null,
-			//_updatePortfoliosOnNewData(),
+			_updatePortfoliosOnNewData(),
 			_updateAdvicesOnNewData(),
 			_updateStockOnNewData()
 		]);
@@ -192,7 +184,7 @@ module.exports.handleMktPlaceSubscription = function(req, res) {
     //4. Create a timer function that updates portfolio for latest price (interval driven function)
     //5. Relays portfolio data if still subscibed
 
-    var type = req.subscriptionType;
+    var type = req.type;
 
     if (type == "stock") {
     	_handleStockSubscription(req, res);
@@ -295,30 +287,30 @@ function _handleWatchlistSubscription(req, res) {
 function _handleStockSubscription(req, res) {
 	const ticker = req.ticker;
 	const userId = req.userId;
-
 	if (!subscribers["stock"][ticker]) {
 		subscribers["stock"][ticker] = {};
 	}
 
 	var stockSubscribers = subscribers["stock"][ticker];
-
 	stockSubscribers[userId] = {response: res};
 }
 
 function _sendWSResponse(res, data, category, typeId) {
 	try {
-		if (res && res.readyState === WebSocket.OPEN) {
-			res.send(JSON.stringify({
-					type: category,
-					portfolioId: category == "portfolio" ? typeId : null,
-					adviceId: category == "advice" ? typeId : null,
-					ticker: category == "stock" ? typeId : null,
-					output: data}));
-		} else {
-			throw new Error("Websocket is not OPEN");
+		if (res) {
+			if (res.readyState === WebSocket.OPEN) {
+				res.send(JSON.stringify({
+						type: category,
+						portfolioId: category == "portfolio" ? typeId : null,
+						adviceId: category == "advice" ? typeId : null,
+						ticker: category == "stock" ? typeId : null,
+						output: data}));
+			} else {
+				throw new Error("Websocket is not OPEN");
+			}
 		}
 	} catch (err) {
-		console.log(err);
+		console.log(err.message);
 		return err.message;
 	}
 		
@@ -332,8 +324,7 @@ function _onDataUpdate(typeId, data, category) {
 
 		var res = subscription.response;
 		var detail = subscription.detail;
-		console.log(data);
-		if (detail) {
+		if (detail ) {
 			_sendWSResponse(res, data, category, typeId);
 		} else {
 			_sendWSResponse(res, _filterData(data, category), category, typeId);
@@ -454,21 +445,15 @@ function _getStockLatestData(ticker) {
 }
 
 function _updateStockOnNewData() {
-
 	var subscribedStocks = subscribers["stock"];
-
 	return new Promise(resolve => {
 		Promise.mapSeries(Object.keys(subscribedStocks), function(ticker) {
 			var stockSubscribers = subscribedStocks[ticker];
-
 			//IMPLEMENT THIS FUNCTION
 			return _getStockLatestData(ticker)
 			.then(stockData => {
 				return Promise.mapSeries(Object.keys(stockSubscribers), function(subscriber) {
-					console.log(stockData);
-					
 					var subscription = stockSubscribers[subscriber];
-
 					if (subscription && subscription.response) {
 						var res = subscription.response;
 						_sendWSResponse(res, stockData, "stock", ticker);
