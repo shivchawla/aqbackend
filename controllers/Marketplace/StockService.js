@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-18 13:24:07
+* @Last Modified time: 2018-04-18 13:37:02
 */
 
 'use strict';
@@ -186,7 +186,7 @@ function getStockLatestDetail(security, type) {
 		if(update) {
 			return SecurityHelper.computeStockLatestDetail(security, type)
 			.then(latestDetail => {
-				return type=="EOD" ? SecurityPerformanceModel.updateLatestDetail(query, latestDetail) : latestDetail;
+				return type=="EOD" ? SecurityPerformanceModel.updateLatestDetail(query, latestDetail) : Object.assign(security, latestDetail);
 			});
 		} else {
 			return securityPerformance;
