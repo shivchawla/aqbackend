@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-17 22:59:24
+* @Last Modified time: 2018-04-18 08:22:44
 */
 
 'use strict';
@@ -619,7 +619,7 @@ module.exports.computeAdvicePerformanceSummary = function(adviceId) {
 	.then(advice => {
 		if (advice) {
 			return Promise.all([
-				PerformanceHelper.computeAllPerformanceSummary(advice.portfolio),
+				exports.computeAllPerformanceSummary(advice.portfolio),
 				PortfolioHelper.computePortfolioAnalytics(advice.portfolio)
 			]);
 		} else {
