@@ -14,12 +14,12 @@ ws.on('connection', function connection(res) {
     res.on('message', function(message) {
         let req;
 
-       try {
+        try {
             req = JSON.parse(message);
         } catch (e) {
             return res.send('Not a Valid Json message');
         }
-
+       
         Promise.resolve()
         .then(x => {
             if (!req || !req['aimsquant-token']) {

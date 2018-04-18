@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-18 13:04:23
+* @Last Modified time: 2018-04-18 15:25:19
 */
 
 'use strict';
@@ -209,13 +209,80 @@ module.exports.handleMktPlaceSubscription = function(req, res) {
     }
 };
 
-//Function to subscribe WS data from backend to UI
-module.exports.handleMktPlaceUnSubscription = function(req, res) {
-    //1. Resolve the reqest type. Get the portfolio Id
+//Function to Unsubscribe WS data from backend 
+module.exports.handleMktPlaceUnsubscription = function(req, res) {
+    //1. Resolve the req for type of request. Get the portfolio Id/stock ticker/adviceId etc
     //2. Keep a track of response variable(res) by usedId
-    //3. TURN OFF the subscription status for portfolioId
-    //4. Stop the timer function that updates portfolio for latest price (interval driven function)  
+    //3. Keep a track of subscription status for portfolioId
+    //4. Create a timer function that updates portfolio for latest price (interval driven function)
+    //5. Relays portfolio data if still subscibed
+
+    var type = req.type;
+
+    if (type == "stock") {
+		_handleStockUnsubscription(req, res);
+    } else if(type == "watchlist") {
+    	if (req.watchlistId) {
+    		_handleWatchListUnsubscription(req, res);
+		} else {
+			res.send("Invalid portfolio. Subscription failed");
+		}
+    } else if(type == "portfolio") {
+    	if (req.adviceId) {
+    		_handlePortfolioUnsubscription(req, res);
+		} else {
+			res.send("Invalid portfolio. Subscription failed");
+		}
+    } else if(type == "advice") {
+    	if (req.adviceId) {
+    		_handleAdviceUnsubscription(req, res);
+		} else {
+			res.send("Invalid advice. Subscription failed");
+		}
+    }
 };
+
+function _handleAdviceUnsubscription(req, res) {
+	const adviceId = req.adviceId;
+	const userId = req.userId;
+
+	if (subscribers["advice"] && subscribers["advice"][adviceId]) {
+		delete subscribers["advice"][adviceId][userId];
+	}
+}
+
+function _handlePortfolioUnsubscription(req, res) {
+	const portfolioId = req.portfolioId;
+	const userId = req.userId;
+	if (subscribers["portfolio"] && subscribers["portfolio"][portfolioId]) {
+		delete subscribers["portfolio"][portfolioId][userId];
+	}	
+}
+
+function _handleStockUnsubscription(req, res) {
+	const ticker = req.ticker;
+	const userId = req.userId;
+	if (!subscribers["stock"][ticker]) {
+		subscribers["stock"][ticker] = {};
+	}
+
+	var stockSubscribers = subscribers["stock"][ticker];
+	delete stockSubscribers[userId]
+}
+
+function _handleWatchUnsubscription(req, res) {
+	const watchlistId = req.watchlistId;
+	const userId = req.userId;
+
+	return WatchlistModel.fetchWatchlist({user: userId, _id: watchlistId})
+	.then(watchlist => {
+		if(watchlist && watchlist.securities) {
+			watchlist.securities.forEach(security => {
+				delete subscribers["stock"][security.ticker][userId];
+			});
+		}	
+	});
+}
 
 function _handleAdviceSubscription(req, res) {
 	const adviceId = req.adviceId;
@@ -278,7 +345,7 @@ function _handleWatchlistSubscription(req, res) {
 	.then(watchlist => {
 		if(watchlist && watchlist.securities) {
 			watchlist.securities.forEach(security => {
-				subscribers["stock"][security.ticker] =  {response: res};
+				subscribers["stock"][security.ticker][userId] =  {response: res};
 			});
 		}	
 	});

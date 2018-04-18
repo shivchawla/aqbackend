@@ -363,14 +363,19 @@ function get_stock_price_latest(security_dict::Dict{String,Any}, ptype::String="
             ticker = security_dict["ticker"]
             tb_rt = get(_realtimePrices, ticker, TradeBar())
             tb_eod = get(_lastDayPrices, ticker, TradeBar())
-            output["close"] = tb_eod.close
-            output["last"] = tb_rt.close
-            output["low"] = tb_rt.low
-            output["high"] = tb_rt.high
-            output["open"] = tb_rt.open
+            
+            #today's prices
+            output["current"] = tb_rt.close
+            output["low"] = tb_eod.low
+            output["high"] = tb_eod.high
+            output["open"] = tb_eod.open
+            output["volume"] = tb_eod.volume
 
-            output["change"] = round(output["last"] - output["close"], 2)
-            output["changePct"] = round(output["close"] > 0 ? (output["price"] - output["close"])/output["close"] : 0.0, 4)
+            #this is last day close            
+            output["close"] = tb_eod.close
+            
+            output["change"] = round(output["current"] - output["close"], 2)
+            output["changePct"] = round(output["close"] > 0 ? (output["current"] - output["close"])/output["close"] : 0.0, 4)
         end 
 
         return output     
