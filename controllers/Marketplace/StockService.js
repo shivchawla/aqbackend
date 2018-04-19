@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-19 18:19:46
+* @Last Modified time: 2018-04-19 22:31:05
 */
 
 'use strict';
@@ -85,7 +85,7 @@ function _checkIfStockPriceHistoryUpdateRequired(history) {
         	return true;
         }
 
-        var historyLastDate = DateHelper.getDate(history.values.splice(-1)[0].date);
+        var historyLastDate = DateHelper.getDate(history.values.slice(-1)[0].date);
 		historyLastDate.setDate(historyLastDate.getDate() + 1);
 		var currentDate = DateHelper.getCurrentDate();
         if(DateHelper.compareDates(currentDate, historyLastDate) == 1 && currentDate.getDay() !=0) {
@@ -216,6 +216,7 @@ function getStockLatestDetail(security, type) {
 		} else {
 			resolve(null);
 		} 
+	})
 	.then(securityPerformance => {
 		var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
 		if(update) {

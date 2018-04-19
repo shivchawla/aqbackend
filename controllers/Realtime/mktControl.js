@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-19 21:08:43
+* @Last Modified time: 2018-04-19 23:12:06
 */
 
 'use strict';
@@ -220,7 +220,6 @@ module.exports.handleMktPlaceUnsubscription = function(req, res) {
     var type = req.type;
 
     if (type == "stock") {
-    	console.log("Unsubscribing stock");
 		_handleStockUnsubscription(req, res);
     } else if(type == "watchlist") {
     	if (req.watchlistId) {
@@ -271,8 +270,6 @@ function _handleStockUnsubscription(req, res) {
 	const ticker = req.ticker;
 	const userId = req.userId;
 
-	console.log("Current subscribers");
-	console.log(subscribers["stock"]);
 	if (!subscribers["stock"][ticker]) {
 		subscribers["stock"][ticker] = {};
 	}
@@ -287,15 +284,9 @@ function _handleStockUnsubscription(req, res) {
 		delete stockSubscribers[userId].stock;
 	}
 
-	console.log("Final subscribers");
-	console.log(subscribers["stock"]);
-
 	if (Object.keys(stockSubscribers).length == 0) {
 		delete subscribers["stock"][ticker]; 
 	}
-
-	console.log("Utimate subscribers");
-	console.log(subscribers["stock"]);
 
 }
 
@@ -427,13 +418,15 @@ function _sendWSResponse(res, data, category, typeId) {
 	try {
 		if (res) {
 			if (res.readyState === WebSocket.OPEN) {
-				res.send(JSON.stringify({
+				var msg = JSON.stringify({
 						type: category,
 						portfolioId: category == "portfolio" ? typeId : null,
 						adviceId: category == "advice" ? typeId : null,
 						ticker: category == "stock" ? typeId : category == "watchlist" ? data.ticker : null,
-						watchlist: category == "watchlist" ? typeId : null,
-						output: data}));
+						watchlistId: category == "watchlist" ? typeId : null,
+						output: data});
+
+				res.send(msg);
 			} else {
 				throw new Error("Websocket is not OPEN");
 			}
