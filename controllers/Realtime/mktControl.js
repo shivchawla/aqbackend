@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-19 12:51:49
+* @Last Modified time: 2018-04-19 21:08:43
 */
 
 'use strict';
@@ -190,7 +190,7 @@ module.exports.handleMktPlaceSubscription = function(req, res) {
     	_handleStockSubscription(req, res);
     } else if(type == "watchlist") {
     	if (req.watchlistId) {
-    		_handleWatchListSubscription(req, res);
+    		_handleWatchlistSubscription(req, res);
 		} else {
 			res.send("Invalid portfolio. Subscription failed");
 		}
@@ -224,7 +224,7 @@ module.exports.handleMktPlaceUnsubscription = function(req, res) {
 		_handleStockUnsubscription(req, res);
     } else if(type == "watchlist") {
     	if (req.watchlistId) {
-    		_handleWatchListUnsubscription(req, res);
+    		_handleWatchlistUnsubscription(req, res);
 		} else {
 			res.send("Invalid portfolio. Subscription failed");
 		}
@@ -281,7 +281,7 @@ function _handleStockUnsubscription(req, res) {
 
 	var subscription = stockSubscribers[userId];
 
-	if (subscription.stock && !subscription.watchlist) {
+	if (subscription.stock && !subscription.watchlistId) {
 		delete stockSubscribers[userId]
 	} else {
 		delete stockSubscribers[userId].stock;
@@ -299,7 +299,7 @@ function _handleStockUnsubscription(req, res) {
 
 }
 
-function _handleWatchUnsubscription(req, res) {
+function _handleWatchlistUnsubscription(req, res) {
 	const watchlistId = req.watchlistId;
 	const userId = req.userId;
 
@@ -311,10 +311,10 @@ function _handleWatchUnsubscription(req, res) {
 				var stockSubscribers = subscribers["stock"][ticker];
 				var subscription = stockSubscribers[userId];
 
-				if (!subscription.stock && subscription.watchlist) {
+				if (!subscription.stock && subscription.watchlistId) {
 					delete stockSubscribers[userId]
 				} else {
-					delete stockSubscribers[userId].watchlist;
+					delete stockSubscribers[userId].watchlistId;
 				}
 
 				if (Object.keys(stockSubscribers).length == 0) {
@@ -386,13 +386,18 @@ function _handleWatchlistSubscription(req, res) {
 	.then(watchlist => {
 		if(watchlist && watchlist.securities) {
 			watchlist.securities.forEach(security => {
-				var subscription = subscribers["stock"][security.ticker][userId];
+				var ticker = security.ticker;
+				if (!subscribers["stock"][ticker]) {
+					subscribers["stock"][ticker] = {};
+				}
+
+				var subscription = subscribers["stock"][ticker][userId];
 
 				if (subscription) {
-					subscribers["stock"][security.ticker][userId].response = res;
-					subscribers["stock"][security.ticker][userId].watchlist = true;					
+					subscribers["stock"][ticker][userId].response = res;
+					subscribers["stock"][ticker][userId].watchlistId = watchlistId;					
 				} else {
-					subscribers["stock"][security.ticker][userId] = {response: res, watchlist: true};
+					subscribers["stock"][ticker][userId] = {response: res, watchlistId: watchlistId};
 				}
 
 			});
@@ -426,7 +431,8 @@ function _sendWSResponse(res, data, category, typeId) {
 						type: category,
 						portfolioId: category == "portfolio" ? typeId : null,
 						adviceId: category == "advice" ? typeId : null,
-						ticker: category == "stock" ? typeId : null,
+						ticker: category == "stock" ? typeId : category == "watchlist" ? data.ticker : null,
+						watchlist: category == "watchlist" ? typeId : null,
 						output: data}));
 			} else {
 				throw new Error("Websocket is not OPEN");
@@ -608,7 +614,13 @@ function _updateStockOnNewData() {
 					var subscription = stockSubscribers[subscriber];
 					if (subscription && subscription.response) {
 						var res = subscription.response;
-						_sendWSResponse(res, stockData, "stock", ticker);
+						if (subscription.stock) {
+							_sendWSResponse(res, stockData, "stock", ticker);
+						}
+
+						if (subscription.watchlistId) {
+							_sendWSResponse(res, Object.assign({ticker: ticker}, stockData), "watchlist", subscription.watchlistId);
+						}
 					}
 				})
 			})

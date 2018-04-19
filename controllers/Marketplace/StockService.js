@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-19 14:57:34
+* @Last Modified time: 2018-04-19 18:19:46
 */
 
 'use strict';
@@ -210,7 +210,12 @@ function getStockLatestDetail(security, type) {
 					'security.securityType': security.securityType,
 					'security.country': security.country};
 
-	return type=="EOD" ? SecurityPerformanceModel.fetchLatestDetail(query) : Promise.resolve(null)
+	return new Promise(resolve => {
+		if (type == "EOD") {
+			resolve(SecurityPerformanceModel.fetchLatestDetail(query));
+		} else {
+			resolve(null);
+		} 
 	.then(securityPerformance => {
 		var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
 		if(update) {
