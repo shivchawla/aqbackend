@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-18 17:47:21
+* @Last Modified time: 2018-04-19 10:24:51
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -715,7 +715,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 //Update portfolio for prices for any date
 module.exports.computeUpdatedPortfolioForPrice = function(portfolio, options, date) {
 	
-	var priceType = options && options.type ? options.type : "EOD";
+	var priceType = options && options.type ? options.type : "RT";
 	return _computeUpdatedPortfolioForPrice(portfolio, priceType, date)
 	.then(latestPricePortfolio => {
 		return _populateWeights(latestPricePortfolio);

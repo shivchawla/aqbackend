@@ -87,4 +87,7 @@ exports.handleAction = function(req, res) {
     else if(req.action === 'subscribe-mktplace') {
         return MarketPlaceController.handleMktPlaceSubscription(req, res);
     }
+    else if(req.action === 'unsubscribe-mktplace') {
+        return MarketPlaceController.handleMktPlaceUnsubscription(req, res);
+    }
 };

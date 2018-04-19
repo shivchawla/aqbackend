@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-18 15:25:19
+* @Last Modified time: 2018-04-19 12:51:49
 */
 
 'use strict';
@@ -158,7 +158,7 @@ function processNewData() {
 		if (localFilePath && localFilePath !="") {
 			return SecurityHelper.updateRealtimePrices(localFilePath)
 		} else {
-			APIError.throwJSONError({message:"Can't process realtime data. Bad filename"});
+			APIError.throwJsonError({message:"Can't process realtime data. Bad filename"});
 		}
 	})
 	.then(success => {
@@ -195,7 +195,7 @@ module.exports.handleMktPlaceSubscription = function(req, res) {
 			res.send("Invalid portfolio. Subscription failed");
 		}
     } else if(type == "portfolio") {
-    	if (req.adviceId) {
+    	if (req.portfolioId) {
     		_handlePortfolioSubscription(req, res);
 		} else {
 			res.send("Invalid portfolio. Subscription failed");
@@ -220,6 +220,7 @@ module.exports.handleMktPlaceUnsubscription = function(req, res) {
     var type = req.type;
 
     if (type == "stock") {
+    	console.log("Unsubscribing stock");
 		_handleStockUnsubscription(req, res);
     } else if(type == "watchlist") {
     	if (req.watchlistId) {
@@ -228,7 +229,7 @@ module.exports.handleMktPlaceUnsubscription = function(req, res) {
 			res.send("Invalid portfolio. Subscription failed");
 		}
     } else if(type == "portfolio") {
-    	if (req.adviceId) {
+    	if (req.portfolioId) {
     		_handlePortfolioUnsubscription(req, res);
 		} else {
 			res.send("Invalid portfolio. Subscription failed");
@@ -245,9 +246,12 @@ module.exports.handleMktPlaceUnsubscription = function(req, res) {
 function _handleAdviceUnsubscription(req, res) {
 	const adviceId = req.adviceId;
 	const userId = req.userId;
-
 	if (subscribers["advice"] && subscribers["advice"][adviceId]) {
 		delete subscribers["advice"][adviceId][userId];
+	}
+
+	if (Object.keys(subscribers["advice"][adviceId]).length == 0) {
+		delete subscribers["advice"][adviceId];
 	}
 }
 
@@ -256,18 +260,43 @@ function _handlePortfolioUnsubscription(req, res) {
 	const userId = req.userId;
 	if (subscribers["portfolio"] && subscribers["portfolio"][portfolioId]) {
 		delete subscribers["portfolio"][portfolioId][userId];
+	}
+
+	if (Object.keys(subscribers["portfolio"][portfolioId]).length == 0) {
+		delete subscribers["portfolio"][portfolioId];
 	}	
 }
 
 function _handleStockUnsubscription(req, res) {
 	const ticker = req.ticker;
 	const userId = req.userId;
+
+	console.log("Current subscribers");
+	console.log(subscribers["stock"]);
 	if (!subscribers["stock"][ticker]) {
 		subscribers["stock"][ticker] = {};
 	}
 
 	var stockSubscribers = subscribers["stock"][ticker];
-	delete stockSubscribers[userId]
+
+	var subscription = stockSubscribers[userId];
+
+	if (subscription.stock && !subscription.watchlist) {
+		delete stockSubscribers[userId]
+	} else {
+		delete stockSubscribers[userId].stock;
+	}
+
+	console.log("Final subscribers");
+	console.log(subscribers["stock"]);
+
+	if (Object.keys(stockSubscribers).length == 0) {
+		delete subscribers["stock"][ticker]; 
+	}
+
+	console.log("Utimate subscribers");
+	console.log(subscribers["stock"]);
+
 }
 
 function _handleWatchUnsubscription(req, res) {
@@ -278,7 +307,19 @@ function _handleWatchUnsubscription(req, res) {
 	.then(watchlist => {
 		if(watchlist && watchlist.securities) {
 			watchlist.securities.forEach(security => {
-				delete subscribers["stock"][security.ticker][userId];
+				var ticker = security.ticker;
+				var stockSubscribers = subscribers["stock"][ticker];
+				var subscription = stockSubscribers[userId];
+
+				if (!subscription.stock && subscription.watchlist) {
+					delete stockSubscribers[userId]
+				} else {
+					delete stockSubscribers[userId].watchlist;
+				}
+
+				if (Object.keys(stockSubscribers).length == 0) {
+					delete subscribers["stock"][ticker]; 
+				}
 			});
 		}	
 	});
@@ -305,7 +346,7 @@ function _handleAdviceSubscription(req, res) {
 		} else if (summaryAuthorization) {
 		 	adviceSubscribers[userId] = {detail: false, response: res};
 		} else {
-			APIError.throwJSONError({message: "Not Authorized to view advice"});
+			APIError.jsonError({message: "Not Authorized to view advice"});
 		}
 	})
 	.catch(err => {
@@ -321,7 +362,7 @@ function _handlePortfolioSubscription(req, res) {
 		subscribers["portfolio"][portfolioId] = {};
 	}
 
-	var portfolioSubsribers = subscribers["portfolio"][portfolioId];
+	var portfolioSubscribers = subscribers["portfolio"][portfolioId];
 
 	//first check is user if authorized to view advice (detail or summary)
 	return InvestorModel.fetchInvestor({user: userId}, {fields: 'portfolios'})
@@ -329,7 +370,7 @@ function _handlePortfolioSubscription(req, res) {
 		if (investor && investor.portfolios && investor.portfolios.map(item => item.toString()).indexOf(portfolioId) !=- 1) {
 			portfolioSubscribers[userId] = {detail: detail , response: res};
 		} else {
-			APIError.throwJSONError({message: "Not Authorized to view portfolio"});
+			APIError.throwJsonError({message: "Not Authorized to view portfolio"});
 		}
 	})
 	.catch(err => {
@@ -345,7 +386,15 @@ function _handleWatchlistSubscription(req, res) {
 	.then(watchlist => {
 		if(watchlist && watchlist.securities) {
 			watchlist.securities.forEach(security => {
-				subscribers["stock"][security.ticker][userId] =  {response: res};
+				var subscription = subscribers["stock"][security.ticker][userId];
+
+				if (subscription) {
+					subscribers["stock"][security.ticker][userId].response = res;
+					subscribers["stock"][security.ticker][userId].watchlist = true;					
+				} else {
+					subscribers["stock"][security.ticker][userId] = {response: res, watchlist: true};
+				}
+
 			});
 		}	
 	});
@@ -359,7 +408,14 @@ function _handleStockSubscription(req, res) {
 	}
 
 	var stockSubscribers = subscribers["stock"][ticker];
-	stockSubscribers[userId] = {response: res};
+	var subscription = stockSubscribers[userId];
+
+	if (subscription) {
+		stockSubscribers[userId].response = res;
+		stockSubscribers[userId].stock = true;		
+	} else {
+		stockSubscribers[userId] = {response: res, stock: true};
+	}
 }
 
 function _sendWSResponse(res, data, category, typeId) {
@@ -385,7 +441,6 @@ function _sendWSResponse(res, data, category, typeId) {
 
 function _onDataUpdate(typeId, data, category) {
 	var subscribedUsers = subscribers[category][typeId];
-
 	return Promise.map(Object.keys(subscribedUsers), function(userId) {
 		var subscription = subscribedUsers[userId];
 
@@ -427,20 +482,21 @@ function _addSummaryPortfolio(portfolio, lastPortfolio) {
 			var adviceSummary = null;
 
 			if (subPositions.length > 0) {
-				var uniqueAdvices = Array.from(new Set(portfolio.detail.subPositions.map(item => item.advice)));	
+				var uniqueAdvices = Array.from(new Set(portfolio.detail.subPositions.map(item => {return item.advice ? item.advice.toString() : ""})));	
 
-				adviceSummary = {};
+				adviceSummary = [];
 
 				uniqueAdvices.forEach(adviceId => {
-					var subPositionsPerAdvice = subPositions.filter(item => {return item.advice.equals(adviceId);});
+					var subPositionsPerAdvice = subPositions.filter(item => {return (item.advice && item.advice.toString() == adviceId) || (!item.advice && adviceId == "");});
 					var navAdvice = 0.0;
 					var pnlAdvice = 0.0;
+
 					subPositionsPerAdvice.forEach(item => {
-						navAdvice += item.quantity*item.lastPrice;
-						pnlAdvice += item.quantity*(item.lastPrice - item.avgPrice);
+						navAdvice += item.quantity * item.lastPrice;
+						pnlAdvice += item.quantity * (item.lastPrice - item.avgPrice);
 					});
 
-					adviceSummary[adviceId] ==  {nav: navAdvice, pnl: pnlAdvice};
+					adviceSummary.push({adviceId: adviceId, nav: navAdvice, pnl: pnlAdvice, weightInPortfolio: nav > 0.0 ? navAdvice/nav : 0.0});
 				});
 			}	
 
@@ -451,10 +507,23 @@ function _addSummaryPortfolio(portfolio, lastPortfolio) {
 	});
 }
 
+function _computeNavAndPnLChanges(oldNav, nav, oldPnl, pnl) {
+	var dailyNavChange = Number((nav - oldNav).toFixed(2));
+	var dailyNavChangePct = oldNav > 0.0 ? Number((dailyNavChange/oldNav).toFixed(4)) : 0.0;
+
+	var dailyPnlChange = Number((pnl - oldPnl).toFixed(2));
+	var dailyPnlChangePct = oldPnl > 0.0 ? Number((dailyPnlChange/oldPnl).toFixed(4)) : 0.0;
+
+	return {oldNav: oldNav,
+			oldPnl: oldPnl,  
+			dailyNavChange: dailyNavChange, dailyNavChangePct: dailyNavChangePct,
+			dailyPnlChange: dailyPnlChange, dailyPnlChangePct: dailyPnlChangePct};
+}
+
 function __getLatestPortfolioData(portfolioId) {
 	return Promise.all([
-		PortfolioHelper.getUpdatedPortfolioForRtPrice(portfolioId),
-		PortfolioHelper.getUpdatedPortfolioForPrice(portfolioId)
+		PortfolioHelper.getUpdatedPortfolioForPrice(portfolioId),
+		PortfolioHelper.getUpdatedPortfolioForEODPrice(portfolioId)
 	])
 	.then(([rtPortfolio, edPortfolio]) => {
 		return Promise.all([
@@ -465,12 +534,28 @@ function __getLatestPortfolioData(portfolioId) {
 	.then(([rtEnhanced, edEnhanced]) => {
 		var oldNav = edEnhanced.summary.nav;
 		var nav = rtEnhanced.summary.nav;
-		var dailyChange = Number((nav - oldNav).toFixed(2));
-		var dailyChangePct = oldNav > 0.0 ? Number((dailyChange/oldNav).toFixed(4)) : 0.0;
+		var oldPnl = edEnhanced.summary.pnl;
+		var pnl = rtEnhanced.summary.pnl;
+		
+		rtEnhanced.summary = Object.assign(rtEnhanced.summary, _computeNavAndPnLChanges(oldNav, nav, oldPnl, pnl));
+		
+		if (rtEnhanced.adviceSummary && edEnhanced.adviceSummary) {
+			rtEnhanced.adviceSummary.map(item => {
+				var idx = edEnhanced.adviceSummary.map(itemX => itemX.adviceId).indexOf(item.adviceId);
+				
+				var oldNav = edEnhanced.adviceSummary[idx].nav;
+				var nav = item.nav;
+				var oldPnl = edEnhanced.adviceSummary[idx].pnl;
+				var pnl = item.pnl;
 
-		rtEnhanced.summary = Object.assign(rtEnhanced.summary, {oldNav: oldNav, dailyChange: dailyChange, dailyChangePct: dailyChangePct});
+				item = Object.assign(item, _computeNavAndPnLChanges(oldNav, nav, oldPnl, pnl));
+				return item; 
+			});
+		}
+
 		return rtEnhanced;
-	})
+	});
+
 }
 
 function _updatePortfoliosOnNewData() {
@@ -481,10 +566,10 @@ function _updatePortfoliosOnNewData() {
 		//1. NAV 
 		//2. Daily PnL (and Daily Change %)
 		//3. Unrealized PnL
-		
+
 		return __getLatestPortfolioData(portfolioId)
-		.then(enhancedRtPortfolio => {
-			return enhancedRtPortfolio ? _onDataUpdate(portfolioId, enhancedPortfolio, "portfolio") : null;
+		.then(enhancedPortfolio => {
+			return enhancedPortfolio ? _onDataUpdate(portfolioId, enhancedPortfolio, "portfolio") : null;
 		})
 	});
 }

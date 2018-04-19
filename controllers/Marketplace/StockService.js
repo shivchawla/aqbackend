@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-18 18:42:19
+* @Last Modified time: 2018-04-19 14:57:34
 */
 
 'use strict';
@@ -56,7 +56,10 @@ function _checkIfStockRollingPerformanceUpdateRequired(performance) {
     }
 
     if(performance.detail && performance.detail.date) {
-		if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(performance.detail.date)) == 1) {
+    	var performanceDetailDate = DateHelper.getDate(performance.detail.date);
+		performanceDetailDate.setDate(performanceDetailDate.getDate() + 1);
+		var currentDate = DateHelper.getCurrentDate();
+		if(DateHelper.compareDates(currentDate, performanceDetailDate) == 1 && currentDate.getDay() !=0) {
 			return true;
 		}
 
@@ -77,12 +80,15 @@ function _checkIfStockPriceHistoryUpdateRequired(history) {
 	}
 
 	if(history && history.updatedDate) {
+		
         if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(history.updatedDate)) == 1) {
         	return true;
         }
 
         var historyLastDate = DateHelper.getDate(history.values.splice(-1)[0].date);
-        if(DateHelper.compareDates(DateHelper.getCurrentDate(), historyLastDate) == 1) {
+		historyLastDate.setDate(historyLastDate.getDate() + 1);
+		var currentDate = DateHelper.getCurrentDate();
+        if(DateHelper.compareDates(currentDate, historyLastDate) == 1 && currentDate.getDay() !=0) {
         	return true;
         }
     } else {
@@ -102,7 +108,10 @@ function _checkIfStockLatestDetailUpdateRequired(detail) {
         	return true;
         }
 
-        if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(detail.values.Date)) == 1) {
+        var detailLastDate = DateHelper.getDate(detail.values.Date);
+		detailLastDate.setDate(detailLastDate.getDate() + 1);
+		var currentDate = DateHelper.getCurrentDate()
+        if(DateHelper.compareDates(currentDate, detailLastDate) == 1 && currentDate.getDay() !=0) {
         	return true;
         }
     } else {
