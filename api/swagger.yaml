@@ -2921,19 +2921,6 @@ definitions:
       twitter:
         $ref: '#/definitions/SocialProfile'
 
-# Security-Time (for watchlist)
-  SecurityTime:
-    type: object
-    required:
-      - updatedAt
-      - security
-    properties:
-      updatedAt:
-        type: string
-        format: date
-      security:
-        $ref: '#/definitions/Security'
-
 # Watchlist definitions
   Watchlist:
     type: object
@@ -2946,7 +2933,7 @@ definitions:
       securities:
         type: array
         items:
-          $ref: '#/definitions/SecurityTime'
+          $ref: '#/definitions/Security'
 
   Address:
     type: object

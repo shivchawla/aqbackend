@@ -22,7 +22,8 @@ module.exports.createWatchlist = function(args, res, next) {
 
     const securities = values.securities;
     return Promise.map(securities, function(security) {
-    	return _checkIfValidSecurity(security);})
+    	return _checkIfValidSecurity(security);
+    })
     .then(flags => {
     	if (flags.indexOf(false) == -1 || length(flags) == 0) {
     		return WatchlistModel.saveWatchlist(watchlist);
@@ -47,7 +48,7 @@ module.exports.getAllWatchlists = function(args, res, next) {
 		query.name = args.name.value;
 	} 
 
-	WatchlistModel.fetchAllWatchlists(query)
+	return WatchlistModel.fetchAllWatchlists(query)
 	.then(watchlists => {
 		if(watchlists) {
 			return res.status(200).json(watchlists);
@@ -64,7 +65,7 @@ module.exports.getWatchlist = function(args, res, next) {
 	const userId = args.user._id;
 	const watchlistId = args.watchlistId.value;
 
-	WatchlistModel.fetchWatchlist({_id: watchlistId, user: userId, deleted: false})
+	return WatchlistModel.fetchWatchlist({_id: watchlistId, user: userId, deleted: false})
 	.then(watchlist => {
 		if(watchlist) {
 			return res.status(200).json(watchlist);
@@ -84,7 +85,7 @@ module.exports.updateWatchlist = function(args, res, next) {
 	const updates = args.body.value;
 	const securities = updates.securities;
 
-	Promise.map(securities, function(security) {
+	return Promise.map(securities, function(security) {
     	return _checkIfValidSecurity(security);
     })
     .then(flags => {
@@ -107,7 +108,7 @@ module.exports.deleteWatchlist = function(args, res, next) {
 	const userId = args.user._id;
 	const watchlistId = args.watchlistId.value;
 
-	WatchlistModel.deleteWatchlist({_id: watchlistId, user: userId})
+	return WatchlistModel.deleteWatchlist({_id: watchlistId, user: userId})
 	.then(watchlist => {
 		return res.status(200).json({_id: watchlistId, user: userId, msg: "Watchlist deleted"});
 	})

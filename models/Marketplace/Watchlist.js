@@ -13,10 +13,7 @@ const Watchlist = new Schema({
         required: true,
         ref: 'User'
     },
-    type: {
-        type: String,
-        required: true
-    },
+    
     createdAt: Date,
     updatedAt: Date,
     
