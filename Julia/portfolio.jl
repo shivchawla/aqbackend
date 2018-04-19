@@ -103,7 +103,6 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
                     #MODIFY the logic to fetch the close price for the date if
                     #price is 0.0 
                     price = convert(Float64, get(pos, "avgPrice", 0.0))
-
                     lastprice = convert(Float64, get(pos, "lastPrice", 0.0))                    
 
                     #Link the position to an advice (Used in marketplace Sub-Portfolio)
@@ -115,8 +114,9 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
                     end
 
                     advice = advice == nothing ? "" : advice
+                    dividendcash = get(pos, "dividendCash", 0.0)
 
-                    pos = Position(security.symbol, qty, price, advice)
+                    pos = Position(security.symbol, qty, price, advice, dividendcash)
 
                     pos.lastprice = lastprice
                     # Append to position dictionary
@@ -1001,8 +1001,6 @@ function updateportfolio_splitsAndDividends(portfolio::Dict{String,Any}, startda
     # Check if today's adjustments are already handled in historical adjustments
     if Date(enddate) == currentDate && !haskey(adjustmentsByDate, currentDate)
 
-        println("Ohh  NO")
-        
         temp = convert_to_node_portfolio(port)
         temp["startDate"] = startdate
         temp["endDate"] = currentDate - Dates.Day(1)
@@ -1088,6 +1086,7 @@ function convert_to_node_portfolio(port::Portfolio)
             n_pos["unrealizedPnL"] = pos.lasttradepnl
             n_pos["lastPrice"] = pos.lastprice
             n_pos["advice"] = pos.advice == "" ? nothing : pos.advice
+            n_pos["dividendCash"] = pos.dividendcash
 
             push!(output["positions"], n_pos) 
         end

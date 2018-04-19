@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-02-17 11:49:52
+* @Last Modified time: 2018-04-18 23:00:53
 */
 
 'use strict';
@@ -30,6 +30,8 @@ const Position = new Schema({
 	realizedPnL: Number,
 
 	totalFees: Number,
+
+	dividendCash: Number,
 
 	//To track the orginating advice (if any)
 	advice: {
