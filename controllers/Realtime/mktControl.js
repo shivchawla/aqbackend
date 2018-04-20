@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-19 23:12:06
+* @Last Modified time: 2018-04-20 11:12:06
 */
 
 'use strict';
@@ -592,7 +592,7 @@ function _updateAdvicesOnNewData() {
 }
 
 function _getStockLatestData(ticker) {
-	return SecurityHelper.computeStockLatestDetail({ticker: ticker}, "RT")
+	return SecurityHelper.getStockLatestDetail({ticker: ticker}, "RT")
 }
 
 function _updateStockOnNewData() {

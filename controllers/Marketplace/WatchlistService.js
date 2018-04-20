@@ -8,6 +8,25 @@ function _checkIfValidSecurity(security) {
 	return SecurityHelper.validateSecurity(security);
 }
 
+function _populateWatchlistDetail(watchlist) {
+	return Promise.map(watchlist.securities, function(security) {
+		return Promise.all([
+			SecurityHelper.getStockLatestDetail(security, "RT"),
+			SecurityHelper.getStockLatestDetail(security, "EOD")
+		])
+		.then(([detailRT, detailEOD]) => {
+
+			var eodLatestDetail = detailEOD && detailEOD.latestDetail && detailEOD.latestDetail.values ? detailEOD.latestDetail.values : {};
+			var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
+			
+			return Object.assign(security, {realtime: rtLatestDetail, eod: eodLatestDetail});
+		})
+	})
+	.then(detailForWatchlist => {
+		return Object.assign(watchlist, {securities: detailForWatchlist});
+	})
+}
+
 module.exports.createWatchlist = function(args, res, next) {
 	const user = args.user;
     const values = args.body.value;
@@ -51,10 +70,16 @@ module.exports.getAllWatchlists = function(args, res, next) {
 	return WatchlistModel.fetchAllWatchlists(query)
 	.then(watchlists => {
 		if(watchlists) {
-			return res.status(200).json(watchlists);
+			return Promise.mapSeries(watchlists, function(watchlist) {
+				return _populateWatchlistDetail(watchlist.toObject());
+			});
+			
 		} else {
 			APIError.throwJsonError({user: userId, message:"Not authorized or not present"});
 		}
+	})
+	.then(allWatchlistPopulatedWithDetail => {
+		return res.status(200).send(allWatchlistPopulatedWithDetail);
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);
@@ -68,10 +93,13 @@ module.exports.getWatchlist = function(args, res, next) {
 	return WatchlistModel.fetchWatchlist({_id: watchlistId, user: userId, deleted: false})
 	.then(watchlist => {
 		if(watchlist) {
-			return res.status(200).json(watchlist);
+			return _populateWatchlistDetail(watchlist.toObject());
 		} else {
 			APIError.throwJsonError({user: userId, watchlist: watchlistId, message:"Not authorized or not present"});
 		}
+	})
+	.then(watchlistPopulatedWithDetail => {
+		return res.status(200).send(watchlistPopulatedWithDetail);
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);

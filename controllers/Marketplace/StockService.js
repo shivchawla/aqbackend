@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-19 22:31:05
+* @Last Modified time: 2018-04-20 11:08:56
 */
 
 'use strict';
@@ -11,115 +11,6 @@ const Promise = require('bluebird');
 const config = require('config');
 const SecurityHelper = require("../helpers/Security");
 const APIError = require('../../utils/error');
-const DateHelper = require('../../utils/Date');
-
-function _checkIfStockStaticPerformanceUpdateRequired(performance) {
-	if (!performance) {
-		return true;
-	}
-
-	if(performance && performance.updatedDate) {
-		var months = Object.keys(performance.detail.monthly).sort();
-		var years = Object.keys(performance.detail.yearly).sort();
-
-		var d = new Date();
-		var currentMonth = d.getYear().toString()+"_"+(d.getMonth()+1).toString();
-		var currentYear = d.getYear().toString();
-
-		if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(performance.updatedDate)) == 1) {
-			return true;
-		}
-
-        if(months.indexOf(currentMonth) == -1 || years.indexOf(currentYear) == -1) {
-        	return true; //TEMPORARILY
-        	return true;
-        }
-    } else {
-    	return true;
-    }
-
-    return false;
-}
-
-function _checkIfStockRollingPerformanceUpdateRequired(performance) {
-	if (!performance) {
-		return true;
-	}
-
-	if(performance && performance.updatedDate) {
-		if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(performance.updatedDate)) == 1) {
-			return true;
-		}
-
-    } else {
-    	return true;
-    }
-
-    if(performance.detail && performance.detail.date) {
-    	var performanceDetailDate = DateHelper.getDate(performance.detail.date);
-		performanceDetailDate.setDate(performanceDetailDate.getDate() + 1);
-		var currentDate = DateHelper.getCurrentDate();
-		if(DateHelper.compareDates(currentDate, performanceDetailDate) == 1 && currentDate.getDay() !=0) {
-			return true;
-		}
-
-    } else {
-    	return true;
-    }
-
-    return false;
-}
-
-function _checkIfStockPriceHistoryUpdateRequired(history) {
-	if (!history) {
-		return true;
-	}
-
-	if (history.values && history.values.length == 0) {
-		return true;
-	}
-
-	if(history && history.updatedDate) {
-		
-        if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(history.updatedDate)) == 1) {
-        	return true;
-        }
-
-        var historyLastDate = DateHelper.getDate(history.values.slice(-1)[0].date);
-		historyLastDate.setDate(historyLastDate.getDate() + 1);
-		var currentDate = DateHelper.getCurrentDate();
-        if(DateHelper.compareDates(currentDate, historyLastDate) == 1 && currentDate.getDay() !=0) {
-        	return true;
-        }
-    } else {
-    	return true;
-    }
-
-    return false;
-}
-
-function _checkIfStockLatestDetailUpdateRequired(detail) {
-	if (!detail) {
-		return true;
-	}
-
-	if(detail && detail.updatedDate) {
-        if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(detail.updatedDate)) == 1) {
-        	return true;
-        }
-
-        var detailLastDate = DateHelper.getDate(detail.values.Date);
-		detailLastDate.setDate(detailLastDate.getDate() + 1);
-		var currentDate = DateHelper.getCurrentDate()
-        if(DateHelper.compareDates(currentDate, detailLastDate) == 1 && currentDate.getDay() !=0) {
-        	return true;
-        }
-    } else {
-    	return true;
-    }
-
-    return false;
-}
 
 function updateStockWeight(query) {
 	return SecurityPerformanceModel.fetchSecurityPerformance(query, {fields: 'weight'})
@@ -133,102 +24,6 @@ function updateStockWeight(query) {
 		}
 	})
 }
-
-function getStockPriceHistory(security, startDate, endDate) {
-	var query = {'security.ticker': security.ticker,
-					'security.exchange': security.exchange,
-					'security.securityType': security.securityType,
-					'security.country': security.country};
-
-	return SecurityPerformanceModel.fetchPriceHistory(query)
-	.then(securityPerformance => {
-		var update = securityPerformance ? _checkIfStockPriceHistoryUpdateRequired(securityPerformance.priceHistory) : true;
-		if(update) {
-			return SecurityHelper.computeStockPriceHistory(security).then(ph => {return SecurityPerformanceModel.updatePriceHistory(query, ph);});
-		} else {
-			return securityPerformance;
-		}
-	})
-	.then(securityPerformance => {
-		var ph = securityPerformance.priceHistory.values;
-		if (startDate) {
-			var idx = ph.map(item => item.date).findIndex(item => {return new Date(item).getTime() >= new Date(startDate).getTime();});
-			ph = idx != -1 ? ph.slice(idx, ph.length) : ph;
-		}
-
-		if (endDate) {
-			var idx = ph.map(item => item.date).findIndex(item => {return new Date(item).getTime() >= new Date(endDate).getTime()});
-
-			idx =  new Date(ph[idx].date).getTime() == new Date(endDate).getTime() ? idx : idx > 0 ? idx - 1 : idx;
-			ph = idx != -1 ? ph.slice(0, idx+1) : ph;
-		}
-
-		return {security: securityPerformance.security, priceHistory: ph};
-	});
-};
-
-function getStockRollingPerformance(security) {
-
-	var query = {'security.ticker': security.ticker,
-					'security.exchange': security.exchange,
-					'security.securityType': security.securityType,
-					'security.country': security.country
-				};
-
-	return SecurityPerformanceModel.fetchRollingPerformance(query)
-	.then(securityPerformance => {
-		var update = securityPerformance ? _checkIfStockRollingPerformanceUpdateRequired(securityPerformance.rollingPerformance) : true;
-		if(update) {
-			return SecurityHelper.computeStockRollingPerformanceDetail(security).then(rp => {return SecurityPerformanceModel.updateRollingPerformance(query, rp);});;
-		} else {
-			return securityPerformance;
-		}
-	})
-}
-
-function getStockStaticPerformance(security) {
-
-	var query = {'security.ticker': security.ticker,
-					'security.exchange': security.exchange,
-					'security.securityType': security.securityType,
-					'security.country': security.country};
-
-	return SecurityPerformanceModel.fetchStaticPerformance(query)
-	.then(securityPerformance => {
-		var update = securityPerformance ? _checkIfStockStaticPerformanceUpdateRequired(securityPerformance.staticPerformance) : true;
-		if(update) {
-			return SecurityHelper.computeStockStaticPerformanceDetail(security).then(sp => {return SecurityPerformanceModel.updateStaticPerformance(query, sp);});
-		} else {
-			return securityPerformance;
-		}
-	});
-};
-
-function getStockLatestDetail(security, type) {
-	var query = {'security.ticker': security.ticker,
-					'security.exchange': security.exchange,
-					'security.securityType': security.securityType,
-					'security.country': security.country};
-
-	return new Promise(resolve => {
-		if (type == "EOD") {
-			resolve(SecurityPerformanceModel.fetchLatestDetail(query));
-		} else {
-			resolve(null);
-		} 
-	})
-	.then(securityPerformance => {
-		var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
-		if(update) {
-			return SecurityHelper.computeStockLatestDetail(security, type)
-			.then(latestDetail => {
-				return type=="EOD" ? SecurityPerformanceModel.updateLatestDetail(query, latestDetail) : Object.assign(security, latestDetail);
-			});
-		} else {
-			return securityPerformance;
-		}
-	});
-};
 
 module.exports.getStockDetail = function(args, res, next) {
 
@@ -269,15 +64,15 @@ module.exports.getStockDetail = function(args, res, next) {
 	})
 	.then(securityPerformance => {
 		if(field == "priceHistory") {
-			return getStockPriceHistory(security, startDate, endDate);
+			return SecurityHelper.getStockPriceHistory(security, startDate, endDate);
 		} else if (field == "staticPerformance") {
-			return getStockStaticPerformance(security);
+			return SecurityHelper.getStockStaticPerformance(security);
 		} else if (field == "rollingPerformance") {
-			return getStockRollingPerformance(security);
+			return SecurityHelper.getStockRollingPerformance(security);
 		} else if (field == "latestDetail") {
-			return getStockLatestDetail(security, "EOD");
+			return SecurityHelper.getStockLatestDetail(security, "EOD");
 		} else if (field == "latestDetailRT") {
-			return getStockLatestDetail(security, "RT");
+			return SecurityHelper.getStockLatestDetail(security, "RT");
 		}
 	})
 	.then(output => {
