@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-20 11:08:56
+* @Last Modified time: 2018-04-20 13:40:48
 */
 
 'use strict';
@@ -70,10 +70,15 @@ module.exports.getStockDetail = function(args, res, next) {
 		} else if (field == "rollingPerformance") {
 			return SecurityHelper.getStockRollingPerformance(security);
 		} else if (field == "latestDetail") {
-			return SecurityHelper.getStockLatestDetail(security, "EOD");
-		} else if (field == "latestDetailRT") {
-			return SecurityHelper.getStockLatestDetail(security, "RT");
-		}
+			return Promise.all([
+				SecurityHelper.getStockLatestDetail(security, "EOD"),
+				SecurityHelper.getStockLatestDetail(security, "RT")
+			])
+			.then(([detailEOD, detailRT]) => {
+				var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
+				return Object.assign(detailEOD.toObject(), {latestDetailRT: rtLatestDetail});
+			})
+		} 
 	})
 	.then(output => {
 		return res.status(200).send(output);
