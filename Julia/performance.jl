@@ -289,9 +289,14 @@ function get_stock_price_history(security_dict::Dict{String,Any})
             start_date = DateTime("2001-01-01")
             end_date = currentIndiaTime()
 
-            stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
-            if stock_prices == nothing
-                stock_prices = history_nostrict([security.symbol.ticker], "Close", :Day, start_date, end_date)
+            stock_price = nothing
+            
+            try
+                stock_prices = YRead.history([security.symbol.id], "Close", :Day, start_date, end_date, displaylogs=false)
+            catch err
+                println("Error in fetching adjusted prices fot $(security.symbol.ticker)")
+                println("Fetching un-adjusted prices for $(security.symbol.ticker)")
+                stock_prices = history_nostrict([security.symbol.id], "Close", :Day, start_date, end_date)
             end
 
             benchmark_prices = history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date)
