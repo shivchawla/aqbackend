@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-22 20:54:17
+* @Last Modified time: 2018-04-23 21:43:02
 */
 
 'use strict';
@@ -366,6 +366,9 @@ function _extractMetrics(allMetrics) {
 	};
 }
 
+
+//Change dailyChange and dailyChangePct
+//Alos, include DailyPnl and PnlPct
 function _extractPerformanceSummary(performance) {
 	let performanceSummary;
 	if (performance) {
@@ -374,16 +377,16 @@ function _extractPerformanceSummary(performance) {
 
 		var netValueArray = summary && summary.portfolioValues && summary.portfolioValues.length > 0 ? summary.portfolioValues.slice(-2) : null;
 
-		var dailyChange = 0.0;
-		var dailyChangePct = 0.0;
+		var dailyNAVChangeEOD = 0.0;
+		var dailyNAVChangeEODPct = 0.0;
 		if(netValueArray && netValueArray.length > 1){
 			var prices = netValueArray.map(item => item.netValue);
-			dailyChange = (prices[1] - prices[0]);
-			dailyChangePct = prices[0] > 0.0 ? dailyChange/prices[0] : 0.0;
+			dailyNAVChangeEOD = (prices[1] - prices[0]);
+			dailyNAVChangeEODPct = prices[0] > 0.0 ? dailyNAVChangeEOD/prices[0] : 0.0;
 		}
 
-		dailyChange = parseFloat(dailyChange.toPrecision(2));
-		dailyChangePct = parseFloat(dailyChangePct.toPrecision(4));
+		dailyNAVChangeEOD = parseFloat(dailyNAVChangeEOD.toPrecision(2));
+		dailyNAVChangeEODPct = parseFloat(dailyNAVChangeEODPct.toPrecision(4));
 
 		var latestPortfolioValue = netValueArray && netValueArray.length > 0 ? netValueArray[netValueArray.length - 1] : null
 		var trueMetrics = summary && summary.metrics && summary.metrics.portfolioPerformance && summary.metrics.portfolioPerformance.true ? summary.metrics.portfolioPerformance.true : null; 
@@ -391,9 +394,9 @@ function _extractPerformanceSummary(performance) {
 
 		performanceSummary = Object.assign({diff: _extractMetrics(diffMetrics)}, 
 			Object.assign({date: summary.updateDate,	
-				dailyChange: dailyChange,
-				dailyChangePct: dailyChangePct,
-				netValue: latestPortfolioValue ? latestPortfolioValue.netValue : null,
+				dailyNAVChangeEOD: dailyNAVChangeEOD,
+				dailyNAVChangeEODPct: dailyNAVChangeEODPct,
+				netValueEOD: latestPortfolioValue ? latestPortfolioValue.netValue : null,
 				netValueDate: latestPortfolioValue ? latestPortfolioValue.date : null,
 				concentration: summary && summary.metrics && summary.metrics.portfolioMetrics ? summary.metrics.portfolioMetrics.concentration : 1.0,
 				weights: summary && summary.metrics && summary.metrics.portfolioMetrics ? summary.metrics.portfolioMetrics.composition.map(item => item.weight) : []

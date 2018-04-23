@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-23 13:28:49
+* @Last Modified time: 2018-04-23 23:21:05
 */
 
 'use strict';
@@ -624,8 +624,8 @@ function __getLatestPortfolioData(portfolioId) {
 	.then(([rtEnhanced, edEnhanced]) => {
 		var oldNav = edEnhanced.summary.netValue;
 		var nav = rtEnhanced.summary.netValue;
-		var oldPnl = edEnhanced.summary.pnl;
-		var pnl = rtEnhanced.summary.pnl;
+		var oldPnl = edEnhanced.summary.totalPnl;
+		var pnl = rtEnhanced.summary.totalPnl;
 		
 		rtEnhanced.summary = Object.assign(rtEnhanced.summary, _computeNavAndPnLChanges(oldNav, nav, oldPnl, pnl));
 		
@@ -635,8 +635,8 @@ function __getLatestPortfolioData(portfolioId) {
 				
 				var oldNav = edEnhanced.adviceSummary[idx].personal.netValue;
 				var nav = item.personal.netValue;
-				var oldPnl = edEnhanced.adviceSummary[idx].personal.pnl;
-				var pnl = item.personal.pnl;
+				var oldPnl = edEnhanced.adviceSummary[idx].personal.totalPnl;
+				var pnl = item.personal.totalPnl;
 
 				item = Object.assign(item, _computeNavAndPnLChanges(oldNav, nav, oldPnl, pnl));
 				return item; 

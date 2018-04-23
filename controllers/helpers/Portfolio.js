@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-22 21:34:40
+* @Last Modified time: 2018-04-23 20:11:22
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -55,7 +55,7 @@ function _hasAdviceChanged(myPositions, adviceId) {
 
 function _computePnlStats(portfolioDetail, isAdvice) {
 	var totalPnl = 0.0;
-	var pnlPct = 0.0;
+	var totalPnlPct = 0.0;
 	var cost = 0.0;
 	var netValue = 0.0;
 	var cash = portfolioDetail.cash;
@@ -65,9 +65,9 @@ function _computePnlStats(portfolioDetail, isAdvice) {
 		netValue += item.quantity * item.lastPrice + (isAdvice ? 0.0 : portfolioDetail.cash);
 	});
 
-	pnlPct = cost > 0.0 ? totalPnl/cost : 0.0;
+	totalPnlPct = cost > 0.0 ? totalPnl/cost : 0.0;
 
-	return {pnl: totalPnl, pnlPct: pnlPct, cost: cost, netValue: netValue, cash: cash};
+	return {totalPnl: totalPnl, totalPnlPct: totalPnlPct, cost: cost, netValue: netValue, cash: cash};
 }
 
 function _getUniqueAdvices(portfolio) {
