@@ -121,8 +121,9 @@ wsh = WebSocketHandler() do req, ws_client
             
             portfolioHistory = parsemsg["portfolioHistory"]
             benchmark = parsemsg["benchmark"]["ticker"]
+            cashAdjustment = parsemsg["cashAdjustment"]
 
-            (netValues, dates) = compute_portfoliohistory_netvalue(portfolioHistory)
+            (netValues, dates) = compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment)
 
             if netValues != nothing && dates != nothing
                 vals = zeros(length(netValues), 1)
@@ -194,8 +195,9 @@ wsh = WebSocketHandler() do req, ws_client
           startDate = DateTime(parsemsg["startDate"], jsdateformat)
           endDate = DateTime(parsemsg["endDate"], jsdateformat)
           benchmark = get(parsemsg, "benchmark", Dict("ticker"=>"NIFTY_50"))
+          excludeCash = get(parsemsg, "excludeCash", false)
 
-          (date, metrics) = JSON.parse(JSON.json(compute_portfolio_metrics(parsemsg["portfolio"], startDate, endDate, benchmark)))
+          (date, metrics) = JSON.parse(JSON.json(compute_portfolio_metrics(parsemsg["portfolio"], startDate, endDate, benchmark; excludeCash = excludeCash)))
           
           parsemsg["portfolioMetrics"] = Dict("date" => date, "value" => metrics)
         
@@ -336,8 +338,9 @@ wsh = WebSocketHandler() do req, ws_client
 
         elseif action == "update_realtime_prices"
             fname = parsemsg["filename"]
-            parsemsg["success"] = update_realtime_prices(fname)
-
+            ftype = parsemsg["type"]
+            parsemsg["success"] = update_realtime_prices(fname, ftype)
+           
         elseif action == "compare_security"
             oldSecurity = convert(Raftaar.Security, parsemsg["oldSecurity"])
             newSecurity = convert(Raftaar.Security, parsemsg["newSecurity"])

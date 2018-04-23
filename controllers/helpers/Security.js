@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-20 12:32:10
+* @Last Modified time: 2018-04-23 13:09:31
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -511,7 +511,7 @@ module.exports.updateStockList = function() {
 	})
 };
 
-module.exports.updateRealtimePrices = function(fname) {
+module.exports.updateRealtimePrices = function(fname, type) {
 	return new Promise((resolve, reject) => {
 
 		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
@@ -521,7 +521,8 @@ module.exports.updateRealtimePrices = function(fname) {
             console.log('Connection Open');
             console.log(connection);
             var msg = JSON.stringify({action:"update_realtime_prices", 
-            					filename: fname});
+            					filename: fname,
+            					type: type});
 
          	wsClient.send(msg);
         });

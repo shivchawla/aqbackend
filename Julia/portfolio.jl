@@ -9,355 +9,16 @@ using TimeSeries
 using StatsBase
 using ZipFile
 
-const _realtimePrices = Dict{String, TradeBar}()
-const _lastDayPrices = Dict{String, TradeBar}()
-const _codeToTicker = readSecurityFile("/Users/shivkumarchawla/Desktop/Securities.dat")
+include("convert.jl")
+include("validate.jl")
+include("adjustments.jl")
+include("rtprices.jl")
 
 function filternan(ta::TimeArray, col = "")
     (nrows, ncols) = size(ta)
     lastname = col == "" ? colnames(ta)[ncols] : col
     ta[.!isnan.(ta[lastname].values)]
 end    
-
-
-function convert(::Type{Dict{String,Any}}, security::Security)                  
-    try
-
-        s = Dict{String, Any}()
-        s["ticker"] = security.symbol.ticker
-        s["exchange"] = security.exchange
-        s["country"] = security.country
-        s["securityType"] = security.securitytype
-        s["name"] = security.name
-        s["detail"] = security.detail != nothing ? security.detail : Dict{String, Any}()
-
-        return s
-    catch err
-        rethrow(err)
-    end
-end
-
-function convert(::Type{Security}, security::Dict{String, Any})                
-    
-    try
-        ticker = uppercase(get(security, "ticker",""))
-        securitytype = uppercase(get(security, "securitytype", "EQ"))
-        exchange = uppercase(get(security, "exchange", "NSE"))
-        country = uppercase(get(security, "country", "IN"))
-        
-        # Fetch security from the database 
-        security = YRead.getsecurity(ticker, securitytype = securitytype, exchange = exchange, country = country)
-                
-    catch err
-        rethrow(err)
-    end
-end
-
-function convert(::Type{OrderFill}, transaction::Dict{String, Any})
- 
-    try
-        security = convert(Raftaar.Security, transaction["security"])
-
-        if security == Security() && transaction["security"]["ticker"] != "CASH_INR"
-            error("Invalid transaction (Invalid Security: $(transaction["security"]["ticker"]))")
-        end
-
-        qty = convert(Int64, get(transaction, "quantity", 0))
-        price = convert(Float64, get(transaction, "price", 0.0)) 
-        fee = convert(Float64, get(transaction, "commission", 0.0))
-
-        cashlinked = get(transaction, "cashLinked", false)
-        
-        return OrderFill(security.symbol, price, qty, fee, cashlinked)
-    
-    catch err
-        rethrow(err)
-    end
-end
-
-function convert(::Type{Portfolio}, port::Dict{String, Any})
-
-    try
-        portfolio = nothing
-
-        if haskey(port, "positions")
-            portfolio = Portfolio()
-
-            positions = port["positions"]
-            for pos in positions
-                if haskey(pos, "security")
-                    
-                    security = convert(Raftaar.Security, pos["security"])
-                    
-                    if security == Security()
-                        if pos["security"]["ticker"] == "CASH_INR" 
-                            portfolio.cash += convert(Float64, get(pos, "quantity", 0.0))
-                            continue
-                        else
-                            error("Invalid portfolio composition (Invalid Security: $(pos["security"]["ticker"]))")
-                        end
-                    end
-
-                    qty = get(pos, "quantity", 0)
-                    
-                    #MODIFY the logic to fetch the close price for the date if
-                    #price is 0.0 
-                    price = convert(Float64, get(pos, "avgPrice", 0.0))
-                    lastprice = convert(Float64, get(pos, "lastPrice", 0.0))                    
-
-                    #Link the position to an advice (Used in marketplace Sub-Portfolio)
-                    advice = get(pos, "advice", "")
-
-                    #Added check if advice is populated (from node)
-                    if typeof(advice) == Dict{String,Any}
-                        advice = get(advice, "_id", "")    
-                    end
-
-                    advice = advice == nothing ? "" : advice
-                    dividendcash = get(pos, "dividendCash", 0.0)
-
-                    pos = Position(security.symbol, qty, price, advice, dividendcash)
-
-                    pos.lastprice = lastprice
-                    # Append to position dictionary
-                    portfolio.positions[security.symbol] = pos
-                       
-                end
-            end
-        else
-            error("Positions key is missing")
-        end
-
-        if haskey(port, "cash")
-            cash = convert(Float64, port["cash"])
-            portfolio.cash += cash
-        end
-
-        return portfolio        
-
-    catch err
-        rethrow(err)
-    end
-end
-
-###
-# Internal Function
-# Validate advice (portfolio and notional limits)
-###
-function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, Any}, strictNetValue)
-    
-    jsFormat = "yyyy-mm-ddTHH:MM:SS.sssZ"
-    # Validate 3 components of portfolio
-    #a. positions
-    #b. start and end dates
-    #c. benchmark
-    try
-
-        portfolio = get(advice, "portfolio", Dict{String, Any}())
-        oldPortfolio = get(lastAdvice, "portfolio", Dict{String, Any}())
-        
-        if portfolio == Dict{String, Any}()
-            error("Advice doesn't contain portfolio")
-        end
-
-        #If portfolio has benchmark
-        if haskey(portfolio, "benchmark") 
-            benchmark = convert(Raftaar.Security, portfolio["benchmark"])
-             
-            if haskey(oldPortfolio, "benchmark")
-                benchmark_old = convert(Raftaar.Security, oldPortfolio["benchmark"])
-                if benchmark != benchmark_old
-                    error("Benchmark change is not valid for active advice")
-                end
-            end
-
-            if benchmark == Security()
-                error("Invalid Benchmark Security")
-            end
-        else
-            error("Advice doesn't contain benchmark Security")
-        end
-
-        portfolioDetail = get(portfolio, "detail", Dict{String, Any}())
-        oldPortfolioDetail = get(oldPortfolio, "detail", Dict{String, Any}())
-       
-        startDate = haskey(portfolioDetail, "startDate") ? Date(DateTime(portfolioDetail["startDate"])) : Date()
-        if startDate <= Date(currentIndiaTime())
-            error("Startdate of new advice: $(startDate) can't be today or before today")
-        end
-
-        #this date comes from js object and is in jsformat - 12/04/2018
-        oldStartDate = haskey(oldPortfolioDetail, "startDate") ? Date(DateTime(oldPortfolioDetail["startDate"], jsFormat)) : Date()
-        if (startDate <= oldStartDate) 
-            error("Startdate of new advice: $(startDate) can't be same or before Startdate of current Advice: $(oldStartDate)")
-        end
-        
-        #Validating positions and benchmark
-        (valid_port, port) = _validate_portfolio(portfolio, checkbenchmark = false)
-
-        if !valid_port
-            return valid_port
-        end
-
-        #ADD CHECK FOR ZERO PRICES (OR PRICES DIFFERENT FROM CLOSE ON THE DATE)
-
-        portval = _compute_latest_portfoliovalue(port)
-
-        maxnotional = get(advice, "maxNotional", 1000000.0)
-
-        if portval == nothing
-            error("Can't compute portfolio prices | missing prices")
-        elseif portval > 1.05 * maxnotional && strictNetValue #Allow 5% 
-            error("Portfolio value exceeds inital:$(maxnotional) + 5% bound")
-        else
-            return true
-        end
-    catch err
-        rethrow(err)
-    end
-end 
-
-#NOT IN USE
-function _validate_adviceportfolio(advicePortfolio::Dict{String, Any}, lastAdvicePortfolio::Dict{String, Any})
-    
-    try
-        format = "yyyy-mm-ddTHH:MM:SS.sssZ"
-        
-        startDate = haskey(advicePortfolio, "startDate") ? DateTime(advicePortfolio["startDate"], format) : DateTime()
-        endDate = haskey(advicePortfolio, "endDate") ? DateTime(advicePortfolio["endDate"], format) : DateTime()
-
-        lastStartDate = haskey(lastAdvicePortfolio, "startDate") ? DateTime(lastAdvicePortfolio["startDate"], format) : DateTime()
-        lastEndDate = haskey(lastAdvicePortfolio, "endDate") ? DateTime(lastAdvicePortfolio["endDate"], format) : DateTime()
-
-        if startDate >= endDate || startDate == DateTime() || endDate == DateTime()
-            return false
-        end
-
-        if lastStartDate != DateTime() && lastEndDate != DateTime() && startDate <= lastEndDate 
-            return false
-        end
-
-        if haskey(advicePortfolio, "portfolio")
-            return _validate_portfolio(advicePortfolio["portfolio"]) 
-        end 
-        
-        return false  
-    catch err
-        rethrow(err)
-    end 
-end 
-
-###
-# Function to validate a security (against database data)
-###
-function _validate_security(security::Dict{String, Any})
-    
-    try
-        security_raftaar = convert(Raftaar.Security, security)
-        if security_raftaar == Security()
-            error("Invalid Security")
-        end
-
-        return (true, security_raftaar)
-    catch err
-        rethrow(err)
-    end
-end
-
-function _validate_transactions(transactions::Vector{Dict{String,Any}}, advicePort::Dict{String, Any}, investorPort::Dict{String, Any})
-    try
-        if advicePort != Dict{String,Any}()
-            effInvPortfolio = Portfolio()
-            
-            #Update investor portfolio with advice transactions
-            #get effective investor portfolio
-            if investorPort != Dict{String, Any}()
-                effInvPortfolio = updateportfolio_transactions(investorPort, transactions)
-            else
-                effInvPortfolio = updateportfolio_transactions(Dict("positions" => []), transactions);
-            end
-
-            #=transactions_raftaar = Raftaar.OrderFill[];
-
-            for (i, transaction) in enumerate(transactions)
-                try
-                    push!(transactions_raftaar, convert(Raftaar.OrderFill, transaction))
-                    #Can add a check by comparing the price...but not important 
-                catch err
-                    rethrow(err)
-                end
-            end=#
-            
-            advPortfolio = convert(Raftaar.Portfolio, advicePort)
-            multiple = Int64[]
-
-            if length(keys(advPortfolio.positions)) != length(keys(effInvPortfolio.positions))
-                return false
-            end
-            
-            for sym in keys(advPortfolio.positions)
-                
-                #sym = txn.securitysymbol
-                posAdvice = get(advPortfolio.positions, sym, nothing)
-                posInvestor = get(effInvPortfolio.positions, sym, nothing)
-
-                if(posAdvice == nothing || posInvestor == nothing)
-                    error("Transaction in Invalid Position: $(sym.ticker)")
-                end
-                remainder = posInvestor.quantity % posAdvice.quantity
-                
-                if(abs(remainder) > 0)
-                    error("Invalid quantity in $(sym.ticker)")
-                end
-
-                push!(multiple, round(posInvestor.quantity / posAdvice.quantity))
-
-            end
-
-            #check if all are equal
-            return all(y->y==multiple[1], multiple)
-
-        else
-            return true
-        end
-
-    catch err
-        rethrow(err)
-    end
-end
-
-###
-# Internal Function
-# Validate portfolio for positions (and internal stocks)
-###
-function _validate_portfolio(port::Dict{String, Any}; checkbenchmark = true)   
-    try 
-        portfolio = nothing
-        if haskey(port, "detail")
-            portfolio = convert(Raftaar.Portfolio, port["detail"])
-        else
-            error("Empty portfolio")
-        end 
-        
-        benchmark = get(port, "benchmark", nothing)
-
-        if checkbenchmark
-            if benchmark == nothing
-                error("Benchmark is not present")
-            end
-
-            benchmark = convert(Raftaar.Security, port["benchmark"])
-            
-            if benchmark == Security()
-                error("Invalid benchmark security")
-            end
-        end
-        
-        return (true, portfolio)
-    catch err
-        rethrow(err)
-    end
-end
 
 ###
 # Internal Function
@@ -403,7 +64,7 @@ end
 # Compute portfolio value over a period
 # OUTPUT: portfolio value vector
 ###
-function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime, typ::String="Adj")
+function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime, typ::String="Adj"; excludeCash::Bool = false)
     try
         # Get the list of ticker
         secids = [sym.id for sym in keys(portfolio.positions)]    
@@ -421,6 +82,7 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
         #Using benchmark prices to filter out days when benchmark is not available
         #Remove benchmark prices where it's NaN
         #This is imortant becuse Qaundl/XNSE has data for holidays as well
+        #******BUT SOMETIMES, this can be FLAWED as NSE dataset can have missing dates
         benchmark_prices = history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date)
         merged_prices = nothing
 
@@ -457,7 +119,7 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
                 equity_value += pos.quantity * _last_valid_close
             end
 
-            portfolio_value[i, 1] = equity_value + portfolio.cash
+            portfolio_value[i, 1] = equity_value + (excludeCash ? 0.0 : portfolio.cash)
         end
 
         return TimeArray(ts, portfolio_value, ["Portfolio"])
@@ -486,15 +148,19 @@ end
 # Internal Function
 # Function to compute portfolio composition on a specific date
 ###
-function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, edate::DateTime)
+function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, edate::DateTime; excludeCash::Bool=false)
     try
         
+        defaultOutput = excludeCash ? 
+            (Date(currentIndiaTime()), Dict("composition" => [], "concentration" => 0.0)) :
+            (Date(currentIndiaTime()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
+
         portfolio = convert(Raftaar.Portfolio, port)
 
-        portfolio_values = dropnan(_compute_portfoliovalue(portfolio, sdate, edate), :any)
+        portfolio_values = dropnan(_compute_portfoliovalue(portfolio, sdate, edate, excludeCash=excludeCash), :any)
 
         if portfolio_values == nothing || length(portfolio_values) == 0 
-            return ([Dict("weight" => 1.0, "ticker" => "CASH_INR")], 0.0)
+            return defaultOutput
         end
 
         portfolio_value = values(portfolio_values)[end]
@@ -510,7 +176,7 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, ed
 
         if prices == nothing
             println("Price data not available")
-            return (DateTime(), [Dict("weight" => 1.0, "ticker" => "CASH_INR")], 0.0)
+            return defaultOutput
         end
         
         equity_value_wt = Vector{Float64}(length(allkeys))
@@ -525,9 +191,9 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, ed
             equity_value_wt[i] = portfolio_value > 0.0 ? equity_value/portfolio_value : 0.0;
         end
 
-        cash_wt = portfolio_value > 0.0 ? portfolio.cash/portfolio_value : 0.0
+        cash_wt = !excludeCash ? portfolio_value > 0.0 ? portfolio.cash/portfolio_value : 0.0 : 0.0
 
-        composition = [Dict("weight" => cash_wt, "ticker" => "CASH_INR")]
+        composition = !excludeCash ? [Dict("weight" => cash_wt, "ticker" => "CASH_INR")] : []
         append!(composition, [Dict("weight" => equity_value_wt[i], "ticker" => tickers[i]) for i in 1:length(allkeys)])
         
         concentration =  sqrt(sum(equity_value_wt.^2))
@@ -538,316 +204,132 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, ed
     end
 end
 
-function _updateportfolio_EODprice(port::Portfolio, date::DateTime)
+
+function _cashRequirement(oldPortfolio::Portfolio, newPortfolio::Portfolio, date::DateTime)
+
+    newTickers = [sym.ticker for (sym, newPos) in newPortfolio.positions]
+    oldTickers = [sym.ticker for (sym, oldPos) in oldPortfolio.positions]
+    allTickers = unique(append!(newTickers, oldTickers))
     
-    updatedDate = currentIndiaTime()
-    alltickers = [sym.ticker for (sym, pos) in port.positions]
-    #Check if portoflio has any non-zero number of stock positions
-    if length(alltickers) > 0
-        start_date = DateTime(Date(date) - Dates.Week(52))
-        end_date = date
-
-        #fetch stock data and drop where all values are NaN
-        stock_value_52w = dropnan(YRead.history_unadj(alltickers, "Close", :Day, start_date, end_date, displaylogs=false), :all)
-        benchmark_value_52w =  history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date) 
-
-        #Check if stock values are valid 
-        if stock_value_52w != nothing && benchmark_value_52w != nothing
-            #merge LEFT (that is if data is present in stock_values_52w)
-            merged_prices = filternan(to(merge(stock_value_52w, benchmark_value_52w, :left), benchmark_value_52w.timestamp[end]))
-            
-            latest_values = merged_prices[end]
-            latest_dt = DateTime(latest_values.timestamp[end])
-
-            tradebars = Dict{SecuritySymbol, Vector{TradeBar}}()
-            for (sym, pos) in port.positions
-                tradebars[sym] = [Raftaar.TradeBar(latest_dt, 0.0, 0.0, 0.0, latest_values[sym.ticker].values[1])]
-            end
-
-            updatedDate = latest_dt
-            Raftaar.updateportfolio_price!(port, tradebars, latest_dt)
-        end
-    end
-
-    return (updatedDate, port)
-end
-
-function _updateportfolio_RTprice(port::Portfolio)
+    adjustments = YRead.getadjustments(allTickers, date, date)
+    #Fetch price from date to 10 days + date (incase date doesn't have any prices)
+    prices = TimeSeries.head(YRead.history_unadj(allTickers, "Close", :Day, date, date + Dates.Day(10)), 1)
     
-    updatedDate = currentIndiaTime()  
-    alltickers = [sym.ticker for (sym, pos) in port.positions]
-    #Check if portoflio has any non-zero number of stock positions
-    ctAvailableTradebars = 0
-    if length(alltickers) > 0
-        tradebars = Dict{SecuritySymbol, Vector{TradeBar}}()
-        for (sym, pos) in port.positions
-            latest_tradebar = get(_realtimePrices, sym.ticker, TradeBar())
-            
-            if latest_tradebar == TradeBar()
-                println("Using EOD price for $(sy.ticker)")
-                price = YRead.history([sym], "Close", :Day, 1, now())
-                if price != nothing
-                    val = values(price)[1]
-                    latest_tradebar = Raftaar.TradeBar(val, val, val, val, 0)
-                end
-            end
-            
-            tradebars[sym] = [latest_tradebar]
-        end
+    cashRequirement = 0.0
+    for ticker in allTickers
+        symbol = getsecurity(ticker).symbol
+        newQty = newPortfolio[symbol].quantity
+        oldQty = oldPortfolio[symbol].quantity
 
-        Raftaar.updateportfolio_price!(port, tradebars, DateTime())
-    end
-
-    return (updatedDate, port)
-end
-
-function _download_realtime_prices()
-    source_dir = Base.source_dir()
-    try
-        zip_data=source_dir*"/rtdata/zip_data"
-        token = "MX4zkypoSjUzp8CyotQg"
-        download("https://www.quandl.com/api/v3/databases/XNSE/data?auth_token=$(token)&download_type=partial", zip_data)
-
-        fname = ""
-        r = ZipFile.Reader(zip_data)
-        fdir=source_dir*"/rtdata/"
-
-        if length(r.files) > 0
-            f = r.files[1]
-            println("Extracting file")
-            fname = f.name
-            if !isfile(fdir*fname)
-                writedlm(fdir*fname, readdlm(f))
-            else
-                println("File already exists. Skipping extraction")
-            end
-        end
-
-        #Delete the downloaded file
-        println("Deleting the downloaded zip file")
-        rm(zip_data)
-
-        return fname
-    catch err
-        rethrow(err)
-    end  
-end
-
-# NOT IN USE
-function _read_realtime_prices(file::String)
-    try 
-        file_fullpath = Base.source_dir()*"/rtdata/$(file)"
-        if (file == "" || !isfile(file_fullpath)) 
-            println("Invalid RT file")
-            return 
-        end
-
-        dlm_data = readdlm(file_fullpath, ',', Any)
-        (nrows,ncols) = size(dlm_data)
-        if nrows > 0
-            for i = 1:nrows
-                # Convert ticker to string(in case ticker is a number)
-                ticker = String(dlm_data[i,1])
-                if length(ticker[search(ticker, "UADJ")]) != 0
-                    continue
-                end
-                security = YRead.getsecurity(ticker)
-                if security == Security()
-                    continue
-                end
-                open = dlm_data[i,3]
-                high = dlm_data[i,4]
-                low = dlm_data[i,5]
-                close = dlm_data[i,6]
-                volume = dlm_data[i,7]
-                tradebar = TradeBar(DateTime(), open, high, low, close, volume)
-                
-                #update the global variable
-                _realtimePrices[security.symbol] = tradebar 
-            end
-        end
-    catch err
-       rethrow(err)
-    end
-end
-
-function _get_dividends(date::DateTime)
-    (data, headers) = readcsv(Base.source_dir()*"/dividends.csv", header=true)
-
-    dividends = Dict{SecuritySymbol, Float64}()
-    for row in 1:size(data)[1]
-        ticker = data[row, find(headers.=="ticker")[1]]
-        security = getsecurity(String(ticker))
-        fv = convert(Float64, data[row, find(headers.=="fv")[1]])
-        pct = convert(Float64, data[row, find(headers.=="percentage")[1]])*0.01
-        fdate = Date(data[row, find(headers.=="date")[1]])
-
-        if Date(fdate) == Date(date)
-            dividends[security.symbol] = fv*pct
-        end
-
-    end
-
-    return dividends
-end
-
-function _get_splits(date::DateTime)
-    (data, headers) = readcsv(Base.source_dir()*"/splits.csv", header=true)
-
-    splits = Dict{SecuritySymbol, Float64}()
-    for row in 1:size(data)[1]
-        ticker = data[row, find(headers.=="ticker")[1]]
-        security = getsecurity(String(ticker))
-        ofv = convert(Float64, data[row, find(headers.=="ofv")[1]])
-        nfv = convert(Float64, data[row, find(headers.=="nfv")[1]])
-        fdate = Date(data[row, find(headers.=="date")[1]])
-
-        if Date(fdate) == Date(date)
-            splits[security.symbol] = ofv > 0.0 ? nfv/ofv : 1.0
-        end
-
-    end
-
-    return splits
-end
-
-function _get_bonus(date::DateTime)
-    (data, headers) = readcsv(Base.source_dir()*"/bonus.csv", header=true)
-
-    bonus = Dict{SecuritySymbol, Float64}()
-    for row in 1:size(data)[1]
-        ticker = data[row, find(headers.=="ticker")[1]]
-        security = getsecurity(String(ticker))
-        ratio = data[row, find(headers.=="ratio")[1]]
-        fdate = Date(data[row, find(headers.=="date")[1]])
-
-        n = parse(split(ratio,':')[1])
-        d = parse(split(ratio,':')[2])
-
-        if Date(fdate) == Date(date)
-            bonus[security.symbol] = d/(n+d)
-        end
-
-    end
-
-    return bonus
-end
-
-function _update_portfolio_dividends(port::Portfolio, date::DateTime = currentIndiaTime())
-    dividends = _get_dividends(date)
-    cashgen = 0.0
-    updated = false
-    for (sym,dividend) in dividends
-        pos = port[sym]
-        if pos.quantity > 0
-            updated = true
-            cashgen += pos.quantity * dividend
-            pos.lastprice = pos.lastprice > 0 ? pos.lastprice - dividend : 0.0
-        end
-    end
-
-    port.cash += cashgen
-
-    return (updated, port)
-end
-
-function _update_portfolio_splits(port::Portfolio, date::DateTime = currentIndiaTime())
-    splits = _get_splits(date)
-
-    updated = false
-    for (sym, splt) in splits
-        pos = port[sym]
-        if pos.quantity > 0
-            updated = true
-            pos.quantity = Int(round(pos.quantity * 1.0/splt, 0))
-            pos.lastprice = pos.lastprice * splt
-            pos.averageprice = pos.averageprice * splt
-        end
-    end
-
-    return (updated, port)
-end
-
-function _update_portfolio_bonus(port::Portfolio, date::DateTime = currentIndiaTime())
-    bonus = _get_bonus(date)
-
-    updated = false
-    for (sym, bns) in bonus
-        pos = port[sym]
-        if pos.quantity > 0
-            updated = true
-            pos.quantity = Int(round(pos.quantity * 1.0/bns, 0))
-            pos.lastprice = pos.lastprice * bns
-            pos.averageprice = pos.averageprice * bns
-        end
-    end
-
-    return (updated, port)
-end
-
-###
-# Function to download and update realtime prices (from 15 minutes delayed feed)
-function update_realtime_prices(fname::String)
-    try
-       
-        mktPrices = readMktFile(fname)
-        
-        @sync begin
-        
-            @async for (k,v) in mktPrices["RT"]
-                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
-
-                if ticker != ""        
-                    _realtimePrices[ticker] = v
-                end
-            end
-
-            @async for (k,v) in mktPrices["EOD"]
-                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
-
-                if ticker != ""        
-                    _lastDayPrices[ticker] = v
+        if haskey(adjustments, symbol.id)
+            adjustmentForDates = adjustments[symbol.id]
+            if haskey(adjustmentForDates, Date(date))
+                adjustment = adjustmentForDates[Date(date)]
+                adjType = adjustment[3]
+                adjFactor = adjustment[2]
+                if(adjType != 17.0)
+                    oldQty = Int(round(oldQty*1.0/adjFactor))
                 end
             end
         end
 
-        return true
-    catch err
-        rethrow(err)
-    end   
-end
+        cashRequirement += (newQty - oldQty) * values(prices[ticker])[end]
+
+    end
+
+    return cashRequirement  
+end    
 
 #=
 Compute portfolio value based on portfolio history for a given period
 OUTPUT: Vector of portfolio value
 =#
-function compute_portfoliohistory_netvalue(portfolioHistory)
+function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Bool=false)
     
     try
-        ts = Vector{TimeArray}()
+        ts = Vector{TimeArray}(length(portfolioHistory))
 
         format = "yyyy-mm-ddTHH:MM:SS.sssZ"
-      
-        for collection in portfolioHistory
+
+        latest_portfolio_value_ta = nothing 
+        portfolio_value_ta_adj = nothing
+        portfolio_value_ta = nothing
+
+        adj_factor = 1.0
+        cashFlow = 0.0 
+        
+        historyStartDate = length(portfolioHistory) > 0 ? DateTime(portfolioHistory[1]["startDate"], format) : DateTime() 
+        historyEndDate = length(portfolioHistory) > 0 ? DateTime(portfolioHistory[end]["endDate"], format) : DateTime() 
+
+        dividendFactor = 1.0
+
+        reversePortfolioHistory = reverse(portfolioHistory)
+        for (idx, collection) in enumerate(reversePortfolioHistory)
+
+            #This is the ongoing adjusted NAV of ""FORWARD portfolio""
+            latest_portfolio_value_ta_adj = portfolio_value_ta_adj  #NA
+
+            #This is the true NAV of """FORWARD portfolio""" 
+            latest_portfolio_value_ta = portfolio_value_ta   #ND
 
             port = collection["portfolio"]
 
             portfolio = convert(Raftaar.Portfolio, port)
 
-            startDate = DateTime(collection["startDate"], format)
-            endDate = DateTime(collection["endDate"], format)
+            startdate = DateTime(collection["startDate"], format)
+            enddate = DateTime(collection["endDate"], format)
 
+            #To compute backward adjusted NAV, let start in reverse
+            portfolio_value_ta = _compute_portfoliovalue(portfolio, startdate, enddate, "UnAdj") #, excludeCash=cashAdjustment)
+            
+            dividendFactor*= (cashAdjustment && idx > 1 ? (values(portfolio_value_ta)[end] - portfolio.cash)/values(portfolio_value_ta)[end] : 1.0)
             # Compute portfolio value timed array
             # Output is TA 
-            if endDate < startDate
+            if enddate < startdate
                 error("Start date in portfolio greater then End date. Can't compute portoflio value")    
             end
 
-            portfolio_value_ta = _compute_portfoliovalue(portfolio, startDate, endDate, "UnAdj")
+            #Logic to compute cash inflow (used primarily for advice)
+            #Compute the portflio value of last portfolio at start date of next portfolio (ORGANIC GROWTH)
+            #Compute the portfolio value of current portfolio at start date (CURRENT NAV)
+            #CASH INFLOW = CURRENT NAV - ORGANIC GROWTH
+            #Add the cash_inflow to last portfolio value... Adjusted Nav
+            #Adjusted factor = Adjusted NAV/True Old Nav
+            #Multiply the 
+            if idx > 1 && length(collection) >= idx && cashAdjustment
 
-            if portfolio_value_ta != nothing 
-                push!(ts, portfolio_value_ta)
+                #NEXT because it is reversed in time
+                next_collection = reversePortfolioHistory[idx-1]
+                next_portfolio = convert(Raftaar.Portfolio, next_collection["portfolio"])
+                next_startdate = DateTime(next_collection["startDate"], format)
+                next_enddate = DateTime(next_collection["endDate"], format)
+                
+                #fidn the true start date
+                cashRequirement = _cashRequirement(portfolio, next_portfolio, next_startdate)
+
+                #Historical portfolio's True NAV (this has no role in adjustment)
+                #This is the ONE that is adjusted
+                portfolio_NAV_today = values(portfolio_value_ta)[end]   #
+                
+                #Latest Portfolio's Adjusted NAV (TRUE in case of last portfolio in history)
+                latest_portfolio_NAV_tomorrow_adj = values(latest_portfolio_value_ta_adj)[1]
+
+                #Latest Portfolio's TRUE NAV
+                latest_portfolio_NAV_tomorrow_unadj = values(latest_portfolio_value_ta)[1]
+                
+                adj_factor = latest_portfolio_NAV_tomorrow_adj/(latest_portfolio_NAV_tomorrow_unadj - cashRequirement)
+                
+                portfolio_value_ta_adj = portfolio_value_ta.*adj_factor
+
+            else 
+                portfolio_value_ta_adj = portfolio_value_ta
             end
+
+            if portfolio_value_ta_adj != nothing 
+               portfolio_value_ta_adj = round.(portfolio_value_ta_adj.*dividendFactor, 2) 
+               ts[length(portfolioHistory)-idx+1] = portfolio_value_ta_adj
+           end
+
         end
 
         if length(ts) == 0
@@ -1026,13 +508,12 @@ function updateportfolio_splitsAndDividends(portfolio::Dict{String,Any}, startda
     end
 
     return output
-
 end    
 
 ###
 # Function to compute portfolio WEIGHT composition for the LAST available day (in a period)
 ###
-function compute_portfolio_metrics(port::Dict{String, Any}, start_date::DateTime, end_date::DateTime, benchmark::Dict{String,Any} = Dict("ticker"=>"NIFTY_50"))
+function compute_portfolio_metrics(port::Dict{String, Any}, start_date::DateTime, end_date::DateTime, benchmark::Dict{String,Any} = Dict("ticker"=>"NIFTY_50"); excludeCash::Bool = false)
     composition = nothing
     
     benchmark_ticker = "NIFTY_50"
@@ -1054,46 +535,26 @@ function compute_portfolio_metrics(port::Dict{String, Any}, start_date::DateTime
     sdate = DateTime(min(Date(start_date), Date(end_date) - Dates.Week(52)))
     prices_benchmark = history_nostrict([benchmark_ticker], "Close", :Day, sdate, edate)
 
+    defaultOutput = excludeCash ? 
+            (Date(currentIndiaTime()), Dict("composition" => [], "concentration" => 0.0)) :
+            (Date(currentIndiaTime()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
+
     if prices_benchmark == nothing
         #Return the default output
-        return (Date(currentIndiaTime()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
+        return defaultOutput
 
     elseif prices_benchmark.timestamp[end] < Date(start_date)
-        return (Date(currentIndiaTime()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
+        return defaultOutput
 
     elseif length(prices_benchmark.timestamp) > 0 
-        #date = prices_benchmark.timestamp[end]
-        (date, composition, concentration) = _compute_portfolio_metrics(port, sdate, edate)
+
+        (date, composition, concentration) = _compute_portfolio_metrics(port, sdate, edate, excludeCash = excludeCash)
 
         return (date, Dict("composition" => composition != nothing ? composition : "", "concentration" => concentration))
     else 
         println("Empty data: Portfolio Composition can't be calculated")
         #Return the default output
-        return (Date(currentIndiaTime()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
-    end
-end
-
-function convert_to_node_portfolio(port::Portfolio)
-    try
-        output = Dict{String, Any}("positions" => [], "cash" => port.cash)
-
-        for (sym, pos) in port.positions
-            n_pos = Dict{String, Any}()
-            
-            n_pos["security"] = convert(Dict{String,Any}, getsecurity(pos.securitysymbol.id))
-            n_pos["quantity"] = pos.quantity
-            n_pos["avgPrice"] = pos.averageprice
-            n_pos["unrealizedPnL"] = pos.lasttradepnl
-            n_pos["lastPrice"] = pos.lastprice
-            n_pos["advice"] = pos.advice == "" ? nothing : pos.advice
-            n_pos["dividendCash"] = pos.dividendcash
-
-            push!(output["positions"], n_pos) 
-        end
-
-        return output
-    catch err
-        rethrow(err)
+        return defaultOutput
     end
 end
 
@@ -1138,7 +599,6 @@ function compute_fractional_ranking(vals::Dict{String, Float64}, scale::Float64)
         rethrow(err)
     end
 end
-
 
 ###
 # Fucntion to search security in securites database

@@ -389,12 +389,12 @@ end
 # Function to fetch PRICE HISTORY (without strict priority policy)
 ###
 function history_nostrict(tickers, dtype::String, res::Symbol, sd::DateTime, ed::DateTime)
-    data = YRead.history(tickers, dtype, res, sd, ed, strict = false, displaylogs=false)
+    data = YRead.history_unadj(tickers, dtype, res, sd, ed, strict = false, displaylogs=false)
     return data
 end
 
 function history_nostrict(ticker, dtypes::Vector{String}, res::Symbol, sd::DateTime, ed::DateTime)
-    data = YRead.history(ticker, dtypes, res, sd, ed, strict = false, displaylogs=false)
+    data = YRead.history_unadj(ticker, dtypes, res, sd, ed, strict = false, displaylogs=false)
     return data
 end
 

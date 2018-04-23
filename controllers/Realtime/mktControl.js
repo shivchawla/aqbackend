@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-20 13:24:23
+* @Last Modified time: 2018-04-23 13:28:49
 */
 
 'use strict';
@@ -24,7 +24,7 @@ const APIError = require('../../utils/error');
 const WebSocket = require('ws');
 
 //Run when seconds = 10
-schedule.scheduleJob("5 * * * * *", function() {
+schedule.scheduleJob("3 * * * * *", function() {
     processNewData();
 });
 
@@ -34,7 +34,13 @@ var isBusy = {};
 var subscribers = {portfolio: {}, 
 	advice: {"5aace6b6bc2317399f30cc90": 
 		{"5803ad79d370120f19b4df85":{detail:false, response:null}}}, 
-	stock: {"TCS": {"5803ad79d370120f19b4df85": {response: null}}}, 
+	stock: {
+		"TCS": {"5803ad79d370120f19b4df85": {response: null}}, 
+		"WIPRO": {"5803ad79d370120f19b4df85": {response: null}}, 
+		"NIFTY_50": {"5803ad79d370120f19b4df85": {response: null}}, 
+		"NIFTY_IT": {"5803ad79d370120f19b4df85": {response: null}}, 
+		"NIFTY_INFRA": {"5803ad79d370120f19b4df85": {response: null}}, 
+	}, 
 	watchlist: {}
 };
 
@@ -88,83 +94,161 @@ function connectSFTP() {
 	}	
 }
 
-function _downloadNSEData() {
-	let localZipFilePath;
-	let localUnzipFilePath;
-	console.log("Starting download process now");
-	return connectSFTP()
-	.then(() => {
-		console.log("Connected to SFTP Successfully");
-		var dateNine15 = new Date();
-		dateNine15.setUTCHours(3)
-		dateNine15.setUTCMinutes(45);
-		dateNine15.setUTCSeconds(0);
-		var currentDate = new Date();
-		var minutesPassed = Math.floor(Math.abs(currentDate - dateNine15)/1000/60);
-		var fileNumber = minutesPassed + 1;
+function _getLastValidFile(type) {
+	var currentDate = new Date();
+	var fileNumber = 391;
+	
+	const monthNames = ["January", "February", "March", "April", "May", "June",
+	  "July", "August", "September", "October", "November", "December"
+	];
 
-		//Total number of files = 391 (393 - 3:32PM some times)
-		if (fileNumber > 391) {
-			fileNumber = 391;
-		}
+	var localUnzipFilePath = "";
+
+	var found = false;
+	var nAttempts = 0;
+	var maxAttempts = 391*5;
+	while(!found && nAttempts++ < maxAttempts) {
+		var nseDateStr = `${monthNames[currentDate.getMonth()]}${currentDate.getDate()}${currentDate.getFullYear()}`;
+		var localPath = path.resolve(path.join(__dirname, `../../Julia/rtdata/${nseDateStr}`));
 		
+		var unzipFileName = `${fileNumber}.${type}`;
+		localUnzipFilePath = `${localPath}/${unzipFileName}`;
+
+		if (!fs.existsSync(localUnzipFilePath)) {
+			fileNumber--;
+			if (fileNumber == 0) {
+				fileNumber = 391;
+				currentDate.setDate(currentDate.getDate() - 1);
+			}
+		} else {
+			found = true;
+		}
+	}
+
+	return localUnzipFilePath;
+}
+
+function _writeFile(data, file) {
+	return new Promise((resolve, reject) => {
+    	try {
+    		var writeUnzipStream = fs.createWriteStream(file);
+    		data.pipe(zlib.createUnzip()).pipe(writeUnzipStream);
+    		writeUnzipStream.on('finish', () => {
+			  	console.error('All writes are now complete.');
+			  	resolve(true);
+			});
+		} catch(err) {
+			reject(err);
+		}
+	});
+}
+
+function _downloadNSEData(type) {
+	return new Promise((resolve, reject) => {
+		let localUnzipFilePath;
+
+		console.log("Starting download process now");
+		
+		let fileNumber;
+		var currentDate = new Date();
+
+		if (type == "mkt") {
+			var dateNine15 = new Date();
+			dateNine15.setUTCHours(3)
+			dateNine15.setUTCMinutes(45);
+			dateNine15.setUTCSeconds(0);
+			var isWeekend = currentDate.getDay() == 0 || currentDate.getDay() == 6;
+			var minutesPassed = Math.floor(Math.abs(currentDate - dateNine15)/1000/60);
+			fileNumber = minutesPassed + 1;
+			//Total number of files = 391 (393 - 3:32PM some times)
+
+			if (fileNumber > 391 && isWeekend) {
+				fileNumber = 391;
+			}
+		} else if(type == "ind") {
+			var dateEight50 = new Date();
+			dateEight50.setUTCHours(3)
+			dateEight50.setUTCMinutes(20);
+			dateEight50.setUTCSeconds(0);
+			minutesPassed = Math.floor(Math.abs(currentDate - dateEight50)/1000/60);
+			fileNumber = minutesPassed + 1;
+			if (fileNumber > 391 && isWeekend) {
+				fileNumber = 391;
+			}
+		}
+			
 		const monthNames = ["January", "February", "March", "April", "May", "June",
 		  "July", "August", "September", "October", "November", "December"
 		];
 
-		var nseDateStr = `${monthNames[currentDate.getMonth()]}${currentDate.getDate()}${currentDate.getFullYear()}`;
-		var zipFileName = `${fileNumber}.mkt.gz`;
-		var nseFilePath =`/CM30/DATA/${nseDateStr}/${zipFileName}`;
+		if (!isWeekend) {
+			var nseDateStr = `${monthNames[currentDate.getMonth()]}${currentDate.getDate()}${currentDate.getFullYear()}`;
+			var zipFileName = `${fileNumber}.${type}.gz`;
+			
+			var nseFilePath =`/CM30/DATA/${nseDateStr}/${zipFileName}`;
 
-		var localPath = path.resolve(path.join(__dirname, `../../Julia/rtdata/${nseDateStr}`));
-		localZipFilePath = `${localPath}/${zipFileName}`;
-		
-		var unzipFileName = `${fileNumber}.mkt`;
-		localUnzipFilePath = `${localPath}/${unzipFileName}`;
+			var localPath = path.resolve(path.join(__dirname, `../../Julia/rtdata/${nseDateStr}`));
+			if (!fs.existsSync(localPath)) {
+			    fs.mkdirSync(localPath);	
+		  	}	
+			
+			var unzipFileName = `${fileNumber}.${type}`;
+			localUnzipFilePath = `${localPath}/${unzipFileName}`;
 
-		if (!fs.existsSync(localPath)) {
-		    fs.mkdirSync(localPath);	
-	  	} 
-		
-	    return sftp.get(nseFilePath, false, null);
-	}).then(data => {
-		
-	    return new Promise((resolve, reject) => {
-	    	try {
-	    		var writeUnzipStream = fs.createWriteStream(localUnzipFilePath);
-	    		data.pipe(zlib.createUnzip()).pipe(writeUnzipStream);
-	    		writeUnzipStream.on('finish', () => {
-				  	console.error('All writes are now complete.');
-				  	resolve(true);
-				});
-    		} catch(err) {
-    			reject(err);
-    		}
+	  	} else {
+	  		APIError.throwJsonError({message: "Weekend! No file can be downloaded"});
+	  	}
+	   	
+	   	console.log(nseFilePath);
+    	sftp.get(nseFilePath, false, null)
+		.then(data => {
+    		return _writeFile(data, localUnzipFilePath);
+		})
+		.then(successMkt => {
+			console.log(localUnzipFilePath);
+			resolve(localUnzipFilePath);
+		})
+		.catch(err => {
+		    console.log(err);
+		    var lastFile = _getLastValidFile(type);
+		    if (lastFile == "") {
+		    	console.log("No file to process");
+		    	resolve("");
+		    } else {
+		    	console.log("Got file to process");
+		    	console.log(lastFile);
+		    	resolve(lastFile);
+		    }
 		});
-	})
-	.then(success => {
-		return localUnzipFilePath;
-	})
-	.catch(err => {
-	    console.log(err);
-	    throw err;
+	});
+}
+
+function _downloadAndUpdateData(type) {
+	return _downloadNSEData(type)
+	.then(localFilePath  => {
+		console.log("Sending request to Julia - update realtime prices")
+		if (localFilePath && localFilePath !="") {
+			return SecurityHelper.updateRealtimePrices(localFilePath, type)
+		} else {
+			console.log("Can't process realtime data. Bad filename");
+			return false;
+		}
 	})
 }
 
 function processNewData() {
-	return _downloadNSEData()
-	.then(localFilePath => {
-		console.log("Sending request to Julia - update realtime prices")
-		if (localFilePath && localFilePath !="") {
-			return SecurityHelper.updateRealtimePrices(localFilePath)
-		} else {
-			APIError.throwJsonError({message:"Can't process realtime data. Bad filename"});
-		}
+	console.log("In Process data")
+	return connectSFTP()
+	.then(() => {
+		console.log("Connected to SFTP Successfully");
+		return Promise.all ([
+			_downloadAndUpdateData("mkt"),
+			_downloadAndUpdateData("ind")
+		])
 	})
-	.then(success => {
+	.then(([s1, s2]) => {
 		console.log("Successfully updated the stock prices");
 		return Promise.all([
-			null,
 			_updatePortfoliosOnNewData(),
 			_updateAdvicesOnNewData(),
 			_updateStockOnNewData()
@@ -287,7 +371,6 @@ function _handleStockUnsubscription(req, res) {
 	if (Object.keys(stockSubscribers).length == 0) {
 		delete subscribers["stock"][ticker]; 
 	}
-
 }
 
 function _handleWatchlistUnsubscription(req, res) {
@@ -461,7 +544,7 @@ function _filterData(data, type) {
 	}
 }
 
-function _addSummaryPortfolio(portfolio, lastPortfolio) {
+function _addSummaryPortfolioOLD(portfolio, lastPortfolio) {
 	return new Promise(resolve => {
 		if(portfolio && portfolio.detail) {
 			var positions = portfolio.detail.positions ? portfolio.detail.positions : [];
@@ -506,23 +589,31 @@ function _addSummaryPortfolio(portfolio, lastPortfolio) {
 	});
 }
 
+//This contains latest detail (as per time) and PnL Stats
+function _addSummaryPortfolio(portfolio) {
+	return new Promise(resolve => {
+		if(portfolio) {
+			resolve({detail: portfolio.detail, summary: portfolio.pnlStats, adviceSummary: portfolio.advicePerformance}); 
+		} else {
+			resolve({detail: null, summary: null, adviceSummary: null});
+		}
+	});
+}
+
 function _computeNavAndPnLChanges(oldNav, nav, oldPnl, pnl) {
 	var dailyNavChange = Number((nav - oldNav).toFixed(2));
 	var dailyNavChangePct = oldNav > 0.0 ? Number((dailyNavChange/oldNav).toFixed(4)) : 0.0;
 
 	var dailyPnlChange = Number((pnl - oldPnl).toFixed(2));
-	var dailyPnlChangePct = oldPnl > 0.0 ? Number((dailyPnlChange/oldPnl).toFixed(4)) : 0.0;
 
-	return {oldNav: oldNav,
-			oldPnl: oldPnl,  
-			dailyNavChange: dailyNavChange, dailyNavChangePct: dailyNavChangePct,
-			dailyPnlChange: dailyPnlChange, dailyPnlChangePct: dailyPnlChangePct};
+	return {dailyNavChange: dailyNavChange, dailyNavChangePct: dailyNavChangePct,
+			dailyPnlChange: dailyPnlChange};
 }
 
 function __getLatestPortfolioData(portfolioId) {
 	return Promise.all([
-		PortfolioHelper.getUpdatedPortfolioForPrice(portfolioId),
-		PortfolioHelper.getUpdatedPortfolioForEODPrice(portfolioId)
+		PortfolioHelper.getUpdatedPortfolioForEverything(portfolioId),
+		PortfolioHelper.getUpdatedPortfolioForEverything(portfolioId, {priceType: 'EOD'})
 	])
 	.then(([rtPortfolio, edPortfolio]) => {
 		return Promise.all([
@@ -531,8 +622,8 @@ function __getLatestPortfolioData(portfolioId) {
 		])
 	})
 	.then(([rtEnhanced, edEnhanced]) => {
-		var oldNav = edEnhanced.summary.nav;
-		var nav = rtEnhanced.summary.nav;
+		var oldNav = edEnhanced.summary.netValue;
+		var nav = rtEnhanced.summary.netValue;
 		var oldPnl = edEnhanced.summary.pnl;
 		var pnl = rtEnhanced.summary.pnl;
 		
@@ -542,10 +633,10 @@ function __getLatestPortfolioData(portfolioId) {
 			rtEnhanced.adviceSummary.map(item => {
 				var idx = edEnhanced.adviceSummary.map(itemX => itemX.adviceId).indexOf(item.adviceId);
 				
-				var oldNav = edEnhanced.adviceSummary[idx].nav;
-				var nav = item.nav;
-				var oldPnl = edEnhanced.adviceSummary[idx].pnl;
-				var pnl = item.pnl;
+				var oldNav = edEnhanced.adviceSummary[idx].personal.netValue;
+				var nav = item.personal.netValue;
+				var oldPnl = edEnhanced.adviceSummary[idx].personal.pnl;
+				var pnl = item.personal.pnl;
 
 				item = Object.assign(item, _computeNavAndPnLChanges(oldNav, nav, oldPnl, pnl));
 				return item; 
@@ -601,7 +692,7 @@ function _getStockLatestData(ticker) {
 function _updateStockOnNewData() {
 	var subscribedStocks = subscribers["stock"];
 	return new Promise(resolve => {
-		Promise.mapSeries(Object.keys(subscribedStocks), function(ticker) {
+		return Promise.mapSeries(Object.keys(subscribedStocks), function(ticker) {
 			var stockSubscribers = subscribedStocks[ticker];
 			//IMPLEMENT THIS FUNCTION
 			return _getStockLatestData(ticker)

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-19 10:24:51
+* @Last Modified time: 2018-04-22 21:34:40
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -53,21 +53,21 @@ function _hasAdviceChanged(myPositions, adviceId) {
 	});
 }
 
-function _computePnlStats(positions) {
+function _computePnlStats(portfolioDetail, isAdvice) {
 	var totalPnl = 0.0;
 	var pnlPct = 0.0;
 	var cost = 0.0;
 	var netValue = 0.0;
-	positions.forEach(item => {
+	var cash = portfolioDetail.cash;
+	portfolioDetail.positions.forEach(item => {
 		cost += item.quantity * item.avgPrice;
-		totalPnl += item.quantity * (item.lastPrice - item.avgPrice);
-		netValue += item.quantity * item.lastPrice;
+		totalPnl += item.quantity * (item.lastPrice - item.avgPrice) + item.dividendCash ? item.dividendCash : 0.0;
+		netValue += item.quantity * item.lastPrice + (isAdvice ? 0.0 : portfolioDetail.cash);
 	});
 
 	pnlPct = cost > 0.0 ? totalPnl/cost : 0.0;
 
-	var x = {pnl: totalPnl, pnlPct: pnlPct, cost: cost, netValue: netValue};
-	return x;
+	return {pnl: totalPnl, pnlPct: pnlPct, cost: cost, netValue: netValue, cash: cash};
 }
 
 function _getUniqueAdvices(portfolio) {
@@ -79,7 +79,7 @@ function _getAdvicePerformanceInPortfolio(portfolio, adviceId) {
 	var advicePositions = portfolio && portfolio.detail && portfolio.detail.subPositions ? portfolio.detail.subPositions.filter(item => {return adviceId!="" ? item.advice && item.advice._id && item.advice._id.toString() == adviceId.toString() : !item.advice || item.advice=="";}) : [];
 	return Promise.all([
 		adviceId !="" ? PerformanceHelper.getAdvicePerformanceSummary(adviceId) : {current: {}},
-		_computePnlStats(advicePositions),
+		_computePnlStats({positions: advicePositions, cash: 0.0}, true),
 		adviceId !="" ? _hasAdviceChanged(advicePositions, adviceId) : false
 	])
 	.then(([performance, pnlStats, hasChanged]) => {
@@ -124,10 +124,12 @@ function _filterPortfolioForAdvice(portfolio, adviceId) {
 	return {positions: advicePositions};
 }
 
-function _populateWeights(portfolio) {
+function _populateStats(portfolio, isAdvice) {
 	return new Promise(resolve => {
 		var port = Object.assign({}, portfolio);
-		var totalVal = port.detail.cash;
+		
+		//Added logic to exclude the cash from advice composition
+		var totalVal = isAdvice ? 0.0 : port.detail.cash;
 		var positions = port.detail.positions;
 
 		positions.forEach(item => {
@@ -140,7 +142,9 @@ function _populateWeights(portfolio) {
 			return item;
 		});
 
-		resolve(port);
+		var pnlStats = _computePnlStats(port.detail, isAdvice);
+
+		resolve(Object.assign(port, {pnlStats: pnlStats}));
 	});
 }
 
@@ -238,7 +242,7 @@ function _computeUpdatedPortfolioForSplitsAndDividends(portfolio, startDate, end
 						if (mIdx != -1) {
 							subPositions.push.apply(subPositions, subPortfolioHistory[mIdx].positions)
 						} else {
-							console.log("This shouldn't happen");
+							console.log("Adjusting for splits:..This shouldn't happen");
 						}
 					}
 
@@ -491,7 +495,6 @@ function _computeUpdatedPortfolioForPrice(portfolio, type, date) {
 	});
 }
 
-
 //NOT IN USE
 function _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolioDetail, date) {
 	return new Promise(resolve => {
@@ -697,7 +700,7 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 			//In case of Preview!!!!
 			return _computeUpdatedPortfolioForPrice(updatedPortfolio)
 			.then(portfolio => {
-				return _populateWeights(portfolio)	
+				return _populateStats(portfolio);	
 			})
 			.then(portfolio => {
 				return _populateAdvice(portfolio);
@@ -715,14 +718,15 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 //Update portfolio for prices for any date
 module.exports.computeUpdatedPortfolioForPrice = function(portfolio, options, date) {
 	
-	var priceType = options && options.type ? options.type : "RT";
+	var priceType = options && options.priceType ? options.priceType : "RT";
 	return _computeUpdatedPortfolioForPrice(portfolio, priceType, date)
 	.then(latestPricePortfolio => {
-		return _populateWeights(latestPricePortfolio);
+		var isAdvice = options && options.advice ? options.advice : false;
+		return _populateStats(latestPricePortfolio, isAdvice);
 	})
 	.then(portfolio => {
 		return _populateAdvice(portfolio);
-	});
+	})
 };
 
 //Gets portfolio for a specific date (Date could be in the history)
@@ -808,17 +812,17 @@ module.exports.getPortfolioHistory = function(portfolioId, date, options) {
         if (portfolio) {
 
             var portfolioDetail = portfolio.detail;
-            //If Date is greater than or equal to current portfolio startDate
-            if (DateHelper.compareDates(__date, DateHelper.getDate(portfolioDetail.startDate)) != -1) {
-                __history.push(portfolioDetail)
-            }
-
             for(var historicalDetail of portfolio.history) {
                 //If Date is greater than the start Date of historical portfolios
                 //ADD
                 if (DateHelper.compareDates(__date, DateHelper.getDate(historicalDetail.startDate)) != -1) {
                     __history.push(historicalDetail)
                 } 
+            }
+
+            //If Date is greater than or equal to current portfolio startDate
+            if (DateHelper.compareDates(__date, DateHelper.getDate(portfolioDetail.startDate)) != -1) {
+                __history.push(portfolioDetail)
             }
 
             var __portfolio = Object.assign({}, portfolio);
@@ -837,7 +841,7 @@ module.exports.getPortfolioHistory = function(portfolioId, date, options) {
 //Get current portfolio with realtime prices
 module.exports.getUpdatedPortfolioForEODPrice = function(portfolioId) {
 	//Append new fields to some basic fields (ADD SPACE - V. IMP)
-	return exports.getUpdatedPortfolioForPrice(portfolioId, {fields: 'detail', type:"EOD"});
+	return exports.getUpdatedPortfolioForPrice(portfolioId, {fields: 'detail', priceType:"EOD"});
 }
 
 //Validate portfolio
@@ -959,7 +963,7 @@ module.exports.getAdvicePortfolio = function(adviceId, date) {
 	return AdviceModel.fetchAdvice({_id: adviceId}, {portfolio:1})
 	.then(advice => {
 		if (advice) {
-			return exports.getUpdatedPortfolioForPrice(advice.portfolio, {fields: 'detail'}, date);
+			return exports.getUpdatedPortfolioForPrice(advice.portfolio, {fields: 'detail', advice:true}, date);
 		} else {
 			APIError.throwJsonError({message: "Advice not found"});
 		}

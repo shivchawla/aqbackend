@@ -85,6 +85,7 @@ function readMktFile(fname::String)
 end
 
 
+
 ###
 ### DATA FORMAT FOR INDEX DATA
 	
@@ -109,12 +110,12 @@ function readIndFile(fname::String)
 	try
 		#open the file to read
 		f = open(fname)
+		output = Dict{String, Dict{Int16, TradeBar}}()
 
-		output = Dict{Int, TradeBar}()
+		output["RT"] = Dict{Int16, TradeBar}()
+		output["EOD"] = Dict{Int16, TradeBar}()
 
 		while !eof(f)
-			println("")
-			println("")
 			tcode = read(f, Int16)
 			timestamp = read(f, Int32)
 			msgLength = read(f, Int16)
@@ -123,28 +124,26 @@ function readIndFile(fname::String)
 
 			#Divide prices (in paisa) by 100
 			open = read(f, Int32)/100
-			println(open)
-			close = read(f, Int32)/100
-			println(close)
+			current = read(f, Int32)/100
 			high = read(f, Int32)/100
-			println(high)
 			low = read(f, Int32)/100
-			println(low)
 			change = read(f, Int32)/100
-			println(change)
 
-			x = read(f, Int32)/100
-			println(x)
-			x = read(f, Int32)/100
-			println(x)
-			x = read(f, Int32)/100
-			println(x)
-			x = read(f, Int32)/100
-			println(x)
+			intHigh = read(f, Int32)/100
+			intLow = read(f, Int32)/100
+			intOpen = read(f, Int32)/100
+			intClose = read(f, Int32)/100
 			blank = read(f, Int32)
-			#println(blank)
 
-			output[itoken] = TradeBar(Dates.unix2datetime(timestamp), open, high, low, close, 0, change)
+			#Computing close as this file is differnet from mkt file
+			#Doesn't contain last close
+			close  = round(current/(1+change/100), 2)
+
+			ttd = TradeBar(Dates.unix2datetime(timestamp), open, high, low, close, 0)
+			tt = TradeBar(Dates.unix2datetime(timestamp), intOpen, intHigh, intLow, intClose, 0)
+			
+			output["RT"][itoken] = tt
+			output["EOD"][itoken] = ttd
 		end
 
 		#close the file
@@ -197,16 +196,8 @@ function readSecurityFile(fname::String)
 
 		output = Dict{Int16, String}()
 
-		#tcode = read(f, Int16)
-		#timestamp = read(f, Int32)
-		#msgLength = read(f, Int16)
-		#println(tcode)
-		#println(Dates.unix2datetime(timestamp))
-		#println(msgLength)
-		
 		i = 0
 		while !eof(f)
-			#println("")	
 			tcode = read(f, Int16)
 			timestamp = read(f, Int32)
 			msgLength = read(f, Int16)
@@ -241,8 +232,6 @@ function readSecurityFile(fname::String)
 			end
 		end
 
-		println(output)
-
 		#close the file
 		close(f)
 
@@ -252,3 +241,19 @@ function readSecurityFile(fname::String)
 		rethrow(err)
 	end
 end
+
+function readAllSecurities() 
+    
+    securities = readSecurityFile(Base.source_dir()*"/Securities.dat")
+    
+    data = readcsv(Base.source_dir()*"/benchmark.csv", header=false)
+
+    for row in 1:size(data)[1]
+        code = data[row, 2]
+        ticker = data[row,1]
+        securities[code] = ticker
+    end
+
+    return securities
+end    
+

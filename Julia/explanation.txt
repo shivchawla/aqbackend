@@ -1,0 +1,91 @@
+C1
+-------
+C2
+-------
+C3
+-------
+C4
+-------
+
+Cash = C4@P41 - C3(adjusted quantity)@P`41(adjusted price)
+
+adj_factor = (portfolio_NAV_today + Cash)/portfolio_NAV_today
+
+adj_factor = (C3@P32 + Cash)/C3@P32
+
+
+
+********BUT*******
+
+C3(adjusted quantity)@P41(at adjusted price) can include dividend cash which is not cash inflow
+
+Ex:
+
+C1 = 100 shares Price = 100  
+C2 = 200 shares + 1.0 dividend (total dividend = 100)  Price = 99   (No market chnge)
+
+Cash = 200*99 - 99.99(bs of dividend)*99 = 9900
+----------------------
+
+
+
+		price      quantity         NAV         Cash Inflow       Adj NAV
+Day 1	10           	1			10				0				10*(40/10)
+Day 2   10 				2			20				10				20*(40/20)
+Day 3   10				3			30				10				30*(40/30)
+Day 4   10				4			40				10				40
+
+
+
+
+			price      quantity         NAV         Cash Inflow       	Adj NAV
+Day 1		10.10           1			10.10			0				
+Day 2   	10.20 			2			20.40			10.20				
+Day 3   	10.05			3			30.15			10.05			41.2 * 30.15
+Day 4   	10.3			4			41.2			10.3			41.2
+
+
+
+Formula New NaV ==   OLD Nav * NAV next Day/ (NAV Next Day - Old Nav)
+		= O * N/(O + Cash)
+
+
+
+Day 3 	====>   41.2 * 30.15/(41.2 - 10.3) = 41.2*30.15/30.9 =  40.2
+
+Day 2   =====>  40.2 * 20.40/(30.15 - 10.05) = 40.2 * 20.40/20.1 = 40.8
+
+Day 1   =====>  40.8  * 10.10/(20.40 - 10.20) = 40.81*10.10/10.20  = 40.4
+
+
+			NAV           Adj. NAV       Price     Price Chg(%)        NAV change(%)
+Day1		10.10			40.4		 10.10			0					0
+Day2		20.40			40.8		 10.20			0.0099				0.0099
+Day3		30.15			40.2		 10.05			-0.0147				-0.0147
+Day4		41.2			41.2		 10.3			0.02487             0.024875
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
