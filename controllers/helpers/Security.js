@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-23 13:09:31
+* @Last Modified time: 2018-04-23 18:10:33
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -220,25 +220,31 @@ module.exports.getStockStaticPerformance = function(security) {
 };
 
 module.exports.getStockLatestDetail = function(security, type) {
-	var query = {'security.ticker': security.ticker,
-					'security.exchange': security.exchange ? security.exchange : "NSE",
-					'security.securityType': security.securityType ? security.securityType : "EQ",
-					'security.country': security.country ? security.country : "IN"};
+	return new Promise(resolve => {
+		var query = {'security.ticker': security.ticker,
+						'security.exchange': security.exchange ? security.exchange : "NSE",
+						'security.securityType': security.securityType ? security.securityType : "EQ",
+						'security.country': security.country ? security.country : "IN"};
 
-	return Promise.resolve() 
-	.then(() => {
-		return type == "EOD" ? SecurityPerformanceModel.fetchLatestDetail(query) : null;
-	})
-	.then(securityPerformance => {
-		var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
-		if(update) {
-			return _computeStockLatestDetail(security, type)
-			.then(detail => {
-				return type=="EOD" ? SecurityPerformanceModel.updateLatestDetail(query, detail) : Object.assign({}, security, {latestDetail: detail});
-			});
-		} else {
-			return securityPerformance;
-		}
+		Promise.resolve() 
+		.then(() => {
+			return type == "EOD" ? SecurityPerformanceModel.fetchLatestDetail(query) : null;
+		})
+		.then(securityPerformance => {
+			var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
+			if(update) {
+				return _computeStockLatestDetail(security, type)
+				.then(detail => {
+					resolve(type=="EOD" ? SecurityPerformanceModel.updateLatestDetail(query, detail) : Object.assign({}, security, {latestDetail: detail}));
+				});
+			} else {
+				return securityPerformance;
+			}
+		})
+		.cath(err => {
+			console.log(err.message);
+			resolve(Object.assign({}, security, {latestDetail: {}}));
+		})
 	});
 };
 

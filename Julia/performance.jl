@@ -332,9 +332,17 @@ function get_stock_price_latest(security_dict::Dict{String,Any}, ptype::String="
                 end_date = Date(currentIndiaTime())
                 start_date = end_date - Dates.Week(52)
 
-                stock_value_52w = YRead.history(security.symbol.id, ["Open","High","Low","Close"], :Day, DateTime(start_date), DateTime(end_date), displaylogs=false)
-                if stock_value_52w == nothing 
+                stock_value_52w = nothing
+                try
+                    stock_value_52w = YRead.history(security.symbol.id, ["Open","High","Low","Close"], :Day, DateTime(start_date), DateTime(end_date), displaylogs=false)
+                catch
+                    println("Error in fetching adjusted prices fot $(security.symbol.ticker)")
+                    println("Fetching un-adjusted prices for $(security.symbol.ticker)")
                     stock_value_52w = history_nostrict(security.symbol.id, ["Open","High","Low","Close"], :Day, DateTime(start_date), DateTime(end_date))
+                end
+
+                if stock_value_52w == nothing 
+                    error("Stock data for $(security.symbol.ticker) is not present")
                 end
 
                 if(length(stock_value_52w.values) > 0)
@@ -350,7 +358,8 @@ function get_stock_price_latest(security_dict::Dict{String,Any}, ptype::String="
                     output["Open"] = stock_value_52w["Open"].values[end]
                     output["Close"] = stock_value_52w["Close"].values[end]
                     output["Date"] = string(Date(stock_value_52w.timestamp[end]))
-                    output["Change"] = length(stock_value_52w.timestamp) > 1 ? round(percentchange(stock_value_52w["Close"]).values[end] * 100.0, 2) : 0.0
+                    output["ChangePct"] = length(stock_value_52w.timestamp) > 1 ? round(percentchange(stock_value_52w["Close"]).values[end], 4) : 0.0
+                    output["Change"] = length(stock_value_52w.timestamp) > 1 ? round(diff(stock_value_52w["Close"]).values[end], 2) : 0.0
                 
                 else
                     error("Stock data for $(security.symbol.ticker) is not present")
