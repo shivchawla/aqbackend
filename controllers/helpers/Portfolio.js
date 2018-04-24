@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-24 09:36:55
+* @Last Modified time: 2018-04-24 14:18:11
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -61,7 +61,7 @@ function _computePnlStats(portfolioDetail, isAdvice) {
 	var cash = portfolioDetail.cash;
 	portfolioDetail.positions.forEach(item => {
 		cost += item.quantity * item.avgPrice;
-		totalPnl += item.quantity * (item.lastPrice - item.avgPrice) + item.dividendCash ? item.dividendCash : 0.0;
+		totalPnl += item.quantity * (item.lastPrice - item.avgPrice) + (item.dividendCash ? item.dividendCash : 0.0);
 		netValue += item.quantity * item.lastPrice + (isAdvice ? 0.0 : portfolioDetail.cash);
 	});
 

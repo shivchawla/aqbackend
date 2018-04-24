@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-17 23:08:03
+* @Last Modified time: 2018-04-25 00:03:29
 */
 
 'use strict';
@@ -271,8 +271,8 @@ module.exports.getInvestorPortfolios = function(args, res, next) {
 				return Promise.map(investor.portfolios, function(item) {
 					var fields = '_id name benchmark createdDate updatedDate';
 					return Promise.all([
-						//THIS IS BUGGY
-						item ? PortfolioModel.fetchPortfolio({_id: item, deleted: false}, {fields: fields}) : {message:"Portfolio not valid"},
+						//THIS IS BUGGY....WHY??
+						item ? PortfolioHelper.getUpdatedPortfolioForEverything(portfolioId, {fields: fields}) : {message:"Portfolio not valid"},
 						item ? PerformanceHelper.getPerformanceSummary(item) : null		
 					])
 					.then(([portfolio, performanceSummary]) => {
