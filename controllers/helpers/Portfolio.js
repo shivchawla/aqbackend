@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-23 20:11:22
+* @Last Modified time: 2018-04-24 09:36:55
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -961,7 +961,7 @@ module.exports.updateAllPortfoliosForSplitsAndDividends = function() {
 
 module.exports.getAdvicePortfolio = function(adviceId, date) {
 	return AdviceModel.fetchAdvice({_id: adviceId}, {portfolio:1})
-	.then(advice => {
+	.then(advice => {  
 		if (advice) {
 			return exports.getUpdatedPortfolioForPrice(advice.portfolio, {fields: 'detail', advice:true}, date);
 		} else {
@@ -969,4 +969,16 @@ module.exports.getAdvicePortfolio = function(adviceId, date) {
 		}
 	});
 };
+
+module.exports.getAdvicePnlStats = function(adviceId) {
+	return exports.getAdvicePortfolio(adviceId)
+	.then(advicePortfolio => {
+		if (advicePortfolio && advicePortfolio.pnlStats) {
+			return advicePortfolio.pnlStats;
+		} else {
+			return {};
+		}
+	});
+};
+
 

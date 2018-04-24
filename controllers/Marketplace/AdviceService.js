@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-17 18:25:48
+* @Last Modified time: 2018-04-24 10:19:25
 */
 
 'use strict';
@@ -157,6 +157,7 @@ module.exports.updateAdvice = function(args, res, next) {
 
 				advicePortfolioId = advice.portfolio._id;
 				return 	isPublic ? AdviceHelper.validateAdvice(newAdvice, advice) : AdviceHelper.validateAdvice(newAdvice);
+					
 			
 			} else {
 				APIError.throwJsonError({message: "Advisor not authorized to update", errorCode: 1107});
@@ -377,15 +378,16 @@ module.exports.getAdviceSummary = function(args, res, next) {
 
 		return Promise.all([
 			nAdvice,
-			PerformanceHelper.getAdvicePerformanceSummary(adviceId),
+			PerformanceHelper.computeAdvicePerformanceSummary(adviceId),
+			PortfolioHelper.getAdvicePnlStats(adviceId)
 		]);
 
  	})
- 	.then(([advice, performanceSummary]) => {
+ 	.then(([advice, performanceSummary, advicePnlStats]) => {
 		var nAdvice = advice;
 
 		if (performanceSummary) {
-			nAdvice = Object.assign({performanceSummary: performanceSummary}, nAdvice);
+			nAdvice = Object.assign({performanceSummary: performanceSummary}, advicePnlStats, nAdvice);
 		}
 
 		return res.status(200).send(nAdvice);
