@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-04 14:50:49
+* @Last Modified time: 2018-04-25 20:02:05
 */
 
 'use strict';
@@ -49,7 +49,7 @@ module.exports.getAdvisors = function(args, res, next) {
 
     options.fields = options.fields.concat(publicProfileFields);
 
-    options.orderParam = "latestAnalytics."+(args.orderParam.value || 'rating');
+    options.orderParam = "latestAnalytics."+(args.orderParam.value || 'rating.current');
     options.order = args.order.value || -1;
 
     const search = args.search.value;
@@ -60,13 +60,13 @@ module.exports.getAdvisors = function(args, res, next) {
 
     const registered = args.registered.value;
     if (registered) {
-    	var registeredCategories = registered.split(",").map(item => item.trim());
+    	var registeredCategories = registered.split(",").map(item => {return item.trim() == "1";});
     	query = {$and:[query, {'profile.isSebiRegistered':{$in: registeredCategories}}]};
     }
 
     const company = args.company.value;
     if (company) {
-    	var companyCategories = company.split(",").map(item => item.trim());
+    	var companyCategories = company.split(",").map(item => {return item.trim() == "1";});
     	query = {$and:[query, {'profile.isCompany':{$in: companyCategories}}]};
     }
 
@@ -194,13 +194,8 @@ module.exports.followAdvisor = function(args, res, next) {
   	.then(([advisor, investor]) => {
   		if(advisor && investor) {
     		const investorId = investor._id; 
-    		return Promise.all([AdvisorModel.updateFollowers({
-    						_id: advisorId}, investorId),
-
-						InvestorModel.updateFollowing({
-			    			_id: investorId}, advisorId, "advisor"
-    			)]
-			);
+    		return AdvisorModel.updateFollowers({
+    						_id: advisorId}, investorId);
 		} else {
 			if(!investor) {
 				APIError.throwJsonError({userId: userId, message: "Investor not found", errorCode: 1301});
@@ -209,12 +204,10 @@ module.exports.followAdvisor = function(args, res, next) {
 			}
 		}
 	})
-	.then(([advisor, investor]) => {
-		if (advisor && investor) {
+	.then(advisor => {
+		if (advisor) {
 			return res.status(200).json({count: advisor.followers.filter(item => item.active).length}); 
-		} else if(!investor) {
-			APIError.throwJsonError({userId:userId, message: "Internal error updating advisor", errorCode: 1207});
-		} else if(!advisor) {
+		}  else {
 			APIError.throwJsonError({advisorId: advisorId, message: "Internal error updating investor", errorCode: 1307});
 		}
 	})

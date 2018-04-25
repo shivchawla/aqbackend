@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-24 10:19:25
+* @Last Modified time: 2018-04-25 20:03:22
 */
 
 'use strict';
@@ -35,7 +35,7 @@ module.exports.createAdvice = function(args, res, next) {
 			APIError.throwJsonError({message:"Advisor not found", errorCode: 1201});
 		}
 	})
-	.then(advices => {
+	.then(([advices, ct]) => {
 		if(advices.length < config.get('max_advices_per_advisor')) {
 			return AdviceHelper.validateAdvice(advice, "", true);
 		} else {
@@ -204,6 +204,7 @@ module.exports.getAdvices = function(args, res, next) {
     options.limit = args.limit.value;
     options.order = args.order.value || 1;
 
+    let count;
     var orderParam = args.orderParam.value || "rating";
 	if (["return", "volatility", "sharpe", "maxLoss", "currentLoss", "dailyChange", "netValue"].indexOf(orderParam) != -1) {
 		orderParam = "performanceSummary."+orderParam;
@@ -328,8 +329,9 @@ module.exports.getAdvices = function(args, res, next) {
 
     	return AdviceModel.fetchAdvices(query, options);
 	})
-    .then(advices => {
+    .then(([advices, ct]) => {
     	if(advices) {
+    		count = ct;
 	    	return Promise.map(advices , function(advice) {
     			return AdviceHelper.computeAdviceSubscriptionDetail(advice._id, userId)
     			.then(subscriptionDetail => {
@@ -341,7 +343,7 @@ module.exports.getAdvices = function(args, res, next) {
 		}
     })
     .then(updatedAdvices => {
-    	return res.status(200).send(updatedAdvices);	
+    	return res.status(200).send({advices: updatedAdvices, count: count});	
     })
     .catch(err => {
     	return res.status(400).send(err.message);
@@ -622,7 +624,7 @@ module.exports.subscribeAdvice = function(args, res, next) {
 			}
 		}
 	})
-	.then(listSubscribedAdvices => {
+	.then(([listSubscribedAdvices, ct]) => {
 		var subscriptionAllowed = true;
 		if(listSubscribedAdvices) {
 			subscriptionAllowed = listSubscribedAdvices.length < config.get('max_subscription_per_investor');
