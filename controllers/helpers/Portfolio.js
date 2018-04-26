@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-25 17:23:51
+* @Last Modified time: 2018-04-26 17:52:03
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -185,7 +185,7 @@ function _updatePortfolioForSplitsAndDividends(portfolio, startDate, endDate) {
         								startDate: startDate,
         								endDate: endDate}); 
 
-		WSHelper.handleMKtRequest(msg, resolve, reject);
+		WSHelper.handleMktRequest(msg, resolve, reject);
 
 	});
 }
@@ -368,7 +368,7 @@ function _updatePositionsForTransactions(positions, transactions) {
         								portfolio: portfolio,
         								transactions: transactions}); 
 
-		WSHelper.handleMKtRequest(msg, resolve, reject);
+		WSHelper.handleMktRequest(msg, resolve, reject);
 
 	});
 }
@@ -382,7 +382,7 @@ function _updatePositionsForPrice(positions, type, date) {
 	            						date: !date || date == "" ? DateHelper.getCurrentDate() : date,
 	            						type: type ? type : "RT"});
          	
-         	WSHelper.handleMKtRequest(msg, resolve, reject);
+         	WSHelper.handleMktRequest(msg, resolve, reject);
 
 	    });
 	} else {
@@ -789,7 +789,7 @@ module.exports.validatePortfolio = function(portfolio) {
 		var msg = JSON.stringify({action:"validate_portfolio", 
             						portfolio: portfolio});
 
-		WSHelper.handleMKtRequest(msg, resolve, reject);
+		WSHelper.handleMktRequest(msg, resolve, reject);
 
     });
 };
@@ -813,7 +813,7 @@ module.exports.validateTransactions = function(transactions, advicePortfolio, in
 						advicePortfolio: advicePortfolio ? advicePortfolio : "",
 						investorPortfolio: investorPortfolio ? investorPortfolio : ""});
 
-		WSHelper.handleMKtRequest(msg, resolve, reject);
+		WSHelper.handleMktRequest(msg, resolve, reject);
 
 	});
 };
