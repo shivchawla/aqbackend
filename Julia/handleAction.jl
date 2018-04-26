@@ -1,5 +1,6 @@
 
-function handleRequest(parsemsg::Dict{String, Any})
+function f
+  handleRequest(parsemsg::Dict{String, Any})
     try 
         action = parsemsg["action"]
         parsemsg["error"] = ""
@@ -142,13 +143,7 @@ function handleRequest(parsemsg::Dict{String, Any})
          
           (netValues, dates) = compute_portfolio_value_period(portfolio, startDate, endDate)
           
-          nVDict = Dict{String, Any}()
-
-          for i = 1:length(netValues)
-              nVDict[string(dates[i])] = netValues[i]
-          end
-
-          parsemsg["output"] = nVDict
+          parsemsg["output"] = Dict("date" => dates, "netValue" => netValue)
 
         #NOT IN USE
         elseif action == "compute_portfolio_value_date"

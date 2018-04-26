@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 14:46:03
+* @Last Modified time: 2018-04-26 23:56:54
 */
 
 'use strict';
@@ -207,7 +207,15 @@ module.exports.getAdvices = function(args, res, next) {
     let count;
     var orderParam = args.orderParam.value || "rating.current";
 	if (["return", "volatility", "sharpe", "maxLoss", "currentLoss", "dailyChange", "netValue"].indexOf(orderParam) != -1) {
-		orderParam = "performanceSummary."+orderParam;
+		if (orderParam == "return") {
+			orderParam = "annualReturn"
+		}
+
+		if (orderParam == "dailyChange") {
+			orderParam = "dailyNAVChangeEODPct";
+		}
+
+		orderParam = "performanceSummary.current."+orderParam;
 	} else if(["numFollowers", "numSubscribers"].indexOf(orderParam) !=-1) {
 		orderParam = "latestAnalytics."+orderParam;
 	} else if(["rating"].indexOf(orderParam) != -1) {

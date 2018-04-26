@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:53:13
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-02 12:33:27
+* @Last Modified time: 2018-04-26 23:50:59
 */
 
 'use strict';
@@ -77,7 +77,7 @@ Investor.statics.updateInvestor = function(query, updates) {
     return this.findOneAndUpdate(query, updates);
 };
 
-Investor.statics.addPortfolio = function(query, portfolioId){
+Investor.statics.addPortfolio = function(query, portfolioId, setDefault){
     return this.findOne(query)
     .select('portfolios defaultPortfolio')
     .then(investor => {
@@ -87,7 +87,7 @@ Investor.statics.addPortfolio = function(query, portfolioId){
             investor.portfolios = [portfolioId];
         }
 
-        if (!investor.defaultPortfolio || investor.portfolios.length == 1) {
+        if (!investor.defaultPortfolio || investor.portfolios.length == 1 || setDefault) {
            investor.defaultPortfolio = portfolioId; 
         }
 

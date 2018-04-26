@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 12:34:52
+* @Last Modified time: 2018-04-26 23:50:41
 */
 
 'use strict';
@@ -124,6 +124,9 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 		detail: {startDate: DateHelper.getDate("1900-01-01"), endDate: DateHelper.getDate("2200-01-01"), positions: []}
 	};
 
+
+	var setDefault = args.body.value.setdefault;
+
 	if (portfolio.name == "" && !preview) {
 		return res.status(400).send({message:"Portfolio name can't be empty", errorCode: 1403});
 	}
@@ -172,7 +175,7 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 	.then(portfolio => {
 		if(portfolio) {
 			portfolioId = portfolio._id;
-			return Promise.all([portfolio, !preview ? InvestorModel.addPortfolio({_id: investorId, user:userId}, portfolio._id) : {}]);
+			return Promise.all([portfolio, !preview ? InvestorModel.addPortfolio({_id: investorId, user:userId}, portfolio._id, setDefault) : {}]);
 		} else {
 			APIError.throwJsonError({message: "Internal error creating portfolio", errorCode: 1405});
 		}
@@ -192,6 +195,7 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 		}
     })
     .then(portfolio => {
+
     	if(portfolio) {
 			return res.status(200).json(portfolio); 
 		} else {

@@ -2793,6 +2793,9 @@ definitions:
       preview: 
         type: boolean
         default: true
+      setdefault:
+        type: boolean
+        default: boolean
 
 #PortfolioDetail
   PortfolioDetail:
