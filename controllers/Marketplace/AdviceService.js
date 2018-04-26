@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-25 20:03:22
+* @Last Modified time: 2018-04-26 14:46:03
 */
 
 'use strict';
@@ -205,13 +205,13 @@ module.exports.getAdvices = function(args, res, next) {
     options.order = args.order.value || 1;
 
     let count;
-    var orderParam = args.orderParam.value || "rating";
+    var orderParam = args.orderParam.value || "rating.current";
 	if (["return", "volatility", "sharpe", "maxLoss", "currentLoss", "dailyChange", "netValue"].indexOf(orderParam) != -1) {
 		orderParam = "performanceSummary."+orderParam;
 	} else if(["numFollowers", "numSubscribers"].indexOf(orderParam) !=-1) {
 		orderParam = "latestAnalytics."+orderParam;
 	} else if(["rating"].indexOf(orderParam) != -1) {
-		orderParam = "rating";
+		orderParam = "rating.current";
 	}
 
 	options.orderParam = orderParam;
@@ -348,6 +348,42 @@ module.exports.getAdvices = function(args, res, next) {
     .catch(err => {
     	return res.status(400).send(err.message);
     });
+};
+
+module.exports.getAdvicesDefault = function(args, res, next) {
+    
+    const options = {};
+	options.skip = 0
+    options.limit = 10
+    options.order = 1;
+
+    let count;
+    
+	options.orderParam = 'rating.current';
+    options.fields = 'name description heading createdDate updatedDate advisor public approvalStatus prohibited maxNotional rebalance performanceSummary rating';
+
+    var query = {deleted: false};
+
+	return AdviceModel.fetchAdvices(query, options)
+    .then(([advices, ct]) => {
+    	if(advices) {
+    		count = ct;
+	    	return Promise.map(advices , function(advice) {
+    			return AdviceHelper.computeAdviceSubscriptionDetail(advice._id, null)
+    			.then(subscriptionDetail => {
+    				return Object.assign(subscriptionDetail, advice.toObject());
+    			});
+			});
+		} else {
+			APIError.throwJsonError({message: "No advices found", errorCode: 1110});
+		}
+    })
+    .then(updatedAdvices => {
+    	return res.status(200).send({advices: updatedAdvices, count: count});	
+    })
+    .catch(err => {
+    	return res.status(400).send(err.message);
+    });	
 };
 
 module.exports.getAdviceSummary = function(args, res, next) {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 14:59:47
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-12 16:59:54
+* @Last Modified time: 2018-04-26 14:27:58
 */
 
 'use strict';
@@ -14,6 +14,10 @@ module.exports.createAdvice = function(req, res, next) {
 
 module.exports.getAdvices = function(req, res, next) {
     Advice.getAdvices(req.swagger.params, res, next);
+};
+
+module.exports.getAdvicesDefault = function(req, res, next) {
+    Advice.getAdvicesDefault(req.swagger.params, res, next);
 };
 
 module.exports.getAdviceSummary = function(req, res, next) {

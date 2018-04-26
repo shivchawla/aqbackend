@@ -1536,6 +1536,21 @@ paths:
           description: 'Invalid input'
       x-swagger-router-controller: "Advice"
 
+  /advice_default:
+    get:
+      tags:
+      - advice
+      summary: get top 10 advices 
+      description: get top 10 advices 
+      operationId: getAdvicesDefault
+      security: []
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Advice"
+
   /advice/{adviceId}:
     put:
       tags:

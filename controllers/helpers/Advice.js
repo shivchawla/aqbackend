@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 12:51:14
+* @Last Modified time: 2018-04-26 14:37:34
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -41,18 +41,18 @@ module.exports.getAdviceAccessStatus = function(adviceId, userId) {
 module.exports.computeAdviceSubscriptionDetail = function(adviceId, userId) {
 	
 	return Promise.all([
-		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
-		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true}),
+		userId ? AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}) : null,
+		userId ? InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true}) : null,
 		AdviceModel.fetchAdvice({_id:adviceId}, {field:'advisor subscribers followers'}),
 		AdvisorHelper.getAdminAdvisor(userId)
 	])
 	.then(([advisor, investor, advice, adminAdvisor]) => {
 		
-		if(!advisor) {
+		if(!advisor && userId) {
 			APIError.throwJsonError({message: "Advisor not found", errorCode: 1201});
 		}
 
-		if(!investor) {
+		if(!investor && userId) {
 			APIError.throwJsonError({message: "Advisor not found", errorCode: 1301});	
 		}
 
@@ -60,7 +60,7 @@ module.exports.computeAdviceSubscriptionDetail = function(adviceId, userId) {
 			APIError.throwJsonError({message: "Advice not found", errorCode: 1101});	
 		}
 
-		const investorId = investor._id;
+		const investorId = investor ? investor._id : null;
 		var isFollowing = false;
 		var isSubscribed = false;
 		
@@ -72,8 +72,8 @@ module.exports.computeAdviceSubscriptionDetail = function(adviceId, userId) {
 		var numSubscribers = activeSubscribers.length;
 		var numFollowers = activeFollowers.length;
 
-		var isFollowing = activeFollowers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
-		var isSubscribed = activeSubscribers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1;
+		var isFollowing = investorId ? activeFollowers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1 : false;
+		var isSubscribed = investorId ? activeSubscribers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1 : false;
 		
 		return {
 			isFollowing: isFollowing, 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:44:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-31 19:46:01
+* @Last Modified time: 2018-04-26 14:35:24
 */
 
 'use strict';
@@ -25,7 +25,7 @@ module.exports.getAdminAdvisors = function() {
 module.exports.getAdminAdvisor = function(userId) {
 	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {fields:'_id'})
 	.then(users => {
-		if(users && users.map(item => item._id.toString()).indexOf(userId.toString()) != -1) {
+		if(userId && users && users.map(item => item._id.toString()).indexOf(userId.toString()) != -1) {
 			return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'});
 		} else {
 			return null;
