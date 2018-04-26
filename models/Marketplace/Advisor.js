@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-23 12:29:30
+* @Last Modified time: 2018-04-26 10:01:04
 */
 'use strict';
 
@@ -91,11 +91,26 @@ const Advisor = new Schema({
     }],
        
     profile: {
-    	isCompany:Boolean,
-    	companyName: String,
-    	companyRegistrationNum: String,
-    	isSebiRegistered: Boolean,
-    	sebiRegistrationNum: String,
+    	isCompany: {
+            type: Boolean,
+            default: false
+        },
+    	companyName: {
+            type: String,
+            default: ""
+        },
+    	companyRegistrationNum: {
+            type: String,
+            default: ""
+        },
+    	isSebiRegistered:  {
+            type: Boolean,
+            default: false
+        },
+    	sebiRegistrationNum: {
+            type: String,
+            default: ""
+        },
     	address: Address,
     	phone: String, 
     	linkedIn: SocialProfile,

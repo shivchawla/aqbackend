@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 10:05:18
+* @Last Modified time: 2018-04-26 11:35:22
 */
 
 'use strict';
@@ -162,7 +162,7 @@ module.exports.updateAdvisorProfile = function(args, res, next) {
 			APIError.throwJsonError({message: "Company name and/or registration number required if advisor a company"});
 		}
 
-		if(profile.isSebiRegistered && (!profile.sebiRegistrationNum || !profile.sebiRegistrationNum =="")) {
+		if(profile.isSebiRegistered && (!profile.sebiRegistrationNum || profile.sebiRegistrationNum =="")) {
 			APIError.throwJsonError({message: "SEBI registration number required if company/individual registered with SEBI"});
 		}
 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-23 21:43:02
+* @Last Modified time: 2018-04-26 12:39:33
 */
 
 'use strict';
@@ -15,6 +15,7 @@ const WebSocket = require('ws');
 const Promise = require('bluebird');
 const PortfolioHelper = require('./Portfolio');
 const DateHelper = require('../../utils/Date');
+const WSHelper = require('./WSHelper');
 
 function _checkPerformanceUpdateRequired(performanceDetail) {
 	if(!performanceDetail) {
@@ -39,62 +40,22 @@ function _checkPerformanceUpdateRequired(performanceDetail) {
 function _computePortfolioValue(portfolio, startDate, endDate) {
 	
 	return new Promise(function(resolve, reject) {
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-	        console.log('Connection Open');
-	        console.log(connection);
-	        var msg = JSON.stringify({action:"compute_portfolio_value_period", 
+		var msg = JSON.stringify({action:"compute_portfolio_value_period", 
 	        				portfolio: portfolio, startDate:startDate, endDate:endDate});
 
-	     	wsClient.send(msg);
-	    });
-
-	    wsClient.on('message', function(msg) {
-	    	var data = JSON.parse(msg);
-
-	    	if(data['error'] == '' && data['netValue']) {
-	    		var output = data['netValue'];
-	    		resolve(Object.keys(output).sort().map(key => {return {date: new Date(key), netValue: output[key]};}));
-			} else if (data["error"] != "") {
-				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-			} else {
-				reject(APIError.jsonError({message: "Internal error computing netvalue of portfolio", errorCode: 2101}));
-			}
-		});
+		WSHelper.handleMktRequest(msg, resolve, reject);
     });
 }
 
 function _computePerformance_portfolioValues(portfolioValues, benchmark) {
 
 	return new Promise(function(resolve, reject) {
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-	        console.log('Connection Open');
-	        console.log(connection);
-
-	        var msg = JSON.stringify({action:"compute_performance_netvalue", 
+		var msg = JSON.stringify({action:"compute_performance_netvalue", 
         								netValue: portfolioValues.map(x=>x.netValue),
         								dates: portfolioValues.map(x=>x.date),
         								benchmark: benchmark ? benchmark : {ticker: 'NIFTY_50'}}); 
 
-	     	wsClient.send(msg);
-	    });
-
-	    wsClient.on('message', function(msg) {
-	    	var data = JSON.parse(msg);
-
-	    	if(data['error'] == '' && data['performance']) {
-	    		resolve(data['performance']);
-			} else if (data["error"] != "") {
-				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-			} else {
-				reject(APIError.jsonError({message: "Internal error computing netvalue of portfolio performance", errorCode: 2101}));
-			}
-		});
+		WSHelper.handleMktRequest(msg, resolve, reject);
 
 	});
 }
@@ -111,32 +72,14 @@ function _computeHistoricalPerformance(portfolio, startDate, endDate) {
 
 function _computeConstituentPerformance_portfolio(portfolio, startDate, endDate, benchmark) {
 	return new Promise(function(resolve, reject) {
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-	        console.log('Connection Open');
-	        console.log(connection);
-	        var msg = JSON.stringify({action: "compute_portfolio_constituents_performance", 
+		var msg = JSON.stringify({action: "compute_portfolio_constituents_performance", 
 	        				portfolio: portfolio,
 	        				startDate: startDate,
 	        				endDate: endDate,
 	        				benchmark: benchmark});
 
-	     	wsClient.send(msg);
-	    });
-
-	    wsClient.on('message', function(msg) {
-	    	var data = JSON.parse(msg);
-	    	
-	    	if(data['error'] == '' && data['constituentPerformance']) {
-	    		resolve(data['constituentPerformance']);
-			} else if (data['error'] != '') {
-				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-			} else {
-				reject(APIError.jsonError({message: "Internal error computing constituents performance", errorCode: 2101}));
-			}
-		});
+		WSHelper.handleMktRequest(msg, resolve, reject);
+		
 	});
 }
 
@@ -157,33 +100,14 @@ function _computeConstituentPerformance(portfolioId) {
 
 function _computePortfolioMetrics_portfolio(portfolio, startDate, endDate, benchmark, isAdvice) {
 	return new Promise(function(resolve, reject) {
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-	        console.log('Connection Open');
-	        console.log(connection);
-	        var msg = JSON.stringify({action: "compute_portfolio_metrics", 
+		var msg = JSON.stringify({action: "compute_portfolio_metrics", 
 	        				portfolio: portfolio,
 	        				startDate: startDate,
 	        				endDate: endDate,
 	        				benchmark: benchmark,
 	        				excludeCash: isAdvice ? true : false});
 
-	     	wsClient.send(msg);
-	    });
-
-	    wsClient.on('message', function(msg) {
-	    	var data = JSON.parse(msg);
-	    	
-	    	if(data['error'] == '' && data['portfolioMetrics']) {
-	    		resolve(data['portfolioMetrics']);
-			} else if (data['error'] != '') {
-				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-			} else {
-				reject(APIError.jsonError({message: "Internal error computing constituents performance", errorCode: 2101}));
-			}
-		});
+		WSHelper.handleMktRequest(msg, resolve, reject);
 	});
 }
 
@@ -205,39 +129,20 @@ function _computePortfolioMetrics(portfolioId, isAdvice) {
 
 function _computePerformance_portfolioHistory(portfolioHistory, benchmark, cashAdjustment) {
 	return new Promise(function(resolve, reject) {
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-	        console.log('Connection Open');
-	        console.log(connection);
-	        var msg = JSON.stringify({action:"compute_performance_portfolio_history", 
+		var msg = JSON.stringify({action:"compute_performance_portfolio_history", 
 	        				portfolioHistory: portfolioHistory,
 	        				benchmark: benchmark,
 	        				cashAdjustment: cashAdjustment ? true : false});
 
-	     	wsClient.send(msg);
-	    });
+		WSHelper.handleMktRequest(msg, resolve, reject);
+	})
+	.then(performance => {
+		performance.portfolioValues = Object.keys(performance.portfolioValues).sort().map(key => {
+			return {date: new Date(key), netValue: performance.portfolioValues[key]};
+		});	
 
-	    wsClient.on('message', function(msg) {
-	    	var data = JSON.parse(msg);
-	    	
-	    	if(data['error'] == '' && data['performance']) {
-	    		var performance = data['performance'];
-	    		
-	    		performance.portfolioValues = Object.keys(performance.portfolioValues).sort().map(key => {
-	    			return {date: new Date(key), netValue: performance.portfolioValues[key]};
-				});	
+	})
 
-	    		resolve(performance);
-
-			} else if (data['error'] != '') {
-				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-			} else {
-				reject(APIError.jsonError({message: "Internal error computing performance", errorCode: 2101}));
-			}
-		});
-	});
 }
 
 //Computes performance of true portfolio (using exact portfolio history) till date
@@ -500,7 +405,7 @@ module.exports.computePerformance = function(portfolioId, options) {
 		 	if(performanceType == "current") {
 			 	return _computeLatestPerformance(portfolioId, options ? options.advice : false); 
 		 	} else {
-			 	return null; //_computeSimulatedPerformance(portfolioId, options ? options.advice : false);
+			 	return _computeSimulatedPerformance(portfolioId, options ? options.advice : false);
 		 	}
 		})
 		.then(performance => {

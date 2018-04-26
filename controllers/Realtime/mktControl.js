@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-23 23:21:05
+* @Last Modified time: 2018-04-26 12:41:24
 */
 
 'use strict';
@@ -143,6 +143,7 @@ function _writeFile(data, file) {
 	});
 }
 
+
 function _downloadNSEData(type) {
 	return new Promise((resolve, reject) => {
 		let localUnzipFilePath;
@@ -162,9 +163,7 @@ function _downloadNSEData(type) {
 			fileNumber = minutesPassed + 1;
 			//Total number of files = 391 (393 - 3:32PM some times)
 
-			if (fileNumber > 391 && isWeekend) {
-				fileNumber = 391;
-			}
+			
 		} else if(type == "ind") {
 			var dateEight50 = new Date();
 			dateEight50.setUTCHours(3)
@@ -172,9 +171,10 @@ function _downloadNSEData(type) {
 			dateEight50.setUTCSeconds(0);
 			minutesPassed = Math.floor(Math.abs(currentDate - dateEight50)/1000/60);
 			fileNumber = minutesPassed + 1;
-			if (fileNumber > 391 && isWeekend) {
-				fileNumber = 391;
-			}
+					}
+
+		if (fileNumber > 391 || isWeekend) {
+			fileNumber = 391;
 		}
 			
 		const monthNames = ["January", "February", "March", "April", "May", "June",
@@ -199,13 +199,15 @@ function _downloadNSEData(type) {
 	  		APIError.throwJsonError({message: "Weekend! No file can be downloaded"});
 	  	}
 	   	
-	   	console.log(nseFilePath);
+	   	//console.log(nseFilePath);
+
+	   	//Check if unzip file is already downloaded
     	sftp.get(nseFilePath, false, null)
 		.then(data => {
-    		return _writeFile(data, localUnzipFilePath);
-		})
+			return !fs.existsSync(localUnzipFilePath) ? _writeFile(data, localUnzipFilePath) : true
+		}) 
 		.then(successMkt => {
-			console.log(localUnzipFilePath);
+			//console.log(localUnzipFilePath);
 			resolve(localUnzipFilePath);
 		})
 		.catch(err => {

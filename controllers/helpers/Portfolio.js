@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-24 14:18:11
+* @Last Modified time: 2018-04-25 17:23:51
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -16,6 +16,7 @@ const config = require('config');
 const Promise = require('bluebird');
 const DateHelper= require('../../utils/Date');
 var ObjectId = require('mongoose').Types.ObjectId;
+const WSHelper = require('./WSHelper');
 
 function _findDateIndex(dateArray, date) {
 	return dateArray.map(item => new Date(item).getTime()).indexOf(new Date(date).getTime());
@@ -178,31 +179,14 @@ function _updatePortfolioForSplitsAndDividends(portfolio, startDate, endDate) {
 	//Julia computes the updated portfolio	
 	//HEAVY DUTY WORK IS DONE BY JULIA
 	return new Promise(function(resolve, reject) {
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
 
-		wsClient.on('open', function open() {
-	        console.log('Connection Open');
-	        console.log(connection);
-
-	        var msg = JSON.stringify({action:"update_portfolio_splits_dividends", 
+		var msg = JSON.stringify({action:"update_portfolio_splits_dividends", 
         								portfolio: portfolio,
         								startDate: startDate,
         								endDate: endDate}); 
 
-	     	wsClient.send(msg);
-	    });
+		WSHelper.handleMKtRequest(msg, resolve, reject);
 
-	    wsClient.on('message', function(msg) {
-	    	var data = JSON.parse(msg);
-	    	if(data['portfolioHistory'] && data["error"] == "") {
-    			resolve(data['portfolioHistory']);
-			} else if(data["error"] != "") {
-				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-			} else {
-				reject(APIError.jsonError({message: "Internal error in updating positions for transactions", errorCode: 2101}));
-			}
-		});
 	});
 }
 
@@ -380,36 +364,12 @@ function _updatePositionsForTransactions(positions, transactions) {
 	//Julia computes the updated portfolio	
 	//HEAVY DUTY WORK IS DONE BY JULIA
 	return new Promise(function(resolve, reject) {
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-	        console.log('Connection Open');
-	        console.log(connection);
-
-	        //WHy Cash == 0.0: So that output portfolio has cash generated
-	        const portfolio = {
-	        	positions: positions,
-	        	cash: 0.0
-	        };
-
-	        var msg = JSON.stringify({action:"update_portfolio_transactions", 
+		var msg = JSON.stringify({action:"update_portfolio_transactions", 
         								portfolio: portfolio,
         								transactions: transactions}); 
 
-	     	wsClient.send(msg);
-	    });
+		WSHelper.handleMKtRequest(msg, resolve, reject);
 
-	    wsClient.on('message', function(msg) {
-	    	var data = JSON.parse(msg);
-	    	if(data['portfolio'] && data["error"] == "") {
-    			resolve(data['portfolio']);
-			} else if(data["error"] != "") {
-				reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-			} else {
-				reject(APIError.jsonError({message: "Internal error in updating positions for transactions", errorCode: 2101}));
-			}
-		});
 	});
 }
 
@@ -417,36 +377,14 @@ function _updatePositionsForPrice(positions, type, date) {
 	if (positions) {
 		return new Promise((resolve, reject) => {
 
-			var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-			var wsClient = new WebSocket(connection);
-
-			const portfolio = {
-				positions: positions,
-				cash: 0.0
-			};
-
-			wsClient.on('open', function open() {
-	            console.log('Connection Open');
-	            console.log(connection);
-	            var msg = JSON.stringify({action:"update_portfolio_price", 
+			var msg = JSON.stringify({action:"update_portfolio_price", 
 	            						portfolio: portfolio,
 	            						date: !date || date == "" ? DateHelper.getCurrentDate() : date,
 	            						type: type ? type : "RT"});
-	         	wsClient.send(msg);
-	        });
+         	
+         	WSHelper.handleMKtRequest(msg, resolve, reject);
 
-	        wsClient.on('message', function(msg) {
-	        	var data = JSON.parse(msg);
-
-	        	if (data["error"] == "" && data["updatedPositions"]) {
-				    resolve(data["updatedPositions"]);
-			    } else if (data["error"] != "") {
-			    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-			    } else {
-			    	reject(APIError.jsonError({message: "Internal error in updating portfolio for latest price", errorCode: 2101}));
-			    }
-		    });
-	    })
+	    });
 	} else {
 		APIError.throwJsonError({message:"Invalid positions: Can't update positions for latest price"});
 	}
@@ -848,31 +786,12 @@ module.exports.getUpdatedPortfolioForEODPrice = function(portfolioId) {
 module.exports.validatePortfolio = function(portfolio) {
 
 	return new Promise((resolve, reject) => {
-
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-            console.log('Connection Open');
-            console.log(connection);
-            var msg = JSON.stringify({action:"validate_portfolio", 
+		var msg = JSON.stringify({action:"validate_portfolio", 
             						portfolio: portfolio});
 
-         	wsClient.send(msg);
-        });
+		WSHelper.handleMKtRequest(msg, resolve, reject);
 
-        wsClient.on('message', function(msg) {
-        	var data = JSON.parse(msg);
-
-		    if (data["error"] == "") {
-			    resolve(data["valid"]);
-		    } else if (data["error"] != "") {
-		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-		    } else {
-		    	reject(APIError.jsonError({message: "Unknown error in validating portfolio", errorCode: 2101}));
-		    }
-	    });
-    })
+    });
 };
 
 //Validate transactions
@@ -888,33 +807,15 @@ module.exports.validateTransactions = function(transactions, advicePortfolio, in
 	});
 
 	return new Promise((resolve, reject) => {
+		
+	    var msg = JSON.stringify({action:"validate_transactions", 
+						transactions: transactions,
+						advicePortfolio: advicePortfolio ? advicePortfolio : "",
+						investorPortfolio: investorPortfolio ? investorPortfolio : ""});
 
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
+		WSHelper.handleMKtRequest(msg, resolve, reject);
 
-		wsClient.on('open', function open() {
-            console.log('Connection Open');
-            console.log(connection);
-            var msg = JSON.stringify({action:"validate_transactions", 
-            						transactions: transactions,
-        							advicePortfolio: advicePortfolio ? advicePortfolio : "",
-        							investorPortfolio: investorPortfolio ? investorPortfolio : ""});
-
-         	wsClient.send(msg);
-        });
-
-        wsClient.on('message', function(msg) {
-        	var data = JSON.parse(msg);
-
-		    if (data["error"] == "" && data["valid"]) {
-			    resolve(data["valid"]);
-		    } else if (data["error"] != "") {
-		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-		    } else {
-		    	reject(APIError.jsonError({message: "Internal error in validating transactions", errorCode: 2101}));
-		    }
-	    });
-    })
+	});
 };
 
 

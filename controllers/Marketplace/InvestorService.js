@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 09:37:48
+* @Last Modified time: 2018-04-26 12:34:52
 */
 
 'use strict';
@@ -246,11 +246,11 @@ module.exports.getInvestorPortfolios = function(args, res, next) {
 					var fields = '_id name benchmark createdDate updatedDate';
 					return Promise.all([
 						//THIS IS BUGGY....WHY??
-						item ? PortfolioHelper.getUpdatedPortfolioForEverything(portfolioId, {fields: fields}) : {message:"Portfolio not valid"},
+						item ? PortfolioHelper.getUpdatedPortfolioForEverything(item, {fields: fields}) : {message:"Portfolio not valid"},
 						item ? PerformanceHelper.getPerformanceSummary(item) : null		
 					])
 					.then(([portfolio, performanceSummary]) => {
-						return portfolio ? Object.assign({performance: performanceSummary, isDefaultPortfolio: investor.defaultPortfolio.equals(portfolio._id)}, portfolio.toObject()) : null;
+						return portfolio ? Object.assign({performance: performanceSummary, isDefaultPortfolio: investor.defaultPortfolio.equals(portfolio._id)}, portfolio) : null;
 					});
 				});
 			} else {

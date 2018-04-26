@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-17 18:08:56
+* @Last Modified time: 2018-04-26 12:51:14
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -16,6 +16,7 @@ const PortfolioHelper = require("../helpers/Portfolio");
 const AdvisorHelper = require("../helpers/Advisor");
 const DateHelper = require("../../utils/Date");
 const APIError = require('../../utils/error');
+const WSHelper = require('./WSHelper');
 
 function _filterActive(objs) {
 	return objs ? objs.filter(item => {return item.active == true}).length : 0;	
@@ -192,33 +193,14 @@ module.exports.getAdviceAnalytics = function(adviceId, recalculate) {
 module.exports.validateAdvice = function(advice, oldAdvice, strictNetValue) {
 
 	return new Promise((resolve, reject) => {
-
-		var connection = 'ws://' + config.get('julia_server_host') + ":" + config.get('julia_server_port');
-		var wsClient = new WebSocket(connection);
-
-		wsClient.on('open', function open() {
-            console.log('Connection Open');
-            console.log(connection);
-            var msg = JSON.stringify({action:"validate_advice", 
+		var msg = JSON.stringify({action:"validate_advice", 
             						advice: advice,
             						lastAdvice: oldAdvice ? oldAdvice : "",
             						strictNetValue: strictNetValue ? strictNetValue : false});
 
-         	wsClient.send(msg);
-        });
+		WSHelper.handleMktRequest(msg, resolve, reject);
 
-        wsClient.on('message', function(msg) {
-        	var data = JSON.parse(msg);
-			
-        	if (data["error"] == "") {
-			    resolve(data["valid"]);
-		    } else if (data["error"] != "") {
-		    	reject(APIError.jsonError({message: data["error"], errorCode: 2102}));
-		    } else {
-		    	reject(APIError.jsonError({message: "Internal error validating the advice", errorCode: 2101}));
-		    }
-	    });
-    })
+    });
 };
 
 module.exports.updateAdviceAnalyticsAndPerformanceSummary = function(adviceId) {
