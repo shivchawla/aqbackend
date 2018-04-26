@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-25 00:03:29
+* @Last Modified time: 2018-04-26 09:37:48
 */
 
 'use strict';
@@ -105,32 +105,6 @@ module.exports.getInvestorDetail = function(args, res, next) {
 	});  
 };
 
-
-/*
-* Get following advisors
-*/
-module.exports.getFollowingAdvisors = function(args, res, next) {
-	const skip = args.skip.value;
-	const limit = args.limit.value;
-
-	const userId = args.user._id;
-	const investorId = args.investorId.value;
-
-	var profileFields = config.get('advisor_public_profile_fields').map(item => {return "profile."+item});
-	var allFields = `${profileFields} latestAnalytics`;
-
-	return AdvisorModel.fetchAdvisors({followers: {$elemMatch: {investor: investorId, active:true}}}, {fields: allFields})
-    .then(advisors => {
-    	if(advisors) {
-    		return res.status(200).send(advisors);
-    	} else {
-    		APIError.throwJsonError({message: "Advisors not found", errorCode: 1201});
-    	}
-    })
-    .catch(err => {
-    	return res.status(400).send(err.message);
-    });
-};
 
 /*
 * Create Portfolio based on positions in a portfolio

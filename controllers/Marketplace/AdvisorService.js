@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-25 20:02:05
+* @Last Modified time: 2018-04-26 10:05:18
 */
 
 'use strict';
@@ -61,7 +61,7 @@ module.exports.getAdvisors = function(args, res, next) {
     const registered = args.registered.value;
     if (registered) {
     	var registeredCategories = registered.split(",").map(item => {return item.trim() == "1";});
-    	query = {$and:[query, {'profile.isSebiRegistered':{$in: registeredCategories}}]};
+        query = {$and:[query, {'profile.isSebiRegistered':{$in: registeredCategories}}]};
     }
 
     const company = args.company.value;
@@ -70,9 +70,17 @@ module.exports.getAdvisors = function(args, res, next) {
     	query = {$and:[query, {'profile.isCompany':{$in: companyCategories}}]};
     }
 
-    const userId = args.user._id;
+    const following = args.following.value;
 
-    return AdvisorModel.fetchAdvisors(query, options)
+    const userId = args.user._id;
+    return InvestorModel.fetchInvestor({user:userId}, {fields: '_id', insert: true})
+    .then(userInvestorId => {
+        if (following) {
+            query.followers = {'$elemMatch':{investor: userInvestorId, active:true}};
+        } 
+
+        return AdvisorModel.fetchAdvisors(query, options)
+    })
     .then(advisors => {
     	if(advisors) {
 			return res.status(200).json(advisors.filter(item => {return item && item.user}));
@@ -126,7 +134,7 @@ module.exports.getAdvisorSummary = function(args, res, next) {
  			AdviceModel.fetchAdvices(adviceQuery, adviceOptions)
 		]);
 	})
-  	.then(([investor, advisor, advices]) => {
+  	.then(([investor, advisor, [advices, ct]]) => {
   		if(advisor) {
   			var isFollowing = !isOwner ? advisor.followers ? advisor.followers.filter(item => item.active).map(item => item.investor.toString()).indexOf(investor._id.toString()) != -1 : false : false;
   			const nAdvisor = Object.assign({advices: advices ? advices : [], isOwner: isOwner, isAdmin: isAdmin, isFollowing: isFollowing}, advisor.toObject());
@@ -170,7 +178,13 @@ module.exports.updateAdvisorProfile = function(args, res, next) {
 	})
     .then(advisor => {
     	if(advisor) {
-			return AdvisorModel.updateAdvisor({_id:advisorId}, {profile: profile}, {new:true, fields:'profile'})
+
+            var updates = {};
+            Object.keys(profile).forEach(item => {
+                updates[`profile.${item}`] = profile[item];
+            });
+
+			return AdvisorModel.updateAdvisor({_id:advisorId}, updates, {new:true, fields:'profile'})
 		} else {
 			APIError.throwJsonError({message: "Advisor not authorized to update profile", errorCode: 1206});
 		}
