@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 17:52:03
+* @Last Modified time: 2018-04-26 18:18:32
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -361,11 +361,11 @@ function _computeUpdatedPortfolioForStockTransactionsEachDate(portfolio, transac
 function _updatePositionsForTransactions(positions, transactions) {
 	
 	//SEND all the transactions and current positions to Julia server 
-	//Julia computes the updated portfolio	
+	//Julia computes the updated portfolio	con
 	//HEAVY DUTY WORK IS DONE BY JULIA
 	return new Promise(function(resolve, reject) {
 		var msg = JSON.stringify({action:"update_portfolio_transactions", 
-        								portfolio: portfolio,
+        								portfolio: {positions: positions},
         								transactions: transactions}); 
 
 		WSHelper.handleMktRequest(msg, resolve, reject);
