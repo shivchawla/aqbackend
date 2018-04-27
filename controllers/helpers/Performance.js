@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 12:39:33
+* @Last Modified time: 2018-04-27 09:53:10
 */
 
 'use strict';
@@ -51,8 +51,8 @@ function _computePerformance_portfolioValues(portfolioValues, benchmark) {
 
 	return new Promise(function(resolve, reject) {
 		var msg = JSON.stringify({action:"compute_performance_netvalue", 
-        								netValue: portfolioValues.map(x=>x.netValue),
-        								dates: portfolioValues.map(x=>x.date),
+        								netValue: portfolioValues.map(x=>x.netValues),
+        								dates: portfolioValues.map(x=>x.dates),
         								benchmark: benchmark ? benchmark : {ticker: 'NIFTY_50'}}); 
 
 		WSHelper.handleMktRequest(msg, resolve, reject);

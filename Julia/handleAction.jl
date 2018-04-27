@@ -142,7 +142,7 @@ function handleRequest(parsemsg::Dict{String, Any})
          
           (netValues, dates) = compute_portfolio_value_period(portfolio, startDate, endDate)
           
-          parsemsg["output"] = Dict("date" => dates, "netValue" => netValues)
+          parsemsg["output"] = Dict("dates" => dates, "netValue" => netValues)
 
         #NOT IN USE
         elseif action == "compute_portfolio_value_date"
