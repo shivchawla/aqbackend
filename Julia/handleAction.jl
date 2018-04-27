@@ -131,8 +131,8 @@ function handleRequest(parsemsg::Dict{String, Any})
         elseif action == "compute_portfolio_value_history"
 
           portfolioHistory = parsemsg["portfolioHistory"]
-          (netValue, dates) = compute_portfolio_value_history(portfolioHistory)
-          parsemsg["output"] = Dict("dates" => dates, "values" => netValue)
+          (netValues, dates) = compute_portfolio_value_history(portfolioHistory)
+          parsemsg["output"] = Dict("dates" => dates, "values" => netValues)
         
         elseif action == "compute_portfolio_value_period"
           
@@ -142,7 +142,7 @@ function handleRequest(parsemsg::Dict{String, Any})
          
           (netValues, dates) = compute_portfolio_value_period(portfolio, startDate, endDate)
           
-          parsemsg["output"] = Dict("date" => dates, "netValue" => netValue)
+          parsemsg["output"] = Dict("date" => dates, "netValue" => netValues)
 
         #NOT IN USE
         elseif action == "compute_portfolio_value_date"
