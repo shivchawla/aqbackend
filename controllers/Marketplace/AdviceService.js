@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 23:56:54
+* @Last Modified time: 2018-04-27 12:35:45
 */
 
 'use strict';
@@ -399,7 +399,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const userId = args.user._id;
 	
 	const options = {};
-	options.fields = 'name heading description createdDate updatedDate advisor public prohibited approved portfolio rebalance maxNotional rating';
+	options.fields = 'name heading description createdDate updatedDate advisor public prohibited approvalStatus portfolio rebalance maxNotional rating';
 	options.populate = 'advisor benchmark';
 	
 	return Promise.all([
@@ -447,7 +447,7 @@ module.exports.getAdviceDetail = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const userId = args.user._id;
 
-	var defaultFields = 'subscribers followers createdDate updatedDate advisor rebalance maxNotional rating';
+	var defaultFields = 'subscribers followers createdDate updatedDate advisor rebalance maxNotional rating approvalStatus prohibited';
 	const options = {};
    	options.fields = args.fields.value != "" ? args.fields.value : defaultFields;
    	options.populate = 'advisor';
