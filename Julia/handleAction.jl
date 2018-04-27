@@ -89,10 +89,12 @@ function handleRequest(parsemsg::Dict{String, Any})
           performance = serialize(performance)
           parsemsg["output"] = Dict("date" => endDate, "value" => performance)
 
+
+        ##NOT IN USE
         elseif action == "compute_performance_netvalue"
           performance = Dict{String, Any}()
            
-          netValues = convert(Vector{Float64}, parsemsg["netValue"])
+          netValues = [convert(Float64, val) for val in parsemsg["netValue"]]
           benchmark = parsemsg["benchmark"]["ticker"]
           dates = parsemsg["dates"]
           dates = [Date(DateTime(date, jsdateformat)) for date in dates]
@@ -127,6 +129,39 @@ function handleRequest(parsemsg::Dict{String, Any})
           
           parsemsg["output"] = Dict("date" => date, "value" => metrics)
         
+        elseif action == "compute_simulated_historical_performance"
+            portfolio = parsemsg["portfolio"]
+            startDate = DateTime(parsemsg["startDate"], jsdateformat)
+            endDate = DateTime(parsemsg["endDate"], jsdateformat)
+            benchmark = parsemsg["benchmark"]["ticker"]
+
+            (netValues, dates) = compute_portfolio_value_period(portfolio, startDate, endDate)
+            
+            if netValues != nothing && dates != nothing
+                vals = zeros(length(netValues), 1)
+                for (i,val) in enumerate(netValues)
+                    vals[i,1] = val
+                end
+                  
+                (lastdate, performance, dperformance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
+                
+                nVDict = Dict{String, Any}()
+
+                for i = 1:length(netValues)
+                    nVDict[string(dates[i])] = netValues[i]
+                end
+
+                parsemsg["output"] = Dict{String, Any}("date" => lastdate, 
+                                          "value" => Dict("true" => serialize(performance), "diff" => serialize(dperformance)), 
+                                          "portfolioValues" => nVDict)
+            else 
+                parsemsg["output"] = Dict{String, Any}("date" => Date(currentIndiaTime()), 
+                                          "value" => serialize(Performance()), 
+                                          "portfolioValues" => nVDict)
+                #error("Missing Input")
+            end
+         
+
         ##NOT IN USE
         elseif action == "compute_portfolio_value_history"
 
@@ -134,6 +169,7 @@ function handleRequest(parsemsg::Dict{String, Any})
           (netValues, dates) = compute_portfolio_value_history(portfolioHistory)
           parsemsg["output"] = Dict("dates" => dates, "values" => netValues)
         
+        ##NOT IN USE
         elseif action == "compute_portfolio_value_period"
           
           portfolio = parsemsg["portfolio"]
@@ -142,11 +178,17 @@ function handleRequest(parsemsg::Dict{String, Any})
          
           (netValues, dates) = compute_portfolio_value_period(portfolio, startDate, endDate)
           
-          parsemsg["output"] = Dict("dates" => dates, "netValue" => netValues)
+          nVDict = Dict{String, Float64}()
+
+          for i = 1:length(netValues)
+              nVDict[string(dates[i])] = netValues[i]
+          end
+
+          parsemsg["output"] = Dict("portfolioValues" => nVDict)
+
 
         #NOT IN USE
-        elseif action == "compute_portfolio_value_date"
-          netvalue = 0.0
+        elseif action == "compute_portfolio_value_date"          netvalue = 0.0
           lastdate = DateTime()
           portfolio = parsemsg["portfolio"]
           date = DateTime(data["date"], jsdateformat)

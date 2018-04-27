@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-27 09:57:41
+* @Last Modified time: 2018-04-27 12:15:22
 */
 
 'use strict';
@@ -37,37 +37,30 @@ function _checkPerformanceUpdateRequired(performanceDetail) {
     return false;
 }
 
-function _computePortfolioValue(portfolio, startDate, endDate) {
+function _computeSimulatedHistoricalPerformance(portfolio, isAdvice) {
 	
 	return new Promise(function(resolve, reject) {
-		var msg = JSON.stringify({action:"compute_portfolio_value_period", 
-	        				portfolio: portfolio, startDate:startDate, endDate:endDate});
-
-		WSHelper.handleMktRequest(msg, resolve, reject);
-    });
-}
-
-function _computePerformance_portfolioValues(portfolioValues, benchmark) {
-
-	return new Promise(function(resolve, reject) {
-		var msg = JSON.stringify({action:"compute_performance_netvalue", 
-        								netValue: portfolioValues.map(x=>x.netValue),
-        								dates: portfolioValues.map(x=>x.dates),
-        								benchmark: benchmark ? benchmark : {ticker: 'NIFTY_50'}}); 
+		var msg = JSON.stringify({action:"compute_simulated_historical_performance", 
+        								portfolio: portfolio,
+        								benchmark: portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'},
+        								startDate: portfolio.startDate,
+        								endDate: portfolio.endDate,
+        								isAdvice: isAdvice}); 
 
 		WSHelper.handleMktRequest(msg, resolve, reject);
 
-	});
-}
-
-function _computeHistoricalPerformance(portfolio, startDate, endDate) {
-	return _computePortfolioValue(portfolio, startDate, endDate)
-	.then(portfolioValue => {
-		return Promise.all([portfolioValue, _computePerformance_portfolioValues(portfolioValue, portfolio.benchmark)]);
 	})
-	.then(([portfolioValues, performance]) => {
-		return {portfolioValues: portfolioValues, analytics: performance};
+	.then(performance => {
+		//FORMAT the output of portfolio values
+		performance.portfolioValues = Object.keys(performance.portfolioValues).sort().map(date => {
+			return {date: new Date(date), netValue: performance.portfolioValues[date]}
+		})
+
+		return performance;
 	});
+
+	//OLD OUTPUT FORMAT
+	//{portfolioValues: portfolioValues, analytics: performance};
 };
 
 function _computeConstituentPerformance_portfolio(portfolio, startDate, endDate, benchmark) {
@@ -141,6 +134,7 @@ function _computePerformance_portfolioHistory(portfolioHistory, benchmark, cashA
 			return {date: new Date(key), netValue: performance.portfolioValues[key]};
 		});	
 
+		return performance;
 	})
 
 }
@@ -154,7 +148,8 @@ function _computeTruePerformance(portfolioId, isAdvice) {
 			var portfolioHistory = [];
 			portfolio.history.forEach(item => {
 				portfolioHistory.push({startDate: item.startDate, 
-					endDate: item.endDate,
+					//If end date is greater than current date,  make it current date
+					endDate: DateHelper.compareDates(item.date, DateHelper.getCurrentDate()) == 1 ? DateHelper.getCurrentDate() : item.date,
 					portfolio: {
 						cash: item.cash,
 						positions: item.positions
@@ -178,14 +173,9 @@ function _computeSimulatedPerformanceCurrentPortfolio(portfolioId, isAdvice) {
 			var startDate = DateHelper.getCurrentDate(); 
 			startDate = DateHelper.getDate(startDate.setDate(startDate.getDate() - 365));
 
-			var portfolioHistory = [{startDate: startDate,
-										endDate: DateHelper.getCurrentDate(),
-										portfolio: {
-											positions: currentPortfolio.positions,
-											cash: !isAdvice ? currentPortfolio.cash : 0.0}
-										}];
+			currentPortfolio.startDate = startDate;		
 
-			return _computePerformance_portfolioHistory(portfolioHistory, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
+			return _computeSimulatedHistoricalPerformance(currentPortfolio, isAdvice);
 		} else {
 			APIError.throwJsonError({message: "Error computing simulated performance. Portfolio not found"});
 		}
@@ -236,7 +226,7 @@ function _computeSimulatedPerformance(portfolioId, isAdvice) {
 	])
 	.then(([simulatedPerformance, simulatedPortfolioMetrics]) => {
 		if (simulatedPerformance && simulatedPortfolioMetrics) {
-			
+
 			var updates = {updateMessage: "Updated Successfully",
 				updateDate: new Date(),
 				metrics: {
@@ -332,7 +322,7 @@ module.exports.computePerformanceHypthetical = function(portfolio) {
 			return Promise.all([
 				_computePortfolioMetrics_portfolio(portfolio.detail, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'}),
 				_computeConstituentPerformance_portfolio(portfolio.detail, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'}),
-				_computeHistoricalPerformance(portfolio.detail, startDate, endDate)
+				_computeSimulatedHistoricalPerformance(portfolio.detail, startDate, endDate)
 			])
 		} else if(!validPortfolio) {
 			//this should not be called but in any-case
