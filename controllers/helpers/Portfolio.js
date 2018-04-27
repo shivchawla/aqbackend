@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 18:18:32
+* @Last Modified time: 2018-04-27 18:18:17
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -378,7 +378,7 @@ function _updatePositionsForPrice(positions, type, date) {
 		return new Promise((resolve, reject) => {
 
 			var msg = JSON.stringify({action:"update_portfolio_price", 
-	            						portfolio: portfolio,
+	            						portfolio: {positions: positions},
 	            						date: !date || date == "" ? DateHelper.getCurrentDate() : date,
 	            						type: type ? type : "RT"});
          	

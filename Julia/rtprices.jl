@@ -51,8 +51,8 @@ function _updateportfolio_RTprice(port::Portfolio)
             latest_tradebar = get(_realtimePrices, sym.ticker, TradeBar())
             
             if latest_tradebar == TradeBar()
-                println("Using EOD price for $(sy.ticker)")
-                price = YRead.history([sym], "Close", :Day, 1, now())
+                println("Using EOD price for $(sym.ticker)")
+                price = YRead.history([sym.id], "Close", :Day, 1, now())
                 if price != nothing
                     val = values(price)[1]
                     latest_tradebar = Raftaar.TradeBar(val, val, val, val, 0)
@@ -63,6 +63,7 @@ function _updateportfolio_RTprice(port::Portfolio)
         end
 
         Raftaar.updateportfolio_price!(port, tradebars, DateTime())
+
     end
 
     return (updatedDate, port)
