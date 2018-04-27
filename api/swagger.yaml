@@ -2795,7 +2795,7 @@ definitions:
         default: true
       setdefault:
         type: boolean
-        default: boolean
+        default: false
 
 #PortfolioDetail
   PortfolioDetail:

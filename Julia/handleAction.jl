@@ -1,6 +1,5 @@
 
-function f
-  handleRequest(parsemsg::Dict{String, Any})
+function handleRequest(parsemsg::Dict{String, Any})
     try 
         action = parsemsg["action"]
         parsemsg["error"] = ""
