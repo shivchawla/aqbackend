@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-27 12:35:45
+* @Last Modified time: 2018-04-27 12:39:18
 */
 
 'use strict';
@@ -443,6 +443,8 @@ module.exports.getAdviceSummary = function(args, res, next) {
     });    
 };
 
+
+//API NEEDS IMPORVEMENT...FETHCING DETAIL FOR ADMIN SHOULD BE DIFFERENT
 module.exports.getAdviceDetail = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const userId = args.user._id;
