@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 12:41:24
+* @Last Modified time: 2018-04-28 17:20:56
 */
 
 'use strict';
@@ -24,7 +24,7 @@ const APIError = require('../../utils/error');
 const WebSocket = require('ws');
 
 //Run when seconds = 10
-schedule.scheduleJob("3 * * * * *", function() {
+schedule.scheduleJob("5 * * * * *", function() {
     processNewData();
 });
 
@@ -145,64 +145,71 @@ function _writeFile(data, file) {
 
 
 function _downloadNSEData(type) {
+
 	return new Promise((resolve, reject) => {
+		
 		let localUnzipFilePath;
+		let nseFilePath;
 
 		console.log("Starting download process now");
 		
-		let fileNumber;
-		var currentDate = new Date();
-
-		if (type == "mkt") {
-			var dateNine15 = new Date();
-			dateNine15.setUTCHours(3)
-			dateNine15.setUTCMinutes(45);
-			dateNine15.setUTCSeconds(0);
+		return new Promise((resolve, reject) => {
+			let fileNumber;
+			var currentDate = new Date();
 			var isWeekend = currentDate.getDay() == 0 || currentDate.getDay() == 6;
-			var minutesPassed = Math.floor(Math.abs(currentDate - dateNine15)/1000/60);
-			fileNumber = minutesPassed + 1;
-			//Total number of files = 391 (393 - 3:32PM some times)
 
-			
-		} else if(type == "ind") {
-			var dateEight50 = new Date();
-			dateEight50.setUTCHours(3)
-			dateEight50.setUTCMinutes(20);
-			dateEight50.setUTCSeconds(0);
-			minutesPassed = Math.floor(Math.abs(currentDate - dateEight50)/1000/60);
-			fileNumber = minutesPassed + 1;
-					}
+			if (!isWeekend) {
 
-		if (fileNumber > 391 || isWeekend) {
-			fileNumber = 391;
-		}
-			
-		const monthNames = ["January", "February", "March", "April", "May", "June",
-		  "July", "August", "September", "October", "November", "December"
-		];
+				if (type == "mkt") {
+					var dateNine15 = new Date();
+					dateNine15.setUTCHours(3)
+					dateNine15.setUTCMinutes(45);
+					dateNine15.setUTCSeconds(0);
+					var minutesPassed = Math.floor(Math.abs(currentDate - dateNine15)/1000/60);
+					fileNumber = minutesPassed + 1;
+					//Total number of files = 391 (393 - 3:32PM some times)
 
-		if (!isWeekend) {
-			var nseDateStr = `${monthNames[currentDate.getMonth()]}${currentDate.getDate()}${currentDate.getFullYear()}`;
-			var zipFileName = `${fileNumber}.${type}.gz`;
-			
-			var nseFilePath =`/CM30/DATA/${nseDateStr}/${zipFileName}`;
+					
+				} else if(type == "ind") {
+					var dateEight50 = new Date();
+					dateEight50.setUTCHours(3)
+					dateEight50.setUTCMinutes(20);
+					dateEight50.setUTCSeconds(0);
+					minutesPassed = Math.floor(Math.abs(currentDate - dateEight50)/1000/60);
+					fileNumber = minutesPassed + 1;
+							}
 
-			var localPath = path.resolve(path.join(__dirname, `../../Julia/rtdata/${nseDateStr}`));
-			if (!fs.existsSync(localPath)) {
-			    fs.mkdirSync(localPath);	
-		  	}	
-			
-			var unzipFileName = `${fileNumber}.${type}`;
-			localUnzipFilePath = `${localPath}/${unzipFileName}`;
+				if (fileNumber > 391) {
+					fileNumber = 391;
+				}
+					
+				const monthNames = ["January", "February", "March", "April", "May", "June",
+				  "July", "August", "September", "October", "November", "December"
+				];
 
-	  	} else {
-	  		APIError.throwJsonError({message: "Weekend! No file can be downloaded"});
-	  	}
-	   	
-	   	//console.log(nseFilePath);
+				var nseDateStr = `${monthNames[currentDate.getMonth()]}${currentDate.getDate()}${currentDate.getFullYear()}`;
+				var zipFileName = `${fileNumber}.${type}.gz`;
+				
+				var nseFilePath =`/CM30/DATA/${nseDateStr}/${zipFileName}`;
 
-	   	//Check if unzip file is already downloaded
-    	sftp.get(nseFilePath, false, null)
+				var localPath = path.resolve(path.join(__dirname, `../../Julia/rtdata/${nseDateStr}`));
+				if (!fs.existsSync(localPath)) {
+				    fs.mkdirSync(localPath);	
+			  	}	
+				
+				var unzipFileName = `${fileNumber}.${type}`;
+				localUnzipFilePath = `${localPath}/${unzipFileName}`;
+
+				resolve(true);
+
+		  	} else {
+		  		reject(APIError.jsonError({message: "Weekend! No file can be downloaded"}));
+		  	}
+	  	})
+	  	.then(flag => {
+		   	//Check if unzip file is already downloaded
+		   	return sftp.get(nseFilePath, false, null)
+	   	})
 		.then(data => {
 			return !fs.existsSync(localUnzipFilePath) ? _writeFile(data, localUnzipFilePath) : true
 		}) 
@@ -211,7 +218,6 @@ function _downloadNSEData(type) {
 			resolve(localUnzipFilePath);
 		})
 		.catch(err => {
-		    console.log(err);
 		    var lastFile = _getLastValidFile(type);
 		    if (lastFile == "") {
 		    	console.log("No file to process");
