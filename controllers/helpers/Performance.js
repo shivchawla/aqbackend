@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-27 12:15:22
+* @Last Modified time: 2018-04-29 23:44:34
 */
 
 'use strict';
@@ -130,6 +130,7 @@ function _computePerformance_portfolioHistory(portfolioHistory, benchmark, cashA
 		WSHelper.handleMktRequest(msg, resolve, reject);
 	})
 	.then(performance => {
+
 		performance.portfolioValues = Object.keys(performance.portfolioValues).sort().map(key => {
 			return {date: new Date(key), netValue: performance.portfolioValues[key]};
 		});	
@@ -147,7 +148,8 @@ function _computeTruePerformance(portfolioId, isAdvice) {
 		if (portfolio.history.length > 0) {
 			var portfolioHistory = [];
 			portfolio.history.forEach(item => {
-				portfolioHistory.push({startDate: item.startDate, 
+				portfolioHistory.push({startDate: item.startDate ? item.startDate : 
+						item.endDate ? item.endDate : DateHelper.getCurrentDate(), 
 					//If end date is greater than current date,  make it current date
 					endDate: DateHelper.compareDates(item.date, DateHelper.getCurrentDate()) == 1 ? DateHelper.getCurrentDate() : item.date,
 					portfolio: {
@@ -173,7 +175,8 @@ function _computeSimulatedPerformanceCurrentPortfolio(portfolioId, isAdvice) {
 			var startDate = DateHelper.getCurrentDate(); 
 			startDate = DateHelper.getDate(startDate.setDate(startDate.getDate() - 365));
 
-			currentPortfolio.startDate = startDate;		
+			currentPortfolio.startDate = startDate;
+			currentPortfolio.endDate = DateHelper.getCurrentDate(); 
 
 			return _computeSimulatedHistoricalPerformance(currentPortfolio, isAdvice);
 		} else {
