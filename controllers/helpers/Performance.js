@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-29 23:44:34
+* @Last Modified time: 2018-04-30 00:48:29
 */
 
 'use strict';
@@ -149,9 +149,11 @@ function _computeTruePerformance(portfolioId, isAdvice) {
 			var portfolioHistory = [];
 			portfolio.history.forEach(item => {
 				portfolioHistory.push({startDate: item.startDate ? item.startDate : 
-						item.endDate ? item.endDate : DateHelper.getCurrentDate(), 
+						(item.endDate ? item.endDate : DateHelper.getCurrentDate()), 
 					//If end date is greater than current date,  make it current date
-					endDate: DateHelper.compareDates(item.date, DateHelper.getCurrentDate()) == 1 ? DateHelper.getCurrentDate() : item.date,
+					endDate: item.endDate &&  
+						DateHelper.compareDates(item.endDate, DateHelper.getCurrentDate()) != 1 ? 
+						item.endDate : DateHelper.getCurrentDate(),
 					portfolio: {
 						cash: item.cash,
 						positions: item.positions
