@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-28 17:20:56
+* @Last Modified time: 2018-04-30 10:26:53
 */
 
 'use strict';
@@ -196,19 +196,19 @@ function _downloadNSEData(type) {
 				if (!fs.existsSync(localPath)) {
 				    fs.mkdirSync(localPath);	
 			  	}	
-				
+
 				var unzipFileName = `${fileNumber}.${type}`;
 				localUnzipFilePath = `${localPath}/${unzipFileName}`;
 
-				resolve(true);
+				resolve(nseFilePath);
 
 		  	} else {
 		  		reject(APIError.jsonError({message: "Weekend! No file can be downloaded"}));
 		  	}
 	  	})
-	  	.then(flag => {
+	  	.then(nseFile => {
 		   	//Check if unzip file is already downloaded
-		   	return sftp.get(nseFilePath, false, null)
+		   	return sftp.get(nseFile, false, null)
 	   	})
 		.then(data => {
 			return !fs.existsSync(localUnzipFilePath) ? _writeFile(data, localUnzipFilePath) : true
@@ -218,6 +218,7 @@ function _downloadNSEData(type) {
 			resolve(localUnzipFilePath);
 		})
 		.catch(err => {
+			console.log(err);
 		    var lastFile = _getLastValidFile(type);
 		    if (lastFile == "") {
 		    	console.log("No file to process");
@@ -526,7 +527,6 @@ function _sendWSResponse(res, data, category, typeId) {
 		console.log(err.message);
 		return err.message;
 	}
-		
 }
 
 function _onDataUpdate(typeId, data, category) {
@@ -653,7 +653,6 @@ function __getLatestPortfolioData(portfolioId) {
 
 		return rtEnhanced;
 	});
-
 }
 
 function _updatePortfoliosOnNewData() {

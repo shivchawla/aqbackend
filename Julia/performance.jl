@@ -211,8 +211,15 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
             benchmark = "NIFTY_50"
             benchmark_prices = history_nostrict([benchmark], "Close", :Day, start_date, end_date)
             
-            stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
+            stock_prices = nothing
+            try
+                stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
+            catch err
+                println("Error in fetching adjusted prices for $(security.symbol.ticker)")
+            end
+
             if stock_prices == nothing
+                println("Fetching un-adjusted prices for $(security.symbol.ticker)")
                 stock_prices = history_nostrict([security.symbol.ticker], "Close", :Day, start_date, end_date)
             end
 
@@ -250,9 +257,16 @@ function compute_stock_static_performance(security_dict::Dict{String,Any}; bench
             end_date = currentIndiaTime()
 
             benchmark_prices = history_nostrict([benchmark], "Close", :Day, start_date, end_date)
-            stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
+            
+            stock_prices = nothing
+            try
+                stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
+            catch err
+                println("Error in fetching adjusted prices for $(security.symbol.ticker)")
+            end
 
             if stock_prices == nothing
+                println("Fetching un-adjusted prices for $(security.symbol.ticker)")
                 stock_prices = history_nostrict([security.symbol.ticker], "Close", :Day, start_date, end_date)
             end
 
@@ -289,12 +303,15 @@ function get_stock_price_history(security_dict::Dict{String,Any})
             start_date = DateTime("2001-01-01")
             end_date = currentIndiaTime()
 
-            stock_price = nothing
+            stock_prices = nothing
             
             try
                 stock_prices = YRead.history([security.symbol.id], "Close", :Day, start_date, end_date, displaylogs=false)
             catch err
                 println("Error in fetching adjusted prices fot $(security.symbol.ticker)")
+            end
+
+            if stock_prices == nothing
                 println("Fetching un-adjusted prices for $(security.symbol.ticker)")
                 stock_prices = history_nostrict([security.symbol.id], "Close", :Day, start_date, end_date)
             end
@@ -340,8 +357,11 @@ function get_stock_price_latest(security_dict::Dict{String,Any}, ptype::String="
                 stock_value_52w = nothing
                 try
                     stock_value_52w = YRead.history(security.symbol.id, ["Open","High","Low","Close"], :Day, DateTime(start_date), DateTime(end_date), displaylogs=false)
-                catch
-                    println("Error in fetching adjusted prices fot $(security.symbol.ticker)")
+                catch err
+                    println("Error in fetching adjusted prices for $(security.symbol.ticker)")
+                end
+
+                if  stock_value_52w == nothing 
                     println("Fetching un-adjusted prices for $(security.symbol.ticker)")
                     stock_value_52w = history_nostrict(security.symbol.id, ["Open","High","Low","Close"], :Day, DateTime(start_date), DateTime(end_date))
                 end
@@ -350,22 +370,21 @@ function get_stock_price_latest(security_dict::Dict{String,Any}, ptype::String="
                     error("Stock data for $(security.symbol.ticker) is not present")
                 end
 
-                if(length(stock_value_52w.values) > 0)
+                if(length(values(stock_value_52w)) > 0)
                     
-                    highs = stock_value_52w["High"].values
-                    lows = stock_value_52w["Low"].values 
+                    highs = values(stock_value_52w["High"])
+                    lows = values(stock_value_52w["Low"])
                     
                     output["High_52w"] = maximum(highs)
                     output["Low_52w"] = minimum(lows)
 
-                    output["Low"] = stock_value_52w["Low"].values[end]
-                    output["High"] = stock_value_52w["High"].values[end]
-                    output["Open"] = stock_value_52w["Open"].values[end]
-                    output["Close"] = stock_value_52w["Close"].values[end]
+                    output["Low"] = values(stock_value_52w["Low"])[end]
+                    output["High"] = values(stock_value_52w["High"])[end]
+                    output["Open"] = values(stock_value_52w["Open"])[end]
+                    output["Close"] = values(stock_value_52w["Close"])[end]
                     output["Date"] = string(Date(stock_value_52w.timestamp[end]))
                     output["ChangePct"] = length(stock_value_52w.timestamp) > 1 ? round(percentchange(stock_value_52w["Close"]).values[end], 4) : 0.0
                     output["Change"] = length(stock_value_52w.timestamp) > 1 ? round(diff(stock_value_52w["Close"]).values[end], 2) : 0.0
-                
                 else
                     error("Stock data for $(security.symbol.ticker) is not present")
                 end
@@ -395,6 +414,8 @@ function get_stock_price_latest(security_dict::Dict{String,Any}, ptype::String="
         return output     
         
     catch err
+        println(err)
+
         rethrow(err)
     end 
 end

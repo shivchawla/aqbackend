@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-25 18:32:13
+* @Last Modified time: 2018-04-30 01:16:57
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -362,7 +362,7 @@ module.exports.updateStockList = function() {
 					securityType: security.securityType,
 					country: security.country
 				};		
-			return exports.computeStockPerformance(sec)
+			return _computeStockPerformance(sec)
 			.then(pf => {
 				//console.log(pf);
 				//return;
