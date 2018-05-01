@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-01 14:26:58
+* @Last Modified time: 2018-05-01 14:39:59
 */
 
 'use strict';
@@ -24,7 +24,7 @@ function _findFirstValidPortfolio(adviceId, date, attempts) {
 	var nDate = DateHelper.getDate(date);
 	nDate.setDate(nDate.getDate() + 1);
 
-	return PortfolioHelper.getAdvicePortfolio(adviceId, ndate)
+	return PortfolioHelper.getAdvicePortfolio(adviceId, nDate)
 	.then(portfolioForDate => {
 		if (portfolioForDate && portfolioForDate.detail) {
 			return portfolioForDate;
@@ -537,7 +537,7 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 				if (portfolioForDate && portfolioForDate.detail) {
 					return portfolioForDate;
 				} else {
-					return authorizationStatus.isOwner ? _findFirstValidPortfolio(adviceId, nDate, 100) : null; 
+					return authorizationStatus.isOwner ? _findFirstValidPortfolio(adviceId, ndate, 100) : null; 
 				}
 			})
 		} else {
