@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-01 13:34:35
+* @Last Modified time: 2018-05-01 14:26:58
 */
 
 'use strict';
@@ -18,6 +18,21 @@ const PerformanceHelper = require("../helpers/Performance");
 const AdviceHelper = require("../helpers/Advice");
 const APIError = require('../../utils/error');
 const DateHelper = require('../../utils/Date');
+
+
+function _findFirstValidPortfolio(adviceId, date, attempts) {
+	var nDate = DateHelper.getDate(date);
+	nDate.setDate(nDate.getDate() + 1);
+
+	return PortfolioHelper.getAdvicePortfolio(adviceId, ndate)
+	.then(portfolioForDate => {
+		if (portfolioForDate && portfolioForDate.detail) {
+			return portfolioForDate;
+		} else {
+			return attempts > 0 ? _findFirstValidPortfolio(adviceId, nDate, attempts - 1) : null;	
+		}
+	});
+}
 
 module.exports.createAdvice = function(args, res, next) {
 	const userId = args.user._id;
@@ -422,12 +437,22 @@ module.exports.getAdviceSummary = function(args, res, next) {
 			APIError.throwJsonError({message:'Advice not found', errorCode: 1101});
 		}
 
-		return Promise.all([
-			nAdvice,
-			PerformanceHelper.computeAdvicePerformanceSummary(adviceId),
-			PortfolioHelper.getAdvicePnlStats(adviceId)
-		]);
+		//First fetch the latest portfolio for the advice
+		//and compute performance of the same
+		return _findFirstValidPortfolio(adviceId, DateHelper.getCurrentDate(), 100)
+		.then(firstValidPortfolio => {
 
+			var date = DateHelper.getCurrentDate();
+			if (firstValidPortfolio && firstValidPortfolio.detail) {
+				date = DateHelper.getDate(firstValidPortfolio.detail.startDate);
+			}
+
+			return Promise.all([
+				nAdvice,
+				PerformanceHelper.computeAdvicePerformanceSummary(adviceId, date),
+				PortfolioHelper.getAdvicePnlStats(adviceId, date)
+			]);	
+		});
  	})
  	.then(([advice, performanceSummary, advicePnlStats]) => {
 		var nAdvice = advice;
@@ -508,11 +533,11 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 
 			//Re-run the query after checking 
 			return PortfolioHelper.getAdvicePortfolio(adviceId, ndate)
-			.then(portflioForDate => {
-				if (portfolioForDate.detail) {
+			.then(portfolioForDate => {
+				if (portfolioForDate && portfolioForDate.detail) {
 					return portfolioForDate;
 				} else {
-					return PortfolioHelper.getAdvicePortfolio(adviceId, ndate)
+					return authorizationStatus.isOwner ? _findFirstValidPortfolio(adviceId, nDate, 100) : null; 
 				}
 			})
 		} else {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-01 13:31:20
+* @Last Modified time: 2018-05-01 14:27:10
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -878,8 +878,8 @@ module.exports.getAdvicePortfolio = function(adviceId, date) {
 	});
 };
 
-module.exports.getAdvicePnlStats = function(adviceId) {
-	return exports.getAdvicePortfolio(adviceId)
+module.exports.getAdvicePnlStats = function(adviceId, date) {
+	return exports.getAdvicePortfolio(adviceId, date)
 	.then(advicePortfolio => {
 		if (advicePortfolio && advicePortfolio.pnlStats) {
 			return advicePortfolio.pnlStats;
