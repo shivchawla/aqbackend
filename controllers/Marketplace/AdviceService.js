@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-27 12:39:18
+* @Last Modified time: 2018-05-01 13:34:35
 */
 
 'use strict';
@@ -71,7 +71,7 @@ module.exports.createAdvice = function(args, res, next) {
     	if(advice) {
     		return Promise.all([
     			advice,
-    			AdviceHelper.updateAdviceAnalyticsAndPerformanceSummary(advice._id)
+    			AdviceHelper.updateAdviceAnalyticsAndPerformanceSummary(advice._id, advice.portfolio.startDate)
    			]);
     	} else {
     		APIError.throwJsonError({message: "Error adding advice to advisor", errorCode: 1111});	
@@ -443,7 +443,6 @@ module.exports.getAdviceSummary = function(args, res, next) {
     });    
 };
 
-
 //API NEEDS IMPORVEMENT...FETHCING DETAIL FOR ADMIN SHOULD BE DIFFERENT
 module.exports.getAdviceDetail = function(args, res, next) {
 	const adviceId = args.adviceId.value;
@@ -508,7 +507,14 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 			}
 
 			//Re-run the query after checking 
-			return PortfolioHelper.getAdvicePortfolio(adviceId, ndate);
+			return PortfolioHelper.getAdvicePortfolio(adviceId, ndate)
+			.then(portflioForDate => {
+				if (portfolioForDate.detail) {
+					return portfolioForDate;
+				} else {
+					return PortfolioHelper.getAdvicePortfolio(adviceId, ndate)
+				}
+			})
 		} else {
 			APIError.throwJsonError({message:"Investor not authorized to view advice detail", errorCode: 1112});
 		}
