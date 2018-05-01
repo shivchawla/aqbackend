@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-27 18:18:17
+* @Last Modified time: 2018-05-01 13:31:20
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -485,8 +485,8 @@ function _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolioDetail, da
 }
 
 //Compute Portfolio Analytics
-module.exports.computePortfolioAnalytics = function(portfolioId) {
-	return exports.getPortfolioForDate(portfolioId)
+module.exports.computePortfolioAnalytics = function(portfolioId, date) {
+	return exports.getPortfolioForDate(portfolioId, {detail:1}, date)
 	.then(portfolio => {
 		var positions = portfolio && portfolio.detail ? portfolio.detail.positions : [];
 		var distinctSectors = Array.from(new Set(positions.map(item => {return item && item.security && item.security.detail ? item.security.detail.Sector : "";}).filter(item => {return item && item != ""})));
@@ -713,10 +713,17 @@ module.exports.getPortfolioForDate = function(portfolioId, options, date) {
 };
 
 module.exports.getUpdatedPortfolioForPrice = function(portfolioId, options, date) {
-	return exports.getPortfolioForDate(portfolioId, options)
+	return exports.getPortfolioForDate(portfolioId, options, date)
 	.then(portfolio => {
 		if(portfolio) {
 			var nDate = date ? DateHelper.getDate(date) : DateHelper.getCurrentDate();
+			
+			//If portfolio date is later than today,
+			//Update based on latest prices
+			if (DateHelper.compareDates(nDate, DateHelper.getCurrentDate()) == 1) {
+				nDate = DateHelper.getCurrentDate();	
+			} 
+
 			return portfolio.detail ? exports.computeUpdatedPortfolioForPrice(portfolio, options, nDate) :  null;
 		} else {
 			APIError.throwJsonError({portfolioId: portfolioId, message: `Error getting portfolio for date: ${DateHelper.getCurrentDate()}`});
@@ -736,7 +743,7 @@ module.exports.getUpdatedPortfolioForEverything = function(portfolioId, options,
 };
 
 //Gets the portfolio history till a specific date (Date could be in the history)
-module.exports.getPortfolioHistory = function(portfolioId, date, options) {
+module.exports.getPortfolioHistory = function(portfolioId, options, date) {
 	
 	var __fields = options && options.fields ? options.fields : "";
 	__fields = __fields.concat(" detail history");

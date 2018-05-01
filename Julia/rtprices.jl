@@ -55,7 +55,7 @@ function _updateportfolio_RTprice(port::Portfolio)
                 price = YRead.history([sym.id], "Close", :Day, 1, now())
                 if price != nothing
                     val = values(price)[1]
-                    latest_tradebar = Raftaar.TradeBar(val, val, val, val, 0)
+                    latest_tradebar = Raftaar.TradeBar(DateTime(), val, val, val, val, 0)
                 end
             end
             

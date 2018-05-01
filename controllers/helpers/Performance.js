@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-30 00:48:29
+* @Last Modified time: 2018-05-01 13:28:24
 */
 
 'use strict';
@@ -76,8 +76,8 @@ function _computeConstituentPerformance_portfolio(portfolio, startDate, endDate,
 	});
 }
 
-function _computeConstituentPerformance(portfolioId) {
-	return PortfolioHelper.getPortfolioForDate(portfolioId, {fields:'detail benchmark'})
+function _computeConstituentPerformance(portfolioId, date) {
+	return PortfolioHelper.getPortfolioForDate(portfolioId, {fields:'detail benchmark'}, date)
 	.then(portfolio => {
 		if(portfolio && portfolio.detail) {
 			var currentPortfolio = portfolio.detail;
@@ -104,8 +104,8 @@ function _computePortfolioMetrics_portfolio(portfolio, startDate, endDate, bench
 	});
 }
 
-function _computePortfolioMetrics(portfolioId, isAdvice) {
-	return PortfolioHelper.getPortfolioForDate(portfolioId, {fields:'detail benchmark'})
+function _computePortfolioMetrics(portfolioId, date, isAdvice) {
+	return PortfolioHelper.getPortfolioForDate(portfolioId, {fields:'detail benchmark'}, date)
 	.then(portfolio => {
 		if(portfolio && portfolio.detail) {
 			var currentPortfolio = portfolio.detail;
@@ -142,8 +142,8 @@ function _computePerformance_portfolioHistory(portfolioHistory, benchmark, cashA
 
 //Computes performance of true portfolio (using exact portfolio history) till date
 // and cash adjustment if any (for advice)
-function _computeTruePerformance(portfolioId, isAdvice) {
-	return PortfolioHelper.getPortfolioHistory(portfolioId, null, {benchmark:1})
+function _computeTruePerformance(portfolioId, date, isAdvice) {
+	return PortfolioHelper.getPortfolioHistory(portfolioId, {benchmark:1}, date)
 	.then(portfolio => {
 		if (portfolio.history.length > 0) {
 			var portfolioHistory = [];
@@ -168,8 +168,8 @@ function _computeTruePerformance(portfolioId, isAdvice) {
 	});
 }
 
-function _computeSimulatedPerformanceCurrentPortfolio(portfolioId, isAdvice) {
-	return PortfolioHelper.getPortfolioForDate(portfolioId, {fields:'detail benchmark'})
+function _computeSimulatedPerformanceCurrentPortfolio(portfolioId, date, isAdvice) {
+	return PortfolioHelper.getPortfolioForDate(portfolioId, {fields:'detail benchmark'}, date)
 	.then(portfolio => {
 		if(portfolio && portfolio.detail){
 			var currentPortfolio = portfolio.detail;
@@ -187,11 +187,11 @@ function _computeSimulatedPerformanceCurrentPortfolio(portfolioId, isAdvice) {
 	});
 }
 
-function _computeLatestPerformance(portfolioId, isAdvice) {
+function _computeLatestPerformance(portfolioId, date, isAdvice) {
 	return Promise.all([
-		_computeTruePerformance(portfolioId, isAdvice), //WORKS
-		_computePortfolioMetrics(portfolioId, isAdvice), //WORKS
-		_computeConstituentPerformance(portfolioId)
+		_computeTruePerformance(portfolioId, date, isAdvice), //WORKS
+		_computePortfolioMetrics(portfolioId, date, isAdvice), //WORKS
+		_computeConstituentPerformance(portfolioId, date)
 	]) 
 	.then(([latestPerformance, portfolioMetrics, constituentPerformance]) => {
 	
@@ -224,10 +224,10 @@ function _computeLatestPerformance(portfolioId, isAdvice) {
 	});
 }
 
-function _computeSimulatedPerformance(portfolioId, isAdvice) {
+function _computeSimulatedPerformance(portfolioId, date, isAdvice) {
 	return Promise.all([
-		_computeSimulatedPerformanceCurrentPortfolio(portfolioId, isAdvice),
-		_computePortfolioMetrics(portfolioId, isAdvice) //This is same as Current
+		_computeSimulatedPerformanceCurrentPortfolio(portfolioId, date, isAdvice),
+		_computePortfolioMetrics(portfolioId, date, isAdvice) //This is same as Current
 	])
 	.then(([simulatedPerformance, simulatedPortfolioMetrics]) => {
 		if (simulatedPerformance && simulatedPortfolioMetrics) {
@@ -339,12 +339,12 @@ module.exports.computePerformanceHypthetical = function(portfolio) {
 	});
 };
 
-module.exports.computePerformanceSummary = function(portfolioId, options) {
+module.exports.computePerformanceSummary = function(portfolioId, options, date) {
 	
 	var summaryType = options && options.simulated ? "simulated" : "current";
 	return new Promise(resolve => {
 		var opt = Object.assign(options ? options : {}, {fields: summaryType})
-		exports.computePerformance(portfolioId, options)
+		exports.computePerformance(portfolioId, options, date)
 		.then(performance => {
 			if (performance){
 				const pf = Object.assign({}, performance.toObject());
@@ -392,15 +392,15 @@ module.exports.getPerformanceSummary = function(portfolioId, simulatedFlag) {
 	}	
 };
 
-module.exports.computePerformance = function(portfolioId, options) {
+module.exports.computePerformance = function(portfolioId, options, date) {
 	var performanceType = options && options.simulated ? "simulated" :  "current";
 	return new Promise(resolve => {
 		Promise.resolve()
 		.then(v => {
 		 	if(performanceType == "current") {
-			 	return _computeLatestPerformance(portfolioId, options ? options.advice : false); 
+			 	return _computeLatestPerformance(portfolioId, date, options ? options.advice : false); 
 		 	} else {
-			 	return _computeSimulatedPerformance(portfolioId, options ? options.advice : false);
+			 	return _computeSimulatedPerformance(portfolioId, date, options ? options.advice : false);
 		 	}
 		})
 		.then(performance => {
@@ -438,14 +438,14 @@ module.exports.getPerformance = function(portfolioId, options) {
 	}
 };
 
-module.exports.computeAllPerformanceSummary = function(portfolioId, options) {
-	return exports.computePerformanceSummary(portfolioId, options)
+module.exports.computeAllPerformanceSummary = function(portfolioId, options, date) {
+	return exports.computePerformanceSummary(portfolioId, options, date)
 	.then(latestPerformanceSummary => {
 		return Promise.all([
 			latestPerformanceSummary,
 			//compute simulated performance summary
 			//Update the options to include simulated flag
-			exports.computePerformanceSummary(portfolioId, Object.assign({simulated: true}, options ? options : {}))
+			exports.computePerformanceSummary(portfolioId, Object.assign({simulated: true}, options ? options : {}), date)
 		]);
 	})
 	.then(([latestPerformanceSummary, simulatedPerformanceSummary]) => {
@@ -520,12 +520,12 @@ module.exports.getAllPerformance = function(portfolioId) {
 	}
 };
 
-module.exports.computeAdvicePerformanceSummary = function(adviceId) {
+module.exports.computeAdvicePerformanceSummary = function(adviceId, date) {
 	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio'})
 	.then(advice => {
 		if (advice) {
 			return Promise.all([
-				exports.computeAllPerformanceSummary(advice.portfolio, {advice: true}),
+				exports.computeAllPerformanceSummary(advice.portfolio, {advice: true}, date),
 				PortfolioHelper.computePortfolioAnalytics(advice.portfolio)
 			]);
 		} else {
