@@ -35,8 +35,10 @@
     "request": "^2.83.0",
     "sendgrid": "4.7.1",
     "sib-api-v3-sdk": "^3.1.5",
+    "ssh2-sftp-client": "^2.1.1",
     "stream-splitter": "^0.3.2",
     "swagger-tools": "0.10.1",
+    "truncate-html": "^1.0.0",
     "ws": "^1.1.1"
   },
   "devDependencies": {
