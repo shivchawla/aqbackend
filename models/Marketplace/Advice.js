@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-25 19:58:55
+* @Last Modified time: 2018-05-02 22:05:47
 */
 'use strict';
 const mongoose = require('../index');
@@ -66,6 +66,11 @@ const Advice = new Schema({
     createdDate: {
         type: Date,
         required: true
+    },
+
+    startDate: {
+        type: Date,
+        required: true,
     },
 
     updatedDate:{

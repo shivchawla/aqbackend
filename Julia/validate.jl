@@ -41,10 +41,9 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
        
         startDate = haskey(portfolioDetail, "startDate") ? Date(DateTime(portfolioDetail["startDate"])) : Date()
         
-        #Temporary Change
-        #=if startDate <= Date(currentIndiaTime())
-            error("Startdate of new advice: $(startDate) can't be today or before today")
-        end=#
+        if startDate <= Date(currentIndiaTime())
+            error("Startdate of new advice: $(startDate) can't be before today")
+        end
 
         #this date comes from js object and is in jsformat - 12/04/2018
         oldStartDate = haskey(oldPortfolioDetail, "startDate") ? Date(DateTime(oldPortfolioDetail["startDate"], jsFormat)) : Date()

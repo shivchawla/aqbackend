@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-30 10:26:53
+* @Last Modified time: 2018-05-02 18:03:46
 */
 
 'use strict';
@@ -43,14 +43,6 @@ var subscribers = {portfolio: {},
 	}, 
 	watchlist: {}
 };
-
-function getConnectionForMkt() {
-    var machines = config.get('mktmachines');
-    var machine = machines[numRequests++ % machines.length];
-
-    console.log(`Using machine: ${machine.host}:${machine.port} for request#: ${numRequests}`);
-    return 'ws://' + machine.host + ":" + machine.port;
-}
 
 function debugConnection(str) {
 	console.log(str);
@@ -618,10 +610,10 @@ function _computeNavAndPnLChanges(oldNav, nav, oldPnl, pnl) {
 			dailyPnlChange: dailyPnlChange};
 }
 
-function __getLatestPortfolioData(portfolioId) {
+function __getLatestPortfolioData(portfolioId, options) {
 	return Promise.all([
-		PortfolioHelper.getUpdatedPortfolioForEverything(portfolioId),
-		PortfolioHelper.getUpdatedPortfolioForEverything(portfolioId, {priceType: 'EOD'})
+		PortfolioHelper.getUpdatedPortfolioForEverything(portfolioId, options),
+		PortfolioHelper.getUpdatedPortfolioForEverything(portfolioId, Object.assign({priceType: 'EOD'}, options))
 	])
 	.then(([rtPortfolio, edPortfolio]) => {
 		return Promise.all([
@@ -678,7 +670,7 @@ function _updateAdvicesOnNewData() {
 		return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio'})
 		.then(advice => {
 			if (advice && advice.portfolio) {
-				return __getLatestPortfolioData(advice.portfolio);
+				return __getLatestPortfolioData(advice.portfolio, {advice:true});
 			} else {
 				return null;
 			}

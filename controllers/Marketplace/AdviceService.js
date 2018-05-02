@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-01 14:39:59
+* @Last Modified time: 2018-05-02 22:24:42
 */
 
 'use strict';
@@ -75,6 +75,7 @@ module.exports.createAdvice = function(args, res, next) {
 				advisor: advisorId,
 		       	portfolio: port._id,
 		       	createdDate: new Date(),
+		       	startDate: DateHelper.getDate(advice.portfolio.detail.startDate),
 		       	updatedDate: new Date(),
 		    };
 		    return AdviceModel.saveAdvice(adv);
@@ -183,6 +184,11 @@ module.exports.updateAdvice = function(args, res, next) {
 	})
 	.then(validAdvice => {
 		var adviceUpdates = Object.assign({}, newAdvice);
+		
+		if (!isPublic && adviceUpdates.portfolio) {
+			adviceUpdates.startDate = DateHelper.getDate(adviceUpdates.portfolio.detail.startDate);
+		}
+
 		delete adviceUpdates.portfolio;
 
 		if (validAdvice) {
@@ -241,7 +247,7 @@ module.exports.getAdvices = function(args, res, next) {
 
     options.fields = 'name description heading createdDate updatedDate advisor public approvalStatus prohibited maxNotional rebalance performanceSummary rating';
 
-    var query = {deleted: false};
+    var query = {deleted: false}; 
 
     var performanceFilters = ["netValue", "sharpe", "volatility", "totalReturn", "maxLoss", "currentLoss", "beta"];
 
@@ -332,6 +338,13 @@ module.exports.getAdvices = function(args, res, next) {
 
 	    	if (personalCategories.indexOf("0") !=-1) {
 	    		advisorQuery.push({advisor:{'$ne': userAdvisorId}, public: true, prohibited: false});
+	    		
+	    		//Only show advices starting after today
+	    		query = {$and: [query, 
+	    						{$or:[{startDate: {$gte: DateHelper.getCurrentDate()}}, 
+	    								{startDate: {$exists: false}}]
+							}]
+						};
 	    	}
 
 	    	query = {'$and': [query, {'$or': advisorQuery}]}
@@ -385,7 +398,9 @@ module.exports.getAdvicesDefault = function(args, res, next) {
 	options.orderParam = 'rating.current';
     options.fields = 'name description heading createdDate updatedDate advisor public approvalStatus prohibited maxNotional rebalance performanceSummary rating';
 
-    var query = {deleted: false};
+    var query = {deleted: false, $or:[{startDate: {$gte: DateHelper.getCurrentDate()}}, 
+	    								{startDate: {$exists: false}}]
+				};
 
 	return AdviceModel.fetchAdvices(query, options)
     .then(([advices, ct]) => {
