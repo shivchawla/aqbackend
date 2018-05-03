@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-01 13:28:24
+* @Last Modified time: 2018-05-03 16:10:55
 */
 
 'use strict';
@@ -263,6 +263,7 @@ function _extractMetrics(allMetrics) {
 		alpha: allMetrics && allMetrics.ratios ? allMetrics.ratios.alpha : 0.0, 
 		maxLoss: allMetrics && allMetrics.drawdown ? allMetrics.drawdown.maxdrawdown : 0.0,	
 		currentLoss: allMetrics && allMetrics.drawdown ? allMetrics.drawdown.currentdrawdown : 0.0,
+		period: allMetrics && allMetrics.period ? allMetrics.period : 0
 	};
 }
 
@@ -526,7 +527,7 @@ module.exports.computeAdvicePerformanceSummary = function(adviceId, date) {
 		if (advice) {
 			return Promise.all([
 				exports.computeAllPerformanceSummary(advice.portfolio, {advice: true}, date),
-				PortfolioHelper.computePortfolioAnalytics(advice.portfolio)
+				PortfolioHelper.computePortfolioAnalytics(advice.portfolio, date)
 			]);
 		} else {
 			APIError.throwJsonError({message: "Advice not found", errorCode:1102});
@@ -544,11 +545,11 @@ module.exports.computeAdvicePerformanceSummary = function(adviceId, date) {
 };
 
 //RECALCULATE IS NOT USED - 23/03/2018
-module.exports.getAdvicePerformanceSummary = function(adviceId, recalculate) {
+module.exports.getAdvicePerformanceSummary = function(adviceId, date, recalculate) {
 	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'performanceSummary'})
 	.then(advice => {
 		if (!advice.performanceSummary || recalculate) {
-			return exports.computeAdvicePerformanceSummary(adviceId);
+			return exports.computeAdvicePerformanceSummary(adviceId, date);
 		} else {
 			return advice.performanceSummary
 		}

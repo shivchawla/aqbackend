@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-02 18:03:46
+* @Last Modified time: 2018-05-03 16:33:35
 */
 
 'use strict';
@@ -100,7 +100,13 @@ function _getLastValidFile(type) {
 	var nAttempts = 0;
 	var maxAttempts = 391*5;
 	while(!found && nAttempts++ < maxAttempts) {
-		var nseDateStr = `${monthNames[currentDate.getMonth()]}${currentDate.getDate()}${currentDate.getFullYear()}`;
+		
+		var month = currentDate.getMonth();
+		var date = currentDate.getDate();
+		date = date < 10 ? `0${date}` : date;
+		var year = currentDate.getFullYear();
+		var nseDateStr = `${monthNames[month]}${date}${year}`;
+
 		var localPath = path.resolve(path.join(__dirname, `../../Julia/rtdata/${nseDateStr}`));
 		
 		var unzipFileName = `${fileNumber}.${type}`;
@@ -179,7 +185,12 @@ function _downloadNSEData(type) {
 				  "July", "August", "September", "October", "November", "December"
 				];
 
-				var nseDateStr = `${monthNames[currentDate.getMonth()]}${currentDate.getDate()}${currentDate.getFullYear()}`;
+
+				var month = currentDate.getMonth();
+				var date = currentDate.getDate();
+				date = date < 10 ? `0${date}` : date;
+				var year = currentDate.getFullYear();
+				var nseDateStr = `${monthNames[month]}${date}${year}`;
 				var zipFileName = `${fileNumber}.${type}.gz`;
 				
 				var nseFilePath =`/CM30/DATA/${nseDateStr}/${zipFileName}`;
@@ -272,22 +283,22 @@ module.exports.handleMktPlaceSubscription = function(req, res) {
     var type = req.type;
 
     if (type == "stock") {
-    	_handleStockSubscription(req, res);
+    	return _handleStockSubscription(req, res);
     } else if(type == "watchlist") {
     	if (req.watchlistId) {
-    		_handleWatchlistSubscription(req, res);
+    		return _handleWatchlistSubscription(req, res);
 		} else {
 			res.send("Invalid portfolio. Subscription failed");
 		}
     } else if(type == "portfolio") {
     	if (req.portfolioId) {
-    		_handlePortfolioSubscription(req, res);
+    		return _handlePortfolioSubscription(req, res);
 		} else {
 			res.send("Invalid portfolio. Subscription failed");
 		}
     } else if(type == "advice") {
     	if (req.adviceId) {
-    		_handleAdviceSubscription(req, res);
+    		return _handleAdviceSubscription(req, res);
 		} else {
 			res.send("Invalid advice. Subscription failed");
 		}
@@ -305,22 +316,22 @@ module.exports.handleMktPlaceUnsubscription = function(req, res) {
     var type = req.type;
 
     if (type == "stock") {
-		_handleStockUnsubscription(req, res);
+		return _handleStockUnsubscription(req, res);
     } else if(type == "watchlist") {
     	if (req.watchlistId) {
-    		_handleWatchlistUnsubscription(req, res);
+    		return _handleWatchlistUnsubscription(req, res);
 		} else {
 			res.send("Invalid portfolio. Subscription failed");
 		}
     } else if(type == "portfolio") {
     	if (req.portfolioId) {
-    		_handlePortfolioUnsubscription(req, res);
+    		return _handlePortfolioUnsubscription(req, res);
 		} else {
 			res.send("Invalid portfolio. Subscription failed");
 		}
     } else if(type == "advice") {
     	if (req.adviceId) {
-    		_handleAdviceUnsubscription(req, res);
+    		return _handleAdviceUnsubscription(req, res);
 		} else {
 			res.send("Invalid advice. Subscription failed");
 		}
@@ -328,50 +339,63 @@ module.exports.handleMktPlaceUnsubscription = function(req, res) {
 };
 
 function _handleAdviceUnsubscription(req, res) {
-	const adviceId = req.adviceId;
-	const userId = req.userId;
-	if (subscribers["advice"] && subscribers["advice"][adviceId]) {
-		delete subscribers["advice"][adviceId][userId];
-	}
+	return new Promise(resolve => {
+		const adviceId = req.adviceId;
+		const userId = req.userId;
+		if (subscribers["advice"] && subscribers["advice"][adviceId]) {
+			delete subscribers["advice"][adviceId][userId];
+		}
 
-	if (Object.keys(subscribers["advice"][adviceId]).length == 0) {
-		delete subscribers["advice"][adviceId];
-	}
+		if (Object.keys(subscribers["advice"][adviceId]).length == 0) {
+			delete subscribers["advice"][adviceId];
+		}
+
+		resolve(true);
+	});
 }
 
 function _handlePortfolioUnsubscription(req, res) {
-	const portfolioId = req.portfolioId;
-	const userId = req.userId;
-	if (subscribers["portfolio"] && subscribers["portfolio"][portfolioId]) {
-		delete subscribers["portfolio"][portfolioId][userId];
-	}
+	return new Promise(resolve => {
+		const portfolioId = req.portfolioId;
+		const userId = req.userId;
+		if (subscribers["portfolio"] && subscribers["portfolio"][portfolioId]) {
+			delete subscribers["portfolio"][portfolioId][userId];
+		}
 
-	if (Object.keys(subscribers["portfolio"][portfolioId]).length == 0) {
-		delete subscribers["portfolio"][portfolioId];
-	}	
+		if (Object.keys(subscribers["portfolio"][portfolioId]).length == 0) {
+			delete subscribers["portfolio"][portfolioId];
+		}
+
+		resolve(true);
+	});	
 }
 
 function _handleStockUnsubscription(req, res) {
-	const ticker = req.ticker;
-	const userId = req.userId;
+	
+	return new Promise(resolve => {
+		const ticker = req.ticker;
+		const userId = req.userId;
 
-	if (!subscribers["stock"][ticker]) {
-		subscribers["stock"][ticker] = {};
-	}
+		if (!subscribers["stock"][ticker]) {
+			subscribers["stock"][ticker] = {};
+		}
 
-	var stockSubscribers = subscribers["stock"][ticker];
+		var stockSubscribers = subscribers["stock"][ticker];
 
-	var subscription = stockSubscribers[userId];
+		var subscription = stockSubscribers[userId];
 
-	if (subscription.stock && !subscription.watchlistId) {
-		delete stockSubscribers[userId]
-	} else {
-		delete stockSubscribers[userId].stock;
-	}
+		if (subscription.stock && !subscription.watchlistId) {
+			delete stockSubscribers[userId]
+		} else {
+			delete stockSubscribers[userId].stock;
+		}
 
-	if (Object.keys(stockSubscribers).length == 0) {
-		delete subscribers["stock"][ticker]; 
-	}
+		if (Object.keys(stockSubscribers).length == 0) {
+			delete subscribers["stock"][ticker]; 
+		}
+
+		resolve(true);
+	});
 }
 
 function _handleWatchlistUnsubscription(req, res) {
@@ -423,6 +447,8 @@ function _handleAdviceSubscription(req, res) {
 		} else {
 			APIError.jsonError({message: "Not Authorized to view advice"});
 		}
+
+		return true;
 	})
 	.catch(err => {
 		res.send(err.message)
@@ -447,6 +473,8 @@ function _handlePortfolioSubscription(req, res) {
 		} else {
 			APIError.throwJsonError({message: "Not Authorized to view portfolio"});
 		}
+
+		return true;
 	})
 	.catch(err => {
 		res.send(err.message)
@@ -476,26 +504,32 @@ function _handleWatchlistSubscription(req, res) {
 				}
 
 			});
-		}	
+		}
+
+		return true;	
 	});
 }
 
 function _handleStockSubscription(req, res) {
-	const ticker = req.ticker;
-	const userId = req.userId;
-	if (!subscribers["stock"][ticker]) {
-		subscribers["stock"][ticker] = {};
-	}
+	return new Promise(resolve => {
+		const ticker = req.ticker;
+		const userId = req.userId;
+		if (!subscribers["stock"][ticker]) {
+			subscribers["stock"][ticker] = {};
+		}
 
-	var stockSubscribers = subscribers["stock"][ticker];
-	var subscription = stockSubscribers[userId];
+		var stockSubscribers = subscribers["stock"][ticker];
+		var subscription = stockSubscribers[userId];
 
-	if (subscription) {
-		stockSubscribers[userId].response = res;
-		stockSubscribers[userId].stock = true;		
-	} else {
-		stockSubscribers[userId] = {response: res, stock: true};
-	}
+		if (subscription) {
+			stockSubscribers[userId].response = res;
+			stockSubscribers[userId].stock = true;		
+		} else {
+			stockSubscribers[userId] = {response: res, stock: true};
+		}
+
+		resolve(true);
+	});
 }
 
 function _sendWSResponse(res, data, category, typeId) {
@@ -510,7 +544,7 @@ function _sendWSResponse(res, data, category, typeId) {
 						watchlistId: category == "watchlist" ? typeId : null,
 						output: data});
 
-				res.send(msg);
+				return res.send(msg);
 			} else {
 				throw new Error("Websocket is not OPEN");
 			}
@@ -529,9 +563,9 @@ function _onDataUpdate(typeId, data, category) {
 		var res = subscription.response;
 		var detail = subscription.detail;
 		if (detail ) {
-			_sendWSResponse(res, data, category, typeId);
+			return _sendWSResponse(res, data, category, typeId);
 		} else {
-			_sendWSResponse(res, _filterData(data, category), category, typeId);
+			return _sendWSResponse(res, _filterData(data, category), category, typeId);
 		}
 	});
 }
@@ -701,11 +735,11 @@ function _updateStockOnNewData() {
 					if (subscription && subscription.response) {
 						var res = subscription.response;
 						if (subscription.stock) {
-							_sendWSResponse(res, stockData, "stock", ticker);
+							return _sendWSResponse(res, stockData, "stock", ticker);
 						}
 
 						if (subscription.watchlistId) {
-							_sendWSResponse(res, Object.assign({ticker: ticker}, stockData), "watchlist", subscription.watchlistId);
+							return _sendWSResponse(res, Object.assign({ticker: ticker}, stockData), "watchlist", subscription.watchlistId);
 						}
 					}
 				})
