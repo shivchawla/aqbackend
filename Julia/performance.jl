@@ -64,7 +64,7 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
     portfolio_value = rename(portfolio_value, ["Portfolio"])
     benchmark_value = history_nostrict([benchmark], "Close", :Day, DateTime(start_date), DateTime(end_date))
     
-    if portfolio_value != nothing && benchmark_value != nothing && length(ts) > 2
+    if portfolio_value != nothing && benchmark_value != nothing && length(ts) >= 2
         #merge and drop observations before benchmark lastdate
         merged_value = to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end])
         merged_returns = percentchange(merged_value)
