@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-02 22:24:42
+* @Last Modified time: 2018-05-04 14:56:32
 */
 
 'use strict';
@@ -368,10 +368,13 @@ module.exports.getAdvices = function(args, res, next) {
     .then(([advices, ct]) => {
     	if(advices) {
     		count = ct;
-	    	return Promise.map(advices , function(advice) {
-    			return AdviceHelper.computeAdviceSubscriptionDetail(advice._id, userId)
-    			.then(subscriptionDetail => {
-    				return Object.assign(subscriptionDetail, advice.toObject());
+	    	return Promise.map(advices, function(advice) {
+    			return Promise.all([
+    				PortfolioHelper.getAdvicePnlStats(advice._id),
+    				AdviceHelper.computeAdviceSubscriptionDetail(advice._id, userId)
+				])
+    			.then(([advicePnlStats, subscriptionDetail]) => {
+    				return Object.assign(subscriptionDetail, advicePnlStats, advice.toObject());
     			});
 			});
 		} else {
@@ -407,9 +410,12 @@ module.exports.getAdvicesDefault = function(args, res, next) {
     	if(advices) {
     		count = ct;
 	    	return Promise.map(advices , function(advice) {
-    			return AdviceHelper.computeAdviceSubscriptionDetail(advice._id, null)
-    			.then(subscriptionDetail => {
-    				return Object.assign(subscriptionDetail, advice.toObject());
+	    		return Promise.all([
+	    			PortfolioHelper.getAdvicePnlStats(advice._id),
+    				AdviceHelper.computeAdviceSubscriptionDetail(advice._id, null)
+				])
+    			.then(([advicePnlStats, subscriptionDetail]) => {
+    				return Object.assign(subscriptionDetail, advicePnlStats, advice.toObject());
     			});
 			});
 		} else {
