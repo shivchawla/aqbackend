@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-03 16:33:35
+* @Last Modified time: 2018-05-05 00:27:42
 */
 
 'use strict';
@@ -346,7 +346,9 @@ function _handleAdviceUnsubscription(req, res) {
 			delete subscribers["advice"][adviceId][userId];
 		}
 
-		if (Object.keys(subscribers["advice"][adviceId]).length == 0) {
+		if (subscribers["advice"] && 
+				subscribers["advice"][adviceId] &&
+				Object.keys(subscribers["advice"][adviceId]).length == 0) {
 			delete subscribers["advice"][adviceId];
 		}
 
@@ -362,7 +364,9 @@ function _handlePortfolioUnsubscription(req, res) {
 			delete subscribers["portfolio"][portfolioId][userId];
 		}
 
-		if (Object.keys(subscribers["portfolio"][portfolioId]).length == 0) {
+		if (subscribers["portfolio"] && 
+			subscribers["portfolio"][portfolioId] && 
+			Object.keys(subscribers["portfolio"][portfolioId]).length == 0) {
 			delete subscribers["portfolio"][portfolioId];
 		}
 
@@ -382,16 +386,20 @@ function _handleStockUnsubscription(req, res) {
 
 		var stockSubscribers = subscribers["stock"][ticker];
 
-		var subscription = stockSubscribers[userId];
+		if (stockSubscribers) {
+			var subscription = stockSubscribers[userId];
 
-		if (subscription.stock && !subscription.watchlistId) {
-			delete stockSubscribers[userId]
-		} else {
-			delete stockSubscribers[userId].stock;
-		}
+			if (subscription) {
+				if (subscription.stock && !subscription.watchlistId) {
+					delete stockSubscribers[userId]
+				} else {
+					delete stockSubscribers[userId].stock;
+				}
+			}
 
-		if (Object.keys(stockSubscribers).length == 0) {
-			delete subscribers["stock"][ticker]; 
+			if (Object.keys(stockSubscribers).length == 0) {
+				delete subscribers["stock"][ticker]; 
+			}
 		}
 
 		resolve(true);
@@ -408,16 +416,20 @@ function _handleWatchlistUnsubscription(req, res) {
 			watchlist.securities.forEach(security => {
 				var ticker = security.ticker;
 				var stockSubscribers = subscribers["stock"][ticker];
-				var subscription = stockSubscribers[userId];
 
-				if (!subscription.stock && subscription.watchlistId) {
-					delete stockSubscribers[userId]
-				} else {
-					delete stockSubscribers[userId].watchlistId;
-				}
+				if (stockSubscribers) {
+					var subscription = stockSubscribers[userId];
+					if (subscription) {
+						if (!subscription.stock && subscription.watchlistId) {
+							delete stockSubscribers[userId]
+						} else {
+							delete stockSubscribers[userId].watchlistId;
+						}
 
-				if (Object.keys(stockSubscribers).length == 0) {
-					delete subscribers["stock"][ticker]; 
+						if (Object.keys(stockSubscribers).length == 0) {
+							delete subscribers["stock"][ticker]; 
+						}
+					}
 				}
 			});
 		}	

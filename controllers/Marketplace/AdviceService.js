@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-04 14:56:32
+* @Last Modified time: 2018-05-05 00:28:09
 */
 
 'use strict';
@@ -245,11 +245,18 @@ module.exports.getAdvices = function(args, res, next) {
 
 	options.orderParam = orderParam;
 
-    options.fields = 'name description heading createdDate updatedDate advisor public approvalStatus prohibited maxNotional rebalance performanceSummary rating';
+    options.fields = 'name description heading createdDate updatedDate advisor public approvalStatus prohibited maxNotional rebalance performanceSummary rating startDate';
 
     var query = {deleted: false}; 
 
-    var performanceFilters = ["netValue", "sharpe", "volatility", "totalReturn", "maxLoss", "currentLoss", "beta"];
+    var performanceFilters = {netValue: {field: "netValueEOD", min: 0, max: 200000}, 
+								sharpe: {field:"sharpe", min: -10, max: 10}, 
+								volatility: {field:"volatility", min: 0, max: 0.5}, 
+								return: {field:"totalReturn", min: -1, max: 1},  
+								maxLoss: {field:"maxLoss", min: -1, max: 0},  
+								currentLoss: {field: "currentLoss", min: -1, max: 0}, 
+								beta: {field: "beta", min: -1, max: 2}
+							};
 
 	const performanceType = args.performanceType.value;
 	var pType = "current";
@@ -257,14 +264,19 @@ module.exports.getAdvices = function(args, res, next) {
 		pType = performanceType;
 	}
 	
-	performanceFilters.forEach(item => {
+	Object.keys(performanceFilters).forEach(item => {
 		var majorKey = 'performanceSummary.' + pType + "."; //performanceSummary.current.return
     	if(args[item]) {
     		var values = args[item].value;
 	    	var valueCategories = values.split(",").map(item => parseFloat(item.trim()));
-	    	var key = majorKey + item;
-	    	query = valueCategories.length > 0 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$gte': valueCategories[0]}}]}]} : query; 
-	    	query = valueCategories.length > 1 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$lte': valueCategories[1]}}]}]} : query; 
+	    	var key = majorKey + performanceFilters[item].field;
+	    	if (valueCategories.length > 0 && valueCategories[0] > performanceFilters[item].min) {
+	    		query = {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$gte': valueCategories[0]}}]}]};
+    		}
+
+    		if (valueCategories.length > 1 && valueCategories[1] < performanceFilters[item].max) {
+	    		query = {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$lte': valueCategories[1]}}]}]};
+    		}
 		}
     });
 
