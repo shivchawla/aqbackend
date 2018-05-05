@@ -66,7 +66,7 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
     
     if portfolio_value != nothing && benchmark_value != nothing && length(ts) >= 2
         #merge and drop observations before benchmark lastdate
-        merged_value = to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end])
+        merged_value = dropnan(to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end]), :all)
         merged_returns = percentchange(merged_value)
         
         if length(merged_returns.timestamp) == 0
