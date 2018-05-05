@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-05 00:27:42
+* @Last Modified time: 2018-05-05 13:11:11
 */
 
 'use strict';
@@ -22,6 +22,7 @@ var path = require("path");
 const zlib = require('zlib');
 const APIError = require('../../utils/error');
 const WebSocket = require('ws');
+const DateHelper = require('../../utils/Date');
 
 //Run when seconds = 10
 schedule.scheduleJob("5 * * * * *", function() {
@@ -29,6 +30,8 @@ schedule.scheduleJob("5 * * * * *", function() {
 });
 
 var isBusy = {};
+
+let activeDate;
 
 // Subscription of test result
 var subscribers = {portfolio: {}, 
@@ -119,6 +122,7 @@ function _getLastValidFile(type) {
 				currentDate.setDate(currentDate.getDate() - 1);
 			}
 		} else {
+			activeDate = DateHelper.getDate(currentDate);
 			found = true;
 		}
 	}
@@ -180,11 +184,12 @@ function _downloadNSEData(type) {
 				if (fileNumber > 391) {
 					fileNumber = 391;
 				}
+
+				activeDate = DateHelper.getDate(currentDate);
 					
 				const monthNames = ["January", "February", "March", "April", "May", "June",
 				  "July", "August", "September", "October", "November", "December"
 				];
-
 
 				var month = currentDate.getMonth();
 				var date = currentDate.getDate();
@@ -221,7 +226,7 @@ function _downloadNSEData(type) {
 			resolve(localUnzipFilePath);
 		})
 		.catch(err => {
-			console.log(err);
+			//console.log(err);
 		    var lastFile = _getLastValidFile(type);
 		    if (lastFile == "") {
 		    	console.log("No file to process");
@@ -554,7 +559,8 @@ function _sendWSResponse(res, data, category, typeId) {
 						adviceId: category == "advice" ? typeId : null,
 						ticker: category == "stock" ? typeId : category == "watchlist" ? data.ticker : null,
 						watchlistId: category == "watchlist" ? typeId : null,
-						output: data});
+						output: data,
+						date: activeDate});
 
 				return res.send(msg);
 			} else {
