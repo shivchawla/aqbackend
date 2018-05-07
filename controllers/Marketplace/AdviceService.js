@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-05 00:28:09
+* @Last Modified time: 2018-05-07 12:39:59
 */
 
 'use strict';
@@ -218,8 +218,7 @@ module.exports.updateAdvice = function(args, res, next) {
 //2. Advice is public
 module.exports.getAdvices = function(args, res, next) {
 
-	const userId = args.user._id;
-    
+	const userId = args.user ? args.user._id : null;
     const options = {};
 	options.skip = args.skip.value;
     options.limit = args.limit.value;
@@ -324,23 +323,25 @@ module.exports.getAdvices = function(args, res, next) {
    	let userInvestorId;
    	let userAdvisorId;
 
-    return Promise.all([AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id', insert: true}),
-    		InvestorModel.fetchInvestor({user:userId}, {fields: '_id', insert: true})])
+    return Promise.all([
+    	userId ? AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id', insert: true}) : null,
+		userId ? InvestorModel.fetchInvestor({user:userId}, {fields: '_id', insert: true}) : null
+	])
     .then(([advisor, investor]) => {
     	
-    	userAdvisorId = advisor._id;
-    	userInvestorId = investor._id; 
+    	userAdvisorId = advisor ? advisor._id : null;
+    	userInvestorId = investor ? investor._id : null; 
 
-    	if (following) {
+    	if (following && userInvestorId) {
 	        query.followers = {'$elemMatch':{investor: userInvestorId, active:true}};
 	    } 
 
-	    if(subscribed){
+	    if(subscribed && userInvestorId){
 	        query.subscribers = {'$elemMatch':{investor: userInvestorId, active:true}};
 	    }
 
 	    var advisorQuery = [];
-	    if(personal && !advisorId) {
+	    if(personal && !advisorId && userAdvisorId) {
 			var personalCategories = personal.split(",");
 	 		
 	    	if (personalCategories.indexOf("1") !=-1) {
@@ -401,50 +402,9 @@ module.exports.getAdvices = function(args, res, next) {
     });
 };
 
-module.exports.getAdvicesDefault = function(args, res, next) {
-    
-    const options = {};
-	options.skip = 0
-    options.limit = 10
-    options.order = 1;
-
-    let count;
-    
-	options.orderParam = 'rating.current';
-    options.fields = 'name description heading createdDate updatedDate advisor public approvalStatus prohibited maxNotional rebalance performanceSummary rating';
-
-    var query = {deleted: false, $or:[{startDate: {$gte: DateHelper.getCurrentDate()}}, 
-	    								{startDate: {$exists: false}}]
-				};
-
-	return AdviceModel.fetchAdvices(query, options)
-    .then(([advices, ct]) => {
-    	if(advices) {
-    		count = ct;
-	    	return Promise.map(advices , function(advice) {
-	    		return Promise.all([
-	    			PortfolioHelper.getAdvicePnlStats(advice._id),
-    				AdviceHelper.computeAdviceSubscriptionDetail(advice._id, null)
-				])
-    			.then(([advicePnlStats, subscriptionDetail]) => {
-    				return Object.assign(subscriptionDetail, advicePnlStats, advice.toObject());
-    			});
-			});
-		} else {
-			APIError.throwJsonError({message: "No advices found", errorCode: 1110});
-		}
-    })
-    .then(updatedAdvices => {
-    	return res.status(200).send({advices: updatedAdvices, count: count});	
-    })
-    .catch(err => {
-    	return res.status(400).send(err.message);
-    });	
-};
-
 module.exports.getAdviceSummary = function(args, res, next) {
 	const adviceId = args.adviceId.value;
-	const userId = args.user._id;
+	const userId = args.user ? user._id : null;
 	
 	const options = {};
 	options.fields = 'name heading description createdDate updatedDate advisor public prohibited approvalStatus portfolio rebalance maxNotional rating';
@@ -500,6 +460,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
     	return res.status(400).send(err.message);
     });    
 };
+
 
 //API NEEDS IMPORVEMENT...FETHCING DETAIL FOR ADMIN SHOULD BE DIFFERENT
 module.exports.getAdviceDetail = function(args, res, next) {

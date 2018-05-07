@@ -1407,7 +1407,7 @@ paths:
       summary: get all advice (summary only)
       description: get advice
       operationId: getAdvices
-      security:
+      security: 
       - api_key: []
       parameters:
       - name: "aimsquant-token"
@@ -1540,10 +1540,145 @@ paths:
     get:
       tags:
       - advice
-      summary: get top 10 advices 
-      description: get top 10 advices 
+      summary: get all advice (summary only)
+      description: get advice
       operationId: getAdvicesDefault
       security: []
+      parameters:
+      - name: search
+        in: query
+        type: string
+        description: search advices by text
+        required: false
+      - name: all
+        in: query
+        type: boolean
+        required: false
+        default: true
+        description: select all advices flag
+      - name: trending
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: select trending advices flag
+      - name: subscribed
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: select subscribed advice flag
+      - name: following
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: select wishlist advice flag
+      - name: performanceType
+        in: query
+        required: false
+        type: string
+        default: "current"
+        description: filter type of performance
+      - name: netValue
+        in: query
+        required: false
+        type: string
+        default: "0,200000"
+        description: filter on netvalue of advice
+      - name: sharpe
+        in: query
+        required: false
+        type: string
+        default: "-5,5"
+        description: filter on sharpe ratio of advice
+      - name: totalReturn
+        in: query
+        required: false
+        type: string
+        default: "-100,100"
+        description: filter on return of advice
+      - name: volatility
+        in: query
+        required: false
+        type: string
+        default: "0,50"
+        description: filter on volatility of advice
+      - name: rating
+        in: query
+        required: false
+        type: string
+        default: "0,5"
+        description: filter on value of advice
+      - name: rebalance
+        in: query
+        required: false
+        type: string
+        default: "Daily,Weekly,Bi-Weekly,Monthly,Quartely"
+        description: rebalance frequency
+      - name: advisor
+        in: query
+        type: string
+        format: uuid
+        required: false
+        description: advisor id
+      - name: personal
+        in: query
+        type: string
+        required: false
+        default: "0,1"
+        description: advice owner
+      - name: approved
+        in: query
+        type: string
+        default: "0,1"
+        required: false
+        description: approval status
+      - name: skip
+        in: query
+        type: integer
+        required: false
+        default: 0
+        description: skip records
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        default: 10
+        description: total number of advice
+      - name: orderParam
+        in: query
+        description: sort criteria
+        type: string
+        required: false
+        default: rating
+        enum: [name, rating, return, volatility, sharpe, maxLoss, currentLoss, netValue, dailyChange, numFollowers, numSubscribers, createdDate]
+      - name: order
+        type: number
+        required: true
+        in: query
+        default: -1
+        description: sort order
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Advice"
+
+  /advice_default/{adviceId}:
+    get:
+      tags:
+      - advice
+      summary: get advice summary 
+      description: Gets just the advice basic details (without token)
+      operationId: getAdviceSummary_notoken
+      security: []
+      parameters:
+      - name: adviceId
+        in: path
+        type: string
+        required: true
       responses:
         200:
           description: OK
