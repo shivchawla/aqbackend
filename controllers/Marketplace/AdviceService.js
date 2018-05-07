@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-07 12:39:59
+* @Last Modified time: 2018-05-07 14:11:19
 */
 
 'use strict';
@@ -404,7 +404,7 @@ module.exports.getAdvices = function(args, res, next) {
 
 module.exports.getAdviceSummary = function(args, res, next) {
 	const adviceId = args.adviceId.value;
-	const userId = args.user ? user._id : null;
+	const userId = args.user ? args.user._id : null;
 	
 	const options = {};
 	options.fields = 'name heading description createdDate updatedDate advisor public prohibited approvalStatus portfolio rebalance maxNotional rating';
