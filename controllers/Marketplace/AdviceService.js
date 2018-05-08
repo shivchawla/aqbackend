@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-07 14:11:19
+* @Last Modified time: 2018-05-08 23:01:35
 */
 
 'use strict';
@@ -77,6 +77,7 @@ module.exports.createAdvice = function(args, res, next) {
 		       	createdDate: new Date(),
 		       	startDate: DateHelper.getDate(advice.portfolio.detail.startDate),
 		       	updatedDate: new Date(),
+		       	public: advice.public,
 		    };
 		    return AdviceModel.saveAdvice(adv);
 	    } else {
@@ -405,6 +406,7 @@ module.exports.getAdvices = function(args, res, next) {
 module.exports.getAdviceSummary = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const userId = args.user ? args.user._id : null;
+	const fullperformanceFlag = args.fullperformance.value;
 	
 	const options = {};
 	options.fields = 'name heading description createdDate updatedDate advisor public prohibited approvalStatus portfolio rebalance maxNotional rating';
@@ -442,16 +444,20 @@ module.exports.getAdviceSummary = function(args, res, next) {
 
 			return Promise.all([
 				nAdvice,
-				PerformanceHelper.computeAdvicePerformanceSummary(adviceId, date),
-				PortfolioHelper.getAdvicePnlStats(adviceId, date)
+				PortfolioHelper.getAdvicePnlStats(adviceId, date),
+				fullperformanceFlag ? PerformanceHelper.getAdvicePerformance(adviceId, date, userId) : PerformanceHelper.getAdvicePerformanceSummary(adviceId, date)
 			]);	
 		});
  	})
- 	.then(([advice, performanceSummary, advicePnlStats]) => {
+ 	.then(([advice, advicePnlStats, performance]) => {
 		var nAdvice = advice;
 
-		if (performanceSummary) {
-			nAdvice = Object.assign({performanceSummary: performanceSummary}, advicePnlStats, nAdvice);
+		if (fullperformanceFlag && performance) {
+			const pf = performance.toObject();
+			nAdvice = Object.assign({performanceSummary: pf.summary, performance: pf}, advicePnlStats, nAdvice);
+		}
+ 		else if (!fullperformanceFlag && performance) {
+			nAdvice = Object.assign({performanceSummary: performance}, advicePnlStats, nAdvice);
 		}
 
 		return res.status(200).send(nAdvice);

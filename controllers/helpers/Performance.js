@@ -2,13 +2,15 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-03 16:10:55
+* @Last Modified time: 2018-05-08 23:37:03
 */
 
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
 const PortfolioModel = require('../../models/Marketplace/Portfolio');
 const PerformanceModel = require('../../models/Marketplace/Performance');
+const InvestorModel = require('../../models/Marketplace/Investor');
+const AdvisorModel = require('../../models/Marketplace/Advisor');
 const APIError = require('../../utils/error');
 const config = require('config');
 const WebSocket = require('ws'); 
@@ -454,11 +456,11 @@ module.exports.computeAllPerformanceSummary = function(portfolioId, options, dat
 	})
 };
 
-module.exports.computeAllPerformance = function(portfolioId) {
+module.exports.computeAllPerformance = function(portfolioId, options, date) {
 	return new Promise(resolve => {
 		Promise.all([
-			_computeSimulatedPerformance(portfolioId),
-		 	_computeLatestPerformance(portfolioId)
+			_computeSimulatedPerformance(portfolioId, date),
+		 	_computeLatestPerformance(portfolioId, date)
 	 	])
 		.then(([simulatedPerformance, currentPerformance]) => {
 			return Promise.all([
@@ -509,12 +511,12 @@ module.exports.computeAllPerformance = function(portfolioId) {
 	});
 };
 
-module.exports.getAllPerformance = function(portfolioId) {
+module.exports.getAllPerformance = function(portfolioId, options, date) {
 	if (portfolioId) {
 		return PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: 'current simulated summary'})
 		.then(performance => {
 			var updateRequired = _checkPerformanceUpdateRequired(performance ? performance.current : null);
-			return updateRequired ? exports.computeAllPerformance(portfolioId) : performance;
+			return updateRequired ? exports.computeAllPerformance(portfolioId, options, date) : performance;
 		})
 	} else {
 		APIError.throwJsonError({message: "Invalid Portfolio", portfolioId: portfolioId});
@@ -556,4 +558,52 @@ module.exports.getAdvicePerformanceSummary = function(adviceId, date, recalculat
 	})
 };
 
+module.exports.getAdvicePerformance = function(adviceId, date, userId) {
+	let showDetail;
 
+	return Promise.all([
+		AdviceModel.fetchAdvice({_id: adviceId, deleted:false}, {fields: 'advisor portfolio public subscribers'}),
+		userId ? AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id'}) : null,
+		userId ? InvestorModel.fetchInvestor({user:userId}, {fields:'_id', insert: true}) : null
+	])
+	.then(([advice, advisor, investor]) => {
+		if (advice) {
+			const advisorId = advisor ? advisor._id : null;
+			var activeSubscribers = advice.subscribers.filter(item => {return item.active == true}).map(item => item.investor.toString());
+			const investorId = investor ? investor._id.toString() : "";
+
+			showDetail = advice.advisor.equals(advisorId) || activeSubscribers.indexOf(investorId) != -1;
+			if (advice.advisor.equals(advisorId) || advice.public == true) {
+				return exports.getAllPerformance(advice.portfolio, {isAdvice: true}, date);
+			} else {
+				APIError.throwJsonError({userId: userId, message:"Investor not authorized to view", errorCode: 1304});
+			}
+		} else if(!advice) {
+			APIError.throwJsonError({userId: userId, message: "Advice not found", errorCode: 1101});
+		} 
+	})
+	.then(performance => {
+		if(performance) {
+			if (!showDetail) {
+				var currentPerformance = performance.current;
+				var simulatedPerformance = performance.simulated;
+				//Remove the composition and constituent performance if 
+				//user is not authorized to view detail
+				if (currentPerformance) {
+					currentPerformance.metrics.portfolioMetrics	= null;
+					currentPerformance.metrics.constituentPerformance = null;
+				}
+
+				if (simulatedPerformance) {
+					simulatedPerformance.metrics.portfolioMetrics	= null;
+					simulatedPerformance.metrics.constituentPerformance = null;
+				} 
+
+			}
+
+			return performance;
+		} else {
+			APIError.throwJsonError({message: "Internal calculating portfolio performance", errorCode: 1604});
+		}
+	});
+};

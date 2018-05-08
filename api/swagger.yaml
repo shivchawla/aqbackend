@@ -1679,6 +1679,10 @@ paths:
         in: path
         type: string
         required: true
+      - name: fullperformance
+        in: query
+        type: boolean
+        default: false
       responses:
         200:
           description: OK
@@ -1766,6 +1770,10 @@ paths:
         in: path
         type: string
         required: true
+      - name: fullperformance
+        in: query
+        type: boolean
+        default: false
       responses:
         200:
           description: OK
@@ -2349,7 +2357,65 @@ paths:
         type: string
         required: true
         default: "priceHistory"
-        enum: ['priceHistory', 'staticPerformance', 'rollingPerformance', 'latestDetail', 'latestDetailRT']
+        enum: ['priceHistory', 'staticPerformance', 'rollingPerformance', 'latestDetail']
+      responses:
+        200:
+          description: "get stock performance detail"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Stock"
+
+  /stock/detail_benchmark:
+    get:
+      tags:
+      - stock
+      summary: get stock history of benchmark securities
+      description: get stock history of benchmark securities
+      operationId: getStockDetailBenchmark
+      security: []
+      parameters:
+      - name: ticker
+        in: query
+        type: string
+        required: true
+        description: security ticker
+      - name: exchange
+        in: query
+        type: string
+        required: false
+        default: "NSE"
+        description: security exchange
+      - name: country
+        in: query
+        type: string
+        required: false
+        default: "IN"
+        description: security country
+      - name: securityType
+        in: query
+        type: string
+        required: false
+        default: "EQ"
+        description: security type
+      - name: startDate
+        in: query
+        type: string
+        required: false
+        format: date
+        description: start date of priceHistory
+      - name: endDate
+        in: query
+        type: string
+        required: false
+        format: date
+        description: end date of priceHistory  
+      - name: field
+        in: query
+        type: string
+        required: true
+        default: "priceHistory" 
       responses:
         200:
           description: "get stock performance detail"
@@ -2993,6 +3059,9 @@ definitions:
       maxNotional:
         type: integer
         enum: [10000, 20000, 50000, 75000, 100000, 200000, 300000, 500000, 750000, 1000000]
+      public:
+        type: boolean
+        default: false
 
 #Investor
   Investor:

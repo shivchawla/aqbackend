@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-20 13:40:48
+* @Last Modified time: 2018-05-08 23:28:58
 */
 
 'use strict';
@@ -148,4 +148,34 @@ module.exports.getStocks = function(args, res, next) {
 	.catch(err => {
 		return res.status(400).send(err.message);
 	}); 
+};
+
+module.exports.getStockDetailBenchmark = function(args, res, next) {
+	const ticker = args.ticker.value;
+
+	if (["NIFTY_50", 
+    "NIFTY_100",
+    "NIFTY_200",
+    "NIFTY_500",
+    "NIFTY_MIDCAP_50",
+    "NIFTY_AUTO",
+    "NIFTY_BANK",
+    "NIFTY_FIN_SERVICE",
+    "NIFTY_FMCG",
+    "NIFTY_IT",
+    "NIFTY_MEDIA",
+    "NIFTY_METAL",
+    "NIFTY_PHARMA",
+    "NIFTY_PSU_BANK",
+    "NIFTY_REALTY",
+    "NIFTY_COMMODITIES",
+    "NIFTY_CPSE",
+    "NIFTY_ENERGY",
+    "NIFTY_INFRA",
+    "NIFTY_MNC",
+    "NIFTY_SERV_SECTOR"].indexOf(ticker) !=-1) {
+    	return exports.getStockDetail(args, res, next);
+    } else {
+    	return res.status(400).send(`Invalid benchmark ticker: ${ticker}`);
+    }
 };

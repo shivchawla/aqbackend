@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-02 12:37:09
+* @Last Modified time: 2018-05-08 22:37:47
 */
 
 'use strict'
@@ -89,7 +89,7 @@ module.exports.getPerformanceAdvicePortfolio = function(args, res, next) {
 			if (!showDetail && currentPerformance) {
 				//Remove the composition and constituent performance if 
 				//user is not authorized to view detail
-				currentPerformance.metrics.portfolioComposition	= null;
+				currentPerformance.metrics.portfolioMetrics	= null;
 				currentPerformance.metrics.constituentPerformance = null;
 			}
 
