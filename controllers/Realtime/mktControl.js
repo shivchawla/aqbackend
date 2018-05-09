@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-05 13:11:11
+* @Last Modified time: 2018-05-09 11:25:20
 */
 
 'use strict';
@@ -352,8 +352,9 @@ function _handleAdviceUnsubscription(req, res) {
 		}
 
 		if (subscribers["advice"] && 
-				subscribers["advice"][adviceId] &&
-				Object.keys(subscribers["advice"][adviceId]).length == 0) {
+			subscribers["advice"][adviceId] &&
+			Object.keys(subscribers["advice"][adviceId]).length == 0) {
+			
 			delete subscribers["advice"][adviceId];
 		}
 
@@ -437,7 +438,9 @@ function _handleWatchlistUnsubscription(req, res) {
 					}
 				}
 			});
-		}	
+		}
+
+		resolve(true);	
 	});
 }
 

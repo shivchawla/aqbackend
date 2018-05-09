@@ -51,7 +51,7 @@ ws.on('connection', function connection(res) {
         .then(user => {
             if (user) {
                 req.userId = user._id;
-                exports.handleAction(req, res);
+                return exports.handleAction(req, res);
             } else {
                 APIError.throwJSONError({message: "User is not Authorized"});
             }
