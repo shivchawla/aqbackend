@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-08 23:01:35
+* @Last Modified time: 2018-05-09 14:44:25
 */
 
 'use strict';
@@ -342,7 +342,7 @@ module.exports.getAdvices = function(args, res, next) {
 	    }
 
 	    var advisorQuery = [];
-	    if(personal && !advisorId && userAdvisorId) {
+	    if(personal && !advisorId) {
 			var personalCategories = personal.split(",");
 	 		
 	    	if (personalCategories.indexOf("1") !=-1) {
