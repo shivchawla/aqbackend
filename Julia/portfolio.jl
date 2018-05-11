@@ -564,8 +564,8 @@ function compute_fractional_ranking(vals::Dict{String, Float64}, scale::Float64)
         vs = [v for (k,v) in vals]
         
         ksWithNaN = ks[isnan.(vs)]
-        ksWithoutNaN = ks[!isnan.(vs)]
-        vsWithoutNaN = vs[!isnan.(vs)]
+        ksWithoutNaN = ks[.!isnan.(vs)]
+        vsWithoutNaN = vs[.!isnan.(vs)]
 
         fr = (tiedrank(vsWithoutNaN)-0.5)/length(vsWithoutNaN)
 

@@ -55,7 +55,7 @@ end
 # Compute Portfolio Performance based on NET-VALUE over a period (start and end dates)
 # OUTPUT: Performance object
 ###
-function compute_performance(portfolio_value::TimeArray, benchmark::String)
+function compute_performance(portfolio_value::TimeArray, benchmark::String; trueperiod::Int=0)
 
     ts = portfolio_value.timestamp
 
@@ -81,8 +81,8 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
 
         ndays = Int(Dates.value(merged_returns.timestamp[end] - merged_returns.timestamp[1]))
 
-        performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns, scale = 365, period = ndays)
-        dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns, scale = 365, period = ndays)
+        performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns, scale = 365, period = trueperiod !=0 ? trueperiod : ndays)
+        dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns, scale = 365, period = trueperiod !=0 ? trueperiod : ndays)
         
         return (merged_value.timestamp[end], performance, dperformance)
     

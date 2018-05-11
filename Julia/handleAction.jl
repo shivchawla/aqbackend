@@ -49,6 +49,14 @@ function handleRequest(parsemsg::Dict{String, Any})
             benchmark = parsemsg["benchmark"]["ticker"]
             cashAdjustment = parsemsg["cashAdjustment"]
 
+            startDate = now()
+            endDate = DateTime("1900-01-01")
+
+            for port in portfolioHistory
+              startDate = min(port.startDate, startDate)
+              endDate = max(port.endDate, endDate)
+            end
+
             (netValues, dates) = compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment)
 
             if netValues != nothing && dates != nothing
@@ -57,7 +65,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                     vals[i,1] = val
                 end
                   
-                (lastdate, performance, dperformance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
+                (lastdate, performance, dperformance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark, trueperiod=Int(Dates.value(endDate-startDate)))
                 
                 nVDict = Dict{String, Any}()
 
@@ -143,7 +151,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                     vals[i,1] = val
                 end
                   
-                (lastdate, performance, dperformance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
+                (lastdate, performance, dperformance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark, period=Int(Dates.value(endDate-startDate)))
                 
                 nVDict = Dict{String, Any}()
 
