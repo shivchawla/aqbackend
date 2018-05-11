@@ -59,13 +59,15 @@ function handleRequest(parsemsg::Dict{String, Any})
 
             (netValues, dates) = compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment)
 
+            ndays = Int(Dates.value(Date(endDate)-Date(startDate)))
+
             if netValues != nothing && dates != nothing
                 vals = zeros(length(netValues), 1)
                 for (i,val) in enumerate(netValues)
                     vals[i,1] = val
                 end
                   
-                (lastdate, performance, dperformance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark, trueperiod=Int(Dates.value(endDate-startDate)))
+                (lastdate, performance, dperformance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark, trueperiod=ndays)
                 
                 nVDict = Dict{String, Any}()
 
@@ -145,13 +147,15 @@ function handleRequest(parsemsg::Dict{String, Any})
 
             (netValues, dates) = compute_portfolio_value_period(portfolio, startDate, endDate)
             
+            ndays = Int(Dates.value(Date(endDate)-Date(startDate)))
+
             if netValues != nothing && dates != nothing
                 vals = zeros(length(netValues), 1)
                 for (i,val) in enumerate(netValues)
                     vals[i,1] = val
                 end
                   
-                (lastdate, performance, dperformance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark, period=Int(Dates.value(endDate-startDate)))
+                (lastdate, performance, dperformance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark, trueperiod=ndays)
                 
                 nVDict = Dict{String, Any}()
 
