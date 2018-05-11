@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-11 11:39:04
+* @Last Modified time: 2018-05-11 18:38:25
 */
 
 'use strict';
@@ -252,14 +252,14 @@ module.exports.getAdvices = function(args, res, next) {
     var performanceFilters = {netValue: {field: "netValueEOD", min: 0, max: 200000}, 
 								sharpe: {field:"sharpe", min: -10, max: 10}, 
 								volatility: {field:"volatility", min: 0, max: 0.5}, 
-								return: {field:"totalReturn", min: -1, max: 1},  
+								return: {field:"annualReturn", min: -1, max: 1},  
 								maxLoss: {field:"maxLoss", min: -1, max: 0},  
 								currentLoss: {field: "currentLoss", min: -1, max: 0}, 
 								beta: {field: "beta", min: -1, max: 2}
 							};
 
 	const performanceType = args.performanceType.value;
-	var pType = "current";
+	var pType = "simulated";
 	if(performanceType) {
 		pType = performanceType;
 	}
