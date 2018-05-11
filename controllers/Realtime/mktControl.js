@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-09 11:25:20
+* @Last Modified time: 2018-05-11 13:17:36
 */
 
 'use strict';
@@ -456,8 +456,8 @@ function _handleAdviceSubscription(req, res) {
 
 	//first check is user if authorized to view advice (detail or summary)
 	return Promise.all([
-		AdviceHelper.isUserAuthorizedToViewAdviceDetail(userId, adviceId),
-		AdviceHelper.isUserAuthorizedToViewAdviceSummary(userId, adviceId)
+		AdviceHelper.isUserAuthorizedToViewAdviceDetail(adviceId, userId),
+		AdviceHelper.isUserAuthorizedToViewAdviceSummary(adviceId, userId)
 	])
 	.then(([detailAuthorization, summaryAuthorization]) => {
 		if (detailAuthorization) {
@@ -555,6 +555,7 @@ function _handleStockSubscription(req, res) {
 function _sendWSResponse(res, data, category, typeId) {
 	try {
 		if (res) {
+
 			if (res.readyState === WebSocket.OPEN) {
 				var msg = JSON.stringify({
 						type: category,
@@ -699,7 +700,7 @@ function __getLatestPortfolioData(portfolioId, options) {
 		}
 
 		return rtEnhanced;
-	});
+	})
 }
 
 function _updatePortfoliosOnNewData() {

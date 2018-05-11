@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-11 12:13:39
+* @Last Modified time: 2018-05-11 13:09:34
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -86,7 +86,7 @@ module.exports.isUserAuthorizedToViewAdviceDetail = function(adviceId, userId) {
 	});
 }
 
-module.exports.isUserAuthorizedToViewAdviceSummary = function(userId, adviceId) {
+module.exports.isUserAuthorizedToViewAdviceSummary = function(adviceId, userId) {
 	return Promise.all([
 		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert: true}),
 		AdviceModel.fetchAdvice({_id: adviceId, deleted:false}, {fields:'advisor prohibited public subscribers'})])
@@ -98,8 +98,6 @@ module.exports.isUserAuthorizedToViewAdviceSummary = function(userId, adviceId) 
 			//get to see expanded portfolio if chosen
 			return advice.advisor.equals(advisorId) || (advice.public == true && advice.prohibited == false)
 				
-		} else if(!investor) {
-			APIError.throwJsonError({message:"Investor not found", errorCode: 1301});
 		} else if(!advisor) {
 			APIError.throwJsonError({message:"Advisor not found", errorCode: 1201});
 		} else if (!advice) {
