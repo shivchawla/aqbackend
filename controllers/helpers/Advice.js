@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-11 13:09:34
+* @Last Modified time: 2018-05-11 17:08:01
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -47,12 +47,30 @@ module.exports.getAdviceAccessStatus = function(adviceId, userId) {
 		var activeSubscribers = advice.subscribers.filter(item => {return item.active == true});
 		var activeFollowers = advice.followers.filter(item => {return item.active == true});
 
-		return  {
+		var subscribedIndex = investor ? activeSubscribers.map(item => item.investor.toString()).indexOf(investor._id.toString()) : -1;
+		var isSubscribed = subscribedIndex != -1;
+
+		let subscriptionDetail = {};
+
+		if (isSubscribed) {
+			var subscriber = activeSubscribers[subscribedIndex];
+			var oneDay = 24*60*60*1000; // hours*minutes*seconds*milliseconds
+			subscriptionDetail = {
+				unsubscriptionPending: subscriber.discontinueRequested,
+				subscriptionStartDate: subscriber.startDate,
+				subscriptionEndDate: subscriber.endDate,
+				subscriptionPendingDays: Math.round(Math.abs((subscriber.endDate.getTime() - subscriber.startDate.getTime())/(oneDay)))
+			};
+		}
+
+		var isFollowing = investor ? activeFollowers.map(item => item.investor.toString()).indexOf(investor._id.toString()) != -1 : false;
+
+		return  Object.assign({subscriptionDetail: subscriptionDetail}, {
 			isAdmin: advisor && adminAdvisor ? advisor.equals(adminAdvisor._id) : false,
 			isOwner: advisor && advice.advisor ? advisor.equals(advice.advisor) : false,
-			isFollowing: investor ? activeFollowers.map(item => item.investor.toString()).indexOf(investor._id.toString()) != -1 : false,
-			isSubscribed: investor ? activeSubscribers.map(item => item.investor.toString()).indexOf(investor._id.toString()) != -1 : false
-		};
+			isFollowing: isFollowing,
+			isSubscribed: isSubscribed,
+		});
 	});
 };
 
@@ -82,7 +100,7 @@ module.exports.computeAdviceSubscriptionDetail = function(adviceId, userId) {
 module.exports.isUserAuthorizedToViewAdviceDetail = function(adviceId, userId) {
 	return exports.getAdviceAccessStatus(adviceId, userId)
 	.then(adviceAccessStatus  => {
-		return  Object.assign({authorized : adviceAccessStatus.isAdmin || adviceAccessStatus.isOwner || adviceAccessStatus.isSubscriber}, adviceAccessStatus); 
+		return  Object.assign({authorized : adviceAccessStatus.isAdmin || adviceAccessStatus.isOwner || adviceAccessStatus.isSubscribed}, adviceAccessStatus); 
 	});
 }
 
