@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-09 14:44:25
+* @Last Modified time: 2018-05-11 11:39:04
 */
 
 'use strict';
@@ -478,7 +478,7 @@ module.exports.getAdviceDetail = function(args, res, next) {
    	options.fields = args.fields.value != "" ? args.fields.value : defaultFields;
    	options.populate = 'advisor';
 	
-	return AdviceHelper.isUserAuthorizedToViewAdviceDetail(userId, adviceId)
+	return AdviceHelper.isUserAuthorizedToViewAdviceDetail(adviceId, userId)
 	.then(authorizationStatus => {
 		if(authorizationStatus.authorized) {
 
@@ -518,7 +518,7 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 	const date = args.date.value;
 
 	let ndate;
-	return AdviceHelper.isUserAuthorizedToViewAdviceDetail(userId, adviceId)
+	return AdviceHelper.isUserAuthorizedToViewAdviceDetail(adviceId, userId)
 	.then(authorizationStatus => {
 		if(authorizationStatus.authorized) {
 			

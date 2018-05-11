@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 14:37:34
+* @Last Modified time: 2018-05-11 11:43:40
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -25,29 +25,13 @@ function _filterActive(objs) {
 
 module.exports.getAdviceAccessStatus = function(adviceId, userId) {
 	return Promise.all([
-		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
-		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, {fields: 'advisor'}),
-		AdvisorHelper.getAdminAdvisor(userId)
-	])
-	.then(([advisor, advice, adminAdvisor]) => {
-
-		return  {
-			isAdmin: advisor && adminAdvisor ? advisor.equals(adminAdvisor._id) : false,
-			isOwner: advisor && advice.advisor ? advisor.equal(advice.advisor) : false
-		};
-	});
-};
-
-module.exports.computeAdviceSubscriptionDetail = function(adviceId, userId) {
-	
-	return Promise.all([
 		userId ? AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}) : null,
 		userId ? InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true}) : null,
-		AdviceModel.fetchAdvice({_id:adviceId}, {field:'advisor subscribers followers'}),
+		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, {fields: 'advisor subscribers followers'}),
 		AdvisorHelper.getAdminAdvisor(userId)
 	])
 	.then(([advisor, investor, advice, adminAdvisor]) => {
-		
+
 		if(!advisor && userId) {
 			APIError.throwJsonError({message: "Advisor not found", errorCode: 1201});
 		}
@@ -60,57 +44,45 @@ module.exports.computeAdviceSubscriptionDetail = function(adviceId, userId) {
 			APIError.throwJsonError({message: "Advice not found", errorCode: 1101});	
 		}
 
-		const investorId = investor ? investor._id : null;
-		var isFollowing = false;
-		var isSubscribed = false;
+		var activeSubscribers = advice.subscribers.filter(item => {return item.active == true});
+		var activeFollowers = advice.followers.filter(item => {return item.active == true});
+
+		return  {
+			isAdmin: advisor && adminAdvisor ? advisor.equals(adminAdvisor._id) : false,
+			isOwner: advisor && advice.advisor ? advisor.equals(advice.advisor) : false,
+			isFollowing: investor ? activeFollowers.map(item => item.investor.toString()).indexOf(investor._id.toString()) != -1 : false,
+			isSubscribed: investor ? activeSubscribers.map(item => item.investor.toString()).indexOf(investor._id.toString()) != -1 : false
+		};
+	});
+};
+
+module.exports.computeAdviceSubscriptionDetail = function(adviceId, userId) {
+	
+	return Promise.all([
+		AdviceModel.fetchAdvice({_id:adviceId}, {field:'advisor subscribers followers'}),
+		exports.getAdviceAccessStatus(adviceId, userId)
+	])
+	.then(([advice, adviceAccessStatus]) => {
 		
-		var isAdmin = adminAdvisor && advisor ? advisor.equals(adminAdvisor._id) : false;
-		var isOwner = advisor && advice.advisor ? advisor.equals(advice.advisor) : false;
+		if(!advice) {
+			APIError.throwJsonError({message: "Advice not found", errorCode: 1101});	
+		}
 
 		var activeSubscribers = advice.subscribers.filter(item => {return item.active == true});
 		var activeFollowers = advice.followers.filter(item => {return item.active == true});
 		var numSubscribers = activeSubscribers.length;
 		var numFollowers = activeFollowers.length;
-
-		var isFollowing = investorId ? activeFollowers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1 : false;
-		var isSubscribed = investorId ? activeSubscribers.map(item => item.investor.toString()).indexOf(investorId.toString()) != -1 : false;
 		
-		return {
-			isFollowing: isFollowing, 
-			isSubscribed: isSubscribed, 
-			isOwner: isOwner,
-			isAdmin: isAdmin,
+		return Object.assign({
 			numFollowers: numFollowers,
-			numSubscribers: numSubscribers
-		};
+			numSubscribers: numSubscribers}, adviceAccessStatus);
 	});
 };
 
-module.exports.isUserAuthorizedToViewAdviceDetail = function(userId, adviceId) {
-	return Promise.all([
-		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert: true}),
-		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert: true}),
-		AdviceModel.fetchAdvice({_id: adviceId, deleted:false}, {fields:'advisor subscribers'})])
-	.then(([investor, advisor, advice])  => {
-		if(investor && advisor && advice) {
-			const advisorId = advisor._id;
-			
-			var activeSubscribers = advice.subscribers.filter(item => {return item.active == true}).map(item => item.investor.toString());
-			
-			const investorId = investor._id.toString();
-			//PERSONAL or subscribers
-			//get to see expanded portfolio if chosen
-			var isOwner = advice.advisor.equals(advisorId);
-			var isSubscriber = activeSubscribers.indexOf(investorId) != -1; 
-			return  {isOwner: isOwner, isSubscriber: isSubscriber, authorized : isOwner || isSubscriber}; 
-				
-		} else if(!investor) {
-			APIError.throwJsonError({message:"Investor not found", errorCode: 1301});
-		} else if(!advisor) {
-			APIError.throwJsonError({message:"Advisor not found", errorCode: 1201});
-		} else if (!advice) {
-			APIError.throwJsonError({message:"Advice not found", errorCode: 1101});
-		} 
+module.exports.isUserAuthorizedToViewAdviceDetail = function(adviceId, userId) {
+	return exports.getAdviceAccessStatus(adviceId, userId)
+	.then(adviceAccessStatus  => {
+		return  Object.assign({authorized : adviceAccessStatus.isOwner || adviceAccessStatus.isSubscriber}, adviceAccessStatus); 
 	});
 }
 
@@ -136,7 +108,7 @@ module.exports.isUserAuthorizedToViewAdviceSummary = function(userId, adviceId) 
 	});
 }
 
-module.exports.computeAdviceAnalytics = function(adviceId) {
+module.exports.computeAdviceAnalytics = function(adviceId, date) {
 	let subscribers;
 	let followers;
 	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'subscribers followers analytics'})
@@ -203,10 +175,10 @@ module.exports.validateAdvice = function(advice, oldAdvice, strictNetValue) {
     });
 };
 
-module.exports.updateAdviceAnalyticsAndPerformanceSummary = function(adviceId) {
+module.exports.updateAdviceAnalyticsAndPerformanceSummary = function(adviceId, date) {
 	return Promise.all([
-			exports.computeAdviceAnalytics(adviceId),
-			PerformanceHelper.computeAdvicePerformanceSummary(adviceId)
+			exports.computeAdviceAnalytics(adviceId, date),
+			PerformanceHelper.computeAdvicePerformanceSummary(adviceId, date)
 	])
 	.then(([adviceAnalytics, advicePerformanceSummary]) => {
 		return AdviceModel.updateAnalyticsAndPerformance({_id: adviceId}, {analytics: adviceAnalytics, performanceSummary: advicePerformanceSummary});
