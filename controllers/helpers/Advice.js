@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-11 11:43:40
+* @Last Modified time: 2018-05-11 12:13:39
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -82,7 +82,7 @@ module.exports.computeAdviceSubscriptionDetail = function(adviceId, userId) {
 module.exports.isUserAuthorizedToViewAdviceDetail = function(adviceId, userId) {
 	return exports.getAdviceAccessStatus(adviceId, userId)
 	.then(adviceAccessStatus  => {
-		return  Object.assign({authorized : adviceAccessStatus.isOwner || adviceAccessStatus.isSubscriber}, adviceAccessStatus); 
+		return  Object.assign({authorized : adviceAccessStatus.isAdmin || adviceAccessStatus.isOwner || adviceAccessStatus.isSubscriber}, adviceAccessStatus); 
 	});
 }
 
