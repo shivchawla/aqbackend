@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-11 17:08:01
+* @Last Modified time: 2018-05-11 18:03:46
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -59,7 +59,7 @@ module.exports.getAdviceAccessStatus = function(adviceId, userId) {
 				unsubscriptionPending: subscriber.discontinueRequested,
 				subscriptionStartDate: subscriber.startDate,
 				subscriptionEndDate: subscriber.endDate,
-				subscriptionPendingDays: Math.round(Math.abs((subscriber.endDate.getTime() - subscriber.startDate.getTime())/(oneDay)))
+				subscriptionPendingDays: subscriber.endDate && subscriber.startDate ? Math.round(Math.abs((subscriber.endDate.getTime() - subscriber.startDate.getTime())/(oneDay))) : -1,
 			};
 		}
 
