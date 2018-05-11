@@ -3124,12 +3124,6 @@ definitions:
 
   Address:
     type: object
-    required:
-      - line1
-      - city
-      - state
-      - pincode
-      - country
     properties:
       line1:
         type: string
