@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-11 18:38:25
+* @Last Modified time: 2018-05-11 19:07:56
 */
 
 'use strict';
@@ -225,8 +225,14 @@ module.exports.getAdvices = function(args, res, next) {
     options.limit = args.limit.value;
     options.order = args.order.value || 1;
 
+    const performanceType = args.performanceType.value;
+	var pType = "simulated";
+	if(performanceType) {
+		pType = performanceType;
+	}
+	
     let count;
-    var orderParam = args.orderParam.value || "rating.current";
+    var orderParam = args.orderParam.value || `rating.${performanceType}`;
 	if (["return", "volatility", "sharpe", "maxLoss", "currentLoss", "dailyChange", "netValue"].indexOf(orderParam) != -1) {
 		if (orderParam == "return") {
 			orderParam = "annualReturn"
@@ -236,11 +242,11 @@ module.exports.getAdvices = function(args, res, next) {
 			orderParam = "dailyNAVChangeEODPct";
 		}
 
-		orderParam = "performanceSummary.current."+orderParam;
+		orderParam = `performanceSummary.${performanceType}.${orderParam}`;
 	} else if(["numFollowers", "numSubscribers"].indexOf(orderParam) !=-1) {
-		orderParam = "latestAnalytics."+orderParam;
+		orderParam = `latestAnalytics.${orderParam}`;
 	} else if(["rating"].indexOf(orderParam) != -1) {
-		orderParam = "rating.current";
+		orderParam = `rating.current`;
 	}
 
 	options.orderParam = orderParam;
@@ -258,14 +264,8 @@ module.exports.getAdvices = function(args, res, next) {
 								beta: {field: "beta", min: -1, max: 2}
 							};
 
-	const performanceType = args.performanceType.value;
-	var pType = "simulated";
-	if(performanceType) {
-		pType = performanceType;
-	}
-	
 	Object.keys(performanceFilters).forEach(item => {
-		var majorKey = 'performanceSummary.' + pType + "."; //performanceSummary.current.return
+		var majorKey = `performanceSummary.${pType}.`; //performanceSummary.current.return
     	if(args[item]) {
     		var values = args[item].value;
 	    	var valueCategories = values.split(",").map(item => parseFloat(item.trim()));
@@ -281,7 +281,7 @@ module.exports.getAdvices = function(args, res, next) {
     });
 
     if (args["rating"]){
-    	var key = "rating." + pType; 
+    	var key = `rating.${pType}`; 
     	var values = args["rating"].value;
     	var valueCategories = values.split(",").map(item => parseFloat(item.trim()));
     	

@@ -1578,7 +1578,7 @@ paths:
         in: query
         required: false
         type: string
-        default: "current"
+        default: "simulated"
         description: filter type of performance
       - name: netValue
         in: query
