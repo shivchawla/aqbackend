@@ -31,8 +31,10 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             portfolio_returns = merged_returns["Portfolio"].values
             benchmark_returns = merged_returns[benchmark].values
 
-            performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns)
-            dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns)
+            ndays = Int(Dates.value(merged_returns.timestamp[end] - merged_returns.timestamp[1]))
+
+            performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns, scale = 365, period = ndays)
+            dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns, scale = 365, period = ndays)
             
             performance.portfoliostats.netvalue = portfolio_value.values[end]
             
@@ -77,8 +79,10 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
         portfolio_returns = merged_returns["Portfolio"].values
         benchmark_returns = merged_returns[benchmark].values
 
-        performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns)
-        dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns)
+        ndays = Int(Dates.value(merged_returns.timestamp[end] - merged_returns.timestamp[1]))
+
+        performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns, scale = 365, period = ndays)
+        dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns, scale = 365, period = ndays)
         
         return (merged_value.timestamp[end], performance, dperformance)
     
@@ -180,7 +184,7 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
                 stock_returns = merged_returns["stock"].values
                 benchmark_returns = merged_returns["benchmark"].values
 
-                performance = Raftaar.calculateperformance(stock_returns, benchmark_returns)
+                performance = Raftaar.calculateperformance(stock_returns, benchmark_returns, scale = 365, period = ndays)
         
                 return (Date(merged_returns.timestamp[end]), performance)
             

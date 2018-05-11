@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-08 23:37:03
+* @Last Modified time: 2018-05-10 19:42:20
 */
 
 'use strict';
@@ -177,7 +177,7 @@ function _computeSimulatedPerformanceCurrentPortfolio(portfolioId, date, isAdvic
 			var currentPortfolio = portfolio.detail;
 
 			var startDate = DateHelper.getCurrentDate(); 
-			startDate = DateHelper.getDate(startDate.setDate(startDate.getDate() - 365));
+			startDate = DateHelper.getDate(startDate.setFullYear(startDate.getFullYear() - 1));
 
 			currentPortfolio.startDate = startDate;
 			currentPortfolio.endDate = DateHelper.getCurrentDate(); 
@@ -598,9 +598,7 @@ module.exports.getAdvicePerformance = function(adviceId, date, userId) {
 					simulatedPerformance.metrics.portfolioMetrics	= null;
 					simulatedPerformance.metrics.constituentPerformance = null;
 				} 
-
 			}
-
 			return performance;
 		} else {
 			APIError.throwJsonError({message: "Internal calculating portfolio performance", errorCode: 1604});
