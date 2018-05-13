@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-08 23:28:58
+* @Last Modified time: 2018-05-13 23:07:46
 */
 
 'use strict';
@@ -141,8 +141,8 @@ module.exports.getStocks = function(args, res, next) {
 		var securitiesNiftyExactMatch = niftyExactMatch.map(item => item.security);
 		var securitiesNiftyNearMatch = niftyNearMatch.map(item => item.security);
 
-		var totalSecurities = securitiesNiftyExactMatch.concat(securitiesNiftyNearMatch).concat(securitiesExactMatch).concat(securitiesNearMatchTicker).concat(securitiesNearMatchName);
-		var totalSecurities = totalSecurities.filter((item, pos, arr) => {return arr.map(itemS => itemS["ticker"]).indexOf(item["ticker"])==pos;}).slice(0, 10);;
+		var totalSecurities = securitiesExactMatch.concat(securitiesNearMatchTicker).concat(securitiesNearMatchName).concat(securitiesNiftyExactMatch).concat(securitiesNiftyNearMatch);
+		totalSecurities = totalSecurities.filter((item, pos, arr) => {return arr.map(itemS => itemS["ticker"]).indexOf(item["ticker"])==pos;}).slice(0, 10);;
 		return res.status(200).send(totalSecurities);
 	})
 	.catch(err => {
