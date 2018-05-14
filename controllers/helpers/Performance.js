@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-14 19:58:45
+* @Last Modified time: 2018-05-14 20:05:52
 */
 
 'use strict';
@@ -514,7 +514,7 @@ module.exports.computeAllPerformance = function(portfolioId, options, date) {
 module.exports.getAllPerformance = function(portfolioId, options, date) {
 	if (portfolioId) {
 		return PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: 'current simulated summary'})
-		.then(performance => {s
+		.then(performance => {
 			var updateRequiredCurrent = _checkPerformanceUpdateRequired(performance ? performance.current : null);
 			var updateRequiredSimulated = _checkPerformanceUpdateRequired(performance ? performance.simulated : null);
 			return updateRequiredCurrent || updateRequiredSimulated ? exports.computeAllPerformance(portfolioId, options, date) : performance;
