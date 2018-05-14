@@ -53,8 +53,11 @@ function handleRequest(parsemsg::Dict{String, Any})
             endDate = DateTime("1900-01-01")
 
             for port in portfolioHistory
-              startDate = min(port.startDate, startDate)
-              endDate = max(port.endDate, endDate)
+              _sd = Date(DateTime(port["startDate"], jsdateformat))
+              _ed = Date(DateTime(port["endDate"], jsdateformat))
+
+              startDate = min(_sd, startDate)
+              endDate = max(_ed, endDate)
             end
 
             (netValues, dates) = compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment)
