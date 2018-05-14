@@ -497,10 +497,12 @@ function updateportfolio_splitsAndDividends(portfolio::Dict{String,Any}, startda
             else #Historical adjustments are already present
                 output[end]["endDate"] = currentDate - Dates.Day(1)
             end
-           
+
             portfolio = convert_to_node_portfolio(port)
+
             portfolio["startDate"] = currentDate
-            portfolo["endDate"] = DateTime("2200-01-01")
+            portfolio["endDate"] = DateTime("2200-01-01")
+
             push!(output, portfolio)
 
         end

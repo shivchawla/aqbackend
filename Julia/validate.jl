@@ -54,13 +54,15 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
         #Validating positions and benchmark
         (valid_port, port) = _validate_portfolio(portfolio, checkbenchmark = false)
 
-        if !valid_port
-            return valid_port
-        end
+        #if !valid_port
+        
+        return valid_port
+        
+        #end
 
         #ADD CHECK FOR ZERO PRICES (OR PRICES DIFFERENT FROM CLOSE ON THE DATE)
 
-        portval = _compute_latest_portfoliovalue(port)
+        #=portval = _compute_latest_portfoliovalue(port)
 
         maxnotional = get(advice, "maxNotional", 1000000.0)
 
@@ -70,7 +72,7 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
             error("Portfolio value exceeds inital:$(maxnotional) + 5% bound")
         else
             return true
-        end
+        end=#
     catch err
         rethrow(err)
     end

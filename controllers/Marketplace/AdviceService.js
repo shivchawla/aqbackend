@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-11 19:07:56
+* @Last Modified time: 2018-05-14 13:15:07
 */
 
 'use strict';
@@ -15,10 +15,50 @@ const Promise = require('bluebird');
 const config = require('config');
 const PortfolioHelper = require("../helpers/Portfolio");
 const PerformanceHelper = require("../helpers/Performance");
+const SecurityHelper = require("../helpers/Security");
 const AdviceHelper = require("../helpers/Advice");
 const APIError = require('../../utils/error');
 const DateHelper = require('../../utils/Date');
 
+//NOT IN USE
+//NEEDS MORE CONTEMPLATION
+function _getEffectiveAdviceStartDate(selectedStartDate) {
+	
+	var currentDate = DateHelper.getCurrentDate();
+	if (DateHelper.compareDates(selectedStartDate, currentDate) == 1) {
+		return selectedStartDate;
+	}
+	
+	return Promise.all([
+		SecurityHelper.getStockLatestDetail({ticker: "NIFTY_50"}, "EOD"),
+		SecurityHelper.getStockLatestDetail({ticker: "NIFTY_50"}, "RT")
+	])
+	.then(([eodLatestDetail, rtLatestDetail]) => {
+
+		var eodDate = eodLatestDetail ? DateHelper.getDate(eodLatestDetail.Date) : null;
+		var rtDate = rtLatestDetail ? DateHelper.getDate(rtLatestDetail.date) : null;
+
+		//All of this logic breaksdown on a trading date but trading hasn't started yet 
+		// in such a case, date will be lastDate
+		if (rtDate && eodDate) {
+			if (DateHelper.compareDates(rtDate, eodDate) == 1) {
+				return rtDate;
+			} else {
+				return eodDate;
+			}
+		}
+
+		if (rtDate) {
+			return rtDate;
+		}
+
+		if (eodDate) {
+			return eodDate;
+		}
+
+		return selectedStartDate;
+	});
+};
 
 function _findFirstValidPortfolio(adviceId, date, attempts) {
 	var nDate = DateHelper.getDate(date);
@@ -45,12 +85,18 @@ module.exports.createAdvice = function(args, res, next) {
 	.then(advisor => {
 		if(advisor) {
 			advisorId = advisor._id;
-			return AdviceModel.fetchAdvices({advisor: advisorId, deleted:false}, {fields:'_id'})
+			return AdviceModel.fetchAdvices({advisor: advisorId, deleted:false}, {fields:'_id name'})
 		} else {
 			APIError.throwJsonError({message:"Advisor not found", errorCode: 1201});
 		}
 	})
 	.then(([advices, ct]) => {
+
+		var numSameNameAdvices = advices.filter(item => {return item && item.name == advice.name;}).length;
+		if (numSameNameAdvices > 0) {
+			APIError.throwJsonError({message: "Advice exists with same name"});
+		}
+
 		if(advices.length < config.get('max_advices_per_advisor')) {
 			return AdviceHelper.validateAdvice(advice, "", true);
 		} else {
@@ -59,12 +105,15 @@ module.exports.createAdvice = function(args, res, next) {
 	})
 	.then(valid => {
 		if(valid) {
-			return PortfolioModel.savePortfolio(advice.portfolio, true);
+			return Promise.all([
+				PortfolioModel.savePortfolio(advice.portfolio, true),
+				_getEffectiveAdviceStartDate(DateHelper.getDate(advice.portfolio.detail.startDate))
+			])
 		} else {
 			APIError.throwJsonError({message: "Invalid portfolio composition", errorCode: 1405});
 		}
 	})
-	.then(port => {
+	.then(([port, effectiveStartDate]) => {
 		if(port) {
 			const adv = {
 				name: advice.name,
@@ -75,7 +124,8 @@ module.exports.createAdvice = function(args, res, next) {
 				advisor: advisorId,
 		       	portfolio: port._id,
 		       	createdDate: new Date(),
-		       	startDate: DateHelper.getDate(advice.portfolio.detail.startDate),
+		       	//here advice start date should be last valid trading date
+		       	startDate: effectiveStartDate,//DateHelper.getDate(advice.portfolio.detail.startDate),
 		       	updatedDate: new Date(),
 		       	public: advice.public,
 		    };

@@ -401,6 +401,8 @@ function get_stock_price_latest(security_dict::Dict{String,Any}, ptype::String="
             tb_rt = get(_realtimePrices, ticker, TradeBar())
             tb_eod = get(_lastDayPrices, ticker, TradeBar())
             
+            output["date"] = Date(tb_rt.datetime)
+
             #today's prices
             output["current"] = tb_rt.close
             output["low"] = tb_eod.low

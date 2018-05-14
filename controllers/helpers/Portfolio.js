@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-01 14:27:10
+* @Last Modified time: 2018-05-14 12:00:07
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -433,57 +433,6 @@ function _computeUpdatedPortfolioForPrice(portfolio, type, date) {
 	});
 }
 
-//NOT IN USE
-function _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolioDetail, date) {
-	return new Promise(resolve => {
-		if (!(portfolioDetail && portfolioDetail.positions)) {
-				console.log("No Positions");
-				console.log(portfolioDetail)
-			}
-
-		Promise.all([
-			_updatePortfolioForSplitsAndDividends(portfolioDetail, date)
-			.then(updates => { //contains updted positions, cashgenerates and haschanged flag
-				return [updates.updatedPortfolio, updates.hasChanged];
-			}),
-
-			//Each subposition is sent separately as JULIA portfolio can't handle 
-			//redundant securities
-			Promise.map(portfolioDetail.subPositions, function(position) {
-				const port = {positions: [position], cash: 0.0};
-				return _updatePortfolioForSplitsAndDividends(port, date)
-				.then(updates => { //updates include (cashgenerated , positions and isChanged flag)
-					if (updates.updatedPortfolio && updates.updatedPortfolio.positions){
-						return updates.updatedPortfolio.positions.length == 1 ? updates.updatedPortfolio.positions[0] : null;
-					} else {
-						return null;
-					}
-				});
-			})
-			//null,
-		])
-		.then(([[updatedPortfolioDetail, hasChanged], updatedSubPositions]) => {
-			if(hasChanged) {
-
-				updatedPortfolioDetail.startDate = DateHelper.getCurrentDate();
-
-				if(updatedSubPositions) {
-					//Filter out the NULL values
-					updatedPortfolioDetail.subPositions = updatedSubPositions.filter(item => item);
-				}
-
-				resolve([hasChanged, updatedPortfolioDetail]);
-			} else {
-				resolve([false, portfolioDetail]);
-			}
-		})
-		.catch(err => {
-			console.log(err);
-			resolve([false, portfolioDetail]);
-		});
-	});
-}
-
 //Compute Portfolio Analytics
 module.exports.computePortfolioAnalytics = function(portfolioId, date) {
 	return exports.getPortfolioForDate(portfolioId, {detail:1}, date)
@@ -825,27 +774,39 @@ module.exports.validateTransactions = function(transactions, advicePortfolio, in
 	});
 };
 
-
-//NOT IN USE --- needs to be be changed for newer setup
+//Needs to be be changed for newer setup
 module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
 	var currentDate = DateHelper.getCurrentDate();
 
-	return exports.getPortfolioForDate(portfolioId, {fields: 'detail adjustmentHistory'})
+	return exports.getPortfolioForDate(portfolioId, {fields: 'detail'})
 	.then(portfolio => {
-		//Check if currentDate already exist in adjustmentHistory
-		var alreadyAdjusted = portfolio.adjustmentHistory ? portfolio.adjustmentHistory.map(item => item.getTime()).indexOf(currentDate.getTime()) != -1 : false;
 
-		if (portfolio && portfolio.detail && !alreadyAdjusted) {
-			return _computeUpdatedPortfolioDetailForSplitsAndDividends(portfolio.detail, currentDate.toISOString());
+		var startDate = portfolio.detail.startDate;
+
+		//Adjustment is required is startDate is less than current Date
+		var adjustmentRequired = DateHelper.compareDates(DateHelper.getDate(startDate), currentDate) == -1;
+		
+		if (portfolio && portfolio.detail && adjustmentRequired) {
+			return _computeUpdatedPortfolioForSplitsAndDividends(portfolio, DateHelper.getDate(startDate), currentDate);
 		} else {
-			return [false, null];
+			return [portfolio]
 		}
 	})
-	.then(([updated, updatedDetail]) => {
-		//If updated flag is TRUE, then only update the portfolio
-		//ELSE return NULL
-		//this update needs to be changed
-		return updated && updatedDetail ? PortfolioModel.updatePortfolio({_id: portfolioId}, {detail: updatedDetail, adjustmentHistory: currentDate}, {updateHistory: true}) : null;
+	.then(adjustedPortfolioHistory => { //this object has latest and historical portfolios before adjustment
+
+		if (adjustedPortfolioHistory.length > 1) {
+			
+			if (adjustedPortfolioHistory.length > 2) {
+				console.log(`Adjusting for splits - this shouldn't happen. Can't have more than two elements in adjusted history - ${portfolioId}`);
+				return;
+			}
+			
+			var latestPortfolio = adjustedPortfolioHistory.slice(-1)[0];
+			
+			return PortfolioModel.updatePortfolio({_id: portfolioId}, {detail: latestPortfolio.detail}, {appendHistory: true});
+		} else {
+			console.log(`No split/dividend adjustmentadjustment required for ${portfolioId}`);
+		}
 	});
 };
 
@@ -853,15 +814,17 @@ module.exports.getAllPortfoliosForDate = function(date, fields) {
 	return PortfolioModel.fetchPortfolios({}, {_id: 1})
 	.then(portfolios => {
 		return Promise.map(portfolios, function(portfolio) {
-			exports.getPortfolioForDate(portfolio._id, {fields: fields}, date);
+			return exports.getPortfolioForDate(portfolio._id, {fields: fields}, date);
 		});
 	});
 }
 
 module.exports.updateAllPortfoliosForSplitsAndDividends = function() {
-	return exports.getAllPortfoliosForDate()
+	return PortfolioModel.fetchPortfolios({}, {_id: 1})
 	.then(portfolios => {
-		Promise.mapSeries(portfolios, function(portfolio) {
+		console.log(portfolios.length);
+		console.log(portfolios.map(item => item._id));
+		return Promise.mapSeries(portfolios, function(portfolio) {
 			return exports.updatePortfolioForSplitsAndDividends(portfolio._id);
 		});
 	});
