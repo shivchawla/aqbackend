@@ -92,10 +92,11 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
 
         if merged_prices == nothing
             println("Price data not available")
-            dt_array = Date(start_date):Date(end_date)
-            if length(dt_array) == 0
+            dt_array = benchmark_prices != nothing ? benchmark_prices.timestamp : []
+            if length(dt_array) == 0 
                 return nothing
             end
+
             return TimeArray([dt for dt in dt_array], portfolio.cash*ones(length(dt_array)), ["Portfolio"])
         end
 
