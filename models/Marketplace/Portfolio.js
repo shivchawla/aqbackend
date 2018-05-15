@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-17 23:21:45
+* @Last Modified time: 2018-05-15 11:01:27
 */
 
 'use strict';
@@ -54,6 +54,7 @@ const Portfolio = new Schema({
 
 	//History contains everything...EXCEPT the latest Portfolio
 	history: [PortfolioDetail]
+
 });
 
 Portfolio.statics.savePortfolio = function(portfolio, isAdvice) {
@@ -202,29 +203,24 @@ Portfolio.statics.deleteTransactions = function(query, transactions) {
 Portfolio.statics.updatePortfolio = function(query, updates, options) {
 	var q = this.findOne(query);
 	
-	/*var historyType = options && options.historyType ? options.historyType : "true";
-	if (historyType != "true" || historyType != "adjusted") {
-		throw error("Invalid history type while updating portfolio. Valid values: true/adjusted");
-	}*/
-
-	//History of portfolio needs to be updates if either updates contain history
-	//OR appendHistory flag is true 
-	//OR BOTH
-	var updateHistoryFlag = options.appendHistory || updates.history;
-
 	return q.execAsync()
 	.then(portfolio => {
 		//Update the end date of current portfolio before sending to history
 		//EndDate of historical entry = startDate of new portfolio - 1 day
 		let newHistoryItem;
 		if (updates.detail) {
-			if (updateHistoryFlag) {
+			updates.detail.endDate = DateHelper.getDate(farfuture());
+			
+			//Current detail becomes history (if history is not provided as an update input)
+			if (options.appendHistory && !updates.history) {
 				portfolio = Object.assign({}, portfolio.toObject());
+				//Moving current detail to history makes sense only when partial history 
+				//(only append history comes in)
 				var incomingStartDate = DateHelper.getDate(updates.detail.startDate);
 				var currenPortfolioStartDate = DateHelper.getDate(portfolio.detail.startDate);
 				
 				if (DateHelper.compareDates(incomingStartDate, currenPortfolioStartDate) != 1) {
-					throw error("Error in date of incoming portfolio");
+					throw Error("Error in date of incoming portfolio");
 				}
 
 				newHistoryItem = portfolio.detail;
@@ -233,13 +229,11 @@ Portfolio.statics.updatePortfolio = function(query, updates, options) {
 				_d.setDate(_d.getDate() - 1);
 				newHistoryItem.endDate = _d;
 			}
-
-			updates.detail.endDate = DateHelper.getDate(farfuture());
-			
 		}
 
 		var fupdate = {$set: Object.assign({updatedDate: new Date()}, updates)};
 
+		//If append history is TRUE
 		if (options.appendHistory) {
 			var modifiedUpdates = Object.assign({}, updates);
 
