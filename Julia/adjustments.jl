@@ -68,9 +68,9 @@ function _update_portfolio_dividends(port::Portfolio, date::DateTime = currentIn
         pos = port[sym]
         if pos.quantity > 0
             updated = true
-            dividendCash = pos.quantity * dividend
-            pos.dividendCash += dividendCash
-            cashgen += dividendCash
+            dividendcash = pos.quantity * dividend
+            pos.dividendcash += dividendcash
+            cashgen += dividendcash
             pos.lastprice = pos.lastprice > 0 ? pos.lastprice - dividend : 0.0
         end
     end

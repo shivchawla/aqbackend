@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-04-25 16:09:37
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 12:49:21
+* @Last Modified time: 2018-05-15 13:17:12
 */
 'use strict';
 var redis = require('redis');
@@ -21,12 +21,12 @@ function getConnectionForMktPlace(purpose) {
     
     var machines = config.get('mktMachines');
     if (purpose == "update_realtime_prices") {
-	    var dedicatedMachines = machines.filter(item => {return item.dedicatedParent == serverPort;});
+	    var dedicatedMachines = machines.filter(item => {return item.dedicatedPort == serverPort;});
     	
     	numRequests++;
     	if (dedicatedMachines.length > 0) {
     		var machine = dedicatedMachines[0];
-    		console.log(`Using machine: ${machine.host}:${machine.port} for request#: ${numRequests} (to update price)`);
+    		//console.log(`Using machine: ${machine.host}:${machine.port} for request#: ${numRequests} (to update price)`);
 	    	return 'ws://' + machine.host + ":" + machine.port;
     	} else {
     		console.log(`No dedicated machines found for serverPort: ${serverPort}`);
@@ -35,7 +35,7 @@ function getConnectionForMktPlace(purpose) {
     }
 
 	var machine = machines[numRequests++ % machines.length];
-    console.log(`Using machine: ${machine.host}:${machine.port} for request#: ${numRequests}`);
+    //console.log(`Using machine: ${machine.host}:${machine.port} for request#: ${numRequests}`);
     return 'ws://' + machine.host + ":" + machine.port;
 }
 
@@ -43,7 +43,12 @@ module.exports.handleMktRequest = function(requestMsg, resolve, reject, incoming
 	
     let connection;
     if (!incomingConnection) {
-    	connection = getConnectionForMktPlace(JSON.parse(requestMsg).action);
+    	try {
+    		connection = getConnectionForMktPlace(JSON.parse(requestMsg).action);
+    	} catch (err) {
+    		console.log("Error while picking WS connection");
+    		console.log(err.message);
+    	}
 	} else {
 		connection = incomingConnection;
 	}
@@ -51,8 +56,6 @@ module.exports.handleMktRequest = function(requestMsg, resolve, reject, incoming
     var wsClient = new WebSocket(connection); 
 
     wsClient.on('open', function open() {
-        //console.log('Connection Open');
-        //console.log(connection);
      	wsClient.send(requestMsg);
     });
 

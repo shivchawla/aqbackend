@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-11 13:17:36
+* @Last Modified time: 2018-05-15 13:22:02
 */
 
 'use strict';
@@ -48,31 +48,31 @@ var subscribers = {portfolio: {},
 };
 
 function debugConnection(str) {
-	console.log(str);
+	//console.log(str);
 }
 
 var sftpClosed = true;
 
 sftp.on('close', function(err) {
-	console.log("SFTP - On Close event");
-	console.log(err);
+	//console.log("SFTP - On Close event");
+	//console.log(err);
 	sftpClosed = true;
 });
 
 sftp.on('error', function(err) {
-	console.log("SFTP - On Error event");
-	console.log(err);
+	//console.log("SFTP - On Error event");
+	//console.log(err);
 	sftpClosed = true;
 });
 
 sftp.on('ready', function() {
-	console.log("SFTP - On Ready event");
+	//console.log("SFTP - On Ready event");
 	sftpClosed = false;
 });
 
 function connectSFTP() {
 	if (sftpClosed) {
-		console.log("Attempting Reconnect - SFTP");
+		//console.log("Attempting Reconnect - SFTP");
 		return sftp.connect({
 		    host: config.get('nse_host'),
 		    port: config.get('nse_port'),
@@ -82,7 +82,7 @@ function connectSFTP() {
 		    keepaliveInterval: 5000
 		})
 	} else {
-		console.log("SFTP already connected");
+		//console.log("SFTP already connected");
 		return new Promise(resolve => {
 			resolve(true);
 		});
@@ -136,7 +136,7 @@ function _writeFile(data, file) {
     		var writeUnzipStream = fs.createWriteStream(file);
     		data.pipe(zlib.createUnzip()).pipe(writeUnzipStream);
     		writeUnzipStream.on('finish', () => {
-			  	console.error('All writes are now complete.');
+			  	//console.error('All writes are now complete.');
 			  	resolve(true);
 			});
 		} catch(err) {
@@ -153,7 +153,7 @@ function _downloadNSEData(type) {
 		let localUnzipFilePath;
 		let nseFilePath;
 
-		console.log("Starting download process now");
+		//console.log("Starting download process now");
 		
 		return new Promise((resolve, reject) => {
 			let fileNumber;
@@ -222,18 +222,19 @@ function _downloadNSEData(type) {
 			return !fs.existsSync(localUnzipFilePath) ? _writeFile(data, localUnzipFilePath) : true
 		}) 
 		.then(successMkt => {
-			//console.log(localUnzipFilePath);
 			resolve(localUnzipFilePath);
 		})
 		.catch(err => {
-			//console.log(err);
+			console.log(err.message);
+			console.log("Error while downloading NSE file. Will continue with last available file");
+
 		    var lastFile = _getLastValidFile(type);
 		    if (lastFile == "") {
 		    	console.log("No file to process");
 		    	resolve("");
 		    } else {
-		    	console.log("Got file to process");
-		    	console.log(lastFile);
+		    	//console.log("Got file to process");
+		    	//console.log(lastFile);
 		    	resolve(lastFile);
 		    }
 		});
@@ -243,28 +244,28 @@ function _downloadNSEData(type) {
 function _downloadAndUpdateData(type) {
 	return _downloadNSEData(type)
 	.then(localFilePath  => {
-		console.log("Sending request to Julia - update realtime prices")
+		//console.log("Sending request to Julia - update realtime prices")
 		if (localFilePath && localFilePath !="") {
 			return SecurityHelper.updateRealtimePrices(localFilePath, type)
 		} else {
-			console.log("Can't process realtime data. Bad filename");
+			//console.log("Can't process realtime data. Bad filename");
 			return false;
 		}
 	})
 }
 
 function processNewData() {
-	console.log("In Process data")
+	//console.log("In Process data")
 	return connectSFTP()
 	.then(() => {
-		console.log("Connected to SFTP Successfully");
+		//console.log("Connected to SFTP Successfully");
 		return Promise.all ([
 			_downloadAndUpdateData("mkt"),
 			_downloadAndUpdateData("ind")
 		])
 	})
 	.then(([s1, s2]) => {
-		console.log("Successfully updated the stock prices");
+		//console.log("Successfully updated the stock prices");
 		return Promise.all([
 			_updatePortfoliosOnNewData(),
 			_updateAdvicesOnNewData(),
@@ -771,7 +772,8 @@ function _updateStockOnNewData() {
 			resolve(true);
 		})
 		.catch(err => {
-			console.log(err);
+			console.log("Error while updating stocks on new data");
+			console.log(err.message);
 			resolve(true);
 		})
 	});

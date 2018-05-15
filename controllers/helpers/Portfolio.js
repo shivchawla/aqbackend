@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-14 12:00:07
+* @Last Modified time: 2018-05-15 13:13:13
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -781,6 +781,7 @@ module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
 	return exports.getPortfolioForDate(portfolioId, {fields: 'detail'})
 	.then(portfolio => {
 
+		
 		var startDate = portfolio.detail.startDate;
 
 		//Adjustment is required is startDate is less than current Date
@@ -822,8 +823,6 @@ module.exports.getAllPortfoliosForDate = function(date, fields) {
 module.exports.updateAllPortfoliosForSplitsAndDividends = function() {
 	return PortfolioModel.fetchPortfolios({}, {_id: 1})
 	.then(portfolios => {
-		console.log(portfolios.length);
-		console.log(portfolios.map(item => item._id));
 		return Promise.mapSeries(portfolios, function(portfolio) {
 			return exports.updatePortfolioForSplitsAndDividends(portfolio._id);
 		});

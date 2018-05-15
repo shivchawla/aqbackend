@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-14 20:05:52
+* @Last Modified time: 2018-05-15 13:15:27
 */
 
 'use strict';
@@ -369,7 +369,8 @@ module.exports.computePerformanceSummary = function(portfolioId, options, date) 
 			resolve(pf);
 		})
 		.catch(err => {
-			console.log(err);
+			console.log("Error while computing Performance Summary")
+			console.log(err.message);
 			//ERROR in performance calculation
 			//Logging the error (needs IMPROVEMENT)
 			//Instead of hard fail, computation continues with error message
@@ -418,7 +419,8 @@ module.exports.computePerformance = function(portfolioId, options, date) {
 			resolve(pf);
 		})
 		.catch(err => {
-			console.log(err);
+			console.log("Error while computing Performance")
+			console.log(err.message);
 			PerformanceModel.fetchPerformance({portfolio: portfolioId}, {fields: options.fields})
 			.then(pf => {
 				resolve(pf);
