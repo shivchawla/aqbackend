@@ -96,6 +96,8 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
             if length(dt_array) == 0
                 return nothing
             end
+
+            return nothing
             return TimeArray([dt for dt in dt_array], portfolio.cash*ones(length(dt_array)), ["Portfolio"])
         end
 
@@ -212,8 +214,14 @@ function _cashRequirement(oldPortfolio::Portfolio, newPortfolio::Portfolio, date
     allTickers = unique(append!(newTickers, oldTickers))
     
     adjustments = YRead.getadjustments(allTickers, date, date)
+    
     #Fetch price from date to 10 days + date (incase date doesn't have any prices)
-    prices = TimeSeries.head(YRead.history_unadj(allTickers, "Close", :Day, date, date + Dates.Day(10)), 1)
+    prices10DaysAhead = YRead.history_unadj(allTickers, "Close", :Day, date, date + Dates.Day(10))
+    if prices10DaysAhead == nothing
+        return 0.0
+    end
+
+    prices = TimeSeries.head(prices10DaysAhead, 1)
     
     cashRequirement = 0.0
     for ticker in allTickers
@@ -246,6 +254,7 @@ OUTPUT: Vector of portfolio value
 =#
 function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Bool=false)
     
+
     try
         ts = Vector{TimeArray}(length(portfolioHistory))
 
@@ -282,7 +291,10 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
             #To compute backward adjusted NAV, let start in reverse
             portfolio_value_ta = _compute_portfoliovalue(portfolio, startdate, enddate, "UnAdj") #, excludeCash=cashAdjustment)
             
-            dividendFactor*= (cashAdjustment && idx > 1 ? (values(portfolio_value_ta)[end] - portfolio.cash)/values(portfolio_value_ta)[end] : 1.0)
+            if portfolio_value_ta != nothing
+                dividendFactor*= (cashAdjustment && idx > 1 ? (values(portfolio_value_ta)[end] - portfolio.cash)/values(portfolio_value_ta)[end] : 1.0)
+            end
+
             # Compute portfolio value timed array
             # Output is TA 
             if enddate < startdate
@@ -296,7 +308,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
             #Add the cash_inflow to last portfolio value... Adjusted Nav
             #Adjusted factor = Adjusted NAV/True Old Nav
             #Multiply the 
-            if idx > 1 && length(collection) >= idx && cashAdjustment
+            if idx > 1 && length(collection) >= idx && cashAdjustment && portfolio_value_ta != nothing
 
                 #NEXT because it is reversed in time
                 next_collection = reversePortfolioHistory[idx-1]
@@ -328,7 +340,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
             if portfolio_value_ta_adj != nothing 
                portfolio_value_ta_adj = round.(portfolio_value_ta_adj.*dividendFactor, 2) 
                ts[length(portfolioHistory)-idx+1] = portfolio_value_ta_adj
-           end
+            end
 
         end
 
@@ -339,8 +351,10 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
         
         f_ts = ts[1]
 
-        for i = 2:length(ts)
-            f_ts = vcat(f_ts, ts[i])
+        if length(ts) > 1
+            for i = 2:length(ts)
+                f_ts = vcat(f_ts, ts[i])
+            end
         end
 
         netValues = f_ts.values
@@ -464,13 +478,17 @@ function updateportfolio_splitsAndDividends(portfolio::Dict{String,Any}, startda
     end
 
     for (date, adjustmentsAllSecurities) in sort(collect(adjustmentsByDate), by=x->x[1])
-        portfolio = convert_to_node_portfolio(port)
-        portfolio["startDate"] = startdate
-        portfolio["endDate"] = DateTime(date) - Dates.Day(1)
-        push!(output, portfolio)
+        
+        #Update the portfolio with adjustments after the startdate
+        if Date(date) > Date(startdate)
+            portfolio = convert_to_node_portfolio(port)
+            portfolio["startDate"] = startdate
+            portfolio["endDate"] = DateTime(date) - Dates.Day(1)
+            push!(output, portfolio)
 
-        Raftaar.updateportfolio_splits_dividends!(port, adjustmentsAllSecurities)
-        startdate = date
+            Raftaar.updateportfolio_splits_dividends!(port, adjustmentsAllSecurities)
+            startdate = date
+        end
     end
 
     portfolio = convert_to_node_portfolio(port)

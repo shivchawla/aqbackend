@@ -22,12 +22,13 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
         if benchmark_value != nothing && portfolio_value != nothing
             #merge and drop observations before benchmark lastdate
             merged_value = filternan(to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end]))
-            merged_returns = percentchange(merged_value)
             
-            if length(merged_returns.timestamp) == 0
-                return Performance()
+            if length(merged_value.timestamp) <= 1
+                return (Date(currentIndiaTime()), Performance(), Performance())
             end
 
+            merged_returns = percentchange(merged_value)
+            
             portfolio_returns = merged_returns["Portfolio"].values
             benchmark_returns = merged_returns[benchmark].values
 
@@ -69,13 +70,13 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String; true
     if portfolio_value != nothing && benchmark_value != nothing && length(ts) >= 2
         #merge and drop observations before benchmark lastdate
         merged_value = dropnan(to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end]), :all)
-        merged_returns = percentchange(merged_value)
         
-        if length(merged_returns.timestamp) == 0
-            #Can we pick a better date???
-            return (Date(currentIndiaTime()), Performance())
+        if length(merged_value.timestamp) <= 1
+            return (Date(currentIndiaTime()), Performance(), Performance())
         end
 
+        merged_returns = percentchange(merged_value)
+        
         portfolio_returns = merged_returns["Portfolio"].values
         benchmark_returns = merged_returns[benchmark].values
 
