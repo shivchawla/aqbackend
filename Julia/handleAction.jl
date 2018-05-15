@@ -84,7 +84,7 @@ function handleRequest(parsemsg::Dict{String, Any})
             else 
                 parsemsg["output"] = Dict{String, Any}("date" => Date(currentIndiaTime()), 
                                           "value" => serialize(Performance()), 
-                                          "portfolioValues" => nVDict)
+                                          "portfolioValues" => Dict{String, Any}())
                 #error("Missing Input")
             end
 

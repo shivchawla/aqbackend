@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-14 13:15:07
+* @Last Modified time: 2018-05-15 20:35:50
 */
 
 'use strict';
@@ -349,7 +349,8 @@ module.exports.getAdvices = function(args, res, next) {
         query.$text = {$search: search};
     }
 
-    const approved = args.approved.value;
+    const approved = args.approved.value ? args.approved.value : ["0","1"];
+
     if(approved) {
         var approvedCategories = approved.split(",");    
         //query.approved = {$in: approvedCategories};
@@ -392,33 +393,36 @@ module.exports.getAdvices = function(args, res, next) {
 	    }
 
 	    var advisorQuery = [];
-	    if(personal && !advisorId) {
-			var personalCategories = personal.split(",");
+	    if(!advisorId) {
+			var personalCategories = personal ? personal.split(",") : ["0","1"];
 	 		
 	    	if (personalCategories.indexOf("1") !=-1) {
-	    		//query.advisor = userAdvisorId;
 	    		advisorQuery.push({advisor: userAdvisorId});
 	    	}
 
 	    	if (personalCategories.indexOf("0") !=-1) {
-	    		advisorQuery.push({advisor:{'$ne': userAdvisorId}, public: true, prohibited: false});
+	    		//Only show advices starting after today for other advisors
+	    		advisorQuery.push({$and: [{advisor:{'$ne': userAdvisorId}, public: true, prohibited: false}, 
+	    								{$or:[{startDate: {$gte: DateHelper.getCurrentDate()}}, 
+    								      	{startDate: {$exists: false}}
+								      	]}
+						      		]});
 	    		
-	    		//Only show advices starting after today
-	    		query = {$and: [query, 
-	    						{$or:[{startDate: {$gte: DateHelper.getCurrentDate()}}, 
-	    								{startDate: {$exists: false}}]
-							}]
-						};
 	    	}
 
 	    	query = {'$and': [query, {'$or': advisorQuery}]}
-	    }
-
-     	if(advisorId) {
+	    } 
+	    else if(advisorId) {
 	    	query.advisor = advisorId;
 	    	if (!userAdvisorId.equals(advisorId)) {
 	    		query.public = true;
 	    		query.prohibited = false;	
+
+	    		query = {$and: [query, 
+							{$or:[{startDate: {$gte: DateHelper.getCurrentDate()}}, 
+						      	{startDate: {$exists: false}}
+					      	]}
+				      	]};
 	    	}
 	    }
 
