@@ -96,8 +96,6 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
             if length(dt_array) == 0
                 return nothing
             end
-
-            return nothing
             return TimeArray([dt for dt in dt_array], portfolio.cash*ones(length(dt_array)), ["Portfolio"])
         end
 
@@ -254,8 +252,12 @@ OUTPUT: Vector of portfolio value
 =#
 function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Bool=false)
     
-
     try
+        if portfolioHistory == nothing
+           println("Portfolio history is empty")   
+           return (nothing, nothing)
+        end
+
         ts = Vector{TimeArray}(length(portfolioHistory))
 
         format = "yyyy-mm-ddTHH:MM:SS.sssZ"
@@ -348,18 +350,24 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
             println("Empty time series vector. No data available upstream")
             return (nothing, nothing)
         end
-        
-        f_ts = ts[1]
 
+        f_ts = isassigned(ts, 1) ? ts[1] : nothing
+            
         if length(ts) > 1
             for i = 2:length(ts)
-                f_ts = vcat(f_ts, ts[i])
+                f_ts = f_ts != nothing && isassigned(ts, i) ? vcat(f_ts, ts[i]) : 
+                    f_ts == nothing && isassigned(ts, i) ? ts[i] : f_ts
             end
         end
 
-        netValues = f_ts.values
-        timeStamps = f_ts.timestamp
-        return (netValues[:], timeStamps)
+        if f_ts != nothing
+            netValues = f_ts.values
+            timeStamps = f_ts.timestamp
+            return (netValues[:], timeStamps)
+        else 
+            return (nothing, nothing)
+        end
+
     catch err
         rethrow(err)
     end
