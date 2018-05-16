@@ -274,6 +274,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
         historyEndDate = length(portfolioHistory) > 0 ? DateTime(portfolioHistory[end]["endDate"], format) : DateTime() 
 
         dividendFactor = 1.0
+        hasDividendFactor = false
 
         reversePortfolioHistory = reverse(portfolioHistory)
         for (idx, collection) in enumerate(reversePortfolioHistory)
@@ -291,19 +292,20 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
             startdate = DateTime(collection["startDate"], format)
             enddate = DateTime(collection["endDate"], format)
 
-            #To compute backward adjusted NAV, let start in reverse
-            portfolio_value_ta = _compute_portfoliovalue(portfolio, startdate, enddate, "UnAdj") #, excludeCash=cashAdjustment)
-            
-            if portfolio_value_ta != nothing
-                dividendFactor*= (cashAdjustment && idx > 1 ? (values(portfolio_value_ta)[end] - portfolio.cash)/values(portfolio_value_ta)[end] : 1.0)
-            end
-
-            # Compute portfolio value timed array
+             # Compute portfolio value timed array
             # Output is TA 
             if enddate < startdate
                 error("Start date in portfolio greater then End date. Can't compute portoflio value")    
             end
 
+            #To compute backward adjusted NAV, let start in reverse
+            portfolio_value_ta = _compute_portfoliovalue(portfolio, startdate, enddate, "UnAdj") #, excludeCash=cashAdjustment)
+            
+            if portfolio_value_ta != nothing && !hasDividendFactor
+                dividendFactor*= (cashAdjustment && idx > 1 ? (values(portfolio_value_ta)[end] - portfolio.cash)/values(portfolio_value_ta)[end] : 1.0)
+                hasDividendFactor = true
+            end
+           
             #Logic to compute cash inflow (used primarily for advice)
             #Compute the portflio value of last portfolio at start date of next portfolio (ORGANIC GROWTH)
             #Compute the portfolio value of current portfolio at start date (CURRENT NAV)
@@ -335,7 +337,13 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
                 #Latest Portfolio's TRUE NAV
                 latest_portfolio_NAV_tomorrow_unadj = values(latest_portfolio_value_ta)[1]
                 
-                adj_factor = latest_portfolio_NAV_tomorrow_adj/(latest_portfolio_NAV_tomorrow_unadj - cashRequirement)
+
+                ### THIS IS TRICKY...to use adj or _unadj (but should be the same???..FCUK)
+                #on 16/05/2018
+                #adj_factor = latest_portfolio_NAV_tomorrow_adj/(latest_portfolio_NAV_tomorrow_unadj - cashRequirement)
+
+                #Modifying it to use unadjusted on 16/05/2018
+                adj_factor = latest_portfolio_NAV_tomorrow_unadj/(latest_portfolio_NAV_tomorrow_unadj - cashRequirement)
                 
                 portfolio_value_ta_adj = portfolio_value_ta.*adj_factor
 
@@ -381,7 +389,7 @@ end
 Compute portfolio value for a given period (start and end date)
 OUTPUT: Vector of portfolio value
 =#
-function compute_portfolio_value_period(port, startDate::DateTime, endDate::DateTime)
+function compute_portfolio_value_period(port, startDate::DateTime, endDate::DateTime; excludeCash::Bool = false)
     try
         
         # the dates are string without sssZ format(JS)..not need to convert
@@ -389,7 +397,7 @@ function compute_portfolio_value_period(port, startDate::DateTime, endDate::Date
         #endDate = DateTime(endDate[1:end-1])
 
         portfolio = convert(Raftaar.Portfolio, port)
-        portfolio_value = _compute_portfoliovalue(portfolio, startDate, endDate)
+        portfolio_value = _compute_portfoliovalue(portfolio, startDate, endDate, excludeCash = excludeCash)
 
         return (portfolio_value.values, portfolio_value.timestamp)
     catch err

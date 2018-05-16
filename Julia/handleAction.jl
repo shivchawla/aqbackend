@@ -147,8 +147,9 @@ function handleRequest(parsemsg::Dict{String, Any})
             startDate = DateTime(parsemsg["startDate"], jsdateformat)
             endDate = DateTime(parsemsg["endDate"], jsdateformat)
             benchmark = parsemsg["benchmark"]["ticker"]
+            excludeCash = get(parsemsg, "excludeCash", false)
 
-            (netValues, dates) = compute_portfolio_value_period(portfolio, startDate, endDate)
+            (netValues, dates) = compute_portfolio_value_period(portfolio, startDate, endDate, excludeCash = excludeCash)
             
             ndays = Int(Dates.value(Date(endDate)-Date(startDate)))
 

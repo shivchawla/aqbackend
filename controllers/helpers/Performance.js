@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-15 13:15:27
+* @Last Modified time: 2018-05-16 22:33:26
 */
 
 'use strict';
@@ -47,7 +47,7 @@ function _computeSimulatedHistoricalPerformance(portfolio, isAdvice) {
         								benchmark: portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'},
         								startDate: portfolio.startDate,
         								endDate: portfolio.endDate,
-        								isAdvice: isAdvice}); 
+        								excludeCash: isAdvice ? true : false}); 
 
 		WSHelper.handleMktRequest(msg, resolve, reject);
 
@@ -357,6 +357,8 @@ module.exports.computePerformanceSummary = function(portfolioId, options, date) 
 			}
 		})
 		.then(performanceSummary => {
+			//WHY DO WE JUST UPDATE THE SUMMARY IN DATABASE..
+			//WHY NOT THE COMPLETE OBJECT????
 			if (performanceSummary) {
 				var nestedField = "summary."+summaryType;
 				return PerformanceModel.updatePerformance({portfolio: portfolioId}, {$set: {[nestedField]: performanceSummary}}, {fields: [nestedField]})

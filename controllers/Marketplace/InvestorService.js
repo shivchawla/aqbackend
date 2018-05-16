@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 23:50:41
+* @Last Modified time: 2018-05-16 22:26:40
 */
 
 'use strict';
@@ -311,13 +311,16 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 	if (fields == '' || !fields) {
 		fields = 'name benchmark detail updatedDate';
 	}
+
+	let isDefaultPortfolio;
 	
-	return InvestorModel.fetchInvestor({user: userId}, {fields: 'user portfolios', insert: true})
+	return InvestorModel.fetchInvestor({user: userId}, {fields: 'user portfolios defaultPortfolio', insert: true})
 	.then(investor => {
 		if (investor) {
 			if (investor._id.equals(investorId)){
 				if(investor.portfolios) {
 					if (investor.portfolios.map(item => item.toString()).indexOf(portfolioId) != -1) {
+						isDefaultPortfolio = investor.defaultPortfolio ? investor.defaultPortfolio.toString() ==  portfolioId : false;
 						return PortfolioHelper.getUpdatedPortfolioForEverything(portfolioId, {fields: fields}, userId);
 					} else {
 						APIError.throwJsonError({userId: userId, portfolioId: portfolioId, message: "Not a valid portfolio for investor"})
@@ -335,7 +338,7 @@ module.exports.getInvestorPortfolio = function(args, res, next) {
 	})
 	.then(updatedPortfolio => {
 		if (updatedPortfolio) {
-			return res.status(200).send(updatedPortfolio);
+			return res.status(200).send(Object.assign(updatedPortfolio, {isDefaultPortfolio: isDefaultPortfolio}));
 		} else {
 			APIError.throwJsonError({message: "Portfolio not found", errorCode: 1401});
 		}

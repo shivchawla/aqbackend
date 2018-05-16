@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-16 14:10:38
+* @Last Modified time: 2018-05-16 17:49:31
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -798,15 +798,17 @@ module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
 
 		if (adjustedPortfolioHistory.length > 1) {
 			
-			/*if (adjustedPortfolioHistory.length > 2) {
-				//console.log(`Adjusting for splits - this shouldn't happen. Can't have more than two elements in adjusted history - ${portfolioId}`);
-				
-			}*/
-
-			var latestPortfolio = adjustedPortfolioHistory.slice(-1)[0];
-			var historicalDetail = adjustedPortfolioHistory.slice(0,-1).map(item => item.detail);
+			adjustedPortfolioHistory = adjustedPortfolioHistory.map(item => {
+				var it = item.detail;
+				it.startDate = DateHelper.getDate(it.startDate);
+				it.endDate = DateHelper.getDate(it.endDate);
+				return it;
+			});
 			
-			return PortfolioModel.updatePortfolio({_id: portfolioId}, {detail: latestPortfolio.detail, history: historicalDetail}, {appendHistory: true});
+			var latestPortfolioDetail = adjustedPortfolioHistory.slice(-1)[0];
+			var historicalDetail = adjustedPortfolioHistory.slice(0,-1);
+			
+			return PortfolioModel.updatePortfolio({_id: portfolioId}, {detail: latestPortfolioDetail, history: historicalDetail}, {appendHistory: true});
 		} else {
 			console.log(`No split/dividend adjustment required for ${portfolioId}`);
 		}
