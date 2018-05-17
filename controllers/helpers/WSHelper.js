@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-04-25 16:09:37
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-15 13:17:12
+* @Last Modified time: 2018-05-17 11:45:16
 */
 'use strict';
 var redis = require('redis');
@@ -28,10 +28,10 @@ function getConnectionForMktPlace(purpose) {
     		var machine = dedicatedMachines[0];
     		//console.log(`Using machine: ${machine.host}:${machine.port} for request#: ${numRequests} (to update price)`);
 	    	return 'ws://' + machine.host + ":" + machine.port;
-    	} else {
+    	} /*else {
     		console.log(`No dedicated machines found for serverPort: ${serverPort}`);
     		console.log("Continue to use first available machine");
-    	}
+    	}*/
     }
 
 	var machine = machines[numRequests++ % machines.length];

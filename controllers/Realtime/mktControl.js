@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-15 13:22:02
+* @Last Modified time: 2018-05-17 11:44:30
 */
 
 'use strict';
@@ -573,7 +573,7 @@ function _sendWSResponse(res, data, category, typeId) {
 			}
 		}
 	} catch (err) {
-		console.log(err.message);
+		//console.log(err.message);
 		return err.message;
 	}
 }
