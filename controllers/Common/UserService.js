@@ -20,6 +20,8 @@ exports.registerUser = function(args, res, next) {
         createdDate: new Date(),
     };
 
+    const source = args.source ? args.source.value : null;
+
     hashUtil.genHash(user.password)
     .then(hash => {
         user.password = hash;
@@ -27,7 +29,7 @@ exports.registerUser = function(args, res, next) {
     })
     .then(userDetails => {
         delete userDetails.password;
-        sendEmail.sendActivationEmail(res, userDetails);
+        sendEmail.sendActivationEmail(res, userDetails, source);
     })
     .catch(err => {
         //next(err);
@@ -44,6 +46,7 @@ exports.userlogin = function(args, res, next) {
         email: args.body.value.email,
         password: args.body.value.password
     };
+
     UserModel.fetchUser({
         email: user.email
     })
@@ -86,12 +89,14 @@ exports.userlogin = function(args, res, next) {
 
 exports.forgotPassword = function(args, res, next) {
 
+    const source = args.source ? args.source.value : null;
+
     UserModel.updateCode({
         email: args.email.value
     }, uuid.v4())
     .then(function(userDetails) {
         delete userDetails.password;
-        sendEmail.sendForgotEmail(res, userDetails);
+        sendEmail.sendForgotEmail(res, userDetails, source);
     })
     .catch(err => {
         console.log(err);
@@ -101,11 +106,13 @@ exports.forgotPassword = function(args, res, next) {
 
 exports.activateUser = function(args, res) {
 
+    const source = args.source ? args.source.value : null;
+
     UserModel.updateStatus({
         code: args.code.value
     }, {active:true})
     .then(function(userDetails) {
-        sendEmail.welcomeEmail(res, userDetails);
+        sendEmail.welcomeEmail(res, userDetails, source);
     })
     .catch((err) => {
         res.status(400).json(err);
@@ -113,13 +120,16 @@ exports.activateUser = function(args, res) {
 };
 
 exports.resetEmailLink = function(args, res) {
-    var code = args.code.value;
-    res.redirect(eval('`' + config.get('reset_password_url') + '`'));
+    const code = args.code.value;
+    const source = args.source.value;
+
+    res.redirect(eval('`' + config.get(`reset_password_url.${source}`) + '`'));
 };
 
 exports.resetPassword = function(args, res, next) {
 
     const code = args.body.value.code;
+    const source = args.source ? args.source.value : null;
 
     if(args.body.value.newpassword != args.body.value.password){
 
@@ -140,7 +150,7 @@ exports.resetPassword = function(args, res, next) {
         .then(function(userDetails) {
             if (userDetails) {
                 delete userDetails.password;
-                sendEmail.resetSuccessEmail(res, userDetails);
+                sendEmail.resetSuccessEmail(res, userDetails, source);
             }else{
                 res.send('Not a valid code')
             }
@@ -220,7 +230,6 @@ exports.verifyCaptchaToken = function(args, res, next) {
         }
     });
 };
-
 
 exports.sendInfoEmail = function (args, res, next) {
     const user = args.user;

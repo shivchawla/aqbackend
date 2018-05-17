@@ -2,7 +2,7 @@
 const config = require('config');
 var jade = require('jade');
 var fs = require('fs');
-var sg = require('sendgrid')(config.get('sendgrid_key'));
+const sgMail = require('@sendgrid/mail');
 var hostname = config.get('hostname');
 var truncate = require('truncate-html');
 
@@ -10,189 +10,125 @@ var replaceAll = function(str, find, replace) {
     return str.replace(new RegExp(find, 'g'), replace);
 }
 
-module.exports.sendActivationEmail = function(res, userDetails) {
-    var template = fs.readFileSync(__dirname + '/..' + '/views/ActivationEmail.html').toString();
-    template = template.replace('userFullName', userDetails.firstName + ' '+userDetails.lastName);
-    template = template.replace('activationUrl', config.get('account_activation_api_url') + userDetails.code);
+sgMail.setApiKey(config.get('sendgrid_key'));
+sgMail.setSubstitutionWrappers('{{', '}}'); 
 
-    var request = sg.emptyRequest({
-        method: 'POST',
-        path: '/v3/mail/send',
-        body: {
-            personalizations: [
-                {
-                    to: [
-                        {
-                            email: userDetails.email,
-                            name:userDetails.firstName + ' '+userDetails.lastName
-                        },
-                    ],
-                    subject: 'Activate your account',
-                },
-            ],
-            from: {
-                email: 'admin@aimsquant.com',
-                name: 'AimsQuant',
-            },
-            "reply_to": {
-                "email": "admin@aimsquant.com",
-                "name": "Aimsquant"
-            },
-            content: [
-                {
-                    type: 'text/html',
-                    value: template,
-                },
-            ],
-        },
-    });
-    sg.API(request, function(err, response) {
-        if (err) {
-            return res.send('There was an error sending the email');
+function _sendMail(res, msg, redirectUrl, obj) {
+    sgMail.send(msg)
+    .then(() => {
+        if (redirectUrl) {
+            return res.redirect(redirectUrl);
         }
-        res.send(userDetails);
-    });
-};
 
-module.exports.resetSuccessEmail = function(res, userDetails) {
+        if (obj) {
+            return res.send(obj);
+        }
+
+        return res.send("Email Sent"); 
+    })
+    .catch(error => {
+        //Log friendly error
+        console.error(error.toString());
+        return res.send('There was an error sending the email');
+    });
+}
+
+module.exports.sendActivationEmail = function(res, userDetails, source) {    
     
-    var template = fs.readFileSync(__dirname + '/../views/ResetPasswordEmail.html').toString();
-    template = template.replace('userFullName', userDetails.firstName + ' '+userDetails.lastName);
-    template = template.replace('userEmailAddress', userDetails.email);
-    template = template.replace('userEmailAddress', userDetails.email);
-    template = template.replace('userEmailAddress', userDetails.email);
-   
-    var request = sg.emptyRequest({
-        method: 'POST',
-        path: '/v3/mail/send',
-        body: {
-            personalizations: [
-                {
-                    to: [
-                        {
-                            email: userDetails.email,
-                            name:userDetails.firstName + ' '+userDetails.lastName
-                        },
-                    ],
-                    subject: 'Password Reset Success',
-                },
-            ],
-            from: {
-                email: 'admin@aimsquant.com',
-                name: 'AimsQuant'
-            },
-            "reply_to": {
-                "email": "admin@aimsquant.com",
-                "name": "AimsQuant"
-            },
-            content: [
-                {
-                    type: 'text/html',
-                    value: template,
-                },
-            ],
-        },
-    });
-    sg.API(request, function(err, response) {
-        if (err) {
-            return;
-        }
+    var src = source ? source : "aimsquant";
+    var activationTemplateId = config.get(`activation_email_template_id.${src}`);
 
-        res.send('Password reset successfuly}');
-    });
+    var senderDetails = config.get(`sender_details.${src}`);
+    var userFullName = userDetails.firstName + ' '+userDetails.lastName;
+    var code = userDetails.code;
+
+    const msg = {
+        to: [{
+            email: userDetails.email,
+            name:userFullName
+        }],
+        from: senderDetails,
+        templateId: activationTemplateId,
+        substitutions: {
+            userFullName: userFullName,
+            activationUrl: eval('`' + config.get(`account_activation_api_url.${src}`) + '`'),
+        },
+    };
+
+    return _sendMail(res, msg, null, {email: userDetails.email, name: userFullName});
 };
 
-module.exports.sendForgotEmail = function(res, userDetails) {
-    var template = fs.readFileSync(__dirname + '/../views/forgotpwdemail.html').toString();
-    template = template.replace('userFullName', userDetails.firstName + ' '+userDetails.lastName);
-    template = template.replace('userEmailAddress', userDetails.email);
-    template = template.replace('userEmailAddress', userDetails.email);
-    template = template.replace('userEmailAddress', userDetails.email);
-    template = template.replace( 'resetPwdUrl', config.get('reset_password_api_url') + userDetails.code);
+module.exports.resetSuccessEmail = function(res, userDetails, source) {
+    
+    var src = source ? source : "aimsquant";
+    var resetPasswordTemplateId = config.get(`reset_password_template_id.${src}`);
 
-    var request = sg.emptyRequest({
-        method: 'POST',
-        path: '/v3/mail/send',
-        body: {
-            personalizations: [
-                {
-                    to: [
-                        {
-                            email: userDetails.email,
-                            name:userDetails.firstName + ' '+userDetails.lastName
-                        },
-                    ],
-                    subject: 'Reset your password',
-                },
-            ],
-            from: {
-                email: 'admin@aimsquant.com',
-                name: 'AimsQuant',
-            },
-            "reply_to": {
-                "email": "admin@aimsquant.com",
-                "name": "AimsQuant"
-            },
-            content: [
-                {
-                    type: 'text/html',
-                    value: template,
-                },
-            ],
+    var senderDetails = config.get(`sender_details.${src}`);
+    var userFullName = userDetails.firstName + ' '+userDetails.lastName;
+    const msg = {
+        to: [{
+            email: userDetails.email,
+            name:userFullName
+        }],
+        from: senderDetails,
+        templateId: resetPasswordTemplateId,
+        substitutions: {
+            userFullName: userFullName,
+            userEmailAddress: userDetails.email
         },
-    });
-    sg.API(request, function(err, response) {
-        if (err) {
-            res.send('There was an error sending the email');
-            return;
-        }
-        res.send('Email Sent with a link to reset your Password');
-    });
+    };
+
+    return _sendMail(res, msg, config.get(`reset_password_successful_url.${src}`));
 };
 
-module.exports.welcomeEmail = function(res, userDetails) {
-    var template = fs.readFileSync(__dirname + '/../views/WelcomeEmail.html').toString();
-    template = template.replace('userFullName', userDetails.firstName + ' '+userDetails.lastName);
-  
-    var request = sg.emptyRequest({
-        method: 'POST',
-        path: '/v3/mail/send',
-        body: {
-            personalizations: [
-                {
-                    to: [
-                        {
-                            email: userDetails.email,
-                            name:userDetails.firstName + ' '+userDetails.lastName
-                        },
-                    ],
-                    subject: 'Welcome to AimsQuant',
-                },
-            ],
-            from: {
-                email: 'admin@aimsquant.com',
-                name: 'AimsQuant'
-            },
-            "reply_to": {
-                "email": "admin@aimsquant.com",
-                "name": "AimsQuant"
-            },
-            content: [
-                {
-                    type: 'text/html',
-                    value: template,
-                },
-            ],
-        },
-    });
-    sg.API(request, function(err, response) {
-        if (err) {
-            res.send('There was an error sending the email');
-            return;
-        }
+module.exports.sendForgotEmail = function(res, userDetails, source) {
 
-        res.redirect(config.get('activation_url'));
-    });
+    var src = source ? source : "aimsquant";
+    var resetPasswordTemplateId = config.get(`forgot_password_template_id.${src}`);
+
+    var senderDetails = config.get(`sender_details.${src}`);
+    var userFullName = userDetails.firstName + ' ' + userDetails.lastName;
+    var code = userDetails.code;
+
+    const msg = {
+        to: [{
+            email: userDetails.email,
+            name:userFullName
+        }],
+        from: senderDetails,
+        templateId: resetPasswordTemplateId,
+        substitutions: {
+            userFullName: userFullName,
+            userEmailAddress: userDetails.email,
+            resetPwdUrl: eval('`' + config.get(`reset_password_api_url.${src}`) + '`')
+        },
+    };
+
+    return _sendMail(res, msg);
+
+};
+
+module.exports.welcomeEmail = function(res, userDetails, source) {
+    
+    var src = source ? source : "aimsquant";
+    var WelcomeEmailTemplateId = config.get(`welcome_template_id.${src}`);
+
+    var senderDetails = config.get(`sender_details.${src}`);
+    var userFullName = userDetails.firstName + ' '+userDetails.lastName;
+    const msg = {
+        to: [{
+            email: userDetails.email,
+            name:userFullName
+        }],
+        from: senderDetails,
+        templateId: WelcomeEmailTemplateId,
+        substitutions: {
+            userFullName: userFullName,
+            userEmailAddress: userDetails.email,
+        },
+    };
+
+    return _sendMail(res, msg, config.get(`activation_url.${src}`));
 };
 
 module.exports.sendFeedbackEmail = function(res, args) {
@@ -231,60 +167,6 @@ module.exports.sendFeedbackEmail = function(res, args) {
             return;
         }
         res.send('Email Sent with a link to reset your Password');
-    });
-};
-
-module.exports.sendInvite = function(res, args) {
-
-    var template = fs.readFileSync(__dirname + '/../views/InviteFriendEmail.html').toString();
-    template = template.replace('userFullName', args.user.firstName + ' '+args.user.lastName);
-    template = template.replace('invitationUrl', config.get('user_invitation_url'));
-
-    /**
-     * bcc email array should be in the form: [
-     {
-         "email": "sam.doe@example.com",
-         "name": "Sam Doe"
-     }
-     ]
-     * @type {*|SendGrid.Rest.Request}
-     */
-    var request = sg.emptyRequest({
-        method: 'POST',
-        path: '/v3/mail/send',
-        body: {
-            personalizations: [
-                {
-                    to: [
-                        {
-                            email: args.body.value.emailList
-                        },
-                    ],
-                    subject: 'Invite to join AimsQuant.com',
-                },
-            ],
-            from: {
-                email: 'admin@aimsquant.com',
-                name:'AimsQuant',
-            },
-            "reply_to": {
-                "email": "admin@aimsquant.com",
-                "name": "Aimsquant"
-            },
-            content: [
-                {
-                    type: 'text/html',
-                    value: template,
-                },
-            ],
-        },
-    });
-    sg.API(request, function(err, response) {
-        if (err) {
-            res.send('There was an error sending the email');
-            return;
-        }
-        res.send('Email Sent');
     });
 };
 

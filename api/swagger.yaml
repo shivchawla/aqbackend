@@ -60,6 +60,11 @@ paths:
         required: true
         schema:
           $ref: "#/definitions/User"
+      - in: query
+        name: source
+        type: string
+        required: false
+        default: "adviceqube"
       responses:
         default:
           description: "successful operation"
@@ -129,6 +134,11 @@ paths:
         name: code
         type: string
         required: true
+      - in: query
+        name: source
+        type: string
+        required: false
+        default: "adviceqube"
       responses:
         200:
           description: OK
@@ -146,6 +156,11 @@ paths:
         name: code
         type: string
         required: true
+      - in: query
+        name: source
+        type: string
+        required: false
+        default: "adviceqube"
       responses:
         200:
           description: OK
@@ -175,6 +190,11 @@ paths:
               type: string
             password:
               type: string
+      - in: query
+        name: source
+        type: string
+        required: false
+        default: "adviceqube"
       responses:
         200:
           description: OK
@@ -195,6 +215,11 @@ paths:
         required: true
         type: string
         format: email
+      - in: query
+        name: source
+        type: string
+        required: false
+        default: "adviceqube"
       x-swagger-router-controller: "User"
       responses:
         200:
@@ -213,6 +238,11 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/resetpassword'
+      - in: query
+        name: source
+        type: string
+        required: false
+        default: "adviceqube"
       x-swagger-router-controller: "User"
       responses:
         200:
