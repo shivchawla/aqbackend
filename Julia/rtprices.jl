@@ -52,7 +52,7 @@ function _updateportfolio_RTprice(port::Portfolio)
         for (sym, pos) in port.positions
             latest_tradebar = get(_realtimePrices, sym.ticker, TradeBar())
             
-            if latest_tradebar == TradeBar()
+            if latest_tradebar == TradeBar() || latest_tradebar.close == 0.0
                 println("Using EOD price for $(sym.ticker)")
                 price = YRead.history([sym.id], "Close", :Day, 1, now())
                 if price != nothing
@@ -91,7 +91,7 @@ function _update_realtime_mkt_prices(fname::String)
             @async for (k,v) in mktPrices["RT"]
                 ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
 
-                if ticker != ""        
+                if ticker != ""
                     _realtimePrices[ticker] = v
                 end
                 
@@ -100,7 +100,7 @@ function _update_realtime_mkt_prices(fname::String)
             @async for (k,v) in mktPrices["EOD"]
                 ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
 
-                if ticker != ""        
+                if ticker != ""
                     _lastDayPrices[ticker] = v
                 end
 
@@ -125,7 +125,7 @@ function _update_realtime_ind_prices(fname::String)
             @async for (k,v) in indPrices["RT"]
                 ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
 
-                if ticker != ""        
+                if ticker != ""
                     _realtimePrices[ticker] = v
                 end
                 
@@ -134,7 +134,7 @@ function _update_realtime_ind_prices(fname::String)
             @async for (k,v) in indPrices["EOD"]
                 ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
 
-                if ticker != ""        
+                if ticker != ""
                     _lastDayPrices[ticker] = v
                 end
 

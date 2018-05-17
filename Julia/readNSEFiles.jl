@@ -67,11 +67,13 @@ function readMktFile(fname::String)
 			ttd = TradeBar(Dates.unix2datetime(timestamp), open, high, low, close, Int64(ttq))
 			tt = TradeBar(Dates.unix2datetime(timestamp), intOpen, intHigh, intLow, intClose, Int64(intTtq))
 			
-			#println(ttd)
-			#println(tt)			
+			if intClose != 0.0
+				output["RT"][stoken] = tt
+			end
 
-			output["RT"][stoken] = tt
-			output["EOD"][stoken] = ttd
+			if close != 0.0
+				output["EOD"][stoken] = ttd
+			end
 		end
 
 		#close the file
@@ -142,8 +144,13 @@ function readIndFile(fname::String)
 			ttd = TradeBar(Dates.unix2datetime(timestamp), open, high, low, close, 0)
 			tt = TradeBar(Dates.unix2datetime(timestamp), intOpen, intHigh, intLow, intClose, 0)
 			
-			output["RT"][itoken] = tt
-			output["EOD"][itoken] = ttd
+			if intClose != 0.0
+				output["RT"][itoken] = tt
+			end
+			
+			if close != 0.0
+				output["EOD"][itoken] = ttd
+			end
 		end
 
 		#close the file
