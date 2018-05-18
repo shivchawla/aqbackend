@@ -301,8 +301,10 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
             #To compute backward adjusted NAV, let start in reverse
             portfolio_value_ta = _compute_portfoliovalue(portfolio, startdate, enddate, "UnAdj") #, excludeCash=cashAdjustment)
             
+            #THis is modified and dividendFactor is created only once
+            # this is a departure from previous implementatin, so keep an eye
             if portfolio_value_ta != nothing && !hasDividendFactor
-                dividendFactor*= (cashAdjustment && idx > 1 ? (values(portfolio_value_ta)[end] - portfolio.cash)/values(portfolio_value_ta)[end] : 1.0)
+                dividendFactor*= (cashAdjustment ? (values(portfolio_value_ta)[end] - portfolio.cash)/values(portfolio_value_ta)[end] : 1.0)
                 hasDividendFactor = true
             end
            
