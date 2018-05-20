@@ -13,12 +13,9 @@ var replaceAll = function(str, find, replace) {
 sgMail.setApiKey(config.get('sendgrid_key'));
 sgMail.setSubstitutionWrappers('{{', '}}'); 
 
-function _sendMail(res, msg, redirectUrl, obj) {
+function _sendMail(res, msg, obj) {
     sgMail.send(msg)
     .then(() => {
-        if (redirectUrl) {
-            return res.redirect(redirectUrl);
-        }
 
         if (obj) {
             return res.send(obj);
@@ -55,7 +52,7 @@ module.exports.sendActivationEmail = function(res, userDetails, source) {
         },
     };
 
-    return _sendMail(res, msg, null, {email: userDetails.email, name: userFullName});
+    return _sendMail(res, msg, {email: userDetails.email, name: userFullName});
 };
 
 module.exports.resetSuccessEmail = function(res, userDetails, source) {
@@ -78,7 +75,7 @@ module.exports.resetSuccessEmail = function(res, userDetails, source) {
         },
     };
 
-    return _sendMail(res, msg, config.get(`reset_password_successful_url.${src}`));
+    return _sendMail(res, msg, {redirectUrl: config.get(`reset_password_successful_url.${src}`)});
 };
 
 module.exports.sendForgotEmail = function(res, userDetails, source) {
@@ -128,7 +125,7 @@ module.exports.welcomeEmail = function(res, userDetails, source) {
         },
     };
 
-    return _sendMail(res, msg, config.get(`activation_url.${src}`));
+    return _sendMail(res, msg, {redirectUrl: config.get(`activation_url.${src}`)});
 };
 
 module.exports.sendFeedbackEmail = function(res, args) {
