@@ -133,12 +133,12 @@ exports.resetPassword = function(args, res, next) {
 
     if(args.body.value.newpassword != args.body.value.password){
 
-        res.send({status :200 , statusMessage : "Passwords do not match"});
+        res.status(400).send({statusMessage : "Passwords do not match"});
         return;
     }
     if(args.body.value.newpassword.length < 8){
 
-        res.send({status :200 , statusMessage : "Password length too short"});
+        res.status(400).send({statusMessage : "Password length too short"});
         return;
     }
     hashUtil.genHash(args.body.value.newpassword)
