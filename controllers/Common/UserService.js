@@ -20,7 +20,9 @@ exports.registerUser = function(args, res, next) {
         createdDate: new Date(),
     };
 
-    const source = args.source ? args.source.value : null;
+    const source = res && res.req && res.req.headers && res.req.headers.origin ? 
+        res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
+
 
     hashUtil.genHash(user.password)
     .then(hash => {
@@ -89,7 +91,9 @@ exports.userlogin = function(args, res, next) {
 
 exports.forgotPassword = function(args, res, next) {
 
-    const source = args.source ? args.source.value : null;
+    const source = res && res.req && res.req.headers && res.req.headers.origin ? 
+        res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
+
 
     UserModel.updateCode({
         email: args.email.value
@@ -106,7 +110,9 @@ exports.forgotPassword = function(args, res, next) {
 
 exports.activateUser = function(args, res) {
 
-    const source = args.source ? args.source.value : null;
+    const source = res && res.req && res.req.headers && res.req.headers.origin ? 
+        res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
+
 
     UserModel.updateStatus({
         code: args.code.value
@@ -121,7 +127,8 @@ exports.activateUser = function(args, res) {
 
 exports.resetEmailLink = function(args, res) {
     const code = args.code.value;
-    const source = args.source.value;
+    const source = res && res.req && res.req.headers && res.req.headers.origin ? 
+        res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
 
     res.redirect(eval('`' + config.get(`reset_password_url.${source}`) + '`'));
 };
@@ -129,7 +136,9 @@ exports.resetEmailLink = function(args, res) {
 exports.resetPassword = function(args, res, next) {
 
     const code = args.body.value.code;
-    const source = args.source ? args.source.value : null;
+
+    const source = res && res.req && res.req.headers && res.req.headers.origin ? 
+        res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
 
     if(args.body.value.newpassword != args.body.value.password){
 
