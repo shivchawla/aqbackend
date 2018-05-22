@@ -17,6 +17,10 @@ function _sendMail(res, msg, obj) {
     sgMail.send(msg)
     .then(() => {
 
+        if (obj.redirectUrl) {
+            res.redirect(obj.redirectUrl);
+        }
+
         if (obj) {
             return res.send(obj);
         }

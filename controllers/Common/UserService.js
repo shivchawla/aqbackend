@@ -23,7 +23,6 @@ exports.registerUser = function(args, res, next) {
     const source = res && res.req && res.req.headers && res.req.headers.origin ? 
         res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
 
-
     hashUtil.genHash(user.password)
     .then(hash => {
         user.password = hash;
@@ -111,8 +110,8 @@ exports.forgotPassword = function(args, res, next) {
 exports.activateUser = function(args, res) {
 
     const source = res && res.req && res.req.headers && res.req.headers.origin ? 
-        res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
-
+        res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : 
+            : "adviceqube" : args.source ? args.source.value : "adviceqube";
 
     UserModel.updateStatus({
         code: args.code.value
@@ -128,7 +127,8 @@ exports.activateUser = function(args, res) {
 exports.resetEmailLink = function(args, res) {
     const code = args.code.value;
     const source = res && res.req && res.req.headers && res.req.headers.origin ? 
-        res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
+        res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : 
+        "adviceqube" : args.source ? args.source.value : "adviceqube";
 
     res.redirect(eval('`' + config.get(`reset_password_url.${source}`) + '`'));
 };
