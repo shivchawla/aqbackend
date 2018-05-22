@@ -111,7 +111,7 @@ exports.activateUser = function(args, res) {
 
     const source = res && res.req && res.req.headers && res.req.headers.origin ? 
         res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : 
-            : "adviceqube" : args.source ? args.source.value : "adviceqube";
+            "adviceqube" : args.source ? args.source.value : "adviceqube";
 
     UserModel.updateStatus({
         code: args.code.value
