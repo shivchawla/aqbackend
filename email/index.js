@@ -17,7 +17,7 @@ function _sendMail(res, msg, obj) {
     sgMail.send(msg)
     .then(() => {
 
-        if (obj.redirectUrl) {
+        if (obj && obj.redirectUrl) {
             res.redirect(obj.redirectUrl);
         }
 
@@ -79,7 +79,7 @@ module.exports.resetSuccessEmail = function(res, userDetails, source) {
         },
     };
 
-    return _sendMail(res, msg, {redirectUrl: config.get(`reset_password_successful_url.${src}`)});
+    return _sendMail(res, msg);
 };
 
 module.exports.sendForgotEmail = function(res, userDetails, source) {
