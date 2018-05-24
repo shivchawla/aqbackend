@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-15 20:35:50
+* @Last Modified time: 2018-05-24 12:18:03
 */
 
 'use strict';
@@ -403,7 +403,7 @@ module.exports.getAdvices = function(args, res, next) {
 	    	if (personalCategories.indexOf("0") !=-1) {
 	    		//Only show advices starting after today for other advisors
 	    		advisorQuery.push({$and: [{advisor:{'$ne': userAdvisorId}, public: true, prohibited: false}, 
-	    								{$or:[{startDate: {$gte: DateHelper.getCurrentDate()}}, 
+	    								{$or:[{startDate: {$lte: DateHelper.getCurrentDate()}}, 
     								      	{startDate: {$exists: false}}
 								      	]}
 						      		]});
