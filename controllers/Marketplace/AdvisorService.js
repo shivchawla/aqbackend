@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 11:35:22
+* @Last Modified time: 2018-05-24 18:44:50
 */
 
 'use strict';
@@ -10,6 +10,8 @@ const UserModel = require('../../models/user');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
 const AdviceModel = require('../../models/Marketplace/Advice');
+const PortfolioHelper = require("../helpers/Portfolio");
+const AdviceHelper = require("../helpers/Advice");
 const HelperFunctions = require("../helpers");
 const APIError = require('../../utils/error');
 const Promise = require('bluebird');
@@ -132,9 +134,27 @@ module.exports.getAdvisorSummary = function(args, res, next) {
  			!isOwner ? InvestorModel.fetchInvestor({user:userId}, {fields: '_id'}) : null,
  			AdvisorModel.fetchAdvisor({_id: advisorId}, options),
  			AdviceModel.fetchAdvices(adviceQuery, adviceOptions)
+            .then(([advices, ct]) => {
+                if(advices) {
+
+                    //THIS PIECE OF CODE IS IN ADVICE AS WELL
+                    //MAKE IT CENTRALIZED
+                    return Promise.map(advices, function(advice) {
+                        return Promise.all([
+                            PortfolioHelper.getAdvicePnlStats(advice._id),
+                            AdviceHelper.computeAdviceSubscriptionDetail(advice._id, userId)
+                        ])
+                        .then(([advicePnlStats, subscriptionDetail]) => {
+                            return Object.assign(subscriptionDetail, advicePnlStats, advice.toObject());
+                        });
+                    });
+                } else {
+                    APIError.throwJsonError({message: "No advices found", errorCode: 1110});
+                }
+            })
 		]);
 	})
-  	.then(([investor, advisor, [advices, ct]]) => {
+  	.then(([investor, advisor, advices]) => {
   		if(advisor) {
   			var isFollowing = !isOwner ? advisor.followers ? advisor.followers.filter(item => item.active).map(item => item.investor.toString()).indexOf(investor._id.toString()) != -1 : false : false;
   			const nAdvisor = Object.assign({advices: advices ? advices : [], isOwner: isOwner, isAdmin: isAdmin, isFollowing: isFollowing}, advisor.toObject());
