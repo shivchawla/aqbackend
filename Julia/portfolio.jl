@@ -590,8 +590,8 @@ function compute_portfolio_metrics(port::Dict{String, Any}, start_date::DateTime
         #This can happen when start date of portfolio is today and EOD day for today is not yet available
         #In such a case, calculate composition of current portfolio as of last availale benchmark date (EOD date)        
         if prices_benchmark.timestamp[end] < Date(start_date)
-            sdate = prices_benchmark.timestamp[end]
-            edate = sdate   
+            sdate = DateTime(prices_benchmark.timestamp[end])
+            edate = DateTime(sdate)   
         end
 
         (date, composition, concentration) = _compute_portfolio_metrics(port, sdate, edate, excludeCash = excludeCash)
