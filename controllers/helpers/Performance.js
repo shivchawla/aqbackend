@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-16 22:33:26
+* @Last Modified time: 2018-05-24 19:36:23
 */
 
 'use strict';
@@ -463,8 +463,8 @@ module.exports.computeAllPerformanceSummary = function(portfolioId, options, dat
 module.exports.computeAllPerformance = function(portfolioId, options, date) {
 	return new Promise(resolve => {
 		Promise.all([
-			_computeSimulatedPerformance(portfolioId, date),
-		 	_computeLatestPerformance(portfolioId, date)
+			_computeSimulatedPerformance(portfolioId, date, options ? options.isAdvice : false),
+		 	_computeLatestPerformance(portfolioId, date, options ? options.isAdvice : false)
 	 	])
 		.then(([simulatedPerformance, currentPerformance]) => {
 			return Promise.all([
@@ -510,8 +510,8 @@ module.exports.computeAllPerformance = function(portfolioId, options, date) {
 			PerformanceModel.fetchPerformance({portfolio: portfolioId}).
 			then(pf => {
 				resolve(pf);
-			})
-		})
+			});
+		});
 	});
 };
 

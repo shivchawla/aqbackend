@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-16 22:26:40
+* @Last Modified time: 2018-05-24 19:44:50
 */
 
 'use strict';
@@ -439,6 +439,10 @@ module.exports.updateInvestorPortfolioForTransactions = function(args, res, next
 	})
 	.then(portfolio => {
 		if(portfolio) {
+			
+			//Async call to compute Performance for portfolio
+			PerformanceHelper.computeAllPerformance(portfolioId);
+
 			return res.status(200).json(portfolio); 
 		} else {
 			APIError.throwJsonError({messsage: "Internal error updating portfolio for stock transactions", errorCode: 1407});
