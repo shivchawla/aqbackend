@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-13 23:07:46
+* @Last Modified time: 2018-05-25 12:12:44
 */
 
 'use strict';
@@ -142,8 +142,11 @@ module.exports.getStocks = function(args, res, next) {
 		var securitiesNiftyNearMatch = niftyNearMatch.map(item => item.security);
 
 		var totalSecurities = securitiesExactMatch.concat(securitiesNearMatchTicker).concat(securitiesNearMatchName).concat(securitiesNiftyExactMatch).concat(securitiesNiftyNearMatch);
-		totalSecurities = totalSecurities.filter((item, pos, arr) => {return arr.map(itemS => itemS["ticker"]).indexOf(item["ticker"])==pos;}).slice(0, 10);;
-		return res.status(200).send(totalSecurities);
+		
+		//WHAT IS THIS CODE???
+		//totalSecurities = totalSecurities.filter((item, pos, arr) => {
+		//		return arr.map(itemS => itemS["ticker"]).indexOf(item["ticker"])==pos;}).slice(0, 10);;
+		return res.status(200).send(totalSecurities.slice(0,10));
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);
