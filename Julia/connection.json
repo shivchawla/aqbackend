@@ -1,0 +1,8 @@
+{
+    "mongo_user":"",
+    "mongo_pass":"", 
+    "mongo_host":"localhost", 
+    "mongo_database":"dbYojak_develop", 
+    "mongo_port":27017
+} 
+

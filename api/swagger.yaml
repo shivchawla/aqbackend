@@ -40,7 +40,7 @@ tags:
     description: "Find out more about us"
     url: "http://www.aimsquant.com"
 schemes:
-- "https"
+- "http"
 produces:
 - "application/json"
 paths:
@@ -1975,6 +1975,35 @@ paths:
           description: OK
       x-swagger-router-controller: "Advice"
 
+  /advice/{adviceId}/approveNew:
+    post:
+      tags:
+      - 'advice'
+      summary: add approval or approval related message based on the new implementation
+      description: Approve an advice based on the new implementation
+      operationId: approveAdviceNew
+      security:
+      - api_key: []
+      parameters: 
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/ApprovalMessageNew'
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advice"
+
   /advice/{adviceId}/requestapproval:
     post:
       tags:
@@ -3190,7 +3219,38 @@ definitions:
       prohibit:
         type: boolean
 
-
+  ApprovalMessageNew:
+    type: object
+    required:
+      - message
+      - status
+    properties:
+      message:
+       type: string
+      status:
+        type: boolean
+      detail:
+        type: array
+        items:
+          $ref: '#/definitions/Approval'
+  
+  Approval:
+    type: object
+    required:
+      - field
+    properties:
+      field: 
+        type: string
+      reason:
+        type: string
+      valid:
+        type: boolean
+        default: false
+      requirements:
+        type: array
+        items: 
+          type: string
+  
   SocialProfile:
     type: object
     properties:

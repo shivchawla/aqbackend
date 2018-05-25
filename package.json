@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "seed": "mongo seed.js",
-    "prestart": "npm install",
-    "start": "node index.js"
+    "start": "NODE_ENV='development' nodemon index.js"
   },
   "keywords": [
     "aimsquant"
@@ -14,6 +13,7 @@
   "license": "Apache-2.0",
   "private": true,
   "dependencies": {
+    "@sendgrid/mail": "^6.2.1",
     "bcryptjs": "^2.3.0",
     "bluebird": "^3.5.0",
     "config": "^1.21.0",
@@ -25,6 +25,7 @@
     "jade": "^1.11.0",
     "js-yaml": "^3.3.0",
     "jsonwebtoken": "^7.1.7",
+    "lodash": "4.17.10",
     "moment": "^2.14.1",
     "mongodb": "^2.2.8",
     "mongoose": "^4.5.8",

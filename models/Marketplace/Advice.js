@@ -18,7 +18,7 @@ const DateHelper = require('../../utils/Date');
 
 const Rating = new Schema({
     current: Number,
-    simulated: Number,
+    simulated: Number
 });
 
 const AdviceAnalytics = new Schema({
@@ -28,6 +28,40 @@ const AdviceAnalytics = new Schema({
     numFollowers: Number ,
     dailyChgSubscribers: Number,
     dailyChgFollowers:Number
+});
+
+const Requirement = new Schema({
+    type: String,
+    required: false
+});
+
+const Approval = new Schema({
+    field: {
+        type: String,
+        required: true,
+    },
+    reason: String,
+    valid: {
+        type: Boolean,
+        required: true,
+        default: false
+    },
+    requirements: [String]
+});
+
+const Message = new Schema({
+    date: {
+        type: Date,
+        required: true  
+    },
+    message: {
+        type: String,
+        required: true,
+    },
+    // approved: {
+    //     type: Boolean,
+    //     required: true
+    // },
 });
 
 const Advice = new Schema({
@@ -87,30 +121,17 @@ const Advice = new Schema({
         type: Date,
     }, 
 
-    approvalStatus: {
-        type: String,
-        default: "pending"
-    },
-
-    approvalMessages:[{
+    approval: [{
+        date: Date,
+        detail: [Approval],
+        message: String,
+        status: {
+            type: Boolean,
+            required: true
+        },
         user: {
             type: Schema.Types.ObjectId,
             ref:'User',
-            required: true
-        },
-        
-        date: {
-            type: Date,
-            required: true  
-        },
-
-        message: {
-            type: String,
-            required: true,
-        },
-
-        approved: {
-            type: Boolean,
             required: true
         },
     }],
@@ -208,7 +229,10 @@ Advice.statics.fetchAdvices = function(query, options) {
     }           
     
 	if(options.fields) {
-		q = q.select(options.fields);
+        q = q.select(options.fields);
+        if (options.fields.indexOf('approval')) {
+            q = q.select({approval: {$slice: -1}});
+       }
 	}
 
     if(options.fields && options.fields.indexOf('advisor') != -1) {
@@ -244,9 +268,12 @@ Advice.statics.fetchAdvice = function(query, options) {
     }
 
     if(options.fields) {
-	   q = q.select(options.fields);
-	}
-
+        q = q.select(options.fields);
+        if (options.fields.indexOf('approval')) {
+            q = q.select({approval: {$slice: -1}});
+       }
+    }
+    
     if(options.populate.indexOf('portfolio') != -1) {
         q = q.select('portfolio').populate('portfolio','detail benchmark deleted _id', { _id: { $ne: null }});
     }
@@ -449,6 +476,24 @@ Advice.statics.updateApproval = function(query, latestApproval) {
     };
 
     const updates = {'$set':{approvalStatus: approvalStatus, prohibited: prohibited}, '$push':{approvalMessages: approvedMessage}};       
+
+    return this.findOneAndUpdate(query, updates);
+}
+
+Advice.statics.updateApprovalObj = function(query, latestApproval) {
+    const approvalStatus = latestApproval.status;
+    const user = latestApproval.user.toString();
+    const approvalDate = new Date();
+    const approvedMessage = latestApproval.message;
+    const approvalDetail = latestApproval.detail; 
+    const approval = {
+        date: new Date(),
+        detail: approvalDetail,
+        message: approvedMessage,
+        status: approvalStatus,
+        user
+    };
+    const updates = {'$push': {approval:  approval}};
 
     return this.findOneAndUpdate(query, updates);
 }
