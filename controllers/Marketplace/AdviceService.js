@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-24 12:18:03
+* @Last Modified time: 2018-05-25 19:56:31
 */
 
 'use strict';
@@ -282,7 +282,7 @@ module.exports.getAdvices = function(args, res, next) {
 	}
 	
     let count;
-    var orderParam = args.orderParam.value || `rating.${performanceType}`;
+    var orderParam = args.orderParam.value || `rating.${pType}`;
 	if (["return", "volatility", "sharpe", "maxLoss", "currentLoss", "dailyChange", "netValue"].indexOf(orderParam) != -1) {
 		if (orderParam == "return") {
 			orderParam = "annualReturn"
@@ -292,11 +292,11 @@ module.exports.getAdvices = function(args, res, next) {
 			orderParam = "dailyNAVChangeEODPct";
 		}
 
-		orderParam = `performanceSummary.${performanceType}.${orderParam}`;
+		orderParam = `performanceSummary.${pType}.${orderParam}`;
 	} else if(["numFollowers", "numSubscribers"].indexOf(orderParam) !=-1) {
 		orderParam = `latestAnalytics.${orderParam}`;
 	} else if(["rating"].indexOf(orderParam) != -1) {
-		orderParam = `rating.current`;
+		orderParam = `rating.${pType}`;
 	}
 
 	options.orderParam = orderParam;
@@ -419,7 +419,7 @@ module.exports.getAdvices = function(args, res, next) {
 	    		query.prohibited = false;	
 
 	    		query = {$and: [query, 
-							{$or:[{startDate: {$gte: DateHelper.getCurrentDate()}}, 
+							{$or:[{startDate: {$lte: DateHelper.getCurrentDate()}}, 
 						      	{startDate: {$exists: false}}
 					      	]}
 				      	]};
