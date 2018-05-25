@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-25 12:12:44
+* @Last Modified time: 2018-05-25 13:12:54
 */
 
 'use strict';
@@ -90,7 +90,7 @@ module.exports.getStockDetail = function(args, res, next) {
 
 module.exports.getStocks = function(args, res, next) {
 	const search = args.search.value ? args.search.value : ""; 
-	
+
 	var startWithSearch = `(^${search}.*)$`; 
 	var q1 = {'security.ticker': {$regex: startWithSearch, $options: "i"}};
 
@@ -143,10 +143,10 @@ module.exports.getStocks = function(args, res, next) {
 
 		var totalSecurities = securitiesExactMatch.concat(securitiesNearMatchTicker).concat(securitiesNearMatchName).concat(securitiesNiftyExactMatch).concat(securitiesNiftyNearMatch);
 		
-		//WHAT IS THIS CODE???
-		//totalSecurities = totalSecurities.filter((item, pos, arr) => {
-		//		return arr.map(itemS => itemS["ticker"]).indexOf(item["ticker"])==pos;}).slice(0, 10);;
-		return res.status(200).send(totalSecurities.slice(0,10));
+		//REMOVE DUPLICATES
+		totalSecurities = totalSecurities.filter((item, pos, arr) => {
+				return arr.map(itemS => itemS["ticker"]).indexOf(item["ticker"])==pos;}).slice(0, 10);;
+		return res.status(200).send(totalSecurities);
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);
