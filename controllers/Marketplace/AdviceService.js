@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-25 19:56:31
+* @Last Modified time: 2018-05-26 17:13:09
 */
 
 'use strict';
@@ -346,7 +346,8 @@ module.exports.getAdvices = function(args, res, next) {
 
     const search = args.search.value;
     if (search) {
-        query.$text = {$search: search};
+    	var nearMatch = `^(.*?(${search})[^$]*)$`;
+        query.name = {$regex: nearMatch, $options: "i"};
     }
 
     const approved = args.approved.value ? args.approved.value : ["0","1"];

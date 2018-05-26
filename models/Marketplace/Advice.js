@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-02 22:05:47
+* @Last Modified time: 2018-05-26 17:12:59
 */
 'use strict';
 const mongoose = require('../index');
@@ -28,6 +28,13 @@ const AdviceAnalytics = new Schema({
     numFollowers: Number ,
     dailyChgSubscribers: Number,
     dailyChgFollowers:Number
+});
+
+const Approval = new Schema({
+    field:
+    reason
+    valid
+    requiements:
 });
 
 const Advice = new Schema({
@@ -87,33 +94,14 @@ const Advice = new Schema({
         type: Date,
     }, 
 
-    approvalStatus: {
-        type: String,
-        default: "pending"
-    },
-
-    approvalMessages:[{
-        user: {
-            type: Schema.Types.ObjectId,
-            ref:'User',
-            required: true
-        },
-        
-        date: {
-            type: Date,
-            required: true  
-        },
-
-        message: {
-            type: String,
-            required: true,
-        },
-
-        approved: {
+    approval: {
+        detail: [Approval],
+        messages: [],
+        status: {
             type: Boolean,
-            required: true
-        },
-    }],
+            default: false
+        }
+    },
 
     deleted: {
         type: Boolean,
@@ -172,20 +160,13 @@ const Advice = new Schema({
 
     performanceSummary: Schema.Types.Mixed,
 
-    rating: Rating
+    rating: Rating,
     
 });
 
 //TODO: Deleted advices can/should be moved to deleted-advice collection
 //Such collection doesn't exist but can be a good improvement.
 //Advice.index({advisor: 1, name:1}, {unique: true});
-
-//TODO: consider putting weights to index items
-Advice.index({
-    name: 'text',
-    heading: 'text',
-    description: 'text'
-});
 
 Advice.index({name: 1, advisor: 1}, {unique: true});
 Advice.index({advisor: 1}, {unique: false});
@@ -432,7 +413,6 @@ Advice.statics.updateRating = function(query, latestRating) {
         return advice.saveAsync();
     });
 };
-
 
 Advice.statics.updateApproval = function(query, latestApproval) {
     
