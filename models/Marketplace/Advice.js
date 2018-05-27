@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-26 17:12:59
+* @Last Modified time: 2018-05-27 23:24:55
 */
 'use strict';
 const mongoose = require('../index');
@@ -28,13 +28,6 @@ const AdviceAnalytics = new Schema({
     numFollowers: Number ,
     dailyChgSubscribers: Number,
     dailyChgFollowers:Number
-});
-
-const Approval = new Schema({
-    field:
-    reason
-    valid
-    requiements:
 });
 
 const Advice = new Schema({
@@ -94,14 +87,33 @@ const Advice = new Schema({
         type: Date,
     }, 
 
-    approval: {
-        detail: [Approval],
-        messages: [],
-        status: {
-            type: Boolean,
-            default: false
-        }
+    approvalStatus: {
+        type: String,
+        default: "pending"
     },
+
+    approvalMessages:[{
+        user: {
+            type: Schema.Types.ObjectId,
+            ref:'User',
+            required: true
+        },
+        
+        date: {
+            type: Date,
+            required: true  
+        },
+
+        message: {
+            type: String,
+            required: true,
+        },
+
+        approved: {
+            type: Boolean,
+            required: true
+        },
+    }],
 
     deleted: {
         type: Boolean,
@@ -160,7 +172,7 @@ const Advice = new Schema({
 
     performanceSummary: Schema.Types.Mixed,
 
-    rating: Rating,
+    rating: Rating
     
 });
 
@@ -413,6 +425,7 @@ Advice.statics.updateRating = function(query, latestRating) {
         return advice.saveAsync();
     });
 };
+
 
 Advice.statics.updateApproval = function(query, latestApproval) {
     
