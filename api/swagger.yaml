@@ -1976,7 +1976,7 @@ paths:
       x-swagger-router-controller: "Advice"
 
   /advice/{adviceId}/approveNew:
-    post:
+    patch:
       tags:
       - 'advice'
       summary: add approval or approval related message based on the new implementation
@@ -3101,15 +3101,16 @@ definitions:
     type: object
     required:
       - name
-      - description
+      # - description
       - portfolio
       - rebalance
       - maxNotional
+      - investmentObjective
     properties:
       name:
         type: string
-      description:
-        type: string
+      # description:
+        # type: string
       portfolio:
         $ref: "#/definitions/Portfolio"
       rebalance:
@@ -3118,6 +3119,8 @@ definitions:
       maxNotional:
         type: integer
         enum: [10000, 20000, 50000, 75000, 100000, 200000, 300000, 500000, 750000, 1000000]
+      investmentObjective:
+        $ref: '#/definitions/InvestmentObjective'
       public:
         type: boolean
         default: false
@@ -3233,6 +3236,8 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/Approval'
+      investmentObjective:
+        $ref: '#/definitions/InvestmentObjective'
   
   Approval:
     type: object
@@ -3251,6 +3256,88 @@ definitions:
         items: 
           type: string
   
+  InvestmentObjective:
+    type: object
+    properties:
+      goal: 
+        type: object
+        $ref: '#/definitions/Goal'
+      sectors: 
+        type: object
+        $ref: '#/definitions/Sectors'
+      portfolioValuation: 
+        type: object
+        $ref: '#/definitions/PortfolioValuation'
+      capitalization: 
+        type: object
+        $ref: '#/definitions/Capitalization'
+      userText: 
+        type: object
+        $ref: '#/definitions/UserText'
+      
+  Goal:
+    type: object
+    required:
+      - field
+    properties: 
+      field:
+        type: string
+        enum: ['Maximize return on Investment', 'Wealth Preservation', 'Balanced Equity Advice', 'Reduce Volatility', 'Sector Tracker']
+      valid:
+        type: boolean
+        default: false
+      reason:
+        type: string
+  
+  Sectors:
+    type: object
+    properties:
+      detail:
+        type: array
+        items:
+          type: string
+      valid:
+        type: boolean
+        default: false
+      reason:
+        type: string
+  
+  PortfolioValuation:
+    type: object
+    properties:
+      field:
+        type: string
+        enum: ['Growth', 'Value', 'Blend']
+      valid:
+        type: boolean
+        default: false
+      reason:
+        type: string
+  
+  Capitalization:
+    type: object
+    properties:
+      field:
+        type: string
+        enum: ['Small', 'Mid', 'Large']
+      valid:
+        type: boolean
+        default: false
+      reason:
+        type: string
+ 
+  UserText:
+    type: object
+    properties:
+      detail:
+        type: string
+        # default: "Sample Description"
+      valid:
+        type: boolean
+        default: false
+      reason:
+        type: string    
+
   SocialProfile:
     type: object
     properties:

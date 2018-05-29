@@ -78,7 +78,6 @@ function _findFirstValidPortfolio(adviceId, date, attempts) {
 module.exports.createAdvice = function(args, res, next) {
 	const userId = args.user._id;
 	const advice = args.body.value;
-
 	var advisorId='';
 	
 	//Any one can create an advice
@@ -119,7 +118,7 @@ module.exports.createAdvice = function(args, res, next) {
 			const adv = {
 				name: advice.name,
 				heading: advice.heading,
-				description: advice.description,
+				description: advice.description || 'N/A',
 				maxNotional: advice.maxNotional,
 				rebalance: advice.rebalance,
 				advisor: advisorId,
@@ -128,7 +127,8 @@ module.exports.createAdvice = function(args, res, next) {
 		       	//here advice start date should be last valid trading date
 		       	startDate: effectiveStartDate,//DateHelper.getDate(advice.portfolio.detail.startDate),
 		       	updatedDate: new Date(),
-		       	public: advice.public,
+				public: advice.public,
+				investmentObjective: advice.investmentObjective
 		    };
 		    return AdviceModel.saveAdvice(adv);
 	    } else {
@@ -464,7 +464,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const fullperformanceFlag = args.fullperformance.value;
 	
 	const options = {};
-	options.fields = 'name heading description createdDate updatedDate advisor public prohibited approval portfolio rebalance maxNotional rating';
+	options.fields = 'name description createdDate updatedDate advisor public prohibited approval portfolio rebalance maxNotional rating investmentObjective';
 	options.populate = 'advisor benchmark';
 	
 	return Promise.all([
@@ -480,6 +480,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	 		
 	 		if(accessAllowed) {
 				nAdvice = Object.assign(adviceSubscriptionDetail, advice.toObject());
+				console.log('Advice', advice.toObject());
 				// nAdvice.approval = nAdvice.approval[nAdvice.approval.length - 1];
 			} else {
 				APIError.throwJsonError({userId: userId, adviceId: adviceId, message:"Investor not authorized to view advice", errorCode: 1113});
@@ -825,8 +826,6 @@ module.exports.approveAdviceNew = (args, res, next) => {
 	const adviceId = _.get(args, 'adviceId.value', 0);
 	const approval = _.get(args, 'body.value', {});
 
-	console.log('Advice Id', adviceId);
-	console.log('User Id', userId);
 	return UserModel.fetchUsers({email: {$in: config.get('admin_user')}}, {$fields: '_id'})
 	.then(users => {
 		if (users) {

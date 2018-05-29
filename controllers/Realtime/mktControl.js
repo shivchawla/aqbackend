@@ -25,7 +25,7 @@ const WebSocket = require('ws');
 const DateHelper = require('../../utils/Date');
 
 //Run when seconds = 10
-schedule.scheduleJob("5 * * * * *", function() {
+schedule.scheduleJob("10 * * * * *", function() {
     processNewData();
 });
 
@@ -256,6 +256,7 @@ function _downloadAndUpdateData(type) {
 
 function processNewData() {
 	//console.log("In Process data")
+	/*
 	return connectSFTP()
 	.then(() => {
 		//console.log("Connected to SFTP Successfully");
@@ -265,13 +266,13 @@ function processNewData() {
 		])
 	})
 	.then(([s1, s2]) => {
-		//console.log("Successfully updated the stock prices");
+		//console.log("Successfully updated the stock prices");*/
 		return Promise.all([
 			_updatePortfoliosOnNewData(),
 			_updateAdvicesOnNewData(),
 			_updateStockOnNewData()
-		]);
-	})
+		])
+	//})
 	.catch(err => {
 		console.log("Error Processing Realtime Data")
 		console.log(err);

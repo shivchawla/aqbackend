@@ -350,6 +350,7 @@ function _computeStockPerformance(security) {
 };
 
 module.exports.updateStockList = function() {
+	console.log('Updating Stock List');
 	return exports.countSecurities()
 	.then(count => {
 		return exports.findSecurities("", 0);	

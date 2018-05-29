@@ -49,6 +49,51 @@ const Approval = new Schema({
     requirements: [String]
 });
 
+const Goal = new Schema({
+    field: {
+        type: String,
+        required: true
+    },
+    valid: {
+        type: Boolean,
+        default: false
+    },
+    reason: String
+});
+
+const Sectors = new Schema({
+    detail: {
+        type: [String],
+        required: true
+    },
+    valid: {
+        type: Boolean,
+        default: false
+    },
+    reason: String
+});
+
+const PortfolioOption = new Schema({
+    field: {
+        type: String,
+        required: true
+    },
+    valid: {
+        type: Boolean,
+        required: false
+    },
+    reason: String
+});
+
+const UserText = new Schema({
+    detail: String,
+    valid: {
+        type: Boolean,
+        default: false
+    },
+    reason: String
+});
+
 const Message = new Schema({
     date: {
         type: Date,
@@ -58,10 +103,6 @@ const Message = new Schema({
         type: String,
         required: true,
     },
-    // approved: {
-    //     type: Boolean,
-    //     required: true
-    // },
 });
 
 const Advice = new Schema({
@@ -135,6 +176,19 @@ const Advice = new Schema({
             required: true
         },
     }],
+
+    approvalRequested: {
+        type: Boolean,
+        default: true
+    },
+
+    investmentObjective: {
+        goal: Goal,
+        sectors: Sectors,
+        portfolioValuation: PortfolioOption,
+        capitalization: PortfolioOption,
+        userText: UserText
+    },
 
     deleted: {
         type: Boolean,
@@ -486,6 +540,7 @@ Advice.statics.updateApprovalObj = function(query, latestApproval) {
     const approvalDate = new Date();
     const approvedMessage = latestApproval.message;
     const approvalDetail = latestApproval.detail; 
+    const investmentObjective = latestApproval.investmentObjective;
     const approval = {
         date: new Date(),
         detail: approvalDetail,
@@ -493,8 +548,7 @@ Advice.statics.updateApprovalObj = function(query, latestApproval) {
         status: approvalStatus,
         user
     };
-    const updates = {'$push': {approval:  approval}};
-
+    const updates = {'$set': {investmentObjective: investmentObjective, approvalRequested: false}, '$push': {approval:  approval}};
     return this.findOneAndUpdate(query, updates);
 }
 
