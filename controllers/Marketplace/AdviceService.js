@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-30 12:49:47
+* @Last Modified time: 2018-05-30 13:45:15
 */
 
 'use strict';
@@ -116,8 +116,8 @@ module.exports.createAdvice = function(args, res, next) {
 		if(port) {
 			const adv = {
 				name: advice.name,
-				heading: advice.heading,
 				rebalance: advice.rebalance,
+				maxNotional: advice.maxNotional,
 				advisor: advisorId,
 		       	portfolio: port._id,
 		       	createdDate: new Date(),
@@ -158,7 +158,7 @@ module.exports.updateAdvice = function(args, res, next) {
 	let advicePortfolioId;
 	let isPublic;
 
-	var adviceFields = 'advisor public portfolio name investmentObjective rebalance';
+	var adviceFields = 'advisor public portfolio name investmentObjective rebalance maxNotional';
 
 	return Promise.all([
 		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
@@ -171,18 +171,18 @@ module.exports.updateAdvice = function(args, res, next) {
 
 				let allowedKeys;
 				if (advice.public == false) {
-					allowedKeys = ['public', 'name', 'investmentObjective', 'portfolio', 'rebalance']; 
+					allowedKeys = ['public', 'name', 'investmentObjective', 'portfolio', 'rebalance', 'maxNotional']; 
 				} else {
 					allowedKeys = ['portfolio']; 
 				}
 
-				Object.keys(newAdvice).forEach(key => {
+				/*Object.keys(newAdvice).forEach(key => {
 					if (key != "portfolio") {
-						if(allowedKeys.indexOf(key) == -1 && newAdvice[key] != advice[key]) {
+						if(allowedKeys.indexOf(key) == -1 && newAdvice[key] !== advice[key]) {
 							APIError.throwJsonError({message:"Advisor not allowed to modify " + key, errorCode:1106}); 
 						}
 					} 
-				});
+				})*/
 
 				isPublic = advice.public;
 
@@ -299,7 +299,7 @@ module.exports.getAdvices = function(args, res, next) {
 
 	options.orderParam = orderParam;
 
-    options.fields = 'name description heading createdDate updatedDate advisor public approvalStatus prohibited maxNotional rebalance performanceSummary rating startDate';
+    options.fields = 'name createdDate updatedDate advisor public approvalStatus prohibited rebalance maxNotional performanceSummary rating startDate';
 
     var query = {deleted: false}; 
 
@@ -462,7 +462,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const fullperformanceFlag = args.fullperformance.value;
 	
 	const options = {};
-	options.fields = 'name description createdDate updatedDate advisor public prohibited approvalStatus portfolio rebalance maxNotional rating investmentObjective';
+	options.fields = 'name createdDate updatedDate advisor public prohibited approvalStatus portfolio rebalance maxNotional rating investmentObjective';
 	options.populate = 'advisor benchmark';
 	
 	return Promise.all([
