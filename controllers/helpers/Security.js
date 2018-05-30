@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-30 12:25:11
+* @Last Modified time: 2018-05-30 17:55:17
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -179,7 +179,7 @@ module.exports.getStockRollingPerformance = function(security) {
 		if(update) {
 			return _computeStockRollingPerformanceDetail(security).then(rp => {return SecurityPerformanceModel.updateRollingPerformance(query, rp);});;
 		} else {
-			return securityPerformance;
+			return securityPerformance.toObject();
 		}
 	})
 }
@@ -197,7 +197,7 @@ module.exports.getStockStaticPerformance = function(security) {
 		if(update) {
 			return _computeStockStaticPerformanceDetail(security).then(sp => {return SecurityPerformanceModel.updateStaticPerformance(query, sp);});
 		} else {
-			return securityPerformance;
+			return securityPerformance.toObject();
 		}
 	});
 };
@@ -226,7 +226,7 @@ module.exports.getStockLatestDetail = function(security, type) {
 					
 				});
 			} else {
-				resolve(securityPerformance);
+				resolve(securityPerformance.toObject());
 			}
 		})
 		.catch(err => {
