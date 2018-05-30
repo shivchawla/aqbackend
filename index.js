@@ -13,18 +13,8 @@ const WebSocketServer = require('ws').Server;
 const spawn = require('child_process').spawn;
 
 exports.serverPort = serverPort;
-var server = '';
-if(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'staging') {
-    server = require('http').createServer(app);
-} else {
+var server = require('http').createServer(app);
 
-    var serverOptions = {
-      key: fs.readFileSync(config.get('privkey')),
-      cert: fs.readFileSync(config.get('cert'))
-    };
-
-    server = require('https').createServer(serverOptions, app);
-}
 
 const hostname = config.get('hostname');
 // swaggerRouter configuration
@@ -39,11 +29,11 @@ const options = {
 const spec = fs.readFileSync('./api/swagger.yaml', 'utf8');
 const swaggerDoc = jsyaml.safeLoad(spec);
 
-// if (process.env.NODE_ENV === 'staging') {
-//   swaggerDoc.host = 'stagingapi.aimsquant.com'
-// } else if (process.env.NODE_ENV === 'development') {
-//   swaggerDoc.host = 'localhost:3002'
-// }
+if (process.env.NODE_ENV === 'staging') {
+   swaggerDoc.host = 'stagingapi.aimsquant.com';
+} else if (process.env.NODE_ENV === 'development') {
+   swaggerDoc.host = 'developapi.aimsquant.com';
+}
 
 // Initialize the Swagger middleware
 swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {

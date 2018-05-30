@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-09 11:01:51
+* @Last Modified time: 2018-05-30 12:25:11
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -350,7 +350,6 @@ function _computeStockPerformance(security) {
 };
 
 module.exports.updateStockList = function() {
-	console.log('Updating Stock List');
 	return exports.countSecurities()
 	.then(count => {
 		return exports.findSecurities("", 0);	

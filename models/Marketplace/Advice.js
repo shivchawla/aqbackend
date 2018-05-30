@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-27 23:24:55
+* @Last Modified time: 2018-05-30 12:47:46
 */
 'use strict';
 const mongoose = require('../index');
@@ -102,16 +102,6 @@ const UserText = new Schema({
     reason: String
 });
 
-const Message = new Schema({
-    date: {
-        type: Date,
-        required: true  
-    },
-    message: {
-        type: String,
-        required: true,
-    },
-});
 
 const Advice = new Schema({
     advisor: {
@@ -121,11 +111,6 @@ const Advice = new Schema({
     },
 
     name: {
-        type: String,
-        required: true
-    },
-
-    description: {
         type: String,
         required: true
     },
@@ -170,25 +155,33 @@ const Advice = new Schema({
         type: Date,
     }, 
 
-    approval: [{
-        date: Date,
-        detail: [Approval],
-        message: String,
-        status: {
-            type: Boolean,
-            required: true
-        },
+    approvalStatus: {
+        type: String,
+        default: "pending"
+    },
+
+    approvalMessages:[{
         user: {
             type: Schema.Types.ObjectId,
             ref:'User',
             required: true
         },
-    }],
+        
+        date: {
+            type: Date,
+            required: true  
+        },
 
-    approvalRequested: {
-        type: Boolean,
-        default: true
-    },
+        message: {
+            type: String,
+            required: true,
+        },
+
+        approved: {
+            type: Boolean,
+            required: true
+        },
+    }],
 
     investmentObjective: {
         goal: Goal,
@@ -285,9 +278,6 @@ Advice.statics.fetchAdvices = function(query, options) {
     
 	if(options.fields) {
         q = q.select(options.fields);
-        if (options.fields.indexOf('approval')) {
-            q = q.select({approval: {$slice: -1}});
-       }
 	}
 
     if(options.fields && options.fields.indexOf('advisor') != -1) {
@@ -324,9 +314,6 @@ Advice.statics.fetchAdvice = function(query, options) {
 
     if(options.fields) {
         q = q.select(options.fields);
-        if (options.fields.indexOf('approval')) {
-            q = q.select({approval: {$slice: -1}});
-       }
     }
     
     if(options.populate.indexOf('portfolio') != -1) {
@@ -532,24 +519,6 @@ Advice.statics.updateApproval = function(query, latestApproval) {
 
     const updates = {'$set':{approvalStatus: approvalStatus, prohibited: prohibited}, '$push':{approvalMessages: approvedMessage}};       
 
-    return this.findOneAndUpdate(query, updates);
-}
-
-Advice.statics.updateApprovalObj = function(query, latestApproval) {
-    const approvalStatus = latestApproval.status;
-    const user = latestApproval.user.toString();
-    const approvalDate = new Date();
-    const approvedMessage = latestApproval.message;
-    const approvalDetail = latestApproval.detail; 
-    const investmentObjective = latestApproval.investmentObjective;
-    const approval = {
-        date: new Date(),
-        detail: approvalDetail,
-        message: approvedMessage,
-        status: approvalStatus,
-        user
-    };
-    const updates = {'$set': {investmentObjective: investmentObjective, approvalRequested: false}, '$push': {approval:  approval}};
     return this.findOneAndUpdate(query, updates);
 }
 
