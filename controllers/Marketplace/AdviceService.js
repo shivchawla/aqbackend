@@ -480,7 +480,6 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	 		
 	 		if(accessAllowed) {
 				nAdvice = Object.assign(adviceSubscriptionDetail, advice.toObject());
-				console.log('Advice', advice.toObject());
 				// nAdvice.approval = nAdvice.approval[nAdvice.approval.length - 1];
 			} else {
 				APIError.throwJsonError({userId: userId, adviceId: adviceId, message:"Investor not authorized to view advice", errorCode: 1113});

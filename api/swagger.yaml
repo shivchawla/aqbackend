@@ -3282,7 +3282,11 @@ definitions:
     properties: 
       field:
         type: string
-        enum: ['Maximize return on Investment', 'Wealth Preservation', 'Balanced Equity Advice', 'Reduce Volatility', 'Sector Tracker']
+        enum: ['To invest in a divesified portfolio with a blend of value and growth stock', 'To achieve high rates of growth and capital appreciation', 'To achieve capital appreciation over a long term', 'To invest in underpriced stocks with sound underlying business assets', 'To seek high potential for growth with reasonable value characteristics', 'To invest in high dividend yield stocks and portfolio with high dividend yield', 'To invest in stock with exposure to single sector']
+      investorType:
+        type: string
+      suitability:
+        type: string
       valid:
         type: boolean
         default: false
@@ -3319,7 +3323,7 @@ definitions:
     properties:
       field:
         type: string
-        enum: ['Small', 'Mid', 'Large']
+        enum: ['Small Cap', 'Mid Cap', 'Large Cap']
       valid:
         type: boolean
         default: false

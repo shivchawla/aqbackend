@@ -54,6 +54,14 @@ const Goal = new Schema({
         type: String,
         required: true
     },
+    investorType: {
+        type: String,
+        required: false
+    },
+    suitability: {
+        type: String,
+        required: false
+    },
     valid: {
         type: Boolean,
         default: false
