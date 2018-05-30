@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-30 13:45:15
+* @Last Modified time: 2018-05-30 14:22:56
 */
 
 'use strict';
@@ -301,7 +301,7 @@ module.exports.getAdvices = function(args, res, next) {
 
     options.fields = 'name createdDate updatedDate advisor public approvalStatus prohibited rebalance maxNotional performanceSummary rating startDate';
 
-    var query = {deleted: false}; 
+    var query = {deleted: false};
 
     var performanceFilters = {netValue: {field: "netValueEOD", min: 0, max: 200000}, 
 								sharpe: {field:"sharpe", min: -10, max: 10}, 
@@ -373,13 +373,18 @@ module.exports.getAdvices = function(args, res, next) {
 
    	let userInvestorId;
    	let userAdvisorId;
-
+   	let isUserAdmin;
     return Promise.all([
     	userId ? AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id', insert: true}) : null,
-		userId ? InvestorModel.fetchInvestor({user:userId}, {fields: '_id', insert: true}) : null
+		userId ? InvestorModel.fetchInvestor({user:userId}, {fields: '_id', insert: true}) : null,
+		UserModel.fetchUsers({email:{'$in': config.get('admin_user')}}, {fields:'_id'})
 	])
-    .then(([advisor, investor]) => {
+    .then(([advisor, investor, admins]) => {
     	
+		if (admins && admins.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
+			isUserAdmin = true;
+		}
+
     	userAdvisorId = advisor ? advisor._id : null;
     	userInvestorId = investor ? investor._id : null; 
 
@@ -401,7 +406,12 @@ module.exports.getAdvices = function(args, res, next) {
 
 	    	if (personalCategories.indexOf("0") !=-1) {
 	    		//Only show advices starting after today for other advisors
-	    		advisorQuery.push({$and: [{advisor:{'$ne': userAdvisorId}, public: true, prohibited: false}, 
+	    		let q = {};
+	    		if (!isUserAdmin) {
+	    			q = {approvalStatus: 'approved'};
+	    		}
+
+	    		advisorQuery.push({$and: [Object.assign(q, {advisor:{'$ne': userAdvisorId}, public: true, prohibited: false}), 
 	    								{$or:[{startDate: {$lte: DateHelper.getCurrentDate()}}, 
     								      	{startDate: {$exists: false}}
 								      	]}
@@ -416,6 +426,7 @@ module.exports.getAdvices = function(args, res, next) {
 	    	if (!userAdvisorId.equals(advisorId)) {
 	    		query.public = true;
 	    		query.prohibited = false;	
+	    		query.approvalStatus = 'approved';
 
 	    		query = {$and: [query, 
 							{$or:[{startDate: {$lte: DateHelper.getCurrentDate()}}, 
