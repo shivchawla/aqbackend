@@ -75,6 +75,8 @@ User.statics.updateCode = function(query, code) {
             if (user) {
                 user.code = code;
                 return user.save();
+            } else {
+                throw new Error("Not a registered user");
             }
         });
 };
