@@ -4,4 +4,6 @@ config/
 utils/julia/connection.json
 .eslintrc
 Julia/rtdata
+Julia/connection.json
+controllers/Realtime/nse_15min_token_develop
 package-lock.json

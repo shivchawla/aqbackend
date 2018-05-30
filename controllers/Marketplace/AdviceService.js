@@ -6,6 +6,7 @@
 */
 
 'use strict';
+const _ = require('lodash');
 const UserModel = require('../../models/user');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
@@ -299,7 +300,7 @@ module.exports.getAdvices = function(args, res, next) {
 
 	options.orderParam = orderParam;
 
-    options.fields = 'name createdDate updatedDate advisor public approvalStatus prohibited rebalance maxNotional performanceSummary rating startDate';
+    options.fields = 'name createdDate updatedDate advisor public latestApproval prohibited rebalance maxNotional performanceSummary rating startDate';
 
     var query = {deleted: false};
 
@@ -357,11 +358,11 @@ module.exports.getAdvices = function(args, res, next) {
         var	appr = approvedCategories.indexOf("1") != -1 ? true : false;
 
         if (!appr && unappr) {
-        	query.approvalStatus = {$ne:'approved'};
+			query = {$and: [query, {'latestApproval.status': false}]};
         }
 
         if (appr && !unappr) {
-        	query.approvalStatus = 'approved';
+        	query = {$and: [query, {'latestApproval.status': true}]};
         } 
     }
 
@@ -408,7 +409,7 @@ module.exports.getAdvices = function(args, res, next) {
 	    		//Only show advices starting after today for other advisors
 	    		let q = {};
 	    		if (!isUserAdmin) {
-	    			q = {approvalStatus: 'approved'};
+	    			q = {'latestApproval.status': true};
 	    		}
 
 	    		advisorQuery.push({$and: [Object.assign(q, {advisor:{'$ne': userAdvisorId}, public: true, prohibited: false}), 
@@ -426,9 +427,8 @@ module.exports.getAdvices = function(args, res, next) {
 	    	if (!userAdvisorId.equals(advisorId)) {
 	    		query.public = true;
 	    		query.prohibited = false;	
-	    		query.approvalStatus = 'approved';
 
-	    		query = {$and: [query, 
+	    		query = {$and: [query, {'latestApproval.status':true},
 							{$or:[{startDate: {$lte: DateHelper.getCurrentDate()}}, 
 						      	{startDate: {$exists: false}}
 					      	]}
@@ -473,7 +473,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const fullperformanceFlag = args.fullperformance.value;
 	
 	const options = {};
-	options.fields = 'name createdDate updatedDate advisor public prohibited approvalStatus portfolio rebalance maxNotional rating investmentObjective';
+	options.fields = 'name createdDate updatedDate advisor public prohibited approval portfolio rebalance maxNotional rating investmentObjective';
 	options.populate = 'advisor benchmark';
 	
 	return Promise.all([
@@ -538,7 +538,7 @@ module.exports.getAdviceDetail = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const userId = args.user._id;
 
-	var defaultFields = 'subscribers followers createdDate updatedDate advisor rebalance maxNotional rating approvalStatus prohibited';
+	var defaultFields = 'subscribers followers createdDate updatedDate advisor rebalance maxNotional rating approval prohibited';
 	const options = {};
    	options.fields = args.fields.value != "" ? args.fields.value : defaultFields;
    	options.populate = 'advisor';
@@ -829,6 +829,32 @@ module.exports.approveAdvice = function(args, res, next) {
 	})
 };
 
+module.exports.approveAdviceNew = (args, res, next) => {
+	const userId = _.get(args, 'user._id', 0);
+	const adviceId = _.get(args, 'adviceId.value', 0);
+	const approval = _.get(args, 'body.value', {});
+
+	return UserModel.fetchUsers({email: {$in: config.get('admin_user')}}, {$fields: '_id'})
+	.then(users => {
+		if (users) {
+			const userIndex = _.findIndex(users, user => user._id.toString() === userId.toString());
+			if (userIndex !== -1) {
+				return AdviceModel.updateApprovalObj({_id: adviceId}, {user: userId, ...approval, status: getApprovalStatus(approval.detail)});
+			} else {
+				APIError.throwJsonError({message: "User not authorized to approve", errorCode: 1505});
+			}
+		} else {
+			APIError.throwJsonError({message: "No authorized user found to approve", errorCode: 1501});
+		}
+	})
+	.then(advice => {
+		return res.status(200).send({message: "Approval updated successfully"});
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	});
+}
+
 module.exports.requestApproveAdvice = function(args, res, next) {
 	const userId = args.user._id;
 	const adviceId = args.adviceId.value;
@@ -855,3 +881,14 @@ module.exports.requestApproveAdvice = function(args, res, next) {
 		return res.status(400).send(err.message);
 	})
 };
+
+function getApprovalStatus(items) {
+	let invalidIndex = 0;
+	items.map(item => {
+		if (!item.valid) {
+			invalidIndex++;
+		}
+	});
+
+	return invalidIndex === 0;
+}

@@ -39,8 +39,10 @@ tags:
   externalDocs:
     description: "Find out more about us"
     url: "http://www.aimsquant.com"
+- name: "config"
+  description: "getting the static configs"
 schemes:
-- "http"
+- "https"
 produces:
 - "application/json"
 paths:
@@ -1975,6 +1977,35 @@ paths:
           description: OK
       x-swagger-router-controller: "Advice"
 
+  /advice/{adviceId}/approveNew:
+    patch:
+      tags:
+      - 'advice'
+      summary: add approval or approval related message based on the new implementation
+      description: Approve an advice based on the new implementation
+      operationId: approveAdviceNew
+      security:
+      - api_key: []
+      parameters: 
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/ApprovalMessageNew'
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advice"
+
   /advice/{adviceId}/requestapproval:
     post:
       tags:
@@ -2631,6 +2662,33 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Watchlist"
+  
+  /config:
+    get:
+      tags:
+        - config
+      summary: Get static configs
+      description: get static configurations required in the frontend
+      operationId: getConfig
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: advice
+        in: query
+        type: string
+        description: config for advice
+        required: false
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Config"
+
+
 
   /watchlist/{watchlistId}:
     get:
@@ -3190,6 +3248,39 @@ definitions:
       prohibit:
         type: boolean
 
+  ApprovalMessageNew:
+    type: object
+    required:
+      - message
+      - status
+    properties:
+      message:
+       type: string
+      status:
+        type: boolean
+      detail:
+        type: array
+        items:
+          $ref: '#/definitions/Approval'
+      investmentObjective:
+        $ref: '#/definitions/InvestmentObjective'
+  
+  Approval:
+    type: object
+    required:
+      - field
+    properties:
+      field: 
+        type: string
+      reason:
+        type: string
+      valid:
+        type: boolean
+        default: false
+      requirements:
+        type: array
+        items: 
+          type: string
   
   InvestmentObjective:
     type: object

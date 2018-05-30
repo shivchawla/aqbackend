@@ -76,7 +76,7 @@ module.exports.getStockDetail = function(args, res, next) {
 			])
 			.then(([detailEOD, detailRT]) => {
 				var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
-				return Object.assign(detailEOD ? detailEOD.toObject() : {}, {latestDetailRT: rtLatestDetail});
+				return Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
 			})
 		} 
 	})
