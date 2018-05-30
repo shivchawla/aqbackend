@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-30 23:48:37
+* @Last Modified time: 2018-05-31 00:02:07
 */
 
 'use strict';
@@ -382,7 +382,7 @@ module.exports.getAdvices = function(args, res, next) {
 	])
     .then(([advisor, investor, admins]) => {
     	
-		if (admins && admins.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
+		if (userId && admins && admins.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
 			isUserAdmin = true;
 		}
 
