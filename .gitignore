@@ -4,3 +4,4 @@ config/
 utils/julia/connection.json
 .eslintrc
 Julia/rtdata
+package-lock.json
