@@ -15,7 +15,6 @@ const spawn = require('child_process').spawn;
 exports.serverPort = serverPort;
 var server = require('http').createServer(app);
 
-
 const hostname = config.get('hostname');
 // swaggerRouter configuration
 const options = {

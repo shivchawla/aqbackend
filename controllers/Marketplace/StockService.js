@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-25 13:12:54
+* @Last Modified time: 2018-05-27 23:33:29
 */
 
 'use strict';
@@ -76,7 +76,7 @@ module.exports.getStockDetail = function(args, res, next) {
 			])
 			.then(([detailEOD, detailRT]) => {
 				var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
-				return Object.assign(detailEOD.toObject(), {latestDetailRT: rtLatestDetail});
+				return Object.assign(detailEOD ? detailEOD.toObject() : {}, {latestDetailRT: rtLatestDetail});
 			})
 		} 
 	})
