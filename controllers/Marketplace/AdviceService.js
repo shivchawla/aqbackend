@@ -6,6 +6,7 @@
 */
 
 'use strict';
+const _ = require('lodash');
 const UserModel = require('../../models/user');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
@@ -77,7 +78,6 @@ function _findFirstValidPortfolio(adviceId, date, attempts) {
 module.exports.createAdvice = function(args, res, next) {
 	const userId = args.user._id;
 	const advice = args.body.value;
-
 	var advisorId='';
 	
 	//Any one can create an advice
@@ -118,7 +118,7 @@ module.exports.createAdvice = function(args, res, next) {
 			const adv = {
 				name: advice.name,
 				heading: advice.heading,
-				description: advice.description,
+				description: advice.description || 'N/A',
 				maxNotional: advice.maxNotional,
 				rebalance: advice.rebalance,
 				advisor: advisorId,
@@ -127,7 +127,8 @@ module.exports.createAdvice = function(args, res, next) {
 		       	//here advice start date should be last valid trading date
 		       	startDate: effectiveStartDate,//DateHelper.getDate(advice.portfolio.detail.startDate),
 		       	updatedDate: new Date(),
-		       	public: advice.public,
+				public: advice.public,
+				investmentObjective: advice.investmentObjective
 		    };
 		    return AdviceModel.saveAdvice(adv);
 	    } else {
@@ -301,7 +302,7 @@ module.exports.getAdvices = function(args, res, next) {
 
 	options.orderParam = orderParam;
 
-    options.fields = 'name description heading createdDate updatedDate advisor public approvalStatus prohibited maxNotional rebalance performanceSummary rating startDate';
+    options.fields = 'name description heading createdDate updatedDate advisor public approval prohibited maxNotional rebalance performanceSummary rating startDate';
 
     var query = {deleted: false}; 
 
@@ -464,7 +465,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const fullperformanceFlag = args.fullperformance.value;
 	
 	const options = {};
-	options.fields = 'name heading description createdDate updatedDate advisor public prohibited approvalStatus portfolio rebalance maxNotional rating';
+	options.fields = 'name description createdDate updatedDate advisor public prohibited approval portfolio rebalance maxNotional rating investmentObjective';
 	options.populate = 'advisor benchmark';
 	
 	return Promise.all([
@@ -480,6 +481,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	 		
 	 		if(accessAllowed) {
 				nAdvice = Object.assign(adviceSubscriptionDetail, advice.toObject());
+				// nAdvice.approval = nAdvice.approval[nAdvice.approval.length - 1];
 			} else {
 				APIError.throwJsonError({userId: userId, adviceId: adviceId, message:"Investor not authorized to view advice", errorCode: 1113});
 			}
@@ -799,10 +801,10 @@ module.exports.approveAdvice = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const approval = args.body.value;
 
-	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {fields:'_id'})
+	return UserModel.fetchUsers({email:{'$in': config.get('admin_user')}}, {fields:'_id'})
 	.then(users => {
-		if(users) {
-			if(users.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
+		if (users) {
+			if (users.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
 				return AdviceModel.updateApproval({_id:adviceId}, Object.assign({user: userId}, approval));
 			} else {
 				APIError.throwJsonError({message: "User not authorized to approve", errorCode: 1505});
@@ -818,6 +820,32 @@ module.exports.approveAdvice = function(args, res, next) {
 		return res.status(400).send(err.message);
 	})
 };
+
+module.exports.approveAdviceNew = (args, res, next) => {
+	const userId = _.get(args, 'user._id', 0);
+	const adviceId = _.get(args, 'adviceId.value', 0);
+	const approval = _.get(args, 'body.value', {});
+
+	return UserModel.fetchUsers({email: {$in: config.get('admin_user')}}, {$fields: '_id'})
+	.then(users => {
+		if (users) {
+			const userIndex = _.findIndex(users, user => user._id.toString() === userId.toString());
+			if (userIndex !== -1) {
+				return AdviceModel.updateApprovalObj({_id: adviceId}, {user: userId, ...approval});
+			} else {
+				APIError.throwJsonError({message: "User not authorized to approve", errorCode: 1505});
+			}
+		} else {
+			APIError.throwJsonError({message: "No authorized user found to approve", errorCode: 1501});
+		}
+	})
+	.then(advice => {
+		return res.status(200).send({message: "Approval updated successfully"});
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	});
+}
 
 module.exports.requestApproveAdvice = function(args, res, next) {
 	const userId = args.user._id;

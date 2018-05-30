@@ -118,7 +118,6 @@ module.exports.getAdvisorSummary = function(args, res, next) {
 
     	isAdmin = adminAdvisor && userAdvisor ? userAdvisor._id.equals(adminAdvisor._id) : false;
     	isOwner = userAdvisor && advisorId ? userAdvisor._id.equals(advisorId) : false;
-
     	if(!isOwner) {
     		options.fields = 'approved latestAnalytics user followers ' + publicProfileFields;
     		adviceQuery.public = true;
@@ -157,7 +156,15 @@ module.exports.getAdvisorSummary = function(args, res, next) {
   	.then(([investor, advisor, advices]) => {
   		if(advisor) {
   			var isFollowing = !isOwner ? advisor.followers ? advisor.followers.filter(item => item.active).map(item => item.investor.toString()).indexOf(investor._id.toString()) != -1 : false : false;
-  			const nAdvisor = Object.assign({advices: advices ? advices : [], isOwner: isOwner, isAdmin: isAdmin, isFollowing: isFollowing}, advisor.toObject());
+			const maxAdvicesAllowed = config.get('max_advices_per_advisor');
+			const nAdvices = advices ? advices : [];
+			const nAdvisor = Object.assign({
+				adviceLimitExceeded : nAdvices.length >= maxAdvicesAllowed,
+				advices: nAdvices, 
+				isOwner: isOwner, 
+				isAdmin: isAdmin, 
+				isFollowing: isFollowing
+			}, advisor.toObject());
 		  	delete nAdvisor.followers;
 
 		  	return res.status(200).send(nAdvisor);

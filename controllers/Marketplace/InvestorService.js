@@ -6,6 +6,7 @@
 */
 
 'use strict';
+const config = require('config');
 const InvestorModel = require('../../models/Marketplace/Investor');
 const PortfolioModel = require('../../models/Marketplace/Portfolio');
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -54,10 +55,11 @@ module.exports.createInvestor = function(args, res, next) {
 */
 module.exports.getInvestorSummary = function(args, res, next) {
 	const investorId = args.investorId.value;
-   	
+	const subscribedAdvicesLimit = config.get('max_subscription_per_investor');
    	const options = {};
     options.fields = 'user defaultPortfolio profile';
-    options.insert = true;
+	options.insert = true;
+	const adviceQuery = {deleted: false, subscribers:{'$elemMatch':{investor: investorId, active:true}}}; 
 
     const userId = args.user._id;
 
@@ -67,14 +69,19 @@ module.exports.getInvestorSummary = function(args, res, next) {
 			return Promise.all([
 				investor, 
 				investor.defaultPortfolio ? PortfolioHelper.getUpdatedPortfolioForEverything(investor.defaultPortfolio, {fields:'name detail benchmark'}).catch(err => {return null;}) : null,
-				investor.defaultPortfolio ? PerformanceHelper.getAllPerformance(investor.defaultPortfolio).catch(err => {return {error: err.message};}) : null
+				investor.defaultPortfolio ? PerformanceHelper.getAllPerformance(investor.defaultPortfolio).catch(err => {return {error: err.message};}) : null,
+				AdviceModel.fetchAdvices(adviceQuery, {})
 			]);
     	} else {
     		APIError.throwJsonError({investorId: investorId, message:"Investor not found/not authorized", errorCode: 1302});
     	}
     })
-    .then(([investor, updatedDefaultPortfolio, updatedDefaultPerformance]) => {	
-    	return res.status(200).send(Object.assign(investor.toObject(), {defaultPortfolio: updatedDefaultPortfolio, defaultPerformance: updatedDefaultPerformance}));
+    .then(([investor, updatedDefaultPortfolio, updatedDefaultPerformance, advicesResult]) => {	
+    	return res.status(200).send(Object.assign({
+			subscriptionLimitExceeded: advicesResult[1] >= subscribedAdvicesLimit,
+			defaultPortfolio: updatedDefaultPortfolio, 
+			defaultPerformance: updatedDefaultPerformance
+		},investor.toObject()));
     })
 	.catch(err => {
 		return res.status(400).send(err.message);

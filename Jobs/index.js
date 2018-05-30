@@ -13,11 +13,11 @@ const schedule = require('node-schedule');
 
 //Run every 5th minute
 schedule.scheduleJob("*/5 * * * *", function() {
-    AnalyticsHelper.updateAllAnalytics();
+    //AnalyticsHelper.updateAllAnalytics();
 });
 
-schedule.scheduleJob("*/20 * * * *", function() {
-    //SecurityHelper.updateStockList();
+schedule.scheduleJob("06 12 * * *", function() {
+    SecurityHelper.updateStockList();
 });
 
 schedule.scheduleJob("*/1 * * * *", function() {

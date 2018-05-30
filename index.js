@@ -39,11 +39,11 @@ const options = {
 const spec = fs.readFileSync('./api/swagger.yaml', 'utf8');
 const swaggerDoc = jsyaml.safeLoad(spec);
 
-if (process.env.NODE_ENV === 'staging') {
-  swaggerDoc.host = 'stagingapi.aimsquant.com'
-} else if (process.env.NODE_ENV === 'development') {
-  swaggerDoc.host = 'developapi.aimsquant.com'
-}
+// if (process.env.NODE_ENV === 'staging') {
+//   swaggerDoc.host = 'stagingapi.aimsquant.com'
+// } else if (process.env.NODE_ENV === 'development') {
+//   swaggerDoc.host = 'localhost:3002'
+// }
 
 // Initialize the Swagger middleware
 swaggerTools.initializeMiddleware(swaggerDoc, function(middleware) {

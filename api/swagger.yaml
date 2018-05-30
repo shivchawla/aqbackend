@@ -40,7 +40,7 @@ tags:
     description: "Find out more about us"
     url: "http://www.aimsquant.com"
 schemes:
-- "https"
+- "http"
 produces:
 - "application/json"
 paths:
@@ -1975,6 +1975,35 @@ paths:
           description: OK
       x-swagger-router-controller: "Advice"
 
+  /advice/{adviceId}/approveNew:
+    patch:
+      tags:
+      - 'advice'
+      summary: add approval or approval related message based on the new implementation
+      description: Approve an advice based on the new implementation
+      operationId: approveAdviceNew
+      security:
+      - api_key: []
+      parameters: 
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/ApprovalMessageNew'
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advice"
+
   /advice/{adviceId}/requestapproval:
     post:
       tags:
@@ -3072,15 +3101,16 @@ definitions:
     type: object
     required:
       - name
-      - description
+      # - description
       - portfolio
       - rebalance
       - maxNotional
+      - investmentObjective
     properties:
       name:
         type: string
-      description:
-        type: string
+      # description:
+        # type: string
       portfolio:
         $ref: "#/definitions/Portfolio"
       rebalance:
@@ -3089,6 +3119,8 @@ definitions:
       maxNotional:
         type: integer
         enum: [10000, 20000, 50000, 75000, 100000, 200000, 300000, 500000, 750000, 1000000]
+      investmentObjective:
+        $ref: '#/definitions/InvestmentObjective'
       public:
         type: boolean
         default: false
@@ -3190,6 +3222,125 @@ definitions:
       prohibit:
         type: boolean
 
+  ApprovalMessageNew:
+    type: object
+    required:
+      - message
+      - status
+    properties:
+      message:
+       type: string
+      status:
+        type: boolean
+      detail:
+        type: array
+        items:
+          $ref: '#/definitions/Approval'
+      investmentObjective:
+        $ref: '#/definitions/InvestmentObjective'
+  
+  Approval:
+    type: object
+    required:
+      - field
+    properties:
+      field: 
+        type: string
+      reason:
+        type: string
+      valid:
+        type: boolean
+        default: false
+      requirements:
+        type: array
+        items: 
+          type: string
+  
+  InvestmentObjective:
+    type: object
+    properties:
+      goal: 
+        type: object
+        $ref: '#/definitions/Goal'
+      sectors: 
+        type: object
+        $ref: '#/definitions/Sectors'
+      portfolioValuation: 
+        type: object
+        $ref: '#/definitions/PortfolioValuation'
+      capitalization: 
+        type: object
+        $ref: '#/definitions/Capitalization'
+      userText: 
+        type: object
+        $ref: '#/definitions/UserText'
+      
+  Goal:
+    type: object
+    required:
+      - field
+    properties: 
+      field:
+        type: string
+        enum: ['To invest in a divesified portfolio with a blend of value and growth stock', 'To achieve high rates of growth and capital appreciation', 'To achieve capital appreciation over a long term', 'To invest in underpriced stocks with sound underlying business assets', 'To seek high potential for growth with reasonable value characteristics', 'To invest in high dividend yield stocks and portfolio with high dividend yield', 'To invest in stock with exposure to single sector']
+      investorType:
+        type: string
+      suitability:
+        type: string
+      valid:
+        type: boolean
+        default: false
+      reason:
+        type: string
+  
+  Sectors:
+    type: object
+    properties:
+      detail:
+        type: array
+        items:
+          type: string
+      valid:
+        type: boolean
+        default: false
+      reason:
+        type: string
+  
+  PortfolioValuation:
+    type: object
+    properties:
+      field:
+        type: string
+        enum: ['Growth', 'Value', 'Blend']
+      valid:
+        type: boolean
+        default: false
+      reason:
+        type: string
+  
+  Capitalization:
+    type: object
+    properties:
+      field:
+        type: string
+        enum: ['Small Cap', 'Mid Cap', 'Large Cap']
+      valid:
+        type: boolean
+        default: false
+      reason:
+        type: string
+ 
+  UserText:
+    type: object
+    properties:
+      detail:
+        type: string
+        # default: "Sample Description"
+      valid:
+        type: boolean
+        default: false
+      reason:
+        type: string    
 
   SocialProfile:
     type: object
