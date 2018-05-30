@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-02 22:05:47
+* @Last Modified time: 2018-05-30 12:47:46
 */
 'use strict';
 const mongoose = require('../index');
@@ -102,16 +102,6 @@ const UserText = new Schema({
     reason: String
 });
 
-const Message = new Schema({
-    date: {
-        type: Date,
-        required: true  
-    },
-    message: {
-        type: String,
-        required: true,
-    },
-});
 
 const Advice = new Schema({
     advisor: {
@@ -121,11 +111,6 @@ const Advice = new Schema({
     },
 
     name: {
-        type: String,
-        required: true
-    },
-
-    description: {
         type: String,
         required: true
     },
@@ -169,6 +154,21 @@ const Advice = new Schema({
     publishDate: {
         type: Date,
     }, 
+
+    latestApproval: {
+        date: Date,
+        detail: [Approval],
+        message: String,
+        status: {
+            type: Boolean,
+            required: true
+        },
+        user: {
+            type: Schema.Types.ObjectId,
+            ref:'User',
+            required: true
+        }
+    },
 
     approval: [{
         date: Date,
@@ -262,13 +262,6 @@ const Advice = new Schema({
 //TODO: Deleted advices can/should be moved to deleted-advice collection
 //Such collection doesn't exist but can be a good improvement.
 //Advice.index({advisor: 1, name:1}, {unique: true});
-
-//TODO: consider putting weights to index items
-Advice.index({
-    name: 'text',
-    heading: 'text',
-    description: 'text'
-});
 
 Advice.index({name: 1, advisor: 1}, {unique: true});
 Advice.index({advisor: 1}, {unique: false});
@@ -556,7 +549,12 @@ Advice.statics.updateApprovalObj = function(query, latestApproval) {
         status: approvalStatus,
         user
     };
-    const updates = {'$set': {investmentObjective: investmentObjective, approvalRequested: false}, '$push': {approval:  approval}};
+    const updates = {'$set': {
+        investmentObjective: investmentObjective, 
+        approvalRequested: false, 
+        latestApproval: approval
+    }, 
+    '$push': {approval:  approval}};
     return this.findOneAndUpdate(query, updates);
 }
 

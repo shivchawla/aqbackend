@@ -12,7 +12,7 @@ const InvestorModel = require('../../models/Marketplace/Investor');
 
 exports.registerUser = function(args, res, next) {
     const user = {
-        email: args.body.value.email,
+        email: args.body.value.email.toLowerCase(),
         firstName: args.body.value.firstName,
         lastName: args.body.value.lastName,
         password: args.body.value.password,
@@ -44,7 +44,7 @@ exports.registerUser = function(args, res, next) {
 
 exports.userlogin = function(args, res, next) {
     const user = {
-        email: args.body.value.email,
+        email: args.body.value.email.toLowerCase(),
         password: args.body.value.password
     };
 
@@ -188,7 +188,7 @@ exports.sendInvite = function (args, res, next) {
 };
 
 exports.updateToken = function(args, res, next) {
-    const userEmail = args.body.value.email;
+    const userEmail = args.body.value.email.toLowerCase();
     const token = args.body.value.token;
 
     var options = {ignoreExpiration: true};

@@ -19,7 +19,8 @@ end
 function convert(::Type{Security}, security::Dict{String, Any})                
     
     try
-        ticker = uppercase(get(security, "ticker",""))
+        #Before validating the security, replace special characters by _ (underscore)
+        ticker = replace(uppercase(get(security, "ticker","")), r"[^a-zA-Z0-9]", "_")
         securitytype = uppercase(get(security, "securitytype", "EQ"))
         exchange = uppercase(get(security, "exchange", "NSE"))
         country = uppercase(get(security, "country", "IN"))

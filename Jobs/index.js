@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-06 12:22:13
+* @Last Modified time: 2018-05-30 12:51:58
 */
 
 'use strict';
@@ -12,14 +12,14 @@ const SecurityHelper = require('../controllers/helpers/Security');
 const schedule = require('node-schedule');
 
 //Run every 5th minute
-schedule.scheduleJob("*/5 * * * *", function() {
-    //AnalyticsHelper.updateAllAnalytics();
+schedule.scheduleJob("*/50 * * * *", function() {
+    AnalyticsHelper.updateAllAnalytics();
 });
 
-schedule.scheduleJob("06 12 * * *", function() {
+schedule.scheduleJob("0 23 * * *", function() {
     SecurityHelper.updateStockList();
 });
 
-schedule.scheduleJob("*/1 * * * *", function() {
-    //PortfolioHelper.updateAllPortfoliosForSplitsAndDividends();
+schedule.scheduleJob("30 22 * * *", function() {
+    PortfolioHelper.updateAllPortfoliosForSplitsAndDividends();
 });

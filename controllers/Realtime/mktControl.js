@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-17 11:44:30
+* @Last Modified time: 2018-05-30 12:53:37
 */
 
 'use strict';
@@ -25,7 +25,7 @@ const WebSocket = require('ws');
 const DateHelper = require('../../utils/Date');
 
 //Run when seconds = 10
-schedule.scheduleJob("10 * * * * *", function() {
+schedule.scheduleJob("5 * * * * *", function() {
     processNewData();
 });
 
@@ -256,7 +256,7 @@ function _downloadAndUpdateData(type) {
 
 function processNewData() {
 	//console.log("In Process data")
-	/*
+	
 	return connectSFTP()
 	.then(() => {
 		//console.log("Connected to SFTP Successfully");
@@ -271,8 +271,8 @@ function processNewData() {
 			_updatePortfoliosOnNewData(),
 			_updateAdvicesOnNewData(),
 			_updateStockOnNewData()
-		])
-	//})
+		]);
+	})
 	.catch(err => {
 		console.log("Error Processing Realtime Data")
 		console.log(err);

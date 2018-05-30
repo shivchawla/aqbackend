@@ -398,7 +398,7 @@ function get_stock_price_latest(security_dict::Dict{String,Any}, ptype::String="
             end
         
         elseif ptype == "RT"
-            ticker = security_dict["ticker"]
+            ticker = replace(security_dict["ticker"], r"[^a-zA-Z0-9]", "_")
             tb_rt = get(_realtimePrices, ticker, TradeBar())
             tb_eod = get(_lastDayPrices, ticker, TradeBar())
             

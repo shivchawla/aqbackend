@@ -42,7 +42,7 @@ tags:
 - name: "config"
   description: "getting the static configs"
 schemes:
-- "http"
+- "https"
 produces:
 - "application/json"
 paths:
@@ -3130,7 +3130,6 @@ definitions:
     type: object
     required:
       - name
-      # - description
       - portfolio
       - rebalance
       - maxNotional
@@ -3138,8 +3137,6 @@ definitions:
     properties:
       name:
         type: string
-      # description:
-        # type: string
       portfolio:
         $ref: "#/definitions/Portfolio"
       rebalance:
@@ -3311,7 +3308,6 @@ definitions:
     properties: 
       field:
         type: string
-        enum: ['To invest in a divesified portfolio with a blend of value and growth stock', 'To achieve high rates of growth and capital appreciation', 'To achieve capital appreciation over a long term', 'To invest in underpriced stocks with sound underlying business assets', 'To seek high potential for growth with reasonable value characteristics', 'To invest in high dividend yield stocks and portfolio with high dividend yield', 'To invest in stock with exposure to single sector']
       investorType:
         type: string
       suitability:

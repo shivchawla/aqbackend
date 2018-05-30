@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-24 12:18:03
+* @Last Modified time: 2018-05-30 14:22:56
 */
 
 'use strict';
@@ -117,10 +117,8 @@ module.exports.createAdvice = function(args, res, next) {
 		if(port) {
 			const adv = {
 				name: advice.name,
-				heading: advice.heading,
-				description: advice.description || 'N/A',
-				maxNotional: advice.maxNotional,
 				rebalance: advice.rebalance,
+				maxNotional: advice.maxNotional,
 				advisor: advisorId,
 		       	portfolio: port._id,
 		       	createdDate: new Date(),
@@ -161,7 +159,7 @@ module.exports.updateAdvice = function(args, res, next) {
 	let advicePortfolioId;
 	let isPublic;
 
-	var adviceFields = 'advisor public portfolio name heading description maxNotional rebalance';
+	var adviceFields = 'advisor public portfolio name investmentObjective rebalance maxNotional';
 
 	return Promise.all([
 		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
@@ -174,18 +172,18 @@ module.exports.updateAdvice = function(args, res, next) {
 
 				let allowedKeys;
 				if (advice.public == false) {
-					allowedKeys = ['public', 'name', 'heading', 'description', 'portfolio', 'maxNotional', 'rebalance']; 
+					allowedKeys = ['public', 'name', 'investmentObjective', 'portfolio', 'rebalance', 'maxNotional']; 
 				} else {
 					allowedKeys = ['portfolio']; 
 				}
 
-				Object.keys(newAdvice).forEach(key => {
+				/*Object.keys(newAdvice).forEach(key => {
 					if (key != "portfolio") {
-						if(allowedKeys.indexOf(key) == -1 && newAdvice[key] != advice[key]) {
+						if(allowedKeys.indexOf(key) == -1 && newAdvice[key] !== advice[key]) {
 							APIError.throwJsonError({message:"Advisor not allowed to modify " + key, errorCode:1106}); 
 						}
 					} 
-				});
+				})*/
 
 				isPublic = advice.public;
 
@@ -283,7 +281,7 @@ module.exports.getAdvices = function(args, res, next) {
 	}
 	
     let count;
-    var orderParam = args.orderParam.value || `rating.${performanceType}`;
+    var orderParam = args.orderParam.value || `rating.${pType}`;
 	if (["return", "volatility", "sharpe", "maxLoss", "currentLoss", "dailyChange", "netValue"].indexOf(orderParam) != -1) {
 		if (orderParam == "return") {
 			orderParam = "annualReturn"
@@ -293,18 +291,18 @@ module.exports.getAdvices = function(args, res, next) {
 			orderParam = "dailyNAVChangeEODPct";
 		}
 
-		orderParam = `performanceSummary.${performanceType}.${orderParam}`;
+		orderParam = `performanceSummary.${pType}.${orderParam}`;
 	} else if(["numFollowers", "numSubscribers"].indexOf(orderParam) !=-1) {
 		orderParam = `latestAnalytics.${orderParam}`;
 	} else if(["rating"].indexOf(orderParam) != -1) {
-		orderParam = `rating.current`;
+		orderParam = `rating.${pType}`;
 	}
 
 	options.orderParam = orderParam;
 
-    options.fields = 'name description heading createdDate updatedDate advisor public approval prohibited maxNotional rebalance performanceSummary rating startDate';
+    options.fields = 'name createdDate updatedDate advisor public latestApproval prohibited rebalance maxNotional performanceSummary rating startDate';
 
-    var query = {deleted: false}; 
+    var query = {deleted: false};
 
     var performanceFilters = {netValue: {field: "netValueEOD", min: 0, max: 200000}, 
 								sharpe: {field:"sharpe", min: -10, max: 10}, 
@@ -347,7 +345,8 @@ module.exports.getAdvices = function(args, res, next) {
 
     const search = args.search.value;
     if (search) {
-        query.$text = {$search: search};
+    	var nearMatch = `^(.*?(${search})[^$]*)$`;
+        query.name = {$regex: nearMatch, $options: "i"};
     }
 
     const approved = args.approved.value ? args.approved.value : ["0","1"];
@@ -359,11 +358,11 @@ module.exports.getAdvices = function(args, res, next) {
         var	appr = approvedCategories.indexOf("1") != -1 ? true : false;
 
         if (!appr && unappr) {
-        	query.approvalStatus = {$ne:'approved'};
+			query = {$and: [query, {'latestApproval.status': false}]};
         }
 
         if (appr && !unappr) {
-        	query.approvalStatus = 'approved';
+        	query = {$and: [query, {'latestApproval.status': true}]};
         } 
     }
 
@@ -375,13 +374,18 @@ module.exports.getAdvices = function(args, res, next) {
 
    	let userInvestorId;
    	let userAdvisorId;
-
+   	let isUserAdmin;
     return Promise.all([
     	userId ? AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id', insert: true}) : null,
-		userId ? InvestorModel.fetchInvestor({user:userId}, {fields: '_id', insert: true}) : null
+		userId ? InvestorModel.fetchInvestor({user:userId}, {fields: '_id', insert: true}) : null,
+		UserModel.fetchUsers({email:{'$in': config.get('admin_user')}}, {fields:'_id'})
 	])
-    .then(([advisor, investor]) => {
+    .then(([advisor, investor, admins]) => {
     	
+		if (admins && admins.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
+			isUserAdmin = true;
+		}
+
     	userAdvisorId = advisor ? advisor._id : null;
     	userInvestorId = investor ? investor._id : null; 
 
@@ -403,7 +407,12 @@ module.exports.getAdvices = function(args, res, next) {
 
 	    	if (personalCategories.indexOf("0") !=-1) {
 	    		//Only show advices starting after today for other advisors
-	    		advisorQuery.push({$and: [{advisor:{'$ne': userAdvisorId}, public: true, prohibited: false}, 
+	    		let q = {};
+	    		if (!isUserAdmin) {
+	    			q = {'latestApproval.status': true};
+	    		}
+
+	    		advisorQuery.push({$and: [Object.assign(q, {advisor:{'$ne': userAdvisorId}, public: true, prohibited: false}), 
 	    								{$or:[{startDate: {$lte: DateHelper.getCurrentDate()}}, 
     								      	{startDate: {$exists: false}}
 								      	]}
@@ -419,8 +428,8 @@ module.exports.getAdvices = function(args, res, next) {
 	    		query.public = true;
 	    		query.prohibited = false;	
 
-	    		query = {$and: [query, 
-							{$or:[{startDate: {$gte: DateHelper.getCurrentDate()}}, 
+	    		query = {$and: [query, {'latestApproval.status':true},
+							{$or:[{startDate: {$lte: DateHelper.getCurrentDate()}}, 
 						      	{startDate: {$exists: false}}
 					      	]}
 				      	]};
@@ -464,7 +473,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const fullperformanceFlag = args.fullperformance.value;
 	
 	const options = {};
-	options.fields = 'name description createdDate updatedDate advisor public prohibited approval portfolio rebalance maxNotional rating investmentObjective';
+	options.fields = 'name createdDate updatedDate advisor public prohibited approval portfolio rebalance maxNotional rating investmentObjective';
 	options.populate = 'advisor benchmark';
 	
 	return Promise.all([
@@ -529,7 +538,7 @@ module.exports.getAdviceDetail = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const userId = args.user._id;
 
-	var defaultFields = 'subscribers followers createdDate updatedDate advisor rebalance maxNotional rating approvalStatus prohibited';
+	var defaultFields = 'subscribers followers createdDate updatedDate advisor rebalance maxNotional rating approval prohibited';
 	const options = {};
    	options.fields = args.fields.value != "" ? args.fields.value : defaultFields;
    	options.populate = 'advisor';
@@ -830,7 +839,7 @@ module.exports.approveAdviceNew = (args, res, next) => {
 		if (users) {
 			const userIndex = _.findIndex(users, user => user._id.toString() === userId.toString());
 			if (userIndex !== -1) {
-				return AdviceModel.updateApprovalObj({_id: adviceId}, {user: userId, ...approval});
+				return AdviceModel.updateApprovalObj({_id: adviceId}, {user: userId, ...approval, status: getApprovalStatus(approval.detail)});
 			} else {
 				APIError.throwJsonError({message: "User not authorized to approve", errorCode: 1505});
 			}
@@ -872,3 +881,14 @@ module.exports.requestApproveAdvice = function(args, res, next) {
 		return res.status(400).send(err.message);
 	})
 };
+
+function getApprovalStatus(items) {
+	let invalidIndex = 0;
+	items.map(item => {
+		if (!item.valid) {
+			invalidIndex++;
+		}
+	});
+
+	return invalidIndex === 0;
+}
