@@ -473,7 +473,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const fullperformanceFlag = args.fullperformance.value;
 	
 	const options = {};
-	options.fields = 'name createdDate updatedDate advisor public prohibited approval portfolio rebalance maxNotional rating investmentObjective';
+	options.fields = 'name createdDate updatedDate advisor public prohibited approval latestApproval portfolio rebalance maxNotional rating investmentObjective approvalRequested';
 	options.populate = 'advisor benchmark';
 	
 	return Promise.all([
@@ -865,7 +865,8 @@ module.exports.requestApproveAdvice = function(args, res, next) {
 	.then(([advisor, advice]) => {
 		var isOwner = advisor && advice ? advisor._id.equals(advice.advisor) : false;
 		if(isOwner) {
-			return AdviceModel.updateAdvice({_id:adviceId}, {approvalStatus: "pending"}, {new: true, fields:'approvalStatus'});
+			// return AdviceModel.updateAdvice({_id:adviceId}, {approvalStatus: "pending"}, {new: true, fields:'approvalStatus'});
+			return AdviceModel.updateAdvice({_id:adviceId}, {approvalRequested: true}, {new: true, fields:'approvalRequested'});
 		} else {
 			APIError.throwJsonError({message: "Advisor not authorized", errorCode:1116});
 		}

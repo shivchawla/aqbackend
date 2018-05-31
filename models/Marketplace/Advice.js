@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-30 12:47:46
+* @Last Modified time: 2018-05-31 10:51:59
 */
 'use strict';
 const mongoose = require('../index');
@@ -102,7 +102,6 @@ const UserText = new Schema({
     reason: String
 });
 
-
 const Advice = new Schema({
     advisor: {
         type: Schema.Types.ObjectId,
@@ -161,12 +160,11 @@ const Advice = new Schema({
         message: String,
         status: {
             type: Boolean,
-            required: true
+            required: false
         },
         user: {
             type: Schema.Types.ObjectId,
             ref:'User',
-            required: true
         }
     },
 
@@ -255,8 +253,7 @@ const Advice = new Schema({
 
     performanceSummary: Schema.Types.Mixed,
 
-    rating: Rating
-    
+    rating: Rating   
 });
 
 //TODO: Deleted advices can/should be moved to deleted-advice collection
