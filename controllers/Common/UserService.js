@@ -170,7 +170,9 @@ exports.resetPassword = function(args, res, next) {
 };
 
 exports.getProfile = function (args, res, next) {
-    const user = args.user;
+    let user = args.user;
+    const isAdmin = config.get('admin_user').indexOf(user.email) !== -1;
+    user = Object.assign(user, {isAdmin: isAdmin});
     if (!user) {
         return next('NO USER');
     }
