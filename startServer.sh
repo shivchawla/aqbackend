@@ -10,10 +10,10 @@ else
 fi
 
 IFS=' ' read -a portsArray <<<"$ports"
-
+echo "$pwd"
 for index in "${!portsArray[@]}"
 do
    # do whatever on $index
    port=${portsArray[$index]}
-   NODE_ENV="$ENV" forever start index.js $port
+   NODE_ENV="$ENV" forever start -w --watchDirectory="$pwd" index.js $port
 done
