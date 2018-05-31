@@ -93,9 +93,8 @@ exports.forgotPassword = function(args, res, next) {
     const source = res && res.req && res.req.headers && res.req.headers.origin ? 
         res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
 
-
     UserModel.updateCode({
-        email: args.email.value
+        email: args.email.value.toLowerCase(),
     }, uuid.v4())
     .then(function(userDetails) {
         delete userDetails.password;
@@ -103,7 +102,7 @@ exports.forgotPassword = function(args, res, next) {
     })
     .catch(err => {
         console.log(err);
-        next(err);
+        return res.status(400).send(err.message);
     });
 };
 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-30 14:22:56
+* @Last Modified time: 2018-05-31 00:02:07
 */
 
 'use strict';
@@ -378,11 +378,11 @@ module.exports.getAdvices = function(args, res, next) {
     return Promise.all([
     	userId ? AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id', insert: true}) : null,
 		userId ? InvestorModel.fetchInvestor({user:userId}, {fields: '_id', insert: true}) : null,
-		UserModel.fetchUsers({email:{'$in': config.get('admin_user')}}, {fields:'_id'})
+		userId ? UserModel.fetchUsers({email:{'$in': config.get('admin_user')}}, {fields:'_id'}) : []
 	])
     .then(([advisor, investor, admins]) => {
     	
-		if (admins && admins.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
+		if (userId && admins && admins.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
 			isUserAdmin = true;
 		}
 
