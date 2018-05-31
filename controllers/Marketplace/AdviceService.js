@@ -126,8 +126,10 @@ module.exports.createAdvice = function(args, res, next) {
 		       	startDate: effectiveStartDate,//DateHelper.getDate(advice.portfolio.detail.startDate),
 		       	updatedDate: new Date(),
 				public: advice.public,
-				investmentObjective: advice.investmentObjective
-		    };
+				investmentObjective: advice.investmentObjective,
+				approvalRequested: advice.public
+			};
+
 		    return AdviceModel.saveAdvice(adv);
 	    } else {
 	    	APIError.throwJsonError({userId: userId, message:"Invalid Portfolio! Can't create advice with invalid portfolio", errorCode: 1110});
@@ -159,7 +161,7 @@ module.exports.updateAdvice = function(args, res, next) {
 	let advicePortfolioId;
 	let isPublic;
 
-	var adviceFields = 'advisor public portfolio name investmentObjective rebalance maxNotional';
+	var adviceFields = 'advisor public portfolio name investmentObjective rebalance maxNotional approvalRequested latestApproval';
 
 	return Promise.all([
 		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
@@ -171,28 +173,32 @@ module.exports.updateAdvice = function(args, res, next) {
 			if(advice.advisor.equals(advisor._id)) {
 
 				let allowedKeys;
-				if (advice.public == false) {
+				if (advice.public == false || (advice.public === true && advice.approvalRequested === false && advice.latestApproval.status === false)) {
 					allowedKeys = ['public', 'name', 'investmentObjective', 'portfolio', 'rebalance', 'maxNotional']; 
 				} else {
 					allowedKeys = ['portfolio']; 
 				}
 
-				/*Object.keys(newAdvice).forEach(key => {
-					if (key != "portfolio") {
-						if(allowedKeys.indexOf(key) == -1 && newAdvice[key] !== advice[key]) {
-							APIError.throwJsonError({message:"Advisor not allowed to modify " + key, errorCode:1106}); 
-						}
-					} 
-				})*/
+				Object.keys(newAdvice).forEach(key => {
+					// if (key != "portfolio") {
+					// 	if(allowedKeys.indexOf(key) == -1 && newAdvice[key] !== advice[key]) {
+					// 		APIError.throwJsonError({message:"Advisor not allowed to modify " + key, errorCode:1106}); 
+					// 	}
+					// } 
+					if (allowedKeys.indexOf(key) === -1) {
+						delete newAdvice[key];
+					}
+				});
+				console.log(advice.public);
 
-				isPublic = advice.public;
+				isPublic = advice.public && advice.latestApproval.status;
 
 				//If updating a public advice's PORTFOLIO
 				if (Object.keys(newAdvice).indexOf["portfolio"] != -1) {
 					var newStartDate = DateHelper.getDate(newAdvice.portfolio.detail.startDate);
 					var rebalanceFrequency = advice.rebalance;
 					
-					var nextValidDate = DateHelper.getNextWeekday();;
+					var nextValidDate = DateHelper.getCurrentDate();
 
 					if (isPublic) {
 						if (rebalanceFrequency == "Daily") {
@@ -233,7 +239,7 @@ module.exports.updateAdvice = function(args, res, next) {
 		}
 	})
 	.then(validAdvice => {
-		var adviceUpdates = Object.assign({}, newAdvice);
+		var adviceUpdates = Object.assign({}, newAdvice, {approvalRequested: true});
 		
 		if (!isPublic && adviceUpdates.portfolio) {
 			adviceUpdates.startDate = DateHelper.getDate(adviceUpdates.portfolio.detail.startDate);
@@ -243,7 +249,7 @@ module.exports.updateAdvice = function(args, res, next) {
 
 		if (validAdvice) {
 			return Promise.all([PortfolioModel.updatePortfolio({_id: advicePortfolioId}, newAdvice.portfolio, {new:true, fields: 'detail', appendHistory: isPublic}), 
-				AdviceModel.updateAdvice({_id: adviceId}, adviceUpdates, {new:true, fields: adviceFields})]);
+				AdviceModel.updateAdvice({_id: adviceId}, {$set: adviceUpdates}, {new:true, fields: adviceFields})]);
 		} else {
 			APIError.throwJsonError({message:"Advice validation failed", errorCode: 1108});
 		}
@@ -664,8 +670,7 @@ module.exports.publishAdvice = function(args, res, next) {
     		if(!advice.advisor.equals(advisorId)) {
     			APIError.throwJsonError({message: "Advisor is not authorized to publish the advice", errorCode: 1102});
     		}
-
-    		return AdviceModel.updateAdvice({_id: adviceId}, {public: true, publishDate: new Date()}, {new: true, fields:'_id public'});
+    		return AdviceModel.updateAdvice({_id: adviceId}, {public: true, publishDate: new Date(), approvalRequested: true}, {new: true, fields:'_id public'});
 						
 		} else {
 			if (!advice) {
