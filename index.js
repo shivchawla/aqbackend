@@ -1,12 +1,13 @@
 'use strict';
 const express = require('express');
+const argv = require('yargs').argv;
 const app = require('express')();
 var path = require('path');
 const swaggerTools = require('swagger-tools');
 const jsyaml = require('js-yaml');
 const fs = require('fs');
 const authMiddleware = require('./auth/auth');
-const serverPort = parseInt(process.argv[2]) || 3002;
+const serverPort = argv.port || 3002;
 const cors = require('cors');
 const config = require('config');
 const WebSocketServer = require('ws').Server;

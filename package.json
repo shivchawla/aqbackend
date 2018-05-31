@@ -40,7 +40,8 @@
     "stream-splitter": "^0.3.2",
     "swagger-tools": "0.10.1",
     "truncate-html": "^1.0.0",
-    "ws": "^1.1.1"
+    "ws": "^1.1.1",
+    "yargs": "^11.0.0"
   },
   "devDependencies": {
     "eslint": "^3.2.2"

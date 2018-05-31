@@ -1,5 +1,5 @@
 ENV="$1"
-NODE_ENV="$ENV" forever stop index.js
+NODE_ENV="$ENV" pm2 stop index.js 
 ports="3001 3002 3003 3004 3005 3006"
 if [ -z "$2" ]
   then
@@ -10,10 +10,11 @@ else
 fi
 
 IFS=' ' read -a portsArray <<<"$ports"
-echo "$pwd"
+echo "$PWD"
+echo "Hello"
 for index in "${!portsArray[@]}"
 do
-   # do whatever on $index
-   port=${portsArray[$index]}
-   NODE_ENV="$ENV" forever start -w --watchDirectory="$pwd" index.js $port
+	# do whatever on $index
+	port=${portsArray[$index]}
+    NODE_ENV="$ENV" pm2 start index.js -- --port=${port} --name  "API_${ENV}_${port}"
 done
