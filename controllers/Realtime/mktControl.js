@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-30 12:53:37
+* @Last Modified time: 2018-05-31 14:15:38
 */
 
 'use strict';
@@ -23,6 +23,7 @@ const zlib = require('zlib');
 const APIError = require('../../utils/error');
 const WebSocket = require('ws');
 const DateHelper = require('../../utils/Date');
+const homeDir = require('os').homedir();
 
 //Run when seconds = 10
 schedule.scheduleJob("5 * * * * *", function() {
@@ -110,7 +111,7 @@ function _getLastValidFile(type) {
 		var year = currentDate.getFullYear();
 		var nseDateStr = `${monthNames[month]}${date}${year}`;
 
-		var localPath = path.resolve(path.join(__dirname, `../../Julia/rtdata/${nseDateStr}`));
+		var localPath = path.resolve(path.join(homeDir, `/rtdata/${nseDateStr}`));
 		
 		var unzipFileName = `${fileNumber}.${type}`;
 		localUnzipFilePath = `${localPath}/${unzipFileName}`;
@@ -200,7 +201,7 @@ function _downloadNSEData(type) {
 				
 				var nseFilePath =`/CM30/DATA/${nseDateStr}/${zipFileName}`;
 
-				var localPath = path.resolve(path.join(__dirname, `../../Julia/rtdata/${nseDateStr}`));
+				var localPath = path.resolve(path.join(homeDir, `/rtdata/${nseDateStr}`));
 				if (!fs.existsSync(localPath)) {
 				    fs.mkdirSync(localPath);	
 			  	}	
