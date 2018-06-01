@@ -16,5 +16,5 @@ for index in "${!portsArray[@]}"
 do
 	# do whatever on $index
 	port=${portsArray[$index]}
-    NODE_ENV="$ENV" pm2 start index.js --watch -- --port=${port} --name  "API_${ENV}_${port}"
+    NODE_ENV="$ENV" pm2 start index.js --name  "API_${ENV}_${port}" --watch -- --port=${port} 
 done
