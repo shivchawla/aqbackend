@@ -306,7 +306,7 @@ module.exports.getAdvices = function(args, res, next) {
 
 	options.orderParam = orderParam;
 
-    options.fields = 'name createdDate updatedDate advisor public latestApproval prohibited rebalance maxNotional performanceSummary rating startDate';
+    options.fields = 'name createdDate updatedDate advisor public approvalRequested latestApproval prohibited rebalance maxNotional performanceSummary rating startDate';
 
     var query = {deleted: false};
 
