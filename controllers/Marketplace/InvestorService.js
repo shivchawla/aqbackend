@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-24 19:44:50
+* @Last Modified time: 2018-06-01 20:57:21
 */
 
 'use strict';
@@ -77,11 +77,15 @@ module.exports.getInvestorSummary = function(args, res, next) {
     	}
     })
     .then(([investor, updatedDefaultPortfolio, updatedDefaultPerformance, advicesResult]) => {	
-    	return res.status(200).send(Object.assign({
-			subscriptionLimitExceeded: advicesResult[1] >= subscribedAdvicesLimit,
-			defaultPortfolio: updatedDefaultPortfolio, 
-			defaultPerformance: updatedDefaultPerformance
-		},investor.toObject()));
+    	
+    	//Investor has defaultPortfolio as Key so "investor.toObject()" should be 
+    	//first entry in assign in order to populate (replace) the full defaultPortfolio Object
+    	return res.status(200).send(Object.assign(investor.toObject(),
+    		{
+				subscriptionLimitExceeded: advicesResult[1] >= subscribedAdvicesLimit,
+				defaultPortfolio: updatedDefaultPortfolio, 
+				defaultPerformance: updatedDefaultPerformance
+			}));
     })
 	.catch(err => {
 		return res.status(400).send(err.message);
@@ -194,6 +198,13 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 			//Need this for PREVIEW feature
 			//In case of PREVIEW, input transaction object is not saved 
 			//and hence doesn't match the type requirement 
+
+			//Update the datetime 
+			transactions.forEach(item => {
+				item.advice = item.advice != "" ? ObjectId(item.advice) : null;
+				item.date = DateHelper.getDate(item.date)
+			});
+
 			return transactions.length > 0 ? 
 				PortfolioHelper.updatePortfolioForStockTransactions(portfolio, transactions, "add", preview) : 
 				portfolio;
@@ -414,7 +425,7 @@ module.exports.updateInvestorPortfolioForTransactions = function(args, res, next
 	//and hence doesn't match the type requirement 
 	transactions.forEach(item => {
 		item.advice = item.advice != "" ? ObjectId(item.advice) : null;
-		item.date = new Date(item.date);
+		item.date = DateHelper.getDate(item.date),
 		item._id = item._id != "" ? ObjectId(item._id) : null;
 	});
 

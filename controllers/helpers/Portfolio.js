@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-16 17:49:31
+* @Last Modified time: 2018-06-02 00:13:36
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -231,10 +231,8 @@ function _computeUpdatedPortfolioForSplitsAndDividends(portfolio, startDate, end
 					}
 
 					history.subPositions = subPositions;
-
 					trueHistory.push({detail: history});
 				}
-
 				
 				resolve(trueHistory);
 			} else {
@@ -269,18 +267,26 @@ function _computeUpdatedPortfolioForStockTransaction(initialPortfolio, allTransa
 
 	return Promise.reduce(reducerArray, function(startPortfolio, tso) {
 		var transactionsByDay = tso.transactions;
-			
+		
 		return _computeUpdatedPortfolioForSplitsAndDividends({detail: startPortfolio}, DateHelper.getDate(startPortfolio.startDate), DateHelper.getDate(transactionsByDay[0].date))
 		.then(updatedHistoricalPortfolios => {
+
+			//Update the Date format
+			updatedHistoricalPortfolios.forEach(item => {
+				item.detail.startDate = DateHelper.getDate(item.detail.startDate);
+				item.detail.endDate = DateHelper.getDate(item.detail.endDate);
+			});
+
 			//Push all split/dividend adjusted portfolios to history
-			allPortfolioHistory.push.apply(allPortfolioHistory, updatedHistoricalPortfolios.slice(0, -1));
+			//Resolved BUG (01-06-2018)[Last element of history was not added]
+			allPortfolioHistory.push.apply(allPortfolioHistory, updatedHistoricalPortfolios);
 			var nextPortfolio = updatedHistoricalPortfolios.slice(-1)[0]
 			return _computeUpdatedPortfolioForStockTransactionsEachDate(nextPortfolio.detail, transactionsByDay)
 		})
 		.then(newPortfolio => {
 
-			var lastDate = new Date(transactionsByDay[0].date);
-			var lastTransactionDate = new Date(transactionsByDay[0].date);
+			var lastDate = DateHelper.getDate(transactionsByDay[0].date);
+			var lastTransactionDate = DateHelper.getDate(transactionsByDay[0].date);
 
 			//Push a portfolio to history
 			//var lastPortfolio = Object.assign({}, startPortfolio);
@@ -299,10 +305,17 @@ function _computeUpdatedPortfolioForStockTransaction(initialPortfolio, allTransa
 		return _computeUpdatedPortfolioForSplitsAndDividends({detail: finalPortfolio}, DateHelper.getDate(finalPortfolio.startDate), DateHelper.getCurrentDate())
 	})
 	.then(finalPortfolioHistory => {
+		//Update the date format
+		finalPortfolioHistory.forEach(item => {
+			item.detail.startDate = DateHelper.getDate(item.detail.startDate);
+			item.detail.endDate = DateHelper.getDate(item.detail.endDate);
+		});
+
 		//Push all split/dividend adjusted portfolios to history
 		allPortfolioHistory.push.apply(allPortfolioHistory, finalPortfolioHistory);
+
 		return [allPortfolioHistory.slice(-1)[0], allPortfolioHistory];
-	})
+	});
 }
 
 function _computeUpdatedPortfolioForStockTransactionsEachDate(portfolio, transactions) {
@@ -561,30 +574,32 @@ module.exports.updatePortfolioForStockTransactions = function(portfolio, transac
 		}
 	})
 	.then(portfolio => { //Has updated transaction but portfolio is STALE
+
 		if(portfolio) {
 			if (updateMethod == "Create") {
 				var initialPortfolio = {positions: [], subPositions: [], cash: 0.0, startDate: DateHelper.getDate("1900-01-01")};
 				return _computeUpdatedPortfolioForStockTransaction(initialPortfolio, portfolio.transactions.filter(item => {return !item.deleted}));
 			} else if (updateMethod == "Append") {
 				//Updating the date format
-				transactions.map(item => {item.date = new Date(item.date); return item});
+				transactions.forEach(item => {item.date = DateHelper.getDate(item.date)});
 				return _computeUpdatedPortfolioForStockTransaction(portfolio.detail, transactions);
 			}
 		}
 	})
 	.then(([updatedPortfolio, completeHistory])  => {
+
 		if(!preview) {
 			const updates = {};
 			updates.detail = updatedPortfolio.detail;
 			//Take the last component out of the history
 			updates.history = completeHistory.slice(0, -1).map(item => item.detail);
+
 			//Update portfolio and portfolio history
 			return PortfolioModel.updatePortfolio({_id: portfolioId}, updates, {new: true, appendHistory: updateMethod == "Append"}) 
 			.then(updated => {
 				return exports.getUpdatedPortfolioForPrice(portfolioId);
 			});
 		} else {
-
 			//In case of Preview!!!!
 			return _computeUpdatedPortfolioForPrice(updatedPortfolio)
 			.then(portfolio => {

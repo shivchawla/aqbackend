@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-04-25 16:09:37
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-17 11:45:16
+* @Last Modified time: 2018-06-01 23:20:32
 */
 'use strict';
 var redis = require('redis');
@@ -53,7 +53,15 @@ module.exports.handleMktRequest = function(requestMsg, resolve, reject, incoming
 		connection = incomingConnection;
 	}
 
-    var wsClient = new WebSocket(connection); 
+	try {
+    	var wsClient = new WebSocket(connection); 
+	} catch(err) {
+		console.log(`Error connecting to ${connection}`);
+		console.log("Rerun after 5 seconds");
+		setTimeout(function(){
+			exports.handleMktRequest(requestMsg, resolve, reject, connection);
+		}, 5000);
+	}
 
     wsClient.on('open', function open() {
      	wsClient.send(requestMsg);
@@ -89,6 +97,4 @@ module.exports.handleMktRequest = function(requestMsg, resolve, reject, incoming
 	    	reject(APIError.jsonError({message: `Internal error: ${JSON.parse(requestMsg).action}`, errorCode: 2101}));
 	    }
     });
-
 };
-
