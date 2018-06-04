@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-28 21:06:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-01 20:57:21
+* @Last Modified time: 2018-06-04 10:44:16
 */
 
 'use strict';
@@ -135,7 +135,6 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 		detail: {startDate: DateHelper.getDate("1900-01-01"), endDate: DateHelper.getDate("2200-01-01"), positions: []}
 	};
 
-
 	var setDefault = args.body.value.setdefault;
 
 	if (portfolio.name == "" && !preview) {
@@ -201,7 +200,7 @@ module.exports.createInvestorPortfolio = function(args, res, next) {
 
 			//Update the datetime 
 			transactions.forEach(item => {
-				item.advice = item.advice != "" ? ObjectId(item.advice) : null;
+				item.advice = item.advice && item.advice != "" ? ObjectId(item.advice) : null;
 				item.date = DateHelper.getDate(item.date)
 			});
 
@@ -424,7 +423,7 @@ module.exports.updateInvestorPortfolioForTransactions = function(args, res, next
 	//In case of PREVIEW, input transaction object is not saved 
 	//and hence doesn't match the type requirement 
 	transactions.forEach(item => {
-		item.advice = item.advice != "" ? ObjectId(item.advice) : null;
+		item.advice = item.advice && item.advice != "" ? ObjectId(item.advice) : null;
 		item.date = DateHelper.getDate(item.date),
 		item._id = item._id != "" ? ObjectId(item._id) : null;
 	});
