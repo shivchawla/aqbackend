@@ -23,11 +23,15 @@ function _findDateIndex(dateArray, date) {
 }
 
 function _hasAdviceChanged(myPositions, adviceId) {
-	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio', populate: 'portfolio'})
-	.then(advice => {
+	const todayDate = new Date();
+	const tomorrowDate= todayDate .setDate(todayDate .getDate() + 1);
+
+	return exports.getAdvicePortfolio(adviceId, todayDate.getDate())
+	// return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio', populate: 'portfolio'})
+	.then(advicePortfolio => {
 		var changed = false;
-		if (advice && advice.portfolio && advice.portfolio.detail) {
-			var advicePositions = advice.portfolio.detail.positions;
+		if (advicePortfolio && advicePortfolio.detail) {
+			var advicePositions = advicePortfolio.detail.positions;
 			var tickersInAdvice = advicePositions.map(item => item.security.ticker);
 			var tickersInPortfolio  = myPositions.map(item => item.security.ticker);
 			var allTickers = Array.from(new Set(tickersInPortfolio.concat(tickersInAdvice)));
@@ -41,7 +45,7 @@ function _hasAdviceChanged(myPositions, adviceId) {
 					changed = true;
 					break;
 				} else {
-					changed == myPositions[idxInPositions].quantity != advicePositions[idxInAdvice].quantity;
+					changed = myPositions[idxInPositions].quantity != advicePositions[idxInAdvice].quantity;
 
 					if (changed == true) {
 						break;
