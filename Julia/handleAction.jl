@@ -301,6 +301,12 @@ function handleRequest(parsemsg::Dict{String, Any})
               
             parsemsg["output"] = updateportfolio_splitsAndDividends(portfolio, startDate, endDate)
 
+        elseif action == "update_portfolio_average_price"
+
+            portfolioHistory = convert(Vector{Dict{String, Any}}, parsemsg["portfolioHistory"])
+            (updatedDate, updated_portfolio) = updatePortfolio_averageprice(portfolioHistory)
+            parsemsg["output"] = convert_to_node_portfolio(updated_portfolio)
+
         elseif action == "compute_fractional_ranking"
             
             vals = Dict{String, Float64}()

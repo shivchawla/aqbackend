@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-31 00:02:07
+* @Last Modified time: 2018-06-07 19:34:04
 */
 
 'use strict';
@@ -79,18 +79,26 @@ module.exports.createAdvice = function(args, res, next) {
 	const userId = args.user._id;
 	const advice = args.body.value;
 	var advisorId='';
-	
+	let effectiveStartDate;
+
 	//Any one can create an advice
 	return AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id', insert: true})
 	.then(advisor => {
 		if(advisor) {
 			advisorId = advisor._id;
-			return AdviceModel.fetchAdvices({advisor: advisorId, deleted:false}, {fields:'_id name'})
+			return Promise.all([
+				AdviceModel.fetchAdvices({advisor: advisorId, deleted:false}, {fields:'_id name'}),
+				_getEffectiveAdviceStartDate(DateHelper.getDate(advice.portfolio.detail.startDate))
+			])
 		} else {
 			APIError.throwJsonError({message:"Advisor not found", errorCode: 1201});
 		}
 	})
-	.then(([advices, ct]) => {
+	.then(([[advices, ct], effStartDate]) => {
+
+		//Update effective start date (in portfolio as well)
+		effectiveStartDate = effStartDate;
+		advice.portfolio.detail.startDate = effStartDate;
 
 		var numSameNameAdvices = advices.filter(item => {return item && item.name == advice.name;}).length;
 		if (numSameNameAdvices > 0) {
@@ -105,15 +113,12 @@ module.exports.createAdvice = function(args, res, next) {
 	})
 	.then(valid => {
 		if(valid) {
-			return Promise.all([
-				PortfolioModel.savePortfolio(advice.portfolio, true),
-				_getEffectiveAdviceStartDate(DateHelper.getDate(advice.portfolio.detail.startDate))
-			])
+			return PortfolioModel.savePortfolio(advice.portfolio, true);
 		} else {
 			APIError.throwJsonError({message: "Invalid portfolio composition", errorCode: 1405});
 		}
 	})
-	.then(([port, effectiveStartDate]) => {
+	.then(port => {
 		if(port) {
 			const adv = {
 				name: advice.name,
@@ -123,7 +128,7 @@ module.exports.createAdvice = function(args, res, next) {
 		       	portfolio: port._id,
 		       	createdDate: new Date(),
 		       	//here advice start date should be last valid trading date
-		       	startDate: effectiveStartDate,//DateHelper.getDate(advice.portfolio.detail.startDate),
+		       	startDate: effectiveStartDate, 
 		       	updatedDate: new Date(),
 				public: advice.public,
 				investmentObjective: advice.investmentObjective,
@@ -189,7 +194,6 @@ module.exports.updateAdvice = function(args, res, next) {
 						delete newAdvice[key];
 					}
 				});
-				console.log(advice.public);
 
 				isPublic = advice.public && advice.latestApproval.status;
 
@@ -538,7 +542,6 @@ module.exports.getAdviceSummary = function(args, res, next) {
     });    
 };
 
-
 //API NEEDS IMPORVEMENT...FETHCING DETAIL FOR ADMIN SHOULD BE DIFFERENT
 module.exports.getAdviceDetail = function(args, res, next) {
 	const adviceId = args.adviceId.value;
@@ -583,6 +586,11 @@ module.exports.getAdviceDetail = function(args, res, next) {
     });
 };
 
+
+/*
+* Function to get advice portfolio for a date
+* Updated portfolio contains latest price (and/or average price in case of owner)
+*/
 module.exports.getAdvicePortfolio = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const userId = args.user._id;
@@ -603,7 +611,7 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 			}
 
 			//Re-run the query after checking 
-			return PortfolioHelper.getAdvicePortfolio(adviceId, ndate)
+			return PortfolioHelper.getAdvicePortfolio(adviceId, {populateAvg: authorizationStatus.isOwner}, ndate)
 			.then(portfolioForDate => {
 				if (portfolioForDate && portfolioForDate.detail) {
 					return portfolioForDate;

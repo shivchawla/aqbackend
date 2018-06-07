@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-02 00:13:36
+* @Last Modified time: 2018-06-07 19:37:36
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -22,12 +22,11 @@ function _findDateIndex(dateArray, date) {
 	return dateArray.map(item => new Date(item).getTime()).indexOf(new Date(date).getTime());
 }
 
+/*
+* Function to check if advice portfolio is different from version of advice user has in portfolio
+*/
 function _hasAdviceChanged(myPositions, adviceId) {
-	const todayDate = new Date();
-	const tomorrowDate= todayDate .setDate(todayDate .getDate() + 1);
-
-	return exports.getAdvicePortfolio(adviceId, todayDate.getDate())
-	// return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio', populate: 'portfolio'})
+	return exports.getAdvicePortfolio(adviceId)
 	.then(advicePortfolio => {
 		var changed = false;
 		if (advicePortfolio && advicePortfolio.detail) {
@@ -179,6 +178,21 @@ function _populateAdvice(portfolio) {
 	});
 }
 
+/*
+* Internal Function: Sends request to Julia to update portfolio (portfolio history) for average price
+* Used while populating average price for advice portfolio
+*/
+function _updatePortfolioForAveragePrice(portfolioHistory) {
+	return new Promise(function(resolve, reject) {
+
+		var msg = JSON.stringify({action:"update_portfolio_average_price", 
+    								portfolioHistory: portfolioHistory});
+        								
+		WSHelper.handleMktRequest(msg, resolve, reject);
+
+	});
+}
+
 function _updatePortfolioForSplitsAndDividends(portfolio, startDate, endDate) {
 	//Julia computes the updated portfolio	
 	//HEAVY DUTY WORK IS DONE BY JULIA
@@ -210,7 +224,7 @@ function _computeUpdatedPortfolioForSplitsAndDividends(portfolio, startDate, end
 				var updatedPortfolio = Object.assign({}, portfolio);
 
 				var trueHistory = [];
-				//Initial empty portoflio comes here twice
+				//Initial empty portfolio comes here twice
 
 				for (let history of historyUpdatedPortfolio) {
 					var startDate = history.startDate;
@@ -852,11 +866,44 @@ module.exports.updateAllPortfoliosForSplitsAndDividends = function() {
 	});
 };
 
-module.exports.getAdvicePortfolio = function(adviceId, date) {
+/*
+* Function to get advice portfolio with populated average price (and latest last price)
+*/
+module.exports.getAdvicePortfolioWithAvgPrice = function(adviceId, date) {
 	return AdviceModel.fetchAdvice({_id: adviceId}, {portfolio:1})
 	.then(advice => {  
 		if (advice) {
-			return exports.getUpdatedPortfolioForPrice(advice.portfolio, {fields: 'detail', advice:true}, date);
+			return exports.getPortfolioHistory(advice.portfolio, {}, date);
+		} else {
+			APIError.throwJsonError({message: "Advice not found"});
+		}
+	})
+	.then(portfolioHistory => {
+		let latestPortfolioDetail = portfolioHistory.history.slice(-1)[0];
+		console.log(latestPortfolioDetail);
+		let latestStartDate = latestPortfolioDetail.startDate;
+		let latestEndDate = latestPortfolioDetail.endDate;
+
+		return _updatePortfolioForAveragePrice(portfolioHistory.history)
+		.then(updatedLatestDetail => {
+			return {detail: Object.assign({startDate: latestStartDate, endDate: latestEndDate}, updatedLatestDetail)};
+		})
+	})
+	.then(latestPortfolio => {
+		console.log("HOllaaa");
+		console.log(latestPortfolio);
+		return latestPortfolio;
+	})
+};
+
+/*
+* Function to get advice portfolio (uses populateAvg flag to populate average price)
+*/
+module.exports.getAdvicePortfolio = function(adviceId, options, date) {
+	return AdviceModel.fetchAdvice({_id: adviceId}, {portfolio:1})
+	.then(advice => {  
+		if (advice) {
+			return options && options.populateAvg ? exports.getAdvicePortfolioWithAvgPrice(adviceId, date) : exports.getUpdatedPortfolioForPrice(advice.portfolio, {}, date)
 		} else {
 			APIError.throwJsonError({message: "Advice not found"});
 		}
@@ -873,5 +920,3 @@ module.exports.getAdvicePnlStats = function(adviceId, date) {
 		}
 	});
 };
-
-

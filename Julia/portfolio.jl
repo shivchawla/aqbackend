@@ -468,7 +468,6 @@ function updateportfolio_price(portfolio::Portfolio, end_date::DateTime = curren
     end
 end
 
-
 function updateportfolio_splitsAndDividends(portfolio::Dict{String,Any}, startdate::DateTime = currentIndiaTime(), enddate::DateTime = currentIndiaTime())
     port = convert(Raftaar.Portfolio, portfolio)
     output = Vector{Dict{String, Any}}()
@@ -602,6 +601,69 @@ function compute_portfolio_metrics(port::Dict{String, Any}, start_date::DateTime
         #Return the default output
         return defaultOutput
     end
+end
+
+
+###
+# Function to compute averageprice of current holdings
+# Used for advice portfolio (As advice portfolio doesn't have any transactions)
+###
+function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}})
+    #n1,p1  n2,p2
+    #Avg = [(n1P1 + (n2 - n1)*I(n2-n1 > 0)*P2]/max(n1,n2) 
+
+    currentPortfolio = Raftaar.Portfolio()
+    newPortfolio = Raftaar.Portfolio()
+
+    for port in portfolioHistory
+        newPortfolio = convert(Raftaar.Portfolio, port)
+        newStartDate = haskey(port, "startDate") ? DateTime(port["startDate"], jsdateformat) : DateTime("2018-01-01")
+
+        allkeys = keys(newPortfolio.positions)
+        secids = [sym.id for sym in allkeys]
+
+        #Get the Adjusted prices for tickers in the portfolio        
+        prices = YRead.history(secids, "Close", :Day, 1, newStartDate, displaylogs=false)
+
+        
+        ####IMPROVEMENT: Use the latest prices when startDate is same as today's data
+        useRtPrices = false #Flag to indicate whether to use EOD prices or RT prices
+        #RtPrices are used during the middle of the day to compute averageprice (because EOD is not available yet)
+        if Date(newStartDate) == Date(currentIndiaTime()) && 
+                prices.timestamp[end] != Date(newStartDate)
+            useRtPrices = true         
+        end
+
+        allprices = Dict{SecuritySymbol, Float64}()
+        for sym in allkeys
+            allprices[sym] = useRtPrices && haskey(_realtimePrices, sym.ticker) ? get(_realtimePrices, sym.ticker, TradeBar()).close : 
+                    prices!=nothing && sym.ticker in colnames(prices) ? values(prices[sym.ticker])[end] : 0.0
+        end
+
+        for sym in allkeys
+            currentPosition = currentPortfolio[sym]
+            newPosition = newPortfolio[sym]
+
+            currentQty = currentPosition.quantity;
+            newQty = newPosition.quantity;
+
+            if (newQty > currentQty && currentQty > 0)
+                diffQty = newQty - currentQty
+                newPosition.averageprice = (currentPosition.averageprice*currentQty + diffQty*get(allprices, sym, 0.0))/newQty
+            elseif (newQty < currentQty && currentQty > 0)
+                newPosition.averageprice = currentPosition.averageprice
+            else   
+                newPosition.averageprice = get(allprices, sym, 0.0)
+            end
+        
+            newPortfolio[sym] = newPosition
+        end
+
+        currentPortfolio = newPortfolio
+    end
+
+    return _updateportfolio_RTprice(newPortfolio)
+    
 end
 
 function compute_fractional_ranking(vals::Dict{String, Float64}, scale::Float64)

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-30 17:55:17
+* @Last Modified time: 2018-06-07 18:10:00
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -219,7 +219,10 @@ module.exports.getStockLatestDetail = function(security, type) {
 				return _computeStockLatestDetail(security, type)
 				.then(detail => {
 					if (type == "EOD") {
-						resolve(SecurityPerformanceModel.updateLatestDetail(query, detail));
+						return SecurityPerformanceModel.updateLatestDetail(query, detail)
+						.then(performance => {
+							resolve(performance);
+						});
 					} else {
 						resolve(Object.assign({}, security, {latestDetail: detail}));
 					}
