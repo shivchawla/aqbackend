@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-07 19:37:36
+* @Last Modified time: 2018-06-11 12:18:35
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -880,7 +880,6 @@ module.exports.getAdvicePortfolioWithAvgPrice = function(adviceId, date) {
 	})
 	.then(portfolioHistory => {
 		let latestPortfolioDetail = portfolioHistory.history.slice(-1)[0];
-		console.log(latestPortfolioDetail);
 		let latestStartDate = latestPortfolioDetail.startDate;
 		let latestEndDate = latestPortfolioDetail.endDate;
 
@@ -890,10 +889,10 @@ module.exports.getAdvicePortfolioWithAvgPrice = function(adviceId, date) {
 		})
 	})
 	.then(latestPortfolio => {
-		console.log("HOllaaa");
-		console.log(latestPortfolio);
-		return latestPortfolio;
-	})
+		//Additionally, populate the advice stats/weights after populating prices (average/last prices)
+		const isAdvice = true
+		return _populateStats(latestPortfolio, isAdvice);
+	});
 };
 
 /*
