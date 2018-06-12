@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-07 19:34:04
+* @Last Modified time: 2018-06-12 16:49:46
 */
 
 'use strict';
@@ -359,7 +359,7 @@ module.exports.getAdvices = function(args, res, next) {
         query.name = {$regex: nearMatch, $options: "i"};
     }
 
-    const approved = args.approved.value ? args.approved.value : ["0","1"];
+    const approved = args.approved.value ? args.approved.value : "0,1";
 
     if(approved) {
         var approvedCategories = approved.split(",");    
