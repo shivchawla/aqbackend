@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-11 12:18:35
+* @Last Modified time: 2018-06-12 15:54:18
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -714,8 +714,18 @@ module.exports.getUpdatedPortfolioForPrice = function(portfolioId, options, date
 	})
 };
 
+/*
+* Updates portfolio for Everything.
+* If it's advice (and owner), it updates te portfolio for average price(and RT price)
+* If it's regular portfolio, it updates the portfolio for RT price
+* In the end, it updates metrics like nevalue, pnl etc. with latest portfolio
+*/
 module.exports.getUpdatedPortfolioForEverything = function(portfolioId, options, userId) {
-	return exports.getUpdatedPortfolioForPrice(portfolioId, options)
+	Promise.resolve(true)
+	.then(() => {return options && options.advice ?
+		exports.getUpdatedPortfolioWithAveragePrice(portfolioId, options) :
+	    exports.getUpdatedPortfolioForPrice(portfolioId, options);
+    })
 	.then(portfolio => {
 		//This fucntion need to be takn out of here but how???
 		return _getAdviceStats(portfolio, userId)
@@ -866,18 +876,8 @@ module.exports.updateAllPortfoliosForSplitsAndDividends = function() {
 	});
 };
 
-/*
-* Function to get advice portfolio with populated average price (and latest last price)
-*/
-module.exports.getAdvicePortfolioWithAvgPrice = function(adviceId, date) {
-	return AdviceModel.fetchAdvice({_id: adviceId}, {portfolio:1})
-	.then(advice => {  
-		if (advice) {
-			return exports.getPortfolioHistory(advice.portfolio, {}, date);
-		} else {
-			APIError.throwJsonError({message: "Advice not found"});
-		}
-	})
+module.exports.getUpdatedPortfolioWithAveragePrice = function(portfolioId, options, date) {
+	return exports.getPortfolioHistory(portfolioId, {}, date)
 	.then(portfolioHistory => {
 		let latestPortfolioDetail = portfolioHistory.history.slice(-1)[0];
 		let latestStartDate = latestPortfolioDetail.startDate;
@@ -890,9 +890,23 @@ module.exports.getAdvicePortfolioWithAvgPrice = function(adviceId, date) {
 	})
 	.then(latestPortfolio => {
 		//Additionally, populate the advice stats/weights after populating prices (average/last prices)
-		const isAdvice = true
-		return _populateStats(latestPortfolio, isAdvice);
+		return _populateStats(latestPortfolio, options && options.advice);
 	});
+}
+
+/*
+* Function to get advice portfolio with populated average price (and latest last price)
+*/
+module.exports.getAdvicePortfolioWithAvgPrice = function(adviceId, date) {
+	return AdviceModel.fetchAdvice({_id: adviceId}, {portfolio:1})
+	.then(advice => {  
+		if (advice) {
+			return exports.getUpdatedPortfolioWithAveragePrice(advice.portfolio, {advice:true}, date)
+		} else {
+			APIError.throwJsonError({message: "Advice not found"});
+		}
+	})
+	
 };
 
 /*
