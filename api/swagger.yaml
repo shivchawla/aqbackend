@@ -259,14 +259,8 @@ paths:
       summary: send feedback to the admin
       description: send feedback
       operationId: sendFeedback
-      security:
-      - api_key: []
+      security: []
       parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
       - in: body
         name: body
         required: true
@@ -2945,11 +2939,18 @@ definitions:
     required:
     - feedback
     - subject
+    - from
+    - to
     properties:
       feedback:
         type: string
       subject:
-        type : string
+        type: string
+      from:
+        type: string
+      to:
+        type: string
+        default: "feedback@aimsquant.com"
   
   invite:
     type: object

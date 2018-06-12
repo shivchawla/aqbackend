@@ -25,12 +25,12 @@ function _sendMail(res, msg, obj) {
             return res.send(obj);
         }
 
-        return res.send("Email Sent"); 
+        return res.status(200).send("Email Sent"); 
     })
     .catch(error => {
         //Log friendly error
         console.error(error.toString());
-        return res.send('There was an error sending the email');
+        return res.status(400).send('There was an error sending the email');
     });
 }
 
@@ -133,42 +133,16 @@ module.exports.welcomeEmail = function(res, userDetails, source) {
 };
 
 module.exports.sendFeedbackEmail = function(res, args) {
-    var request = sg.emptyRequest({
-        method: 'POST',
-        path: '/v3/mail/send',
-        body: {
-            personalizations: [
-                {
-                    to: [
-                        {
-                            email: 'admin@aimsquant.com'
-                        },
-                    ],
-                    subject: args.body.value.subject,
-                },
-            ],
-            from: {
-                email: args.user.email,
-            },
-            "reply_to": {
-                "email": args.user.email,
-                "name": args.user.firstName
-            },
-            content: [
-                {
-                    type: 'text/html',
-                    value: args.body.value.feedback,
-                },
-            ],
-        },
-    });
-    sg.API(request, function(err, response) {
-        if (err) {
-            res.send('There was an error sending the email');
-            return;
-        }
-        res.send('Email Sent with a link to reset your Password');
-    });
+    
+    const msg = {
+        to: args.body.value.to,
+        from: args.body.value.from,
+        subject: args.body.value.subject,
+        html: args.body.value.feedback,
+    };
+
+    return _sendMail(res, msg);
+
 };
 
 module.exports.threadReplyEmail = function(threadDetails) {
