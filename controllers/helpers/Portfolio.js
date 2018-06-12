@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-12 15:54:18
+* @Last Modified time: 2018-06-12 16:20:54
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -721,10 +721,11 @@ module.exports.getUpdatedPortfolioForPrice = function(portfolioId, options, date
 * In the end, it updates metrics like nevalue, pnl etc. with latest portfolio
 */
 module.exports.getUpdatedPortfolioForEverything = function(portfolioId, options, userId) {
-	Promise.resolve(true)
-	.then(() => {return options && options.advice ?
-		exports.getUpdatedPortfolioWithAveragePrice(portfolioId, options) :
-	    exports.getUpdatedPortfolioForPrice(portfolioId, options);
+	return Promise.resolve(true)
+	.then(() => {
+		return options && options.advice ?
+			exports.getUpdatedPortfolioWithAveragePrice(portfolioId, options) :
+		    exports.getUpdatedPortfolioForPrice(portfolioId, options);
     })
 	.then(portfolio => {
 		//This fucntion need to be takn out of here but how???
