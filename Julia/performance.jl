@@ -1,6 +1,8 @@
 ###
 # Compute Portfolio Performance for a portfolio over a period (start and end dates)
-# OUTPUT: Performance object
+# OUTPUT: 1. True Performance 
+# 2. Tracked Performance(diff wrt benchmark)
+# 3. Rolling Performance(rolling - mtd/ytd/1y etc)
 ###
 function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_date::DateTime)
 
@@ -24,7 +26,7 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             merged_value = filternan(to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end]))
             
             if length(merged_value.timestamp) <= 1
-                return (Date(currentIndiaTime()), Performance(), Performance())
+                return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}())
             end
 
             merged_returns = percentchange(merged_value)
@@ -36,16 +38,17 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
 
             performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns, scale = 365, period = ndays)
             dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns, scale = 365, period = ndays)
+            rollingperformance = Raftaar.calculateperformance_rollingperiods(rename(merged_returns, ["algorithm", "benchmark"]))
             
             performance.portfoliostats.netvalue = portfolio_value.values[end]
             
-            return (merged_value.timestamp[end], performance, dperformance)
+            return (merged_value.timestamp[end], performance, dperformance, rollingperformance)
         
         elseif benchmark_value != nothing
-            return (benchmark_value.timestamp[end], Performance(), Performance())
+            return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}())
         
         else
-            return (Date(currentIndiaTime()), Performance(), Performance())
+            return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}())
         end
     catch err
         rethrow(err)
@@ -72,7 +75,7 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String; true
         merged_value = dropnan(to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end]), :all)
         
         if length(merged_value.timestamp) <= 1
-            return (Date(currentIndiaTime()), Performance(), Performance())
+            return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}())
         end
 
         merged_returns = percentchange(merged_value)
@@ -84,14 +87,15 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String; true
 
         performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns, scale = 365, period = trueperiod !=0 ? trueperiod : ndays)
         dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns, scale = 365, period = trueperiod !=0 ? trueperiod : ndays)
-        
-        return (merged_value.timestamp[end], performance, dperformance)
+        rollingperformance = Raftaar.calculateperformance_rollingperiods(rename(merged_returns, ["algorithm", "benchmark"]))
+
+        return (merged_value.timestamp[end], performance, dperformance, rollingperformance)
     
     elseif benchmark_value != nothing
-        return (benchmark_value.timestamp[end], Performance(), Performance())
+        return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}())
 
     else
-        return (Date(currentIndiaTime()), Performance(), Performance())
+        return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}())
     end
 end
 
