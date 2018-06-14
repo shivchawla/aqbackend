@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-12 16:20:54
+* @Last Modified time: 2018-06-14 11:49:14
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -696,22 +696,42 @@ module.exports.getPortfolioForDate = function(portfolioId, options, date) {
 };
 
 module.exports.getUpdatedPortfolioForPrice = function(portfolioId, options, date) {
-	return exports.getPortfolioForDate(portfolioId, options, date)
-	.then(portfolio => {
-		if(portfolio) {
-			var nDate = date ? DateHelper.getDate(date) : DateHelper.getCurrentDate();
-			
-			//If portfolio date is later than today,
-			//Update based on latest prices
-			if (DateHelper.compareDates(nDate, DateHelper.getCurrentDate()) == 1) {
-				nDate = DateHelper.getCurrentDate();	
-			} 
+	let portfolio = null;
 
-			return portfolio.detail ? exports.computeUpdatedPortfolioForPrice(portfolio, options, nDate) :  null;
-		} else {
-			APIError.throwJsonError({portfolioId: portfolioId, message: `Error getting portfolio for date: ${DateHelper.getCurrentDate()}`});
-		}
-	})
+	//Wrap the function call inside a promise 
+	//Always resolves to valid value (be it null)
+	//In case of Julia error, returns stale price portfolio
+	//In case of DB error(or unavailability), returns NULL
+	return new Promise(resolve => {
+		exports.getPortfolioForDate(portfolioId, options, date)
+		.then(stalePricePortfolio => {
+
+			portfolio = stalePricePortfolio;
+			
+			if(portfolio) {
+				var nDate = date ? DateHelper.getDate(date) : DateHelper.getCurrentDate();
+				
+				//If portfolio date is later than today,
+				//Update based on latest prices
+				if (DateHelper.compareDates(nDate, DateHelper.getCurrentDate()) == 1) {
+					nDate = DateHelper.getCurrentDate();	
+				} 
+
+				return portfolio.detail ? exports.computeUpdatedPortfolioForPrice(portfolio, options, nDate) :  null;
+			} else {
+				APIError.throwJsonError({portfolioId: portfolioId, message: `Error getting portfolio for date: ${DateHelper.getCurrentDate()}`});
+			}
+		})
+		.then(latestPortfolio => {
+			resolve(latestPortfolio);
+		})
+		.catch(error => {
+			console.log("Error while upadting portfolio for last price");
+			console.log(err);
+
+			resolve(portfolio);
+		});
+	});
 };
 
 /*
@@ -877,21 +897,41 @@ module.exports.updateAllPortfoliosForSplitsAndDividends = function() {
 	});
 };
 
+/*
+* Updates the Portfolio's average Price (used mostly to update advice portfolio)
+*/
 module.exports.getUpdatedPortfolioWithAveragePrice = function(portfolioId, options, date) {
-	return exports.getPortfolioHistory(portfolioId, {}, date)
-	.then(portfolioHistory => {
-		let latestPortfolioDetail = portfolioHistory.history.slice(-1)[0];
-		let latestStartDate = latestPortfolioDetail.startDate;
-		let latestEndDate = latestPortfolioDetail.endDate;
+	
+	//Wrapping around a promise (always resolves with valid value instead of crashing)
+	//If Julia throws an error while computing average price, RETURN portfolio w/o average price
+	return new Promise(resolve => {
+		//Get portfolio History 
+		exports.getPortfolioHistory(portfolioId, {}, date)
+		.then(portfolioHistory => {
+			let latestPortfolioDetail = portfolioHistory.history.slice(-1)[0];
+			let latestStartDate = latestPortfolioDetail.startDate;
+			let latestEndDate = latestPortfolioDetail.endDate;
 
-		return _updatePortfolioForAveragePrice(portfolioHistory.history)
-		.then(updatedLatestDetail => {
-			return {detail: Object.assign({startDate: latestStartDate, endDate: latestEndDate}, updatedLatestDetail)};
+			//Pass portfolio history to Julia to compute the average price
+			return _updatePortfolioForAveragePrice(portfolioHistory.history)
+			.then(updatedLatestDetail => {
+				return {detail: Object.assign({startDate: latestStartDate, endDate: latestEndDate}, updatedLatestDetail)};
+			})
 		})
-	})
-	.then(latestPortfolio => {
-		//Additionally, populate the advice stats/weights after populating prices (average/last prices)
-		return _populateStats(latestPortfolio, options && options.advice);
+		.then(latestPortfolio => {
+			//Additionally, populate the advice stats/weights after populating prices (average/last prices)
+			resolve(_populateStats(latestPortfolio, options && options.advice));
+		})
+		.catch(err => {
+			console.log("Error updating portfolio for average price");
+			console.log(err);
+			//In case of Julia error, backstop by just updating the last price
+			//FIX: 14/06/2018
+			return exports.getUpdatedPortfolioForPrice(portfolioId, options, date)
+			.then(portfolio => {
+				resolve(portfolio);
+			});
+		})
 	});
 }
 
@@ -917,7 +957,9 @@ module.exports.getAdvicePortfolio = function(adviceId, options, date) {
 	return AdviceModel.fetchAdvice({_id: adviceId}, {portfolio:1})
 	.then(advice => {  
 		if (advice) {
-			return options && options.populateAvg ? exports.getAdvicePortfolioWithAvgPrice(adviceId, date) : exports.getUpdatedPortfolioForPrice(advice.portfolio, {}, date)
+			return options && options.populateAvg ? 
+				exports.getAdvicePortfolioWithAvgPrice(adviceId, date) : 
+				exports.getUpdatedPortfolioForPrice(advice.portfolio, {}, date)
 		} else {
 			APIError.throwJsonError({message: "Advice not found"});
 		}

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-12 19:13:56
+* @Last Modified time: 2018-06-14 10:51:46
 */
 
 module.exports.compareDates = function(date1, date2) {
@@ -106,7 +106,7 @@ module.exports.getLatestWeekday = function(date) {
 	if (!(day == 0 || day == 6)){
 		return exports.getDate(date);
 	} else {
-		exports.getNextWeekday(date);
+		return exports.getNextWeekday(date);
 	}
 }
 
