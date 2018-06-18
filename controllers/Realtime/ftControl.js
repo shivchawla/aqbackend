@@ -172,6 +172,7 @@ function submitForwardTestForExecution(forwardtestId) {
         return ForwardTestModel.fetchForwardTest(
             {_id: forwardtestId, active: true, error: false, deleted: false}, 
             {})
+    })
     .then(ft => {
         if(!ft) {
             throw new Error("Invalid Forward Test");
