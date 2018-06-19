@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-27 23:33:29
+* @Last Modified time: 2018-06-19 12:10:37
 */
 
 'use strict';
@@ -176,7 +176,8 @@ module.exports.getStockDetailBenchmark = function(args, res, next) {
     "NIFTY_ENERGY",
     "NIFTY_INFRA",
     "NIFTY_MNC",
-    "NIFTY_SERV_SECTOR"].indexOf(ticker) !=-1) {
+    "NIFTY_SERV_SECTOR",
+    "NIFTY_CONSUMPTION"].indexOf(ticker) !=-1) {
     	return exports.getStockDetail(args, res, next);
     } else {
     	return res.status(400).send(`Invalid benchmark ticker: ${ticker}`);
