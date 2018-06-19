@@ -650,7 +650,7 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
             if (newQty > currentQty && currentQty > 0)
                 diffQty = newQty - currentQty
                 newPosition.averageprice = (currentPosition.averageprice*currentQty + diffQty*get(allprices, sym, 0.0))/newQty
-            elseif (newQty < currentQty && currentQty > 0)
+            elseif (newQty <= currentQty && currentQty > 0)
                 newPosition.averageprice = currentPosition.averageprice
             else   
                 newPosition.averageprice = get(allprices, sym, 0.0)
