@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-31 14:15:38
+* @Last Modified time: 2018-06-19 10:03:05
 */
 
 'use strict';
@@ -24,11 +24,14 @@ const APIError = require('../../utils/error');
 const WebSocket = require('ws');
 const DateHelper = require('../../utils/Date');
 const homeDir = require('os').homedir();
+const serverPort = require('../../index').serverPort;
 
-//Run when seconds = 10
-schedule.scheduleJob("5 * * * * *", function() {
-    processNewData();
-});
+if (config.get('jobsPort') === serverPort) {
+	//Run when seconds = 5
+	schedule.scheduleJob("5 * * * * *", function() {
+	    processNewData();
+	});
+}
 
 var isBusy = {};
 
@@ -136,8 +139,18 @@ function _writeFile(data, file) {
     	try {
     		var writeUnzipStream = fs.createWriteStream(file);
     		data.pipe(zlib.createUnzip()).pipe(writeUnzipStream);
+    		setTimeout(function(){resolve(true);}, 1000);
     		writeUnzipStream.on('finish', () => {
-			  	//console.error('All writes are now complete.');
+			  	console.log('All writes are now complete.');
+			  	resolve(true);
+			});
+
+			writeUnzipStream.on('error', (err) => {
+			  	console.log('Error while unzipping file');
+			  	resolve(true);
+			});
+
+			writeUnzipStream.on('close', () => {
 			  	resolve(true);
 			});
 		} catch(err) {
@@ -226,7 +239,6 @@ function _downloadNSEData(type) {
 			resolve(localUnzipFilePath);
 		})
 		.catch(err => {
-			console.log(err.message);
 			console.log("Error while downloading NSE file. Will continue with last available file");
 
 		    var lastFile = _getLastValidFile(type);
@@ -267,7 +279,7 @@ function processNewData() {
 		])
 	})
 	.then(([s1, s2]) => {
-		//console.log("Successfully updated the stock prices");*/
+		//console.log("Successfully updated the stock prices");
 		return Promise.all([
 			_updatePortfoliosOnNewData(),
 			_updateAdvicesOnNewData(),
@@ -724,6 +736,7 @@ function _updatePortfoliosOnNewData() {
 
 function _updateAdvicesOnNewData() {
 	var subscribedAdvices = Object.keys(subscribers["advice"]);
+
 	return Promise.mapSeries(subscribedAdvices, function(adviceId) {
 		//USE a different function to fetch portfolio with rt prices
 		return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio'})
