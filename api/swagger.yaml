@@ -1527,7 +1527,7 @@ paths:
       - name: approved
         in: query
         type: string
-        default: "0,1"
+        default: "0,1,-1"
         required: false
         description: approval status
       - name: skip

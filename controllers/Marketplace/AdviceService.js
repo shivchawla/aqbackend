@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-20 10:49:02
+* @Last Modified time: 2018-06-20 17:21:42
 */
 
 'use strict';
@@ -361,21 +361,30 @@ module.exports.getAdvices = function(args, res, next) {
         query.name = {$regex: nearMatch, $options: "i"};
     }
 
-    const approved = args.approved.value ? args.approved.value : "0,1";
+    const approved = args.approved.value ? args.approved.value : "0,1,-1";
 
     if(approved) {
         var approvedCategories = approved.split(",");    
         //query.approved = {$in: approvedCategories};
         var unappr = approvedCategories.indexOf("0") != -1 ? true : false;
         var	appr = approvedCategories.indexOf("1") != -1 ? true : false;
+        var	pending = approvedCategories.indexOf("-1") != -1 ? true : false;
 
-        if (!appr && unappr) {
-			query = {$and: [query, {'latestApproval.status': false}]};
+       	var approvalQuery = [];
+
+        if (unappr) {
+			approvalQuery.push({'latestApproval.status': false});
         }
 
-        if (appr && !unappr) {
-        	query = {$and: [query, {'latestApproval.status': true}]};
-        } 
+        if (appr) {
+        	approvalQuery.push({'latestApproval.status': true});
+        }
+
+        if (unappr || pending) {
+        	approvalQuery.push({'latestApproval.status': {$exists: false}});
+        }
+
+        query = {$and: [query, {$or: approvalQuery}]}; 
     }
 
     const rebalance = args.rebalance.value;
