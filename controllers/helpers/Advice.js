@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-11 18:03:46
+* @Last Modified time: 2018-06-20 19:32:40
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -17,6 +17,52 @@ const AdvisorHelper = require("../helpers/Advisor");
 const DateHelper = require("../../utils/Date");
 const APIError = require('../../utils/error');
 const WSHelper = require('./WSHelper');
+
+const diversified = {
+	MIN_POS_COUNT: 5,
+	MAX_STOCK_EXPOSURE: 0.2,
+	MAX_SECTOR_EXPOSURE: 0.35 
+}
+
+const sector = {
+	MIN_POS_COUNT: 5,
+	MAX_STOCK_EXPOSURE: 0.2,
+	MAX_SECTOR_EXPOSURE: 1.0
+};
+
+const diversifiedBenchmarks = ["NIFTY_50", 
+    "NIFTY_100",
+    "NIFTY_200",
+    "NIFTY_500",
+    "NIFTY_MIDCAP_50"];
+
+const sectorBenchmarks = [
+    "NIFTY_AUTO",
+    "NIFTY_BANK",
+    "NIFTY_FIN_SERVICE",
+    "NIFTY_FMCG",
+    "NIFTY_IT",
+    "NIFTY_MEDIA",
+    "NIFTY_METAL",
+    "NIFTY_PHARMA",
+    "NIFTY_PSU_BANK",
+    "NIFTY_REALTY",
+    "NIFTY_COMMODITIES",
+    "NIFTY_CPSE",
+    "NIFTY_ENERGY",
+    "NIFTY_INFRA",
+    "NIFTY_MNC",
+    "NIFTY_SERV_SECTOR",
+    "NIFTY_CONSUMPTION"];
+
+
+function _getAdviceOptions(benchmark) {
+	if (sectorBenchmarks.index(benchmark) != -1) {
+		return sector;
+	} else {
+		return diversified;
+	} 
+}
 
 function _filterActive(objs) {
 	return objs ? objs.filter(item => {return item.active == true}).length : 0;	
@@ -178,16 +224,84 @@ module.exports.getAdviceAnalytics = function(adviceId, recalculate) {
 	});
 };
 
-module.exports.validateAdvice = function(advice, oldAdvice, strictNetValue) {
+/*
+* Send request to Julia Server to validate advice 
+*/
+module.exports.validateAdvice = function(advice, oldAdvice) {
+
+	const validityRequirements = _getAdviceOptions(_.get(advice, 'portfolio.benchmark', 'NIFTY_50'));
 
 	return new Promise((resolve, reject) => {
 		var msg = JSON.stringify({action:"validate_advice", 
             						advice: advice,
-            						lastAdvice: oldAdvice ? oldAdvice : "",
-            						strictNetValue: strictNetValue ? strictNetValue : false});
+            						lastAdvice: oldAdvice ? oldAdvice : ""
+            						options: options ? options : {}});
 
 		WSHelper.handleMktRequest(msg, resolve, reject);
 
+    })
+    .then(preliminaryAdviceValidity => {
+    	let message;
+
+    	if (preliminaryAdviceValidity) {
+    		var portfolio = advice.portfolio;
+    		return PortfolioHelper.computeUpdatedPortfolioForPrice(portfolio);
+    		.then(updatedPortfolio => {
+    			var positions = _.get(updatedPortfolio, 'detail.positions', null);
+
+    			if (positions) {
+    				var minPosCount = _.get(validityRequirements, 'MIN_POS_COUNT', 5);
+    				if (positions.length < minPosCount) {
+    					return {valid: false, message:`Position count is less than ${minPosCount}`};
+    				}
+
+    				var maxPositionExposure = _.get(validityRequirements, 'MAX_STOCK_EXPOSURE', 0.2);
+    				
+    				positions.forEach(item => {
+    					if (item.weightInPortfolio > maxPositionExposure) {
+    						message = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${maxPositionExposure}`};
+    						break;
+    					}
+    				});
+
+    				if (message) {
+    					return message
+    				}
+
+    				var maxSectorExposure = _.get(validityRequirements, 'MAX_SECTOR_EXPOSURE', 0.35);
+    				var sectors = _.uniq(positions.map(item => _.get(item, 'security.detail.sector', "")));
+    				
+    				let sectorExposure = {};
+					positions.forEach(item => {
+						var sector = _.get(item, 'security.detail.sector';
+						if (sector in sectorExposure) {
+							sectorExposure[sector] += item.weightInPortfolio; 
+						} else {
+							sectorExposure[sector] = 0.0;
+						}
+					});
+
+    				sectors.forEach(sector => {
+    					if (sector in sectorExposure && sector !="") {
+    						if (sectorExposure[sector] > maxSectorExposure) {
+    							message = {valid: false, message:`Exposure in Sector: ${sector} is greater than ${maxSectorExposure}`};
+    							break;
+							}
+    					}
+    				});
+
+    				if (message) {
+    					return message
+    				}
+
+    				return {valid: true};
+    			} else {
+    				APIError.throwJsonError({message: "Invalid portfolio (Validate Advice)"})
+    			}
+    		});
+		} else {
+			return {valid: false};
+		}
     });
 };
 
