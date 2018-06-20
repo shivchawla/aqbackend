@@ -278,3 +278,40 @@ module.exports.sendInfoEmail = function(details) {
     return;
 };
 
+/*
+* Email to notify advice status
+*/
+module.exports.sendAdviceStatusEmail = function(adviceDetails, userDetails) {    
+    
+    var senderDetails = config.get(`sender_details.adviceqube`);
+    var userFullName = userDetails.firstName + ' ' + userDetails.lastName;
+    var adviceName = adviceDetails.name;
+    var adviceUrl = `${config.get('hostname')}/advice/${adviceDetails.adviceId}`;
+
+    let adviceStatusTemplateId;
+
+    if (adviceDetails.pending) {
+        adviceStatusTemplateId = config.get(`advice_request_approval_template_id`);
+    } else if (!adviceDetails.status) {
+        adviceStatusTemplateId = config.get(`advice_rejection_template_id`);
+    } else {
+        adviceStatusTemplateId = config.get(`advice_approval_template_id`);
+    }
+
+    const msg = {
+        to: [{
+            email: userDetails.email,
+            name: userFullName
+        }],
+        from: senderDetails,
+        templateId: adviceStatusTemplateId,
+        substitutions: {
+            userFullName: userFullName,
+            adviceName: adviceDetails.name,
+            adviceUrl: adviceUrl
+        },
+    };
+
+    return sgMail.send(msg);
+};
+

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-12 16:49:46
+* @Last Modified time: 2018-06-20 10:49:02
 */
 
 'use strict';
@@ -20,6 +20,7 @@ const SecurityHelper = require("../helpers/Security");
 const AdviceHelper = require("../helpers/Advice");
 const APIError = require('../../utils/error');
 const DateHelper = require('../../utils/Date');
+const sendEmail = require('../../email');
 
 //NOT IN USE
 //NEEDS MORE CONTEMPLATION
@@ -144,13 +145,14 @@ module.exports.createAdvice = function(args, res, next) {
     	if(advice) {
     		return Promise.all([
     			advice,
-    			AdviceHelper.updateAdviceAnalyticsAndPerformanceSummary(advice._id, advice.portfolio.startDate)
-   			]);
+    			AdviceHelper.updateAdviceAnalyticsAndPerformanceSummary(advice._id, advice.portfolio.startDate),
+    			advice.public ? sendEmail.sendAdviceStatusEmail({name: advice.name, pending: true, adviceId: advice._id}, args.user) : true
+			]);	
     	} else {
     		APIError.throwJsonError({message: "Error adding advice to advisor", errorCode: 1111});	
     	}
     })
-    .then(([advice, analyticsAndPerformance]) => {
+    .then(([advice, analyticsAndPerformance, emailSent]) => {
     	return res.status(200).send(Object.assign(analyticsAndPerformance, advice.toObject()));
     })
 	.catch(err => {
@@ -669,8 +671,10 @@ module.exports.publishAdvice = function(args, res, next) {
     const userId = args.user._id;
   	const adviceId = args.adviceId.value;
 
-  	Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
-  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: false}, {field:'advisor'})])
+  	Promise.all([
+		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
+		AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: false}, {field:'advisor name'})
+	])
   	.then(([advisor, advice]) => {
   		if(advisor && advice) {			
     		const advisorId = advisor._id;
@@ -678,8 +682,10 @@ module.exports.publishAdvice = function(args, res, next) {
     		if(!advice.advisor.equals(advisorId)) {
     			APIError.throwJsonError({message: "Advisor is not authorized to publish the advice", errorCode: 1102});
     		}
-    		return AdviceModel.updateAdvice({_id: adviceId}, {public: true, publishDate: new Date(), approvalRequested: true}, {new: true, fields:'_id public'});
-						
+    		return Promise.all([
+    			AdviceModel.updateAdvice({_id: adviceId}, {public: true, publishDate: new Date(), approvalRequested: true}, {new: true, fields:'_id public'}),
+				sendEmail.sendAdviceStatusEmail({name: advice.name, pending: true, adviceId: adviceId}, args.user)
+			]);		
 		} else {
 			if (!advice) {
 				APIError.throwJsonError({adviceId: adviceId, message: "Advice not found", errorCode: 1101});
@@ -688,8 +694,8 @@ module.exports.publishAdvice = function(args, res, next) {
 			}
 		}
 	})
-	.then(advice => {
-		if (advice) {
+	.then(([advice, emailSent]) => {
+		if (advice && emailSent) {
 			return res.status(200).json({adviceId: adviceId, message: "Advice successfully published"}); 
 		} else {
 			APIError.throwJsonError({adviceId: adviceId, message: "Error publishing advice", errorCode: 1103});
@@ -847,12 +853,25 @@ module.exports.approveAdviceNew = (args, res, next) => {
 	const adviceId = _.get(args, 'adviceId.value', 0);
 	const approval = _.get(args, 'body.value', {});
 
-	return UserModel.fetchUsers({email: {$in: config.get('admin_user')}}, {$fields: '_id'})
-	.then(users => {
+	return Promise.all([
+		UserModel.fetchUsers({email: {$in: config.get('admin_user')}}, {$fields: '_id'}),
+		AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'name'})
+	])
+	.then(([users, advice]) => {
+		if (!advice) {
+			APIError.throwJsonError({message:"Advice not found"});
+		}
+
 		if (users) {
 			const userIndex = _.findIndex(users, user => user._id.toString() === userId.toString());
 			if (userIndex !== -1) {
-				return AdviceModel.updateApprovalObj({_id: adviceId}, {user: userId, ...approval, status: getApprovalStatus(approval.detail)});
+				var approvalStatus = getApprovalStatus(approval.detail);
+				
+				//Send email to the user notifying the advice Status
+				return Promise.all([
+					AdviceModel.updateApprovalObj({_id: adviceId}, {user: userId, ...approval, status: approvalStatus}),
+					sendEmail.sendAdviceStatusEmail({name: advice.name, status: approvalStatus, adviceId: adviceId}, args.user)
+				]);
 			} else {
 				APIError.throwJsonError({message: "User not authorized to approve", errorCode: 1505});
 			}
@@ -860,8 +879,8 @@ module.exports.approveAdviceNew = (args, res, next) => {
 			APIError.throwJsonError({message: "No authorized user found to approve", errorCode: 1501});
 		}
 	})
-	.then(advice => {
-		return res.status(200).send({message: "Approval updated successfully"});
+	.then(([advice, emailSent]) => {
+		return res.status(200).send("Advice Approved/Rejected successfully");
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);
@@ -871,22 +890,35 @@ module.exports.approveAdviceNew = (args, res, next) => {
 module.exports.requestApproveAdvice = function(args, res, next) {
 	const userId = args.user._id;
 	const adviceId = args.adviceId.value;
+
 	return Promise.all([
 		AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id'}),
-		AdviceModel.fetchAdvice({_id: adviceId}, {fields:'advisor'})
+		AdviceModel.fetchAdvice({_id: adviceId}, {fields:'advisor name'})
 	])
 	.then(([advisor, advice]) => {
+
+		if (!advice) {
+			APIError.throwJsonError({message:"Advice not found"});
+		}
+
+		if (!advisor) {
+			APIError.throwJsonError({message:"Advisor not found"});
+		}
+
 		var isOwner = advisor && advice ? advisor._id.equals(advice.advisor) : false;
 		if(isOwner) {
-			// return AdviceModel.updateAdvice({_id:adviceId}, {approvalStatus: "pending"}, {new: true, fields:'approvalStatus'});
-			return AdviceModel.updateAdvice({_id:adviceId}, {approvalRequested: true}, {new: true, fields:'approvalRequested'});
+			//Send email to the user notifying the advice Status
+			return Promise.all([
+				AdviceModel.updateAdvice({_id:adviceId}, {approvalRequested: true}, {new: true, fields:'approvalRequested'}),
+				sendEmail.sendAdviceStatusEmail({name: advice.name, pending:true, adviceId: adviceId}, args.user)
+			]);
 		} else {
 			APIError.throwJsonError({message: "Advisor not authorized", errorCode:1116});
 		}
 	})
-	.then(advice => {
+	.then(([advice, emailSent]) => {
 		if (advice) {
-			return res.status(200).send(advice);
+			return res.status(200).send("Approval request submitted");
 		} else {
 			APIError.throwJsonError({message: "Internal error updating approval status", errorCode: 1117});
 		}
