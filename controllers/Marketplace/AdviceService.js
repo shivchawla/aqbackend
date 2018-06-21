@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-21 19:41:54
+* @Last Modified time: 2018-06-21 19:48:41
 */
 
 'use strict';
@@ -146,7 +146,7 @@ module.exports.createAdvice = function(args, res, next) {
     		return Promise.all([
     			advice,
     			AdviceHelper.updateAdviceAnalyticsAndPerformanceSummary(advice._id, advice.portfolio.startDate),
-    			!advice.public ? sendEmail.sendAdviceStatusEmail({name: advice.name, pending: true, adviceId: advice._id}, args.user) : true
+    			advice.public ? sendEmail.sendAdviceStatusEmail({name: advice.name, pending: true, adviceId: advice._id}, args.user) : true
 			]);	
     	} else {
     		APIError.throwJsonError({message: "Error adding advice to advisor", errorCode: 1111});	
