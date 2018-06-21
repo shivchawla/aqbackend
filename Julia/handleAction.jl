@@ -17,9 +17,8 @@ function handleRequest(parsemsg::Dict{String, Any})
           
           currentAdvice = parsemsg["advice"]
           lastAdvice = parsemsg["lastAdvice"] == "" ? Dict{String,Any}() : parsemsg["lastAdvice"]
-          strictNetValue = parsemsg["strictNetValue"]
           
-          valid = _validate_advice(currentAdvice, lastAdvice, strictNetValue) 
+          valid = _validate_advice(currentAdvice, lastAdvice) 
           parsemsg["output"] = valid
 
         elseif action == "validate_portfolio"

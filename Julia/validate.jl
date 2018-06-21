@@ -2,7 +2,7 @@
 # Internal Function
 # Validate advice (portfolio and notional limits)
 ###
-function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, Any}, strictNetValue)
+function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, Any})
     
     jsFormat = "yyyy-mm-ddTHH:MM:SS.sssZ"
     # Validate 3 components of portfolio

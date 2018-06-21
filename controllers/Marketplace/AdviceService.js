@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-20 19:24:43
+* @Last Modified time: 2018-06-21 19:41:54
 */
 
 'use strict';
@@ -21,7 +21,6 @@ const AdviceHelper = require("../helpers/Advice");
 const APIError = require('../../utils/error');
 const DateHelper = require('../../utils/Date');
 const sendEmail = require('../../email');
-const adviceOptions = require('./AdviceOptions');
 
 //NOT IN USE
 //NEEDS MORE CONTEMPLATION
@@ -117,7 +116,7 @@ module.exports.createAdvice = function(args, res, next) {
 		if(validity.valid) {
 			return PortfolioModel.savePortfolio(advice.portfolio, true);
 		} else {
-			APIError.throwJsonError({message: "Invalid advice", reason: validity.message, errorCode: 1108});
+			APIError.throwJsonError({message: "Invalid advice", detail: validity.detail, errorCode: 1108});
 		}
 	})
 	.then(port => {
@@ -147,7 +146,7 @@ module.exports.createAdvice = function(args, res, next) {
     		return Promise.all([
     			advice,
     			AdviceHelper.updateAdviceAnalyticsAndPerformanceSummary(advice._id, advice.portfolio.startDate),
-    			advice.public ? sendEmail.sendAdviceStatusEmail({name: advice.name, pending: true, adviceId: advice._id}, args.user) : true
+    			!advice.public ? sendEmail.sendAdviceStatusEmail({name: advice.name, pending: true, adviceId: advice._id}, args.user) : true
 			]);	
     	} else {
     		APIError.throwJsonError({message: "Error adding advice to advisor", errorCode: 1111});	
@@ -258,7 +257,7 @@ module.exports.updateAdvice = function(args, res, next) {
 			return Promise.all([PortfolioModel.updatePortfolio({_id: advicePortfolioId}, newAdvice.portfolio, {new:true, fields: 'detail', appendHistory: isPublic}), 
 				AdviceModel.updateAdvice({_id: adviceId}, {$set: adviceUpdates}, {new:true, fields: adviceFields})]);
 		} else {
-			APIError.throwJsonError({message: "Invalid message", reason: validAdvice.message, errorCode: 1108});
+			APIError.throwJsonError({message: "Invalid Advice", detail: validAdvice.detail, errorCode: 1108});
 		}
 	})
 	.then(([updatedPortfolio, updatedAdvice]) => {

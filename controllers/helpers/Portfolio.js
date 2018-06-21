@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-14 11:49:14
+* @Last Modified time: 2018-06-21 19:31:19
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -17,6 +17,7 @@ const Promise = require('bluebird');
 const DateHelper= require('../../utils/Date');
 var ObjectId = require('mongoose').Types.ObjectId;
 const WSHelper = require('./WSHelper');
+const _ = require('lodash');
 
 function _findDateIndex(dateArray, date) {
 	return dateArray.map(item => new Date(item).getTime()).indexOf(new Date(date).getTime());
@@ -155,7 +156,7 @@ function _populateStats(portfolio, isAdvice) {
 function _populateAdvice(portfolio) {
 	return new Promise(resolve => {
 		if (portfolio) {
-			var subPositions = portfolio.detail.subPositions;
+			var subPositions = _.get(portfolio, 'detail.subPositions', []);
 			
 			return Promise.map(subPositions, function(subPosition) {
 				if (subPosition.advice) {
@@ -429,7 +430,7 @@ function _computeUpdatedPortfolioForPrice(portfolio, type, date) {
 			
 			//Each subposition is sent separately as JULIA portfolio can't handle 
 			//redundant securities
-			Promise.map(portfolio.detail.subPositions, function(position) {
+			Promise.map(_.get(portfolio,'detail.subPositions', []), function(position) {
 				return _updatePositionsForPrice([position], type, date)
 				.then(updatedPositions => {
 					if (updatedPositions){
@@ -845,7 +846,6 @@ module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
 
 	return exports.getPortfolioForDate(portfolioId, {fields: 'detail'})
 	.then(portfolio => {
-
 
 		var startDate = portfolio.detail.startDate;
 
