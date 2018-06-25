@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-19 10:03:05
+* @Last Modified time: 2018-06-25 11:22:05
 */
 
 'use strict';
@@ -28,7 +28,7 @@ const serverPort = require('../../index').serverPort;
 
 if (config.get('jobsPort') === serverPort) {
 	//Run when seconds = 5
-	schedule.scheduleJob("5 * * * * *", function() {
+	schedule.scheduleJob(`${config.get('nse_delayinseconds')} * * * * *`, function() {
 	    processNewData();
 	});
 }
@@ -39,15 +39,8 @@ let activeDate;
 
 // Subscription of test result
 var subscribers = {portfolio: {}, 
-	advice: {"5aace6b6bc2317399f30cc90": 
-		{"5803ad79d370120f19b4df85":{detail:false, response:null}}}, 
-	stock: {
-		"TCS": {"5803ad79d370120f19b4df85": {response: null}}, 
-		"WIPRO": {"5803ad79d370120f19b4df85": {response: null}}, 
-		"NIFTY_50": {"5803ad79d370120f19b4df85": {response: null}}, 
-		"NIFTY_IT": {"5803ad79d370120f19b4df85": {response: null}}, 
-		"NIFTY_INFRA": {"5803ad79d370120f19b4df85": {response: null}}, 
-	}, 
+	advice: {}, 
+	stock: {}, 
 	watchlist: {}
 };
 
@@ -95,7 +88,7 @@ function connectSFTP() {
 
 function _getLastValidFile(type) {
 	var currentDate = new Date();
-	var fileNumber = 391;
+	var fileNumber = config.get('nse_maxfilecount');
 	
 	const monthNames = ["January", "February", "March", "April", "May", "June",
 	  "July", "August", "September", "October", "November", "December"
@@ -105,7 +98,7 @@ function _getLastValidFile(type) {
 
 	var found = false;
 	var nAttempts = 0;
-	var maxAttempts = 391*5;
+	var maxAttempts = config.get('nse_maxfilecount')*5;
 	while(!found && nAttempts++ < maxAttempts) {
 		
 		var month = currentDate.getMonth();
@@ -122,7 +115,7 @@ function _getLastValidFile(type) {
 		if (!fs.existsSync(localUnzipFilePath)) {
 			fileNumber--;
 			if (fileNumber == 0) {
-				fileNumber = 391;
+				fileNumber = config.get('nse_maxfilecount');
 				currentDate.setDate(currentDate.getDate() - 1);
 			}
 		} else {
@@ -183,8 +176,8 @@ function _downloadNSEData(type) {
 					dateNine15.setUTCSeconds(0);
 					var minutesPassed = Math.floor(Math.abs(currentDate - dateNine15)/1000/60);
 					fileNumber = minutesPassed + 1;
-					//Total number of files = 391 (393 - 3:32PM some times)
-
+					//Total number of files ~ 391 (393 - 3:32PM some times)
+					//Using parameter config.get('nse_maxfilecount') to denote that
 					
 				} else if(type == "ind") {
 					var dateEight50 = new Date();
@@ -195,8 +188,8 @@ function _downloadNSEData(type) {
 					fileNumber = minutesPassed + 1;
 							}
 
-				if (fileNumber > 391) {
-					fileNumber = 391;
+				if (fileNumber > config.get('nse_maxfilecount')) {
+					fileNumber = config.get('nse_maxfilecount');
 				}
 
 				activeDate = DateHelper.getDate(currentDate);
@@ -229,16 +222,19 @@ function _downloadNSEData(type) {
 		  	}
 	  	})
 	  	.then(nseFile => {
+	  		//console.log(nseFile);
 		   	//Check if unzip file is already downloaded
 		   	return sftp.get(nseFile, false, null)
 	   	})
 		.then(data => {
+			//console.log(data);
 			return !fs.existsSync(localUnzipFilePath) ? _writeFile(data, localUnzipFilePath) : true
 		}) 
 		.then(successMkt => {
 			resolve(localUnzipFilePath);
 		})
 		.catch(err => {
+			console.log(err);
 			console.log("Error while downloading NSE file. Will continue with last available file");
 
 		    var lastFile = _getLastValidFile(type);
@@ -257,7 +253,7 @@ function _downloadNSEData(type) {
 function _downloadAndUpdateData(type) {
 	return _downloadNSEData(type)
 	.then(localFilePath  => {
-		//console.log("Sending request to Julia - update realtime prices")
+		console.log("Sending request to Julia - update realtime prices")
 		if (localFilePath && localFilePath !="") {
 			return SecurityHelper.updateRealtimePrices(localFilePath, type)
 		} else {
@@ -272,7 +268,7 @@ function processNewData() {
 	
 	return connectSFTP()
 	.then(() => {
-		//console.log("Connected to SFTP Successfully");
+		console.log("Connected to SFTP Successfully");
 		return Promise.all ([
 			_downloadAndUpdateData("mkt"),
 			_downloadAndUpdateData("ind")
