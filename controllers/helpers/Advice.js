@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-11 18:03:46
+* @Last Modified time: 2018-06-21 19:43:23
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -17,6 +17,56 @@ const AdvisorHelper = require("../helpers/Advisor");
 const DateHelper = require("../../utils/Date");
 const APIError = require('../../utils/error');
 const WSHelper = require('./WSHelper');
+const _ = require('lodash');
+
+const diversified = {
+	MIN_POS_COUNT: 5,
+	MAX_STOCK_EXPOSURE: 0.2,
+	MAX_SECTOR_EXPOSURE: 0.35,
+	MAX_NET_VALUE: 100000
+}
+
+const sector = {
+	MIN_POS_COUNT: 5,
+	MAX_STOCK_EXPOSURE: 0.2,
+	MAX_SECTOR_EXPOSURE: 1.0,
+	MAX_NET_VALUE: 100000
+};
+
+const diversifiedBenchmarks = ["NIFTY_50", 
+    "NIFTY_100",
+    "NIFTY_200",
+    "NIFTY_500",
+    "NIFTY_MIDCAP_50"];
+
+const sectorBenchmarks = [
+    "NIFTY_AUTO",
+    "NIFTY_BANK",
+    "NIFTY_FIN_SERVICE",
+    "NIFTY_FMCG",
+    "NIFTY_IT",
+    "NIFTY_MEDIA",
+    "NIFTY_METAL",
+    "NIFTY_PHARMA",
+    "NIFTY_PSU_BANK",
+    "NIFTY_REALTY",
+    "NIFTY_COMMODITIES",
+    "NIFTY_CPSE",
+    "NIFTY_ENERGY",
+    "NIFTY_INFRA",
+    "NIFTY_MNC",
+    "NIFTY_SERV_SECTOR",
+    "NIFTY_CONSUMPTION"];
+
+
+function _getAdviceOptions(benchmark) {
+	
+	if (sectorBenchmarks.indexOf(benchmark ? benchmark : "NIFTY_50") != -1) {
+		return sector;
+	} else {
+		return diversified;
+	} 
+}
 
 function _filterActive(objs) {
 	return objs ? objs.filter(item => {return item.active == true}).length : 0;	
@@ -104,6 +154,7 @@ module.exports.isUserAuthorizedToViewAdviceDetail = function(adviceId, userId) {
 	});
 }
 
+
 module.exports.isUserAuthorizedToViewAdviceSummary = function(adviceId, userId) {
 	return Promise.all([
 		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert: true}),
@@ -178,16 +229,97 @@ module.exports.getAdviceAnalytics = function(adviceId, recalculate) {
 	});
 };
 
-module.exports.validateAdvice = function(advice, oldAdvice, strictNetValue) {
+/*
+* Send request to Julia Server to validate advice 
+*/
+module.exports.validateAdvice = function(advice, oldAdvice) {
+
+	const validityRequirements = _getAdviceOptions(_.get(advice, 'portfolio.benchmark.ticker', 'NIFTY_50'));
 
 	return new Promise((resolve, reject) => {
 		var msg = JSON.stringify({action:"validate_advice", 
             						advice: advice,
-            						lastAdvice: oldAdvice ? oldAdvice : "",
-            						strictNetValue: strictNetValue ? strictNetValue : false});
+            						lastAdvice: oldAdvice ? oldAdvice : ""})
 
 		WSHelper.handleMktRequest(msg, resolve, reject);
 
+    })
+    .then(preliminaryAdviceValidity => {
+    	let valid = preliminaryAdviceValidity;
+    	let validity = {};
+
+    	if (preliminaryAdviceValidity) {
+    		var portfolio = advice.portfolio;
+    		return PortfolioHelper.computeUpdatedPortfolioForPrice(portfolio)
+    		.then(updatedPortfolio => {
+    			
+
+    			var netValue = _.get(updatedPortfolio, 'pnlStats.netValue', 0.0);
+
+    			if (netValue > validityRequirements.MAX_NET_VALUE*1.05) {
+    				validity['MAX_NET_VALUE'] = {valid: false, message:`Portfolio Value of ${netValue} is greater than ${validityRequirements.MAX_NET_VALUE}`};
+    				valid = false;
+    			}
+
+    			var positions = _.get(updatedPortfolio, 'detail.positions', null);
+
+    			if (positions) {
+    				var minPosCount = _.get(validityRequirements, 'MIN_POS_COUNT', 5);
+    				if (positions.length < minPosCount) {
+    					validity['MIN_POS_COUNT'] = {valid: false, message:`Position count is less than ${minPosCount}`};
+    				}
+
+    				var maxPositionExposure = _.get(validityRequirements, 'MAX_STOCK_EXPOSURE', 0.2);
+
+    				try {
+	    				positions.forEach(item => {
+	    					if (item.weightInPortfolio > maxPositionExposure) {
+	    						validity['MAX_STOCK_EXPOSURE'] = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${maxPositionExposure}`};
+	    						valid = false;
+	    						throw new Error("Invalid");
+	    					}
+	    				});
+    				} catch(err) {
+    				}
+
+    				var maxSectorExposure = _.get(validityRequirements, 'MAX_SECTOR_EXPOSURE', 0.35);
+    				var sectors = _.uniq(positions.map(item => _.get(item, 'security.detail.Sector', "")));
+    				
+
+    				let sectorExposure = {};
+					positions.forEach(item => {
+						var sector = _.get(item, 'security.detail.Sector', "");
+						if (sector in sectorExposure) {
+							sectorExposure[sector] += item.weightInPortfolio; 
+						} else {
+							sectorExposure[sector] = item.weightInPortfolio;
+						}
+					});
+
+
+					try {
+	    				sectors.forEach(sector => {
+	    					if (sector in sectorExposure && sector != "") {
+	    						if (sectorExposure[sector] > maxSectorExposure) {
+	    							validity['MAX_SECTOR_EXPOSURE'] = {valid: false, message:`Exposure in Sector: ${sector} is greater than ${maxSectorExposure}`};
+									valid = false;
+									throw new Error("Invalid");
+								}
+	    					}
+	    				});
+    				} catch(err) {
+    					
+    				}
+
+
+    				return {valid: valid, detail: validity}
+    			} else {
+    				APIError.throwJsonError({message: "Invalid portfolio (Validate Advice)"})
+    			}
+    		});
+		} else {
+			return {valid: false, detail: {'PRELIMINARY_CHECK': {valid: false}}};
+		}
     });
 };
 

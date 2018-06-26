@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-20 17:21:42
+* @Last Modified time: 2018-06-21 19:48:41
 */
 
 'use strict';
@@ -79,7 +79,7 @@ function _findFirstValidPortfolio(adviceId, date, attempts) {
 module.exports.createAdvice = function(args, res, next) {
 	const userId = args.user._id;
 	const advice = args.body.value;
-	var advisorId='';
+	var advisorId = '';
 	let effectiveStartDate;
 
 	//Any one can create an advice
@@ -107,16 +107,16 @@ module.exports.createAdvice = function(args, res, next) {
 		}
 
 		if(advices.length < config.get('max_advices_per_advisor')) {
-			return AdviceHelper.validateAdvice(advice, "", true);
+			return AdviceHelper.validateAdvice(advice, "");
 		} else {
 			APIError.throwJsonError({advisorId: advisorId, message:"Advice limit exceed. Can't add more advices.", errorCode: 1109});
 		}
 	})
-	.then(valid => {
-		if(valid) {
+	.then(validity => {
+		if(validity.valid) {
 			return PortfolioModel.savePortfolio(advice.portfolio, true);
 		} else {
-			APIError.throwJsonError({message: "Invalid portfolio composition", errorCode: 1405});
+			APIError.throwJsonError({message: "Invalid advice", detail: validity.detail, errorCode: 1108});
 		}
 	})
 	.then(port => {
@@ -253,11 +253,11 @@ module.exports.updateAdvice = function(args, res, next) {
 
 		delete adviceUpdates.portfolio;
 
-		if (validAdvice) {
+		if (validAdvice.valid) {
 			return Promise.all([PortfolioModel.updatePortfolio({_id: advicePortfolioId}, newAdvice.portfolio, {new:true, fields: 'detail', appendHistory: isPublic}), 
 				AdviceModel.updateAdvice({_id: adviceId}, {$set: adviceUpdates}, {new:true, fields: adviceFields})]);
 		} else {
-			APIError.throwJsonError({message:"Advice validation failed", errorCode: 1108});
+			APIError.throwJsonError({message: "Invalid Advice", detail: validAdvice.detail, errorCode: 1108});
 		}
 	})
 	.then(([updatedPortfolio, updatedAdvice]) => {
