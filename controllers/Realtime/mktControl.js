@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-25 11:22:05
+* @Last Modified time: 2018-06-27 19:03:18
 */
 
 'use strict';
@@ -27,7 +27,7 @@ const homeDir = require('os').homedir();
 const serverPort = require('../../index').serverPort;
 
 if (config.get('jobsPort') === serverPort) {
-	//Run when seconds = 5
+	//Run when seconds = 10
 	schedule.scheduleJob(`${config.get('nse_delayinseconds')} * * * * *`, function() {
 	    processNewData();
 	});
@@ -709,6 +709,18 @@ function __getLatestPortfolioData(portfolioId, options) {
 				return item; 
 			});
 		}
+
+
+		//Also, add lastPriceEOD in RT portfolio update
+		rtEnhanced.detail.positions.map(pos => {
+			var eodPosIdx = edEnhanced.detail.positions.findIndex(item => item.security.ticker === pos.security.ticker);		
+			
+			if(eodPosIdx != -1) {
+				pos.lastPriceEOD = edEnhanced.detail.positions[eodPosIdx].lastPrice;
+			}
+
+		 	return pos;
+		});
 
 		return rtEnhanced;
 	})
