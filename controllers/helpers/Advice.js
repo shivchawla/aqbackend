@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-21 19:43:23
+* @Last Modified time: 2018-06-26 18:24:28
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -248,77 +248,81 @@ module.exports.validateAdvice = function(advice, oldAdvice) {
     	let valid = preliminaryAdviceValidity;
     	let validity = {};
 
-    	if (preliminaryAdviceValidity) {
-    		var portfolio = advice.portfolio;
-    		return PortfolioHelper.computeUpdatedPortfolioForPrice(portfolio)
-    		.then(updatedPortfolio => {
-    			
+    	if (config.get('validate_advice_full')) {
+	    	if (preliminaryAdviceValidity) {
+	    		var portfolio = advice.portfolio;
+	    		return PortfolioHelper.computeUpdatedPortfolioForPrice(portfolio)
+	    		.then(updatedPortfolio => {
+	    			
 
-    			var netValue = _.get(updatedPortfolio, 'pnlStats.netValue', 0.0);
+	    			var netValue = _.get(updatedPortfolio, 'pnlStats.netValue', 0.0);
 
-    			if (netValue > validityRequirements.MAX_NET_VALUE*1.05) {
-    				validity['MAX_NET_VALUE'] = {valid: false, message:`Portfolio Value of ${netValue} is greater than ${validityRequirements.MAX_NET_VALUE}`};
-    				valid = false;
-    			}
+	    			if (netValue > validityRequirements.MAX_NET_VALUE*1.05) {
+	    				validity['MAX_NET_VALUE'] = {valid: false, message:`Portfolio Value of ${netValue} is greater than ${validityRequirements.MAX_NET_VALUE}`};
+	    				valid = false;
+	    			}
 
-    			var positions = _.get(updatedPortfolio, 'detail.positions', null);
+	    			var positions = _.get(updatedPortfolio, 'detail.positions', null);
 
-    			if (positions) {
-    				var minPosCount = _.get(validityRequirements, 'MIN_POS_COUNT', 5);
-    				if (positions.length < minPosCount) {
-    					validity['MIN_POS_COUNT'] = {valid: false, message:`Position count is less than ${minPosCount}`};
-    				}
+	    			if (positions) {
+	    				var minPosCount = _.get(validityRequirements, 'MIN_POS_COUNT', 5);
+	    				if (positions.length < minPosCount) {
+	    					validity['MIN_POS_COUNT'] = {valid: false, message:`Position count is less than ${minPosCount}`};
+	    				}
 
-    				var maxPositionExposure = _.get(validityRequirements, 'MAX_STOCK_EXPOSURE', 0.2);
+	    				var maxPositionExposure = _.get(validityRequirements, 'MAX_STOCK_EXPOSURE', 0.2);
 
-    				try {
-	    				positions.forEach(item => {
-	    					if (item.weightInPortfolio > maxPositionExposure) {
-	    						validity['MAX_STOCK_EXPOSURE'] = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${maxPositionExposure}`};
-	    						valid = false;
-	    						throw new Error("Invalid");
-	    					}
-	    				});
-    				} catch(err) {
-    				}
+	    				try {
+		    				positions.forEach(item => {
+		    					if (item.weightInPortfolio > maxPositionExposure) {
+		    						validity['MAX_STOCK_EXPOSURE'] = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${maxPositionExposure}`};
+		    						valid = false;
+		    						throw new Error("Invalid");
+		    					}
+		    				});
+	    				} catch(err) {
+	    				}
 
-    				var maxSectorExposure = _.get(validityRequirements, 'MAX_SECTOR_EXPOSURE', 0.35);
-    				var sectors = _.uniq(positions.map(item => _.get(item, 'security.detail.Sector', "")));
-    				
+	    				var maxSectorExposure = _.get(validityRequirements, 'MAX_SECTOR_EXPOSURE', 0.35);
+	    				var sectors = _.uniq(positions.map(item => _.get(item, 'security.detail.Sector', "")));
+	    				
 
-    				let sectorExposure = {};
-					positions.forEach(item => {
-						var sector = _.get(item, 'security.detail.Sector', "");
-						if (sector in sectorExposure) {
-							sectorExposure[sector] += item.weightInPortfolio; 
-						} else {
-							sectorExposure[sector] = item.weightInPortfolio;
-						}
-					});
-
-
-					try {
-	    				sectors.forEach(sector => {
-	    					if (sector in sectorExposure && sector != "") {
-	    						if (sectorExposure[sector] > maxSectorExposure) {
-	    							validity['MAX_SECTOR_EXPOSURE'] = {valid: false, message:`Exposure in Sector: ${sector} is greater than ${maxSectorExposure}`};
-									valid = false;
-									throw new Error("Invalid");
-								}
-	    					}
-	    				});
-    				} catch(err) {
-    					
-    				}
+	    				let sectorExposure = {};
+						positions.forEach(item => {
+							var sector = _.get(item, 'security.detail.Sector', "");
+							if (sector in sectorExposure) {
+								sectorExposure[sector] += item.weightInPortfolio; 
+							} else {
+								sectorExposure[sector] = item.weightInPortfolio;
+							}
+						});
 
 
-    				return {valid: valid, detail: validity}
-    			} else {
-    				APIError.throwJsonError({message: "Invalid portfolio (Validate Advice)"})
-    			}
-    		});
+						try {
+		    				sectors.forEach(sector => {
+		    					if (sector in sectorExposure && sector != "") {
+		    						if (sectorExposure[sector] > maxSectorExposure) {
+		    							validity['MAX_SECTOR_EXPOSURE'] = {valid: false, message:`Exposure in Sector: ${sector} is greater than ${maxSectorExposure}`};
+										valid = false;
+										throw new Error("Invalid");
+									}
+		    					}
+		    				});
+	    				} catch(err) {
+	    					
+	    				}
+
+
+	    				return {valid: valid, detail: validity}
+	    			} else {
+	    				APIError.throwJsonError({message: "Invalid portfolio (Validate Advice)"})
+	    			}
+	    		});
+			} else {
+				return {valid: false, detail: {'PRELIMINARY_CHECK': {valid: false}}};
+			}
 		} else {
-			return {valid: false, detail: {'PRELIMINARY_CHECK': {valid: false}}};
+			return {valid: preliminaryAdviceValidity, detail: {'PRELIMINARY_CHECK': {valid: preliminaryAdviceValidity}}};
 		}
     });
 };

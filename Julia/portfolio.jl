@@ -662,7 +662,7 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
         currentPortfolio = newPortfolio
     end
 
-    return _updateportfolio_RTprice(newPortfolio)
+    return newPortfolio
     
 end
 

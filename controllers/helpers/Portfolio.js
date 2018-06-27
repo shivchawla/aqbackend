@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-21 19:31:19
+* @Last Modified time: 2018-06-27 09:56:39
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -424,6 +424,7 @@ function _updatePositionsForPrice(positions, type, date) {
 }
 
 function _computeUpdatedPortfolioForPrice(portfolio, type, date) {
+	
 	return new Promise(resolve => {
 		Promise.all([
 			_updatePositionsForPrice(portfolio.detail.positions, type, date),
@@ -918,9 +919,13 @@ module.exports.getUpdatedPortfolioWithAveragePrice = function(portfolioId, optio
 				return {detail: Object.assign({startDate: latestStartDate, endDate: latestEndDate}, updatedLatestDetail)};
 			})
 		})
-		.then(latestPortfolio => {
-			//Additionally, populate the advice stats/weights after populating prices (average/last prices)
-			resolve(_populateStats(latestPortfolio, options && options.advice));
+		.then(latestAveragePricePortfolio => {
+			
+			//Now update the portfolio for latest price (RT or EOD)
+			return exports.computeUpdatedPortfolioForPrice(latestAveragePricePortfolio, options, date)
+			.then(finalLatestDetail => {
+				resolve(finalLatestDetail);
+			});
 		})
 		.catch(err => {
 			console.log("Error updating portfolio for average price");
@@ -946,8 +951,7 @@ module.exports.getAdvicePortfolioWithAvgPrice = function(adviceId, date) {
 		} else {
 			APIError.throwJsonError({message: "Advice not found"});
 		}
-	})
-	
+	})	
 };
 
 /*
