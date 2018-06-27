@@ -10,18 +10,15 @@ function _updateportfolio_EODprice(port::Portfolio, date::DateTime)
     #Check if portoflio has any non-zero number of stock positions
 
     if length(alltickers) > 0
-        start_date = DateTime(Date(date) - Dates.Week(52))
-        end_date = date
-
         #fetch stock data and drop where all values are NaN
-        stock_value_52w = dropnan(YRead.history_unadj(alltickers, "Close", :Day, start_date, end_date, displaylogs=false), :all)
-        benchmark_value_52w =  history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date) 
+        stock_value_52w = YRead.history_unadj(alltickers, "Close", :Day, 1, date, displaylogs=false, forwardfill=true)
 
         #Check if stock values are valid 
-        if stock_value_52w != nothing && benchmark_value_52w != nothing
+        if stock_value_52w != nothing 
             #merge LEFT (that is if data is present in stock_values_52w)
-            merged_prices = filternan(to(merge(stock_value_52w, benchmark_value_52w, :left), benchmark_value_52w.timestamp[end]))
-            
+            #merged_prices = filternan(to(merge(stock_value_52w, benchmark_value_52w, :left), benchmark_value_52w.timestamp[end]))
+            merged_prices = stock_value_52w
+
             latest_values = merged_prices[end]
             latest_dt = DateTime(latest_values.timestamp[end])
 

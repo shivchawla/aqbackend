@@ -624,7 +624,18 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
 
         #Get the Adjusted prices for tickers in the portfolio 
         #FIX: Expanding time period from today to start date (**else adjustment is not included)       
-        prices = TimeSeries.head(YRead.history(secids, "Close", :Day, newStartDate, now(), displaylogs=false), 1)
+        
+        prices = nothing  
+        try
+            prices = TimeSeries.head(YRead.history(secids, "Close", :Day, newStartDate, now(), displaylogs=false), 1)
+        catch err
+            warn("Price data for range not available while calculating average price!!")    
+        end
+
+        if prices == nothing
+            println("Using last available price since $(newStartDate)")
+            prices = YRead.history(secids, "Close", :Day, 1, newStartDate, displaylogs=false, forwardfill=true)
+        end
 
         ####IMPROVEMENT: Use the latest prices when startDate is same as today's data
         useRtPrices = false #Flag to indicate whether to use EOD prices or RT prices
@@ -662,7 +673,7 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
         currentPortfolio = newPortfolio
     end
 
-    return newPortfolio
+    return now(), newPortfolio
     
 end
 
