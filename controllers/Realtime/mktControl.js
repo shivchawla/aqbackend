@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-27 19:03:18
+* @Last Modified time: 2018-07-02 13:56:53
 */
 
 'use strict';
@@ -132,7 +132,10 @@ function _writeFile(data, file) {
     	try {
     		var writeUnzipStream = fs.createWriteStream(file);
     		data.pipe(zlib.createUnzip()).pipe(writeUnzipStream);
-    		setTimeout(function(){resolve(true);}, 1000);
+    		
+    		//'finish' event is sometimes not called
+    		//Thus resolve after 10 seconds (this is bad code)
+    		setTimeout(function(){resolve(true);}, 10000);
     		writeUnzipStream.on('finish', () => {
 			  	console.log('All writes are now complete.');
 			  	resolve(true);
