@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-03 12:11:56
+* @Last Modified time: 2018-07-03 19:10:12
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -129,6 +129,10 @@ function _filterPortfolioForAdvice(portfolio, adviceId) {
 	return {positions: advicePositions};
 }
 
+
+/*
+* Populate pnl stats, netvalue, unrealized Pnl for the portfolio (and individual positions)
+*/
 function _populateStats(portfolio, isAdvice) {
 	return new Promise(resolve => {
 		var port = Object.assign({}, portfolio);
@@ -144,6 +148,9 @@ function _populateStats(portfolio, isAdvice) {
 		positions.map(item => {
 			var weight = totalVal > 0.0 ? (item.quantity*item.lastPrice)/totalVal : 0.0;
 			item.weightInPortfolio = weight;
+			//Added unrealized PnL (and %).
+			item.unrealizedPnl = item.avgPrice > 0 ? (item.lastPrice - item.avgPrice) : 0.0;
+			item.unrealizedPnlPct = item.avgPrice > 0 ? (item.lastPrice - item.avgPrice)/item.avgPrice : 0.0;
 			return item;
 		});
 
