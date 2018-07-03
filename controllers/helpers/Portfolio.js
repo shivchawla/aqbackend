@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-27 09:56:39
+* @Last Modified time: 2018-07-03 12:11:56
 */
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -729,7 +729,7 @@ module.exports.getUpdatedPortfolioForPrice = function(portfolioId, options, date
 		})
 		.catch(error => {
 			console.log("Error while upadting portfolio for last price");
-			console.log(err);
+			console.log(error);
 
 			resolve(portfolio);
 		});

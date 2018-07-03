@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-26 18:24:28
+* @Last Modified time: 2018-07-03 12:13:19
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -256,8 +256,9 @@ module.exports.validateAdvice = function(advice, oldAdvice) {
 	    			
 
 	    			var netValue = _.get(updatedPortfolio, 'pnlStats.netValue', 0.0);
+	    			var maxNav = 1.05*_.get(validityRequirements, 'MAX_NET_VALUE', 0.0);
 
-	    			if (netValue > validityRequirements.MAX_NET_VALUE*1.05) {
+	    			if (netValue > maxNav) {
 	    				validity['MAX_NET_VALUE'] = {valid: false, message:`Portfolio Value of ${netValue} is greater than ${validityRequirements.MAX_NET_VALUE}`};
 	    				valid = false;
 	    			}
@@ -275,7 +276,7 @@ module.exports.validateAdvice = function(advice, oldAdvice) {
 	    				try {
 		    				positions.forEach(item => {
 		    					if (item.weightInPortfolio > maxPositionExposure) {
-		    						validity['MAX_STOCK_EXPOSURE'] = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${maxPositionExposure}`};
+		    						validity['MAX_STOCK_EXPOSURE'] = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${maxPositionExposure*100}%`};
 		    						valid = false;
 		    						throw new Error("Invalid");
 		    					}
@@ -302,7 +303,7 @@ module.exports.validateAdvice = function(advice, oldAdvice) {
 		    				sectors.forEach(sector => {
 		    					if (sector in sectorExposure && sector != "") {
 		    						if (sectorExposure[sector] > maxSectorExposure) {
-		    							validity['MAX_SECTOR_EXPOSURE'] = {valid: false, message:`Exposure in Sector: ${sector} is greater than ${maxSectorExposure}`};
+		    							validity['MAX_SECTOR_EXPOSURE'] = {valid: false, message:`Exposure in Sector: ${sector} is greater than ${maxSectorExposure*100}%`};
 										valid = false;
 										throw new Error("Invalid");
 									}
