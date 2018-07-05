@@ -72,3 +72,6 @@ module.exports.requestApproveAdvice = function(req, res, next) {
     Advice.requestApproveAdvice(req.swagger.params, res, next);
 };
 
+module.exports.getContests = function(req, res, next) {
+    Advice.getContests(req.swagger.params, res, next);
+}

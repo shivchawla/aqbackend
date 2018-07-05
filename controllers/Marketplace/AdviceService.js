@@ -8,6 +8,7 @@
 'use strict';
 const _ = require('lodash');
 const UserModel = require('../../models/user');
+const ContestModel = require('../../models/Marketplace/Contest');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
 const AdviceModel = require('../../models/Marketplace/Advice');
