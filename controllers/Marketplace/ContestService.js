@@ -9,6 +9,9 @@ const APIError = require('../../utils/error');
 
 const dateFormat = 'YYYY-MM-DD';
 
+//Use only res.status() once for each 200/400
+//Dnt use moment here..use DateHelper
+//Use APIError to throw errors
 module.exports.createContest = function(args, res, next) {
     const userId = args.user._id;
     const userEmail = _.get(args.user, 'email', null);
@@ -38,6 +41,8 @@ module.exports.createContest = function(args, res, next) {
     }
 }
 
+
+//ADD projections here, we don't need to fetch al info about the contest
 module.exports.getContests = function(args, res, next) {
     const options = {};
     options.skip = _.get(args, 'skip.value', 0);
@@ -51,6 +56,7 @@ module.exports.getContests = function(args, res, next) {
     });
 }
 
+//Can we pre-defined a set of fields when none is provided (use projections)
 module.exports.getContestSummary = function(args, res, next) {
     const contestId = _.get(args, 'contestId.value', 0);
     const options = {};
@@ -64,9 +70,12 @@ module.exports.getContestSummary = function(args, res, next) {
     });
 }
 
+//Call it updateAdviceInContest
 module.exports.modifyAdviceInContest = function(args, res, next) {
     console.log('Called modify Advice in Contest');
     const admins = config.get('admin_user');
+    //Shouldn' it be _.get(args, 'user.email', null);
+    //What if it's null
     const userEmail = _.get(args.user, 'email', null);
     const userId = args.user._id;
     const adviceId = _.get(args, 'adviceId.value', 0);
@@ -92,13 +101,15 @@ module.exports.modifyAdviceInContest = function(args, res, next) {
             case "enter":
                 if (isOwner) {
                     return ContestModel.insertAdviceToContest({_id: contestId}, adviceId)
-                    .then(contest => {
+                    .then(contest => { 
+
+                        //Are we still using reference t Advice Model?
                         return AdviceModel.updateAdvice({_id: adviceId}, {$addToSet: {contests: {
                             contestId: contest._id,
                             ranking: [{rank: 0, date: new Date()}]
                         }}})
                     })
-                    .catch(err => {
+                    .catch(err => { // is this required?? Won't it automatically go to final catch
                         return Promise.reject({message: err.message});
                     })
                 } else {
@@ -129,6 +140,7 @@ module.exports.modifyAdviceInContest = function(args, res, next) {
     })
 }
 
+//THIS API is not required!!!
 module.exports.updateRanking = function(args, res, next) {
     const contestId = _.get(args, 'contestId.value', null);
     const date = _.get(args, 'date.value', moment());

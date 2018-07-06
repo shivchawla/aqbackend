@@ -111,6 +111,7 @@ Contest.statics.fetchContest = function(query, options = {}) {
     return q.execAsync();
 }
 
+//Is this use anyehere???
 Contest.statics.modifyAdviceInContest = function(query, adviceId, type) {
     switch(type) {
         case "enter":
@@ -177,6 +178,8 @@ Contest.statics.prohibitAdviceFromContest = function(query, adviceId) {
     return this.findOne(query)
     .then(contest => {
         if (contest) {
+            
+            //DON"T we need to convert adviceId to STRING            
             const adviceIdx = _.findIndex(contest.advices, advice => (advice.advice).toString() === adviceId);
             if (adviceIdx > -1) {
                 // contest.advices.addToSet({advice: adviceId, withDrawn: false, active: true, prohibit: false});
