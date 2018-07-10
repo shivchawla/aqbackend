@@ -70,12 +70,15 @@ module.exports.getContestSummary = function(args, res, next) {
     });
 }
 
-//Call it updateAdviceInContest
+// //Call it updateAdviceInContest
+// module.exports.modifyAdviceInContest = function(args, res, next) {
+//     console.log('Called modify Advice in Contest');
+//     const admins = config.get('admin_user');
+//     //Shouldn' it be _.get(args, 'user.email', null);
+//     //What if it's null
 module.exports.modifyAdviceInContest = function(args, res, next) {
     console.log('Called modify Advice in Contest');
     const admins = config.get('admin_user');
-    //Shouldn' it be _.get(args, 'user.email', null);
-    //What if it's null
     const userEmail = _.get(args.user, 'email', null);
     const userId = args.user._id;
     const adviceId = _.get(args, 'adviceId.value', 0);
@@ -100,10 +103,9 @@ module.exports.modifyAdviceInContest = function(args, res, next) {
         switch(operationType) {
             case "enter":
                 if (isOwner) {
+                    //Are we still using reference t Advice Model?
                     return ContestModel.insertAdviceToContest({_id: contestId}, adviceId)
-                    .then(contest => { 
-
-                        //Are we still using reference t Advice Model?
+                    .then(contest => {
                         return AdviceModel.updateAdvice({_id: adviceId}, {$addToSet: {contests: {
                             contestId: contest._id,
                             ranking: [{rank: 0, date: new Date()}]
@@ -150,4 +152,31 @@ module.exports.updateRanking = function(args, res, next) {
     .catch(err => {
         return res.status(400).send(err.message);
     })
+}
+
+module.exports.updateContest = function(args, res, next) {
+    console.log('Update Contest Called');
+    const contestId = _.get(args, 'contestId.value', null);
+    const admins = config.get('admin_user');
+    const userEmail = _.get(args, 'user.email', null);
+    const newContest = _.get(args, 'body.value', null);
+    const isAdmin = admins.indexOf(userEmail) !== -1;
+    if (isAdmin) {
+        ContestModel.fetchContest({_id: contestId})
+        .then(contest => {
+            if (contest) {
+                return ContestModel.updateContest({_id: contestId}, {$set: newContest});
+            } else {
+                APIError.throwJsonError({message: 'Contest Not Found'});
+            }
+        })
+        .then(contest => {
+            return res.status(200).send(contest);
+        })
+        .catch(err => {
+            return res.status(400).json(err.message);
+        })
+    } else {
+        return res.status(400).send('Not authorized to update this advice');
+    }
 }

@@ -2846,13 +2846,45 @@ paths:
         400:
           description: 'Invalid Input'
       x-swagger-router-controller: "Contest"
+
+    patch:
+      tags:
+      - contest
+      summary: update a contest
+      description: Update a contest, provide only the details to be updated
+      consumes:
+      - application/json
+      operationId: updateContest
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: contestId
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/ContestPatch'
+      responses: 
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "Contest"
   
   /contest/{contestId}/rank:
     post:
       tags:
       - contest
-      summary: operations on contest ranking
-      description: updating ranking history
+      summary: operations on advice rankings inside a contest
+      description: Update the ranking history and latestRank of each advices inside a contest.
       operationId: updateRanking
       security:
       - api_key: []
@@ -2887,8 +2919,8 @@ paths:
     post:
       tags:
       - contest
-      summary: operations on advice
-      description: insert, withdraw or prohibit an advice in a contest
+      summary: insert, prohibit or withdraw an advice
+      description: Insert, Prohibit or Withdraw an advice from the Contest
       operationId: modifyAdviceInContest
       security:
       - api_key: []
@@ -2910,6 +2942,20 @@ paths:
         in: query
         type: string
         default: 'enter'
+      responses:
+        200:
+          description: OK
+        400:
+          description: Invalid Input
+      x-swagger-router-controller: "Contest"
+  
+  /contest/updateRanks:
+    get:
+      tags:
+      - contest
+      summary: update the ranks of all advices of all contests
+      description: Update the ranking of all the advices inside a contest
+      operationId: updateAllContestRanks
       responses:
         200:
           description: OK
@@ -3533,6 +3579,24 @@ definitions:
       - endDate
       - active
       - rules
+    properties:
+      name:
+        type: string
+      startDate:
+        type: string
+        format: date
+      endDate:
+        type: string
+        format: date
+      active:
+        type: boolean
+        default: true
+      rules:
+        type: object
+        $ref: '#/definitions/Rule'
+  
+  ContestPatch:
+    type: object
     properties:
       name:
         type: string
