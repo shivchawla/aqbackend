@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-02 13:56:53
+* @Last Modified time: 2018-07-10 13:33:28
 */
 
 'use strict';
@@ -155,7 +155,6 @@ function _writeFile(data, file) {
 	});
 }
 
-
 function _downloadNSEData(type) {
 
 	return new Promise((resolve, reject) => {
@@ -271,7 +270,7 @@ function processNewData() {
 	
 	return connectSFTP()
 	.then(() => {
-		console.log("Connected to SFTP Successfully");
+		//console.log("Connected to SFTP Successfully");
 		return Promise.all ([
 			_downloadAndUpdateData("mkt"),
 			_downloadAndUpdateData("ind")
@@ -279,14 +278,10 @@ function processNewData() {
 	})
 	.then(([s1, s2]) => {
 		//console.log("Successfully updated the stock prices");
-		return Promise.all([
-			_updatePortfoliosOnNewData(),
-			_updateAdvicesOnNewData(),
-			_updateStockOnNewData()
-		]);
+		return _sendAllUpdates();
 	})
 	.catch(err => {
-		console.log("Error Processing Realtime Data")
+		console.log("Error downloading Realtime Data")
 		console.log(err);
 	});
 }
@@ -300,6 +295,7 @@ module.exports.handleMktPlaceSubscription = function(req, res) {
     //5. Relays portfolio data if still subscibed
 
     var type = req.type;
+
 
     if (type == "stock") {
     	return _handleStockSubscription(req, res);
@@ -458,6 +454,10 @@ function _handleWatchlistUnsubscription(req, res) {
 	});
 }
 
+/*
+* Handle Subscription for advice (automatically handles detail or summary based on subscription status)
+* New subscription sends the data immediately and thereafter every 1 minute
+*/
 function _handleAdviceSubscription(req, res) {
 	const adviceId = req.adviceId;
 	const userId = req.userId;
@@ -482,13 +482,19 @@ function _handleAdviceSubscription(req, res) {
 			APIError.jsonError({message: "Not Authorized to view advice"});
 		}
 
-		return true;
+		//this will send to all subscribers
+		//should be improved to send only to the latest subscriber
+		return _sendUpdatedAdviceOnNewData(adviceId);
 	})
 	.catch(err => {
 		res.send(err.message)
 	});
 }
 
+/*
+* Handle Subscription for portfolio (automatically handles detail or summary based on subscription status)
+* New subscription sends the data immediately and thereafter every 1 minute
+*/
 function _handlePortfolioSubscription(req, res) {
 	const portfolioId = req.portfolioId;
 	const userId = req.userId;
@@ -508,13 +514,19 @@ function _handlePortfolioSubscription(req, res) {
 			APIError.throwJsonError({message: "Not Authorized to view portfolio"});
 		}
 
-		return true;
+		//this will send to all subscribers
+		//should be improved to send only to the latest subscriber
+		return _sendUpdatedPortfolioOnNewData(portfolioId);
 	})
 	.catch(err => {
 		res.send(err.message)
 	});
 }
 
+/*
+* Handle Subscription for Watchlist 
+* New subscription sends the data immediately and thereafter every 1 minute
+*/
 function _handleWatchlistSubscription(req, res) {
 	const watchlistId = req.watchlistId;
 	const userId = req.userId;
@@ -522,7 +534,7 @@ function _handleWatchlistSubscription(req, res) {
 	return WatchlistModel.fetchWatchlist({user: userId, _id: watchlistId})
 	.then(watchlist => {
 		if(watchlist && watchlist.securities) {
-			watchlist.securities.forEach(security => {
+			return Promise.mapSeries(watchlist.securities, function(security){
 				var ticker = security.ticker;
 				if (!subscribers["stock"][ticker]) {
 					subscribers["stock"][ticker] = {};
@@ -537,13 +549,24 @@ function _handleWatchlistSubscription(req, res) {
 					subscribers["stock"][ticker][userId] = {response: res, watchlistId: watchlistId};
 				}
 
-			});
+				//Send immediate response back to subscriber
+				resolve(_sendUpdatedSingleStockOnNewData(ticker, [subscribers["stock"][ticker][userId]]));	
+			})
+			.then(([]) => {
+				return true;
+			})
+		} else {
+			console.log("Invalid watchlist or no securities in watchlist");
+			return true;
 		}
-
-		return true;	
-	});
+	})
+		
 }
 
+/*
+* Handle Subscription for Stock data
+* New subscription sends the data immediately and thereafter every 1 minute
+*/
 function _handleStockSubscription(req, res) {
 	return new Promise(resolve => {
 		const ticker = req.ticker;
@@ -562,10 +585,15 @@ function _handleStockSubscription(req, res) {
 			stockSubscribers[userId] = {response: res, stock: true};
 		}
 
-		resolve(true);
+		//Send immediate response back to subscriber
+		resolve(_sendStockUpdates(ticker, [stockSubscribers[userId]]));
 	});
 }
 
+
+/*
+* Sends the data using WS connection
+*/
 function _sendWSResponse(res, data, category, typeId) {
 	try {
 		if (res) {
@@ -586,11 +614,14 @@ function _sendWSResponse(res, data, category, typeId) {
 			}
 		}
 	} catch (err) {
-		//console.log(err.message);
+		console.log(err.message);
 		return err.message;
 	}
 }
 
+/*
+* Sends the data based on type (filters the data (for summary) if required)
+*/
 function _onDataUpdate(typeId, data, category) {
 	var subscribedUsers = subscribers[category][typeId];
 	return Promise.map(Object.keys(subscribedUsers), function(userId) {
@@ -606,57 +637,15 @@ function _onDataUpdate(typeId, data, category) {
 	});
 }
 
+/*
+* Filters the data (in case of summary of Advice)
+*/
 function _filterData(data, type) {
 	if (type == "portfolio") {
 		return {summary: data.summary, adviceSummary: data.adviceSummary};
 	} else if (type == "advice") {
 		return {summary: data.summary};
 	}
-}
-
-function _addSummaryPortfolioOLD(portfolio, lastPortfolio) {
-	return new Promise(resolve => {
-		if(portfolio && portfolio.detail) {
-			var positions = portfolio.detail.positions ? portfolio.detail.positions : [];
-
-			var nav = 0.0;
-			var pnl = 0.0;
-
-			positions.forEach(item => {
-				nav += Number((item.quantity*item.lastPrice).toFixed(2));
-				pnl += Number((item.quantity*(item.lastPrice - item.avgPrice)).toFixed(2));
-			});
-
-			nav += portfolio.detail.cash ? portfolio.detail.cash : 0.0;
-
-			var subPositions = portfolio.detail.subPositions ? portfolio.detail.subPositions : [];
-			
-			var adviceSummary = null;
-
-			if (subPositions.length > 0) {
-				var uniqueAdvices = Array.from(new Set(portfolio.detail.subPositions.map(item => {return item.advice ? item.advice.toString() : ""})));	
-
-				adviceSummary = [];
-
-				uniqueAdvices.forEach(adviceId => {
-					var subPositionsPerAdvice = subPositions.filter(item => {return (item.advice && item.advice.toString() == adviceId) || (!item.advice && adviceId == "");});
-					var navAdvice = 0.0;
-					var pnlAdvice = 0.0;
-
-					subPositionsPerAdvice.forEach(item => {
-						navAdvice += item.quantity * item.lastPrice;
-						pnlAdvice += item.quantity * (item.lastPrice - item.avgPrice);
-					});
-
-					adviceSummary.push({adviceId: adviceId, nav: navAdvice, pnl: pnlAdvice, weightInPortfolio: nav > 0.0 ? navAdvice/nav : 0.0});
-				});
-			}	
-
-			resolve({detail: portfolio.detail, summary: {nav: nav, pnl: pnl}, adviceSummary: adviceSummary}); 
-		} else {
-			resolve({detail: null, summary: null, adviceSummary: null});
-		}
-	});
 }
 
 //This contains latest detail (as per time) and PnL Stats
@@ -729,7 +718,31 @@ function __getLatestPortfolioData(portfolioId, options) {
 	})
 }
 
-function _updatePortfoliosOnNewData() {
+/*
+* Sends all updates (STOCK/PORTFOLIO/ADVICE) to all subscribers
+*/
+function _sendAllUpdates() {
+	return Promise.all([
+		_sendUpdatedPortfoliosOnNewData(),
+		_sendUpdatedAdvicesOnNewData(),
+		_sendUpdatedStocksOnNewData()
+	]);
+}
+
+/*
+* Sends only SINGLE PORTFOLIO updates to all subscribers
+*/
+function _sendUpdatedPortfolioOnNewData(portfolioId) {
+	return __getLatestPortfolioData(portfolioId)
+	.then(enhancedPortfolio => {
+		return enhancedPortfolio ? _onDataUpdate(portfolioId, enhancedPortfolio, "portfolio") : null;
+	})	
+}
+
+/*
+* Sends ALL PORTFOLIO updates to all subscribers
+*/
+function _sendUpdatedPortfoliosOnNewData() {
 	var subscribedPortfolios = Object.keys(subscribers["portfolio"]);
 	return Promise.mapSeries(subscribedPortfolios, function(portfolioId) {
 		//USE a different function to fetch portfolio with rt prices
@@ -738,61 +751,73 @@ function _updatePortfoliosOnNewData() {
 		//2. Daily PnL (and Daily Change %)
 		//3. Unrealized PnL
 
-		return __getLatestPortfolioData(portfolioId)
-		.then(enhancedPortfolio => {
-			return enhancedPortfolio ? _onDataUpdate(portfolioId, enhancedPortfolio, "portfolio") : null;
-		})
+		return _sendUpdatedPortfolioOnNewData(portfolioId);
+		
 	});
 }
 
-function _updateAdvicesOnNewData() {
+/*
+* Sends only SINGLE ADVICE updates to all subscribers
+*/
+function _sendUpdatedAdviceOnNewData(adviceId) {
+
+	//USE a different function to fetch portfolio with rt prices
+	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio'})
+	.then(advice => {
+		if (advice && advice.portfolio) {
+			return __getLatestPortfolioData(advice.portfolio, {advice:true});
+		} else {
+			return null;
+		}
+	})
+	.then(enhancedPortfolio => {
+		return enhancedPortfolio ? _onDataUpdate(adviceId, enhancedPortfolio, "advice") : null;
+	});
+}
+
+/*
+* Sends ALL ADVICE updates to all subscribers
+*/
+function _sendUpdatedAdvicesOnNewData() {
 	var subscribedAdvices = Object.keys(subscribers["advice"]);
 
 	return Promise.mapSeries(subscribedAdvices, function(adviceId) {
 		//USE a different function to fetch portfolio with rt prices
-		return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio'})
-		.then(advice => {
-			if (advice && advice.portfolio) {
-				return __getLatestPortfolioData(advice.portfolio, {advice:true});
-			} else {
-				return null;
-			}
-		})
-		.then(enhancedPortfolio => {
-			return enhancedPortfolio ? _onDataUpdate(adviceId, enhancedPortfolio, "advice") : null;
-		})
+		return _sendUpdatedAdviceOnNewData(adviceId);
 	}); 
 }
 
-function _getStockLatestData(ticker) {
-	return SecurityHelper.getStockLatestDetail({ticker: ticker}, "RT")
-	.then(latestData => {
-		return latestData.latestDetail;
-	})
-}
+/*
+* Sends only SINGLE STOCK updates to defined list of subscribers
+*/
+function _sendUpdatedSingleStockOnNewData(ticker, subscriberList) {
+	return _getStockLatestData(ticker)
+	.then(stockData => {
+		return Promise.mapSeries(Object.keys(subscriberList), function(subscriber) {
+			var subscription = subscriberList[subscriber];
+			if (subscription && subscription.response) {
+				var res = subscription.response;
+				if (subscription.stock) {
+					return _sendWSResponse(res, stockData, "stock", ticker);
+				}
 
-function _updateStockOnNewData() {
+				if (subscription.watchlistId) {
+					return _sendWSResponse(res, Object.assign({ticker: ticker}, stockData), "watchlist", subscription.watchlistId);
+				}
+			}
+		});
+	});
+};
+
+/*
+* Sends only ALL STOCK updates to all subscribers
+*/
+function _sendUpdatedStocksOnNewData() {
 	var subscribedStocks = subscribers["stock"];
 	return new Promise(resolve => {
 		return Promise.mapSeries(Object.keys(subscribedStocks), function(ticker) {
 			var stockSubscribers = subscribedStocks[ticker];
-			//IMPLEMENT THIS FUNCTION
-			return _getStockLatestData(ticker)
-			.then(stockData => {
-				return Promise.mapSeries(Object.keys(stockSubscribers), function(subscriber) {
-					var subscription = stockSubscribers[subscriber];
-					if (subscription && subscription.response) {
-						var res = subscription.response;
-						if (subscription.stock) {
-							return _sendWSResponse(res, stockData, "stock", ticker);
-						}
-
-						if (subscription.watchlistId) {
-							return _sendWSResponse(res, Object.assign({ticker: ticker}, stockData), "watchlist", subscription.watchlistId);
-						}
-					}
-				})
-			})
+			return _sendUpdatedSingleStockOnNewData(ticker, stockSubscribers)
 		})
 		.then(x => {
 			resolve(true);
@@ -803,4 +828,11 @@ function _updateStockOnNewData() {
 			resolve(true);
 		})
 	});
+}
+
+function _getStockLatestData(ticker) {
+	return SecurityHelper.getStockLatestDetail({ticker: ticker}, "RT")
+	.then(latestData => {
+		return latestData.latestDetail;
+	})
 }
