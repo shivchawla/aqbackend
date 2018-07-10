@@ -44,3 +44,5 @@ module.exports.contestRatingFields = [
 	{field:"calmar", multiplier:1}, 
 	{field:"alpha", multiplier:1}
 ];
+
+module.exports.contestRankingScale = 5.0;

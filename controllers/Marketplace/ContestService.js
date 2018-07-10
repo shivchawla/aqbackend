@@ -45,8 +45,8 @@ module.exports.getContests = function(args, res, next) {
     const options = {};
     options.skip = _.get(args, 'skip.value', 0);
     options.limit = _.get(args, 'limit.value', 10);
-    options.fields = 'name startDate endDate advices winners rules';
-    ContestModel.fetchContests({}, options)
+    options.fields = 'name startDate endDate winners rules';
+    ContestModel.fetchContests({active: true}, options)
     .then(({contests, count}) => {
         return res.status(200).send({contests, count});
     })
@@ -59,7 +59,7 @@ module.exports.getContests = function(args, res, next) {
 module.exports.getContestSummary = function(args, res, next) {
     const contestId = _.get(args, 'contestId.value', 0);
     const options = {};
-    options.fields = 'name startDate endDate advices winners rules';
+    options.fields = 'name startDate endDate winners rules';
     ContestModel.fetchContest({_id: contestId}, options)
     .then(contest => {
         res.status(200).send(contest);
@@ -77,7 +77,7 @@ module.exports.getContestSummary = function(args, res, next) {
 //     //What if it's null
 module.exports.updateAdviceInContest = function(args, res, next) {
     const admins = config.get('admin_user');
-    const userEmail = _.get(args.user, 'email', null);
+    const userEmail = _.get(args, 'user.email', null);
     const userId = _.get(args, 'user._id', null);
     const adviceId = _.get(args, 'adviceId.value', 0);
     const contestId = _.get(args, 'contestId.value', 0);
@@ -108,9 +108,6 @@ module.exports.updateAdviceInContest = function(args, res, next) {
                             contestId: contest._id,
                             ranking: [{rank: 0, date: new Date()}]
                         }}})
-                    })
-                    .catch(err => { // is this required?? Won't it automatically go to final catch
-                        return APIError.throwJsonError({message: err.message});
                     })
                 } else {
                     return APIError.throwJsonError({message: "Not authorized to enter the contest"});

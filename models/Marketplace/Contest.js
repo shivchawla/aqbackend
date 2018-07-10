@@ -143,9 +143,6 @@ Contest.statics.insertAdviceToContest = function(query, adviceId) {
             return contest.saveAsync();
         }
     })
-    .catch(err => {
-        return err;
-    });
 }
 
 Contest.statics.withdrawAdviceFromContest = function(query, adviceId) {
@@ -167,9 +164,6 @@ Contest.statics.withdrawAdviceFromContest = function(query, adviceId) {
             return contest.saveAsync();
         }
     })
-    .catch(err => {
-        return err;
-    });
 }
 
 Contest.statics.prohibitAdviceFromContest = function(query, adviceId) {
@@ -193,9 +187,6 @@ Contest.statics.prohibitAdviceFromContest = function(query, adviceId) {
             return contest.saveAsync();
         }
     })
-    .catch(err => {
-        return err;
-    });
 }
 
 Contest.statics.updateRating = function(query, currentAdviceRankingData, simulatedAdviceRankingData, selectedDate, rankingDetail) {
@@ -277,7 +268,6 @@ Contest.statics.updateRating = function(query, currentAdviceRankingData, simulat
             return contest.saveAsync();
         }
     })
-    .catch(err => err);
 }
 
 Contest.statics.updateWinners = function(query, adviceRankingData, date) {
@@ -307,7 +297,6 @@ Contest.statics.updateWinners = function(query, adviceRankingData, date) {
             return null;
         }
     })
-    .catch(err => err);
 }
 
 const getAdviceRatingDetail = (rankingDetail, adviceId, type) => {

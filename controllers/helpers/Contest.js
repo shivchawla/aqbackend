@@ -2,12 +2,12 @@
 
 const _ = require('lodash');
 const Promise = require('bluebird');
-const config = require('config');
 const DateHelper = require('../../utils/Date');
 const ContestModel = require('../../models/Marketplace/Contest');
 const PerformanceHelper = require('./Performance');
 const AnalyticsHelper = require('./Analytics');
 const ratingFields = require('../../constants').contestRatingFields;
+const contestRankingScale = require('../../constants').contestRankingScale;
 
 const calculateAdviceRanking = (ranking, allAdviceAnalytics = null, ratingType='current', field='maxLoss') =>  {
     const items = Object.keys(ranking).map(rank => {
@@ -54,7 +54,11 @@ module.exports.updateAnalytics = function(contestId) {
                     allPerformances.forEach(item => {
                         var key = item.advice; 
                         // valueRatingField[key] = item[`ratingType`] && item[ratingType].diff && item[ratingType].diff[ratingField.field] ?  ratingField.multiplier * item[ratingType].diff[ratingField.field] : NaN ;
-                        valueRatingField[key] = item.performance && item.performance.diff && item.performance.diff[ratingField.field] ?  ratingField.multiplier * item.performance.diff[ratingField.field] : NaN ;
+                        // valueRatingField[key] = item.performance 
+                        //         && item.performance.diff 
+                        //         && item.performance.diff[ratingField.field] ?  ratingField.multiplier * item.performance.diff[ratingField.field] : NaN ;
+                        const itemPerformance = _.get(item,`performance.diff[${ratingField.field}]`, null);
+                        valueRatingField[key] = itemPerformance !== null ? ratingField.multiplier * itemPerformance : NaN;
                     });
 
                     return AnalyticsHelper._computeFractionalRanking(valueRatingField)
@@ -78,7 +82,7 @@ module.exports.updateAnalytics = function(contestId) {
                         totalRankings[adviceId] = sum;
                     });
 
-                    return AnalyticsHelper._computeFractionalRanking(totalRankings, config.get('rankingScale'));
+                    return AnalyticsHelper._computeFractionalRanking(totalRankings, contestRankingScale);
                 })
             })
         })
