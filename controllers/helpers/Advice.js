@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-03 12:13:19
+* @Last Modified time: 2018-07-06 19:56:16
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -17,6 +17,7 @@ const AdvisorHelper = require("../helpers/Advisor");
 const DateHelper = require("../../utils/Date");
 const APIError = require('../../utils/error');
 const WSHelper = require('./WSHelper');
+const sendEmail = require('../../email');
 const _ = require('lodash');
 
 const diversified = {
@@ -33,35 +34,12 @@ const sector = {
 	MAX_NET_VALUE: 100000
 };
 
-const diversifiedBenchmarks = ["NIFTY_50", 
-    "NIFTY_100",
-    "NIFTY_200",
-    "NIFTY_500",
-    "NIFTY_MIDCAP_50"];
-
-const sectorBenchmarks = [
-    "NIFTY_AUTO",
-    "NIFTY_BANK",
-    "NIFTY_FIN_SERVICE",
-    "NIFTY_FMCG",
-    "NIFTY_IT",
-    "NIFTY_MEDIA",
-    "NIFTY_METAL",
-    "NIFTY_PHARMA",
-    "NIFTY_PSU_BANK",
-    "NIFTY_REALTY",
-    "NIFTY_COMMODITIES",
-    "NIFTY_CPSE",
-    "NIFTY_ENERGY",
-    "NIFTY_INFRA",
-    "NIFTY_MNC",
-    "NIFTY_SERV_SECTOR",
-    "NIFTY_CONSUMPTION"];
 
 
-function _getAdviceOptions(benchmark) {
+
+function _getAdviceOptions(investorType) {
 	
-	if (sectorBenchmarks.indexOf(benchmark ? benchmark : "NIFTY_50") != -1) {
+	if (investorType == 'Sector Investors') {
 		return sector;
 	} else {
 		return diversified;
@@ -72,6 +50,46 @@ function _filterActive(objs) {
 	return objs ? objs.filter(item => {return item.active == true}).length : 0;	
 } 
 
+
+module.exports.saveAdvice = function(advice, advisorId, effectiveStartDate, userDetails) {
+	return PortfolioHelper.savePortfolio(advice.portfolio, true)
+	.then(port => {
+		if(port) {
+			const adv = {
+				name: advice.name,
+				rebalance: advice.rebalance,
+				maxNotional: advice.maxNotional,
+				advisor: advisorId,
+		       	portfolio: port._id,
+		       	createdDate: new Date(),
+		       	//here advice start date should be last valid trading date
+		       	startDate: effectiveStartDate, 
+		       	updatedDate: new Date(),
+				public: advice.public,
+				investmentObjective: advice.investmentObjective,
+				approvalRequested: advice.public
+			};
+
+		    return AdviceModel.saveAdvice(adv);
+	    } else {
+	    	APIError.throwJsonError({userId: userId, message:"Invalid Portfolio! Can't create advice with invalid portfolio", errorCode: 1110});
+	    }
+	})
+    .then(advice => {
+    	if(advice) {
+    		return Promise.all([
+    			advice,
+    			exports.updateAdviceAnalyticsAndPerformanceSummary(advice._id, advice.portfolio.startDate),
+    			advice.public ? sendEmail.sendAdviceStatusEmail({name: advice.name, pending: true, adviceId: advice._id}, userDetails) : true
+			]);	
+    	} else {
+    		APIError.throwJsonError({message: "Error adding advice to advisor", errorCode: 1111});	
+    	}
+    })
+    .then(([advice, analyticsAndPerformance, emailSent]) => {
+    	return Object.assign(analyticsAndPerformance, advice.toObject());
+    })
+};
 
 module.exports.getAdviceAccessStatus = function(adviceId, userId) {
 	return Promise.all([
@@ -234,7 +252,7 @@ module.exports.getAdviceAnalytics = function(adviceId, recalculate) {
 */
 module.exports.validateAdvice = function(advice, oldAdvice) {
 
-	const validityRequirements = _getAdviceOptions(_.get(advice, 'portfolio.benchmark.ticker', 'NIFTY_50'));
+	const validityRequirements = _getAdviceOptions(_.get(advice, 'investmentObjective.goal.investorType', ''));
 
 	return new Promise((resolve, reject) => {
 		var msg = JSON.stringify({action:"validate_advice", 

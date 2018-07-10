@@ -1419,7 +1419,7 @@ paths:
         in: body
         required: true
         schema:
-          $ref: '#/definitions/Advice'
+          $ref: '#/definitions/CreateAdvice'
       responses:
         200:
           description: OK
@@ -3151,6 +3151,21 @@ definitions:
       public:
         type: boolean
         default: false
+
+
+#Create Advice
+  CreateAdvice:
+    type: object
+    required:
+      - advice
+      - action
+    properties:
+      advice:
+        $ref: '#/definitions/Advice'
+      action:
+        type: string
+        default: "validate"
+        enum: ["create", "validate"] 
 
 #Investor
   Investor:

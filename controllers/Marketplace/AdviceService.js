@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-21 19:48:41
+* @Last Modified time: 2018-07-10 10:02:12
 */
 
 'use strict';
@@ -78,7 +78,9 @@ function _findFirstValidPortfolio(adviceId, date, attempts) {
 
 module.exports.createAdvice = function(args, res, next) {
 	const userId = args.user._id;
-	const advice = args.body.value;
+	const advice = args.body.value.advice;
+	const operation = _.get(args, 'body.value.action', "validate");
+
 	var advisorId = '';
 	let effectiveStartDate;
 
@@ -96,7 +98,6 @@ module.exports.createAdvice = function(args, res, next) {
 		}
 	})
 	.then(([[advices, ct], effStartDate]) => {
-
 		//Update effective start date (in portfolio as well)
 		effectiveStartDate = effStartDate;
 		advice.portfolio.detail.startDate = effStartDate;
@@ -113,48 +114,19 @@ module.exports.createAdvice = function(args, res, next) {
 		}
 	})
 	.then(validity => {
-		if(validity.valid) {
-			return PortfolioModel.savePortfolio(advice.portfolio, true);
-		} else {
+		if(validity.valid && operation == "create") {
+			return AdviceHelper.saveAdvice(advice, advisorId, effectiveStartDate, args.user);
+		} else if (!validity.valid && operation == "create") {
 			APIError.throwJsonError({message: "Invalid advice", detail: validity.detail, errorCode: 1108});
+		} else if (!validity.valid && operation == "validate") {
+			return validity;
+		} else {
+			APIError.throwJsonError({message: "Illegal action requested while creating advice"});
 		}
 	})
-	.then(port => {
-		if(port) {
-			const adv = {
-				name: advice.name,
-				rebalance: advice.rebalance,
-				maxNotional: advice.maxNotional,
-				advisor: advisorId,
-		       	portfolio: port._id,
-		       	createdDate: new Date(),
-		       	//here advice start date should be last valid trading date
-		       	startDate: effectiveStartDate, 
-		       	updatedDate: new Date(),
-				public: advice.public,
-				investmentObjective: advice.investmentObjective,
-				approvalRequested: advice.public
-			};
-
-		    return AdviceModel.saveAdvice(adv);
-	    } else {
-	    	APIError.throwJsonError({userId: userId, message:"Invalid Portfolio! Can't create advice with invalid portfolio", errorCode: 1110});
-	    }
+	.then(finalOutput => {
+		return res.status(200).send(finalOutput);
 	})
-    .then(advice => {
-    	if(advice) {
-    		return Promise.all([
-    			advice,
-    			AdviceHelper.updateAdviceAnalyticsAndPerformanceSummary(advice._id, advice.portfolio.startDate),
-    			advice.public ? sendEmail.sendAdviceStatusEmail({name: advice.name, pending: true, adviceId: advice._id}, args.user) : true
-			]);	
-    	} else {
-    		APIError.throwJsonError({message: "Error adding advice to advisor", errorCode: 1111});	
-    	}
-    })
-    .then(([advice, analyticsAndPerformance, emailSent]) => {
-    	return res.status(200).send(Object.assign(analyticsAndPerformance, advice.toObject()));
-    })
 	.catch(err => {
 		return res.status(400).send(err.message);
     });
@@ -622,7 +594,7 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 			}
 
 			//Re-run the query after checking 
-			return PortfolioHelper.getAdvicePortfolio(adviceId, {populateAvg: authorizationStatus.isOwner}, ndate)
+			return PortfolioHelper.getAdvicePortfolio(adviceId, {populateAvg: authorizationStatus.isOwner || authorizationStatus.isAdmin}, ndate)
 			.then(portfolioForDate => {
 				if (portfolioForDate && portfolioForDate.detail) {
 					return portfolioForDate;
