@@ -44,7 +44,7 @@ tags:
 - name: "contest"
   description: "operations on contest"
 schemes:
-- "http"
+- "https"
 produces:
 - "application/json"
 paths:
@@ -2806,14 +2806,6 @@ paths:
       summary: get all contests
       description: get all contests
       operationId: getContests
-      security:
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
       responses:
         200:
           description: OK
@@ -2828,14 +2820,7 @@ paths:
       summary: get contest summary
       description: get contest description
       operationId: getContest
-      security:
-      - api_key: []
       parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
       - name: contestId
         in: path
         type: string
@@ -2878,42 +2863,6 @@ paths:
         400:
           description: 'Invalid Input'
       x-swagger-router-controller: "Contest"
-  
-  /contest/{contestId}/rank:
-    post:
-      tags:
-      - contest
-      summary: operations on advice rankings inside a contest
-      description: Update the ranking history and latestRank of each advices inside a contest.
-      operationId: updateRanking
-      security:
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: contestId
-        in: path
-        type: string
-        required: true
-      - name: date
-        in: query
-        type: string
-        format: date
-        required: true
-      - name: body
-        in: body
-        required: true
-        schema:
-          $ref: '#/definitions/RankingData'
-      responses:
-        200:
-          description: OK
-        400:
-          description: 'Invalid Input'
-      x-swagger-router-controller: "Contest"
 
   /contest/{contestId}/{adviceId}:
     post:
@@ -2921,7 +2870,7 @@ paths:
       - contest
       summary: insert, prohibit or withdraw an advice
       description: Insert, Prohibit or Withdraw an advice from the Contest
-      operationId: modifyAdviceInContest
+      operationId: updateAdviceInContest
       security:
       - api_key: []
       parameters:
@@ -2948,22 +2897,19 @@ paths:
         400:
           description: Invalid Input
       x-swagger-router-controller: "Contest"
-  
   /contest/updateRanks:
-    get:
-      tags:
-      - contest
-      summary: update the ranks of all advices of all contests
-      description: Update the ranking of all the advices inside a contest
-      operationId: updateAllContestRanks
-      responses:
-        200:
-          description: OK
-        400:
-          description: Invalid Input
-      x-swagger-router-controller: "Contest"
-      
-     
+      get:
+        tags:
+        - contest
+        summary: update the ranks of all advices of all contests
+        description: Update the ranking of all the advices inside a contest
+        operationId: updateAllContestRanks
+        responses:
+          200:
+            description: OK
+          400:
+            description: Invalid Input
+        x-swagger-router-controller: "Contest"       
 securityDefinitions:
   api_key:
     type: apiKey
@@ -3590,10 +3536,10 @@ definitions:
         format: date
       active:
         type: boolean
-        default: true
+        default: false
       rules:
         type: object
-        $ref: '#/definitions/Rule'
+        $ref: '#/definitions/ContestRules'
   
   ContestPatch:
     type: object
@@ -3611,9 +3557,9 @@ definitions:
         default: true
       rules:
         type: object
-        $ref: '#/definitions/Rule'
+        $ref: '#/definitions/ContestRules'
 
-  Rule:
+  ContestRules:
     type: object
     required:
       - prize
@@ -3622,11 +3568,11 @@ definitions:
       prize:
         type: array
         items: 
-          $ref: '#/definitions/Prize'
+          $ref: '#/definitions/ContestPrize'
       ruleTemplateFileName:
         type: string
     
-  Prize:
+  ContestPrize:
     type: object
     required:
       - rank
@@ -3645,9 +3591,9 @@ definitions:
       rankingData:
         type: array
         items:
-          $ref: '#/definitions/Rank'      
+          $ref: '#/definitions/ContestRank'      
 
-  Rank:
+  ContestRank:
     type: object
     required:
       - value

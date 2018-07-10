@@ -2,7 +2,6 @@
 
 const _ = require('lodash');
 const mongoose = require('mongoose');
-const moment = require('moment');
 const DateHelper = require('../../utils/Date');
 const Schema = mongoose.Schema;
 
@@ -113,7 +112,7 @@ Contest.statics.fetchContests = function(query, options = {}) {
 }
 
 Contest.statics.fetchContest = function(query, options = {}) {
-    let q = this.find(query);
+    let q = this.findOne(query);
     options.fields = _.get(options, 'fields', '');
     options.populate = _.get(options, 'populate', '');
 
@@ -124,25 +123,11 @@ Contest.statics.fetchContest = function(query, options = {}) {
     return q.execAsync();
 }
 
-//Is this use anyehere???
-Contest.statics.modifyAdviceInContest = function(query, adviceId, type) {
-    switch(type) {
-        case "enter":
-            return this.insertAdviceToContest(query, adviceId);
-        case "withdraw":
-            return this.withdrawAdviceFromContest(query, adviceId);
-        case "prohibit":
-            return this.withdrawAdviceFromContest(query, adviceId);
-        default:
-            return this.insertAdviceToContest(query, adviceId);
-    }
-}
-
 Contest.statics.insertAdviceToContest = function(query, adviceId) {
     return this.findOne(query)
     .then(contest => {
         if (contest) {
-            const adviceIdx = _.findIndex(contest.advices, advice => (advice.advice).toString() === adviceId);
+            const adviceIdx = _.findIndex(contest.advices, advice => (adviceItem.advice).toString() === adviceId);
             if (adviceIdx === -1) {
                 contest.advices.addToSet({
                     advice: adviceId, 
@@ -167,12 +152,12 @@ Contest.statics.withdrawAdviceFromContest = function(query, adviceId) {
     return this.findOne(query)
     .then(contest => {
         if (contest) {
-            const adviceIdx = _.findIndex(contest.advices, advice => (advice.advice).toString() === adviceId);
+            const adviceIdx = _.findIndex(contest.advices, advice => (adviceItem.advice).toString() === adviceId);
             if (adviceIdx > -1) {
                 // contest.advices.addToSet({advice: adviceId, withDrawn: false, active: true, prohibit: false});
                 const advice = contest.advices[adviceIdx];
-                advice.active = false;
-                advice.withDrawn = true;
+                adviceItem.active = false;
+                adviceItem.withDrawn = true;
                 contest.advices[adviceIdx] = advice;
                 contest.lastUpdated = new Date();
             } else {
@@ -193,12 +178,12 @@ Contest.statics.prohibitAdviceFromContest = function(query, adviceId) {
         if (contest) {
             
             //DON"T we need to convert adviceId to STRING            
-            const adviceIdx = _.findIndex(contest.advices, advice => (advice.advice).toString() === adviceId);
+            const adviceIdx = _.findIndex(contest.advices, advice => (adviceItem.advice).toString() === adviceId);
             if (adviceIdx > -1) {
                 // contest.advices.addToSet({advice: adviceId, withDrawn: false, active: true, prohibit: false});
                 const advice = contest.advices[adviceIdx];
-                advice.active = false;
-                advice.prohibited = true;
+                adviceItem.active = false;
+                adviceItem.prohibited = true;
                 contest.advices[adviceIdx] = advice;
                 contest.lastUpdated = new Date();
             } else {
@@ -213,15 +198,15 @@ Contest.statics.prohibitAdviceFromContest = function(query, adviceId) {
     });
 }
 
-Contest.statics.updateRating = function(query, currentAdviceRankingData, simulatedAdviceRankingData, selectedDate, allFrsData) {
+Contest.statics.updateRating = function(query, currentAdviceRankingData, simulatedAdviceRankingData, selectedDate, rankingDetail) {
     const today = DateHelper.getCurrentDate();
 
     return this.findOne(query)
     .then(contest => {
         if (contest) {
-            contest.advices = contest.advices.map(advice => {
-                const currentAdviceIdx = _.findIndex(currentAdviceRankingData, adviceData => adviceData.adviceId === (advice.advice).toString());
-                const simulatedAdviceIdx = _.findIndex(simulatedAdviceRankingData, adviceData => adviceData.adviceId === (advice.advice).toString());
+            contest.advices = contest.advices.map(adviceItem => {
+                const currentAdviceIdx = _.findIndex(currentAdviceRankingData, adviceData => adviceData.adviceId === (adviceItem.advice).toString());
+                const simulatedAdviceIdx = _.findIndex(simulatedAdviceRankingData, adviceData => adviceData.adviceId === (adviceItem.advice).toString());
                 if (currentAdviceIdx > -1) {
                     const value = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].value`, null);
                     const currentRatingValue = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rating`, null);
@@ -229,64 +214,64 @@ Contest.statics.updateRating = function(query, currentAdviceRankingData, simulat
                     const currentRatingRank = _.get(currentAdviceRankingData, `[${simulatedAdviceIdx}].value`, null);
                     const simulatedRatingRank = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].value`, null);
                     // find if the date already exists in the rating array
-                    const rankingIdx = _.findIndex(advice.rankingHistory, rankData => {
+                    const rankingIdx = _.findIndex(adviceItem.rankingHistory, rankData => {
                         const rankDate = rankData.date;
                         return DateHelper.compareDates(rankDate, selectedDate) === 0;
                     });
                     if (rankingIdx === -1) { // If date doesn't exist push it into the history
-                        advice.rankingHistory.push({
+                        adviceItem.rankingHistory.push({
                             value, 
                             date: selectedDate, 
                             rating: {
                                 current: {
                                     value: currentRatingValue,
                                     rank: currentRatingRank,
-                                    detail: getAdviceRatingDetail(allFrsData, (advice.advice).toString(), 'current')
+                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'current')
                                 },
                                 simulated: {
                                     value: simulatedRatingValue,
                                     rank: simulatedRatingRank,
-                                    detail: getAdviceRatingDetail(allFrsData, (advice.advice).toString(), 'simulated')
+                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'simulated')
                                 }
                             }
                         });
                     } else { // Modify the rank value
-                        advice.rankingHistory[rankingIdx].value = value;
-                        advice.rankingHistory[rankingIdx].rating = {
+                        adviceItem.rankingHistory[rankingIdx].value = value;
+                        adviceItem.rankingHistory[rankingIdx].rating = {
                             current: {
                                 value: currentRatingValue,
                                 rank: currentRatingRank,
-                                detail: getAdviceRatingDetail(allFrsData, (advice.advice).toString(), 'current')
+                                detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'current')
                             },
                             simulated: {
                                 value: simulatedRatingValue,
                                 rank: simulatedRatingRank,
-                                detail: getAdviceRatingDetail(allFrsData, (advice.advice).toString(), 'simulated')
+                                detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'simulated')
                             }
                         };
                     }
                     // Only modify the latestRank if the date is today
                     if (DateHelper.compareDates(today, selectedDate) === 0){
-                        advice.latestRank = {
+                        adviceItem.latestRank = {
                             value, 
                             selectedDate, 
                             rating: {
                                 current: {
                                     value: currentRatingValue,
                                     rank: currentRatingRank,
-                                    detail: getAdviceRatingDetail(allFrsData, (advice.advice).toString(), 'current')
+                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'current')
                                 },
                                 simulated: {
                                     value: simulatedRatingValue,
                                     rank: simulatedRatingRank,
-                                    detail: getAdviceRatingDetail(allFrsData, (advice.advice).toString(), 'simulated')
+                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'simulated')
                                 }
                             }
                         };
                     }
                 }
 
-                return advice;
+                return adviceItem;
             })
 
             return contest.saveAsync();
@@ -315,6 +300,7 @@ Contest.statics.updateWinners = function(query, adviceRankingData, date) {
             });
             const nWinners = winners.slice(0, noOfWinners);
             contest.winners = nWinners;
+            contest.active = false;
 
             return contest.saveAsync();
         } else {
@@ -324,8 +310,8 @@ Contest.statics.updateWinners = function(query, adviceRankingData, date) {
     .catch(err => err);
 }
 
-const getAdviceRatingDetail = (allFrsData, adviceId, type) => {
-    return allFrsData[type].map((fieldData, index) => {
+const getAdviceRatingDetail = (rankingDetail, adviceId, type) => {
+    return rankingDetail[type].map((fieldData, index) => {
         const {field, data} = fieldData;
         const adviceIndex = _.findIndex(data, item => item.advice === adviceId);
         
