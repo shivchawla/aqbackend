@@ -9,6 +9,7 @@
 const PortfolioHelper = require('../controllers/helpers/Portfolio');
 const AnalyticsHelper = require('../controllers/helpers/Analytics');
 const SecurityHelper = require('../controllers/helpers/Security');
+const ContestHelper = require('../controllers/helpers/Contest');
 const schedule = require('node-schedule');
 const config = require('config');
 const serverPort = require('../index').serverPort;
@@ -16,7 +17,10 @@ const serverPort = require('../index').serverPort;
 if (config.get('jobsPort') === serverPort) {
 	//Run every 5th minute
 	schedule.scheduleJob("*/50 * * * *", function() {
-	    AnalyticsHelper.updateAllAnalytics();
+        AnalyticsHelper.updateAllAnalytics()
+        .then(() => {
+            ContestHelper.updateAllAnalytics();
+        })
 	});
 
 	schedule.scheduleJob("0 23 * * *", function() {

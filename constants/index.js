@@ -35,3 +35,14 @@ module.exports.goals = [
 		suitability: "Suitable for investors looking to invest in single sector and diversify risk in current portfolio."	
 	}
 ];
+
+module.exports.contestRatingFields = [
+	{field:"maxLoss", multiplier:-1}, 
+	{field:"sharpe", multiplier:1}, 
+	{field:"annualReturn", multiplier:1}, 
+	{field:"volatility", multiplier:-1}, 
+	{field:"calmar", multiplier:1}, 
+	{field:"alpha", multiplier:1}
+];
+
+module.exports.contestRankingScale = 5.0;
