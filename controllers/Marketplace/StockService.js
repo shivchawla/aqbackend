@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-19 12:10:37
+* @Last Modified time: 2018-07-11 15:44:59
 */
 
 'use strict';
@@ -22,6 +22,18 @@ function updateStockWeight(query) {
 			return {};
 			//APIError.throwJSONError({message: "Security not found. Can't update weight"});
 		}
+	})
+}
+
+function _getStockDetail(security) {
+	return Promise.all([
+		SecurityHelper.getStockLatestDetail(security, "EOD"),
+		SecurityHelper.getStockLatestDetail(security, "RT")
+	])
+	.then(([detailEOD, detailRT]) => {
+
+		var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
+		return Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
 	})
 }
 
@@ -70,14 +82,7 @@ module.exports.getStockDetail = function(args, res, next) {
 		} else if (field == "rollingPerformance") {
 			return SecurityHelper.getStockRollingPerformance(security);
 		} else if (field == "latestDetail") {
-			return Promise.all([
-				SecurityHelper.getStockLatestDetail(security, "EOD"),
-				SecurityHelper.getStockLatestDetail(security, "RT")
-			])
-			.then(([detailEOD, detailRT]) => {
-				var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
-				return Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
-			})
+			return _getStockDetail(security);	
 		} 
 	})
 	.then(output => {
@@ -128,11 +133,11 @@ module.exports.getStocks = function(args, res, next) {
     var query_4 = {$and: [q21, q3, q4, q5, q6, q7, q8, q10]};
 
 	return Promise.all([
-		SecurityPerformanceModel.fetchSecurityPerformances(query_1, {fields:'security', limit: 10, sort:{weight: -1}}),
-		SecurityPerformanceModel.fetchSecurityPerformances(query_21, {fields:'security', limit: 10, sort:{weight: -1}}),
-		SecurityPerformanceModel.fetchSecurityPerformances(query_22, {fields:'security', limit: 10, sort:{weight: -1}}),
-		SecurityPerformanceModel.fetchSecurityPerformances(query_3, {fields:'security', limit: 10, sort:{weight: -1}}),
-		SecurityPerformanceModel.fetchSecurityPerformances(query_4, {fields:'security', limit: 10, sort:{weight: -1}}),
+		SecurityPerformanceModel.fetchSecurityPerformances(query_1, {fields:'security', limit: 5, sort:{weight: -1}}),
+		SecurityPerformanceModel.fetchSecurityPerformances(query_21, {fields:'security', limit: 5, sort:{weight: -1}}),
+		SecurityPerformanceModel.fetchSecurityPerformances(query_22, {fields:'security', limit: 5, sort:{weight: -1}}),
+		SecurityPerformanceModel.fetchSecurityPerformances(query_3, {fields:'security', limit: 5, sort:{weight: -1}}),
+		SecurityPerformanceModel.fetchSecurityPerformances(query_4, {fields:'security', limit: 5, sort:{weight: -1}}),
 	])
 	.then(([exactMatch, nearMatchTicker, nearMatchName, niftyExactMatch, niftyNearMatch]) => {
 		var securitiesExactMatch = exactMatch.map(item => item.security);
@@ -145,8 +150,17 @@ module.exports.getStocks = function(args, res, next) {
 		
 		//REMOVE DUPLICATES
 		totalSecurities = totalSecurities.filter((item, pos, arr) => {
-				return arr.map(itemS => itemS["ticker"]).indexOf(item["ticker"])==pos;}).slice(0, 10);;
-		return res.status(200).send(totalSecurities);
+				return arr.map(itemS => itemS["ticker"]).indexOf(item["ticker"])==pos;}).slice(0, 5);
+		
+		return totalSecurities;
+	})
+	.then(securities => {
+		return Promise.map(securities, function(security) {
+			return _getStockDetail(security.toObject());
+		});
+	})
+	.then(output => {
+		return res.status(200).send(output);
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);
