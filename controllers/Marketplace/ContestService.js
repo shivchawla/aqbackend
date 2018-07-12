@@ -59,7 +59,8 @@ module.exports.getContests = function(args, res, next) {
 module.exports.getContestSummary = function(args, res, next) {
     const contestId = _.get(args, 'contestId.value', 0);
     const options = {};
-    options.fields = 'name startDate endDate winners rules';
+    options.fields = 'name startDate endDate winners rules advices advices';
+    options.populate = 'advice';
     ContestModel.fetchContest({_id: contestId}, options)
     .then(contest => {
         res.status(200).send(contest);
