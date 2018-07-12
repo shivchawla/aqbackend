@@ -2502,6 +2502,33 @@ paths:
         type: string
         required: false
         default: ""
+      - name: universe
+        in: query
+        type: string
+        required: false
+      - name: sector
+        in: query
+        type: string
+        required: false
+      - name: industry
+        in: query
+        type: string
+        required: false
+      - name: populate
+        in: query
+        type: boolean
+        required: false
+        default: false
+      - name: skip
+        in: query
+        type: number
+        required: false
+        default: 0
+      - name: limit
+        in: query
+        type: number
+        required: false
+        default: 5
       responses:
         200:
           description: "get list of stocks matching criteria"
@@ -2674,16 +2701,20 @@ paths:
         description: "auth token"
         type: "string"
         required: true
-      - name: advice
+      - name: type
         in: query
         type: string
-        description: config for advice
+        description: type of configuration
+        required: false
+      - name: benchmark
+        in: query
+        type: string
+        description: benchmark for contest
         required: false
       responses:
         200:
           description: OK
       x-swagger-router-controller: "Config"
-
 
 
   /watchlist/{watchlistId}:
@@ -3288,6 +3319,9 @@ definitions:
       investmentObjective:
         $ref: '#/definitions/InvestmentObjective'
       public:
+        type: boolean
+        default: false
+      contestOnly:
         type: boolean
         default: false
 

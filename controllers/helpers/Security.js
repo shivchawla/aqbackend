@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-11 16:08:47
+* @Last Modified time: 2018-07-12 15:08:18
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -10,8 +10,12 @@ const APIError = require('../../utils/error');
 const WebSocket = require('ws'); 
 const config = require('config');
 const Promise = require('bluebird');
+const csv = require('fast-csv');
+const path = require('path');
+const fs = require('fs');
 const DateHelper = require('../../utils/Date');
 const WSHelper = require('./WSHelper');
+const _ = require('lodash');
 
 function _checkIfStockStaticPerformanceUpdateRequired(performance) {
 	if (!performance) {
@@ -394,4 +398,121 @@ module.exports.updateRealtimePrices = function(fname, type) {
     })
 };
 
+module.exports.getStockList = function(search, options) {
+	const universe = options.universe;
+	const sector = options.sector;
+	const industry = options.industry;
+	const skip = _.get(options, 'skip', 0);
+	const limit = _.get(options, 'limit', 0);
 
+	return Promise.resolve()
+	.then(() => {	
+		return new Promise(resolve => {
+			if (universe) {
+
+				let universeList = [];
+				const fname = path.resolve(path.join(__dirname, `../../documents/universe/ind_${universe.replace("_","").toLowerCase()}list.csv`));
+				
+				if (fs.existsSync(fname)){
+					
+					csv.fromPath(fname, {headers:true})
+				    .on("data", function(data){
+				        universeList.push(data.Symbol);
+				    })
+				    .on("end", function(){
+				        resolve(universeList);
+				    })
+				    .on("error" , function() {
+				    	resolve([]);
+				    });
+				} else {
+					resolve([]);
+				}
+			} else {
+				resolve([]);
+			}
+		});
+	})
+	.then(universeList => {
+
+		var startWithSearch = `(^${search}.*)$`; 
+		var q1 = {'security.ticker': {$regex: startWithSearch, $options: "i"}};
+
+		//CAN be improved to first match in ticker and then 
+		var containsSearch = `^(.*?(${search})[^$]*)$`;
+		var q21 = {'security.ticker': {$regex: containsSearch, $options: "i"}};
+		var q22 = {'security.detail.Nse_Name': {$regex: containsSearch, $options: "i"}};
+
+		var nostartwithCNX = "^((?!^CNX).)*$"
+	    var q3 = {'security.ticker': {$regex: nostartwithCNX}};
+
+	    var nostartwithMF = "^((?!^MF).)*$"
+	    var q4 = {'security.ticker': {$regex: nostartwithMF}};
+
+	    var nostartwithLIC = "^((?!^LIC).)*$"
+	    var q5 = {'security.ticker': {$regex: nostartwithLIC}};
+
+	    var nostartwithICNX = "^((?!^ICNX).)*$"
+	    var q6 = {'security.ticker': {$regex: nostartwithICNX}};
+
+	    var nostartwithSPCNX = "^((?!^SPCNX).)*$"
+	    var q7 = {'security.ticker': {$regex: nostartwithSPCNX}};
+
+	    var q8 = {'security.ticker':{$ne: ""}};
+
+	    var q9 = {'security.detail.Nse_Name': {$exists: true}};
+
+	    let qSector = {}; 
+	    if (sector) {
+	    	var sectorArray = sector.split(",").map(item => item.trim());
+	    	qSector = {$or: [{'security.detail.Sector': {$in: sectorArray}}, {'security.detail.Sector': {$exists: false}}]};
+		}
+
+		let qIndustry = {}; 
+	    if (industry) {
+	    	var industryArray = industry.split(",").map(item => item.trim());
+	    	qIndustry = {$or: [{'security.detail.Industry': {$in: industryArray}}, {'security.detail.Industry': {$exists: false}}]};
+		} 
+
+		let qUniverse = {}
+		if (universeList.length > 0) {
+			qUniverse = {'security.ticker' : {$in: universeList}}
+		}		
+
+	    var containsNIFTY = "^NIFTY.*$";
+	    var q10 = {'security.ticker': {$regex: containsNIFTY}}; 
+	    
+	    var onlyStockQueries = universe || sector || industry;
+
+	    var query_1 =  {$and: [q1, q3, q4, q5, q6, q7, q8, q9, qSector, qIndustry, qUniverse]}; 
+	    var query_21 = {$and: [q21, q3, q4, q5, q6, q7, q8, q9, qSector, qIndustry, qUniverse]};
+	    var query_22 = {$and: [q22, q3, q4, q5, q6, q7, q8, q9, qSector, qIndustry, qUniverse]};
+	    var query_3 = {$and: [q1, q3, q4, q5, q6, q7, q8, q10]};
+	    var query_4 = {$and: [q21, q3, q4, q5, q6, q7, q8, q10]};
+
+	    //exactMatch, nearMatchTicker, nearMatchName, niftyExactMatch, niftyNearMatch
+		return Promise.all([
+			SecurityPerformanceModel.fetchSecurityPerformances(query_1, {fields:'security', skip:skip, limit: limit, sort:{weight: -1}}),
+			SecurityPerformanceModel.fetchSecurityPerformances(query_21, {fields:'security', skip:skip, limit: limit, sort:{weight: -1}}),
+			SecurityPerformanceModel.fetchSecurityPerformances(query_22, {fields:'security', skip:skip, limit: limit, sort:{weight: -1}}),
+			!onlyStockQueries ? SecurityPerformanceModel.fetchSecurityPerformances(query_3, {fields:'security', skip:skip, limit: limit, sort:{weight: -1}}) : [],
+			!onlyStockQueries ? SecurityPerformanceModel.fetchSecurityPerformances(query_4, {fields:'security', skip:skip, limit: limit, sort:{weight: -1}}) : [],
+		]);
+	})
+	.then(([exactMatch, nearMatchTicker, nearMatchName, niftyExactMatch, niftyNearMatch]) => {
+
+		var securitiesExactMatch = exactMatch.map(item => item.security);
+		var securitiesNearMatchTicker = nearMatchTicker.map(item => item.security);
+		var securitiesNearMatchName = nearMatchName.map(item => item.security);
+		var securitiesNiftyExactMatch = niftyExactMatch.map(item => item.security);
+		var securitiesNiftyNearMatch = niftyNearMatch.map(item => item.security);
+
+		var totalSecurities = securitiesExactMatch.concat(securitiesNearMatchTicker).concat(securitiesNearMatchName).concat(securitiesNiftyExactMatch).concat(securitiesNiftyNearMatch);
+		
+		//REMOVE DUPLICATES
+		totalSecurities = totalSecurities.filter((item, pos, arr) => {
+				return arr.map(itemS => itemS["ticker"]).indexOf(item["ticker"])==pos;});
+
+		return limit > 0 ? totalSecurities.slice(0, limit) : totalSecurities;
+	});
+};
