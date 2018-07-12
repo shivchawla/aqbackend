@@ -40,6 +40,7 @@ module.exports.contestRatingFields = [
 	{field:"maxLoss", multiplier:-1}, 
 	{field:"sharpe", multiplier:1}, 
 	{field:"annualReturn", multiplier:1}, 
+	{field:"totalReturn", multiplier:1}, 
 	{field:"volatility", multiplier:-1}, 
 	{field:"calmar", multiplier:1}, 
 	{field:"alpha", multiplier:1}
