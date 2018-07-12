@@ -54,7 +54,6 @@ function _computeFractionalRanking(values, scale) {
 	 	var msg = JSON.stringify({action:"compute_fractional_ranking", 
             						values: values,
             						scale: scale ? scale : ""});
-
 	 	WSHelper.handleMktRequest(msg, resolve, reject);
 
     });
@@ -89,7 +88,7 @@ function _updateAdvisorAnalytics(advisorId) {
 	});
 }
 
-function _updateAdviceAnalytics(adviceId) {
+function _updateAdviceAnalytics(adviceId) { // done
 	
 	//REPLACING GET TO CALCULATE - 23/03/2018
 	//BECAUSE WE SHOULDN"T RELY OF STALE VALUE
@@ -115,7 +114,7 @@ module.exports.updateAllAdvisorAnalytics = function() {
 	});
 };
 
-module.exports.updateAllAdviceAnalytics = function() {
+module.exports.updateAllAdviceAnalytics = function() { // done
 	
 	let adviceIds;
 	return AdviceModel.fetchAdvices({deleted: false}, {fields: '_id'})
@@ -181,7 +180,7 @@ module.exports.updateAllAdviceAnalytics = function() {
 	});
 };
 
-module.exports.updateAllAnalytics = function() {
+module.exports.updateAllAnalytics = function() { // done
 	return exports.updateAllAdviceAnalytics()
 	.then(updated => {
 		return exports.updateAllAdvisorAnalytics();	
@@ -191,3 +190,5 @@ module.exports.updateAllAnalytics = function() {
 	});
 }
 
+module.exports._computeFractionalRanking = _computeFractionalRanking;
+module.exports._computeAggregateRating = _computeAggregateRating;

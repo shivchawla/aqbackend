@@ -41,6 +41,8 @@ tags:
     url: "http://www.aimsquant.com"
 - name: "config"
   description: "getting the static configs"
+- name: "contest"
+  description: "operations on contest"
 schemes:
 - "https"
 produces:
@@ -2023,7 +2025,7 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Advice"
-     
+
   /investor:
     post:
       tags:
@@ -2500,6 +2502,33 @@ paths:
         type: string
         required: false
         default: ""
+      - name: universe
+        in: query
+        type: string
+        required: false
+      - name: sector
+        in: query
+        type: string
+        required: false
+      - name: industry
+        in: query
+        type: string
+        required: false
+      - name: populate
+        in: query
+        type: boolean
+        required: false
+        default: false
+      - name: skip
+        in: query
+        type: number
+        required: false
+        default: 0
+      - name: limit
+        in: query
+        type: number
+        required: false
+        default: 5
       responses:
         200:
           description: "get list of stocks matching criteria"
@@ -2672,16 +2701,20 @@ paths:
         description: "auth token"
         type: "string"
         required: true
-      - name: advice
+      - name: type
         in: query
         type: string
-        description: config for advice
+        description: type of configuration
+        required: false
+      - name: benchmark
+        in: query
+        type: string
+        description: benchmark for contest
         required: false
       responses:
         200:
           description: OK
       x-swagger-router-controller: "Config"
-
 
 
   /watchlist/{watchlistId}:
@@ -2770,7 +2803,144 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Watchlist"
-     
+
+  /contest:
+    post:
+      tags: 
+      - contest
+      summary: create a contest
+      description: create a contest
+      operationId: createContest
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Contest'
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "Contest"
+    
+    get:
+      tags:
+      - contest
+      summary: get all contests
+      description: get all contests
+      operationId: getContests
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "Contest"
+  
+  /contest/{contestId}:
+    get:
+      tags:
+      - contest
+      summary: get contest summary
+      description: get contest description
+      operationId: getContest
+      parameters:
+      - name: contestId
+        in: path
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "Contest"
+
+    patch:
+      tags:
+      - contest
+      summary: update a contest
+      description: Update a contest, provide only the details to be updated
+      consumes:
+      - application/json
+      operationId: updateContest
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: contestId
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/ContestPatch'
+      responses: 
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "Contest"
+
+  /contest/{contestId}/{adviceId}:
+    post:
+      tags:
+      - contest
+      summary: insert, prohibit or withdraw an advice
+      description: Insert, Prohibit or Withdraw an advice from the Contest
+      operationId: updateAdviceInContest
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        required: true
+        type: string
+      - name: contestId
+        in: path
+        required: true
+        type: string
+      - name: type
+        in: query
+        type: string
+        default: 'enter'
+      responses:
+        200:
+          description: OK
+        400:
+          description: Invalid Input
+      x-swagger-router-controller: "Contest"
+  /contest/updateRanks:
+      get:
+        tags:
+        - contest
+        summary: update the ranks of all advices of all contests
+        description: Update the ranking of all the advices inside a contest
+        operationId: updateAllContestRanks
+        responses:
+          200:
+            description: OK
+          400:
+            description: Invalid Input
+        x-swagger-router-controller: "Contest"       
 securityDefinitions:
   api_key:
     type: apiKey
@@ -3151,6 +3321,9 @@ definitions:
       public:
         type: boolean
         default: false
+      contestOnly:
+        type: boolean
+        default: false
 
 
 #Create Advice
@@ -3392,3 +3565,90 @@ definitions:
         type: string
       userId:
         type: string
+  
+  Contest:
+    type: object
+    required:
+      - name
+      - startDate
+      - endDate
+      - active
+      - rules
+    properties:
+      name:
+        type: string
+      startDate:
+        type: string
+        format: date
+      endDate:
+        type: string
+        format: date
+      active:
+        type: boolean
+        default: false
+      rules:
+        type: object
+        $ref: '#/definitions/ContestRules'
+  
+  ContestPatch:
+    type: object
+    properties:
+      name:
+        type: string
+      startDate:
+        type: string
+        format: date
+      endDate:
+        type: string
+        format: date
+      active:
+        type: boolean
+        default: true
+      rules:
+        type: object
+        $ref: '#/definitions/ContestRules'
+
+  ContestRules:
+    type: object
+    required:
+      - prize
+      - ruleTemplateFileName
+    properties:
+      prize:
+        type: array
+        items: 
+          $ref: '#/definitions/ContestPrize'
+      ruleTemplateFileName:
+        type: string
+    
+  ContestPrize:
+    type: object
+    required:
+      - rank
+      - value
+    properties: 
+      rank:
+        type: number
+      value:
+        type: number
+  
+  RankingData:
+    type: object
+    required:
+      - rankingData
+    properties:
+      rankingData:
+        type: array
+        items:
+          $ref: '#/definitions/ContestRank'      
+
+  ContestRank:
+    type: object
+    required:
+      - value
+      - adviceId
+    properties:
+      adviceId:
+        type: string
+      value:
+        type: number

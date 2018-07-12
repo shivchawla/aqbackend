@@ -35,3 +35,60 @@ module.exports.goals = [
 		suitability: "Suitable for investors looking to invest in single sector and diversify risk in current portfolio."	
 	}
 ];
+
+module.exports.contestRatingFields = [
+	{type:"performance", field:"maxLoss", multiplier:-1}, 
+	{type:"performance", field:"sharpe", multiplier:1}, 
+	{type:"performance", field:"annualReturn", multiplier:1}, 
+	{type:"performance", field:"volatility", multiplier:-1}, 
+	{type:"performance", field:"calmar", multiplier:1}, 
+	{type:"performance", field:"alpha", multiplier:1},
+	{type:"portfolio", field:"concentration", multiplier:-1}
+];
+
+module.exports.contestRankingScale = 100.0;
+
+const strongDiversified = {
+	MIN_POS_COUNT: 10,
+	MAX_STOCK_EXPOSURE: 0.15,
+	MAX_SECTOR_EXPOSURE: 0.35,
+	MIN_SECTOR_COUNT: 4,
+	//MAX_NET_VALUE: 100000
+}
+
+const weakDiversified = {
+	MIN_POS_COUNT: 10,
+	MAX_STOCK_EXPOSURE: 0.15,
+	//MAX_NET_VALUE: 100000
+}
+
+const sector = {
+	MIN_POS_COUNT: 10,
+	MAX_STOCK_EXPOSURE: 0.15,
+	MAX_SECTOR_COUNT: 1,
+	//MAX_NET_VALUE: 100000
+};
+
+
+//Allowed benchmarks for contest
+module.exports.benchmarkUniverseRequirements = {
+    "NIFTY_50" : {universe: "NIFTY_500", portfolio: strongDiversified}, 
+    "NIFTY_MIDCAP_50": {universe: "NIFTY_MIDCAP_150", portfolio: strongDiversified},  
+    "NIFTY_AUTO": {sector: "Automobile", universe: "NIFTY_500", portfolio: sector},
+    "NIFTY_BANK": {sector: "Financial", industry: "Banking", universe: "NIFTY_500", portfolio: sector},
+    "NIFTY_CONSUMPTION": {universe: "NIFTY_CONSUMPTION", portfolio: weakDiversified},
+    "NIFTY_FIN_SERVICE": {sector: "Financial", universe: "NIFTY_500", portfolio: sector},
+    "NIFTY_FMCG": {sector: "FMCG", universe: "NIFTY_500", portfolio: sector}, 
+    "NIFTY_IT": {sector: "Technology", universe: "NIFTY_500", portfolio: sector},
+    "NIFTY_MEDIA": {universe: "NIFTY_MEDIA", portfolio: weakDiversified},
+    "NIFTY_PHARMA": {sector: "Healthcare", universe: "NIFTY_500", portfolio: sector},
+    "NITFY_PSU_BANK": {universe: "NIFTY_PSU_BANK", portfolio: weakDiversified},
+    "NIFTY_REALTY":{sector: "Construction", industry: "Real Estate", universe: "NIFTY_500", portfolio: weakDiversified},
+    "NIFTY_COMMODITIES": {universe: "NIFTY_COMMODITIES", portfolio: weakDiversified},
+    "NIFTY_CPSE": {universe: "NIFTY_CPSE", portfolio: weakDiversified},
+    "NIFTY_ENERGY": {sector: "Energy", universe: "NIFTY_500", portfolio: sector},
+    "NIFTY_INFRA": {universe: "NIFTY_INFRA", portfolio: weakDiversified},
+    "NIFTY_MNC": {universe: "NIFTY_MNC", portfolio: weakDiversified},
+    "NIFTY_SERV_SECTOR": {universe: "NIFTY_SERV_SECTOR", portfolio: weakDiversified},
+    "NIFTY_DIV_OPPS_50": {universe: "NIFTY_DIV_OPPS_50", portfolio: weakDiversified},
+};

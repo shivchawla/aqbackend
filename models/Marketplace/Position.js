@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-18 23:00:53
+* @Last Modified time: 2018-07-10 12:34:59
 */
 
 'use strict';
@@ -25,9 +25,9 @@ const Position = new Schema({
 
 	lastPrice: Number,
 
-	unrealizedPnL: Number,
+	//unrealizedPnL: Number,
 
-	realizedPnL: Number,
+	//realizedPnL: Number,
 
 	totalFees: Number,
 

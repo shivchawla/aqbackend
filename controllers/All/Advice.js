@@ -71,4 +71,3 @@ module.exports.approveAdviceNew = function(req, res, next) {
 module.exports.requestApproveAdvice = function(req, res, next) {
     Advice.requestApproveAdvice(req.swagger.params, res, next);
 };
-

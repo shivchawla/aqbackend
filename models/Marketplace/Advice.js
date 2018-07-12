@@ -253,7 +253,7 @@ const Advice = new Schema({
 
     performanceSummary: Schema.Types.Mixed,
 
-    rating: Rating   
+    rating: Rating,    
 });
 
 //TODO: Deleted advices can/should be moved to deleted-advice collection
