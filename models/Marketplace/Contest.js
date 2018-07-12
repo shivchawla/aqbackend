@@ -120,6 +120,21 @@ Contest.statics.fetchContest = function(query, options = {}) {
         q = q.select(options.fields);
     }
 
+    if (options.populate.indexOf('advice') !== -1) {
+        q = q.select('advices.advice advices.latestRank').populate({
+            path: 'advices.advice', 
+            select: 'name advisor',
+            populate: {
+                path: 'advisor', 
+                select: 'user',
+                populate: {
+                    path: 'user',
+                    select: 'firstName lastName'
+                }
+            }
+        });
+    }
+
     return q.execAsync();
 }
 
@@ -202,7 +217,7 @@ Contest.statics.updateRating = function(query, currentAdviceRankingData, simulat
                     const value = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].value`, null);
                     const currentRatingValue = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rating`, null);
                     const simulatedRatingValue = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rating`, null);
-                    const currentRatingRank = _.get(currentAdviceRankingData, `[${simulatedAdviceIdx}].value`, null);
+                    const currentRatingRank = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].value`, null);
                     const simulatedRatingRank = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].value`, null);
                     // find if the date already exists in the rating array
                     const rankingIdx = _.findIndex(adviceItem.rankingHistory, rankData => {
