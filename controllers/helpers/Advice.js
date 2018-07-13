@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-13 20:19:14
+* @Last Modified time: 2018-07-13 20:22:54
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -18,6 +18,8 @@ const DateHelper = require("../../utils/Date");
 const APIError = require('../../utils/error');
 const WSHelper = require('./WSHelper');
 const sendEmail = require('../../email');
+const SecurityHelper = require('./Security');
+
 const _ = require('lodash');
 
 const adviceRequirements = require('../../constants').benchmarkUniverseRequirements;
