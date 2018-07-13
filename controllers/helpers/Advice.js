@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-13 20:27:39
+* @Last Modified time: 2018-07-13 20:35:43
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -297,6 +297,7 @@ module.exports.validateAdvice = function(advice, oldAdvice) {
 	    				var minPosCount = _.get(validityRequirements, 'portfolio.MIN_POS_COUNT', 5);
 	    				if (positions.length < minPosCount) {
 	    					validity['MIN_POS_COUNT'] = {valid: false, message:`Position count is less than ${minPosCount}`};
+	    					valid = false;
 	    				}
 
 	    				var maxPositionExposure = _.get(validityRequirements, 'portfolio.MAX_STOCK_EXPOSURE', 1.0);
