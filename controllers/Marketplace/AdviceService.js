@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-13 19:52:41
+* @Last Modified time: 2018-07-13 20:32:06
 */
 
 'use strict';
@@ -119,7 +119,7 @@ module.exports.createAdvice = function(args, res, next) {
 			return AdviceHelper.saveAdvice(advice, advisorId, effectiveStartDate, args.user);
 		} else if (!validity.valid && operation == "create") {
 			APIError.throwJsonError({message: "Invalid advice", detail: validity.detail, errorCode: 1108});
-		} else if (!validity.valid && operation == "validate") {
+		} else if (operation == "validate") {
 			return validity;
 		} else {
 			APIError.throwJsonError({message: "Illegal action requested while creating advice"});
