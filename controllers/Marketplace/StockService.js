@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-12 15:08:02
+* @Last Modified time: 2018-07-13 11:42:14
 */
 
 'use strict';
@@ -83,7 +83,7 @@ module.exports.getStockDetail = function(args, res, next) {
 		} else if (field == "rollingPerformance") {
 			return SecurityHelper.getStockRollingPerformance(security);
 		} else if (field == "latestDetail") {
-			return _getStockDetail(security);	
+			return _getStockLatestDetail(security);	
 		} 
 	})
 	.then(output => {
