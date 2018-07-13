@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-13 20:14:50
+* @Last Modified time: 2018-07-13 20:19:14
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -356,9 +356,9 @@ module.exports.validateAdvice = function(advice, oldAdvice) {
 	    				//Check for Security list
     					var tickers = _.uniq(positions.map(item => _.get(item, 'security.ticker', '')).filter(item => item!=""))
 
-	    				const universe = validityRequirements.universe;
-	    				const sector = validityRequirements.sector;
-	    				const industry = validityRequirements.industry;
+	    				const universe = _.get(validityRequirements, 'universe', null);
+	    				const sector = _.get(validityRequirements, 'sector', null);
+	    				const industry = _.get(validityRequirements,' industry', null);
 
 	    				return SecurityHelper.getStockList("", {universe, sector, industry})
 						.then(universeList => {
