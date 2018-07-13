@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-13 19:50:36
+* @Last Modified time: 2018-07-13 19:56:36
 */
 'use strict';
 const mongoose = require('../index');
@@ -272,6 +272,10 @@ Advice.index({portfolio: 1}, {unique: true});
 Advice.statics.saveAdvice = function(adviceDetails) {
     const advice = new this(adviceDetails);
     return advice.saveAsync();
+};
+
+Advice.statics.countAdvices = function(query) {
+    return this.countAsync(query);
 };
 
 Advice.statics.fetchAdvices = function(query, options) {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-13 19:48:11
+* @Last Modified time: 2018-07-13 19:57:21
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -22,7 +22,6 @@ const _ = require('lodash');
 
 const adviceRequirements = require('../../constants').benchmarkUniverseRequirements;
 
-
 function _getAdviceOptions(benchmark) {
 	return adviceRequirements[benchmark];
 }
@@ -31,13 +30,30 @@ function _filterActive(objs) {
 	return objs ? objs.filter(item => {return item.active == true}).length : 0;	
 } 
 
+function _getSuggestedAdviceName_contestOnly(benchmark) {
+	return new Promise(resolve => {
+		AdviceModel.countAdvices({contestOnly: true})
+		.then(count => {
+			resolve(`Contest Entry#${count + 1} - ${benchmark}`);
+		})
+		.catch(err => {
+			console.log("Can't count advices!! Generating Random Name");
+			resolve(Math.random().toString(36));
+		})
+	});
+}
+
 
 module.exports.saveAdvice = function(advice, advisorId, effectiveStartDate, userDetails) {
-	return PortfolioHelper.savePortfolio(advice.portfolio, true)
-	.then(port => {
+	return Promise.all([
+		PortfolioHelper.savePortfolio(advice.portfolio, true),
+		advice.contestOnly ? _getSuggestedAdviceName_contestOnly() : advice.name
+	])
+	.then(([port, adviceName]) => {
+
 		if(port) {
 			const adv = {
-				name: advice.name,
+				name: adviceName, //This is suggested in case of contest entry
 				rebalance: advice.rebalance,
 				maxNotional: advice.maxNotional,
 				advisor: advisorId,
@@ -47,8 +63,10 @@ module.exports.saveAdvice = function(advice, advisorId, effectiveStartDate, user
 		       	startDate: effectiveStartDate, 
 		       	updatedDate: new Date(),
 				public: advice.public,
+				contestOnly: advice.contestOnly,
 				investmentObjective: advice.investmentObjective,
-				approvalRequested: advice.public
+				//Approval is required only for NON-CONTEST (PUBLIC) entries
+				approvalRequested: advice.contestOnly ? false : advice.public
 			};
 
 		    return AdviceModel.saveAdvice(adv);
