@@ -53,15 +53,13 @@ module.exports.updateAnalytics = function(contestId) {
                     var valueRatingField = {};
                     allPerformances.forEach(item => {
                         var key = item.advice; 
-                        // valueRatingField[key] = item[`ratingType`] && item[ratingType].diff && item[ratingType].diff[ratingField.field] ?  ratingField.multiplier * item[ratingType].diff[ratingField.field] : NaN ;
-                        // valueRatingField[key] = item.performance 
-                        //         && item.performance.diff 
-                        //         && item.performance.diff[ratingField.field] ?  ratingField.multiplier * item.performance.diff[ratingField.field] : NaN ;
-                        const itemPerformance = _.get(item,`performance.diff[${ratingField.field}]`, null);
+                        
+                        //The ratingField contains true or diff
+                        const itemPerformance = _.get(item, `performance.${ratingField.field}`, null);
                         valueRatingField[key] = itemPerformance !== null ? ratingField.multiplier * itemPerformance : NaN;
                     });
 
-                    return AnalyticsHelper._computeFractionalRanking(valueRatingField)
+                    return AnalyticsHelper._computeFractionalRanking(valueRatingField, 100.0)
                     .then(frs => {
                         rankingDetail[ratingType].push({
                             field: ratingField.field, 

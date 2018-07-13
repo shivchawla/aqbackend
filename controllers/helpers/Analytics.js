@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:56:41
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 11:55:47
+* @Last Modified time: 2018-07-13 16:58:51
 */
 
 const AdviceModel = require('../../models/Marketplace/Advice');
@@ -15,6 +15,10 @@ const AdviceHelper = require('./Advice');
 const PerformanceHelper = require('./Performance');
 const DateHelper = require('../../utils/Date');
 const WSHelper = require('./WSHelper');
+const ratingFields = require('../../constants').adviceRatingFields;
+const contestRankingScale = require('../../constants').adviceRankingScale;
+const _ = require('lodash');
+
 
 function _computeAggregateRating (adviceIds) {
 	return Promise.map(adviceIds, function(adviceId) {
@@ -137,22 +141,14 @@ module.exports.updateAllAdviceAnalytics = function() { // done
 
 		return Promise.map(ratingTypes, function(ratingType) {
 			var allPerformances = allAdviceAnalytics.map(item => {return {advice: item._id, performance: item.performanceSummary[ratingType]}}); 
-			//var ratingFields = [{field:"maxLoss", multiplier:-1}, {field:"sharpe", multiplier:1}, {field:"annualReturn", multiplier:1}, {field:"information", multiplier:1}, {field:"volatility", multiplier:-1}, {field:"calmar", multiplier:1}, {field:"alpha", multiplier:1}];
-			var ratingFields = [
-				{field:"maxLoss", multiplier:-1}, 
-				{field:"sharpe", multiplier:1}, 
-				{field:"annualReturn", multiplier:1}, 
-				//{field:"information", multiplier:1}, 
-				{field:"volatility", multiplier:-1}, 
-				{field:"calmar", multiplier:1}, 
-				{field:"alpha", multiplier:1}];
-
+			
 			return Promise.map(ratingFields, function(ratingField) {
 
 				var valueRatingField = {};
 				allPerformances.forEach(item => {
 					var key = item.advice; 
-					valueRatingField[key] = item.performance && item.performance.diff && item.performance.diff[ratingField.field] ?  ratingField.multiplier * item.performance.diff[ratingField.field] : NaN ;
+					const itemPerformance = _.get(item, `performance.${ratingField.field}`, null);
+                    valueRatingField[key] = itemPerformance !== null ? ratingField.multiplier * itemPerformance : NaN;
 				});
 				
 				return _computeFractionalRanking(valueRatingField);

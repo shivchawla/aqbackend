@@ -37,15 +37,24 @@ module.exports.goals = [
 ];
 
 module.exports.contestRatingFields = [
-	{type:"performance", field:"maxLoss", multiplier:-1}, 
-	{type:"performance", field:"sharpe", multiplier:1}, 
-	{type:"performance", field:"annualReturn", multiplier:1}, 
-	{type:"performance", field:"volatility", multiplier:-1}, 
-	{type:"performance", field:"calmar", multiplier:1}, 
-	{type:"performance", field:"alpha", multiplier:1},
-	{type:"portfolio", field:"concentration", multiplier:-1}
+	{field:"diff.annualReturn", multiplier:1}, //Ability to beat the market 
+	{field:"diff.volatility", multiplier:-1},  //Riskiness
+	{field:"diff.maxLoss", multiplier:-1}, //Downside Risk
+	{field:"information", multiplier:1}, //Consistency of returns
+	{field:"diff.calmar", multiplier:1}, //Ability to recover
+	{field:"concentration", multiplier:-1} //Portfolio Diverisification
 ];
 
+module.exports.adviceRatingFields = [
+	{field:"diff.annualReturn", multiplier:1}, //Ability to beat the market 
+	{field:"diff.volatility", multiplier:-1},  //Riskiness
+	{field:"diff.maxLoss", multiplier:-1}, //Downside Risk
+	{field:"information", multiplier:1}, //Consistency of returns
+	{field:"diff.calmar", multiplier:1}, //Ability to recover
+	{field:"concentration", multiplier:-1} //Portfolio Diverisification
+];
+
+module.exports.adviceRankingScale = 100.0;
 module.exports.contestRankingScale = 100.0;
 
 const strongDiversified = {
@@ -81,6 +90,7 @@ module.exports.benchmarkUniverseRequirements = {
     "NIFTY_FMCG": {sector: "FMCG", universe: "NIFTY_500", portfolio: sector}, 
     "NIFTY_IT": {sector: "Technology", universe: "NIFTY_500", portfolio: sector},
     "NIFTY_MEDIA": {universe: "NIFTY_MEDIA", portfolio: weakDiversified},
+    "NIFTY_METAL": {sector: "Metal" universe:"NIFTY_500", portfolio: sector},
     "NIFTY_PHARMA": {sector: "Healthcare", universe: "NIFTY_500", portfolio: sector},
     "NITFY_PSU_BANK": {universe: "NIFTY_PSU_BANK", portfolio: weakDiversified},
     "NIFTY_REALTY":{sector: "Construction", industry: "Real Estate", universe: "NIFTY_500", portfolio: weakDiversified},
