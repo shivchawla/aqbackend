@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-31 10:51:59
+* @Last Modified time: 2018-07-13 19:50:36
 */
 'use strict';
 const mongoose = require('../index');
@@ -148,6 +148,11 @@ const Advice = new Schema({
     public: {
         type: Boolean,
         default: false,
+    },
+
+    contestOnly: {
+        type: Boolean,
+        default: false
     },
 
     publishDate: {

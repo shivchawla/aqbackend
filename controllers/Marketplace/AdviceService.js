@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-10 10:02:12
+* @Last Modified time: 2018-07-13 19:52:41
 */
 
 'use strict';
@@ -406,7 +406,7 @@ module.exports.getAdvices = function(args, res, next) {
 	    			q = {'latestApproval.status': true};
 	    		}
 
-	    		advisorQuery.push({$and: [Object.assign(q, {advisor:{'$ne': userAdvisorId}, public: true, prohibited: false}), 
+	    		advisorQuery.push({$and: [Object.assign(q, {advisor:{'$ne': userAdvisorId}, public: true, prohibited: false, contestOnly: false}), 
 	    								{$or:[{startDate: {$lte: DateHelper.getCurrentDate()}}, 
     								      	{startDate: {$exists: false}}
 								      	]}
@@ -738,7 +738,7 @@ module.exports.subscribeAdvice = function(args, res, next) {
 
   	return Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
   			InvestorModel.fetchInvestor({user: userId}, {fields: '_id', insert:true}), 
-  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true, prohibited: false}, {subscribers:1, advisor:1})])
+  			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true, prohibited: false, contestOnly: false}, {subscribers:1, advisor:1})])
   	.then(([advisor, investor, advice]) => {
   		if(advisor && investor && advice) {
   				
@@ -761,7 +761,7 @@ module.exports.subscribeAdvice = function(args, res, next) {
 			if(!investor) {
 				APIError.throwJsonError({userId: userId, message: "Investor not found", errorCode: 1301});	
 			} else if (!advice) {
-				APIError.throwJsonError({adviceId: adviceId, message: "Advice not found", errorCode: 1101});	
+				APIError.throwJsonError({adviceId: adviceId, message: "Advice not found or not eligible for subscription", errorCode: 1101});	
 			} else if(!advisor) {
 				APIError.throwJsonError({userId:userId, message: "Advisor not found", errorCode: 1201});
 			}
