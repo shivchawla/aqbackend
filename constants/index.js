@@ -90,7 +90,7 @@ module.exports.benchmarkUniverseRequirements = {
     "NIFTY_FMCG": {sector: "FMCG", universe: "NIFTY_500", portfolio: sector}, 
     "NIFTY_IT": {sector: "Technology", universe: "NIFTY_500", portfolio: sector},
     "NIFTY_MEDIA": {universe: "NIFTY_MEDIA", portfolio: weakDiversified},
-    "NIFTY_METAL": {sector: "Metal" universe:"NIFTY_500", portfolio: sector},
+    "NIFTY_METAL": {sector: "Metal", universe:"NIFTY_500", portfolio: sector},
     "NIFTY_PHARMA": {sector: "Healthcare", universe: "NIFTY_500", portfolio: sector},
     "NITFY_PSU_BANK": {universe: "NIFTY_PSU_BANK", portfolio: weakDiversified},
     "NIFTY_REALTY":{sector: "Construction", industry: "Real Estate", universe: "NIFTY_500", portfolio: weakDiversified},

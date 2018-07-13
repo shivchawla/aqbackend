@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-13 19:57:21
+* @Last Modified time: 2018-07-13 20:14:50
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -281,10 +281,10 @@ module.exports.validateAdvice = function(advice, oldAdvice) {
 
 	    			//Check for NET VALUE limit
 	    			var netValue = _.get(updatedPortfolio, 'pnlStats.netValue', 0.0);
-	    			var maxNav = 1.05*_.get(validityRequirements, 'portfolio.MAX_NET_VALUE', 0.0);
+	    			var maxNav = _.get(validityRequirements, 'portfolio.MAX_NET_VALUE', 0.0);
 
-	    			if (netValue > maxNav) {
-	    				validity['MAX_NET_VALUE'] = {valid: false, message:`Portfolio Value of ${netValue} is greater than ${validityRequirements.MAX_NET_VALUE}`};
+	    			if (netValue > 1.05*maxNav) {
+	    				validity['MAX_NET_VALUE'] = {valid: false, message:`Portfolio Value of ${netValue} is greater than ${maxNav}`};
 	    				valid = false;
 	    			} 
 
