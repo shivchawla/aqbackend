@@ -1,6 +1,5 @@
 'use strict';
 const _ = require('lodash');
-const moment = require('moment');
 const config = require('config');
 const DateHelper = require('../../utils/Date');
 const ContestModel = require('../../models/Marketplace/Contest');
@@ -21,8 +20,9 @@ module.exports.createContest = function(args, res, next) {
             const contest = args.body.value;
             const startDate = _.get(contest, 'startDate', DateHelper.getCurrentDate());
             const endDate = _.get(contest, 'endDate', DateHelper.getCurrentDate());
-            const duration = endDate.diff(startDate, 'days');
-            if (duration > 1) { // The contest is of valid duration
+            const duration = DateHelper.compareDates(endDate, startDate);
+            // const duration = endDate.diff(startDate, 'days');
+            if (duration === 1) { // The contest is of valid duration
                 return ContestModel.saveContest({...contest, creator: userId})
             } else {
                 APIError.throwJsonError({message: 'The duration of the contest should be more than 1 day'});
