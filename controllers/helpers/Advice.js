@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-14 12:04:00
+* @Last Modified time: 2018-07-14 12:53:28
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -258,18 +258,22 @@ function _validateAdviceFull(updatedPortfolio, validityRequirements) {
 		if(field == 'MAX_NET_VALUE') {
 			//Check for NET VALUE limit
 			var netValue = _.get(updatedPortfolio, 'pnlStats.netValue', 0.0);
-			var maxNav = _.get(validityRequirements, 'portfolio.MAX_NET_VALUE', 0.0);
+			var maxNav = _.get(validityRequirements, 'MAX_NET_VALUE', 0.0);
 
 			if (maxNav > 0 && netValue > 1.05*maxNav) {
 				validity = {valid: false, message:`Portfolio Value of ${netValue} is greater than ${maxNav}`};
 			} 
 		} else if(field == 'MIN_POS_COUNT') {
-			let validity = {valid: true};
-
+			console.log(positions);
+			console.log(positions.length);
 			//Check for POSITION COUNT and STOCK EXPOSURE limit
 			if (positions) {
+				console.log("Hola");
 				var minPosCount = _.get(validityRequirements, 'MIN_POS_COUNT', 5);
+				console.log(minPosCount);
+				console.log(positions.length < minPosCount);
 				if (positions.length < minPosCount) {
+					console.log("Himayay")
 					validity = {valid: false, message:`Position count is less than ${minPosCount}`};
 				}
 			}
@@ -371,8 +375,8 @@ function _validateAdviceFull(updatedPortfolio, validityRequirements) {
 */
 module.exports.validateAdvice = function(advice, oldAdvice) {
 
-	const validityRequirements = _getAdviceOptions(_.get(advice, 'portfolio.benchmark', 'NIFTY_50'));
-
+	const validityRequirements = _getAdviceOptions(_.get(advice, 'portfolio.benchmark.ticker', 'NIFTY_50'));
+	
 	return new Promise((resolve, reject) => {
 		var msg = JSON.stringify({action:"validate_advice", 
             						advice: advice,
