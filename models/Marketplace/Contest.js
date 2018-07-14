@@ -142,7 +142,7 @@ Contest.statics.insertAdviceToContest = function(query, adviceId) {
     return this.findOne(query)
     .then(contest => {
         if (contest) {
-            const adviceIdx = _.findIndex(contest.advices, advice => (adviceItem.advice).toString() === adviceId);
+            const adviceIdx = _.findIndex(contest.advices, adviceItem => (adviceItem.advice).toString() === adviceId);
             if (adviceIdx === -1) {
                 contest.advices.addToSet({
                     advice: adviceId, 
@@ -164,7 +164,7 @@ Contest.statics.withdrawAdviceFromContest = function(query, adviceId) {
     return this.findOne(query)
     .then(contest => {
         if (contest) {
-            const adviceIdx = _.findIndex(contest.advices, advice => (adviceItem.advice).toString() === adviceId);
+            const adviceIdx = _.findIndex(contest.advices, adviceItem => (adviceItem.advice).toString() === adviceId);
             if (adviceIdx > -1) {
                 // contest.advices.addToSet({advice: adviceId, withDrawn: false, active: true, prohibit: false});
                 const advice = contest.advices[adviceIdx];
@@ -187,7 +187,7 @@ Contest.statics.prohibitAdviceFromContest = function(query, adviceId) {
         if (contest) {
             
             //DON"T we need to convert adviceId to STRING            
-            const adviceIdx = _.findIndex(contest.advices, advice => (adviceItem.advice).toString() === adviceId);
+            const adviceIdx = _.findIndex(contest.advices, adviceItem => (adviceItem.advice).toString() === adviceId);
             if (adviceIdx > -1) {
                 // contest.advices.addToSet({advice: adviceId, withDrawn: false, active: true, prohibit: false});
                 const advice = contest.advices[adviceIdx];
