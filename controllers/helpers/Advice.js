@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-14 11:58:39
+* @Last Modified time: 2018-07-14 12:04:00
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -251,7 +251,6 @@ module.exports.getAdviceAnalytics = function(adviceId, recalculate) {
 
 function _validateAdviceFull(updatedPortfolio, validityRequirements) {
 	var fields = Object.keys(validityRequirements);
-	console.log(fields);
 	var positions = _.get(updatedPortfolio, 'detail.positions', null);
 
 	return Promise.map(fields, function(field) {
