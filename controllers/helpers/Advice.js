@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-14 12:53:28
+* @Last Modified time: 2018-07-14 13:27:11
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -264,16 +264,10 @@ function _validateAdviceFull(updatedPortfolio, validityRequirements) {
 				validity = {valid: false, message:`Portfolio Value of ${netValue} is greater than ${maxNav}`};
 			} 
 		} else if(field == 'MIN_POS_COUNT') {
-			console.log(positions);
-			console.log(positions.length);
 			//Check for POSITION COUNT and STOCK EXPOSURE limit
 			if (positions) {
-				console.log("Hola");
 				var minPosCount = _.get(validityRequirements, 'MIN_POS_COUNT', 5);
-				console.log(minPosCount);
-				console.log(positions.length < minPosCount);
 				if (positions.length < minPosCount) {
-					console.log("Himayay")
 					validity = {valid: false, message:`Position count is less than ${minPosCount}`};
 				}
 			}
