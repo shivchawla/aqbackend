@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-14 12:04:00
+* @Last Modified time: 2018-07-14 12:28:55
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -25,7 +25,7 @@ const _ = require('lodash');
 const adviceRequirements = require('../../constants').benchmarkUniverseRequirements;
 
 function _getAdviceOptions(benchmark) {
-	return _.get(adviceRequirements, benchmark, adviceRequirements["NIFTY_50"]);
+	return _.get(adviceRequirements, 'benchmark', adviceRequirements["NIFTY_50"]);
 }
 
 function _filterActive(objs) {
@@ -258,7 +258,7 @@ function _validateAdviceFull(updatedPortfolio, validityRequirements) {
 		if(field == 'MAX_NET_VALUE') {
 			//Check for NET VALUE limit
 			var netValue = _.get(updatedPortfolio, 'pnlStats.netValue', 0.0);
-			var maxNav = _.get(validityRequirements, 'portfolio.MAX_NET_VALUE', 0.0);
+			var maxNav = _.get(validityRequirements, 'MAX_NET_VALUE', 0.0);
 
 			if (maxNav > 0 && netValue > 1.05*maxNav) {
 				validity = {valid: false, message:`Portfolio Value of ${netValue} is greater than ${maxNav}`};
@@ -331,7 +331,7 @@ function _validateAdviceFull(updatedPortfolio, validityRequirements) {
 				});
 			} catch(err) {
 			}
-			
+
 		} else if (field == 'STOCK_LIST') {
 
 			//Check for Security list
