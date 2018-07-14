@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-13 20:35:43
+* @Last Modified time: 2018-07-14 10:11:52
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -25,7 +25,7 @@ const _ = require('lodash');
 const adviceRequirements = require('../../constants').benchmarkUniverseRequirements;
 
 function _getAdviceOptions(benchmark) {
-	return adviceRequirements[benchmark];
+	return _.get(adviceRequirements, benchmark, adviceRequirements["NIFTY_50"]);
 }
 
 function _filterActive(objs) {
@@ -253,7 +253,7 @@ module.exports.getAdviceAnalytics = function(adviceId, recalculate) {
 */
 module.exports.validateAdvice = function(advice, oldAdvice) {
 
-	const validityRequirements = _getAdviceOptions(_.get(advice, 'investmentObjective.goal.investorType', ''));
+	const validityRequirements = _getAdviceOptions(_.get(advice, 'portfolio.benchmark', 'NIFTY_50'));
 
 	return new Promise((resolve, reject) => {
 		var msg = JSON.stringify({action:"validate_advice", 
@@ -354,7 +354,6 @@ module.exports.validateAdvice = function(advice, oldAdvice) {
 	    				} catch(err) {
 	    					
 	    				}
-
 
 	    				//Check for Security list
     					var tickers = _.uniq(positions.map(item => _.get(item, 'security.ticker', '')).filter(item => item!=""))
