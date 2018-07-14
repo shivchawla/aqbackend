@@ -54,7 +54,7 @@ module.exports.adviceRatingFields = [
 	{field:"concentration", multiplier:-1} //Portfolio Diverisification
 ];
 
-module.exports.adviceRankingScale = 100.0;
+module.exports.adviceRankingScale = 5.0;
 module.exports.contestRankingScale = 100.0;
 
 const strongDiversified = {
