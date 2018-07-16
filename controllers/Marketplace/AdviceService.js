@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-16 11:38:38
+* @Last Modified time: 2018-07-16 19:45:13
 */
 
 'use strict';
@@ -406,11 +406,13 @@ module.exports.getAdvices = function(args, res, next) {
 	    			q = {'latestApproval.status': true};
 	    		}
 
-	    		advisorQuery.push({$and: [Object.assign(q, {advisor:{'$ne': userAdvisorId}, public: true, prohibited: false, contestOnly: false}), 
-	    								{$or:[{startDate: {$lte: DateHelper.getCurrentDate()}}, 
-    								      	{startDate: {$exists: false}}
-								      	]}
-						      		]});
+	    		advisorQuery.push({$and: [Object.assign(q, {advisor:{'$ne': userAdvisorId}, public: true, prohibited: false}), 
+	    									{$or:[{contestOnly: false},{contestOnly:{$exists: false}}]}, 
+	    									{$or:[{startDate: {$lte: DateHelper.getCurrentDate()}}, 
+    								      		{startDate: {$exists: false}}
+								      		]}
+						      			]
+						      		});
 	    		
 	    	}
 
