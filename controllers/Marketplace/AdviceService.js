@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-13 20:32:06
+* @Last Modified time: 2018-07-16 11:38:38
 */
 
 'use strict';
@@ -285,7 +285,7 @@ module.exports.getAdvices = function(args, res, next) {
 
 	options.orderParam = orderParam;
 
-    options.fields = 'name createdDate updatedDate advisor public approvalRequested latestApproval prohibited rebalance maxNotional performanceSummary rating startDate';
+    options.fields = 'name createdDate updatedDate advisor public contestOnly approvalRequested latestApproval prohibited rebalance maxNotional performanceSummary rating startDate';
 
     var query = {deleted: false};
 
@@ -467,7 +467,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const fullperformanceFlag = args.fullperformance.value;
 	
 	const options = {};
-	options.fields = 'name createdDate updatedDate advisor public prohibited approval latestApproval portfolio rebalance maxNotional rating investmentObjective approvalRequested';
+	options.fields = 'name createdDate updatedDate advisor public contestOnly prohibited approval latestApproval portfolio rebalance maxNotional rating investmentObjective approvalRequested';
 	options.populate = 'advisor benchmark';
 	
 	return Promise.all([
@@ -531,7 +531,7 @@ module.exports.getAdviceDetail = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const userId = args.user._id;
 
-	var defaultFields = 'subscribers followers createdDate updatedDate advisor rebalance maxNotional rating approval prohibited';
+	var defaultFields = 'subscribers followers createdDate updatedDate advisor rebalance maxNotional rating approval prohibited contestOnly';
 	const options = {};
    	options.fields = args.fields.value != "" ? args.fields.value : defaultFields;
    	options.populate = 'advisor';
