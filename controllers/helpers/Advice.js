@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-14 13:27:11
+* @Last Modified time: 2018-07-16 20:10:19
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -49,7 +49,7 @@ function _getSuggestedAdviceName_contestOnly(benchmark) {
 module.exports.saveAdvice = function(advice, advisorId, effectiveStartDate, userDetails) {
 	return Promise.all([
 		PortfolioHelper.savePortfolio(advice.portfolio, true),
-		advice.contestOnly ? _getSuggestedAdviceName_contestOnly() : advice.name
+		advice.contestOnly ? _getSuggestedAdviceName_contestOnly(_.get(advice, 'portfolio.benchmark.ticker', 'NIFTY_50')) : advice.name
 	])
 	.then(([port, adviceName]) => {
 
