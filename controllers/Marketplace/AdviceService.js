@@ -467,7 +467,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 	const fullperformanceFlag = args.fullperformance.value;
 	
 	const options = {};
-	options.fields = 'name createdDate updatedDate advisor public prohibited approval latestApproval portfolio rebalance maxNotional rating investmentObjective approvalRequested';
+	options.fields = 'name createdDate updatedDate advisor public prohibited approval latestApproval portfolio rebalance maxNotional rating investmentObjective approvalRequested contestOnly';
 	options.populate = 'advisor benchmark';
 	
 	return Promise.all([

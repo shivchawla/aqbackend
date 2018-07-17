@@ -7,9 +7,6 @@ const AdviceModel = require('../../models/Marketplace/Advice');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const APIError = require('../../utils/error');
 
-//Use only res.status() once for each 200/400
-//Dnt use moment here..use DateHelper
-//Use APIError to throw errors
 module.exports.createContest = function(args, res, next) {
     const userId = args.user._id;
     const userEmail = _.get(args.user, 'email', null);
@@ -39,8 +36,6 @@ module.exports.createContest = function(args, res, next) {
     })
 }
 
-
-//ADD projections here, we don't need to fetch al info about the contest
 module.exports.getContests = function(args, res, next) {
     const options = {};
     options.skip = _.get(args, 'skip.value', 0);
@@ -55,12 +50,12 @@ module.exports.getContests = function(args, res, next) {
     });
 }
 
-//Can we pre-defined a set of fields when none is provided (use projections)
 module.exports.getContestSummary = function(args, res, next) {
     const contestId = _.get(args, 'contestId.value', 0);
     const options = {};
-    options.fields = 'name startDate endDate winners rules advices advices';
-    options.populate = 'advice';
+    options.fields = 'name startDate endDate winners rules';
+    // options.fields = 'name startDate endDate winners rules advices';
+    // options.populate = 'advice';
     ContestModel.fetchContest({_id: contestId}, options)
     .then(contest => {
         res.status(200).send(contest);
@@ -70,12 +65,23 @@ module.exports.getContestSummary = function(args, res, next) {
     });
 }
 
-// //Call it updateAdviceInContest
-// module.exports.updateAdviceInContest = function(args, res, next) {
-//     console.log('Called modify Advice in Contest');
-//     const admins = config.get('admin_user');
-//     //Shouldn' it be _.get(args, 'user.email', null);
-//     //What if it's null
+module.exports.getContestAdvices = function(args, res, next) {
+    const contestId = _.get(args, 'contestId.value', 0);
+    const skip = _.get(args, 'skip.value', 0);
+    const limit = _.get(args, 'limit.value', 10);
+    const options = {};
+    options.fields = 'name startDate endDate advices';
+    options.populate = 'advice';
+    options.advices = {skip,limit};
+    ContestModel.fetchContest({_id: contestId}, options)
+    .then(contest => {
+        res.status(200).send(contest);
+    })
+    .catch(err => {
+        res.status(400).send(err.message);
+    })
+}
+
 module.exports.updateAdviceInContest = function(args, res, next) {
     const admins = config.get('admin_user');
     const userEmail = _.get(args, 'user.email', null);
@@ -136,4 +142,26 @@ module.exports.updateAdviceInContest = function(args, res, next) {
     .catch(err => {
         return res.status(400).send(err.message);
     })
+}
+
+module.exports.getAdviceSummary = function(args, res, next) {
+    const adviceId = _.get(args, 'adviceId.value', 0);
+    const contestId = _.get(args, 'contestId.value', 0);
+    const options = {};
+    options.fields = 'advices';
+    ContestModel.fetchContest({_id: contestId}, options)
+    .then(contest => {
+        const advices = _.get(contest, 'advices', []);
+        // Get the advice which matches the adviceId
+        const adviceIdx = _.findIndex(advices, adviceItem => (adviceItem.advice).toString() === adviceId);
+        if (adviceIdx === -1) {
+            APIError.throwJsonError({message: 'Advice is not present in this contest'});
+        } else {
+            res.status(200).send(advices[adviceIdx]);
+        }   
+    })
+    .catch(err => {
+        console.log('Error', err);
+        res.status(400).send(err.message);
+    });
 }

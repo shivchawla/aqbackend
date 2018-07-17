@@ -37,12 +37,19 @@ module.exports.goals = [
 ];
 
 module.exports.contestRatingFields = [
-	{field:"diff.annualReturn", multiplier:1}, //Ability to beat the market 
-	{field:"diff.volatility", multiplier:-1},  //Riskiness
-	{field:"diff.maxLoss", multiplier:-1}, //Downside Risk
-	{field:"information", multiplier:1}, //Consistency of returns
-	{field:"diff.calmar", multiplier:1}, //Ability to recover
-	{field:"concentration", multiplier:-1} //Portfolio Diverisification
+	// {field:"maxLoss", multiplier:-1}, 
+	// {field:"sharpe", multiplier:1}, 
+	// {field:"annualReturn", multiplier:1}, 
+	// {field:"totalReturn", multiplier:1}, 
+	// {field:"volatility", multiplier:-1}, 
+	// {field:"calmar", multiplier:1}, 
+	// {field:"alpha", multiplier:1},
+	{field:"diff.annualReturn", multiplier:1, outputField: "annualReturn"}, //Ability to beat the market 
+	{field:"diff.volatility", multiplier:-1, outputField: "volatility"},  //Riskiness
+	{field:"diff.maxLoss", multiplier:-1, outputField: "maxLoss"}, //Downside Risk
+	{field:"information", multiplier:1, outputField: "sharpe"}, //Consistency of returns
+	{field:"diff.calmar", multiplier:1, outputField: "calmar"}, //Ability to recover
+	{field:"concentration", multiplier:-1, outputField: "concentration"} //Portfolio Diverisification
 ];
 
 module.exports.adviceRatingFields = [
@@ -54,7 +61,7 @@ module.exports.adviceRatingFields = [
 	{field:"concentration", multiplier:-1} //Portfolio Diverisification
 ];
 
-module.exports.adviceRankingScale = 100.0;
+module.exports.adviceRankingScale = 5.0;
 module.exports.contestRankingScale = 100.0;
 
 const strongDiversified = {

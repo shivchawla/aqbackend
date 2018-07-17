@@ -115,11 +115,16 @@ Contest.statics.fetchContest = function(query, options = {}) {
     let q = this.findOne(query);
     options.fields = _.get(options, 'fields', '');
     options.populate = _.get(options, 'populate', '');
-
+    const adviceSkip = _.get(options, 'advices.skip', 0);
+    const adviceLimit = _.get(options, 'advices.limit', 10);
     if (options.fields) {
         q = q.select(options.fields);
     }
 
+    // if (options.fields.indexOf('advices') !== -1) {
+    //     q = q.select({'advices': {$slice: [adviceSkip, adviceLimit]}});
+    // }
+    
     if (options.populate.indexOf('advice') !== -1) {
         q = q.select('advices.advice advices.latestRank').populate({
             path: 'advices.advice', 
@@ -135,7 +140,25 @@ Contest.statics.fetchContest = function(query, options = {}) {
         });
     }
 
-    return q.execAsync();
+    //q = q.sort({"advices.latestRank.value": 1});
+    
+    return q.execAsync()
+    .then(contest => {
+        console.log('Advices Length', contest.advices.length);
+        const advices = contest.advices.sort((a,b) => {
+            // return a.latestRank.value > b.latestRank.value > 0 ? 1 : a.latestRank.value < b.latestRank.value ? -1 : 0
+            return _.get(a, 'latestRank.value', 0) - _.get(b, 'latestRank.value',0);
+        });
+        // contest.advices = advices.slice(adviceSkip, adviceLimit);
+        if (adviceSkip + adviceLimit > advices.length) {
+            contest.advices = _.slice(advices, adviceSkip, advices.length);
+        } else {
+            contest.advices = _.slice(advices, adviceSkip, adviceLimit);
+        }
+        
+
+        return contest;
+    })
 }
 
 Contest.statics.insertAdviceToContest = function(query, adviceId) {
@@ -168,8 +191,8 @@ Contest.statics.withdrawAdviceFromContest = function(query, adviceId) {
             if (adviceIdx > -1) {
                 // contest.advices.addToSet({advice: adviceId, withDrawn: false, active: true, prohibit: false});
                 const advice = contest.advices[adviceIdx];
-                adviceItem.active = false;
-                adviceItem.withDrawn = true;
+                advice.active = false;
+                advice.withDrawn = true;
                 contest.advices[adviceIdx] = advice;
                 contest.lastUpdated = new Date();
             } else {
@@ -191,8 +214,8 @@ Contest.statics.prohibitAdviceFromContest = function(query, adviceId) {
             if (adviceIdx > -1) {
                 // contest.advices.addToSet({advice: adviceId, withDrawn: false, active: true, prohibit: false});
                 const advice = contest.advices[adviceIdx];
-                adviceItem.active = false;
-                adviceItem.prohibited = true;
+                advice.active = false;
+                advice.prohibited = true;
                 contest.advices[adviceIdx] = advice;
                 contest.lastUpdated = new Date();
             } else {
