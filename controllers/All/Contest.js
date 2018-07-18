@@ -21,6 +21,15 @@ module.exports.updateAdviceInContest = (req, res, next) => {
 module.exports.updateContest = (req, res, next) => {
     Contest.updateContest(req.swagger.params, res, next);
 };
+
 module.exports.updateAllContestRanks = (req, res, next) => {
     ContestHelper.updateAllAnalytics();
+};
+
+module.exports.getAdviceSummary = (req, res, next) => {
+    Contest.getAdviceSummary(req.swagger.params, res, next);
+};
+
+module.exports.getContestAdvices = (req, res, next) => {
+    Contest.getContestAdvices(req.swagger.params, res, next);
 }

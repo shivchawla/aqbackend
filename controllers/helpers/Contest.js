@@ -62,7 +62,7 @@ module.exports.updateAnalytics = function(contestId) {
                     return AnalyticsHelper._computeFractionalRanking(valueRatingField, 100.0)
                     .then(frs => {
                         rankingDetail[ratingType].push({
-                            field: ratingField.field, 
+                            field: ratingField.outputField, 
                             data: calculateAdviceRanking(frs, allAdviceAnalytics, ratingType, ratingField.field),
                         });
 

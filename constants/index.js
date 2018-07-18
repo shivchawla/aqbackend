@@ -37,12 +37,13 @@ module.exports.goals = [
 ];
 
 module.exports.contestRatingFields = [
-	{field:"diff.annualReturn", multiplier:1}, //Ability to beat the market 
-	{field:"diff.volatility", multiplier:-1},  //Riskiness
-	{field:"diff.maxLoss", multiplier:-1}, //Downside Risk
-	{field:"information", multiplier:1}, //Consistency of returns
-	{field:"diff.calmar", multiplier:1}, //Ability to recover
-	{field:"concentration", multiplier:-1} //Portfolio Diverisification
+	{field:"diff.annualReturn", multiplier:1, outputField: "annualReturn"}, //Ability to beat the market 
+	{field:"diff.volatility", multiplier:-1, outputField: "volatility"},  //Riskiness
+	{field:"diff.maxLoss", multiplier:-1, outputField: "maxLoss"}, //Downside Risk
+	{field:"information", multiplier:1, outputField: "sharpe"}, //Consistency of returns
+	{field:"diff.calmar", multiplier:1, outputField: "calmar"}, //Ability to recover
+	{field:"concentration", multiplier:-1, outputField: "concentration"} //Portfolio Diverisification
+
 ];
 
 module.exports.adviceRatingFields = [
@@ -62,20 +63,20 @@ const strongDiversified = {
 	MAX_STOCK_EXPOSURE: 0.15,
 	MAX_SECTOR_EXPOSURE: 0.35,
 	MIN_SECTOR_COUNT: 4,
-	//MAX_NET_VALUE: 100000
+	MAX_NET_VALUE: 500000
 }
 
 const weakDiversified = {
 	MIN_POS_COUNT: 10,
 	MAX_STOCK_EXPOSURE: 0.15,
-	//MAX_NET_VALUE: 100000
+	MAX_NET_VALUE: 500000
 }
 
 const sector = {
 	MIN_POS_COUNT: 10,
 	MAX_STOCK_EXPOSURE: 0.15,
 	MAX_SECTOR_COUNT: 1,
-	//MAX_NET_VALUE: 100000
+	MAX_NET_VALUE: 500000
 };
 
 
