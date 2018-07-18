@@ -145,7 +145,7 @@ function _computePerformance_portfolioHistory(portfolioHistory, benchmark, cashA
 //Computes performance of true portfolio (using exact portfolio history) till date
 // and cash adjustment if any (for advice)
 function _computeTruePerformance(portfolioId, date, isAdvice) {
-	return PortfolioHelper.getPortfolioHistory(portfolioId, {benchmark:1}, date)
+	return PortfolioHelper.getPortfolioHistory(portfolioId, {fields:'benchmark'}, date)
 	.then(portfolio => {
 		if (portfolio.history.length > 0) {
 			var portfolioHistory = [];

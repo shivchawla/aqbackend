@@ -237,11 +237,11 @@ Contest.statics.updateRating = function(query, currentAdviceRankingData, simulat
                 const currentAdviceIdx = _.findIndex(currentAdviceRankingData, adviceData => adviceData.adviceId === (adviceItem.advice).toString());
                 const simulatedAdviceIdx = _.findIndex(simulatedAdviceRankingData, adviceData => adviceData.adviceId === (adviceItem.advice).toString());
                 if (currentAdviceIdx > -1) {
-                    const value = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].value`, null);
+                    const rank = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rank`, null);
                     const currentRatingValue = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rating`, null);
                     const simulatedRatingValue = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rating`, null);
-                    const currentRatingRank = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].value`, null);
-                    const simulatedRatingRank = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].value`, null);
+                    const currentRatingRank = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rank`, null);
+                    const simulatedRatingRank = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rank`, null);
                     // find if the date already exists in the rating array
                     const rankingIdx = _.findIndex(adviceItem.rankingHistory, rankData => {
                         const rankDate = rankData.date;
@@ -249,7 +249,7 @@ Contest.statics.updateRating = function(query, currentAdviceRankingData, simulat
                     });
                     if (rankingIdx === -1) { // If date doesn't exist push it into the history
                         adviceItem.rankingHistory.push({
-                            value, 
+                            value: rank, 
                             date: selectedDate, 
                             rating: {
                                 current: {
@@ -265,7 +265,7 @@ Contest.statics.updateRating = function(query, currentAdviceRankingData, simulat
                             }
                         });
                     } else { // Modify the rank value
-                        adviceItem.rankingHistory[rankingIdx].value = value;
+                        adviceItem.rankingHistory[rankingIdx].value = rank;
                         adviceItem.rankingHistory[rankingIdx].rating = {
                             current: {
                                 value: currentRatingValue,
@@ -282,7 +282,7 @@ Contest.statics.updateRating = function(query, currentAdviceRankingData, simulat
                     // Only modify the latestRank if the date is today
                     if (DateHelper.compareDates(today, selectedDate) === 0){
                         adviceItem.latestRank = {
-                            value, 
+                            value: rank, 
                             selectedDate, 
                             rating: {
                                 current: {
@@ -345,7 +345,7 @@ const getAdviceRatingDetail = (rankingDetail, adviceId, type) => {
         return {
             field, 
             ratingValue: data[adviceIndex].rating, 
-            rank: adviceIndex + 1,
+            rank: data[adviceIndex].rank, 
             metricValue: data[adviceIndex].metricValue
         };
     });

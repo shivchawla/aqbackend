@@ -796,7 +796,7 @@ module.exports.getPortfolioHistory = function(portfolioId, options, date) {
                 __history.push(portfolioDetail)
             }
 
-            var __portfolio = Object.assign({}, portfolio);
+            var __portfolio = Object.assign({}, portfolio.toObject());
 
             delete __portfolio.history;
             delete __portfolio.detail;

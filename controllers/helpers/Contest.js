@@ -9,19 +9,33 @@ const AnalyticsHelper = require('./Analytics');
 const ratingFields = require('../../constants').contestRatingFields;
 const contestRankingScale = require('../../constants').contestRankingScale;
 
-const calculateAdviceRanking = (ranking, allAdviceAnalytics = null, ratingType='current', field='maxLoss') =>  {
-    const items = Object.keys(ranking).map(rank => {
-        if (allAdviceAnalytics !== null) {
-            const advicePerformance = allAdviceAnalytics.filter(item => (item.advice).toString() === rank)[0];
-            const metricValue = _.get(advicePerformance, `performance[${ratingType}].diff[${field}]`, 0);
+function _updateArrayWithRankFromRating(array) {
+    let rank = 1;
 
-            return {advice: rank, rating: ranking[rank], metricValue}
+    return array.map((item, index) => {
+        if (index > 0 && item.rating < array[index - 1].rating) {
+            rank = index + 1;
+        }
+        
+        item.rank = rank;
+        
+        return item;
+    });
+}
+
+const calculateAdviceRating = (ratingObj, allAdviceAnalytics = null, ratingType='current', field='maxLoss') =>  {
+    const items = Object.keys(ratingObj).map(ratingAdviceId => {
+        if (allAdviceAnalytics !== null) {
+            const advicePerformance = allAdviceAnalytics.filter(item => (item.advice).toString() === ratingAdviceId)[0];
+            const metricValue = _.get(advicePerformance, `performance[${ratingType}][${field}]`, 0);
+
+            return {advice: ratingAdviceId, rating: ratingObj[ratingAdviceId], metricValue};
         } else {
-            return {advice: rank, rating: ranking[rank]}
+            return {advice: ratingAdviceId, rating: ratingObj[ratingAdviceId]};
         }
     });
 
-    return _.orderBy(items, ['rating'], ['desc'])
+    return _updateArrayWithRankFromRating(_.orderBy(items, ['rating'], ['desc']));
 }
 
 function _getAdviceAnalytics(contestAdviceIds) {
@@ -63,7 +77,7 @@ module.exports.updateAnalytics = function(contestId) {
                     .then(frs => {
                         rankingDetail[ratingType].push({
                             field: ratingField.outputField, 
-                            data: calculateAdviceRanking(frs, allAdviceAnalytics, ratingType, ratingField.field),
+                            data: calculateAdviceRating(frs, allAdviceAnalytics, ratingType, ratingField.field),
                         });
 
                         return frs;
@@ -87,12 +101,15 @@ module.exports.updateAnalytics = function(contestId) {
         .then(([currentRanking, simulatedRanking]) => {
             const contestId = contest._id;
             const currentDate = DateHelper.getCurrentDate();
-            const currentRankingData = calculateAdviceRanking(currentRanking).map((item, index) => {
-                return {adviceId: item.advice, value: index + 1, rating: item.rating};
+            var arr = calculateAdviceRating(currentRanking).map((item, index) => {
+                return {adviceId: item.advice, rating: item.rating}
             });
-            const simulatedRankingData = calculateAdviceRanking(simulatedRanking).map((item, index) => {
-                return {adviceId: item.advice, value: index + 1, rating: item.rating};
-            });
+            const currentRankingData = _updateArrayWithRankFromRating(arr);
+
+            const simulatedRankingData = _updateArrayWithRankFromRating(calculateAdviceRating(simulatedRanking).map((item, index) => {
+                return {adviceId: item.advice, rating: item.rating};
+            }));
+
             return ContestModel.updateRating({_id: contestId}, currentRankingData, simulatedRankingData, currentDate, rankingDetail)
             .then(() => {
                 const contestId = contest._id;
