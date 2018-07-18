@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-12 15:08:18
+* @Last Modified time: 2018-07-18 19:51:45
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -411,7 +411,7 @@ module.exports.getStockList = function(search, options) {
 			if (universe) {
 
 				let universeList = [];
-				const fname = path.resolve(path.join(__dirname, `../../documents/universe/ind_${universe.replace("_","").toLowerCase()}list.csv`));
+				const fname = path.resolve(path.join(__dirname, `../../documents/universe/ind_${universe.replace(new RegExp("_",'g'),"").toLowerCase()}list.csv`));
 				
 				if (fs.existsSync(fname)){
 					
