@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-16 20:10:19
+* @Last Modified time: 2018-07-18 18:05:45
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -25,7 +25,7 @@ const _ = require('lodash');
 const adviceRequirements = require('../../constants').benchmarkUniverseRequirements;
 
 function _getAdviceOptions(benchmark) {
-	return _.get(adviceRequirements, benchmark, adviceRequirements["NIFTY_50"]);
+	return adviceRequirements[benchmark];
 }
 
 function _filterActive(objs) {
@@ -45,7 +45,7 @@ function _getSuggestedAdviceName_contestOnly(benchmark) {
 	});
 }
 
-
+//HELPER FUNCTION -- looks weird
 module.exports.saveAdvice = function(advice, advisorId, effectiveStartDate, userDetails) {
 	return Promise.all([
 		PortfolioHelper.savePortfolio(advice.portfolio, true),
@@ -252,8 +252,10 @@ module.exports.getAdviceAnalytics = function(adviceId, recalculate) {
 function _validateAdviceFull(updatedPortfolio, validityRequirements) {
 	var fields = Object.keys(validityRequirements);
 	var positions = _.get(updatedPortfolio, 'detail.positions', null);
-
+	var benchmark = _.get(updatedPortfolio, 'benchmark')
 	return Promise.map(fields, function(field) {
+
+
 		let validity = {valid: true};
 		if(field == 'MAX_NET_VALUE') {
 			//Check for NET VALUE limit
@@ -369,8 +371,12 @@ function _validateAdviceFull(updatedPortfolio, validityRequirements) {
 */
 module.exports.validateAdvice = function(advice, oldAdvice) {
 
-	const validityRequirements = _getAdviceOptions(_.get(advice, 'portfolio.benchmark.ticker', 'NIFTY_50'));
+	const validityRequirements = _getAdviceOptions(_.get(advice, 'portfolio.benchmark.ticker', ""));
 	
+	if (!validityRequirements) {
+		return {valid: false, message: "Invalid benchmark"};
+	}
+
 	return new Promise((resolve, reject) => {
 		var msg = JSON.stringify({action:"validate_advice", 
             						advice: advice,
