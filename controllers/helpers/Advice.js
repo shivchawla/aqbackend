@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-18 18:05:45
+* @Last Modified time: 2018-07-19 12:41:20
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -76,19 +76,19 @@ module.exports.saveAdvice = function(advice, advisorId, effectiveStartDate, user
 	    	APIError.throwJsonError({userId: userId, message:"Invalid Portfolio! Can't create advice with invalid portfolio", errorCode: 1110});
 	    }
 	})
-    .then(advice => {
-    	if(advice) {
+    .then(savedAdvice => {
+    	if(savedAdvice) {
     		return Promise.all([
-    			advice,
-    			exports.updateAdviceAnalyticsAndPerformanceSummary(advice._id, advice.portfolio.startDate),
-    			advice.public ? sendEmail.sendAdviceStatusEmail({name: advice.name, pending: true, adviceId: advice._id}, userDetails) : true
+    			savedAdvice,
+    			exports.updateAdviceAnalyticsAndPerformanceSummary(savedAdvice._id, savedAdvice.portfolio.startDate),
+    			//savedAdvice.public ? sendEmail.sendAdviceStatusEmail({name: advice.name, pending: true, adviceId: advice._id}, userDetails) : true
 			]);	
     	} else {
     		APIError.throwJsonError({message: "Error adding advice to advisor", errorCode: 1111});	
     	}
     })
-    .then(([advice, analyticsAndPerformance, emailSent]) => {
-    	return Object.assign(analyticsAndPerformance, advice.toObject());
+    .then(([savedAdvice, analyticsAndPerformance]) => {
+    	return Object.assign(analyticsAndPerformance, savedAdvice.toObject());
     })
 };
 
