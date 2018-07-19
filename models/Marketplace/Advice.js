@@ -213,6 +213,8 @@ const Advice = new Schema({
         default: false
     },
 
+    prohibitedDate: Date,
+
     subscribers: [{
         investor:{
     	    type: Schema.Types.ObjectId,
@@ -386,6 +388,19 @@ Advice.statics.deleteAdvice = function(query) {
 	});
 };
 
+Advice.statics.prohibitAdvice = function(query) {
+    return this.findOne(query)
+    .then(advice => {
+        if (advice) {
+            advice.prohibited = true;
+            advice.prohibitedDate = new Date();
+            return advice.saveAsync();
+        } else {
+            throw new Error("Advice not found")
+        }
+    })
+}
+
 //Update the followers list
 //Keeps a history of followers
 //Adds if not following.
@@ -520,7 +535,6 @@ Advice.statics.updateRating = function(query, latestRating) {
         return advice.saveAsync();
     });
 };
-
 
 Advice.statics.updateApproval = function(query, latestApproval) {
     

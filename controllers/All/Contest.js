@@ -32,4 +32,4 @@ module.exports.getAdviceSummary = (req, res, next) => {
 
 module.exports.getContestAdvices = (req, res, next) => {
     Contest.getContestAdvices(req.swagger.params, res, next);
-}
+};

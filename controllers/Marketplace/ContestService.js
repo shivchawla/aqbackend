@@ -11,21 +11,34 @@ module.exports.createContest = function(args, res, next) {
     const userId = args.user._id;
     const userEmail = _.get(args.user, 'email', null);
     const admins = config.get('admin_user');
+    const contest = args.body.value;
+    const startDate = _.get(contest, 'startDate', DateHelper.getCurrentDate());
+    const endDate = _.get(contest, 'endDate', DateHelper.getCurrentDate());
+    const duration = DateHelper.compareDates(endDate, startDate);
     Promise.resolve(true)
     .then(() => {
-        if (admins.indexOf(userEmail) !== -1) { // user is admin and can create a contest
-            const contest = args.body.value;
-            const startDate = _.get(contest, 'startDate', DateHelper.getCurrentDate());
-            const endDate = _.get(contest, 'endDate', DateHelper.getCurrentDate());
-            const duration = DateHelper.compareDates(endDate, startDate);
-            // const duration = endDate.diff(startDate, 'days');
+        if (admins.indexOf(userEmail) !== -1){ // user is admin and can create a contest
             if (duration === 1) { // The contest is of valid duration
-                return ContestModel.saveContest({...contest, creator: userId})
+                // Get the contest before the one to be created
+                return ContestModel.fetchContests(
+                    {active: true, startDate: {$lt: startDate}}, 
+                    {fields: 'name startDate endDate advices'}
+                );
             } else {
                 APIError.throwJsonError({message: 'The duration of the contest should be more than 1 day'});
             }
         } else {
             APIError.throwJsonError({message: 'User is not allowed to create Contest'});
+        }
+    })
+    .then(({contests, count}) => {
+        if (count > 0) { // There is contest present before the one to be created
+            // Getting the latest contest
+            let latestContest = contests[count - 1];
+            const advices = latestContest.advices.filter(advice => advice.active === true);
+            return ContestModel.saveContest({...contest, creator: userId, advices});
+        } else {
+            return ContestModel.saveContest({...contest, creator: userId})
         }
     })
     .then(contest => {
@@ -37,15 +50,23 @@ module.exports.createContest = function(args, res, next) {
 }
 
 module.exports.getContests = function(args, res, next) {
+    const currentDate = DateHelper.getCurrentDate();
     const options = {};
+    const shouldGetValidContest = _.get(args, 'current.value', false);
     options.skip = _.get(args, 'skip.value', 0);
     options.limit = _.get(args, 'limit.value', 10);
     options.fields = 'name startDate endDate winners rules';
-    ContestModel.fetchContests({active: true}, options)
+    let query = {active: true};
+    if (shouldGetValidContest) {
+        query = {...query, startDate: {'$gt': currentDate}};
+        
+    }
+    ContestModel.fetchContests(query, options)
     .then(({contests, count}) => {
         return res.status(200).send({contests, count});
     })
     .catch(err => {
+        console.log(err);
         return res.status(400).send(err.message);
     });
 }
@@ -121,13 +142,16 @@ module.exports.updateAdviceInContest = function(args, res, next) {
                 }
             case "withdraw":
                 if (isOwner) {
-                    return ContestModel.withdrawAdviceFromContest({_id: contestId}, adviceId);
+                    return ContestModel.withdrawAdviceFromContest({active: true}, adviceId);
                 } else {
                     return APIError.throwJsonError({message: "Not authorized to withdraw from contest"});
                 }
             case "prohibit":
                 if (isAdmin) {
-                    return ContestModel.prohibitAdviceFromContest({_id: contestId}, adviceId);
+                    return Promise.all([
+                        ContestModel.prohibitAdviceFromContest({active: true}, adviceId),
+                        AdviceModel.prohibitAdvice({_id: adviceId})
+                    ]);
                 } else {
                     return APIError.throwJsonError({message: "Not authorized to prohibit advice from contest"});
                 }
@@ -163,5 +187,18 @@ module.exports.getAdviceSummary = function(args, res, next) {
     .catch(err => {
         console.log('Error', err);
         res.status(400).send(err.message);
+    });
+}
+
+module.exports.getValidContestsToParticipate = function(args, res, next) {
+    const options = {};
+    options.fields = 'name startDate endDate';
+    const currentDate = DateHelper.getCurrentDate();
+    ContestModel.fetchContests({active: true, startDate: {'$gt': currentDate}})
+    .then(({contests, count}) => {
+        return res.status(200).send({contests, count});
+    })
+    .catch(err => {
+        return res.status(400).send(err.message);
     });
 }
