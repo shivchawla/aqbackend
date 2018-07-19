@@ -2837,6 +2837,13 @@ paths:
       summary: get all contests
       description: get all contests
       operationId: getContests
+      parameters:
+      - name: current
+        in: query
+        type: boolean
+        default: false
+        description: Get contests that are valid for participation
+        
       responses:
         200:
           description: OK
@@ -2988,6 +2995,7 @@ paths:
         400:
           description: Invalid Input
       x-swagger-router-controller: "Contest"
+
   /contest/updateRanks:
       get:
         tags:
@@ -3000,7 +3008,8 @@ paths:
             description: OK
           400:
             description: Invalid Input
-        x-swagger-router-controller: "Contest"       
+        x-swagger-router-controller: "Contest"
+
 securityDefinitions:
   api_key:
     type: apiKey

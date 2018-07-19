@@ -115,8 +115,8 @@ Contest.statics.fetchContest = function(query, options = {}) {
     let q = this.findOne(query);
     options.fields = _.get(options, 'fields', '');
     options.populate = _.get(options, 'populate', '');
-    const adviceSkip = _.get(options, 'advices.skip', 0);
-    const adviceLimit = _.get(options, 'advices.limit', 10);
+    const adviceSkip = Number(_.get(options, 'advices.skip', 0));
+    const adviceLimit = Number(_.get(options, 'advices.limit', 10));
     if (options.fields) {
         q = q.select(options.fields);
     }
@@ -144,18 +144,15 @@ Contest.statics.fetchContest = function(query, options = {}) {
     
     return q.execAsync()
     .then(contest => {
-        console.log('Advices Length', contest.advices.length);
         const advices = contest.advices.sort((a,b) => {
             // return a.latestRank.value > b.latestRank.value > 0 ? 1 : a.latestRank.value < b.latestRank.value ? -1 : 0
             return _.get(a, 'latestRank.value', 0) - _.get(b, 'latestRank.value',0);
         });
-        // contest.advices = advices.slice(adviceSkip, adviceLimit);
         if (adviceSkip + adviceLimit > advices.length) {
             contest.advices = _.slice(advices, adviceSkip, advices.length);
         } else {
-            contest.advices = _.slice(advices, adviceSkip, adviceLimit);
+            contest.advices = _.slice(advices, adviceSkip, adviceLimit + adviceSkip);
         }
-        
 
         return contest;
     })
@@ -184,46 +181,36 @@ Contest.statics.insertAdviceToContest = function(query, adviceId) {
 }
 
 Contest.statics.withdrawAdviceFromContest = function(query, adviceId) {
-    return this.findOne(query)
-    .then(contest => {
-        if (contest) {
+    return this.find(query)
+    .then(contests => {
+        contests.map(contest => {
             const adviceIdx = _.findIndex(contest.advices, adviceItem => (adviceItem.advice).toString() === adviceId);
             if (adviceIdx > -1) {
-                // contest.advices.addToSet({advice: adviceId, withDrawn: false, active: true, prohibit: false});
                 const advice = contest.advices[adviceIdx];
                 advice.active = false;
                 advice.withDrawn = true;
                 contest.advices[adviceIdx] = advice;
                 contest.lastUpdated = new Date();
-            } else {
-                return new Error('Advice not added to contest');
             }
-
             return contest.saveAsync();
-        }
+        })
     })
 }
 
 Contest.statics.prohibitAdviceFromContest = function(query, adviceId) {
-    return this.findOne(query)
-    .then(contest => {
-        if (contest) {
-            
-            //DON"T we need to convert adviceId to STRING            
+    return this.find(query)
+    .then(contests => {
+        contests.map(contest => {
             const adviceIdx = _.findIndex(contest.advices, adviceItem => (adviceItem.advice).toString() === adviceId);
             if (adviceIdx > -1) {
-                // contest.advices.addToSet({advice: adviceId, withDrawn: false, active: true, prohibit: false});
                 const advice = contest.advices[adviceIdx];
                 advice.active = false;
                 advice.prohibited = true;
                 contest.advices[adviceIdx] = advice;
                 contest.lastUpdated = new Date();
-            } else {
-                return new Error('Advice not added to contest');
             }
-
             return contest.saveAsync();
-        }
+        })
     })
 }
 
@@ -320,7 +307,7 @@ Contest.statics.updateWinners = function(query, adviceRankingData, date) {
                 winners.push({
                     advice: rankingData.adviceId,
                     rank: {
-                        value: _.get(rankingData, 'value', null), 
+                        value: _.get(rankingData, 'rank', null), 
                         date, 
                         rating: _.get(rankingData, 'rating', null)
                     }
