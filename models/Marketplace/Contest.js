@@ -117,6 +117,7 @@ Contest.statics.fetchContest = function(query, options = {}) {
     options.populate = _.get(options, 'populate', '');
     const adviceSkip = Number(_.get(options, 'advices.skip', 0));
     const adviceLimit = Number(_.get(options, 'advices.limit', 10));
+    const allAdvices = Number(_.get(options, 'advices.all', false));
     if (options.fields) {
         q = q.select(options.fields);
     }
@@ -148,20 +149,25 @@ Contest.statics.fetchContest = function(query, options = {}) {
             // return a.latestRank.value > b.latestRank.value > 0 ? 1 : a.latestRank.value < b.latestRank.value ? -1 : 0
             return _.get(a, 'latestRank.value', 0) - _.get(b, 'latestRank.value',0);
         });
-        if (adviceSkip + adviceLimit > advices.length) {
-            contest.advices = _.slice(advices, adviceSkip, advices.length);
-        } else {
-            contest.advices = _.slice(advices, adviceSkip, adviceLimit + adviceSkip);
+        if (!allAdvices) {
+            if (adviceSkip + adviceLimit > advices.length) {
+                contest.advices = _.slice(advices, adviceSkip, advices.length);
+            } else {
+                contest.advices = _.slice(advices, adviceSkip, adviceLimit + adviceSkip);
+            }
         }
 
         return contest;
     })
 }
 
-Contest.statics.insertAdviceToContest = function(query, adviceId) {
-    return this.findOne(query)
-    .then(contest => {
-        if (contest) {
+Contest.statics.insertAdviceToContest = function(adviceId) {
+    const currentDate = DateHelper.getCurrentDate();
+    
+    return this.find({active: true, startDate: {'$gt': currentDate}})
+    .then(contests => {
+        const contest = contests[contests.length - 1];
+        if(contest) {
             const adviceIdx = _.findIndex(contest.advices, adviceItem => (adviceItem.advice).toString() === adviceId);
             if (adviceIdx === -1) {
                 contest.advices.addToSet({
