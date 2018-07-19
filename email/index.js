@@ -337,7 +337,7 @@ module.exports.sendContestStatusEmail = function(contestEntryDetails, userDetail
         templateId: adviceStatusTemplateId,
         substitutions: {
             userFullName: userFullName,
-            contestName: contestName
+            contestName: contestName,
             contestEntryUrl: contestEntryUrl,
             leaderboardUrl: leaderboardUrl
         },
