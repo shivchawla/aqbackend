@@ -315,3 +315,34 @@ module.exports.sendAdviceStatusEmail = function(adviceDetails, userDetails) {
     return sgMail.send(msg);
 };
 
+/*
+* Email to notify contest participants
+*/
+module.exports.sendContestStatusEmail = function(contestEntryDetails, userDetails) {    
+    
+    var senderDetails = config.get(`sender_details.adviceqube`);
+    var userFullName = userDetails.firstName + ' ' + userDetails.lastName;
+    var contestName = contestEntryDetails.contestName;
+    var contestEntryUrl = `${config.get('hostname')}/contest/entry/${contestEntryDetails.adviceId}`;
+    var leaderboardUrl = `${config.get('hostname')}/contest/leaderboard/${contestEntryDetails.contestId}`;
+
+    let contestEntryStatusTemplateId = config.get(`contest_entry_successful_template_id`);
+
+    const msg = {
+        to: [{
+            email: userDetails.email,
+            name: userFullName
+        }],
+        from: senderDetails,
+        templateId: adviceStatusTemplateId,
+        substitutions: {
+            userFullName: userFullName,
+            contestName: contestName
+            contestEntryUrl: contestEntryUrl,
+            leaderboardUrl: leaderboardUrl
+        },
+    };
+
+    return sgMail.send(msg);
+};
+
