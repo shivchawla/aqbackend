@@ -108,7 +108,6 @@ module.exports.updateAdviceInContest = function(args, res, next) {
     const userEmail = _.get(args, 'user.email', null);
     const userId = _.get(args, 'user._id', null);
     const adviceId = _.get(args, 'adviceId.value', 0);
-    const contestId = _.get(args, 'contestId.value', 0);
     const operationType = _.get(args, 'type.value', 'add');
     Promise.all([
         AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id'}),
@@ -130,13 +129,13 @@ module.exports.updateAdviceInContest = function(args, res, next) {
             case "enter":
                 if (isOwner) {
                     //Are we still using reference t Advice Model?
-                    return ContestModel.insertAdviceToContest({_id: contestId}, adviceId)
-                    .then(contest => {
-                        return AdviceModel.updateAdvice({_id: adviceId}, {$addToSet: {contests: {
-                            contestId: contest._id,
-                            ranking: [{rank: 0, date: new Date()}]
-                        }}})
-                    })
+                    return ContestModel.insertAdviceToContest(adviceId)
+                    // .then(contest => {
+                    //     return AdviceModel.updateAdvice({_id: adviceId}, {$addToSet: {contests: {
+                    //         contestId: contest._id,
+                    //         ranking: [{rank: 0, date: new Date()}]
+                    //     }}})
+                    // })
                 } else {
                     return APIError.throwJsonError({message: "Not authorized to enter the contest"});
                 }
@@ -150,7 +149,7 @@ module.exports.updateAdviceInContest = function(args, res, next) {
                 if (isAdmin) {
                     return Promise.all([
                         ContestModel.prohibitAdviceFromContest({active: true}, adviceId),
-                        AdviceModel.prohibitAdvice({_id: adviceId})
+                        // AdviceModel.prohibitAdvice({_id: adviceId})
                     ]);
                 } else {
                     return APIError.throwJsonError({message: "Not authorized to prohibit advice from contest"});
@@ -170,10 +169,15 @@ module.exports.updateAdviceInContest = function(args, res, next) {
 
 module.exports.getAdviceSummary = function(args, res, next) {
     const adviceId = _.get(args, 'adviceId.value', 0);
-    const contestId = _.get(args, 'contestId.value', 0);
-    const options = {};
-    options.fields = 'advices';
-    ContestModel.fetchContest({_id: contestId}, options)
+    ContestModel.fetchContests({active: true})
+    .then(({contests, count}) => {
+        const latestContest = contests[count -1];
+        const contestId = _.get(latestContest, '_id', '').toString();
+        const options = {};
+        options.fields = 'advices';
+        options.advices = {all: true};
+        return ContestModel.fetchContest({_id: contestId}, options)
+    })
     .then(contest => {
         const advices = _.get(contest, 'advices', []);
         // Get the advice which matches the adviceId

@@ -2932,41 +2932,8 @@ paths:
         400:
           description: Invalid Input
       x-swagger-router-controller: "Contest"
-
-  /contest/{contestId}/{adviceId}:
-    post:
-      tags:
-      - contest
-      summary: insert, prohibit or withdraw an advice
-      description: Insert, Prohibit or Withdraw an advice from the Contest
-      operationId: updateAdviceInContest
-      security:
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: adviceId
-        in: path
-        required: true
-        type: string
-      - name: contestId
-        in: path
-        required: true
-        type: string
-      - name: type
-        in: query
-        type: string
-        default: 'enter'
-      responses:
-        200:
-          description: OK
-        400:
-          description: Invalid Input
-      x-swagger-router-controller: "Contest"
-    
+  
+  /contest/entry/{adviceId}:
     get:
       tags:
       - contest
@@ -2985,10 +2952,36 @@ paths:
         in: path
         required: true
         type: string
-      - name: contestId
+      responses:
+        200:
+          description: OK
+        400:
+          description: Invalid Input
+      x-swagger-router-controller: "Contest"
+
+  /contest/{adviceId}/action:
+    post:
+      tags:
+      - contest
+      summary: insert, prohibit or withdraw an advice
+      description: Insert, Prohibit or Withdraw an advice from the Contest
+      operationId: updateAdviceInContest
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
         in: path
         required: true
         type: string
+      - name: type
+        in: query
+        type: string
+        default: 'enter'
       responses:
         200:
           description: OK
