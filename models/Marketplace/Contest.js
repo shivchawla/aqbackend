@@ -121,13 +121,9 @@ Contest.statics.fetchContest = function(query, options = {}) {
     if (options.fields) {
         q = q.select(options.fields);
     }
-
-    // if (options.fields.indexOf('advices') !== -1) {
-    //     q = q.select({'advices': {$slice: [adviceSkip, adviceLimit]}});
-    // }
     
     if (options.populate.indexOf('advice') !== -1) {
-        q = q.select('advices.advice advices.latestRank').populate({
+        q = q.select('advices.advice advices.latestRank advices.active').populate({
             path: 'advices.advice', 
             select: 'name advisor',
             populate: {
@@ -140,20 +136,22 @@ Contest.statics.fetchContest = function(query, options = {}) {
             }
         });
     }
-
-    //q = q.sort({"advices.latestRank.value": 1});
     
     return q.execAsync()
     .then(contest => {
-        const advices = contest.advices.sort((a,b) => {
-            // return a.latestRank.value > b.latestRank.value > 0 ? 1 : a.latestRank.value < b.latestRank.value ? -1 : 0
-            return _.get(a, 'latestRank.value', 0) - _.get(b, 'latestRank.value',0);
-        });
-        if (!allAdvices) {
-            if (adviceSkip + adviceLimit > advices.length) {
-                contest.advices = _.slice(advices, adviceSkip, advices.length);
-            } else {
-                contest.advices = _.slice(advices, adviceSkip, adviceLimit + adviceSkip);
+        const showAdvices = options.fields.indexOf('advices') !== -1;
+        if (showAdvices) {
+            const advices = contest.advices.filter(advice => advice.active === true).sort((a,b) => {
+                return _.get(a, 'latestRank.value', 0) - _.get(b, 'latestRank.value',0);
+            });
+            contest.advices = advices;
+            contest = {...contest.toObject(), advicesCount: advices.length};
+            if (!allAdvices) {
+                if (adviceSkip + adviceLimit > advices.length) {
+                    contest.advices = _.slice(advices, adviceSkip, advices.length);
+                } else {
+                    contest.advices = _.slice(advices, adviceSkip, adviceLimit + adviceSkip);
+                }
             }
         }
 
@@ -292,10 +290,8 @@ Contest.statics.updateRating = function(query, currentAdviceRankingData, simulat
                         };
                     }
                 }
-
                 return adviceItem;
             })
-
             return contest.saveAsync();
         }
     })

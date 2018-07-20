@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-18 11:44:01
+* @Last Modified time: 2018-07-20 15:07:51
 */
 
 'use strict';
@@ -252,7 +252,6 @@ module.exports.updateAdvice = function(args, res, next) {
 //1. current date < end date of advice
 //2. Advice is public
 module.exports.getAdvices = function(args, res, next) {
-
 	const userId = args.user ? args.user._id : null;
     const options = {};
 	options.skip = args.skip.value;
@@ -287,7 +286,15 @@ module.exports.getAdvices = function(args, res, next) {
 
     options.fields = 'name createdDate updatedDate advisor public contestOnly approvalRequested latestApproval prohibited rebalance maxNotional performanceSummary rating startDate';
 
-    var query = {deleted: false};
+	var query = {deleted: false};
+	
+	const contestOnly = args.contestOnly.value;
+	if (contestOnly){
+		query.contestOnly = {$exists: true, $eq: true};
+	} else {
+		query = {...query, $or: [{contestOnly:{$exists: false}}, {contestOnly: {$exists: true, $eq: false}}]};
+	}
+	
 
     var performanceFilters = {netValue: {field: "netValueEOD", min: 0, max: 200000}, 
 								sharpe: {field:"sharpe", min: -10, max: 10}, 
@@ -326,8 +333,9 @@ module.exports.getAdvices = function(args, res, next) {
     const following = args.following.value;
     const subscribed = args.subscribed.value;
     const personal = args.personal.value;
-    const advisorId = args.advisor.value;
-
+	const advisorId = args.advisor.value;
+	
+	
     const search = args.search.value;
     if (search) {
     	var nearMatch = `^(.*?(${search})[^$]*)$`;
@@ -389,7 +397,7 @@ module.exports.getAdvices = function(args, res, next) {
 
 	    if(subscribed && userInvestorId){
 	        query.subscribers = {'$elemMatch':{investor: userInvestorId, active:true}};
-	    }
+		}
 
 	    var advisorQuery = [];
 	    if(!advisorId) {
@@ -407,16 +415,14 @@ module.exports.getAdvices = function(args, res, next) {
 	    		}
 
 	    		advisorQuery.push({$and: [Object.assign(q, {advisor:{'$ne': userAdvisorId}, public: true, prohibited: false}), 
-	    									{$or:[{contestOnly: false},{contestOnly:{$exists: false}}]}, 
-	    									{$or:[{startDate: {$lte: DateHelper.getCurrentDate()}}, 
-    								      		{startDate: {$exists: false}}
-								      		]}
-						      			]
-						      		});
+	    								{$or:[{startDate: {$lte: DateHelper.getCurrentDate()}}, 
+    								      	{startDate: {$exists: false}}
+								      	]}
+						      		]});
 	    		
 	    	}
 
-	    	query = {'$and': [query, {'$or': advisorQuery}]}
+	    	//query = {'$and': [query, {'$or': advisorQuery}]}
 	    } 
 	    else if(advisorId) {
 	    	query.advisor = advisorId;

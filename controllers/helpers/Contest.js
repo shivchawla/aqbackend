@@ -49,9 +49,10 @@ function _getAdviceAnalytics(contestAdviceIds) {
 }
 
 module.exports.updateAnalytics = function(contestId) {
-    return ContestModel.fetchContest({_id: contestId}, {fields:'advices'})
+    return ContestModel.fetchContest({_id: contestId}, {fields:'advices', advices: {all: true}})
     .then(contest => {
-        var contestAdviceIds = contest.advices.map(item => item.advice);
+        const activeAdvices = contest.advices.filter(advice => advice.active === true);
+        var contestAdviceIds = activeAdvices.map(item => item.advice);
         const rankingDetail = {current: [], simulated: []};
 
         return _getAdviceAnalytics(contestAdviceIds)
@@ -109,7 +110,6 @@ module.exports.updateAnalytics = function(contestId) {
             const simulatedRankingData = _updateArrayWithRankFromRating(calculateAdviceRating(simulatedRanking).map((item, index) => {
                 return {adviceId: item.advice, rating: item.rating};
             }));
-
             return ContestModel.updateRating({_id: contestId}, currentRankingData, simulatedRankingData, currentDate, rankingDetail)
             .then(() => {
                 const contestId = contest._id;

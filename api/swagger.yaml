@@ -1448,6 +1448,12 @@ paths:
         type: string
         description: search advices by text
         required: false
+      - name: contestOnly
+        in: query
+        type: boolean
+        required: false
+        default: false
+        description: select advices that are contest only
       - name: all
         in: query
         type: boolean

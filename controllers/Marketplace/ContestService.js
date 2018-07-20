@@ -5,6 +5,7 @@ const DateHelper = require('../../utils/Date');
 const ContestModel = require('../../models/Marketplace/Contest');
 const AdviceModel = require('../../models/Marketplace/Advice');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
+const ContestHeper = require('../helpers/Contest');
 const APIError = require('../../utils/error');
 const sendEmail = require('../../email');
 
@@ -16,6 +17,7 @@ module.exports.createContest = function(args, res, next) {
     const startDate = _.get(contest, 'startDate', DateHelper.getCurrentDate());
     const endDate = _.get(contest, 'endDate', DateHelper.getCurrentDate());
     const duration = DateHelper.compareDates(endDate, startDate);
+    let createdContest = null;
     Promise.resolve(true)
     .then(() => {
         if (admins.indexOf(userEmail) !== -1){ // user is admin and can create a contest
@@ -36,18 +38,51 @@ module.exports.createContest = function(args, res, next) {
         if (count > 0) { // There is contest present before the one to be created
             // Getting the latest contest
             let latestContest = contests[count - 1];
-            const advices = latestContest.advices.filter(advice => advice.active === true);
-            return ContestModel.saveContest({...contest, creator: userId, advices});
+            let activeAdvices = latestContest.advices.filter(advice => advice.active === true);
+            activeAdvices = activeAdvices.map(advice => {
+                return {
+                    ..._.pick(advice, ['advice', 'withDrawn', 'active', 'prohibited']),
+                    rankingHistory: []
+                }
+            });
+            return ContestModel.saveContest({...contest, creator: userId, advices: activeAdvices});
         } else {
             return ContestModel.saveContest({...contest, creator: userId})
         }
     })
     .then(contest => {
-        return res.status(200).send(contest);
+        createdContest = contest;
+        return ContestHeper.updateAnalytics(contest._id);
+    })
+    .then(contest => {
+        res.status(200).send(_.pick(createdContest, ['name', 'active', 'startDate', 'endDate']));
+        // return contest;
     })
     .catch(err => {
-        return res.status(400).send(err.message);
+        res.status(400).send(err.message);
     })
+}
+
+module.exports.updateContest = function(args, res, next) {
+    const admins = config.get('admin_user');
+    const userEmail = _.get(args, 'user.email', null);
+    const contestId = _.get(args, 'contestId.value', 0);
+    const contestBody = args.body.value;
+    const isAdmin = admins.indexOf(userEmail) !== -1;
+    Promise.resolve(true)
+    .then(() => {
+        if (isAdmin) {
+            return ContestModel.updateContest({_id: contestId}, {$set: contestBody}, {new: true, fields: 'name startDate endDate active'})
+        } else {
+            APIError.throwJsonError({message: 'Not authorized to update contest'});
+        }
+    })
+    .then(contest => {
+        res.status(200).send(contest);
+    })
+    .catch(err => {
+        res.status(400).send(err);
+    });
 }
 
 module.exports.getContests = function(args, res, next) {
@@ -75,14 +110,13 @@ module.exports.getContests = function(args, res, next) {
 module.exports.getContestSummary = function(args, res, next) {
     const contestId = _.get(args, 'contestId.value', 0);
     const options = {};
-    options.fields = 'name startDate endDate winners rules';
-    // options.fields = 'name startDate endDate winners rules advices';
-    // options.populate = 'advice';
+    options.fields = 'name startDate endDate winners rules active';
     ContestModel.fetchContest({_id: contestId}, options)
     .then(contest => {
         res.status(200).send(contest);
     })
     .catch(err => {
+        console.log(err);
         res.status(400).send(err.message);
     });
 }
