@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:09:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-13 19:56:36
+* @Last Modified time: 2018-07-20 16:55:11
 */
 'use strict';
 const mongoose = require('../index');
@@ -348,7 +348,7 @@ Advice.statics.fetchAdvice = function(query, options) {
     if(options.populate.indexOf('advisor') != -1) {
         q = q.select('advisor').populate({path:'advisor', select:'user _id',
                                         populate:{path: 'user', 
-                                            select:'_id firstName lastName'}
+                                            select:'_id firstName lastName email'}
                                 });
     }
 

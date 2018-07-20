@@ -144,9 +144,13 @@ module.exports.updateAdviceInContest = function(args, res, next) {
     const userId = _.get(args, 'user._id', null);
     const adviceId = _.get(args, 'adviceId.value', 0);
     const operationType = _.get(args, 'type.value', 'add');
+    
+    let isAdmin, isOwner;
+    let adviceOwner;
+
     Promise.all([
         AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id'}),
-        AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'advisor'})
+        AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'advisor', populate:'advisor'})
     ])
     .then(([advisor, advice]) => {
         if (!advisor) {
@@ -157,8 +161,10 @@ module.exports.updateAdviceInContest = function(args, res, next) {
             APIError.throwJsonError({message:"Advice not found"});
         }
 
-        const isAdmin = admins.indexOf(userEmail) !== -1;
-        const isOwner = advisor && advice ? advisor._id.equals(advice.advisor) : false;
+        isAdmin = admins.indexOf(userEmail) !== -1;
+        isOwner = advisor && advice ? advisor._id.equals(advice.advisor) : false;
+
+        adviceOwner = _.get(advice, 'advisor.user', {});
 
         switch(operationType) {
             case "enter":
@@ -202,7 +208,7 @@ module.exports.updateAdviceInContest = function(args, res, next) {
                         type: operationType
                     };
                             ;
-        return Promise.all([data, sendEmail.sendContestStatusEmail(emailData, args.user)]);
+        return Promise.all([data, sendEmail.sendContestStatusEmail(emailData, operationType == "prohibit" ? adviceOwner : args.user)]);
     })
     .then(([data, emailSent]) => {
         return res.status(200).send({data});
