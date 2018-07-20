@@ -161,6 +161,7 @@ module.exports.updateAdviceInContest = function(args, res, next) {
             APIError.throwJsonError({message:"Advice not found"});
         }
 
+
         isAdmin = admins.indexOf(userEmail) !== -1;
         isOwner = advisor && advice ? advisor._id.equals(advice.advisor._id) : false;
 
@@ -204,7 +205,7 @@ module.exports.updateAdviceInContest = function(args, res, next) {
         return Promise.all([data, sendEmail.sendContestStatusEmail(emailData, operationType == "prohibit" ? adviceOwner : args.user)]);
     })
     .then(([data, emailSent]) => {
-        return res.status(200).send({data});
+        return res.status(200).send({message: `Successfully completed operation: ${operationType}`});
     })
     .catch(err => {
         return res.status(400).send(err.message);
@@ -233,7 +234,6 @@ module.exports.getAdviceSummary = function(args, res, next) {
         }   
     })
     .catch(err => {
-        console.log('Error', err);
         res.status(400).send(err.message);
     });
 }

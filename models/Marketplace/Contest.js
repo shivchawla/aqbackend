@@ -2,6 +2,7 @@
 
 const _ = require('lodash');
 const mongoose = require('mongoose');
+const Promise = require('bluebird');
 const DateHelper = require('../../utils/Date');
 const Schema = mongoose.Schema;
 
@@ -190,51 +191,63 @@ Contest.statics.insertAdviceToContest = function(adviceId) {
                 }
                 // return new Error('Advice already added to the contest');
             }
-            return contest.saveAsync();
+
+            return this.update({_id: contest._id}, {$set:contest});
         }
     })
 }
 
 Contest.statics.withdrawAdviceFromContest = function(query, adviceId) {
-    return this.find(query)
+    return this.find(query, {_id: 1})
     .then(contests => {
-        contests.map(contest => {
-            const adviceIdx = _.findIndex(contest.advices, adviceItem => (adviceItem.advice).toString() === adviceId);
-            if (adviceIdx > -1) {
-                const advice = contest.advices[adviceIdx];
-                advice.active = false;
-                advice.withDrawn = true;
-                contest.advices[adviceIdx] = advice;
-                contest.lastUpdated = new Date();
-            }
-            return contest.saveAsync();
-        })
-    })
+        return Promise.map(contests, (item) => {
+            return this.findOne({_id: item._id})
+            .then(contest => {
+                const adviceIdx = _.findIndex(contest.advices, adviceItem => (adviceItem.advice).toString() === adviceId);
+                if (adviceIdx > -1) {
+                    const advice = contest.advices[adviceIdx];
+                    advice.active = false;
+                    advice.withDrawn = true;
+                    contest.advices[adviceIdx] = advice;
+                    contest.lastUpdated = new Date();
+                }
+
+                return this.update({_id: item._id}, {$set:contest});
+            });
+        });
+    });
 }
 
+
 Contest.statics.prohibitAdviceFromContest = function(query, adviceId) {
-    return this.find(query)
+    return this.find(query, {_id: 1})
     .then(contests => {
-        contests.map(contest => {
-            const adviceIdx = _.findIndex(contest.advices, adviceItem => (adviceItem.advice).toString() === adviceId);
-            if (adviceIdx > -1) {
-                const advice = contest.advices[adviceIdx];
-                advice.active = false;
-                advice.prohibited = true;
-                contest.advices[adviceIdx] = advice;
-                contest.lastUpdated = new Date();
-            }
-            return contest.saveAsync();
-        })
-    })
+        return Promise.map(contests, (item) => {
+            return this.findOne({_id: item._id})
+            .then(contest => {
+                const adviceIdx = _.findIndex(contest.advices, adviceItem => (adviceItem.advice).toString() === adviceId);
+                if (adviceIdx > -1) {
+                    const advice = contest.advices[adviceIdx];
+                    advice.active = false;
+                    advice.prohibited = true;
+                    contest.advices[adviceIdx] = advice;
+                    contest.lastUpdated = new Date();
+                }
+            
+                return this.update({_id: item._id}, {$set:contest});
+            });
+        });
+    });
 }
 
 Contest.statics.updateRating = function(query, currentAdviceRankingData, simulatedAdviceRankingData, selectedDate, rankingDetail) {
     const today = DateHelper.getCurrentDate();
 
-    return this.findOne(query)
+    let contestId;
+    return this.findOne(query, {advices: 1})
     .then(contest => {
         if (contest) {
+            contestId = contest._id;
             contest.advices = contest.advices.map(adviceItem => {
                 const currentAdviceIdx = _.findIndex(currentAdviceRankingData, adviceData => adviceData.adviceId === (adviceItem.advice).toString());
                 const simulatedAdviceIdx = _.findIndex(simulatedAdviceRankingData, adviceData => adviceData.adviceId === (adviceItem.advice).toString());
@@ -301,16 +314,20 @@ Contest.statics.updateRating = function(query, currentAdviceRankingData, simulat
                         };
                     }
                 }
+
                 return adviceItem;
             })
-            return contest.saveAsync();
+
+            return this.update({_id: contestId}, {$set:contest});
         }
     })
 }
 
 Contest.statics.updateWinners = function(query, adviceRankingData, date) {
-    return this.findOne(query)
+    return this.findOne(query, {winners: 1, active: 1, rules: 1, endDate: 1})
     .then(contest => {
+        let contestId = contest._id;
+        
         const noOfWinners = contest.rules.prize.length;
         const contestEndDate = contest.endDate;
         const hasEnded = DateHelper.compareDates(contestEndDate, date) < 0 ? true : false;
@@ -326,11 +343,12 @@ Contest.statics.updateWinners = function(query, adviceRankingData, date) {
                     }
                 })
             });
+
             const nWinners = winners.slice(0, noOfWinners);
             contest.winners = nWinners;
             contest.active = false;
 
-            return contest.saveAsync();
+            return this.update({_id: contestId}, {$set: contest});
         } else {
             return null;
         }
