@@ -162,7 +162,7 @@ module.exports.updateAdviceInContest = function(args, res, next) {
         }
 
         isAdmin = admins.indexOf(userEmail) !== -1;
-        isOwner = advisor && advice ? advisor._id.equals(advice.advisor) : false;
+        isOwner = advisor && advice ? advisor._id.equals(advice.advisor._id) : false;
 
         adviceOwner = _.get(advice, 'advisor.user', {});
 
