@@ -6,6 +6,7 @@ const ContestModel = require('../../models/Marketplace/Contest');
 const AdviceModel = require('../../models/Marketplace/Advice');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const APIError = require('../../utils/error');
+const sendEmail = require('../../email');
 
 module.exports.createContest = function(args, res, next) {
     const userId = args.user._id;
@@ -160,6 +161,16 @@ module.exports.updateAdviceInContest = function(args, res, next) {
 
     })
     .then(data => {
+        var emailData = {
+                        contestEntryUrl: `${config.get('hostname')}/contest/entry/${adviceId}`,
+                        leaderboardUrl: `${config.get('hostname')}/contest/leaderboard`,
+                        updateContestEntryUrl: `${config.get('hostname')}/contest/updateadvice/${adviceId}`,
+                        type: operationType
+                    };
+                            ;
+        return Promise.all([data, sendEmail.sendContestStatusEmail(emailData, args.user)]);
+    })
+    .then(([data, emailSent]) => {
         return res.status(200).send({data});
     })
     .catch(err => {

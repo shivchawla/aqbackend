@@ -322,11 +322,19 @@ module.exports.sendContestStatusEmail = function(contestEntryDetails, userDetail
     
     var senderDetails = config.get(`sender_details.adviceqube`);
     var userFullName = userDetails.firstName + ' ' + userDetails.lastName;
-    var contestName = contestEntryDetails.contestName;
-    var contestEntryUrl = `${config.get('hostname')}/contest/entry/${contestEntryDetails.adviceId}`;
-    var leaderboardUrl = `${config.get('hostname')}/contest/leaderboard/${contestEntryDetails.contestId}`;
+    var {contestName, contestEntryUrl, updateContestEntryUrl, leaderboardUrl, type} = contestEntryDetails;
+    
+    let contestEntryStatusTemplateId; 
 
-    let contestEntryStatusTemplateId = config.get(`contest_entry_successful_template_id`);
+    if (type == "enter") {
+        contestEntryStatusTemplateId = config.get(`contest_entry_successful_template_id`);
+    } else if (type == "withdraw") {
+        contestEntryStatusTemplateId = config.get(`contest_entry_withdrawal_template_id`);
+    } else if (type == "prohibit") {
+        contestEntryStatusTemplateId = config.get(`contest_entry_removal_template_id`);
+    } else if (type == "update") {
+        contestEntryStatusTemplateId = config.get(`contest_entry_update_template_id`);
+    }
 
     const msg = {
         to: [{
@@ -334,12 +342,13 @@ module.exports.sendContestStatusEmail = function(contestEntryDetails, userDetail
             name: userFullName
         }],
         from: senderDetails,
-        templateId: adviceStatusTemplateId,
+        templateId: contestEntryStatusTemplateId,
         substitutions: {
             userFullName: userFullName,
-            contestName: contestName,
+            //contestName: contestName,
             contestEntryUrl: contestEntryUrl,
-            leaderboardUrl: leaderboardUrl
+            leaderboardUrl: leaderboardUrl,
+            updateContestEntryUrl: updateContestEntryUrl
         },
     };
 
