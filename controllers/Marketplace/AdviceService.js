@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-20 15:07:51
+* @Last Modified time: 2018-07-20 21:27:13
 */
 
 'use strict';
@@ -19,6 +19,7 @@ const PortfolioHelper = require("../helpers/Portfolio");
 const PerformanceHelper = require("../helpers/Performance");
 const SecurityHelper = require("../helpers/Security");
 const AdviceHelper = require("../helpers/Advice");
+const ContestHelper = require("../helpers/Contest");
 const APIError = require('../../utils/error');
 const DateHelper = require('../../utils/Date');
 const sendEmail = require('../../email');
@@ -451,10 +452,11 @@ module.exports.getAdvices = function(args, res, next) {
 	    	return Promise.map(advices, function(advice) {
     			return Promise.all([
     				PortfolioHelper.getAdvicePnlStats(advice._id),
-    				AdviceHelper.computeAdviceSubscriptionDetail(advice._id, userId)
+    				AdviceHelper.computeAdviceSubscriptionDetail(advice._id, userId),
+    				advice.contestOnly ? ContestHelper.getAdviceSummary(advice._id.toString()) : {}
 				])
-    			.then(([advicePnlStats, subscriptionDetail]) => {
-    				return Object.assign(subscriptionDetail, advicePnlStats, advice.toObject());
+    			.then(([advicePnlStats, subscriptionDetail, contestDetails]) => {
+    				return Object.assign(subscriptionDetail, advicePnlStats, contestDetails, advice.toObject());
     			});
 			});
 		} else {

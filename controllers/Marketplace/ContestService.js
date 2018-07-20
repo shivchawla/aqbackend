@@ -5,7 +5,7 @@ const DateHelper = require('../../utils/Date');
 const ContestModel = require('../../models/Marketplace/Contest');
 const AdviceModel = require('../../models/Marketplace/Advice');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
-const ContestHeper = require('../helpers/Contest');
+const ContestHelper = require('../helpers/Contest');
 const APIError = require('../../utils/error');
 const sendEmail = require('../../email');
 
@@ -52,7 +52,7 @@ module.exports.createContest = function(args, res, next) {
     })
     .then(contest => {
         createdContest = contest;
-        return ContestHeper.updateAnalytics(contest._id);
+        return ContestHelper.updateAnalytics(contest._id);
     })
     .then(contest => {
         res.status(200).send(_.pick(createdContest, ['name', 'active', 'startDate', 'endDate']));
@@ -251,9 +251,10 @@ module.exports.getValidContestsToParticipate = function(args, res, next) {
     });
 }
 
+
 module.exports.getContestAdviceSummary = function(args, res, next) {
     const adviceId = _.get(args, 'adviceId.value', '');
-    ContestHeper.getAdviceSummary(adviceId)
+    return ContestHelper.getAdviceSummary(adviceId)
     .then(contests => {
         res.status(200).send(contests);
     })
