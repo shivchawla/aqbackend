@@ -33,3 +33,7 @@ module.exports.getAdviceSummary = (req, res, next) => {
 module.exports.getContestAdvices = (req, res, next) => {
     Contest.getContestAdvices(req.swagger.params, res, next);
 };
+
+module.exports.getContestAdviceSummary = (req, res, next) => {
+    Contest.getContestAdviceSummary(req.swagger.params, res, next);
+}
