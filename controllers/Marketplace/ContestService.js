@@ -250,3 +250,12 @@ module.exports.getValidContestsToParticipate = function(args, res, next) {
         return res.status(400).send(err.message);
     });
 }
+
+module.exports.getContestAdviceSummary = function(args, res, next) {
+    const adviceId = _.get(args, 'adviceId.value', '');
+    ContestHeper.getAdviceSummary(adviceId)
+    .then(contests => {
+        res.status(200).send(contests);
+    })
+    .catch(error => res.status(400).send(error));
+}

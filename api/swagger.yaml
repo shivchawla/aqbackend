@@ -2939,6 +2939,32 @@ paths:
           description: Invalid Input
       x-swagger-router-controller: "Contest"
   
+  /contest/entry/all/{adviceId}:
+    get:
+      tags:
+      - contest
+      summary: get the advice summary from a particular contest
+      description: Get the advice summary of an advice that is inside the specific contest
+      operationId: getContestAdviceSummary
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: adviceId
+        in: path
+        required: true
+        type: string
+      responses:
+        200:
+          description: OK
+        400:
+          description: Invalid Input
+      x-swagger-router-controller: "Contest" 
+  
   /contest/entry/{adviceId}:
     get:
       tags:
