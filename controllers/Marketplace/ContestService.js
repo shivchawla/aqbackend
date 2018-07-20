@@ -162,14 +162,7 @@ module.exports.updateAdviceInContest = function(args, res, next) {
         switch(operationType) {
             case "enter":
                 if (isOwner) {
-                    //Are we still using reference t Advice Model?
                     return ContestModel.insertAdviceToContest(adviceId)
-                    // .then(contest => {
-                    //     return AdviceModel.updateAdvice({_id: adviceId}, {$addToSet: {contests: {
-                    //         contestId: contest._id,
-                    //         ranking: [{rank: 0, date: new Date()}]
-                    //     }}})
-                    // })
                 } else {
                     return APIError.throwJsonError({message: "Not authorized to enter the contest"});
                 }
@@ -209,7 +202,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
         const contestId = _.get(latestContest, '_id', '').toString();
         const options = {};
         options.fields = 'advices';
-        options.advices = {all: true};
+        options.advices = {all: true, ignoreInactive: false};
         return ContestModel.fetchContest({_id: contestId}, options)
     })
     .then(contest => {

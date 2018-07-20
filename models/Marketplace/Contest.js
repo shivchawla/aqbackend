@@ -117,7 +117,8 @@ Contest.statics.fetchContest = function(query, options = {}) {
     options.populate = _.get(options, 'populate', '');
     const adviceSkip = Number(_.get(options, 'advices.skip', 0));
     const adviceLimit = Number(_.get(options, 'advices.limit', 10));
-    const allAdvices = Number(_.get(options, 'advices.all', false));
+    const allAdvices = _.get(options, 'advices.all', false);
+    const ignoreInactive = _.get(options, 'advices.ignoreInactive', true);
     if (options.fields) {
         q = q.select(options.fields);
     }
@@ -141,7 +142,8 @@ Contest.statics.fetchContest = function(query, options = {}) {
     .then(contest => {
         const showAdvices = options.fields.indexOf('advices') !== -1;
         if (showAdvices) {
-            const advices = contest.advices.filter(advice => advice.active === true).sort((a,b) => {
+            let advices = ignoreInactive ? contest.advices.filter(advice => advice.active === true) : contest.advices;
+            advices = advices.sort((a,b) => {
                 return _.get(a, 'latestRank.value', 0) - _.get(b, 'latestRank.value',0);
             });
             contest.advices = advices;
@@ -176,7 +178,16 @@ Contest.statics.insertAdviceToContest = function(adviceId) {
                     lastUpdated: new Date()
                 });
             } else {
-                return Promise.reject(new Error('Advice already added to the contest'))
+                const contestStartDate = _.get(contest, 'startDate', null);
+                const currentDate = DateHelper.getCurrentDate();
+                const haveNotStarted = DateHelper.compareDates(currentDate, contestStartDate) === -1;
+                if (haveNotStarted) {
+                    contest.advices[adviceIdx].withDrawn = false;
+                    contest.advices[adviceIdx].active = true;
+                    contest.advices[adviceIdx].prohibited = false;
+                } else {
+                    return Promise.reject(new Error('Advice already added to the contest'))
+                }
                 // return new Error('Advice already added to the contest');
             }
             return contest.saveAsync();
