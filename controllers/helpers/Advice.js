@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-19 12:41:20
+* @Last Modified time: 2018-07-20 17:09:18
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -36,7 +36,7 @@ function _getSuggestedAdviceName_contestOnly(benchmark) {
 	return new Promise(resolve => {
 		AdviceModel.countAdvices({contestOnly: true})
 		.then(count => {
-			resolve(`Contest Entry#${count + 1} - ${benchmark}`);
+			resolve(`Contest Entry#${count + 1} vs ${benchmark}`);
 		})
 		.catch(err => {
 			console.log("Can't count advices!! Generating Random Name");
