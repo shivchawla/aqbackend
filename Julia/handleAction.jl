@@ -72,7 +72,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                 nVDict = Dict{String, Any}()
 
                 for i = 1:length(netValues)
-                    nVDict[string(dates[i])] =
+                    nVDict[string(dates[i])] = netValues[i]
                 end
 
                 parsemsg["output"] = Dict{String, Any}("date" => lastdate, 
