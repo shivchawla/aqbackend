@@ -61,20 +61,18 @@ function handleRequest(parsemsg::Dict{String, Any})
 
             (netValues, dates) = compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment)
 
-            ndays = Int(Dates.value(Date(endDate)-Date(startDate)))
-
             if netValues != nothing && dates != nothing
                 vals = zeros(length(netValues), 1)
                 for (i,val) in enumerate(netValues)
                     vals[i,1] = val
                 end
                   
-                (lastdate, performance, dperformance, rolling_performances) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark, trueperiod=ndays)
+                (lastdate, performance, dperformance, rolling_performances) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
                 
                 nVDict = Dict{String, Any}()
 
                 for i = 1:length(netValues)
-                    nVDict[string(dates[i])] = netValues[i]
+                    nVDict[string(dates[i])] =
                 end
 
                 parsemsg["output"] = Dict{String, Any}("date" => lastdate, 
@@ -150,15 +148,13 @@ function handleRequest(parsemsg::Dict{String, Any})
 
             (netValues, dates) = compute_portfolio_value_period(portfolio, startDate, endDate, excludeCash = excludeCash)
             
-            ndays = Int(Dates.value(Date(endDate)-Date(startDate)))
-
             if netValues != nothing && dates != nothing
                 vals = zeros(length(netValues), 1)
                 for (i,val) in enumerate(netValues)
                     vals[i,1] = val
                 end
                   
-                (lastdate, performance, dperformance, rolling_performances) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark, trueperiod=ndays)
+                (lastdate, performance, dperformance, rolling_performances) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
                 
                 nVDict = Dict{String, Any}()
 
