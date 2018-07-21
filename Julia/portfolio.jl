@@ -197,7 +197,8 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, ed
         composition = !excludeCash ? [Dict("weight" => cash_wt, "ticker" => "CASH_INR")] : []
         append!(composition, [Dict("weight" => equity_value_wt[i], "ticker" => tickers[i]) for i in 1:length(allkeys)])
         
-        concentration =  sqrt(sum(equity_value_wt.^2))
+        #BUG FIX: divide by number of positions
+        concentration =  sqrt(sum(equity_value_wt.^2)/length(equity_value_wt))
 
         return (latest_date, composition, concentration)
     catch err
