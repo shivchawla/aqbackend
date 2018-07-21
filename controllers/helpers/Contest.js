@@ -138,22 +138,21 @@ module.exports.updateAllAnalytics = () => {
 module.exports.getAdviceSummary = function(adviceId) {
     return ContestModel.fetchContests({'advices.advice': adviceId}, {fields: 'name active advices.latestRank advices.advice'})
     .then(({contests, count}) => {
-        if (count > 0) {
-            const nContests = [];
-            contests.map(contest => {
-                const requiredAdviceIndex = _.findIndex(contest.advices, adviceItem => (adviceItem.advice).toString() === adviceId);
-                if (requiredAdviceIndex !== -1) {
-                    nContests.push({
-                        name: contest.name,
-                        _id: contest._id,
-                        active: contest.active,
-                        adviceSummary: contest.advices[requiredAdviceIndex]
-                    });
-                }
-            });
-            return {count: nContests.length, contests: nContests};
-        } else {
-            APIError.throwJsonError({message: 'Advice not present in any contest'});
-        }
+    
+        const nContests = [];
+        contests.map(contest => {
+            const requiredAdviceIndex = _.findIndex(contest.advices, adviceItem => (adviceItem.advice).toString() === adviceId);
+            if (requiredAdviceIndex !== -1) {
+                nContests.push({
+                    name: contest.name,
+                    _id: contest._id,
+                    active: contest.active,
+                    adviceSummary: contest.advices[requiredAdviceIndex]
+                });
+            }
+        });
+        
+        return nContests;
+       
     })
 }
