@@ -60,7 +60,7 @@ module.exports.contestRankingScale = 100.0;
 
 const strongDiversified = {
 	MIN_POS_COUNT: 10,
-	MAX_STOCK_EXPOSURE: 0.15,
+	MAX_STOCK_EXPOSURE: 0.125,
 	MAX_SECTOR_EXPOSURE: 0.35,
 	MIN_SECTOR_COUNT: 4,
 	MAX_NET_VALUE: 500000
@@ -68,13 +68,13 @@ const strongDiversified = {
 
 const weakDiversified = {
 	MIN_POS_COUNT: 10,
-	MAX_STOCK_EXPOSURE: 0.15,
+	MAX_STOCK_EXPOSURE: 0.125,
 	MAX_NET_VALUE: 500000
 }
 
 const sector = {
 	MIN_POS_COUNT: 10,
-	MAX_STOCK_EXPOSURE: 0.15,
+	MAX_STOCK_EXPOSURE: 0.125,
 	MAX_SECTOR_COUNT: 1,
 	MAX_NET_VALUE: 500000
 };
