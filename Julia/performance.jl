@@ -34,7 +34,8 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             portfolio_returns = merged_returns["Portfolio"].values
             benchmark_returns = merged_returns[benchmark].values
 
-            ndays = Int(Dates.value(merged_returns.timestamp[end] - merged_returns.timestamp[1]))
+            #Bug Fix: If the length is one, then there is only one day
+            ndays = length(merged_returns) == 1 ? 1 : Int(Dates.value(merged_returns.timestamp[end] - merged_returns.timestamp[1]))
 
             performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns, scale = 365, period = ndays)
             dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns, scale = 365, period = ndays)
