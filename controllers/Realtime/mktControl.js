@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-12 17:16:43
+* @Last Modified time: 2018-07-22 22:27:12
 */
 
 'use strict';
@@ -268,7 +268,7 @@ function _downloadAndUpdateData(type) {
 function processNewData() {
 	//console.log("In Process data")
 	
-	/*return connectSFTP()
+	return connectSFTP()
 	.then(() => {
 		//console.log("Connected to SFTP Successfully");
 		return Promise.all ([
@@ -276,10 +276,10 @@ function processNewData() {
 			_downloadAndUpdateData("ind")
 		])
 	})
-	.then(([s1, s2]) => {*/
+	.then(([s1, s2]) => {
 		//console.log("Successfully updated the stock prices");
 		return _sendAllUpdates()
-	//})
+	})
 	.catch(err => {
 		console.log("Error downloading Realtime Data")
 		console.log(err);

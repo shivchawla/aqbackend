@@ -136,7 +136,7 @@ module.exports.updateAllAnalytics = () => {
 }
 
 module.exports.getAdviceSummary = function(adviceId) {
-    return ContestModel.fetchContests({'advices.advice': adviceId}, {fields: 'name active withDrawn prohibited advices.latestRank advices.advice'})
+    return ContestModel.fetchContests({'advices.advice': adviceId}, {fields: 'name active advices.latestRank advices.advice advices.active advices.withDrawn advices.prohibited'})
     .then(({contests, count}) => {
     
         const nContests = [];
@@ -147,8 +147,6 @@ module.exports.getAdviceSummary = function(adviceId) {
                     name: contest.name,
                     _id: contest._id,
                     active: contest.active,
-                    withDrawn: contest.withDrawn,
-                    prohibited: contest.prohibited,
                     adviceSummary: contest.advices[requiredAdviceIndex]
                 });
             }
@@ -156,5 +154,5 @@ module.exports.getAdviceSummary = function(adviceId) {
         
         return nContests;
        
-    })
+    });
 }
