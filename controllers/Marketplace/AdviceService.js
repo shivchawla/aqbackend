@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-20 21:27:13
+* @Last Modified time: 2018-07-22 16:53:01
 */
 
 'use strict';
@@ -456,7 +456,7 @@ module.exports.getAdvices = function(args, res, next) {
     				advice.contestOnly ? ContestHelper.getAdviceSummary(advice._id.toString()) : {}
 				])
     			.then(([advicePnlStats, subscriptionDetail, contestDetails]) => {
-    				return Object.assign(subscriptionDetail, advicePnlStats, contestDetails, advice.toObject());
+    				return Object.assign(subscriptionDetail, advicePnlStats, {contest: contestDetails}, advice.toObject());
     			});
 			});
 		} else {
