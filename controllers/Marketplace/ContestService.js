@@ -144,6 +144,7 @@ module.exports.updateAdviceInContest = function(args, res, next) {
     const userId = _.get(args, 'user._id', null);
     const adviceId = _.get(args, 'adviceId.value', 0);
     const operationType = _.get(args, 'type.value', 'add');
+    const currentDate = DateHelper.getCurrentDate();
     
     let isAdmin, isOwner;
     let adviceOwner;
@@ -176,14 +177,14 @@ module.exports.updateAdviceInContest = function(args, res, next) {
                 }
             case "withdraw":
                 if (isOwner) {
-                    return ContestModel.withdrawAdviceFromContest({active: true}, adviceId);
+                    return ContestModel.withdrawAdviceFromContest({active: true, endDate: {'$gt': currentDate}}, adviceId);
                 } else {
                     return APIError.throwJsonError({message: "Not authorized to withdraw from contest"});
                 }
             case "prohibit":
                 if (isAdmin) {
                     return Promise.all([
-                        ContestModel.prohibitAdviceFromContest({active: true}, adviceId),
+                        ContestModel.prohibitAdviceFromContest({active: true, endDate: {'$gt': currentDate}}, adviceId),
                         // AdviceModel.prohibitAdvice({_id: adviceId})
                     ]);
                 } else {

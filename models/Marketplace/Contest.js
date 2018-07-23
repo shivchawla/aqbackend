@@ -167,7 +167,7 @@ Contest.statics.insertAdviceToContest = function(adviceId) {
     
     return this.find({active: true, startDate: {'$gt': currentDate}})
     .then(contests => {
-        const contest = contests[contests.length - 1];
+        const contest = contests[0];
         if(contest) {
             const adviceIdx = _.findIndex(contest.advices, adviceItem => (adviceItem.advice).toString() === adviceId);
             if (adviceIdx === -1) {
@@ -197,7 +197,7 @@ Contest.statics.insertAdviceToContest = function(adviceId) {
     })
 }
 
-Contest.statics.withdrawAdviceFromContest = function(query, adviceId) {
+Contest.statics.withdrawAdviceFromContest = function(query, adviceId) {    
     return this.find(query, {_id: 1})
     .then(contests => {
         return Promise.map(contests, (item) => {
