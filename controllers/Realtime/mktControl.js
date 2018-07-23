@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-22 22:27:12
+* @Last Modified time: 2018-07-23 15:31:38
 */
 
 'use strict';
@@ -26,12 +26,10 @@ const DateHelper = require('../../utils/Date');
 const homeDir = require('os').homedir();
 const serverPort = require('../../index').serverPort;
 
-if (config.get('jobsPort') === serverPort) {
-	//Run when seconds = 10
-	schedule.scheduleJob(`${config.get('nse_delayinseconds')} * * * * *`, function() {
-	    processNewData();
-	});
-}
+//Run when seconds = 10
+schedule.scheduleJob(`${config.get('nse_delayinseconds')} * * * * *`, function() {
+    processNewData();
+});
 
 var isBusy = {};
 
