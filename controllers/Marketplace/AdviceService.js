@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-23 11:45:26
+* @Last Modified time: 2018-07-23 12:13:39
 */
 
 'use strict';
@@ -425,7 +425,7 @@ module.exports.getAdvices = function(args, res, next) {
 	    		
 	    	}
 
-	    	//query = {'$and': [query, {'$or': advisorQuery}]}
+	    	query = {'$and': [query, {'$or': advisorQuery}]}
 	    } 
 	    else if(advisorId) {
 	    	query.advisor = advisorId;
