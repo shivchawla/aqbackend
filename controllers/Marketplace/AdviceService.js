@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-23 12:13:39
+* @Last Modified time: 2018-07-23 13:29:06
 */
 
 'use strict';
@@ -109,7 +109,7 @@ module.exports.createAdvice = function(args, res, next) {
 			APIError.throwJsonError({message: "Advice exists with same name"});
 		}
 
-		if(advices.length < config.get('max_advices_per_advisor')) {
+		if(operation=="validate" || (operation == "create" && advices.length < config.get('max_advices_per_advisor'))) {
 			return AdviceHelper.validateAdvice(advice, "");
 		} else {
 			APIError.throwJsonError({advisorId: advisorId, message:"Advice limit exceed. Can't add more advices.", errorCode: 1109});
