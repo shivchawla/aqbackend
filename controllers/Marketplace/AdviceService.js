@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-23 11:40:45
+* @Last Modified time: 2018-07-23 11:45:26
 */
 
 'use strict';
@@ -335,7 +335,7 @@ module.exports.getAdvices = function(args, res, next) {
     const subscribed = args.subscribed.value;
 
     //You should only be able to see personal entries if contestOnly is true
-    const personal = args.personal.value || contestOnly;
+    const personal = contestOnly ? "1" : args.personal.value;
 	const advisorId = args.advisor.value;
 	
 	
