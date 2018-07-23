@@ -51,7 +51,12 @@ module.exports.createContest = function(args, res, next) {
         }
     })
     .then(contest => {
-        res.status(200).send(_.pick(contest, ['name', 'active', 'startDate', 'endDate']));
+        createdContest = contest;
+        //This is required to compute the ranking of rolled over participants
+        return ContestHelper.updateAnalytics(contest._id);
+    })
+    .then(contest => {
+        res.status(200).send(_.pick(createdContest, ['name', 'active', 'startDate', 'endDate']));
     })
     .catch(err => {
         res.status(400).send(err.message);

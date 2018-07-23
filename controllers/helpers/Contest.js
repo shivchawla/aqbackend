@@ -56,68 +56,72 @@ module.exports.updateAnalytics = function(contestId) {
         var contestAdviceIds = activeAdvices.map(item => item.advice);
         const rankingDetail = {current: [], simulated: []};
 
-        return _getAdviceAnalytics(contestAdviceIds)
-        .then(allAdviceAnalytics => {
-            var ratingTypes = ["current", "simulated"];
+        if (activeAdvices.length > 0) {
+            return _getAdviceAnalytics(contestAdviceIds)
+            .then(allAdviceAnalytics => {
+                var ratingTypes = ["current", "simulated"];
 
-            return Promise.map(ratingTypes, function(ratingType) {
-                var allPerformances = allAdviceAnalytics.map((item, index) => {
-                    return {advice: contestAdviceIds[index], performance: item.performance[ratingType]}
-                }); 
-    
-                return Promise.map(ratingFields, function(ratingField) {
-                    var valueRatingField = {};
-                    allPerformances.forEach(item => {
-                        var key = item.advice; 
-                        
-                        //The ratingField contains true or diff
-                        const itemPerformance = _.get(item, `performance.${ratingField.field}`, null);
-                        valueRatingField[key] = itemPerformance !== null ? ratingField.multiplier * itemPerformance : NaN;
-                    });
-
-                    return AnalyticsHelper._computeFractionalRanking(valueRatingField, 100.0)
-                    .then(frs => {
-                        rankingDetail[ratingType].push({
-                            field: ratingField.outputField, 
-                            data: calculateAdviceRating(frs, allAdviceAnalytics, ratingType, ratingField.field),
+                return Promise.map(ratingTypes, function(ratingType) {
+                    var allPerformances = allAdviceAnalytics.map((item, index) => {
+                        return {advice: contestAdviceIds[index], performance: item.performance[ratingType]}
+                    }); 
+        
+                    return Promise.map(ratingFields, function(ratingField) {
+                        var valueRatingField = {};
+                        allPerformances.forEach(item => {
+                            var key = item.advice; 
+                            
+                            //The ratingField contains true or diff
+                            const itemPerformance = _.get(item, `performance.${ratingField.field}`, null);
+                            valueRatingField[key] = itemPerformance !== null ? ratingField.multiplier * itemPerformance : NaN;
                         });
 
-                        return frs;
+                        return AnalyticsHelper._computeFractionalRanking(valueRatingField, 100.0)
+                        .then(frs => {
+                            rankingDetail[ratingType].push({
+                                field: ratingField.outputField, 
+                                data: calculateAdviceRating(frs, allAdviceAnalytics, ratingType, ratingField.field),
+                            });
+
+                            return frs;
+                        })
+                    })
+                    .then(allFrs => {
+                        var totalRankings = {};
+                        contestAdviceIds.forEach(adviceId => {
+                            let sum = 0.0
+                            allFrs.forEach(rankings => {
+                                sum += rankings[adviceId];
+                            });
+        
+                            totalRankings[adviceId] = sum;
+                        });
+
+                        return AnalyticsHelper._computeFractionalRanking(totalRankings, contestRankingScale);
                     })
                 })
-                .then(allFrs => {
-                    var totalRankings = {};
-                    contestAdviceIds.forEach(adviceId => {
-                        let sum = 0.0
-                        allFrs.forEach(rankings => {
-                            sum += rankings[adviceId];
-                        });
-    
-                        totalRankings[adviceId] = sum;
-                    });
+            })
+            .then(([currentRanking, simulatedRanking]) => {
+                const contestId = contest._id;
+                const currentDate = DateHelper.getCurrentDate();
+                var arr = calculateAdviceRating(currentRanking).map((item, index) => {
+                    return {adviceId: item.advice, rating: item.rating}
+                });
+                const currentRankingData = _updateArrayWithRankFromRating(arr);
 
-                    return AnalyticsHelper._computeFractionalRanking(totalRankings, contestRankingScale);
+                const simulatedRankingData = _updateArrayWithRankFromRating(calculateAdviceRating(simulatedRanking).map((item, index) => {
+                    return {adviceId: item.advice, rating: item.rating};
+                }));
+                return ContestModel.updateRating({_id: contestId}, currentRankingData, simulatedRankingData, currentDate, rankingDetail)
+                .then(() => {
+                    const contestId = contest._id;
+                    return ContestModel.updateWinners({_id: contestId}, currentRankingData, currentDate);
                 })
             })
-        })
-        .then(([currentRanking, simulatedRanking]) => {
-            const contestId = contest._id;
-            const currentDate = DateHelper.getCurrentDate();
-            var arr = calculateAdviceRating(currentRanking).map((item, index) => {
-                return {adviceId: item.advice, rating: item.rating}
-            });
-            const currentRankingData = _updateArrayWithRankFromRating(arr);
-
-            const simulatedRankingData = _updateArrayWithRankFromRating(calculateAdviceRating(simulatedRanking).map((item, index) => {
-                return {adviceId: item.advice, rating: item.rating};
-            }));
-            return ContestModel.updateRating({_id: contestId}, currentRankingData, simulatedRankingData, currentDate, rankingDetail)
-            .then(() => {
-                const contestId = contest._id;
-                return ContestModel.updateWinners({_id: contestId}, currentRankingData, currentDate);
-            })
-        })
-    })
+        } else {
+            return contest;
+        }
+    });
 }
 
 module.exports.updateAllAnalytics = () => {
