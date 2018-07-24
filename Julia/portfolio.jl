@@ -18,7 +18,15 @@ function filternan(ta::TimeArray, col = "")
     (nrows, ncols) = size(ta)
     lastname = col == "" ? colnames(ta)[ncols] : col
     ta[.!isnan.(ta[lastname].values)]
-end    
+end 
+
+function _getPricehistory(secids, startdate::DateTime, enddate::DateTime, type::String="UnAdj") 
+    if (type == "Adj") 
+        return YRead.history(secids, "Close", :Day, startdate, enddate, displaylogs=false)
+    else if(type == "UnAdj")
+        return YRead.history_unadj(secids, "Close", :Day, startdate, enddate, displaylogs=false)
+    end
+end
 
 ###
 # Internal Function
@@ -73,10 +81,10 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
         
         if typ == "Adj" 
             #Get the Adjusted prices for tickers in the portfolio
-            prices = YRead.history(secids, "Close", :Day, start_date, end_date, displaylogs=false)
+            prices = _getPricehistory(secids, start_date, end_date type="UnAdj")
         elseif typ == "UnAdj"
             #Get the Adjusted prices for tickers in the portfolio
-            prices = YRead.history_unadj(secids, "Close", :Day, start_date, end_date, displaylogs=false)
+            prices = _getPricehistory(secids, start_date, end_date, type="UnAdj")
         end
 
         #Using benchmark prices to filter out days when benchmark is not available
@@ -123,7 +131,34 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
             portfolio_value[i, 1] = equity_value + (excludeCash ? 0.0 : portfolio.cash)
         end
 
-        return TimeArray(ts, portfolio_value, ["Portfolio"])
+        port_val_ta = TimeArray(ts, portfolio_value, ["Portfolio"])
+
+        #
+        #Check if enddate is same as today
+        #and ts doesn't have it
+        #
+        if (ts[end] < Date(now() && Date(end_date) == Date(now()))
+            equity_value = 0.0
+
+            eod_prices = YRead.history_unadj(secids, "Close", :Day, 1, now(), displaylogs=false, forwardfill=true)
+            
+            allprices = Dict{SecuritySymbol, Float64}()
+            for (sym, pos) in portfolio.positions
+                allprices[sym] = useRtPrices && haskey(_realtimePrices, sym.ticker) ? get(_realtimePrices, sym.ticker, TradeBar()).close : 
+                        prices!=nothing && sym.ticker in colnames(prices) ? values(prices[sym.ticker])[end] : 0.0
+            end
+            
+            for (sym, pos) in portfolio.positions
+                equity_value += pos.quantity * allprices[sym]
+            end
+
+            portfolio_value = equity_value + (excludeCash ? 0.0 : portfolio.cash)  
+
+            #Append Realtime data
+            port_val_ta = [port_val_ta; TimeArray([Date(now())], [portfolio_value], ["Portfolio"])]
+        end
+
+        return port_val_ta
     catch err
         rethrow(err)
     end
