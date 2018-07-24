@@ -20,10 +20,10 @@ function filternan(ta::TimeArray, col = "")
     ta[.!isnan.(ta[lastname].values)]
 end 
 
-function _getPricehistory(secids, startdate::DateTime, enddate::DateTime, type::String="UnAdj") 
-    if (type == "Adj") 
+function _getPricehistory(secids, startdate::DateTime, enddate::DateTime; adjustment::Bool = false) 
+    if (adjustment) 
         return YRead.history(secids, "Close", :Day, startdate, enddate, displaylogs=false)
-    else if(type == "UnAdj")
+    else
         return YRead.history_unadj(secids, "Close", :Day, startdate, enddate, displaylogs=false)
     end
 end
@@ -72,19 +72,19 @@ end
 # Compute portfolio value over a period
 # OUTPUT: portfolio value vector
 ###
-function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime, typ::String="Adj"; excludeCash::Bool = false)
+function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime; adjustment::Bool=false; excludeCash::Bool = false)
     try
         # Get the list of ticker
         secids = [sym.id for sym in keys(portfolio.positions)]    
 
         prices = nothing
         
-        if typ == "Adj" 
+        if adjustment 
             #Get the Adjusted prices for tickers in the portfolio
-            prices = _getPricehistory(secids, start_date, end_date type="UnAdj")
-        elseif typ == "UnAdj"
+            prices = _getPricehistory(secids, start_date, end_date, adjustment = adjustment)
+        else
             #Get the Adjusted prices for tickers in the portfolio
-            prices = _getPricehistory(secids, start_date, end_date, type="UnAdj")
+            prices = _getPricehistory(secids, start_date, end_date)
         end
 
         #Using benchmark prices to filter out days when benchmark is not available
@@ -144,8 +144,8 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
             
             allprices = Dict{SecuritySymbol, Float64}()
             for (sym, pos) in portfolio.positions
-                allprices[sym] = useRtPrices && haskey(_realtimePrices, sym.ticker) ? get(_realtimePrices, sym.ticker, TradeBar()).close : 
-                        prices!=nothing && sym.ticker in colnames(prices) ? values(prices[sym.ticker])[end] : 0.0
+                allprices[sym] = haskey(_realtimePrices, sym.ticker) ? get(_realtimePrices, sym.ticker, TradeBar()).close : 
+                        eod_prices!=nothing && sym.ticker in colnames(prices) ? values(prices[sym.ticker])[end] : 0.0
             end
             
             for (sym, pos) in portfolio.positions
@@ -328,6 +328,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
             startdate = DateTime(collection["startDate"], format)
             enddate = DateTime(collection["endDate"], format)
 
+
              # Compute portfolio value timed array
             # Output is TA 
             if enddate < startdate
@@ -335,7 +336,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
             end
 
             #To compute backward adjusted NAV, let start in reverse
-            portfolio_value_ta = _compute_portfoliovalue(portfolio, startdate, enddate, "UnAdj") #, excludeCash=cashAdjustment)
+            portfolio_value_ta = _compute_portfoliovalue(portfolio, startdate, enddate) #, excludeCash=cashAdjustment)
             
             #THis is modified and dividendFactor is created only once
             # this is a departure from previous implementatin, so keep an eye
