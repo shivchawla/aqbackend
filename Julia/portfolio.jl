@@ -137,7 +137,8 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
         #Check if enddate is same as today
         #and ts doesn't have it
         #
-        if (ts[end] < Date(now() && Date(end_date) == Date(now()))
+        currentDate = Date(now())
+        if (ts[end] < currentDate && Date(end_date) == currentDate)
             equity_value = 0.0
 
             eod_prices = YRead.history_unadj(secids, "Close", :Day, 1, now(), displaylogs=false, forwardfill=true)
