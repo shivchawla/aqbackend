@@ -72,7 +72,7 @@ end
 # Compute portfolio value over a period
 # OUTPUT: portfolio value vector
 ###
-function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime; adjustment::Bool=false; excludeCash::Bool = false)
+function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime; adjustment::Bool=false, excludeCash::Bool = false)
     try
         # Get the list of ticker
         secids = [sym.id for sym in keys(portfolio.positions)]    
@@ -529,7 +529,7 @@ function updateportfolio_splitsAndDividends(portfolio::Dict{String,Any}, startda
                 adjustmentsByDate[date] = Dict{SecuritySymbol, Adjustment}()
             end
 
-            sym = YRead.getsecurity(secid).symbol;
+            sym = YRead.getsecurity(secid).symbol
 
             adjustmentsByDate[date][sym] = Raftaar.Adjustment(adjs[1], string(round(adjs[3])), adjs[2])
             
@@ -693,8 +693,8 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
             currentPosition = currentPortfolio[sym]
             newPosition = newPortfolio[sym]
 
-            currentQty = currentPosition.quantity;
-            newQty = newPosition.quantity;
+            currentQty = currentPosition.quantity
+            newQty = newPosition.quantity
 
             if (newQty > currentQty && currentQty > 0)
                 diffQty = newQty - currentQty
