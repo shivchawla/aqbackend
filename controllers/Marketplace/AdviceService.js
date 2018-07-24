@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-23 13:29:06
+* @Last Modified time: 2018-07-24 22:54:08
 */
 
 'use strict';
@@ -28,10 +28,18 @@ const sendEmail = require('../../email');
 //NEEDS MORE CONTEMPLATION
 function _getEffectiveAdviceStartDate(selectedStartDate) {
 	
+	//LETS SIMPLIFY FOR NOW (we will fix this wen we have true)
+	return DateHelper.getNextWeekday();
+
+
+	//TO BE FIXED LATER
+
 	var currentDate = DateHelper.getCurrentDate();
-	if (DateHelper.compareDates(selectedStartDate, currentDate) == 1) {
+	
+	//THIS LOGIC IS OKAY FOR ADVICE BUT NOT FOR CONTEST ENTRY
+	/*if (DateHelper.compareDates(selectedStartDate, currentDate) == 1) {
 		return selectedStartDate;
-	}
+	}*/
 	
 	return Promise.all([
 		SecurityHelper.getStockLatestDetail({ticker: "NIFTY_50"}, "EOD"),
@@ -60,7 +68,8 @@ function _getEffectiveAdviceStartDate(selectedStartDate) {
 			return eodDate;
 		}
 
-		return selectedStartDate;
+		//Default is current date
+		return currentDate;
 	});
 };
 
