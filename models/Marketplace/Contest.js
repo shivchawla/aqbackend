@@ -192,7 +192,7 @@ Contest.statics.insertAdviceToContest = function(adviceId) {
                 // return new Error('Advice already added to the contest');
             }
 
-            return this.update({_id: contest._id}, {$set:contest});
+            return this.findOneAndUpdate({_id: contest._id}, {$set:contest}, {new: true, fields:'_id'});
         }
     })
 }
@@ -212,7 +212,7 @@ Contest.statics.withdrawAdviceFromContest = function(query, adviceId) {
                     contest.lastUpdated = new Date();
                 }
 
-                return this.update({_id: item._id}, {$set:contest});
+                return this.findOneAndUpdate({_id: item._id}, {$set:contest}, {new: true, fields:'_id'});
             });
         });
     });
@@ -234,7 +234,7 @@ Contest.statics.prohibitAdviceFromContest = function(query, adviceId) {
                     contest.lastUpdated = new Date();
                 }
             
-                return this.update({_id: item._id}, {$set:contest});
+                return this.findOneAndUpdate({_id: item._id}, {$set:contest}, {new: true, fields:'_id'});
             });
         });
     });
@@ -318,7 +318,7 @@ Contest.statics.updateRating = function(query, currentAdviceRankingData, simulat
                 return adviceItem;
             })
 
-            return this.update({_id: contestId}, {$set:contest});
+            return this.findOneAndUpdate({_id: contestId}, {$set:contest});
         }
     })
 }

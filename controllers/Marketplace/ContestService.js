@@ -195,17 +195,21 @@ module.exports.updateAdviceInContest = function(args, res, next) {
         }
 
     })
-    .then(data => {
+    .then(updatedContest => {
         var emailData = {
                         contestEntryUrl: `${config.get('hostname')}/contest/entry/${adviceId}`,
                         leaderboardUrl: `${config.get('hostname')}/contest/leaderboard`,
                         updateContestEntryUrl: `${config.get('hostname')}/contest/updateadvice/${adviceId}`,
                         type: operationType
                     };
-                            ;
-        return Promise.all([data, sendEmail.sendContestStatusEmail(emailData, operationType == "prohibit" ? adviceOwner : args.user)]);
-    })
-    .then(([data, emailSent]) => {
+                            
+        //Update the contest analytics
+        ContestHelper.updateAnalytics(updatedContest._id);
+        
+        //Send an email
+        sendEmail.sendContestStatusEmail(emailData, operationType == "prohibit" ? adviceOwner : args.user);
+        
+        //Send response
         return res.status(200).send({message: `Successfully completed operation: ${operationType}`});
     })
     .catch(err => {
