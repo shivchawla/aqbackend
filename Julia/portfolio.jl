@@ -49,7 +49,9 @@ function _getPricehistory(secids, startdate::DateTime, enddate::DateTime; adjust
 
     if rtTimeArray != nothing
         return [eod_prices; rtTimeArray]
-    else return eod_prices
+    else 
+        return eod_prices
+    end
 end
 
 ###

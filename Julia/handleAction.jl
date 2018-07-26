@@ -67,7 +67,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                     vals[i,1] = val
                 end
                   
-                (lastdate, performance, dperformance, rolling_performances) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
+                (lastdate, performance, dperformance, rolling_performances, static_performances) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
                 
                 nVDict = Dict{String, Any}()
 
@@ -76,11 +76,19 @@ function handleRequest(parsemsg::Dict{String, Any})
                 end
 
                 parsemsg["output"] = Dict{String, Any}("date" => lastdate, 
-                                          "value" => Dict("true" => serialize(performance), "diff" => serialize(dperformance), "rolling" => serialize(rolling_performances)), 
+                                          "value" => Dict(
+                                            "true" => serialize(performance), 
+                                            "diff" => serialize(dperformance), 
+                                            "rolling" => serialize(rolling_performances),
+                                            "static" => serialize(static_performances)), 
                                           "portfolioValues" => nVDict)
             else 
                 parsemsg["output"] = Dict{String, Any}("date" => Date(currentIndiaTime()), 
-                                          "value" => Dict("true" => serialize(Performance()), "diff" => serialize(Performance()), "rolling" => serialize(Dict{String, Performance}())),
+                                          "value" => Dict(
+                                              "true" => serialize(Performance()), 
+                                              "diff" => serialize(Performance()), 
+                                              "rolling" => serialize(Dict{String, Performance}()),
+                                              "static" => serialize(Dict{String, Performance}())),
                                           "portfolioValues" => Dict{String, Any}())
                 #error("Missing Input")
             end
@@ -163,11 +171,19 @@ function handleRequest(parsemsg::Dict{String, Any})
                 end
 
                 parsemsg["output"] = Dict{String, Any}("date" => lastdate, 
-                                          "value" => Dict("true" => serialize(performance), "diff" => serialize(dperformance), "rolling" => serialize(rolling_performances)), 
+                                          "value" => Dict(
+                                            "true" => serialize(performance), 
+                                            "diff" => serialize(dperformance), 
+                                            "rolling" => serialize(rolling_performances),
+                                            "static" => serialize(static_performances)), 
                                           "portfolioValues" => nVDict)
             else 
                 parsemsg["output"] = Dict{String, Any}("date" => Date(currentIndiaTime()), 
-                                          "value" => Dict("true" => serialize(Performance()), "diff" => serialize(Performance()), "rolling" => serialize(Dict{String, Performance}())),
+                                          "value" => Dict(
+                                            "true" => serialize(Performance()), 
+                                            "diff" => serialize(Performance()), 
+                                            "rolling" => serialize(Dict{String, Performance}()),
+                                            "static" => serialize(Dict{String, Performance}())),
                                           "portfolioValues" => nVDict)
                 #error("Missing Input")
             end
