@@ -20,12 +20,36 @@ function filternan(ta::TimeArray, col = "")
     ta[.!isnan.(ta[lastname].values)]
 end 
 
-function _getPricehistory(secids, startdate::DateTime, enddate::DateTime; adjustment::Bool = false) 
+function _getPricehistory(secids, startdate::DateTime, enddate::DateTime; adjustment::Bool = false, strict::Bool = true, appendRealtime::Bool = false) 
+    currentDate = Date(now())
+    eod_prices = nothing
+
     if (adjustment) 
-        return YRead.history(secids, "Close", :Day, startdate, enddate, displaylogs=false)
+        eod_prices = YRead.history(secids, "Close", :Day, startdate, enddate, displaylogs=false, strict = strict)
     else
-        return YRead.history_unadj(secids, "Close", :Day, startdate, enddate, displaylogs=false)
+        eod_prices = YRead.history_unadj(secids, "Close", :Day, startdate, enddate, displaylogs=false, strict = strict)
     end
+
+    rtTimeArray = nothing
+    if appendRealtime && Date(end_date) == currentDate && !adjustment
+        laststamp = eod_prices != nothing ? eod_prices.timestamp[end] : nothing
+
+        if laststamp == nothing || (laststamp != nothing && laststamp < currentDate)
+            ##HERE APPEND REAL TIME PRICES
+
+            rtPriceArray = []
+            for secid in secids
+                security = getsecurity(secid)
+                push!(haskey(_realtimePrices, security.symbol.ticker) ? get(_realtimePrices, sym.ticker, TradeBar()).close : 0.0)
+            end
+            
+            rtTimeArray = TimeArray([currentDate], rtPriceArray, secids)
+        end
+    end
+
+    if rtTimeArray != nothing
+        return [eod_prices; rtTimeArray]
+    else return eod_prices
 end
 
 ###
@@ -80,18 +104,18 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
         prices = nothing
         
         if adjustment 
-            #Get the Adjusted prices for tickers in the portfolio
+            #Get the ADJUSTED prices for tickers in the portfolio
             prices = _getPricehistory(secids, start_date, end_date, adjustment = adjustment)
         else
-            #Get the Adjusted prices for tickers in the portfolio
-            prices = _getPricehistory(secids, start_date, end_date)
+            #Get the UNADJUSTED prices for tickers in the portfolio (with appended realtime)
+            prices = _getPricehistory(secids, start_date, end_date, appendRealtime = true)
         end
 
         #Using benchmark prices to filter out days when benchmark is not available
         #Remove benchmark prices where it's NaN
         #This is imortant becuse Qaundl/XNSE has data for holidays as well
         #******BUT SOMETIMES, this can be FLAWED as NSE dataset can have missing dates
-        benchmark_prices = history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date)
+        benchmark_prices = _getPricehistory(["NIFTY_50"], start_date, end_date, strict=false, appendRealtime=true)
         merged_prices = nothing
 
         if prices != nothing && benchmark_prices != nothing
@@ -131,35 +155,8 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
             portfolio_value[i, 1] = equity_value + (excludeCash ? 0.0 : portfolio.cash)
         end
 
-        port_val_ta = TimeArray(ts, portfolio_value, ["Portfolio"])
+        return TimeArray(ts, portfolio_value, ["Portfolio"])
 
-        #
-        #Check if enddate is same as today
-        #and ts doesn't have it
-        #
-        currentDate = Date(now())
-        if (ts[end] < currentDate && Date(end_date) == currentDate)
-            equity_value = 0.0
-
-            eod_prices = YRead.history_unadj(secids, "Close", :Day, 1, now(), displaylogs=false, forwardfill=true)
-            
-            allprices = Dict{SecuritySymbol, Float64}()
-            for (sym, pos) in portfolio.positions
-                allprices[sym] = haskey(_realtimePrices, sym.ticker) ? get(_realtimePrices, sym.ticker, TradeBar()).close : 
-                        eod_prices!=nothing && sym.ticker in colnames(prices) ? values(prices[sym.ticker])[end] : 0.0
-            end
-            
-            for (sym, pos) in portfolio.positions
-                equity_value += pos.quantity * allprices[sym]
-            end
-
-            portfolio_value = equity_value + (excludeCash ? 0.0 : portfolio.cash)  
-
-            #Append Realtime data
-            port_val_ta = [port_val_ta; TimeArray([Date(now())], [portfolio_value], ["Portfolio"])]
-        end
-
-        return port_val_ta
     catch err
         rethrow(err)
     end
