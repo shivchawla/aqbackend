@@ -31,7 +31,7 @@ function _getPricehistory(secids, startdate::DateTime, enddate::DateTime; adjust
     end
 
     rtTimeArray = nothing
-    if appendRealtime && Date(end_date) == currentDate && !adjustment
+    if appendRealtime && Date(enddate) == currentDate && !adjustment
         laststamp = eod_prices != nothing ? eod_prices.timestamp[end] : nothing
 
         if laststamp == nothing || (laststamp != nothing && laststamp < currentDate)
@@ -303,7 +303,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
         portfolio_value_ta_adj = nothing
         portfolio_value_ta = nothing
 
-        adj_factor = 1.0
+        cash_adj_factor = 1.0
         cashFlow = 0.0 
         
         historyStartDate = length(portfolioHistory) > 0 ? DateTime(portfolioHistory[1]["startDate"], format) : DateTime() 
@@ -382,9 +382,11 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
                 #adj_factor = latest_portfolio_NAV_tomorrow_adj/(latest_portfolio_NAV_tomorrow_unadj - cashRequirement)
 
                 #Modifying it to use unadjusted on 16/05/2018
-                adj_factor = latest_portfolio_NAV_tomorrow_unadj/(latest_portfolio_NAV_tomorrow_unadj - cashRequirement)
+                #Cumulative cash adjustment is reuiqred
+                #NAV = [100 101 141] => 40 cash adjustment should go back all the way to history 141/(141-40) =  
+                cash_adj_factor *= latest_portfolio_NAV_tomorrow_unadj/(latest_portfolio_NAV_tomorrow_unadj - cashRequirement)
                 
-                portfolio_value_ta_adj = portfolio_value_ta.*adj_factor
+                portfolio_value_ta_adj = portfolio_value_ta.*cash_adj_factor
 
             else 
                 portfolio_value_ta_adj = portfolio_value_ta
