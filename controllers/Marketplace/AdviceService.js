@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-24 22:54:08
+* @Last Modified time: 2018-07-27 15:40:00
 */
 
 'use strict';
@@ -23,17 +23,23 @@ const ContestHelper = require("../helpers/Contest");
 const APIError = require('../../utils/error');
 const DateHelper = require('../../utils/Date');
 const sendEmail = require('../../email');
+const moment = require('moment-timezone');
 
 //NOT IN USE
 //NEEDS MORE CONTEMPLATION
 function _getEffectiveAdviceStartDate(selectedStartDate) {
 	
+	var currentDatetimeIndia = moment.tz(new Date(), "Asia/Kolkata");
+	
+	if (currentDatetimeIndia.get('hour') < 12 && currentDatetimeIndia.get('minute') < 0) {
+		return DateHelper.getCurrentDate();
+	}
+
 	//LETS SIMPLIFY FOR NOW (we will fix this wen we have true)
 	return DateHelper.getNextWeekday();
 
 
 	//TO BE FIXED LATER
-
 	var currentDate = DateHelper.getCurrentDate();
 	
 	//THIS LOGIC IS OKAY FOR ADVICE BUT NOT FOR CONTEST ENTRY
@@ -163,7 +169,7 @@ module.exports.updateAdvice = function(args, res, next) {
 			if(advice.advisor.equals(advisor._id)) {
 
 				let allowedKeys;
-				if (advice.public == false || (advice.public === true && advice.approvalRequested === false && advice.latestApproval.status === false)) {
+				if (advice.public == false) {  // || (advice.public === true && advice.approvalRequested === false && advice.latestApproval.status === false)) {
 					allowedKeys = ['public', 'name', 'investmentObjective', 'portfolio', 'rebalance', 'maxNotional']; 
 				} else {
 					allowedKeys = ['portfolio']; 
@@ -180,7 +186,7 @@ module.exports.updateAdvice = function(args, res, next) {
 					}
 				});
 
-				isPublic = advice.public && advice.latestApproval.status;
+				isPublic = advice.public; //&& advice.latestApproval.status;
 
 				//If updating a public advice's PORTFOLIO
 				if (Object.keys(newAdvice).indexOf["portfolio"] != -1) {
@@ -191,7 +197,7 @@ module.exports.updateAdvice = function(args, res, next) {
 
 					if (isPublic) {
 						if (rebalanceFrequency == "Daily") {
-							nextValidDate = DateHelper.getNextWeekday();
+							nextValidDate =  _getEffectiveAdviceStartDate();  //DateHelper.getNextWeekday();
 						} else if (rebalanceFrequency == "Weekly") {
 							//Get the nextWeek Monday
 							nextValidDate = DateHelper.getFirstMonday("1W");

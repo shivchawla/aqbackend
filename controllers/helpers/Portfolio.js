@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-25 12:09:15
+* @Last Modified time: 2018-07-27 15:00:12
 */
 
 'use strict';
@@ -694,8 +694,8 @@ module.exports.getPortfolioForDate = function(portfolioId, options, date) {
             }
 
 
-            if (!_detail) {
-            	_detail = portfolioDetail;
+            if (!__detail) {
+            	__detail = portfolioDetail;
             }
 
             var __portfolio = Object.assign({}, portfolio.toObject());
@@ -797,7 +797,7 @@ module.exports.getPortfolioHistory = function(portfolioId, options, date) {
             }
 
             //If Date is greater than or equal to current portfolio startDate
-            if (_history.length == 0 || DateHelper.compareDates(__date, DateHelper.getDate(portfolioDetail.startDate)) != -1) {
+            if (__history.length == 0 || DateHelper.compareDates(__date, DateHelper.getDate(portfolioDetail.startDate)) != -1) {
                 __history.push(portfolioDetail)
             }
             
