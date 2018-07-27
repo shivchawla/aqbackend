@@ -162,7 +162,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                     vals[i,1] = val
                 end
                   
-                (lastdate, performance, dperformance, rolling_performances) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
+                (lastdate, performance, dperformance, rolling_performances, static_performances) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
                 
                 nVDict = Dict{String, Any}()
 

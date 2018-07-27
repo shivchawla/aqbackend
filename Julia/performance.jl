@@ -90,14 +90,15 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
         performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns, scale = 365, period = ndays)
         dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns, scale = 365, period = ndays)
         rollingperformance = Raftaar.calculateperformance_rollingperiods(rename(merged_returns, ["algorithm", "benchmark"]))
+        staticperformance = Raftaar.calculateperformance_staticperiods(rename(merged_returns, ["algorithm", "benchmark"]))
 
-        return (merged_value.timestamp[end], performance, dperformance, rollingperformance)
+        return (merged_value.timestamp[end], performance, dperformance, rollingperformance, staticperformance)
     
     elseif benchmark_value != nothing
-        return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}())
+        return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}(), Dict{String, Performance}())
 
     else
-        return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}())
+        return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Performance}())
     end
 end
 

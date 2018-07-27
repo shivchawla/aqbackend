@@ -31,19 +31,24 @@ function _getPricehistory(secids, startdate::DateTime, enddate::DateTime; adjust
     end
 
     rtTimeArray = nothing
-    if appendRealtime && Date(enddate) == currentDate && !adjustment
-        laststamp = eod_prices != nothing ? eod_prices.timestamp[end] : nothing
+    try
+        if appendRealtime && Date(enddate) == currentDate && !adjustment
+            laststamp = eod_prices != nothing ? eod_prices.timestamp[end] : nothing
 
-        if laststamp == nothing || (laststamp != nothing && laststamp < currentDate)
-            ##HERE APPEND REAL TIME PRICES
+            if laststamp == nothing || (laststamp != nothing && laststamp < currentDate)
+                ##HERE APPEND REAL TIME PRICES
 
-            rtPriceArray = []
-            for secid in secids
-                security = getsecurity(secid)
-                push!(haskey(_realtimePrices, security.symbol.ticker) ? get(_realtimePrices, sym.ticker, TradeBar()).close : 0.0)
+                rtPriceArray = Vector{Float64}()
+                for secid in secids
+                    security = getsecurity(secid)
+                    push!(rtPriceArray, get(_realtimePrices, security.symbol.ticker, TradeBar()).close) 
+                end
+
+                mat = Matrix{Float64}(length(rtPriceArray),1)
+                mat[:,1] = rtPriceArray
+                
+                rtTimeArray = TimeArray([currentDate], mat, secids)
             end
-            
-            rtTimeArray = TimeArray([currentDate], rtPriceArray, secids)
         end
     end
 
