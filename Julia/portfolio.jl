@@ -20,14 +20,14 @@ function filternan(ta::TimeArray, col = "")
     ta[.!isnan.(ta[lastname].values)]
 end 
 
-function _getPricehistory(secids, startdate::DateTime, enddate::DateTime; adjustment::Bool = false, strict::Bool = true, appendRealtime::Bool = false) 
+function _getPricehistory(tickers, startdate::DateTime, enddate::DateTime; adjustment::Bool = false, strict::Bool = true, appendRealtime::Bool = false) 
     currentDate = Date(now())
     eod_prices = nothing
 
     if (adjustment) 
-        eod_prices = YRead.history(secids, "Close", :Day, startdate, enddate, displaylogs=false, strict = strict)
+        eod_prices = YRead.history(tickers, "Close", :Day, startdate, enddate, displaylogs=false, strict = strict)
     else
-        eod_prices = YRead.history_unadj(secids, "Close", :Day, startdate, enddate, displaylogs=false, strict = strict)
+        eod_prices = YRead.history_unadj(tickers, "Close", :Day, startdate, enddate, displaylogs=false, strict = strict)
     end
 
     rtTimeArray = nothing
@@ -39,21 +39,20 @@ function _getPricehistory(secids, startdate::DateTime, enddate::DateTime; adjust
                 ##HERE APPEND REAL TIME PRICES
 
                 rtPriceArray = Vector{Float64}()
-                for secid in secids
-                    security = getsecurity(secid)
-                    push!(rtPriceArray, get(_realtimePrices, security.symbol.ticker, TradeBar()).close) 
+                for ticker in  tickers
+                    push!(rtPriceArray, get(_realtimePrices, ticker, TradeBar()).close) 
                 end
 
                 mat = Matrix{Float64}(length(rtPriceArray),1)
                 mat[:,1] = rtPriceArray
                 
-                rtTimeArray = TimeArray([currentDate], mat, secids)
+                rtTimeArray = TimeArray([currentDate], mat, tickers)
             end
         end
     end
 
     if rtTimeArray != nothing
-        return [eod_prices; rtTimeArray]
+        return eod_price != nothing ? [eod_prices; rtTimeArray] : rtTimeArray
     else 
         return eod_prices
     end
@@ -106,16 +105,16 @@ end
 function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime; adjustment::Bool=false, excludeCash::Bool = false)
     try
         # Get the list of ticker
-        secids = [sym.id for sym in keys(portfolio.positions)]    
+        tickers = [sym.ticker for sym in keys(portfolio.positions)]    
 
         prices = nothing
         
         if adjustment 
             #Get the ADJUSTED prices for tickers in the portfolio
-            prices = _getPricehistory(secids, start_date, end_date, adjustment = adjustment)
+            prices = _getPricehistory(tickers, start_date, end_date, adjustment = adjustment)
         else
             #Get the UNADJUSTED prices for tickers in the portfolio (with appended realtime)
-            prices = _getPricehistory(secids, start_date, end_date, appendRealtime = true)
+            prices = _getPricehistory(tickers, start_date, end_date, appendRealtime = true)
         end
 
         #Using benchmark prices to filter out days when benchmark is not available
