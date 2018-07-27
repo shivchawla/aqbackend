@@ -72,7 +72,7 @@ module.exports.updateAnalytics = function(contestId) {
                             var key = item.advice; 
                             
                             //The ratingField contains true or diff
-                            valueRatingField[key] = _.get(item, `performance.${ratingField.field}`, ratingField.default) * ratingField.multiplier;
+                            valueRatingField[key] = (_.get(item, `performance.${ratingField.field}`, ratingField.default) || ratingField.default) * ratingField.multiplier;
                         });
 
                         return AnalyticsHelper._computeFractionalRanking(valueRatingField, 100.0)
