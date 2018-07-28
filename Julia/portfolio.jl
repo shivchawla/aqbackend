@@ -52,7 +52,7 @@ function _getPricehistory(tickers, startdate::DateTime, enddate::DateTime; adjus
     end
 
     if rtTimeArray != nothing
-        return eod_price != nothing ? [eod_prices; rtTimeArray] : rtTimeArray
+        return eod_prices != nothing ? [eod_prices; rtTimeArray] : rtTimeArray
     else 
         return eod_prices
     end
