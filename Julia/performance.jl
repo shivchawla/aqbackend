@@ -26,7 +26,7 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             merged_value = filternan(to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end]))
             
             if length(merged_value.timestamp) <= 1
-                return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Performance}())
+                return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
             end
 
             merged_returns = percentchange(merged_value)
@@ -47,10 +47,10 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             return (merged_value.timestamp[end], performance, dperformance, rollingperformance, staticperformance)
         
         elseif benchmark_value != nothing
-            return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}(), Dict{String, Performance}())
+            return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
         
         else
-            return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Performance}())
+            return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
         end
     catch err
         rethrow(err)
@@ -77,7 +77,7 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
         merged_value = dropnan(to(merge(portfolio_value, benchmark_value, :outer), benchmark_value.timestamp[end]), :all)
         
         if length(merged_value.timestamp) <= 1
-            return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}())
+            return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
         end
 
         merged_returns = percentchange(merged_value)
@@ -95,10 +95,10 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
         return (merged_value.timestamp[end], performance, dperformance, rollingperformance, staticperformance)
     
     elseif benchmark_value != nothing
-        return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}(), Dict{String, Performance}())
+        return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
 
     else
-        return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Performance}())
+        return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
     end
 end
 

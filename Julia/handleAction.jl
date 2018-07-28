@@ -88,7 +88,8 @@ function handleRequest(parsemsg::Dict{String, Any})
                                               "true" => serialize(Performance()), 
                                               "diff" => serialize(Performance()), 
                                               "rolling" => serialize(Dict{String, Performance}()),
-                                              "static" => serialize(Dict{String, Performance}())),
+                                              "static" => serialize(Dict{String, Dict{String, Performance}}())
+                                            ),
                                           "portfolioValues" => Dict{String, Any}())
                 #error("Missing Input")
             end
@@ -175,7 +176,8 @@ function handleRequest(parsemsg::Dict{String, Any})
                                             "true" => serialize(performance), 
                                             "diff" => serialize(dperformance), 
                                             "rolling" => serialize(rolling_performances),
-                                            "static" => serialize(static_performances)), 
+                                            "static" => serialize(static_performances)
+                                          ), 
                                           "portfolioValues" => nVDict)
             else 
                 parsemsg["output"] = Dict{String, Any}("date" => Date(currentIndiaTime()), 
@@ -183,7 +185,8 @@ function handleRequest(parsemsg::Dict{String, Any})
                                             "true" => serialize(Performance()), 
                                             "diff" => serialize(Performance()), 
                                             "rolling" => serialize(Dict{String, Performance}()),
-                                            "static" => serialize(Dict{String, Performance}())),
+                                            "static" => serialize(Dict{String, Dict{String, Performance}}())
+                                          ),
                                           "portfolioValues" => nVDict)
                 #error("Missing Input")
             end
