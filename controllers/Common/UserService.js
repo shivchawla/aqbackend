@@ -57,7 +57,13 @@ exports.userlogin = function(args, res, next) {
         }
         const userDetails = userM.toObject();
         if (!userDetails.active) {
-            return Promise.reject('Please validate your email');
+            
+            //Resend the activation email
+            const source = res && res.req && res.req.headers && res.req.headers.origin ? 
+                res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
+
+            sendEmail.sendActivationEmail(res, userDetails, source);
+            //return Promise.reject('Please validate your email');
         }
         return [hashUtil.comparePassword(userDetails.password, user.password), userDetails];
     })
