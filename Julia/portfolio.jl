@@ -38,13 +38,14 @@ function _getPricehistory(tickers, startdate::DateTime, enddate::DateTime; adjus
             if laststamp == nothing || (laststamp != nothing && laststamp < currentDate)
                 ##HERE APPEND REAL TIME PRICES
 
+                #COnvert the price array to right format for timearray
                 rtPriceArray = Vector{Float64}()
                 for ticker in  tickers
-                    push!(rtPriceArray, get(_realtimePrices, ticker, TradeBar()).close) 
+                    push!(rtPriceArray, get(_realtimePrices, ticker, NaN) 
                 end
 
-                mat = Matrix{Float64}(length(rtPriceArray),1)
-                mat[:,1] = rtPriceArray
+                mat = Matrix{Float64}(1, length(rtPriceArray))
+                mat[1, :] = rtPriceArray
                 
                 rtTimeArray = TimeArray([currentDate], mat, tickers)
             end
