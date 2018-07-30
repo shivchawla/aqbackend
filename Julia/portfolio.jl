@@ -24,8 +24,8 @@ function _getPricehistory(tickers, startdate::DateTime, enddate::DateTime; adjus
     currentDate = Date(now())
     eod_prices = nothing
 
-    if (adjustment) 
-        eod_prices = YRead.history(tickers, "Close", :Day, startdate, enddate, displaylogs=false, strict = strict)
+    if (adjustment && strict) 
+        eod_prices = YRead.history(tickers, "Close", :Day, startdate, enddate, displaylogs=false)
     else
         eod_prices = YRead.history_unadj(tickers, "Close", :Day, startdate, enddate, displaylogs=false, strict = strict)
     end
@@ -246,7 +246,6 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, ed
         rethrow(err)
     end
 end
-
 
 function _cashRequirement(oldPortfolio::Portfolio, newPortfolio::Portfolio, date::DateTime)
 

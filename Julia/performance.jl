@@ -16,6 +16,7 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
         cash = haskey(port, "cash") ? port["cash"] : 0.0
 
         cash = 0.0
+        #Adding 
         portfolio_value = _compute_portfoliovalue(portfolio, start_date, end_date, cash)
 
         benchmark = haskey(port, "benchmark") ? port["benchmark"]["ticker"] : "NIFTY_50"
@@ -173,8 +174,8 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
         (valid, security) = _validate_security(security)
         
         if valid
-            benchmark_prices = history_nostrict([benchmark_ticker], "Close", :Day, start_date, end_date)
-            stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
+            benchmark_prices = _getPricehistory([benchmark_ticker], start_date, end_date, strict=false)
+            stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, adjustment = true)
             
             if(benchmark_prices != nothing && stock_prices != nothing)
                 
@@ -221,18 +222,18 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
             end_date = currentIndiaTime()
 
             benchmark = "NIFTY_50"
-            benchmark_prices = history_nostrict([benchmark], "Close", :Day, start_date, end_date)
+            benchmark_prices = _getPricehistory(tickers, start_date, end_date, strict=false)
             
             stock_prices = nothing
             try
-                stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
+                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, adjustment = true, displaylogs=false)
             catch err
                 println("Error in fetching adjusted prices for $(security.symbol.ticker)")
             end
 
             if stock_prices == nothing
                 println("Fetching un-adjusted prices for $(security.symbol.ticker)")
-                stock_prices = history_nostrict([security.symbol.ticker], "Close", :Day, start_date, end_date)
+                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, displaylogs=false)
             end
 
             if benchmark_prices != nothing && stock_prices != nothing
@@ -268,18 +269,18 @@ function compute_stock_static_performance(security_dict::Dict{String,Any}; bench
             start_date = DateTime("2001-01-01")
             end_date = currentIndiaTime()
 
-            benchmark_prices = history_nostrict([benchmark], "Close", :Day, start_date, end_date)
+            benchmark_prices = _getPricehistory([benchmark], start_date, end_date, strict=false)
             
             stock_prices = nothing
             try
-                stock_prices = YRead.history([security.symbol.ticker], "Close", :Day, start_date, end_date, displaylogs=false)
+                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, adjustment = true)
             catch err
                 println("Error in fetching adjusted prices for $(security.symbol.ticker)")
             end
 
             if stock_prices == nothing
                 println("Fetching un-adjusted prices for $(security.symbol.ticker)")
-                stock_prices = history_nostrict([security.symbol.ticker], "Close", :Day, start_date, end_date)
+                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, strict=false)
             end
 
             if benchmark_prices != nothing && stock_prices != nothing
@@ -318,17 +319,17 @@ function get_stock_price_history(security_dict::Dict{String,Any})
             stock_prices = nothing
             
             try
-                stock_prices = YRead.history([security.symbol.id], "Close", :Day, start_date, end_date, displaylogs=false)
+                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, adjustment = true)
             catch err
                 println("Error in fetching adjusted prices fot $(security.symbol.ticker)")
             end
 
             if stock_prices == nothing
                 println("Fetching un-adjusted prices for $(security.symbol.ticker)")
-                stock_prices = history_nostrict([security.symbol.id], "Close", :Day, start_date, end_date)
+                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, strict=false)
             end
 
-            benchmark_prices = history_nostrict(["NIFTY_50"], "Close", :Day, start_date, end_date)
+            benchmark_prices = _getPricehistory(["NIFTY_50"], start_date, end_date, strict=false)
             
             if stock_prices != nothing && benchmark_prices != nothing
                 stock_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
