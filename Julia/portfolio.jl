@@ -358,7 +358,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
             #Add the cash_inflow to last portfolio value... Adjusted Nav
             #Adjusted factor = Adjusted NAV/True Old Nav
             #Multiply the 
-            if idx > 1 && length(collection) >= idx && cashAdjustment && 
+            if idx > 1 && cashAdjustment && 
                 portfolio_value_ta != nothing && 
                 latest_portfolio_value_ta != nothing &&
                 latest_portfolio_value_ta_adj != nothing
