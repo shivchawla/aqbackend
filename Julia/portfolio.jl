@@ -30,6 +30,10 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
         eod_prices = YRead.history_unadj(tickers, "Close", :Day, startdate, enddate, displaylogs=false, strict = strict)
     end
 
+    #Use it twice to fix NaNs and nothing
+    eod_prices = eod_prices != nothing && length(eod_prices) > 0 ? dropnan(eod_prices, :all) : nothing
+    eod_prices = eod_prices != nothing && length(eod_prices) > 0 ? dropnan(eod_prices, :all) : nothing
+
     rtTimeArray = nothing
     try
         if appendRealtime && Date(enddate) == currentDate && !adjustment
