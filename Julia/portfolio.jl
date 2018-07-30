@@ -41,7 +41,7 @@ function _getPricehistory(tickers, startdate::DateTime, enddate::DateTime; adjus
                 #COnvert the price array to right format for timearray
                 rtPriceArray = Vector{Float64}()
                 for ticker in  tickers
-                    push!(rtPriceArray, get(_realtimePrices, ticker, NaN) 
+                    push!(rtPriceArray, get(_realtimePrices, ticker, NaN)) 
                 end
 
                 mat = Matrix{Float64}(1, length(rtPriceArray))
