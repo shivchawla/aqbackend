@@ -20,7 +20,7 @@ function filternan(ta::TimeArray, col = "")
     ta[.!isnan.(ta[lastname].values)]
 end 
 
-function _getPricehistory(tickers, startdate::DateTime, enddate::DateTime; adjustment::Bool = false, strict::Bool = true, appendRealtime::Bool = false) 
+function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate::DateTime; adjustment::Bool = false, strict::Bool = true, appendRealtime::Bool = false) 
     currentDate = Date(now())
     eod_prices = nothing
 
