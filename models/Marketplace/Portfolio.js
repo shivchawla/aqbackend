@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-15 11:01:27
+* @Last Modified time: 2018-07-30 16:14:28
 */
 
 'use strict';
@@ -211,18 +211,15 @@ Portfolio.statics.updatePortfolio = function(query, updates, options) {
 		if (updates.detail) {
 			updates.detail.endDate = DateHelper.getDate(farfuture());
 			
-			//Current detail becomes history (if history is not provided as an update input)
-			if (options.appendHistory && !updates.history) {
-				portfolio = Object.assign({}, portfolio.toObject());
-				//Moving current detail to history makes sense only when partial history 
-				//(only append history comes in)
-				var incomingStartDate = DateHelper.getDate(updates.detail.startDate);
-				var currenPortfolioStartDate = DateHelper.getDate(portfolio.detail.startDate);
+			//Moving current detail to history makes sense only when partial history 
+			//(only append history comes in)
+			var incomingStartDate = DateHelper.getDate(updates.detail.startDate);
+			var currentPortfolioStartDate = DateHelper.getDate(portfolio.detail.startDate);
 				
-				if (DateHelper.compareDates(incomingStartDate, currenPortfolioStartDate) != 1) {
-					throw Error("Error in date of incoming portfolio");
-				}
-
+			//Current detail becomes history (if history is not provided as an update input)
+			if (options.appendHistory && !updates.history && DateHelper.compareDates(incomingStartDate, currentPortfolioStartDate) == 1) {
+				portfolio = Object.assign({}, portfolio.toObject());
+				
 				newHistoryItem = portfolio.detail;
 					
 				var _d = DateHelper.getDate(incomingStartDate);

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-30 10:48:11
+* @Last Modified time: 2018-07-30 16:12:21
 */
 
 'use strict';
@@ -156,6 +156,7 @@ module.exports.updateAdvice = function(args, res, next) {
 	
 	let advicePortfolioId;
 	let isPublic;
+	let nextValidDate;
 
 	var adviceFields = 'advisor public portfolio name investmentObjective rebalance maxNotional approvalRequested latestApproval';
 
@@ -245,7 +246,11 @@ module.exports.updateAdvice = function(args, res, next) {
 		delete adviceUpdates.portfolio;
 
 		if (validAdvice.valid) {
-			return Promise.all([PortfolioModel.updatePortfolio({_id: advicePortfolioId}, newAdvice.portfolio, {new:true, fields: 'detail', appendHistory: isPublic}), 
+
+			var copyPortfolio = Object.assign({}, newAdvice.portfolio);
+			copyPortfolio.detail.startDate = nextValidDate;
+
+			return Promise.all([PortfolioModel.updatePortfolio({_id: advicePortfolioId}, copyPortfolio, {new:true, fields: 'detail', appendHistory: isPublic}), 
 				AdviceModel.updateAdvice({_id: adviceId}, {$set: adviceUpdates}, {new:true, fields: adviceFields})]);
 		} else {
 			APIError.throwJsonError({message: "Invalid Advice", detail: validAdvice.detail, errorCode: 1108});
