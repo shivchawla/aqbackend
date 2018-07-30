@@ -39,7 +39,7 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
         portfolioDetail = get(portfolio, "detail", Dict{String, Any}())
         oldPortfolioDetail = get(oldPortfolio, "detail", Dict{String, Any}())
        
-        startDate = haskey(portfolioDetail, "startDate") ? Date(DateTime(portfolioDetail["startDate"], jsdateformat)) : Date()
+        #=startDate = haskey(portfolioDetail, "startDate") ? Date(DateTime(portfolioDetail["startDate"], jsdateformat)) : Date()
         
         if startDate < Date(currentIndiaTime())
             error("Startdate of new advice: $(startDate) can't be before today")
@@ -49,7 +49,7 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
         oldStartDate = haskey(oldPortfolioDetail, "startDate") ? Date(DateTime(oldPortfolioDetail["startDate"], jsFormat)) : Date()
         if (startDate <= oldStartDate) 
             error("Startdate of new advice: $(startDate) can't be same or before Startdate of current Advice: $(oldStartDate)")
-        end
+        end=#
         
         #Validating positions and benchmark
         (valid_port, port) = _validate_portfolio(portfolio, checkbenchmark = false)
