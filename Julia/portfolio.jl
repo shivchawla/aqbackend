@@ -442,7 +442,7 @@ function compute_portfolio_value_period(port, startDate::DateTime, endDate::Date
         #endDate = DateTime(endDate[1:end-1])
 
         portfolio = convert(Raftaar.Portfolio, port)
-        portfolio_value = _compute_portfoliovalue(portfolio, startDate, endDate, excludeCash = excludeCash)
+        portfolio_value = _compute_portfoliovalue(portfolio, startDate, endDate, excludeCash = excludeCash, adjustment=true)
 
         return (portfolio_value.values, portfolio_value.timestamp)
     catch err

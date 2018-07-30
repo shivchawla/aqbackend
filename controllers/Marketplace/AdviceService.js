@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-27 15:40:00
+* @Last Modified time: 2018-07-30 10:48:11
 */
 
 'use strict';
@@ -197,7 +197,9 @@ module.exports.updateAdvice = function(args, res, next) {
 
 					if (isPublic) {
 						if (rebalanceFrequency == "Daily") {
-							nextValidDate =  _getEffectiveAdviceStartDate();  //DateHelper.getNextWeekday();
+							newStartDate =  _getEffectiveAdviceStartDate();  //DateHelper.getNextWeekday();
+							//FOR CONTEST entry start and valid date are effective dates
+							nextValidDate = newStartDate;
 						} else if (rebalanceFrequency == "Weekly") {
 							//Get the nextWeek Monday
 							nextValidDate = DateHelper.getFirstMonday("1W");
