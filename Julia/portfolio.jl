@@ -117,7 +117,8 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
         
         if adjustment 
             #Get the ADJUSTED prices for tickers in the portfolio
-            prices = _getPricehistory(tickers, start_date, end_date, adjustment = adjustment)
+            #*****TAKING  A LEAP OF FAITH AND apending realtime data*******#
+            prices = _getPricehistory(tickers, start_date, end_date, adjustment = adjustment, appendRealtime=true)
         else
             #Get the UNADJUSTED prices for tickers in the portfolio (with appended realtime)
             prices = _getPricehistory(tickers, start_date, end_date, appendRealtime = true)
@@ -261,11 +262,24 @@ function _cashRequirement(oldPortfolio::Portfolio, newPortfolio::Portfolio, date
     
     #Fetch price from date to 10 days + date (incase date doesn't have any prices)
     prices10DaysAhead = YRead.history_unadj(allTickers, "Close", :Day, date, date + Dates.Day(10))
+    
+    #THIS IS ALITTLE HACKY CODE
+    #BECAUSE WE DON"T HAVE DATA FOR today
+    #WE WILL USE RT DATA
+    ###THIS PIECE OF CODE IS USED TO CALCULATE CASH REQUIREMENT
+    ###FOR CHANGES THAT HAPPENED TODAY
+    prices = nothing
     if prices10DaysAhead == nothing
-        return 0.0
+        if Date(now()) == Date(date)
+            prices = _getPricehistory(allTickers, date, date, appendRealtime = true)
+        end
+    else 
+        prices = TimeSeries.head(prices10DaysAhead, 1)
     end
 
-    prices = TimeSeries.head(prices10DaysAhead, 1)
+    if prices == nothing
+        return 0.0
+    end
     
     cashRequirement = 0.0
     for ticker in allTickers
