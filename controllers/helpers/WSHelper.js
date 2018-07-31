@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-04-25 16:09:37
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-31 11:45:11
+* @Last Modified time: 2018-07-31 11:50:47
 */
 'use strict';
 var redis = require('redis');
@@ -11,6 +11,7 @@ const config = require('config');
 const WebSocket = require('ws');
 const serverPort = require('../../index').serverPort;
 const APIError = require('../../utils/error');
+const _ = require('lodash');
 
 redisUtils.insertKeyValue(`numFailedRequests-${serverPort}`, 0);
 
