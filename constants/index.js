@@ -39,22 +39,22 @@ module.exports.goals = [
 const Inf = 1000000000;
 
 module.exports.contestRatingFields = [
-	{field:"diff.annualReturn", multiplier:1, outputField: "annualReturn", default: 0.0}, //Ability to beat the market 
+	{field:"diff.annualReturn", multiplier:1, outputField: "annualReturn", default: -Inf}, //Ability to beat the market 
 	{field:"diff.volatility", multiplier:-1, outputField: "volatility", default: Inf},  //Riskiness
-	{field:"diff.maxLoss", multiplier:-1, outputField: "maxLoss", default: 0.0}, //Downside Risk
+	{field:"diff.maxLoss", multiplier:-1, outputField: "maxLoss", default: Inf}, //Downside Risk
 	{field:"information", multiplier:1, outputField: "sharpe", default: -Inf}, //Consistency of returns
-	{field:"diff.calmar", multiplier:1, outputField: "calmar", default: Inf}, //Ability to recover
-	{field:"concentration", multiplier:-1, outputField: "concentration", default: 0.0} //Portfolio Diverisification
+	{field:"diff.calmar", multiplier:1, outputField: "calmar", default: -Inf}, //Ability to recover
+	{field:"concentration", multiplier:-1, outputField: "concentration", default: 1.0} //Portfolio Diverisification
 
 ];
 
 module.exports.adviceRatingFields = [
-	{field:"diff.annualReturn", multiplier:1, default: 0.0}, //Ability to beat the market 
+	{field:"diff.annualReturn", multiplier:1, default: -Inf}, //Ability to beat the market 
 	{field:"diff.volatility", multiplier:-1, default: Inf},  //Riskiness
-	{field:"diff.maxLoss", multiplier:-1, default: 0.0}, //Downside Risk
+	{field:"diff.maxLoss", multiplier:-1, default: Inf}, //Downside Risk
 	{field:"information", multiplier:1, default: -Inf}, //Consistency of returns
-	{field:"diff.calmar", multiplier:1, default: Inf}, //Ability to recover
-	{field:"concentration", multiplier:-1, default: 0.0} //Portfolio Diverisification
+	{field:"diff.calmar", multiplier:1, default: -Inf}, //Ability to recover
+	{field:"concentration", multiplier:-1, default: 1.0} //Portfolio Diverisification
 ];
 
 module.exports.adviceRankingScale = 5.0;

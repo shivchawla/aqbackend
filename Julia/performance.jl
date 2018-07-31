@@ -226,14 +226,14 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
             
             stock_prices = nothing
             try
-                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, adjustment = true, displaylogs=false)
+                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, adjustment = true)
             catch err
                 println("Error in fetching adjusted prices for $(security.symbol.ticker)")
             end
 
             if stock_prices == nothing
                 println("Fetching un-adjusted prices for $(security.symbol.ticker)")
-                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, displaylogs=false)
+                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, strict=false)
             end
 
             if benchmark_prices != nothing && stock_prices != nothing
