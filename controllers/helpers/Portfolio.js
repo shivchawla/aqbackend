@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-31 20:56:54
+* @Last Modified time: 2018-07-31 21:02:08
 */
 
 'use strict';
@@ -860,7 +860,7 @@ module.exports.validateTransactions = function(transactions, advicePortfolio, in
 module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
 	var currentDate = DateHelper.getCurrentDate();
 
-	let adjustmentRequired = false;
+	let isStartDateToday = false
 
 	return exports.getPortfolioForDate(portfolioId, {fields: 'detail'})
 	.then(portfolio => {
@@ -870,7 +870,9 @@ module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
 		//Adjustment is required is startDate is less than current Date
 		//MODIFYING THIS CHECK  to ALLOW when STARTDATE AND CURRENT DATE ARE SAME
 		//THIS IS TO MANAGE CONTEST ENTRIES PORTFOLIOS - 31/07/2018
-		adjustmentRequired = DateHelper.compareDates(DateHelper.getDate(startDate), currentDate) != 1;
+		isStartDateToday = DateHelper.compareDates(DateHelper.getDate(startDate), currentDate) == 0;
+		
+		var adjustmentRequired = DateHelper.compareDates(DateHelper.getDate(startDate), currentDate) != 1;
 		
 		if (portfolio && portfolio.detail && adjustmentRequired) {
 			return _computeUpdatedPortfolioForSplitsAndDividends(portfolio, DateHelper.getDate(startDate), currentDate);
@@ -893,8 +895,8 @@ module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
 			var historicalDetail = adjustedPortfolioHistory.slice(0,-1);
 			
 			return PortfolioModel.updatePortfolio({_id: portfolioId}, {detail: latestPortfolioDetail, history: historicalDetail}, {appendHistory: true});
-			
-		} else if (adjustmentRequired) {
+
+		} else if (isStartDateToday) {
 
 			var latestPortfolioDetail = adjustedPortfolioHistory.slice(-1)[0];
 			return PortfolioModel.updatePortfolio({_id: portfolioId}, {detail: latestPortfolioDetail});
