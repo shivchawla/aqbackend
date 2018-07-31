@@ -20,7 +20,7 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
         portfolio_value = _compute_portfoliovalue(portfolio, start_date, end_date, cash, adjustment=true)
 
         benchmark = haskey(port, "benchmark") ? port["benchmark"]["ticker"] : "NIFTY_50"
-        benchmark_value = _getPricehistory([benchmark], start_date, end_date, strict=false)
+        benchmark_value = _getPricehistory([benchmark], start_date, end_date, strict=false, appendRealtime = true)
         
         if benchmark_value != nothing && portfolio_value != nothing
             #merge and drop observations before benchmark lastdate
@@ -71,7 +71,7 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
     end_date = ts[end]
         
     portfolio_value = rename(portfolio_value, ["Portfolio"])
-    benchmark_value = _getPricehistory([benchmark], DateTime(start_date), DateTime(end_date), strict=false)
+    benchmark_value = _getPricehistory([benchmark], DateTime(start_date), DateTime(end_date), strict=false, appendRealtime = true)
     
     if portfolio_value != nothing && benchmark_value != nothing && length(ts) >= 2
         #merge and drop observations before benchmark lastdate
@@ -124,7 +124,7 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
         (valid, benchmark_security) = _validate_security(benchmark)
         edate = end_date
         sdate = DateTime(min(Date(start_date), Date(end_date) - Dates.Week(52)))
-        benchmark_prices = _getPricehistory([benchmark_security.symbol.ticker], sdate, edate, strict=false)
+        benchmark_prices = _getPricehistory([benchmark_security.symbol.ticker], sdate, edate, strict=false, appendRealtime=true)
 
         if benchmark_prices == nothing
             return (Date(currentIndiaTime()), [merge(Dict("ticker" => ticker), empty_pnl()) for ticker in all_tickers])

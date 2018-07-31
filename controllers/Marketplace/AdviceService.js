@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-30 16:12:21
+* @Last Modified time: 2018-07-31 13:39:17
 */
 
 'use strict';
@@ -194,7 +194,7 @@ module.exports.updateAdvice = function(args, res, next) {
 					var newStartDate = DateHelper.getDate(newAdvice.portfolio.detail.startDate);
 					var rebalanceFrequency = advice.rebalance;
 					
-					var nextValidDate = DateHelper.getCurrentDate();
+					nextValidDate = DateHelper.getCurrentDate();
 
 					if (isPublic) {
 						if (rebalanceFrequency == "Daily") {
