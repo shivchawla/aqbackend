@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-04-25 16:09:37
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-31 11:50:47
+* @Last Modified time: 2018-07-31 11:55:50
 */
 'use strict';
 var redis = require('redis');
@@ -62,22 +62,16 @@ module.exports.handleMktRequest = function(requestMsg, resolve, reject, options)
 	try {
     	var wsClient = new WebSocket(connection); 
 	} catch(err) {
-		console.log(`Error connecting to ${connection}`);
-		console.log("Rerun after 5 seconds");
-		setTimeout(function(){
-			exports.handleMktRequest(requestMsg, resolve, reject, Object.assign(options ? options : {}, {maxAttempts: maxAttempts - 1}));
-		}, 5000);
+		reject(APIError.jsonError({message: `Error connecting to ${connection}`}));
+		return;
 	}
 
 	//BUG FIX: backend shouldn't crash if WS connection is unavailable
 	//TO BE ADDED- max number of attempts
     wsClient.on('error', function() {
      	if (wsClient.readyState == 0) {
-     		console.log(`Error connecting to ${connection}`);
-			console.log("Rerun after 5 seconds");
-			setTimeout(function(){
-				exports.handleMktRequest(requestMsg, resolve, reject, Object.assign(options ? options : {}, {maxAttempts: maxAttempts - 1}));
-			}, 5000);	
+     		reject(APIError.jsonError({message: `Error connecting to ${connection}`}));
+			return;
      	}
     });
 
