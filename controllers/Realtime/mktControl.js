@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-23 15:31:38
+* @Last Modified time: 2018-07-31 18:56:27
 */
 
 'use strict';
@@ -25,6 +25,9 @@ const WebSocket = require('ws');
 const DateHelper = require('../../utils/Date');
 const homeDir = require('os').homedir();
 const serverPort = require('../../index').serverPort;
+
+//Launch process data as soon as (5s delay) server starts
+setTimeout(function(){processNewData();}, 5000);
 
 //Run when seconds = 10
 schedule.scheduleJob(`${config.get('nse_delayinseconds')} * * * * *`, function() {
