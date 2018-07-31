@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-04-25 16:09:37
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-01 23:20:32
+* @Last Modified time: 2018-07-31 11:45:11
 */
 'use strict';
 var redis = require('redis');
@@ -39,19 +39,24 @@ function getConnectionForMktPlace(purpose) {
     return 'ws://' + machine.host + ":" + machine.port;
 }
 
-module.exports.handleMktRequest = function(requestMsg, resolve, reject, incomingConnection) {
+module.exports.handleMktRequest = function(requestMsg, resolve, reject, options) {
 	
-    let connection;
-    if (!incomingConnection) {
+    let connection = _.get(options, 'connection', null);
+    let maxAttempts = _.get(options, 'maxAttempts', 5);
+
+    if(maxAttempts == 0) {
+    	reject(APIError.jsonError({message: "Websocket is inactive for long. Will try later. Finishing!!"}));
+    	return;
+    }
+
+    if (!connection) {
     	try {
     		connection = getConnectionForMktPlace(JSON.parse(requestMsg).action);
     	} catch (err) {
     		console.log("Error while picking WS connection");
     		console.log(err.message);
     	}
-	} else {
-		connection = incomingConnection;
-	}
+	} 
 
 	try {
     	var wsClient = new WebSocket(connection); 
@@ -59,9 +64,21 @@ module.exports.handleMktRequest = function(requestMsg, resolve, reject, incoming
 		console.log(`Error connecting to ${connection}`);
 		console.log("Rerun after 5 seconds");
 		setTimeout(function(){
-			exports.handleMktRequest(requestMsg, resolve, reject, connection);
+			exports.handleMktRequest(requestMsg, resolve, reject, Object.assign(options ? options : {}, {maxAttempts: maxAttempts - 1}));
 		}, 5000);
 	}
+
+	//BUG FIX: backend shouldn't crash if WS connection is unavailable
+	//TO BE ADDED- max number of attempts
+    wsClient.on('error', function() {
+     	if (wsClient.readyState == 0) {
+     		console.log(`Error connecting to ${connection}`);
+			console.log("Rerun after 5 seconds");
+			setTimeout(function(){
+				exports.handleMktRequest(requestMsg, resolve, reject, Object.assign(options ? options : {}, {maxAttempts: maxAttempts - 1}));
+			}, 5000);	
+     	}
+    });
 
     wsClient.on('open', function open() {
      	wsClient.send(requestMsg);
@@ -85,9 +102,9 @@ module.exports.handleMktRequest = function(requestMsg, resolve, reject, incoming
 	    		// other wise server may not get updated
 	    		var parsedMsg = JSON.parse(requestMsg);
 	    		if (parsedMsg.action == "update_realtime_prices") {
-	    			exports.handleMktRequest(requestMsg, resolve, reject, connection);
+	    			exports.handleMktRequest(requestMsg, resolve, reject, Object.assign(options ? options : {}, {maxAttempts: maxAttempts - 1}));
 	    		} else {
-	    			exports.handleMktRequest(requestMsg, resolve, reject);
+	    			exports.handleMktRequest(requestMsg, resolve, reject, Object.assign(options ? options : {}, {maxAttempts: maxAttempts - 1}));
 	    		}
 	    	}, 1000);		
 

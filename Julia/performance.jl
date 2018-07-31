@@ -222,7 +222,7 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
             end_date = currentIndiaTime()
 
             benchmark = "NIFTY_50"
-            benchmark_prices = _getPricehistory(tickers, start_date, end_date, strict=false)
+            benchmark_prices = _getPricehistory([benchmark], start_date, end_date, strict=false)
             
             stock_prices = nothing
             try
