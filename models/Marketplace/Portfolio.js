@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-30 16:14:28
+* @Last Modified time: 2018-08-02 00:07:19
 */
 
 'use strict';
@@ -235,7 +235,7 @@ Portfolio.statics.updatePortfolio = function(query, updates, options) {
 			var modifiedUpdates = Object.assign({}, updates);
 
 			//Use history part of the updates or the NEW history item
-			var history = updates.history ? updates.history  : [newHistoryItem];
+			var history = updates.history ? updates.history : newHistoryItem ? [newHistoryItem] : [];
 			delete modifiedUpdates.history;
 			
 			fupdate = {

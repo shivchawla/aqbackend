@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-31 21:02:08
+* @Last Modified time: 2018-08-02 00:09:32
 */
 
 'use strict';
@@ -671,7 +671,7 @@ module.exports.getPortfolioForDate = function(portfolioId, options, date) {
 	var __date = !date || date =="" ? DateHelper.getCurrentDate() : DateHelper.getDate(date);
 
 	let __detail;
- 	
+
  	return PortfolioModel.fetchPortfolio({_id: portfolioId}, {fields: __fields})
  	.then(portfolio => {
         if (portfolio) {
@@ -681,7 +681,8 @@ module.exports.getPortfolioForDate = function(portfolioId, options, date) {
                 __detail = portfolioDetail;
             } else {
 
-	            for(var historicalDetail of portfolio.history){
+            	//Filter out null if any from portfolio history
+	            for(var historicalDetail of portfolio.history.filter(item => !item)){
 	                //If Date is greater than or equal to historical portfolio startDate
 	                //AND
 	                //Date is less than historical portfolio endDate
@@ -788,7 +789,9 @@ module.exports.getPortfolioHistory = function(portfolioId, options, date) {
         if (portfolio) {
 
             var portfolioDetail = portfolio.detail;
-            for(var historicalDetail of portfolio.history) {
+
+            //Filter out null if any from portfolio history
+            for(var historicalDetail of portfolio.history.filter(item => !item)) {
                 //If Date is greater than the start Date of historical portfolios
                 //ADD
                 if (DateHelper.compareDates(__date, DateHelper.getDate(historicalDetail.startDate)) != -1) {
