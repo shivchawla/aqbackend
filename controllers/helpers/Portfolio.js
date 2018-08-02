@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-02 00:09:32
+* @Last Modified time: 2018-08-02 12:33:08
 */
 
 'use strict';
@@ -682,7 +682,7 @@ module.exports.getPortfolioForDate = function(portfolioId, options, date) {
             } else {
 
             	//Filter out null if any from portfolio history
-	            for(var historicalDetail of portfolio.history.filter(item => !item)){
+	            for(var historicalDetail of portfolio.history.filter(item => item)){
 	                //If Date is greater than or equal to historical portfolio startDate
 	                //AND
 	                //Date is less than historical portfolio endDate
@@ -791,7 +791,7 @@ module.exports.getPortfolioHistory = function(portfolioId, options, date) {
             var portfolioDetail = portfolio.detail;
 
             //Filter out null if any from portfolio history
-            for(var historicalDetail of portfolio.history.filter(item => !item)) {
+            for(var historicalDetail of portfolio.history.filter(item => item)) {
                 //If Date is greater than the start Date of historical portfolios
                 //ADD
                 if (DateHelper.compareDates(__date, DateHelper.getDate(historicalDetail.startDate)) != -1) {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-31 13:39:17
+* @Last Modified time: 2018-08-02 12:32:45
 */
 
 'use strict';
@@ -31,7 +31,7 @@ function _getEffectiveAdviceStartDate(selectedStartDate) {
 	
 	var currentDatetimeIndia = moment.tz(new Date(), "Asia/Kolkata");
 	
-	if (currentDatetimeIndia.get('hour') < 12 && currentDatetimeIndia.get('minute') < 0) {
+	if (currentDatetimeIndia.get('hour') < 12) {
 		return DateHelper.getCurrentDate();
 	}
 

@@ -48,14 +48,17 @@ exports.userlogin = function(args, res, next) {
         password: args.body.value.password
     };
 
+    let userDetails;
+
     UserModel.fetchUser({
         email: user.email
     })
-    .then(function(userM) {
+    .then(userM => {
         if(!userM){
             return Promise.reject('Email is not registered, please sign up to continue')
         }
-        const userDetails = userM.toObject();
+        
+        userDetails = userM.toObject();
         if (!userDetails.active) {
             
             //Resend the activation email
@@ -65,29 +68,30 @@ exports.userlogin = function(args, res, next) {
             sendEmail.sendActivationEmail(res, userDetails, source);
             //return Promise.reject('Please validate your email');
         }
-        return [hashUtil.comparePassword(userDetails.password, user.password), userDetails];
+
+        return hashUtil.comparePassword(userDetails.password, user.password);
     })
-    .spread(function(resp, userDetails) {
+    .then(resp => {
         if (resp) {
-            return [jwtUtil.signToken(userDetails), userDetails];
+            return jwtUtil.signToken(userDetails);
         }
+
         return Promise.reject('Username or Password is incorrect');
     })
-    .spread(function(token, userDetails) {
+    .then(token => {
         userDetails.token = token;
         delete userDetails.password;
         delete userDetails.code;
         
-        return Promise.all([InvestorModel.fetchInvestor({user:userDetails._id}, {insert:true}),
-                AdvisorModel.fetchAdvisor({user:userDetails._id}, {insert:true}),
-                userDetails
-            ]);
-
+        return Promise.all([
+            InvestorModel.fetchInvestor({user:userDetails._id}, {insert:true}),
+            AdvisorModel.fetchAdvisor({user:userDetails._id}, {insert:true})
+        ]);
     })
-    .then(([investor, advisor, user]) => {
-        user.investor = investor._id;
-        user.advisor = advisor._id;
-        res.status(200).json(user);
+    .then(([investor, advisor]) => {
+        userDetails.investor = investor._id;
+        userDetails.advisor = advisor._id;
+        res.status(200).json(userDetails);
     })
     .catch(function(err) {
         return res.status(401).json(err);
