@@ -5,6 +5,8 @@ var fs = require('fs');
 const sgMail = require('@sendgrid/mail');
 var hostname = config.get('hostname');
 var truncate = require('truncate-html');
+const _ = require('lodash');
+const UserModel = require('../models/user');
 
 var replaceAll = function(str, find, replace) {
     return str.replace(new RegExp(find, 'g'), replace);
@@ -22,15 +24,15 @@ function _sendMail(res, msg, obj) {
         }
 
         if (obj) {
-            return res.send(obj);
+            return res ? res.send(obj) : {};
         }
 
-        return res.status(200).send("Email Sent"); 
+        return res ? res.status(200).send("Email Sent") : {}; 
     })
     .catch(error => {
         //Log friendly error
         console.error(error.toString());
-        return res.status(400).send('There was an error sending the email');
+        return res ? res.status(400).send('There was an error sending the email') : {};
     });
 }
 
@@ -354,4 +356,78 @@ module.exports.sendContestStatusEmail = function(contestEntryDetails, userDetail
 
     return sgMail.send(msg);
 };
+
+
+module.exports.sendPerformanceDigest = function(performanceDetail, userDetails) {
+   const userFullName = userDetails.firstName+' '+userDetails.lastName;
+   const msg = {
+            to: [{
+                email: userDetails.email,
+                name: userFullName
+            }],
+            from: {name: "AdviceQube", email:"contest@adviceqube.com"},
+            templateId: config.get('contest_daily_performance_digest_template_id'),
+            substitutions: {
+                userFullName,
+                ...performanceDetail
+            },
+        };
+
+        return _sendMail({}, msg);
+}
+
+module.exports.sendEmail = function(req, res, next) {
+    console.log("Aquiii");
+    const to = _.get(req.body.value ,'to', null);
+    const from = _.get(req.body.value ,'from', null);
+    const text = _.get(req.body.value ,'text', null);
+    const template = _.get(req.body.value ,'template', null);
+
+    Promise.resolve()
+    .then(() => {
+        if (!to) {
+            APIError.jsonError({messsage: "TO address is invalid"});
+        } else {
+            return UserModel.fetchUser({email: to});
+        }
+    })
+    .then(userDetails => {
+        if (!text && !template) {
+            APIError.jsonError({messsage: "Body or template not valid"})
+        }
+
+        const userFullName = userDetails.firstName + ' ' + userDetails.lastName;
+
+        if (template) {
+           const msg = {
+                to: [{
+                    email: userDetails.email,
+                    name: userFullName
+                }],
+                from: {name: "AdviceQube", email:"contest@adviceqube.com"},
+                templateId: template,
+                substitutions: {
+                    userFullName: userFullName,
+                    ticker1:"A",
+                    lastPrice1:"2.56",
+                    dailyPnl1:"32.56",
+                    totalPnl1:"32.56",
+                    weight1:"13.45%",
+                    color_dp_1: "red",
+                    color_tp_1: "green"
+                },
+            };
+
+            console.log(msg);
+
+            return _sendMail(res, msg);
+        }
+    })
+    .catch(err => {
+        console.log("FCUK");
+        console.log(err);
+        res.status(400).send(err.messsage);
+    })
+
+}
 

@@ -65,11 +65,13 @@ exports.userlogin = function(args, res, next) {
             const source = res && res.req && res.req.headers && res.req.headers.origin ? 
                 res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
 
-            sendEmail.sendActivationEmail(res, userDetails, source);
-            //return Promise.reject('Please validate your email');
+            sendEmail.sendActivationEmail(null, userDetails, source)
+            .then(() => {
+                return Promise.reject('Please validate your email');
+            });
+        } else {
+            return hashUtil.comparePassword(userDetails.password, user.password);
         }
-
-        return hashUtil.comparePassword(userDetails.password, user.password);
     })
     .then(resp => {
         if (resp) {
