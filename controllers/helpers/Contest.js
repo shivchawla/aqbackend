@@ -191,7 +191,7 @@ module.exports.sendContestEntryDailyDigest = function() {
         var contestAdviceIds = activeAdvices.map(item => item.advice.toString());
 
         if (activeAdvices.length > 0) {
-            return Promise.map(contestAdviceIds, function(adviceId) {
+            return Promise.mapSeries(contestAdviceIds, function(adviceId) {
                 return Promise.all([
                     PerformanceHelper.getAdvicePerformanceSummary(adviceId),
                     exports.getAdviceSummary(adviceId),
@@ -270,7 +270,7 @@ module.exports.sendContestEntryDailyDigest = function() {
             }
 
             //Get advisor details and send email
-            AdviceModel.fetchAdvice({_id: adviceId}, {fields:'advisor', populate:'advisor'})
+            return AdviceModel.fetchAdvice({_id: adviceId}, {fields:'advisor', populate:'advisor'})
             .then(advice => {
                 const user = _.get(advice, 'advisor.user', null);
                 
