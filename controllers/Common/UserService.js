@@ -69,7 +69,7 @@ exports.userlogin = function(args, res, next) {
             return sendEmail.sendActivationEmail(null, userDetails, source)
             .then(val => {
                 return Promise.reject('Check your email for account activation instructions');
-            }
+            });
         } else {
             return hashUtil.comparePassword(userDetails.password, user.password);
         }
