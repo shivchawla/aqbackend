@@ -80,7 +80,7 @@ module.exports.updateAnalytics = function(contestId) {
                             valueRatingField[key] = (_.get(item, `performance.${ratingField.field}`, ratingField.default) || ratingField.default) * ratingField.multiplier;
                         });
 
-                        return AnalyticsHelper._computeFractionalRanking(valueRatingField, 100.0)
+                        return AnalyticsHelper._computeFractionalRanking(valueRatingField, ratingField.scale)
                         .then(frs => {
                             rankingDetail[ratingType].push({
                                 field: ratingField.outputField, 
