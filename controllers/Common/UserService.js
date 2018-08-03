@@ -9,6 +9,7 @@ var request = require('request');
 const Promise = require('bluebird');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
+const APIError = require('../../utils/error');
 
 exports.registerUser = function(args, res, next) {
     const user = {
@@ -55,7 +56,7 @@ exports.userlogin = function(args, res, next) {
     })
     .then(userM => {
         if(!userM){
-            return Promise.reject('Email is not registered, please sign up to continue')
+            APIError.jsonError({message: 'Email is not registered, please sign up to continue'});
         }
         
         userDetails = userM.toObject();
@@ -65,10 +66,8 @@ exports.userlogin = function(args, res, next) {
             const source = res && res.req && res.req.headers && res.req.headers.origin ? 
                 res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
 
-            sendEmail.sendActivationEmail(null, userDetails, source)
-            .then(() => {
-                return Promise.reject('Please validate your email');
-            });
+            sendEmail.sendActivationEmail(null, userDetails, source);
+            APIError.jsonError({message: 'Check your email for account activation instructions'});
         } else {
             return hashUtil.comparePassword(userDetails.password, user.password);
         }
@@ -96,7 +95,7 @@ exports.userlogin = function(args, res, next) {
         res.status(200).json(userDetails);
     })
     .catch(function(err) {
-        return res.status(401).json(err);
+        return res.status(401).json(err.message);
     });
 };
 
