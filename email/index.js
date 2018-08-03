@@ -16,7 +16,7 @@ sgMail.setApiKey(config.get('sendgrid_key'));
 sgMail.setSubstitutionWrappers('{{', '}}'); 
 
 function _sendMail(res, msg, obj) {
-    sgMail.send(msg)
+    return sgMail.send(msg)
     .then(() => {
 
         if (obj && obj.redirectUrl) {

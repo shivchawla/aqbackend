@@ -56,7 +56,7 @@ exports.userlogin = function(args, res, next) {
     })
     .then(userM => {
         if(!userM){
-            APIError.jsonError({message: 'Email is not registered, please sign up to continue'});
+            return Promise.reject('Email is not registered, please sign up to continue');
         }
         
         userDetails = userM.toObject();
@@ -66,8 +66,10 @@ exports.userlogin = function(args, res, next) {
             const source = res && res.req && res.req.headers && res.req.headers.origin ? 
                 res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
 
-            sendEmail.sendActivationEmail(null, userDetails, source);
-            APIError.jsonError({message: 'Check your email for account activation instructions'});
+            return sendEmail.sendActivationEmail(null, userDetails, source)
+            .then(val => {
+                return Promise.reject('Check your email for account activation instructions');
+            }
         } else {
             return hashUtil.comparePassword(userDetails.password, user.password);
         }
@@ -95,7 +97,7 @@ exports.userlogin = function(args, res, next) {
         res.status(200).json(userDetails);
     })
     .catch(function(err) {
-        return res.status(401).json(err.message);
+        return res.status(401).json(err);
     });
 };
 
