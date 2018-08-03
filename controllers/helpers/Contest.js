@@ -235,6 +235,11 @@ module.exports.sendContestEntryDailyDigest = function() {
             
             performanceDigest = Object.assign(performanceDigest, {numContests: allActiveRanks.length, contestName: _.get(latestRank, 'name', "-"), rank: _.get(latestRank, 'rank', "-")});
 
+            //Check if num periods > 1
+            if (_.get(performance, 'current.period', 0) < 1) {
+                return {}; 
+            }
+
             const maxLoss = formatValue(_.get(performance, 'current.maxLoss', 0), {color:true, pct: true, inverse:true});
             const totalReturn = formatValue(_.get(performance, 'current.totalReturn', 0), {color: true, pct: true});
             const volatility = formatValue(_.get(performance, 'current.volatility', 0), {pct:true});
