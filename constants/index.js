@@ -39,12 +39,12 @@ module.exports.goals = [
 const Inf = 1000000000;
 
 module.exports.contestRatingFields = [
-	{field:"diff.annualReturn", multiplier:1, outputField: "annualReturn", default: -Inf}, //Ability to beat the market 
-	{field:"diff.volatility", multiplier:-1, outputField: "volatility", default: Inf},  //Riskiness
-	{field:"diff.maxLoss", multiplier:-1, outputField: "maxLoss", default: Inf}, //Downside Risk
-	{field:"information", multiplier:1, outputField: "sharpe", default: -Inf}, //Consistency of returns
-	{field:"diff.calmar", multiplier:1, outputField: "calmar", default: -Inf}, //Ability to recover
-	{field:"concentration", multiplier:-1, outputField: "concentration", default: 1.0} //Portfolio Diverisification
+	{field:"diff.annualReturn", multiplier:1, outputField: "annualReturn", default: -Inf, scale: 100}, //Ability to beat the market 
+	{field:"diff.volatility", multiplier:-1, outputField: "volatility", default: Inf, scale: 50},  //Riskiness
+	{field:"diff.maxLoss", multiplier:-1, outputField: "maxLoss", default: Inf, scale: 50}, //Downside Risk
+	{field:"information", multiplier:1, outputField: "sharpe", default: -Inf, scale: 70}, //Consistency of returns
+	{field:"diff.calmar", multiplier:1, outputField: "calmar", default: -Inf, scale: 70}, //Ability to recover
+	{field:"concentration", multiplier:-1, outputField: "concentration", default: 0.0, scale: 20} //Portfolio Diverisification
 
 ];
 
@@ -95,7 +95,7 @@ module.exports.benchmarkUniverseRequirements = {
     "NIFTY_MEDIA": {universe: "NIFTY_MEDIA", portfolio: weakDiversified},
     "NIFTY_METAL": {sector: "Metals", universe:"NIFTY_500", portfolio: sector},
     "NIFTY_PHARMA": {sector: "Healthcare", universe: "NIFTY_500", portfolio: sector},
-    "NITFY_PSU_BANK": {universe: "NIFTY_PSU_BANK", portfolio: weakDiversified},
+    "NIFTY_PSU_BANK": {universe: "NIFTY_PSU_BANK", portfolio: weakDiversified},
     "NIFTY_REALTY":{sector: "Construction", industry: "Real Estate", universe: "NIFTY_500", portfolio: weakDiversified},
     "NIFTY_COMMODITIES": {universe: "NIFTY_COMMODITIES", portfolio: weakDiversified},
     "NIFTY_CPSE": {universe: "NIFTY_CPSE", portfolio: weakDiversified},

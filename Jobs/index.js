@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-19 10:14:56
+* @Last Modified time: 2018-08-03 21:03:14
 */
 
 'use strict';
@@ -14,9 +14,10 @@ const schedule = require('node-schedule');
 const config = require('config');
 const serverPort = require('../index').serverPort;
 
+
 if (config.get('jobsPort') === serverPort) {
 	//Run every 5th minute
-	schedule.scheduleJob("*/50 * * * *", function() {
+	schedule.scheduleJob("*/50 * * * 1-5", function() {
         AnalyticsHelper.updateAllAnalytics()
         .then(() => {
             ContestHelper.updateAllAnalytics();
@@ -30,4 +31,9 @@ if (config.get('jobsPort') === serverPort) {
 	schedule.scheduleJob("30 22 * * *", function() {
 	    PortfolioHelper.updateAllPortfoliosForSplitsAndDividends();
 	});
+
+	schedule.scheduleJob("30 13 * * 1-5", function() {
+	    ContestHelper.sendContestEntryDailyDigest();
+	});
+
 }

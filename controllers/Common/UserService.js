@@ -9,6 +9,7 @@ var request = require('request');
 const Promise = require('bluebird');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
+const APIError = require('../../utils/error');
 
 exports.registerUser = function(args, res, next) {
     const user = {
@@ -55,7 +56,7 @@ exports.userlogin = function(args, res, next) {
     })
     .then(userM => {
         if(!userM){
-            return Promise.reject('Email is not registered, please sign up to continue')
+            return Promise.reject('Email is not registered, please sign up to continue');
         }
         
         userDetails = userM.toObject();
@@ -65,11 +66,13 @@ exports.userlogin = function(args, res, next) {
             const source = res && res.req && res.req.headers && res.req.headers.origin ? 
                 res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
 
-            sendEmail.sendActivationEmail(res, userDetails, source);
-            //return Promise.reject('Please validate your email');
+            return sendEmail.sendActivationEmail(null, userDetails, source)
+            .then(val => {
+                return Promise.reject('Check your email for account activation instructions');
+            });
+        } else {
+            return hashUtil.comparePassword(userDetails.password, user.password);
         }
-
-        return hashUtil.comparePassword(userDetails.password, user.password);
     })
     .then(resp => {
         if (resp) {

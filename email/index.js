@@ -5,6 +5,8 @@ var fs = require('fs');
 const sgMail = require('@sendgrid/mail');
 var hostname = config.get('hostname');
 var truncate = require('truncate-html');
+const _ = require('lodash');
+const UserModel = require('../models/user');
 
 var replaceAll = function(str, find, replace) {
     return str.replace(new RegExp(find, 'g'), replace);
@@ -14,7 +16,7 @@ sgMail.setApiKey(config.get('sendgrid_key'));
 sgMail.setSubstitutionWrappers('{{', '}}'); 
 
 function _sendMail(res, msg, obj) {
-    sgMail.send(msg)
+    return sgMail.send(msg)
     .then(() => {
 
         if (obj && obj.redirectUrl) {
@@ -22,15 +24,15 @@ function _sendMail(res, msg, obj) {
         }
 
         if (obj) {
-            return res.send(obj);
+            return res ? res.send(obj) : {};
         }
 
-        return res.status(200).send("Email Sent"); 
+        return res ? res.status(200).send("Email Sent") : {}; 
     })
     .catch(error => {
         //Log friendly error
         console.error(error.toString());
-        return res.status(400).send('There was an error sending the email');
+        return res ? res.status(400).send('There was an error sending the email') : {};
     });
 }
 
@@ -355,3 +357,21 @@ module.exports.sendContestStatusEmail = function(contestEntryDetails, userDetail
     return sgMail.send(msg);
 };
 
+
+module.exports.sendPerformanceDigest = function(performanceDetail, userDetails) {
+   const userFullName = userDetails.firstName+' '+userDetails.lastName;
+   const msg = {
+            to: [{
+                email: userDetails.email,
+                name: userFullName
+            }],
+            from: {name: "AdviceQube", email:"contest@adviceqube.com"},
+            templateId: config.get('contest_daily_performance_digest_template_id'),
+            substitutions: {
+                userFullName,
+                ...performanceDetail
+            },
+        };
+
+        return sgMail.send(msg);
+}
