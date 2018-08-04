@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-04 13:12:21
+* @Last Modified time: 2018-08-04 14:40:01
 */
 
 'use strict';
@@ -250,7 +250,7 @@ function _downloadNSEData(type) {
 }
 
 function _updateData(filePath, type) {
-	if (filePath && filePath !="") {
+	if (filePath && filePath !="" && fs.existsSync(filePath)) {
 		return SecurityHelper.updateRealtimePrices(filePath, type)
 	} else {
 		//console.log("Can't process realtime data. Bad filename");
@@ -266,64 +266,64 @@ function _downloadAndUpdateData(type) {
 	})
 }
 
-
 function reloadData() {
-	var currentDate = new Date();
-	var fileSet = config.get("nse_reload_file_set").split(",").map(item => parseInt(item.trim()));
-	
-	const monthNames = ["January", "February", "March", "April", "May", "June",
-	  "July", "August", "September", "October", "November", "December"
-	];
-
-	var localUnzipFilePath = "";
-	var localPath = "";
-
-	var firstFileNumber = fileSet[0];
-	var lastFileNumber = fileSet[1];
-
-	var foundFileNumber = firstFileNumber;
-
-	var found = false;
-	var nAttempts = 0;
-	var maxAttempts = config.get('nse_maxfilecount')*5;
-	
-	while(!found && nAttempts++ < maxAttempts) {
+	return new Promise.map(["ind", "mkt"], function(type) {
+		var currentDate = new Date();
+		var fileSet = config.get("nse_reload_file_set").split(",").map(item => parseInt(item.trim()));
 		
-		var month = currentDate.getMonth();
-		var date = currentDate.getDate();
-		date = date < 10 ? `0${date}` : date;
-		var year = currentDate.getFullYear();
-		var nseDateStr = `${monthNames[month]}${date}${year}`;
+		const monthNames = ["January", "February", "March", "April", "May", "June",
+		  "July", "August", "September", "October", "November", "December"
+		];
 
-		localPath = path.resolve(path.join(homeDir, `/rtdata/${nseDateStr}`));
+		var localUnzipFilePath = "";
+		var localPath = "";
+
+		var firstFileNumber = fileSet[0];
+		var lastFileNumber = fileSet[1];
+
+		var foundFileNumber = firstFileNumber;
+
+		var found = false;
+		var nAttempts = 0;
+		var maxAttempts = config.get('nse_maxfilecount')*5;
 		
-		var unzipFileName = `${fileNumber}.${type}`;
-		localUnzipFilePath = `${localPath}/${unzipFileName}`;
+		while(!found && nAttempts++ < maxAttempts) {
+			
+			var month = currentDate.getMonth();
+			var date = currentDate.getDate();
+			date = date < 10 ? `0${date}` : date;
+			var year = currentDate.getFullYear();
+			var nseDateStr = `${monthNames[month]}${date}${year}`;
 
-		if (!fs.existsSync(localUnzipFilePath)) {
-			foundFileNumber--;
-			if (foundFileNumber == 0) {
-				foundFileNumber = firstFileNumber;
-				currentDate.setDate(currentDate.getDate() - 1);
+			localPath = path.resolve(path.join(homeDir, `/rtdata/${nseDateStr}`));
+			
+			var unzipFileName = `${fileNumber}.${type}`;
+			localUnzipFilePath = `${localPath}/${unzipFileName}`;
+
+			if (!fs.existsSync(localUnzipFilePath)) {
+				foundFileNumber--;
+				if (foundFileNumber == 0) {
+					foundFileNumber = firstFileNumber;
+					currentDate.setDate(currentDate.getDate() - 1);
+				}
+			} else {
+				activeDate = DateHelper.getDate(currentDate);
+				found = true;
 			}
-		} else {
-			activeDate = DateHelper.getDate(currentDate);
-			found = true;
 		}
-	}
 
-	if (found) {
-		//Here we have the folder where the fist reload file is found
-		//Run a loop (from first(-5) to last file) to update the data
-		var fileIndexIteratorArray = Array.from(Array(lastFileNumber + 1).keys()).slice(Math.max(foundFileNumber - 5, 1));
-		return Promise.map(["ind", "mkt"], function(type) {
+		if (found) {
+			//Here we have the folder where the fist reload file is found
+			//Run a loop (from first(-5) to last file) to update the data
+			var fileIndexIteratorArray = Array.from(Array(lastFileNumber + 1).keys()).slice(Math.max(foundFileNumber - 5, 1));
+			
 			return new Promise.mapSeries(fileIndexIteratorArray, function(fileNumber) {
 				var filePath = `${localPath}/${fileNumber}.${type}`;
 				return _updateData(filePath, type);
 				
 			});
-		});
-	}
+		}
+	});
 }
 
 
