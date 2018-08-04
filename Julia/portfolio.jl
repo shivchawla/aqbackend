@@ -44,24 +44,46 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
 
                 #COnvert the price array to right format for timearray
                 rtPriceArray = Vector{Float64}()
+                rtTimeStamp = nothing
                 for ticker in  tickers
-                    push!(rtPriceArray, haskey(_realtimePrices, ticker) ? 
-                                (_realtimePrices[ticker].close != 0.0 ? _realtimePrices[ticker].close : NaN) : NaN) 
+                    priceForTicker = NaN;
+                    if haskey(_realtimePrices, ticker)
+                        if rtTimeStamp == nothing
+                            rtTimestamp = Date(_realtimePrices[ticker].datetime)
+                        elseif rtTimestamp != Date(_realtimePrices[ticker].datetime)
+                            error("Distinct timestamps for RT data")
+                        end
+
+                        if laststamp != nothing
+                            if Date(rtTimestamp) <= laststamp 
+                                error("Realtime data is same as last day in EOD")
+                            end
+                        end 
+                        priceForTicker = _realtimePrices[ticker].close != 0.0 ? _realtimePrices[ticker].close : NaN
+                    end
+
+                    push!(rtPriceArray,  priceForTicker)
                 end
 
                 mat = Matrix{Float64}(1, length(rtPriceArray))
                 mat[1, :] = rtPriceArray
                 
-                rtTimeArray = TimeArray([currentDate], mat, tickers)
+                rtTimeArray = TimeArray([rtTimestamp], mat, tickers)
             end
         end
     end
 
     if rtTimeArray != nothing
-        return eod_prices != nothing ? [eod_prices; rtTimeArray] : rtTimeArray
+        output = eod_prices != nothing ? [eod_prices; rtTimeArray] : rtTimeArray
     else 
-        return eod_prices
+        output = eod_prices
     end
+
+    final = output[Date(startdate):Date(enddate)]
+
+    return length(final) == 0 ? nothing : final
+
+
 end
 
 ###
