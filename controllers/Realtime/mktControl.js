@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-31 18:56:27
+* @Last Modified time: 2018-08-04 11:05:38
 */
 
 'use strict';
@@ -157,7 +157,6 @@ function _writeFile(data, file) {
 }
 
 function _downloadNSEData(type) {
-
 	return new Promise((resolve, reject) => {
 		
 		let localUnzipFilePath;
@@ -225,19 +224,26 @@ function _downloadNSEData(type) {
 		  	}
 	  	})
 	  	.then(nseFile => {
-	  		//console.log(nseFile);
-		   	//Check if unzip file is already downloaded
-		   	return sftp.get(nseFile, false, null)
+	  		//Wrap sftp operation inside a promise
+	  		//to detect sftp related errors
+		   	return new Promise((resolve, reject) => {
+		   		sftp.get(nseFile, false, null)
+		   		.then(data => {
+		   			resolve(data);
+		   		}).catch(err => {
+		   			sftpClosed = true;
+		   			reject(err);
+		   		})
+	   		});
 	   	})
 		.then(data => {
-			//console.log(data);
 			return !fs.existsSync(localUnzipFilePath) ? _writeFile(data, localUnzipFilePath) : true
 		}) 
 		.then(successMkt => {
 			resolve(localUnzipFilePath);
 		})
 		.catch(err => {
-			console.log(err);
+			//console.log(err);
 			console.log("Error while downloading NSE file. Will continue with last available file");
 
 		    var lastFile = _getLastValidFile(type);
