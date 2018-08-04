@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-04 14:40:01
+* @Last Modified time: 2018-08-04 14:42:50
 */
 
 'use strict';
@@ -297,7 +297,7 @@ function reloadData() {
 
 			localPath = path.resolve(path.join(homeDir, `/rtdata/${nseDateStr}`));
 			
-			var unzipFileName = `${fileNumber}.${type}`;
+			var unzipFileName = `${foundFileNumber}.${type}`;
 			localUnzipFilePath = `${localPath}/${unzipFileName}`;
 
 			if (!fs.existsSync(localUnzipFilePath)) {
