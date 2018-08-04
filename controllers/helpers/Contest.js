@@ -249,24 +249,34 @@ module.exports.sendContestEntryDailyDigest = function() {
 
             performanceDigest = Object.assign(performanceDigest, {totalReturn, volatility, excessReturn, trackingError, information,maxLoss});
 
-            let j=1
+            let j=1;
+
+            let concerns="None";
+
             if (positions) {
                 let sortedPositions = positions.sort((a,b) => {return a.latestDetail.changePct > b.latestDetail.changePct ? -1 : 1});
 
                 sortedPositions.slice(0,3).concat(sortedPositions.slice(-3)).map(item => {
                     let position = _.pick(item, ['security.ticker', 'security.detail.NSE_ID', 'weightInPortfolio', 'lastPrice', 'latestDetail.changePct', 'latestDetail.current', 'unrealizedPnlPct']);
                     
+                    if (position.weightInPortfolio > 0.125) {
+                        var ticker = _.get(position,'security.detail.NSE_ID', null) || position.ticker,
+                        concerns = `<span style="color:red;font-size:14px;">Weight in ${ticker} is greater than 12.5%</span>`;
+                    }
+
                     performanceDigest = Object.assign({
-                        [`ticker${j}`] : position.security.detail.NSE_ID || position.ticker,
+                        [`ticker${j}`] : _.get(position,'security.detail.NSE_ID', null) || position.ticker,
                         [`weight${j}`]: formatValue(position.weightInPortfolio, {pct: true}),
                         [`totalPnl${j}`]: formatValue(position.unrealizedPnlPct, {color: true, pct: true}),
-                        [`lastPrice${j}`]: (position.latestDetail.current || position.lastPrice).toFixed(2),
-                        [`dailyChg${j}`]: formatValue(position.latestDetail.changePct, {color: true, pct: true})
+                        [`lastPrice${j}`]: (_.get(position, 'latestDetail.current', null) || position.lastPrice).toFixed(2),
+                        [`dailyChg${j}`]: formatValue(_.get(position,'latestDetail.changePct', 0), {color: true, pct: true})
                     }, performanceDigest)
 
                     j++;
 
                 });
+
+                performanceDigest = Object.assign(performanceDigest, {concerns: concerns});
             }
 
             //Get advisor details and send email
@@ -276,11 +286,11 @@ module.exports.sendContestEntryDailyDigest = function() {
                 
                 if (user && process.env.NODE_ENV === 'production') {
                     return sendEmail.sendPerformanceDigest(performanceDigest, user);
-                } else if(process.env.NODE_ENV === 'development' && i == 1) {
+                } else if(process.env.NODE_ENV === 'development') {
                     return sendEmail.sendPerformanceDigest(performanceDigest, 
                         {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
                 }    
-            })
+            });
 
             i++;
         });
