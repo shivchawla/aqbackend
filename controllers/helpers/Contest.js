@@ -5,6 +5,7 @@ const Promise = require('bluebird');
 const DateHelper = require('../../utils/Date');
 const ContestModel = require('../../models/Marketplace/Contest');
 const AdviceModel = require('../../models/Marketplace/Advice');
+const UserModel = require('../../models/user');
 const PerformanceHelper = require('./Performance');
 const PortfolioHelper = require('./Portfolio');
 const SecurityHelper = require('./Security');
@@ -217,7 +218,7 @@ module.exports.sendContestEntryDailyDigest = function() {
     })
     .then(allAdviceInfo => {
         let i = 1;
-        return Promise.map(allAdviceInfo, function(item) {
+        return Promise.map(allAdviceInfo.slice(-1), function(item) {
             var adviceId = item.advice;
             var performance = item.performance;
             var positions = item.positions;
@@ -276,19 +277,43 @@ module.exports.sendContestEntryDailyDigest = function() {
 
                 });
 
-                performanceDigest = Object.assign(performanceDigest, {concerns: concerns});
+                performanceDigest = Object.assign(performanceDigest, {concerns});
             }
 
             //Get advisor details and send email
             return AdviceModel.fetchAdvice({_id: adviceId}, {fields:'advisor', populate:'advisor'})
-            .then(advice => {
+            .then (advice => {
                 const user = _.get(advice, 'advisor.user', null);
-                
-                if (user && process.env.NODE_ENV === 'production') {
-                    return sendEmail.sendPerformanceDigest(performanceDigest, user);
-                } else if(process.env.NODE_ENV === 'development') {
-                    return sendEmail.sendPerformanceDigest(performanceDigest, 
-                        {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+                if (user) {
+                    return UserModel.fetchUser({_id: user._id});
+                } else {
+                    console.log("No user found for advice");
+                    return null;
+                }
+            })
+            .then(user => {
+                if (user) {
+                    const code = user.code;
+                    const type = "daily_performance_digest";
+                    const email = user.email;
+                    const sendDigest = _.get(user, 'preference.daily_performance_digest', false);
+                    
+                    const unsubscribeUrl = eval('`'+config.get('request_unsubsribe_url') +'`');
+
+                    performanceDigest = Object.assign(performanceDigest, {unsubscribeUrl});
+                            
+                    if (user && process.env.NODE_ENV === 'production') {
+                        if (sendDigest) {
+                            return sendEmail.sendPerformanceDigest(performanceDigest, user);
+                        } else {
+                            return {};
+                        }
+                    } else if(process.env.NODE_ENV === 'development') {
+                        return sendEmail.sendPerformanceDigest(performanceDigest, 
+                            {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+                    }
+                } else {
+                    return {};
                 }    
             });
 

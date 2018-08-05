@@ -51,3 +51,8 @@ module.exports.verifyCaptchaToken = function verifyCaptchaToken(req, res, next) 
 module.exports.sendInfoEmail = function sendInfoEmail(req, res, next) {
     User.sendInfoEmail(req.swagger.params, res, next);
 };
+
+module.exports.unsubscribeEmail = function(req, res, next) {
+    User.unsubscribeEmail(req.swagger.params, res, next);
+};
+
