@@ -37,6 +37,17 @@ const User = new Schema({
         required: true
     },
 
+    emailpreference: {
+        daily_performance_digest: {
+            type: Boolean,
+            default: true,
+        },
+        weekly_performance_digest: {
+            type: Boolean,
+            default: true,
+        }
+    },
+
     createdDate: Date
 });
 
@@ -89,6 +100,16 @@ User.statics.updatePassword = function(query, hash) {
                 return user.save();
             }
         });
+};
+
+User.statics.updateEmailPreference = function(query, preferences) {
+    var updateObj = {};
+    Object.keys(preferences).forEach(key => {
+        var modifiedKey = `emailpreference.${key}`;
+        updateObj = Object.assign(updateObj, {[modifiedKey]: preferences[key]}); 
+    });
+
+    return this.findOneAndUpdate(query, {$set: updateObj});
 };
 
 const userModel = mongoose.model('User', User, 'users');

@@ -10,6 +10,7 @@ const Promise = require('bluebird');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
 const APIError = require('../../utils/error');
+const _ = require('lodash');
 
 exports.registerUser = function(args, res, next) {
     const user = {
@@ -275,3 +276,38 @@ exports.sendInfoEmail = function (args, res, next) {
         return res.status(400).send(err.message);
     });
 };
+
+module.exports.unsubscribeEmail = function(args, res, next) {
+    
+    const type = _.get(args, 'type.value', null);
+    const email = _.get(args, 'email.value', null);
+    const code = _.get(args, 'code.value', null);
+
+    Promise.resolve()
+    .then(() => {
+        if (email && code) {
+            return UserModel.fetchUser({email: email, code: code})
+        } else {
+            APIError.throwJsonError({message: "Invalid user"});
+        }
+    })
+    .then(user => {
+        if (user && type) {
+             switch(type) {
+                case "daily_performance_digest": return UserModel.updateEmailPreference({_id: user._id}, {daily_performance_digest: false}); break;
+                case "weekly_performance_digest": return UserModel.updateEmailPreference({_id: user._id}, {weekly_performance_digest: false}); break;
+                case "default": APIError.throwJsonError({message: "Invalid request type"});
+             }
+        } else {
+            APIError.throwJsonError({message: "Invalid request type/user"});
+        }
+    })
+    .then(() => {
+        return res.redirect(eval('`'+config.get('email_unsubscribe_url') +'`'));
+    })
+    .catch(err => {
+        return res.status(400).send(err.message);
+    })
+}
+
+

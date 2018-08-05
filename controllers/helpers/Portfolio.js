@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-02 12:33:08
+* @Last Modified time: 2018-08-05 22:36:35
 */
 
 'use strict';
@@ -900,9 +900,8 @@ module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
 			return PortfolioModel.updatePortfolio({_id: portfolioId}, {detail: latestPortfolioDetail, history: historicalDetail}, {appendHistory: true});
 
 		} else if (isStartDateToday) {
-
 			var latestPortfolioDetail = adjustedPortfolioHistory.slice(-1)[0];
-			return PortfolioModel.updatePortfolio({_id: portfolioId}, {detail: latestPortfolioDetail});
+			return PortfolioModel.updatePortfolio({_id: portfolioId}, {detail: latestPortfolioDetail}, {});
 		} else {
 
 			console.log(`No split/dividend adjustment required for ${portfolioId}`);

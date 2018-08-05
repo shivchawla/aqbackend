@@ -36,13 +36,14 @@ tags:
   description: "operations on Julia Notebook" 
 - name: "performance"
   description: "operations on Performance" 
-  externalDocs:
-    description: "Find out more about us"
-    url: "http://www.aimsquant.com"
 - name: "config"
   description: "getting the static configs"
 - name: "contest"
   description: "operations on contest"
+  externalDocs:
+    description: "Find out more about us"
+    url: "http://www.aimsquant.com"
+
 schemes:
 - "https"
 produces:
@@ -368,6 +369,35 @@ paths:
           description: OK
         400:
           description: Error verifying captcha token
+
+  /user/unsubscribe:
+    get:
+      tags:
+      - user
+      summary: Unsubsribe from email service
+      description: Unsubsribe from email service
+      operationId: unsubscribeEmail
+      security: []
+      parameters:
+      - name: email
+        in: query
+        description: email address of user
+        type: "string"
+        required: true
+      - name: code
+        in: query
+        type: string
+        required: true
+      - name: type
+        in: query
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: Invalid Input
+      x-swagger-router-controller: "User"
 
   /notebook:
     post:
@@ -3022,18 +3052,19 @@ paths:
       x-swagger-router-controller: "Contest"
 
   /contest/updateRanks:
-      get:
-        tags:
-        - contest
-        summary: update the ranks of all advices of all contests
-        description: Update the ranking of all the advices inside a contest
-        operationId: updateAllContestRanks
-        responses:
-          200:
-            description: OK
-          400:
-            description: Invalid Input
-        x-swagger-router-controller: "Contest"
+    get:
+      tags:
+      - contest
+      summary: update the ranks of all advices of all contests
+      description: Update the ranking of all the advices inside a contest
+      operationId: updateAllContestRanks
+      responses:
+        200:
+          description: OK
+        400:
+          description: Invalid Input
+      x-swagger-router-controller: "Contest"
+
 
 securityDefinitions:
   api_key:
@@ -3746,3 +3777,6 @@ definitions:
         type: string
       value:
         type: number
+
+
+
