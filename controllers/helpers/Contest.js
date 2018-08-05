@@ -218,7 +218,7 @@ module.exports.sendContestEntryDailyDigest = function() {
     })
     .then(allAdviceInfo => {
         let i = 1;
-        return Promise.map(allAdviceInfo.slice(-1), function(item) {
+        return Promise.map(allAdviceInfo, function(item) {
             var adviceId = item.advice;
             var performance = item.performance;
             var positions = item.positions;
