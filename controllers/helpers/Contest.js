@@ -298,7 +298,7 @@ module.exports.sendContestEntryDailyDigest = function() {
                     const email = user.email;
                     const sendDigest = _.get(user, 'preference.daily_performance_digest', false);
                     
-                    const unsubscribeUrl = eval('`'+config.get('request_unsubsribe_url') +'`');
+                    const unsubscribeUrl = eval('`'+config.get('request_unsubscribe_url') +'`');
 
                     performanceDigest = Object.assign(performanceDigest, {unsubscribeUrl});
                             
