@@ -296,7 +296,7 @@ module.exports.sendContestEntryDailyDigest = function() {
                     const code = user.code;
                     const type = "daily_performance_digest";
                     const email = user.email;
-                    const sendDigest = _.get(user, 'preference.daily_performance_digest', false);
+                    const sendDigest = _.get(user, 'emailpreference.daily_performance_digest', true);
                     
                     const unsubscribeUrl = eval('`'+config.get('request_unsubscribe_url') +'`');
 
