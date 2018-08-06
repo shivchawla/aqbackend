@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-02 12:32:45
+* @Last Modified time: 2018-08-06 17:47:05
 */
 
 'use strict';
@@ -31,7 +31,10 @@ function _getEffectiveAdviceStartDate(selectedStartDate) {
 	
 	var currentDatetimeIndia = moment.tz(new Date(), "Asia/Kolkata");
 	
-	if (currentDatetimeIndia.get('hour') < 12) {
+	const weekday = currentDatetimeIndia.day();
+	const isWeekDay = weekday > 0 && weekday < 6;
+	
+	if (currentDatetimeIndia.get('hour') < 12 && isWeekDay) {
 		return DateHelper.getCurrentDate();
 	}
 
