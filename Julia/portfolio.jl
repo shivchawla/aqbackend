@@ -729,7 +729,7 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
         ####IMPROVEMENT: Use the latest prices when startDate is same as today's data
         useRtPrices = false #Flag to indicate whether to use EOD prices or RT prices
         #RtPrices are used during the middle of the day to compute averageprice (because EOD is not available yet)
-        if Date(newStartDate) == Date(currentIndiaTime()) && 
+        if Date(newStartDate) >= Date(currentIndiaTime()) && 
                 prices.timestamp[end] != Date(newStartDate)
             useRtPrices = true         
         end
