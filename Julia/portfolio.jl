@@ -24,10 +24,15 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
     currentDate = Date(now())
     eod_prices = nothing
 
-    if (adjustment && strict) 
-        eod_prices = YRead.history(tickers, "Close", :Day, startdate, enddate, displaylogs=false)
-    else
-        eod_prices = YRead.history_unadj(tickers, "Close", :Day, startdate, enddate, displaylogs=false, strict = strict)
+    #Added withing try catch to handle error at YRead 
+    try
+        if (adjustment && strict) 
+            eod_prices = YRead.history(tickers, "Close", :Day, startdate, enddate, displaylogs=false)
+        else
+            eod_prices = YRead.history_unadj(tickers, "Close", :Day, startdate, enddate, displaylogs=false, strict = strict)
+        end
+    catch err
+        println(err)
     end
 
     #Use it twice to fix NaNs and nothing
@@ -49,13 +54,13 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
                     priceForTicker = NaN;
                     if haskey(_realtimePrices, ticker)
                         if rtTimeStamp == nothing
-                            rtTimestamp = Date(_realtimePrices[ticker].datetime)
-                        elseif rtTimestamp != Date(_realtimePrices[ticker].datetime)
+                            rtTimeStamp = Date(_realtimePrices[ticker].datetime)
+                        elseif rtTimeStamp != Date(_realtimePrices[ticker].datetime)
                             error("Distinct timestamps for RT data")
                         end
 
                         if laststamp != nothing
-                            if Date(rtTimestamp) <= laststamp 
+                            if Date(rtTimeStamp) <= laststamp 
                                 error("Realtime data is same as last day in EOD")
                             end
                         end 
@@ -68,7 +73,7 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
                 mat = Matrix{Float64}(1, length(rtPriceArray))
                 mat[1, :] = rtPriceArray
                 
-                rtTimeArray = TimeArray([rtTimestamp], mat, tickers)
+                rtTimeArray = TimeArray([rtTimeStamp], mat, tickers)
             end
         end
     end
