@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-07 10:58:23
+* @Last Modified time: 2018-08-08 13:14:39
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -262,7 +262,7 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 		let validity = {valid: true};
 		if(field == 'MAX_NET_VALUE') {
 			//Check for NET VALUE limit
-			var currentNetValue = _.get(currentPortfolio, 'pnlStats.netValue', 0.0);
+			var currentNetValue = _.get(currentPortfolio, 'pnlStats.netValue', 0.0) * 0.99;
 			var oldNetValue = _.get(oldPortfolio, 'pnlStats.netValue', 0.0);
 
 			var softMaxNavLimit = _.get(validityRequirements, 'MAX_NET_VALUE.SOFT', 500000);
@@ -283,9 +283,9 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 			
 		}
 
-		if(field == 'MIN_NET_VALUE') {
+		else if(field == 'MIN_NET_VALUE') {
 			//Check for NET VALUE limit
-			var currentNetValue = _.get(currentPortfolio, 'pnlStats.netValue', 0.0);
+			var currentNetValue = _.get(currentPortfolio, 'pnlStats.netValue', 0.0) * 0.99;
 			var oldNetValue = _.get(oldPortfolio, 'pnlStats.netValue', 0.0);
 
 			var softMinNavLimit = _.get(validityRequirements, 'MIN_NET_VALUE.SOFT', 450000); 
@@ -303,7 +303,7 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 			
 		}
 		 
-		if(field == 'MIN_POS_COUNT') {
+		else if(field == 'MIN_POS_COUNT') {
 			//Check for POSITION COUNT and STOCK EXPOSURE limit
 			if (currentPositions) {
 				var minPosCount = _.get(validityRequirements, 'MIN_POS_COUNT', 5);
@@ -313,7 +313,7 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 			}
 		} 
 
-		if(field == 'MAX_STOCK_EXPOSURE') {
+		else if(field == 'MAX_STOCK_EXPOSURE') {
 
 			try {
 				var softMaxPositionExposure = _.get(validityRequirements, 'MAX_STOCK_EXPOSURE.SOFT', 50000);
@@ -326,22 +326,22 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 
 				currentPositions.forEach(item => {
 					var ticker = item.security.ticker;
-					var currentStockExposure = item.quantity * item.lastPrice;
+					var currentStockExposure = item.quantity * item.lastPrice * 0.99;
 					var oldStockExposure = _.get(oldStockExposureObj, ticker, 0.0);
 
-					if (create && currentStockExposure > softMaxPositionExposure) {
+					if (isCreate && currentStockExposure > softMaxPositionExposure) {
 						validity = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${softMaxPositionExposure}`};
 						throw new Error("Invalid");
 					}
-					else if (!create && oldStockExposure == 0.0 && currentStockExposure > softMaxPositionExposure) {
+					else if (!isCreate && oldStockExposure < softMaxPositionExposure && currentStockExposure > softMaxPositionExposure) {
 						validity = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${softMaxPositionExposure}`};
 						throw new Error("Invalid");
 					}
-					else if (!create && oldStockExposure > hardMaxPositionExposure && currentStockExposure > softMaxPositionExposure) {
+					else if (!isCreate && oldStockExposure > hardMaxPositionExposure && currentStockExposure > softMaxPositionExposure) {
 						validity = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${softMaxPositionExposure}`};
 						throw new Error("Invalid");
 					} 
-					else if (!create && oldStockExposure > softMaxPositionExposure && currentStockExposure > softMaxPositionExposure && currentStockExposure > oldStockExposure) {
+					else if (!isCreate && oldStockExposure > softMaxPositionExposure && currentStockExposure > softMaxPositionExposure && currentStockExposure > oldStockExposure) {
 						validity = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${oldStockExposure}`};
 						throw new Error("Invalid");
 					}
@@ -386,9 +386,9 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 				currentPositions.forEach(item => {
 					var sector = _.get(item, 'security.detail.Sector', "");
 					if (sector in currentSectorExposureObj) {
-						currentSectorExposureObj[sector] += item.quantity * item*lastPrice; 
+						currentSectorExposureObj[sector] += item.quantity * item*lastPrice * 0.99; 
 					} else {
-						currentSectorExposureObj[sector] = item.quantity * item*lastPrice; 
+						currentSectorExposureObj[sector] = item.quantity * item*lastPrice * 0.99; 
 					}
 				});
 
@@ -405,21 +405,21 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 					if (sector in currentSectorExposureObj && sector != "") {
 						let currentSectorExposure = currentSectorExposure[sector];
 
-						if (create && currentSectorExposure > softMaxSectorExposure) {
+						if (isCreate && currentSectorExposure > softMaxSectorExposure) {
 							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${maxSectorExposure}`};
 							throw new Error("Invalid");
 						}	
 
 						let oldSectorExposure = _.get(oldSectorExposureObj, sector, 0.0);
-						if (!create && oldSectorExposure == 0.0 && currentSectorExposure > softMaxSectorExposure) {
+						if (!isCreate && oldSectorExposure < softMaxSectorExposure && currentSectorExposure > softMaxSectorExposure) {
 							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${maxSectorExposure}`};
 							throw new Error("Invalid");
 						}
-						if (!create && oldSectorExposure > hardMaxPositionExposure && currentSectorExposure > softMaxSectorExposure) {
+						if (!isCreate && oldSectorExposure > hardMaxPositionExposure && currentSectorExposure > softMaxSectorExposure) {
 							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${maxSectorExposure}`};
 							throw new Error("Invalid");
 						}
-						else if (!create && oldSectorExposure > softMaxSectorExposure && currentSectorExposure > softMaxSectorExposure && currentSectorExposure > oldStockExposure) {
+						else if (!isCreate && oldSectorExposure > softMaxSectorExposure && currentSectorExposure > softMaxSectorExposure && currentSectorExposure > oldStockExposure) {
 							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${oldStockExposure}`};
 							throw new Error("Invalid");
 						}
