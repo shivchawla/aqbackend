@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-08 13:56:50
+* @Last Modified time: 2018-08-08 14:18:41
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -23,6 +23,24 @@ const SecurityHelper = require('./Security');
 const _ = require('lodash');
 
 const adviceRequirements = require('../../constants').benchmarkUniverseRequirements;
+
+function formatMoneyValueMaxTwoDecimals(value) {
+	if (value && typeof(value) == "number"){
+		var x = (value/100000) > 1.0 ? value.toFixed(0) : value.toFixed(2);
+		var afterPoint = '';
+		if(x.indexOf('.') > 0)
+		   afterPoint = x.substring(x.indexOf('.'),x.length);
+		x = Math.floor(x);
+		x=x.toString();
+		var lastThree = x.substring(x.length-3);
+		var otherNumbers = x.substring(0,x.length-3);
+		if(otherNumbers !== '' && otherNumbers !== '-')
+		    lastThree = ',' + lastThree;
+		return otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + lastThree + afterPoint;
+	} else{
+		return value;
+	}
+}
 
 function _getAdviceOptions(benchmark) {
 	return adviceRequirements[benchmark];
@@ -272,13 +290,13 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 			var hardMinNavLimit = _.get(validityRequirements, 'MIN_NET_VALUE.HARD', 400000); 
 			
 			if (isCreate && currentNetValue > softMaxNavLimit) {
-				validity = {valid: false, message:`Portfolio Value of ${currentNetValue} is greater than ${softMaxNavLimit}`};
+				validity = {valid: false, message:`Portfolio Value of ${formatMoneyValueMaxTwoDecimals(currentNetValue)} is greater than ${formatMoneyValueMaxTwoDecimals(softMaxNavLimit)}`};
 			} 
 			else if (!isCreate && oldNetValue > hardMaxNavLimit && currentNetValue > softMaxNavLimit) {
-				validity = {valid: false, message:`Portfolio Value of ${currentNetValue} is greater than ${softMaxNavLimit}`};
+				validity = {valid: false, message:`Portfolio Value of ${formatMoneyValueMaxTwoDecimals(currentNetValue)} is greater than ${formatMoneyValueMaxTwoDecimals(softMaxNavLimit)}`};
 			} 
 			else if (!isCreate && oldNetValue < hardMaxNavLimit && currentNetValue > oldNetValue && currentNetValue > softMaxNavLimit) {
-				validity = {valid: false, message:`Portfolio Value of ${currentNetValue} is greater than ${oldNetValue}`};
+				validity = {valid: false, message:`Portfolio Value of ${formatMoneyValueMaxTwoDecimals(currentNetValue)} is greater than ${formatMoneyValueMaxTwoDecimals(oldNetValue)}`};
 			}  
 			
 		}
@@ -292,13 +310,13 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 			var hardMinNavLimit = _.get(validityRequirements, 'MIN_NET_VALUE.HARD', 400000); 
 			
 			if (isCreate && currentNetValue < softMinNavLimit) {
-				validity = {valid: false, message:`Portfolio Value of ${currentNetValue} is less than ${softMinNavLimit}`};
+				validity = {valid: false, message:`Portfolio Value of ${formatMoneyValueMaxTwoDecimals(currentNetValue)} is less than ${formatMoneyValueMaxTwoDecimals(softMinNavLimit)}`};
 			}  
 			else if (!isCreate && oldNetValue < hardMinNavLimit && currentNetValue < softMinNavLimit) {
-				validity = {valid: false, message:`Portfolio Value of ${currentNetValue} is less than ${softMinNavLimit}`};
+				validity = {valid: false, message:`Portfolio Value of ${formatMoneyValueMaxTwoDecimals(currentNetValue)} is less than ${formatMoneyValueMaxTwoDecimals(softMinNavLimit)}`};
 			} 
 			else if (!isCreate && oldNetValue > hardMinNavLimit && currentNetValue < oldNetValue && currentNetValue < softMinNavLimit) {
-				validity = {valid: false, message:`Portfolio Value of ${currentNetValue} is less than ${oldNetValue}`};
+				validity = {valid: false, message:`Portfolio Value of ${formatMoneyValueMaxTwoDecimals(currentNetValue)} is less than ${formatMoneyValueMaxTwoDecimals(oldNetValue)}`};
 			} 
 			
 		}
@@ -330,19 +348,19 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 					var oldStockExposure = _.get(oldStockExposureObj, ticker, 0.0);
 
 					if (isCreate && currentStockExposure > softMaxPositionExposure) {
-						validity = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${softMaxPositionExposure}`};
+						validity = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${formatMoneyValueMaxTwoDecimals(softMaxPositionExposure)}`};
 						throw new Error("Invalid");
 					}
 					else if (!isCreate && oldStockExposure < softMaxPositionExposure && currentStockExposure > softMaxPositionExposure) {
-						validity = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${softMaxPositionExposure}`};
+						validity = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${formatMoneyValueMaxTwoDecimals(softMaxPositionExposure)}`};
 						throw new Error("Invalid");
 					}
 					else if (!isCreate && oldStockExposure > hardMaxPositionExposure && currentStockExposure > softMaxPositionExposure) {
-						validity = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${softMaxPositionExposure}`};
+						validity = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${formatMoneyValueMaxTwoDecimals(softMaxPositionExposure)}`};
 						throw new Error("Invalid");
 					} 
 					else if (!isCreate && oldStockExposure > softMaxPositionExposure && currentStockExposure > softMaxPositionExposure && currentStockExposure > oldStockExposure) {
-						validity = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${oldStockExposure}`};
+						validity = {valid: false, message:`Exposure in ${item.security.ticker} is greater than ${formatMoneyValueMaxTwoDecimals(oldStockExposure)}`};
 						throw new Error("Invalid");
 					}
 				});
@@ -406,21 +424,21 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 						let currentSectorExposure = currentSectorExposureObj[sector];
 
 						if (isCreate && currentSectorExposure > softMaxSectorExposure) {
-							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${softMaxSectorExposure}`};
+							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${formatMoneyValueMaxTwoDecimals(softMaxSectorExposure)}`};
 							throw new Error("Invalid");
 						}	
 
 						let oldSectorExposure = _.get(oldSectorExposureObj, sector, 0.0);
 						if (!isCreate && oldSectorExposure < softMaxSectorExposure && currentSectorExposure > softMaxSectorExposure) {
-							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${softMaxSectorExposure}`};
+							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${formatMoneyValueMaxTwoDecimals(softMaxSectorExposure)}`};
 							throw new Error("Invalid");
 						}
 						if (!isCreate && oldSectorExposure > hardMaxPositionExposure && currentSectorExposure > softMaxSectorExposure) {
-							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${softMaxSectorExposure}`};
+							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${formatMoneyValueMaxTwoDecimals(softMaxSectorExposure)}`};
 							throw new Error("Invalid");
 						}
 						else if (!isCreate && oldSectorExposure > softMaxSectorExposure && currentSectorExposure > softMaxSectorExposure && currentSectorExposure > oldStockExposure) {
-							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${oldStockExposure}`};
+							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${formatMoneyValueMaxTwoDecimals(oldStockExposure)}`};
 							throw new Error("Invalid");
 						}
 					}
