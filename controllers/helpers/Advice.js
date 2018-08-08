@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-08 13:53:18
+* @Last Modified time: 2018-08-08 13:56:50
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -406,17 +406,17 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 						let currentSectorExposure = currentSectorExposureObj[sector];
 
 						if (isCreate && currentSectorExposure > softMaxSectorExposure) {
-							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${maxSectorExposure}`};
+							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${softMaxSectorExposure}`};
 							throw new Error("Invalid");
 						}	
 
 						let oldSectorExposure = _.get(oldSectorExposureObj, sector, 0.0);
 						if (!isCreate && oldSectorExposure < softMaxSectorExposure && currentSectorExposure > softMaxSectorExposure) {
-							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${maxSectorExposure}`};
+							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${softMaxSectorExposure}`};
 							throw new Error("Invalid");
 						}
 						if (!isCreate && oldSectorExposure > hardMaxPositionExposure && currentSectorExposure > softMaxSectorExposure) {
-							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${maxSectorExposure}`};
+							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${softMaxSectorExposure}`};
 							throw new Error("Invalid");
 						}
 						else if (!isCreate && oldSectorExposure > softMaxSectorExposure && currentSectorExposure > softMaxSectorExposure && currentSectorExposure > oldStockExposure) {
