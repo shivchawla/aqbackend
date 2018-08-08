@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-06 17:47:05
+* @Last Modified time: 2018-08-08 10:49:22
 */
 
 'use strict';
@@ -229,7 +229,7 @@ module.exports.updateAdvice = function(args, res, next) {
 				}
 
 				advicePortfolioId = advice.portfolio._id;
-				return 	isPublic ? AdviceHelper.validateAdvice(newAdvice, advice) : AdviceHelper.validateAdvice(newAdvice);
+				return 	isPublic ? AdviceHelper.validateAdvice(newAdvice, advice.toObject()) : AdviceHelper.validateAdvice(newAdvice);
 					
 			
 			} else {
