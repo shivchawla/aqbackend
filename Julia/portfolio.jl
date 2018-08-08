@@ -84,11 +84,13 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
         output = eod_prices
     end
 
-    final = output[Date(startdate):Date(enddate)]
-
-    return length(final) == 0 ? nothing : final
-
-
+    if output != nothing
+        final = output[Date(startdate):Date(enddate)]
+        return length(final) == 0 ? nothing : final
+    else 
+        return nothing
+    end    
+    
 end
 
 ###
