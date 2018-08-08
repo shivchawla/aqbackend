@@ -74,10 +74,6 @@ const strongDiversified = {
 	MIN_NET_VALUE: {
 		SOFT: 450000,
 		HARD: 400000
-	},
-	MAX_NET_VALUE: {
-		SOFT: 500000,
-		HARD: 550000
 	}
 }
 
@@ -94,10 +90,6 @@ const weakDiversified = {
 	MIN_NET_VALUE: {
 		SOFT: 450000,
 		HARD: 400000
-	},
-	MAX_NET_VALUE: {
-		SOFT: 500000,
-		HARD: 550000
 	}
 }
 
@@ -111,10 +103,6 @@ const sector = {
 	MIN_NET_VALUE: {
 		SOFT: 450000,
 		HARD: 400000
-	},
-	MAX_NET_VALUE: {
-		SOFT: 500000,
-		HARD: 550000
 	}
 };
 
