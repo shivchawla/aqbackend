@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-08 13:47:10
+* @Last Modified time: 2018-08-08 13:50:17
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -403,7 +403,7 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 
 				currentSectors.forEach(sector => {
 					if (sector in currentSectorExposureObj && sector != "") {
-						let currentSectorExposure = currentSectorExposure[sector];
+						let currentSectorExposure = currentSectorExposureObj[sector];
 
 						if (isCreate && currentSectorExposure > softMaxSectorExposure) {
 							validity = {valid: false, message:`Exposure in ${sector.toUpperCase()} sector is greater than ${maxSectorExposure}`};
