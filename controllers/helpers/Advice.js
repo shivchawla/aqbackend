@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-08 13:50:17
+* @Last Modified time: 2018-08-08 13:53:18
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -395,9 +395,9 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 				oldPositions.forEach(item => {
 					var sector = _.get(item, 'security.detail.Sector', "");
 					if (sector in oldSectorExposureObj) {
-						oldSectorExposureObj[sector] += item.quantity * item*lastPrice; 
+						oldSectorExposureObj[sector] += item.quantity * item.lastPrice; 
 					} else {
-						oldSectorExposureObj[sector] = item.quantity * item*lastPrice; 
+						oldSectorExposureObj[sector] = item.quantity * item.lastPrice; 
 					}
 				});
 
