@@ -130,3 +130,5 @@ module.exports.benchmarkUniverseRequirements = {
     "NIFTY_SERV_SECTOR": {universe: "NIFTY_SERV_SECTOR", portfolio: weakDiversified},
     "NIFTY_DIV_OPPS_50": {universe: "NIFTY_DIV_OPPS_50", portfolio: weakDiversified},
 };
+
+module.exports.APP_CLIENT_ID = '327368242858-939u97118bi3bli9obcilpurh0k8g8a5.apps.googleusercontent.com';

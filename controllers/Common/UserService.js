@@ -11,6 +11,7 @@ const {OAuth2Client} = require('google-auth-library');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
 const APIError = require('../../utils/error');
+const CLIENT_ID = require('../../constants').APP_CLIENT_ID;
 const _ = require('lodash');
 
 exports.registerUser = function(args, res, next) {
@@ -312,7 +313,6 @@ module.exports.unsubscribeEmail = function(args, res, next) {
 }
 
 module.exports.userGoogleLogin = function(args, res, next) {
-    const CLIENT_ID = '327368242858-939u97118bi3bli9obcilpurh0k8g8a5.apps.googleusercontent.com'
     const user = {
         accessToken: args.body.value.accessToken,
     };
