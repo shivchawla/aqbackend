@@ -11,7 +11,7 @@ const {OAuth2Client} = require('google-auth-library');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
 const APIError = require('../../utils/error');
-const CLIENT_ID = require('../../constants').APP_CLIENT_ID;
+const CLIENT_ID = config.get('app_client_id');
 const _ = require('lodash');
 
 exports.registerUser = function(args, res, next) {
