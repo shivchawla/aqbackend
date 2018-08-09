@@ -48,7 +48,12 @@ const User = new Schema({
         }
     },
 
-    createdDate: Date
+    createdDate: Date,
+
+    isUserFromGoogle: {
+        type: Boolean,
+        default: false
+    }
 });
 
 User.index({

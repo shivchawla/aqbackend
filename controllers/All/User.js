@@ -56,3 +56,6 @@ module.exports.unsubscribeEmail = function(req, res, next) {
     User.unsubscribeEmail(req.swagger.params, res, next);
 };
 
+module.exports.userGoogleLogin = function(req, res, next) {
+    User.userGoogleLogin(req.swagger.params, res, next);
+}

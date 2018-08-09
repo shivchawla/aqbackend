@@ -20,7 +20,7 @@ function _sendMail(res, msg, obj) {
     .then(() => {
 
         if (obj && obj.redirectUrl) {
-            res.redirect(obj.redirectUrl);
+           res ? res.redirect(obj.redirectUrl) : {};
         }
 
         if (obj) {
@@ -111,7 +111,7 @@ module.exports.sendForgotEmail = function(res, userDetails, source) {
 
 };
 
-module.exports.welcomeEmail = function(res, userDetails, source) {
+module.exports.welcomeEmail = function(res, userDetails, source, redirect = true) {
     
     var src = source ? source : "aimsquant";
     var WelcomeEmailTemplateId = config.get(`welcome_template_id.${src}`);
@@ -130,8 +130,11 @@ module.exports.welcomeEmail = function(res, userDetails, source) {
             userEmailAddress: userDetails.email,
         },
     };
+    const redirectUrl = redirect
+            ? config.get(`activation_url.${src}`)
+            : null;
 
-    return _sendMail(res, msg, {redirectUrl: config.get(`activation_url.${src}`)});
+    return _sendMail(res, msg, {redirectUrl});
 };
 
 module.exports.sendFeedbackEmail = function(res, args) {

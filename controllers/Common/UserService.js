@@ -7,6 +7,7 @@ const uuid = require('node-uuid');
 const config = require('config');
 var request = require('request');
 const Promise = require('bluebird');
+const {OAuth2Client} = require('google-auth-library');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
 const APIError = require('../../utils/error');
@@ -310,4 +311,85 @@ module.exports.unsubscribeEmail = function(args, res, next) {
     })
 }
 
+module.exports.userGoogleLogin = function(args, res, next) {
+    const CLIENT_ID = '327368242858-939u97118bi3bli9obcilpurh0k8g8a5.apps.googleusercontent.com'
+    const user = {
+        accessToken: args.body.value.accessToken,
+    };
+    let userDetails = {};
+    let googleUserDetails = {};
+    const randomPassword = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const source = res && res.req && res.req.headers && res.req.headers.origin 
+            ? res.req.headers.origin.indexOf("aimsquant")!=-1 
+                ? "aimsquant" 
+                : "adviceqube" 
+            : "adviceqube";
+    let userAlreadyPresent = true;
 
+    verify(user.accessToken, CLIENT_ID)
+    .then(payload => {
+        googleUserDetails.userEmail = _.get(payload, 'email', null);
+        googleUserDetails.userFirstName = _.get(payload, 'given_name', null);
+        googleUserDetails.userLastName = _.get(payload, 'family_name', null);
+        googleUserDetails.userPicture = _.get(payload, 'picture', null);
+
+        return UserModel.fetchUser({email: googleUserDetails.userEmail})
+    })
+    .then(userM => {
+        if (!userM) {
+            // Registration should be done here
+            const user = {
+                email: googleUserDetails.userEmail,
+                firstName: googleUserDetails.userFirstName,
+                lastName: googleUserDetails.userLastName,
+                photourl: googleUserDetails.userPicture,
+                password: randomPassword,
+                code: uuid.v4(),
+                active: true,
+                createdDate: new Date(),
+                isUserFromGoogle: true
+            };
+            userAlreadyPresent = false;
+
+            return UserModel.saveUser(user)
+        } else {
+            // Login should be done here
+            return Promise.resolve(userM);
+        }
+    })
+    .then(userResponse => {
+        userDetails = userResponse.toObject();
+        !userAlreadyPresent && Promise.resolve(sendEmail.welcomeEmail(null, userResponse, source, false));
+
+        return jwtUtil.signToken(userDetails);
+    })
+    .then(token => {
+        userDetails.token = token;
+        delete userDetails.password;
+        delete userDetails.code;
+
+        return Promise.all([
+            InvestorModel.fetchInvestor({user:userDetails._id}, {insert:true}),
+            AdvisorModel.fetchAdvisor({user:userDetails._id}, {insert:true})
+        ]);
+    })
+    .then(([investor, advisor]) => {
+        userDetails.investor = investor._id;
+        userDetails.advisor = advisor._id;
+        res.status(200).json(userDetails)
+    })
+    .catch(err => {
+        console.log(err)
+        res.status(400).send({error: err})
+    });
+}
+
+async function verify(token, CLIENT_ID) {
+    const client = new OAuth2Client(CLIENT_ID);
+    const ticket = await client.verifyIdToken({
+        idToken: token,
+        audience: CLIENT_ID
+    });
+    const payload = ticket.getPayload();
+    return payload;
+}

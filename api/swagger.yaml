@@ -101,6 +101,33 @@ paths:
           schema:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "User"
+  
+  /user/login_google:
+    post:
+      tags:
+      - "user"
+      summary: "User Login using Google"
+      description: "User Login use Google OAuth"
+      operationId: userGoogleLogin
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "User google login description. Check model definition for valid params"
+        required: true
+        schema:
+          $ref: "#/definitions/GoogleLogin"
+      responses:
+        200:
+          description: "successful login"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "User"
 
   /me:
     get:
@@ -3107,6 +3134,12 @@ definitions:
         type: "string"
       password:
         type: "string"
+
+  GoogleLogin:
+    type: object
+    properties:
+      accessToken:
+        type: string
   
   Thread:
     type: object
