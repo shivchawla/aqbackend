@@ -41,7 +41,7 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
 
     rtTimeArray = nothing
     try
-        if appendRealtime && Date(enddate) == currentDate && !adjustment
+        if appendRealtime && Date(enddate) == currentDate #&& !adjustment
             laststamp = eod_prices != nothing ? eod_prices.timestamp[end] : nothing
 
             if laststamp == nothing || (laststamp != nothing && laststamp < currentDate)
