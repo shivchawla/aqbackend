@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-08 10:49:22
+* @Last Modified time: 2018-08-10 16:09:23
 */
 
 'use strict';
@@ -98,8 +98,7 @@ function _findFirstValidPortfolio(adviceId, date, attempts) {
 
 module.exports.createAdvice = function(args, res, next) {
 	const userId = args.user._id;
-	const advice = args.body.value.advice;
-	const operation = _.get(args, 'body.value.action', "validate");
+	const advice = args.body.value;
 
 	var advisorId = '';
 	let effectiveStartDate;
@@ -127,22 +126,61 @@ module.exports.createAdvice = function(args, res, next) {
 			APIError.throwJsonError({message: "Advice exists with same name"});
 		}
 
-		if(operation=="validate" || (operation == "create" && advices.length < config.get('max_advices_per_advisor'))) {
+		if(advices.length < config.get('max_advices_per_advisor')) {
 			return AdviceHelper.validateAdvice(advice, "");
 		} else {
 			APIError.throwJsonError({advisorId: advisorId, message:"Advice limit exceed. Can't add more advices.", errorCode: 1109});
 		}
 	})
 	.then(validity => {
-		if(validity.valid && operation == "create") {
+		if(validity.valid) {
 			return AdviceHelper.saveAdvice(advice, advisorId, effectiveStartDate, args.user);
-		} else if (!validity.valid && operation == "create") {
-			APIError.throwJsonError({message: "Invalid advice", detail: validity.detail, errorCode: 1108});
-		} else if (operation == "validate") {
-			return validity;
 		} else {
-			APIError.throwJsonError({message: "Illegal action requested while creating advice"});
+			APIError.throwJsonError({message: "Invalid advice", detail: validity.detail, errorCode: 1108});
 		}
+	})
+	.then(finalOutput => {
+		return res.status(200).send(finalOutput);
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+    });
+};
+
+module.exports.validateAdvice = function(args, res, next) {
+	const advice = _.get(args,'body.value', null);
+	const operation = _.get(args,'operation.value', "create");
+	const adviceId = _.get(args, 'adviceId.value', null);
+	const userId = _.get(args, 'user._id', null);
+
+	return Promise.resolve()
+	.then(() => {
+		if (operation == "update" && (!userId || !adviceId)) {
+			APIError.throwJsonError({mesage: "Can't validate for unknown user"});
+		} else if(operation == "create" && adviceId) {
+			APIError.throwJsonError({mesage: "Invalid input adviceId for create operation"});
+		} else if (operation == "update" && user) {
+			return AdviceHelper.getAdviceAccessStatus(adviceId, userId)
+			.then(accessStatus => {
+				if (accessStatus.isOwner) {
+					return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'portfolio', populate: 'portfolio benchmark'})
+					.then(oldAdvice => {
+						return oldAdvice.toObject();
+					});
+				} else {
+					APIError.throwJsonError({message: "Not Authorized to update the advice"});
+				}
+			})
+		} else {
+			return null
+		}
+	})
+	.then(oldAdvice => {
+		if (advice) {
+			return AdviceHelper.validateAdvice(advice, oldAdvice);
+		} else {
+			APIError.throwJsonError({message:"Invalid inut advice"});
+		}	
 	})
 	.then(finalOutput => {
 		return res.status(200).send(finalOutput);
