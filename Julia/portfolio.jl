@@ -94,9 +94,11 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
     end     
 end
 
-
-function _compute_dividendCash(portfolioHistoryCollection)
+#Use this fucntion to updated portfolio with dividendCash accumulated
+function _updatePortfolioHistory_dividendCash(portfolioHistoryCollection)
     dividendCash = 0.0
+
+    outputTuple = Vector{Any}()
 
     for collection in portfolioHistory
         portfolio = convert(Raftaar.Portfolio, collection["portfolio"])
@@ -123,11 +125,17 @@ function _compute_dividendCash(portfolioHistoryCollection)
                 end
             end
         end
+
+        println("Dividend Cash before: $(portfolio.cash)")
+        portfolio.cash = dividendCash
+
+        println("Dividend Cash After: $dividendCash")
+
+        push!(outputTuple, (portfolio, startdate, endDate))
+
     end
 
-    println("Dividend Cash: $dividendCash")
-
-    return dividendCash
+    return outputTuple
      
 end 
 ###
@@ -405,13 +413,13 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
         #BUT we don't have data for split/dividends in RT,
         #So we will redo the cash accumulation over the history of the portfolio 
         #to get accurate portfolio.cash number as of NOW
-        totalDividendCash = _compute_dividendCash(portfolioHistory) 
+        updatedPortfolioHistoryTuple = _updatePortfolioHistory_dividendCash(portfolioHistory)
 
         #Reversing the portfolio history because we want a portfolio to end
         #wih adjusted cash = 0
-        reversePortfolioHistory = reverse(portfolioHistory)
+        reversePortfolioHistory = reverse(updatePortfolioHistoryTuple)
 
-        for (idx, collection) in enumerate(reversePortfolioHistory)
+        for (idx, tup) in enumerate(reversePortfolioHistory)
 
             #This is the ongoing adjusted NAV of ""FORWARD portfolio""
             latest_portfolio_value_ta_adj = portfolio_value_ta_adj  #NA
@@ -419,13 +427,9 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
             #This is the true NAV of """FORWARD portfolio""" 
             latest_portfolio_value_ta = portfolio_value_ta   #ND
 
-            port = collection["portfolio"]
-
-            portfolio = convert(Raftaar.Portfolio, port)
-
-            startdate = DateTime(collection["startDate"], format)
-            enddate = DateTime(collection["endDate"], format)
-
+            portfolio = tup[1]
+            startdate = tup[2]
+            enddate = tup[3]
 
             # Compute portfolio value timed array
             # Output is TA 
@@ -439,9 +443,6 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
             #THis is modified and dividendFactor is created only once
             # this is a departure from previous implementatin, so keep an eye
             if portfolio_value_ta != nothing && !hasDividendFactor
-                println("OMG")
-                println("Portfolio Cash: $(portfolio.cash)")
-                println()
                 dividendFactor*= (cashAdjustment ? (values(portfolio_value_ta)[end] - totalDividendCash)/values(portfolio_value_ta)[end] : 1.0)
                 hasDividendFactor = true
             end
