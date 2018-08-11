@@ -2466,14 +2466,13 @@ paths:
       summary: get stock history and/or performance detail
       description: get stock history and/or performance detail
       operationId: getStockDetail
-      security:
-      - api_key: []
+      security: []
       parameters:
       - name: "aimsquant-token"
         in: "header"
         description: "auth token"
         type: "string"
-        required: true
+        required: false
       - name: ticker
         in: query
         type: string
@@ -2589,14 +2588,13 @@ paths:
       summary: get stock list matching criteria
       description: get stock list matching criteria
       operationId: getStocks
-      security:
-      - api_key: []
+      security: []
       parameters:
       - name: "aimsquant-token"
         in: "header"
         description: "auth token"
         type: "string"
-        required: true
+        required: false
       - name: search
         in: query
         type: string
@@ -2708,14 +2706,13 @@ paths:
       summary: get portfolio historical performance
       description: get portfolio historical performance
       operationId: getPerformanceNewPortfolio
-      security:
-      - api_key: []
+      security: []
       parameters:
       - name: "aimsquant-token"
         in: "header"
         description: "auth token"
         type: "string"
-        required: true
+        required: false
       - name: body
         in: body
         required: true
@@ -2793,14 +2790,13 @@ paths:
       summary: Get static configs
       description: get static configurations required in the frontend
       operationId: getConfig
-      security:
-      - api_key: []
+      security: []
       parameters:
       - name: "aimsquant-token"
         in: "header"
         description: "auth token"
         type: "string"
-        required: true
+        required: false
       - name: type
         in: query
         type: string
