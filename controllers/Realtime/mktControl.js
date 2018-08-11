@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-04 14:42:50
+* @Last Modified time: 2018-08-11 15:44:48
 */
 
 'use strict';
@@ -30,8 +30,8 @@ const serverPort = require('../../index').serverPort;
 setTimeout(function(){reloadData();}, 2000);
 
 //Run when seconds = 10
-schedule.scheduleJob(`${config.get('nse_delayinseconds')} * 9-16 * * 1-5`, function() {
-    processNewData();
+schedule.scheduleJob(`${config.get('nse_delayinseconds')+10} * 6-13 * * 1-5`, function() {
+    processLatestFiles();
 });
 
 var isBusy = {};
@@ -45,48 +45,9 @@ var subscribers = {portfolio: {},
 	watchlist: {}
 };
 
-function debugConnection(str) {
-	//console.log(str);
-}
-
-var sftpClosed = true;
-
-sftp.on('close', function(err) {
-	//console.log("SFTP - On Close event");
-	//console.log(err);
-	sftpClosed = true;
-});
-
-sftp.on('error', function(err) {
-	//console.log("SFTP - On Error event");
-	//console.log(err);
-	sftpClosed = true;
-});
-
-sftp.on('ready', function() {
-	//console.log("SFTP - On Ready event");
-	sftpClosed = false;
-});
-
-function connectSFTP() {
-	if (sftpClosed) {
-		//console.log("Attempting Reconnect - SFTP");
-		return sftp.connect({
-		    host: config.get('nse_host'),
-		    port: config.get('nse_port'),
-		    username: config.get('nse_user'),
-		    privateKey: fs.readFileSync(path.resolve(path.join(__dirname,`./${config.get('nse_private_key')}`))),
-		    //debug:debugConnection,
-		    keepaliveInterval: 5000
-		})
-	} else {
-		//console.log("SFTP already connected");
-		return new Promise(resolve => {
-			resolve(true);
-		});
-	}	
-}
-
+/*
+* Get the last valid RT file available in the filesystem
+*/
 function _getLastValidFile(type) {
 	var currentDate = new Date();
 	var fileNumber = config.get('nse_maxfilecount');
@@ -128,127 +89,81 @@ function _getLastValidFile(type) {
 	return localUnzipFilePath;
 }
 
-function _writeFile(data, file) {
+/*
+* Get latest RT file based on the current time
+*/
+function _getLatestFile(type) {
+
 	return new Promise((resolve, reject) => {
-    	try {
-    		var writeUnzipStream = fs.createWriteStream(file);
-    		data.pipe(zlib.createUnzip()).pipe(writeUnzipStream);
-    		
-    		//'finish' event is sometimes not called
-    		//Thus resolve after 10 seconds (this is bad code)
-    		setTimeout(function(){resolve(true);}, 10000);
-    		writeUnzipStream.on('finish', () => {
-			  	console.log('All writes are now complete.');
-			  	resolve(true);
-			});
+		let fileNumber;
+		var currentDate = new Date();
+		var isWeekend = currentDate.getDay() == 0 || currentDate.getDay() == 6;
 
-			writeUnzipStream.on('error', (err) => {
-			  	console.log('Error while unzipping file');
-			  	resolve(true);
-			});
+		if (!isWeekend) {
 
-			writeUnzipStream.on('close', () => {
-			  	resolve(true);
-			});
-		} catch(err) {
-			reject(err);
-		}
-	});
-}
-
-function _downloadNSEData(type) {
-	return new Promise((resolve, reject) => {
-		
-		let localUnzipFilePath;
-		let nseFilePath;
-
-		//console.log("Starting download process now");
-		
-		return new Promise((resolve, reject) => {
-			let fileNumber;
-			var currentDate = new Date();
-			var isWeekend = currentDate.getDay() == 0 || currentDate.getDay() == 6;
-
-			if (!isWeekend) {
-
-				if (type == "mkt") {
-					var dateNine15 = new Date();
-					dateNine15.setUTCHours(3)
-					dateNine15.setUTCMinutes(45);
-					dateNine15.setUTCSeconds(0);
-					var minutesPassed = Math.floor(Math.abs(currentDate - dateNine15)/1000/60);
-					fileNumber = minutesPassed + 1;
-					//Total number of files ~ 391 (393 - 3:32PM some times)
-					//Using parameter config.get('nse_maxfilecount') to denote that
-					
-				} else if(type == "ind") {
-					var dateEight50 = new Date();
-					dateEight50.setUTCHours(3)
-					dateEight50.setUTCMinutes(20);
-					dateEight50.setUTCSeconds(0);
-					minutesPassed = Math.floor(Math.abs(currentDate - dateEight50)/1000/60);
-					fileNumber = minutesPassed + 1;
-							}
-
-				if (fileNumber > config.get('nse_maxfilecount')) {
-					fileNumber = config.get('nse_maxfilecount');
-				}
-
-				activeDate = DateHelper.getDate(currentDate);
-					
-				const monthNames = ["January", "February", "March", "April", "May", "June",
-				  "July", "August", "September", "October", "November", "December"
-				];
-
-				var month = currentDate.getMonth();
-				var date = currentDate.getDate();
-				date = date < 10 ? `0${date}` : date;
-				var year = currentDate.getFullYear();
-				var nseDateStr = `${monthNames[month]}${date}${year}`;
-				var zipFileName = `${fileNumber}.${type}.gz`;
+			if (type == "mkt") {
+				var dateNine15 = new Date();
+				dateNine15.setUTCHours(3)
+				dateNine15.setUTCMinutes(45);
+				dateNine15.setUTCSeconds(0);
+				var minutesPassed = Math.floor(Math.abs(currentDate - dateNine15)/1000/60);
+				fileNumber = minutesPassed + 1;
+				//Total number of files ~ 391 (393 - 3:32PM some times)
+				//Using parameter config.get('nse_maxfilecount') to denote that
 				
-				var nseFilePath =`/CM30/DATA/${nseDateStr}/${zipFileName}`;
+			} else if(type == "ind") {
+				var dateEight50 = new Date();
+				dateEight50.setUTCHours(3)
+				dateEight50.setUTCMinutes(20);
+				dateEight50.setUTCSeconds(0);
+				minutesPassed = Math.floor(Math.abs(currentDate - dateEight50)/1000/60);
+				fileNumber = minutesPassed + 1;
+						}
 
-				var localPath = path.resolve(path.join(homeDir, `/rtdata/${nseDateStr}`));
-				if (!fs.existsSync(localPath)) {
-				    fs.mkdirSync(localPath);	
-			  	}	
+			if (fileNumber > config.get('nse_maxfilecount')) {
+				fileNumber = config.get('nse_maxfilecount');
+			}
 
-				var unzipFileName = `${fileNumber}.${type}`;
-				localUnzipFilePath = `${localPath}/${unzipFileName}`;
+			const monthNames = ["January", "February", "March", "April", "May", "June",
+			  "July", "August", "September", "October", "November", "December"
+			];
 
-				resolve(nseFilePath);
+			var month = currentDate.getMonth();
+			var date = currentDate.getDate();
+			date = date < 10 ? `0${date}` : date;
+			var year = currentDate.getFullYear();
+			var nseDateStr = `${monthNames[month]}${date}${year}`;
+			var zipFileName = `${fileNumber}.${type}.gz`;
+			
+			var nseFilePath =`/CM30/DATA/${nseDateStr}/${zipFileName}`;
 
-		  	} else {
-		  		reject(APIError.jsonError({message: "Weekend! No file can be downloaded"}));
-		  	}
-	  	})
-	  	.then(nseFile => {
-	  		//Wrap sftp operation inside a promise
-	  		//to detect sftp related errors
-		   	return new Promise((resolve, reject) => {
-		   		sftp.get(nseFile, false, null)
-		   		.then(data => {
-		   			resolve(data);
-		   		}).catch(err => {
-		   			sftpClosed = true;
-		   			reject(err);
-		   		})
-	   		});
-	   	})
-		.then(data => {
-			return !fs.existsSync(localUnzipFilePath) ? _writeFile(data, localUnzipFilePath) : true
-		}) 
-		.then(successMkt => {
-			resolve(localUnzipFilePath);
-		})
-		.catch(err => {
-			//console.log(err);
-			console.log("Error while downloading/updating NSE file");
-		});
-	});
+			var localPath = path.resolve(path.join(homeDir, `/rtdata/${nseDateStr}`));
+			if (!fs.existsSync(localPath)) {
+			    fs.mkdirSync(localPath);	
+		  	}	
+
+			var unzipFileName = `${fileNumber}.${type}`;
+			localUnzipFilePath = `${localPath}/${unzipFileName}`;
+
+			if (fs.existsSync(localUnzipFilePath)) {
+				resolve(localUnzipFilePath);	
+			} else {
+				resolve(_getLastValidFile(type));
+			}
+			
+
+	  	} else {
+	  		reject(APIError.jsonError({message: "Weekend! No file can be downloaded"}));
+	  	}
+  	})
+  	.catch(err => {
+  		return _getLastValidFile(type);
+  	})
 }
 
+/*
+* HELPER: Request the Julia process to update the RT data
+*/
 function _updateData(filePath, type) {
 	if (filePath && filePath !="" && fs.existsSync(filePath)) {
 		return SecurityHelper.updateRealtimePrices(filePath, type)
@@ -258,14 +173,9 @@ function _updateData(filePath, type) {
 	}
 }
 
-function _downloadAndUpdateData(type) {
-	return _downloadNSEData(type)
-	.then(localFilePath  => {
-		console.log("Sending request to Julia - update realtime prices")
-		return _updateData(localFilePath, type);
-	})
-}
-
+/*
+Reloads the realtime data to Julia in case of backend failure/restart
+*/
 function reloadData() {
 	return new Promise.map(["ind", "mkt"], function(type) {
 		var currentDate = new Date();
@@ -326,20 +236,24 @@ function reloadData() {
 	});
 }
 
-
-function processNewData() {
+/*
+Processes the latest RT data file in the filesystem
+*/
+function processLatestFiles() {
 	//console.log("In Process data")
 	
-	return connectSFTP()
-	.then(() => {
-		//console.log("Connected to SFTP Successfully");
-		return Promise.all ([
-			_downloadAndUpdateData("mkt"),
-			_downloadAndUpdateData("ind")
-		])
+	return Promise.all([
+		_getLatestFile("mkt"),
+		_getLatestFile("ind")
+	])
+	.then(([mktFile, indFile]) => {
+		return Promise.all([
+			_updateData(mktFile, "mkt"),
+			_updateData(indFile, "ind")
+		]);
 	})
 	.then(([s1, s2]) => {
-		//console.log("Successfully updated the stock prices");
+		console.log("Successfully updated the stock prices");
 		return _sendAllUpdates()
 	})
 	.catch(err => {
@@ -415,6 +329,9 @@ module.exports.handleMktPlaceUnsubscription = function(req, res) {
     }
 };
 
+/*
+* Handles Advice unsubscription request
+*/
 function _handleAdviceUnsubscription(req, res) {
 	return new Promise(resolve => {
 		const adviceId = req.adviceId;
@@ -434,6 +351,10 @@ function _handleAdviceUnsubscription(req, res) {
 	});
 }
 
+
+/*
+* Handles Portfolio unsubscription request
+*/
 function _handlePortfolioUnsubscription(req, res) {
 	return new Promise(resolve => {
 		const portfolioId = req.portfolioId;
@@ -452,6 +373,10 @@ function _handlePortfolioUnsubscription(req, res) {
 	});	
 }
 
+
+/*
+* Handles Stock unsubscription request
+*/
 function _handleStockUnsubscription(req, res) {
 	
 	return new Promise(resolve => {
@@ -484,6 +409,10 @@ function _handleStockUnsubscription(req, res) {
 	});
 }
 
+
+/*
+* Handles Watchlist unsubscription request
+*/
 function _handleWatchlistUnsubscription(req, res) {
 	const watchlistId = req.watchlistId;
 	const userId = req.userId;
@@ -657,28 +586,24 @@ function _handleStockSubscription(req, res) {
 * Sends the data using WS connection
 */
 function _sendWSResponse(res, data, category, typeId) {
-	try {
-		if (res) {
+	if (res) {
 
-			if (res.readyState === WebSocket.OPEN) {
-				var msg = JSON.stringify({
-						type: category,
-						portfolioId: category == "portfolio" ? typeId : null,
-						adviceId: category == "advice" ? typeId : null,
-						ticker: category == "stock" ? typeId : category == "watchlist" ? data.ticker : null,
-						watchlistId: category == "watchlist" ? typeId : null,
-						output: data,
-						date: activeDate});
+		if (res.readyState === WebSocket.OPEN) {
+			var msg = JSON.stringify({
+					type: category,
+					portfolioId: category == "portfolio" ? typeId : null,
+					adviceId: category == "advice" ? typeId : null,
+					ticker: category == "stock" ? typeId : category == "watchlist" ? data.ticker : null,
+					watchlistId: category == "watchlist" ? typeId : null,
+					output: data,
+					date: activeDate});
 
-				return res.send(msg);
-			} else {
-				throw new Error("Websocket is not OPEN");
-			}
+			return res.send(msg);
+		} else {
+			throw new Error("Websocket is not OPEN");
 		}
-	} catch (err) {
-		console.log(err.message);
-		return err.message;
 	}
+	
 }
 
 /*
@@ -691,11 +616,18 @@ function _onDataUpdate(typeId, data, category) {
 
 		var res = subscription.response;
 		var detail = subscription.detail;
-		if (detail ) {
-			return _sendWSResponse(res, data, category, typeId);
-		} else {
-			return _sendWSResponse(res, _filterData(data, category), category, typeId);
-		}
+
+		return new Promise(resolve => {
+			if (detail ) {
+				return _sendWSResponse(res, data, category, typeId);
+			} else {
+				return _sendWSResponse(res, _filterData(data, category), category, typeId);
+			}
+		})
+		.catch(err => {
+			console.log(err);
+			resolve(true);
+		})
 	});
 }
 
