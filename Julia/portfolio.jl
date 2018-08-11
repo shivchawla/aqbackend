@@ -100,7 +100,7 @@ function _updatePortfolioHistory_dividendCash(portfolioHistoryCollection)
 
     outputTuple = Vector{Any}()
 
-    for collection in portfolioHistory
+    for collection in portfolioHistoryCollection
         portfolio = convert(Raftaar.Portfolio, collection["portfolio"])
         startdate = DateTime(collection["startDate"], format)
         enddate = DateTime(collection["endDate"], format)
@@ -131,7 +131,7 @@ function _updatePortfolioHistory_dividendCash(portfolioHistoryCollection)
 
         println("Dividend Cash After: $dividendCash")
 
-        push!(outputTuple, (portfolio, startdate, endDate))
+        push!(outputTuple, (portfolio, startdate, enddate))
 
     end
 
@@ -278,7 +278,8 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, ed
 
         portfolio = convert(Raftaar.Portfolio, port)
 
-        portfolio_values = dropnan(_compute_portfoliovalue(portfolio, sdate, edate, excludeCash=excludeCash), :any)
+        portfolio_value_raw = _compute_portfoliovalue(portfolio, sdate, edate, excludeCash=excludeCash)
+        portfolio_values = portfolio_value_raw != nothing ? dropnan(portfolio_value_raw, :any) : nothing
 
         if portfolio_values == nothing || length(portfolio_values) == 0 
             return defaultOutput
@@ -417,7 +418,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
 
         #Reversing the portfolio history because we want a portfolio to end
         #wih adjusted cash = 0
-        reversePortfolioHistory = reverse(updatePortfolioHistoryTuple)
+        reversePortfolioHistory = reverse(updatedPortfolioHistoryTuple)
 
         for (idx, tup) in enumerate(reversePortfolioHistory)
 
@@ -443,7 +444,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
             #THis is modified and dividendFactor is created only once
             # this is a departure from previous implementatin, so keep an eye
             if portfolio_value_ta != nothing && !hasDividendFactor
-                dividendFactor*= (cashAdjustment ? (values(portfolio_value_ta)[end] - totalDividendCash)/values(portfolio_value_ta)[end] : 1.0)
+                dividendFactor*= (cashAdjustment ? (values(portfolio_value_ta)[end] - portfolio.cash)/values(portfolio_value_ta)[end] : 1.0)
                 hasDividendFactor = true
             end
            
@@ -460,10 +461,10 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
                 latest_portfolio_value_ta_adj != nothing
 
                 #NEXT because it is reversed in time
-                next_collection = reversePortfolioHistory[idx-1]
-                next_portfolio = convert(Raftaar.Portfolio, next_collection["portfolio"])
-                next_startdate = DateTime(next_collection["startDate"], format)
-                next_enddate = DateTime(next_collection["endDate"], format)
+                next_tuple = reversePortfolioHistory[idx-1]
+                next_portfolio = next_tuple[1]
+                next_startdate = next_tuple[2]
+                next_enddate = next_tuple[3]
                 
                 #fidn the true start date
                 cashRequirement = _cashRequirement(portfolio, next_portfolio, next_startdate)
