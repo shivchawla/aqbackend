@@ -67,8 +67,8 @@ const strongDiversified = {
 		SOFT: 50000
 	},
 	MAX_SECTOR_EXPOSURE: {
-		SOFT: 150000,
-		HARD: 180000
+		SOFT: 180000,
+		HARD: 210000
 	},
 	MIN_SECTOR_COUNT: 4,
 	MIN_NET_VALUE: {
@@ -84,8 +84,8 @@ const weakDiversified = {
 		SOFT: 50000
 	},
 	MAX_SECTOR_EXPOSURE: {
-		SOFT: 150000,
-		HARD: 180000
+		SOFT: 250000,
+		HARD: 300000
 	},
 	MIN_NET_VALUE: {
 		SOFT: 450000,

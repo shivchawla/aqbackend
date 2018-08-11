@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-06 13:01:40
+* @Last Modified time: 2018-08-11 20:37:07
 */
 
 'use strict';
@@ -869,6 +869,10 @@ module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
 	.then(portfolio => {
 
 		var startDate = portfolio.detail.startDate;
+		var endDate = portfolio.detail.startDate;
+
+		//Is the ending date 2200-01-01
+		var isLatestPortfolio = (new Date(endDate) == DateHelper.getDate("2200-01-01"));
 
 		//Adjustment is required is startDate is less than current Date
 		//MODIFYING THIS CHECK  to ALLOW when STARTDATE AND CURRENT DATE ARE SAME
@@ -877,7 +881,7 @@ module.exports.updatePortfolioForSplitsAndDividends = function(portfolioId) {
 		
 		var adjustmentRequired = DateHelper.compareDates(DateHelper.getDate(startDate), currentDate) != 1;
 		
-		if (portfolio && portfolio.detail && adjustmentRequired) {
+		if (portfolio && portfolio.detail && adjustmentRequired && isLatestPortfolio) {
 			return _computeUpdatedPortfolioForSplitsAndDividends(portfolio, DateHelper.getDate(startDate), currentDate);
 		} else {
 			return [portfolio]
