@@ -100,11 +100,22 @@ function _updatePortfolioHistory_dividendCash(portfolioHistoryCollection)
 
     outputTuple = Vector{Any}()
 
-    for collection in portfolioHistoryCollection
+    for (i, collection) in enumerate(portfolioHistoryCollection)
         portfolio = convert(Raftaar.Portfolio, collection["portfolio"])
         startdate = DateTime(collection["startDate"], format)
         enddate = DateTime(collection["endDate"], format)
-                
+        
+        last_portfolio = nothing
+        last_startdate = nothing
+        last_enddate = nothing
+        
+        if i > 1
+            lastCollection = portfolioHistoryCollection[i-1]
+            last_portfolio = convert(Raftaar.Portfolio, lastCollection["portfolio"])
+            last_startdate = DateTime(lastCollection["startDate"], format)
+            last_enddate = DateTime(lastCollection["endDate"], format)
+        end
+        
         tickers = [sym.ticker for (sym, pos) in portfolio.positions]
         adjustments = YRead.getadjustments(tickers, startdate, enddate)
 
@@ -113,10 +124,21 @@ function _updatePortfolioHistory_dividendCash(portfolioHistoryCollection)
             symbol = getsecurity(ticker).symbol
             qty = portfolio[symbol].quantity
 
+            lastqty = 0
+            if last_portfolio != nothing
+                lastqty = last_portfolio[symbol].quantity
+            end
+
             if haskey(adjustments, symbol.id)
                 adjustmentForSecurity = adjustments[symbol.id]
                 
                 for (date, adjustment) in adjustmentForSecurity
+
+                    if (Date(date) == Date(startdate))
+                        println("Adjustment on same day as startdate of portfolio. Using last known portfolio")
+                        qty = lastqty
+                    end
+
                     adjType = adjustment[3]
                     adjFactor = adjustment[2]
                     if(adjType == 17.0)
