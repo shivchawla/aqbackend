@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-02 00:07:19
+* @Last Modified time: 2018-08-12 14:33:52
 */
 
 'use strict';
@@ -260,7 +260,7 @@ Portfolio.statics.deletePortfolio = function(query) {
 };
 
 function farfuture() {
-	return new Date(2200, 1, 1);
+	return DateHelper.getDate(new Date(2200, 1, 1));
 }
 
 const PortfolioModel = mongoose.model('Portfolio', Portfolio);
