@@ -148,10 +148,7 @@ function _updatePortfolioHistory_dividendCash(portfolioHistoryCollection)
             end
         end
 
-        println("Dividend Cash before: $(portfolio.cash)")
         portfolio.cash = dividendCash
-
-        println("Dividend Cash After: $dividendCash")
 
         push!(outputTuple, (portfolio, startdate, enddate))
 
