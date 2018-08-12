@@ -109,7 +109,9 @@ end
 function compute_performance_constituents(port::Dict{String, Any}, start_date::DateTime, end_date::DateTime, benchmark::Dict{String,Any} = Dict("ticker"=>"NIFTY_50"))
     
     try 
-        if end_date > currentIndiaTime() || start_date > end_date
+        #Why do we have check for end_date > currentIndiaTime()
+        #Seems wrong- removing this check - 12/08/2018
+        if start_date > end_date
             error("Invalid dates. Can't compute constituent performance.")
         end
         performance_allstocks = Dict{String, Any}[]

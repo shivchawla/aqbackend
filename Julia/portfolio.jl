@@ -273,8 +273,8 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, ed
     try
         
         defaultOutput = excludeCash ? 
-            (Date(currentIndiaTime()), Dict("composition" => [], "concentration" => 0.0)) :
-            (Date(currentIndiaTime()), Dict("composition" => [Dict("weight" => 1.0, "ticker" => "CASH_INR")], "concentration" => 0.0))
+            (Date(currentIndiaTime()), [], "concentration" => 0.0) :
+            (Date(currentIndiaTime()), [Dict("weight" => 1.0, "ticker" => "CASH_INR")], 0.0)
 
         portfolio = convert(Raftaar.Portfolio, port)
 

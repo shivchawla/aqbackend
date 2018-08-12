@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-24 19:36:23
+* @Last Modified time: 2018-08-12 14:24:55
 */
 
 'use strict';
@@ -86,6 +86,15 @@ function _computeConstituentPerformance(portfolioId, date) {
 			//Check if start date is present (Added: 15/03/2018)
 			var startDate = DateHelper.getDate(currentPortfolio.startDate);
 			var endDate = DateHelper.getCurrentDate()
+
+			//In case of portfolios created on weekend (and in some other corner cases)
+			//the start date is next MOnday
+			//Performance call on Saturday fails in Julia because startdate is greater
+			//than end date
+			if (DateHelper.compareDates(startDate, endDate) == 1) {
+				endDate = startDate;
+			}
+
 			return _computeConstituentPerformance_portfolio(currentPortfolio, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'});
 		} else {
 			APIError.throwJsonError({message: "Error computing constituent performance. Portfolio not found"});
@@ -114,6 +123,14 @@ function _computePortfolioMetrics(portfolioId, date, isAdvice) {
 
 			var startDate = DateHelper.getDate(currentPortfolio.startDate);
 			var endDate = DateHelper.getCurrentDate();
+
+			//In case of portfolios created on weekend (and in some other corner cases)
+			//the start date is next MOnday
+			//Performance call on Saturday fails in Julia because startdate is greater
+			//than end date
+			if (DateHelper.compareDates(startDate, endDate) == 1) {
+				endDate = startDate;
+			}
 
 			return _computePortfolioMetrics_portfolio(currentPortfolio, startDate, endDate, portfolio.benchmark ? portfolio.benchmark : {ticker: 'NIFTY_50'}, isAdvice);
 		} else {
@@ -150,8 +167,16 @@ function _computeTruePerformance(portfolioId, date, isAdvice) {
 		if (portfolio.history.length > 0) {
 			var portfolioHistory = [];
 			portfolio.history.forEach(item => {
-				portfolioHistory.push({startDate: item.startDate ? item.startDate : 
-						(item.endDate ? item.endDate : DateHelper.getCurrentDate()), 
+				
+				//BUG FIX: Check dates before sending to Julia
+				//Corner cases dates needs tp be adjusted so that 
+				//start date doesn't become greater than end date
+				portfolioHistory.push({
+					startDate: item.startDate && DateHelper.compareDates(item.startDate, DateHelper.getCurrentDate()) != 1 ? 
+						item.startDate : 
+						(item.endDate && DateHelper.compareDates(item.endDate, DateHelper.getCurrentDate()) != 1 ? 
+						item.endDate : DateHelper.getCurrentDate()), 
+					
 					//If end date is greater than current date,  make it current date
 					endDate: item.endDate &&  
 						DateHelper.compareDates(item.endDate, DateHelper.getCurrentDate()) != 1 ? 
