@@ -1466,6 +1466,43 @@ paths:
       summary: validate an advice
       description: validate an advice
       operationId: validateAdvice
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Advice'
+      - name: operation
+        in: query
+        required: true
+        type: string
+        default: "create"
+        enum: ["create", "update"]
+      - name: adviceId
+        in: query
+        required: false
+        type: string
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Advice"
+
+  /advice/validate_default:
+    post:
+      tags:
+      - advice
+      summary: validate an advice
+      description: validate an advice
+      operationId: validateAdvice
       security: []
       parameters:
       - name: "aimsquant-token"
