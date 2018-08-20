@@ -159,7 +159,7 @@ module.exports.validateAdvice = function(args, res, next) {
 			APIError.throwJsonError({mesage: "Can't validate for unknown user"});
 		} else if(operation == "create" && adviceId) {
 			APIError.throwJsonError({mesage: "Invalid input adviceId for create operation"});
-		} else if (operation == "update" && user) {
+		} else if (operation == "update" && userId) {
 			return AdviceHelper.getAdviceAccessStatus(adviceId, userId)
 			.then(accessStatus => {
 				if (accessStatus.isOwner) {

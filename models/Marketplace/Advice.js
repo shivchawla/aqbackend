@@ -336,13 +336,13 @@ Advice.statics.fetchAdvice = function(query, options) {
             q = q.select({approval: {$slice: -1}});
        }
     }
-    
-    if(options.populate.indexOf('portfolio') != -1) {
-        q = q.select('portfolio').populate('portfolio','detail benchmark deleted _id', { _id: { $ne: null }});
-    }
 
     if(options.populate.indexOf('benchmark') != -1) {
         q = q.select('portfolio').populate('portfolio','benchmark _id', { _id: { $ne: null }});
+    }
+    
+    if(options.populate.indexOf('portfolio') != -1) {
+        q = q.select('portfolio').populate('portfolio','detail benchmark deleted _id', { _id: { $ne: null }});
     }
 
     if(options.populate.indexOf('advisor') != -1) {
@@ -484,7 +484,7 @@ Advice.statics.updateAnalyticsAndPerformance = function(query, analyticsAndPerfo
         //Find date
         var idx = adviceAnalytics.map(item => item.date.getTime()).indexOf(latestAnalyticsDate.getTime());
         if (idx == -1) {
-            adviceAnalytics.push(latestAnalytics);
+            adviceAnalytics.concat([latestAnalytics]);
         } else {
             Object.keys(latestAnalytics).forEach(key => {
                 adviceAnalytics[idx][key] = latestAnalytics[key];
