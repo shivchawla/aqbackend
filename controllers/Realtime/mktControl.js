@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-11 15:44:48
+* @Last Modified time: 2018-08-21 10:29:26
 */
 
 'use strict';
@@ -165,12 +165,15 @@ function _getLatestFile(type) {
 * HELPER: Request the Julia process to update the RT data
 */
 function _updateData(filePath, type) {
-	if (filePath && filePath !="" && fs.existsSync(filePath)) {
-		return SecurityHelper.updateRealtimePrices(filePath, type)
-	} else {
-		//console.log("Can't process realtime data. Bad filename");
-		return false;
-	}
+	return Promise.resolve()
+	.then(() => {
+		if (filePath && filePath !="" && fs.existsSync(filePath)) {
+			return SecurityHelper.updateRealtimePrices(filePath, type)
+		} else {
+			//console.log("Can't process realtime data. Bad filename");
+			return false;
+		}
+	});
 }
 
 /*
@@ -229,8 +232,12 @@ function reloadData() {
 			
 			return new Promise.mapSeries(fileIndexIteratorArray, function(fileNumber) {
 				var filePath = `${localPath}/${fileNumber}.${type}`;
-				return _updateData(filePath, type);
-				
+				return _updateData(filePath, type)
+				.then(() => { 
+					//Waiting for completion of the promise
+					//Otherwise it tries to complete all requests in parallel
+					return true;
+				})
 			});
 		}
 	});
@@ -611,6 +618,7 @@ function _sendWSResponse(res, data, category, typeId) {
 */
 function _onDataUpdate(typeId, data, category) {
 	var subscribedUsers = subscribers[category][typeId];
+	
 	return Promise.map(Object.keys(subscribedUsers), function(userId) {
 		var subscription = subscribedUsers[userId];
 
@@ -618,16 +626,17 @@ function _onDataUpdate(typeId, data, category) {
 		var detail = subscription.detail;
 
 		return new Promise(resolve => {
-			if (detail ) {
-				return _sendWSResponse(res, data, category, typeId);
-			} else {
-				return _sendWSResponse(res, _filterData(data, category), category, typeId);
+			try{
+				if (detail ) {
+					resolve(_sendWSResponse(res, data, category, typeId));
+				} else {
+					resolve(_sendWSResponse(res, _filterData(data, category), category, typeId));
+				}
+			} catch(err) {
+				console.log(err);
+				resolve(true);
 			}
-		})
-		.catch(err => {
-			console.log(err);
-			resolve(true);
-		})
+		});
 	});
 }
 

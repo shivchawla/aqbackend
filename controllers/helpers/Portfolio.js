@@ -140,8 +140,8 @@ function _populateStats(portfolio, isAdvice) {
 		var port = Object.assign({}, portfolio);
 		
 		//Added logic to exclude the cash from advice composition
-		var totalVal = isAdvice ? 0.0 : port.detail.cash;
-		var positions = port.detail.positions;
+		var totalVal = isAdvice ? 0.0 : _.get(port, 'detail.cash', 0);
+		var positions = _.get(port, 'detail.positions', []);
 
 		positions.forEach(item => {
 		 	totalVal += item.quantity*item.lastPrice;
@@ -437,7 +437,7 @@ function _computeUpdatedPortfolioForPrice(portfolio, type, date) {
 	
 	return new Promise(resolve => {
 		Promise.all([
-			_updatePositionsForPrice(portfolio.detail.positions, type, date),
+			_updatePositionsForPrice(_.get(portfolio, 'detail.positions', []), type, date),
 			
 			//Each subposition is sent separately as JULIA portfolio can't handle 
 			//redundant securities
