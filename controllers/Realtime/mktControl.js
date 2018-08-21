@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-21 10:29:26
+* @Last Modified time: 2018-08-21 10:40:45
 */
 
 'use strict';
@@ -32,6 +32,11 @@ setTimeout(function(){reloadData();}, 2000);
 //Run when seconds = 10
 schedule.scheduleJob(`${config.get('nse_delayinseconds')+10} * 6-13 * * 1-5`, function() {
     processLatestFiles();
+});
+
+//Reload data before ranking calculation
+schedule.scheduleJob(`*/49 6-13 * * 1-5`, function() {
+    reloadData();
 });
 
 var isBusy = {};
