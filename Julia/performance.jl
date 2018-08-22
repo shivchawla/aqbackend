@@ -276,7 +276,7 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
             if benchmark_prices != nothing && stock_prices != nothing
 
                 #calculate performance from start to end date of the stock prices
-                sd = stock_prices.timestamp[0] 
+                sd = stock_prices.timestamp[1] 
                 ed = min(benchmark_prices.timestamp[end], stock_prices.timestamp[end])
 
                 merged_prices_raw = from(to(merge(stock_prices, benchmark_prices, :right), ed), sd)
@@ -334,7 +334,7 @@ function compute_stock_static_performance(security_dict::Dict{String,Any}; bench
             if benchmark_prices != nothing && stock_prices != nothing
                 
                 #calculate performance from start to end date of the stock prices
-                sd = stock_prices.timestamp[0] 
+                sd = stock_prices.timestamp[1] 
                 ed = min(benchmark_prices.timestamp[end], stock_prices.timestamp[end])
 
                 merged_prices_raw = from(to(merge(stock_prices, benchmark_prices, :right), ed), sd)
