@@ -80,7 +80,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                                             "true" => serialize(performance), 
                                             "diff" => serialize(dperformance), 
                                             "rolling" => serialize(rolling_performances),
-                                            "static" => serialize(static_performances)),
+                                            "static" => serialize(static_performances),
                                             "rolling_benchmark" => serialize(rolling_performances),
                                             "static_benchmark" => serialize(static_performances)),  
                                           "portfolioValues" => nVDict)
