@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-22 17:15:56
+* @Last Modified time: 2018-08-22 17:19:08
 */
 
 'use strict';
@@ -26,7 +26,7 @@ const sendEmail = require('../../email');
 const moment = require('moment-timezone');
 
 
-const holidays = {
+const holidays = [
 	"2018-08-22",
 	"2018-09-13",
 	"2018-09-20",
@@ -36,7 +36,7 @@ const holidays = {
 	"2018-11-08",
 	"2018-11-23",
 	"2018-12-25"
-};
+];
 
 //NOT IN USE
 //NEEDS MORE CONTEMPLATION
