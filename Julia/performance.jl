@@ -35,6 +35,8 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             portfolio_returns = merged_returns["Portfolio"].values
             benchmark_returns = merged_returns[benchmark].values
 
+            dates = merged_returns.timestamp
+
             #Bug Fix: If the length is one, then there is only one day
             ndays = length(merged_returns) == 1 ? 1 : Int(Dates.value(merged_returns.timestamp[end] - merged_returns.timestamp[1]))
 
@@ -43,15 +45,19 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             rollingperformance = Raftaar.calculateperformance_rollingperiods(rename(merged_returns, ["algorithm", "benchmark"]))
             staticperformance = Raftaar.calculateperformance_staticperiods(rename(merged_returns, ["algorithm", "benchmark"]))
             
+            onlybenchmark_returns = merge(TimeArray(benchmark_returns, dates, ["algorithm"]), TimeArray(benchmark_returns, dates, ["benchmark"]))
+            rollingperformance_bench = Raftaar.calculateperformance_rollingperiods(onlybenchmark_returns)
+            staticperformance_bench = Raftaar.calculateperformance_staticperiods(onlybenchmark_returns)
+            
             performance.portfoliostats.netvalue = portfolio_value.values[end]
             
-            return (merged_value.timestamp[end], performance, dperformance, rollingperformance, staticperformance)
+            return (merged_value.timestamp[end], performance, dperformance, rollingperformance, staticperformance, rollingperformance_bench, staticperformance_bench)
         
         elseif benchmark_value != nothing
-            return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
+            return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
         
         else
-            return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
+            return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
         end
     catch err
         rethrow(err)
@@ -85,6 +91,7 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
         
         portfolio_returns = merged_returns["Portfolio"].values
         benchmark_returns = merged_returns[benchmark].values
+        dates = merged_returns.timestamp
 
         ndays = length(merged_returns) == 1 ? 1 : Int(Dates.value(merged_returns.timestamp[end] - merged_returns.timestamp[1]))
 
@@ -93,13 +100,17 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
         rollingperformance = Raftaar.calculateperformance_rollingperiods(rename(merged_returns, ["algorithm", "benchmark"]))
         staticperformance = Raftaar.calculateperformance_staticperiods(rename(merged_returns, ["algorithm", "benchmark"]))
 
-        return (merged_value.timestamp[end], performance, dperformance, rollingperformance, staticperformance)
+        onlybenchmark_returns = merge(TimeArray(benchmark_returns, dates, ["algorithm"]), TimeArray(benchmark_returns, dates, ["benchmark"]))
+        rollingperformance_bench = Raftaar.calculateperformance_rollingperiods(onlybenchmark_returns)
+        staticperformance_bench = Raftaar.calculateperformance_staticperiods(onlybenchmark_returns)            
+
+        return (merged_value.timestamp[end], performance, dperformance, rollingperformance, staticperformance, rollingperformance_bench, staticperformance_bench)
     
     elseif benchmark_value != nothing
-        return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
+        return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
 
     else
-        return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
+        return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
     end
 end
 
@@ -156,6 +167,8 @@ end
 ###
 function compute_stock_performance(security::Dict{String, Any}, start_date::DateTime, end_date::DateTime, benchmark::Dict{String, Any} = Dict("ticker"=>"NIFTY_50"))
 
+    defaultOutput = (Date(currentIndiaTime()), Performance())
+
     benchmark_ticker = "NIFTY_50"
     try
         (valid, benchmark_security) = _validate_security(benchmark)
@@ -177,17 +190,38 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
         
         if valid
             benchmark_prices = _getPricehistory([benchmark_ticker], start_date, end_date, strict=false)
-            stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, adjustment = true)
             
+            stock_prices = nothing
+            try
+                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, adjustment = true)
+            catch err
+                println("Error in fetching adjusted prices for $(security.symbol.ticker)")
+            end
+
+            if stock_prices == nothing
+                println("Fetching un-adjusted prices for $(security.symbol.ticker)")
+                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, strict=false)
+            end
+
             if(benchmark_prices != nothing && stock_prices != nothing)
                 
-                #Merge and drop observations after the last date of benchmark                
-                merged_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
+                #calculate performance from start to end date of the stock prices
+                sd = stock_prices.timestamp[end] 
+                ed = min(benchmark_prices.timestamp[end], stock_prices.timestamp[end])
+
+                #merge the prices with benchmark (include ts from benchmark)
+                merged_prices_raw = from(to(merge(stock_prices, benchmark_prices, :right), ed), sd)
+                merged_prices = merged_prices_raw != nothing ? dropnan(merged_prices_raw, :any) : nothing
+                
+                if merged_prices == nothing
+                    return defaultOutput
+                end
+
                 merged_returns = percentchange(merged_prices)
 
                 ##Empty timeseries output of pctchange when length == 1 
                 if length(merged_returns.timestamp) == 0
-                    return (Date(currentIndiaTime()), Performance())
+                    return defaultOutput
                 end
 
                 merged_returns = rename(merged_returns, ["stock", "benchmark"])
@@ -203,7 +237,7 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
                 return (benchmark_prices.timestamp[end], Performance())
 
             else
-                return (Date(currentIndiaTime()), Performance())
+                return defaultOutput
             end
         end
     catch err
@@ -216,6 +250,7 @@ end
 ###
 function compute_stock_rolling_performance(security_dict::Dict{String,Any})
 
+    defaultOutput = (Date(), Dict{String, Performance}())
     try
         (valid, security) = _validate_security(security_dict)
         
@@ -239,10 +274,21 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
             end
 
             if benchmark_prices != nothing && stock_prices != nothing
-                merged_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
+
+                #calculate performance from start to end date of the stock prices
+                sd = stock_prices.timestamp[0] 
+                ed = min(benchmark_prices.timestamp[end], stock_prices.timestamp[end])
+
+                merged_prices_raw = from(to(merge(stock_prices, benchmark_prices, :right), ed), sd)
+                merged_prices = merged_prices_raw != nothing ? dropnan(merged_prices_raw, :any) : nothing
+                
+                if merged_prices == nothing
+                    return defaultOutput
+                end
+
                 merged_returns = percentchange(merged_prices)
                 if length(merged_returns.timestamp) == 0
-                    return (Date(), Performance())
+                    return defaultOutput
                 end
 
                 merged_returns = rename(merged_returns, ["algorithm", "benchmark"])
@@ -250,7 +296,7 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
                 return  (merged_prices.timestamp[end], Raftaar.calculateperformance_rollingperiods(merged_returns))
             
             else 
-                return (Date(), Performance())
+                return defaultOutput
             end
         else
             error("Stock data for $(security.symbol.ticker) is not present")
@@ -286,8 +332,20 @@ function compute_stock_static_performance(security_dict::Dict{String,Any}; bench
             end
 
             if benchmark_prices != nothing && stock_prices != nothing
-                merged_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
+                
+                #calculate performance from start to end date of the stock prices
+                sd = stock_prices.timestamp[0] 
+                ed = min(benchmark_prices.timestamp[end], stock_prices.timestamp[end])
+
+                merged_prices_raw = from(to(merge(stock_prices, benchmark_prices, :right), ed), sd)
+                merged_prices = merged_prices_raw != nothing ? dropnan(merged_prices_raw, :any) : nothing
+                
+                if merged_prices == nothing
+                    return defaultOutput
+                end
+
                 merged_returns = percentchange(merged_prices)
+                
                 if length(merged_returns.timestamp) == 0
                     return Performance()
                 end
