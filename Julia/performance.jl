@@ -45,7 +45,7 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             rollingperformance = Raftaar.calculateperformance_rollingperiods(rename(merged_returns, ["algorithm", "benchmark"]))
             staticperformance = Raftaar.calculateperformance_staticperiods(rename(merged_returns, ["algorithm", "benchmark"]))
             
-            onlybenchmark_returns = merge(TimeArray(benchmark_returns, dates, ["algorithm"]), TimeArray(benchmark_returns, dates, ["benchmark"]))
+            onlybenchmark_returns = merge(TimeArray(dates, benchmark_returns, ["algorithm"]), TimeArray(dates, benchmark_returns, ["benchmark"]))
             rollingperformance_bench = Raftaar.calculateperformance_rollingperiods(onlybenchmark_returns)
             staticperformance_bench = Raftaar.calculateperformance_staticperiods(onlybenchmark_returns)
             
@@ -100,7 +100,7 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
         rollingperformance = Raftaar.calculateperformance_rollingperiods(rename(merged_returns, ["algorithm", "benchmark"]))
         staticperformance = Raftaar.calculateperformance_staticperiods(rename(merged_returns, ["algorithm", "benchmark"]))
 
-        onlybenchmark_returns = merge(TimeArray(benchmark_returns, dates, ["algorithm"]), TimeArray(benchmark_returns, dates, ["benchmark"]))
+        onlybenchmark_returns = merge(TimeArray(dates, benchmark_returns, ["algorithm"]), TimeArray(dates, benchmark_returns, ["benchmark"]))
         rollingperformance_bench = Raftaar.calculateperformance_rollingperiods(onlybenchmark_returns)
         staticperformance_bench = Raftaar.calculateperformance_staticperiods(onlybenchmark_returns)            
 
