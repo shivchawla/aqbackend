@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-10 16:09:23
+* @Last Modified time: 2018-08-22 17:22:20
 */
 
 'use strict';
@@ -25,6 +25,19 @@ const DateHelper = require('../../utils/Date');
 const sendEmail = require('../../email');
 const moment = require('moment-timezone');
 
+
+const holidays = [
+	"2018-08-22",
+	"2018-09-13",
+	"2018-09-20",
+	"2018-10-02",
+	"2018-10-18",
+	"2018-11-07",
+	"2018-11-08",
+	"2018-11-23",
+	"2018-12-25"
+];
+
 //NOT IN USE
 //NEEDS MORE CONTEMPLATION
 function _getEffectiveAdviceStartDate(selectedStartDate) {
@@ -33,8 +46,15 @@ function _getEffectiveAdviceStartDate(selectedStartDate) {
 	
 	const weekday = currentDatetimeIndia.day();
 	const isWeekDay = weekday > 0 && weekday < 6;
-	
-	if (currentDatetimeIndia.get('hour') < 12 && isWeekDay) {
+
+	var currentDate = DateHelper.getCurrentDate();
+
+	let isHoliday = false;
+	holidays.forEach(holiday => {
+		isHoliday = isHoliday || DateHelper.compareDates(holiday, currentDate) == 0;
+	});
+
+	if (currentDatetimeIndia.get('hour') < 12 && isWeekDay && !isHoliday) {
 		return DateHelper.getCurrentDate();
 	}
 
