@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-22 17:19:08
+* @Last Modified time: 2018-08-22 17:22:20
 */
 
 'use strict';
@@ -51,10 +51,7 @@ function _getEffectiveAdviceStartDate(selectedStartDate) {
 
 	let isHoliday = false;
 	holidays.forEach(holiday => {
-		isHoliday = DateHelper.compareDates(holiday, currentDate) == 0;
-		if (isHoliday == true) {
-			break;
-		}
+		isHoliday = isHoliday || DateHelper.compareDates(holiday, currentDate) == 0;
 	});
 
 	if (currentDatetimeIndia.get('hour') < 12 && isWeekDay && !isHoliday) {
