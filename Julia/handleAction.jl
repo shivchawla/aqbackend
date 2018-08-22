@@ -81,8 +81,8 @@ function handleRequest(parsemsg::Dict{String, Any})
                                             "diff" => serialize(dperformance), 
                                             "rolling" => serialize(rolling_performances),
                                             "static" => serialize(static_performances),
-                                            "rolling_benchmark" => serialize(rolling_performances),
-                                            "static_benchmark" => serialize(static_performances)),  
+                                            "rolling_benchmark" => serialize(rolling_performances_bench),
+                                            "static_benchmark" => serialize(static_performances_bench)),  
                                           "portfolioValues" => nVDict)
             else 
                 parsemsg["output"] = Dict{String, Any}("date" => Date(currentIndiaTime()), 
