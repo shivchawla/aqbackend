@@ -43,7 +43,7 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
 
     rtTimeArray = nothing
     try
-        if appendRealtime && Date(enddate) == currentDate #&& !adjustment
+        if appendRealtime && Date(enddate) >= currentDate #&& !adjustment
             laststamp = eod_prices != nothing ? eod_prices.timestamp[end] : nothing
 
             if laststamp == nothing || (laststamp != nothing && laststamp < currentDate)
@@ -355,7 +355,7 @@ function _cashRequirement(oldPortfolio::Portfolio, newPortfolio::Portfolio, date
     adjustments = YRead.getadjustments(allTickers, date, date)
     
     #Fetch price from date to 10 days + date (incase date doesn't have any prices)
-    prices10DaysAhead = YRead.history_unadj(allTickers, "Close", :Day, date, date + Dates.Day(10))
+    prices10DaysAhead = _getPricehistory(allTickers, date, date + Dates.Day(10), adjustment=false, appendRealtime=true)
     
     #THIS IS ALITTLE HACKY CODE
     #BECAUSE WE DON"T HAVE DATA FOR today
