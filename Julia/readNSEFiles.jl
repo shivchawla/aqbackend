@@ -249,18 +249,20 @@ function readSecurityFile(fname::String)
 	end
 end
 
-function readAllSecurities() 
-    
-    securities = readSecurityFile(Base.source_dir()*"/Securities.dat")
-    
+function readSecurities()
+	return readSecurityFile(Base.source_dir()*"/Securities.dat")
+end
+
+function readIndices()    
+    output = Dict{Int16, String}()
     data = readcsv(Base.source_dir()*"/benchmark.csv", header=false)
 
     for row in 1:size(data)[1]
         code = data[row, 2]
         ticker = data[row,1]
-        securities[code] = ticker
+        output[code] = ticker
     end
 
-    return securities
+    return output
 end    
 

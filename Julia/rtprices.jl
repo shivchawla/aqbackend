@@ -1,7 +1,8 @@
 
 const _realtimePrices = Dict{String, TradeBar}()
 const _lastDayPrices = Dict{String, TradeBar}()
-const _codeToTicker = readAllSecurities()
+const _codeToTicker = readSecurities()
+const _codeToIndex = readIndices()
 
 function _updateportfolio_EODprice(port::Portfolio, date::DateTime)
     
@@ -53,6 +54,7 @@ function _updateportfolio_RTprice(port::Portfolio)
                 println("Using EOD price for $(sym.ticker)")
                 price = YRead.history([sym.id], "Close", :Day, 1, now(), displaylogs=false, forwardfill=true)
                 if price != nothing
+                    updatedDate = DateTime(price.timestamp[1])
                     val = values(price)[1]
                     latest_tradebar = Raftaar.TradeBar(DateTime(), val, val, val, val, 0)
                 end
@@ -120,7 +122,7 @@ function _update_realtime_ind_prices(fname::String)
         @sync begin
         
             @async for (k,v) in indPrices["RT"]
-                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
+                ticker = replace(get(_codeToIndex, k, ""), r"[^a-zA-Z0-9]", "_")
 
                 if ticker != ""
                     _realtimePrices[ticker] = v
@@ -129,7 +131,7 @@ function _update_realtime_ind_prices(fname::String)
             end
 
             @async for (k,v) in indPrices["EOD"]
-                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
+                ticker = replace(get(_codeToIndex, k, ""), r"[^a-zA-Z0-9]", "_")
 
                 if ticker != ""
                     _lastDayPrices[ticker] = v
