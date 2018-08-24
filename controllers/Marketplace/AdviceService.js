@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-22 17:22:20
+* @Last Modified time: 2018-08-22 17:44:26
 */
 
 'use strict';
@@ -38,6 +38,17 @@ const holidays = [
 	"2018-12-25"
 ];
 
+function nextNonHolidayWeekday(date) {
+	var nextWeekday = DateHelper.getNextWeekday(date);
+	
+	let isHoliday = false;
+	holidays.forEach(holiday => {
+		isHoliday = isHoliday || DateHelper.compareDates(holiday, nextWeekday) == 0;
+	});
+
+	return isHoliday ? nextNonHolidayWeekday(nextWeekday) : nextWeekday;
+}
+
 //NOT IN USE
 //NEEDS MORE CONTEMPLATION
 function _getEffectiveAdviceStartDate(selectedStartDate) {
@@ -58,9 +69,7 @@ function _getEffectiveAdviceStartDate(selectedStartDate) {
 		return DateHelper.getCurrentDate();
 	}
 
-	//LETS SIMPLIFY FOR NOW (we will fix this wen we have true)
-	return DateHelper.getNextWeekday();
-
+	return nextNonHolidayWeekday();
 
 	//TO BE FIXED LATER
 	var currentDate = DateHelper.getCurrentDate();
