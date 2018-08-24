@@ -67,7 +67,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                     vals[i,1] = val
                 end
                   
-                (lastdate, performance, dperformance, rolling_performances, static_performances) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
+                (lastdate, performance, dperformance, rolling_performances, static_performances, rolling_performances_bench, static_performances_bench) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
                 
                 nVDict = Dict{String, Any}()
 
@@ -80,7 +80,9 @@ function handleRequest(parsemsg::Dict{String, Any})
                                             "true" => serialize(performance), 
                                             "diff" => serialize(dperformance), 
                                             "rolling" => serialize(rolling_performances),
-                                            "static" => serialize(static_performances)), 
+                                            "static" => serialize(static_performances),
+                                            "rolling_benchmark" => serialize(rolling_performances_bench),
+                                            "static_benchmark" => serialize(static_performances_bench)),  
                                           "portfolioValues" => nVDict)
             else 
                 parsemsg["output"] = Dict{String, Any}("date" => Date(currentIndiaTime()), 
@@ -88,7 +90,9 @@ function handleRequest(parsemsg::Dict{String, Any})
                                               "true" => serialize(Performance()), 
                                               "diff" => serialize(Performance()), 
                                               "rolling" => serialize(Dict{String, Performance}()),
-                                              "static" => serialize(Dict{String, Dict{String, Performance}}())
+                                              "static" => serialize(Dict{String, Dict{String, Performance}}()),
+                                              "rolling_benchmark" => serialize(Dict{String, Performance}()),
+                                              "static_benchmark" => serialize(Dict{String, Dict{String, Performance}}())
                                             ),
                                           "portfolioValues" => Dict{String, Any}())
                 #error("Missing Input")
@@ -163,7 +167,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                     vals[i,1] = val
                 end
                   
-                (lastdate, performance, dperformance, rolling_performances, static_performances) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
+                (lastdate, performance, dperformance, rolling_performances, static_performances, rolling_performances_bench, static_performances_bench) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
                 
                 nVDict = Dict{String, Any}()
 
@@ -176,7 +180,9 @@ function handleRequest(parsemsg::Dict{String, Any})
                                             "true" => serialize(performance), 
                                             "diff" => serialize(dperformance), 
                                             "rolling" => serialize(rolling_performances),
-                                            "static" => serialize(static_performances)
+                                            "static" => serialize(static_performances),
+                                            "rolling_benchmark" => serialize(rolling_performances_bench),
+                                            "static_benchmark" => serialize(static_performances_bench)
                                           ), 
                                           "portfolioValues" => nVDict)
             else 
@@ -185,7 +191,9 @@ function handleRequest(parsemsg::Dict{String, Any})
                                             "true" => serialize(Performance()), 
                                             "diff" => serialize(Performance()), 
                                             "rolling" => serialize(Dict{String, Performance}()),
-                                            "static" => serialize(Dict{String, Dict{String, Performance}}())
+                                            "static" => serialize(Dict{String, Dict{String, Performance}}()),
+                                            "rolling_benchmark" => serialize(Dict{String, Performance}()),
+                                            "static_benchmark" => serialize(Dict{String, Dict{String, Performance}}())
                                           ),
                                           "portfolioValues" => nVDict)
                 #error("Missing Input")
