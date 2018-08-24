@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-04-25 16:09:37
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-31 11:55:50
+* @Last Modified time: 2018-08-24 22:56:46
 */
 'use strict';
 var redis = require('redis');
@@ -22,7 +22,7 @@ function getConnectionForMktPlace(purpose) {
     
     var machines = config.get('mktMachines');
     if (purpose == "update_realtime_prices") {
-	    var dedicatedMachines = machines.filter(item => {return item.dedicatedPort == serverPort;});
+	    var dedicatedMachines = machines.filter(item => {return item.dedicatedParent == serverPort;});
     	
     	numRequests++;
     	if (dedicatedMachines.length > 0) {
