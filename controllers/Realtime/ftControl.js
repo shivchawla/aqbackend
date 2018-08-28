@@ -20,6 +20,16 @@ function getConnectionForFt() {
     return 'ws://' + machine.host + ":" + machine.port;
 }
 
+// Schedule all the forward test jobs
+var schedulerString = config.get('ft_second') + " " + config.get('ft_minute') + " "+config.get('ft_hour')+ ' * * *';
+
+if (serverPort == config.get('jobsPort')) {
+    schedule.scheduleJob(schedulerString, function() {
+        runAllForwardTest();
+    });
+}
+
+
 /* =====================================
         FORWARD TEST CONTROL
 ===================================== */
@@ -47,15 +57,6 @@ function runForwardTest(forwardtestId) {
     });
 }
 
-// Schedule all the forward test jobs
-var schedulerString = config.get('ft_second') + " " + config.get('ft_minute') + " "+config.get('ft_hour')+ ' * * *';
-
-if (serverPort == config.get('ft_port')) {
-    schedule.scheduleJob(schedulerString, function() {
-        runAllForwardTest();
-    });
-}
-
 function runAllForwardTest() {
     console.log("Trying running all forwardtests");
     // Load all the forward tests from redis into forwardQueue
@@ -80,7 +81,7 @@ function runAllForwardTest() {
             let forwardQueue = Object.keys(data);
 
             // ft will be an array consisting of all active forward tests
-            //This launches all forward test simultaneously
+            // This launches all forward test simultaneously
             Promise.mapSeries(forwardQueue, function(forwardtestId) {
                 numAttempts[forwardtestId] = 0;
                 return handleExecForwardTest(forwardtestId);
@@ -119,22 +120,23 @@ function filterForwardTest(fTest) {
     const nFt = Object.assign({}, fTest);
 
     //Filter out VariableTracker LogTracker TransactionTracker OrderTracker
+    //Keep Performance/Benchmark Tracker
+    //And last element of account tracker - Is this required?
     var serializedData = nFt.serializedData;
      
     delete serializedData.variabletracker;
-    delete serializedData.logTracker;
-    delete serializedData.transactionTracker;
-    delete serializedData.orderTracker;
-
-    //Also, just send the latest Cash Tracker and Account Tracker
+    delete serializedData.logtracker;
+    delete serializedData.transactiontracker;
+    delete serializedData.ordertracker;
+    
+     //Also, just send the latest Cash Tracker and Account Tracker
     var allCashDates = Object.keys(serializedData.cashtracker).map(item => new Date(item).getTime()).sort();
-    var lastCashDate = allCashDates.length > 0 ? new Date(allCashDates[allCashDates.length - 1]).toDateString() : null;
-    serializedData.cashtracker = lastCashDate ? {lastCashDate: serializedData.cashtracker[lastCashDate]} : {}
+    var lastCashDate = allCashDates.length > 0 ? DateHelper.formatDate(new Date(allCashDatess.slice(-1)[0])) : null;
+    serializedData.cashtracker = lastCashDate ? {[lastCashDate]: serializedData.cashtracker[lastCashDate]} : null;
 
-    //Also, just send the latest Cash Tracker and Account Tracker
     var allAccountDates = Object.keys(serializedData.accounttracker).map(item => new Date(item).getTime()).sort();
-    var lastAccoutDate = allAccountDates.length > 0 ? new Date(allAccountDates[allAccountDates.length - 1]).toDateString() : null;
-    serializedData.accounttracker = lastAccountDate ? {lastAccountDate: serializedData.accounttracker[lastAccountDate]} : {};
+    var lastAccountDate = allAccountDates.length > 0 ? DateHelper.formatDate(new Date(allAccountDates.slice(-1)[0])) : null;
+    serializedData.accounttracker = lastAccountDate ? {[lastAccountDate]:serializedData.accounttracker[lastAccountDate]} : {};
 
     return nFt;
 }
@@ -144,7 +146,8 @@ function filterForwardTest(fTest) {
 function submitForwardTestForExecution(forwardtestId) {
 
     console.log('execForwardTest is called');
-    
+    let connection;
+
     //Delete the forward test from the queue
     return new Promise((resolve, reject) => {
         console.log("Deleting request from pending queue");
@@ -160,8 +163,8 @@ function submitForwardTestForExecution(forwardtestId) {
     .then(s => {
         console.log("Adding request to ongoing queue");
         
-        redisUtils.insertIntoRedis(`forwardtest-ongoing-request-queue-${serverPort}`, item._id, 1);
-        var connection = getConnectionForFt();
+        redisUtils.insertIntoRedis(`forwardtest-ongoing-request-queue-${serverPort}`, forwardtestId, 1);
+        connection = getConnectionForFt();
         console.log(`Choosing connection: ${connection}`)
 
         //Pick specific fields of forward test to keep the object 
@@ -203,8 +206,8 @@ function submitForwardTestForExecution(forwardtestId) {
                     }
 
                     var lastdate = new Date(dates[dates.length - 1]);
-                    var cd = new Date(lastdate.setDate(lastdate.getDate() + 1));
-                    var startDate = cd.getFullYear()+"-"+(cd.getMonth()+1)+"-"+cd.getDate();    
+                    lastdate.setDate(lastdate.getDate() + 1);
+                    var startDate = DateHelper.formatDate(new Date(lastdate)); 
 
                     args = args.concat(['--startdate', startDate]);
 
@@ -234,7 +237,7 @@ function submitForwardTestForExecution(forwardtestId) {
     })
     .then(argArray => {
 
-        return Promise(resolve => {
+        return new Promise(resolve => {
 
             let algorithm = '';
             let forwardData = '';
@@ -293,6 +296,7 @@ function submitForwardTestForExecution(forwardtestId) {
                             //Request Accepted
                             subscriber.subscribe(`backtest-final-${forwardtestId}`);
                             subscriber.subscribe(`backtest-realtime-${forwardtestId}`);
+                            
                             resolve(true);
                         }
                         
@@ -304,29 +308,35 @@ function submitForwardTestForExecution(forwardtestId) {
             });
 
             subscriber.on("message", function(channel, message) {
-                if(channel.indexOf("backtest-final") != -1) {
-                    var incomingForwardtestId = channel.split("-")[2];
-                     
-                    if(message == "backtest-final-output-ready") {
-                        setTimeout(function(){saveData(forwardtestId, juliaError);}, 1000);
-                    } 
-                }
 
-                //REALTIME output has no signficance in Forward test
-                if(channel.indexOf("backtest-realtime") != -1) {
-                    try {
-                        const dataJSON = JSON.parse(message);
+                try {
+                    if(channel.indexOf("backtest-final") != -1) {
+                        var incomingForwardtestId = channel.split("-")[2];
+                         
+                        if(message == "backtest-final-output-ready") {
+                            setTimeout(function(){saveData(forwardtestId, juliaError);}, 1000);
+                        } 
+                    }
 
-                        if(dataJSON.outputtype === 'log' && dataJSON.messagetype === "ERROR") {
-                            juliaError = true;
-                        } else if(dataJSON.outputtype === "internal") {
-                            juliaError = true;
+                    //REALTIME output has no signficance in Forward test
+                    if(channel.indexOf("backtest-realtime") != -1) {
+                        try {
+                            const dataJSON = JSON.parse(message);
+
+                            if(dataJSON.outputtype === 'log' && dataJSON.messagetype === "ERROR") {
+                                juliaError = true;
+                            } else if(dataJSON.outputtype === "internal") {
+                                juliaError = true;
+                            }
+                        }
+                        catch (e) {
+                            console.log(e);
+                            APIError.throwJsonError({message: `Error Parsing realtime data for ${forwardtestId}`});
                         }
                     }
-                    catch (e) {
-                        console.log(e);
-                        APIError.throwJsonError({message: `Error Parsing realtime data for ${forwardtestId}`});
-                    }
+                } catch(e) {
+                    console.log(e);
+                    APIError.throwJsonError({message: "Error  Error"});
                 }
             });
         })
@@ -360,7 +370,7 @@ function handleRequestDenial(forwardtestId, connection) {
             redisUtils.insertIntoRedis(`forwardtest-request-queue-${serverPort}`, forwardtestId, 1);
 
             //Run all pending forward test every 60000
-            _.throttle(runAllForwardTest, 60000);
+            _.throttle(function(){runAllForwardTest();}, 60000);
         })
         .catch(err => {
             console.log(err);
@@ -378,7 +388,7 @@ function handleRequestDenial(forwardtestId, connection) {
 
 function saveData(forwardtestId, juliaError) {
     
-    return Promise(resolve => {
+    return new Promise(resolve => {
         redisUtils.getRangeFromRedis(`backtest-final-${forwardtestId}`, 0 , -1, function(err, data) {
             if(data){
                 
@@ -430,15 +440,16 @@ function saveData(forwardtestId, juliaError) {
         })
     })
     .then(updateData => {
-        updateForwardTestResult(forwardtestId, updateData);
-        
+        return updateForwardTestResult(forwardtestId, updateData)
+    })
+    .then(updatedFlag => {
         //After completion (and updating the data),
         //Delete the forward test from the ongoing queue as well
         redisUtils.deleteFromRedis(`forwardtest-ongoing-request-queue-${serverPort}`, forwardtestId, function(err, reply) {
             if (err) {
                 return console.error(err);
             } 
-        });        
+        });
     })
     .catch(err => {
         console.log("Error in save data. Unhandled!!!")
@@ -446,20 +457,27 @@ function saveData(forwardtestId, juliaError) {
 };
 
 // Update foward test output data + serialized data to database
-function updateForwardTestResult(forwardtestId, data) {
+function updateForwardTestResult(forwardtestId, newData) {
     console.log(`Updating Forward Test: ${forwardtestId}`);
     
     //We will merge the data with exisiting Object
     //This is because incoming serialed data has JUST THE LATEST data
     //for MOST entities
-    return data.serializedData ? ForwardTestModel.fetchForwardTest(
-        {_id: forwardtestId, active: true, error: false, deleted: false}, 
-        {select: 'serializedData'}) : null
+    return Promise.resolve()
+    .then(() => {
+        if(newData && newData.serializedData) { 
+            return ForwardTestModel.fetchForwardTest(
+                {_id: forwardtestId, active: true, error: false, deleted: false}, 
+                {select: 'serializedData'});
+        } else {
+            return null;
+        }
+    })
     .then(ft => {
-        var updateData = ft ? Object.assign(ft.toObject(), data) : data;
+        var updatedData = ft ? _.merge(ft.toObject(), newData) : newData;
 
         return ForwardTestModel.updateForwardTest({
-            _id: forwardtestId}, updateData);
+            _id: forwardtestId}, updatedData);
     });
 }
 

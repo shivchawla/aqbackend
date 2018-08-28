@@ -110,7 +110,7 @@ ForwardTest.statics.removeAllBack = function(query) {
 };
 
 ForwardTest.statics.updateForwardTest = function(query, updates) {
-    return this.findOneAndUpdate(query, updates, {new:true})
+    return this.findOneAndUpdate(query, {$set: updates}, {new:true, fields:'_id active'})
     .then(forwardtest => {
         if (forwardtest) {
             return ({forwardtestId: forwardtest._id, message:"Successfully updated", active: forwardtest.active});
