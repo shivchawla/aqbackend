@@ -41,10 +41,10 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             ndays = Int(Dates.value(merged_returns.timestamp[end] - merged_returns.timestamp[1])) + 1
 
             performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns, scale = 365, period = ndays)
+            dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns, scale = 365, period = ndays)
             
-            diff_returns = portfolio_returns - benchmark_returns
-            dperformance = Raftaar.calculateperformance(diff_returns, benchmark_returns, scale = 365, period = ndays)
-            rollingperformance_diff = Raftaar.calculateperformance_rollingperiods(rename(merge(diff_returns, benchmark_returns), ["algorithm", "benchmark"]))    
+            diff_returns_ts = merged_returns["Portfolio"] - merged_returns[benchmark]
+            rollingperformance_diff = Raftaar.calculateperformance_rollingperiods(rename(merge(diff_returns_ts, merged_returns[benchmark]), ["algorithm", "benchmark"]))    
 
             rollingperformance = Raftaar.calculateperformance_rollingperiods(rename(merged_returns, ["algorithm", "benchmark"]))
             staticperformance = Raftaar.calculateperformance_staticperiods(rename(merged_returns, ["algorithm", "benchmark"]))
@@ -101,9 +101,10 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
 
         performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns, scale = 365, period = ndays)
         
-        diff_returns = portfolio_returns - benchmark_returns
-        dperformance = Raftaar.calculateperformance(diff_returns, benchmark_returns, scale = 365, period = ndays)
-        rollingperformance_diff =  Raftaar.calculateperformance_rollingperiods(rename(merge(diff_returns, benchmark_returns) ["algorithm", "benchmark"]))
+        dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns, scale = 365, period = ndays)
+        
+        diff_returns_ts = merged_returns["Portfolio"] - merged_returns[benchmark]
+        rollingperformance_diff =  Raftaar.calculateperformance_rollingperiods(rename(merge(diff_returns_ts, merged_returns[benchmark]), ["algorithm", "benchmark"]))
 
         rollingperformance = Raftaar.calculateperformance_rollingperiods(rename(merged_returns, ["algorithm", "benchmark"]))
         staticperformance = Raftaar.calculateperformance_staticperiods(rename(merged_returns, ["algorithm", "benchmark"]))

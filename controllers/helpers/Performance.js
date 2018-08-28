@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-28 19:29:08
+* @Last Modified time: 2018-08-28 19:56:29
 */
 
 'use strict';
@@ -326,7 +326,7 @@ function _extractPerformanceSummary(performance) {
 		var monthlyContestDiffMetrics = _.get(summary, 'metrics.portfolioPerformance.rolling_diff.1m', null) || _.get(summary, 'metrics.portfolioPerformance.rolling_diff.mtd', null);  
 
 		performanceSummary = Object.assign({
-			monthly: {true: _extractMetrics(monthlyContesttrueMetrics), diff: _extractMetrics(monthlyContestDiffMetrics)},
+			monthly: {true: _extractMetrics(monthlyContestTrueMetrics), diff: _extractMetrics(monthlyContestDiffMetrics)},
 			diff: _extractMetrics(diffMetrics)}, 
 			Object.assign({date: summary.updateDate,	
 				dailyNAVChangeEOD: dailyNAVChangeEOD,
