@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-12 14:24:55
+* @Last Modified time: 2018-08-28 19:29:08
 */
 
 'use strict';
@@ -18,6 +18,7 @@ const Promise = require('bluebird');
 const PortfolioHelper = require('./Portfolio');
 const DateHelper = require('../../utils/Date');
 const WSHelper = require('./WSHelper');
+const _ = require('lodash');
 
 function _checkPerformanceUpdateRequired(performanceDetail) {
 	if(!performanceDetail) {
@@ -320,7 +321,13 @@ function _extractPerformanceSummary(performance) {
 		var trueMetrics = summary && summary.metrics && summary.metrics.portfolioPerformance && summary.metrics.portfolioPerformance.true ? summary.metrics.portfolioPerformance.true : null; 
 		var diffMetrics = summary && summary.metrics && summary.metrics.portfolioPerformance && summary.metrics.portfolioPerformance.diff ? summary.metrics.portfolioPerformance.diff : null; 
 
-		performanceSummary = Object.assign({diff: _extractMetrics(diffMetrics)}, 
+		//Adding 1m/mtd rolling/rolling_diff metrics
+		var monthlyContestTrueMetrics = _.get(summary, 'metrics.portfolioPerformance.rolling.1m', null) || _.get(summary, 'metrics.portfolioPerformance.rolling.mtd', null);  
+		var monthlyContestDiffMetrics = _.get(summary, 'metrics.portfolioPerformance.rolling_diff.1m', null) || _.get(summary, 'metrics.portfolioPerformance.rolling_diff.mtd', null);  
+
+		performanceSummary = Object.assign({
+			monthly: {true: _extractMetrics(monthlyContesttrueMetrics), diff: _extractMetrics(monthlyContestDiffMetrics)},
+			diff: _extractMetrics(diffMetrics)}, 
 			Object.assign({date: summary.updateDate,	
 				dailyNAVChangeEOD: dailyNAVChangeEOD,
 				dailyNAVChangeEODPct: dailyNAVChangeEODPct,

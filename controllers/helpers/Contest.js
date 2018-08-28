@@ -69,7 +69,7 @@ module.exports.updateAnalytics = function(contestId) {
 
                 return Promise.map(ratingTypes, function(ratingType) {
                     var allPerformances = allAdviceAnalytics.map((item, index) => {
-                        return {advice: contestAdviceIds[index], performance: item.performance[ratingType]}
+                        return {advice: contestAdviceIds[index], performance: item.performance[ratingType].monthly}
                     }); 
         
                     return Promise.map(ratingFields, function(ratingField) {
@@ -325,6 +325,15 @@ module.exports.sendContestEntryDailyDigest = function() {
         console.log(err.message)
     })
 }
+
+module.exports.updateWinnerPortfolio = function() {
+
+    //Step 1. Find the earliest active contest
+    //Step 2. Find the top the entries
+    //Step 3. Combine them
+    //Step 4. Create/update the winner portfolio with 3
+
+};
 
 function formatValue(value, options) {
     const outputVal = _.get(options, 'pct', false) ? `${(value*100).toFixed(2)}%` : value;
