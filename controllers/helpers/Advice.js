@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-08 14:18:41
+* @Last Modified time: 2018-08-27 12:12:14
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -314,10 +314,13 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 			}  
 			else if (!isCreate && oldNetValue < hardMinNavLimit && currentNetValue < softMinNavLimit) {
 				validity = {valid: false, message:`Portfolio Value of ${formatMoneyValueMaxTwoDecimals(currentNetValue)} is less than ${formatMoneyValueMaxTwoDecimals(softMinNavLimit)}`};
-			} 
-			else if (!isCreate && oldNetValue > hardMinNavLimit && currentNetValue < oldNetValue && currentNetValue < softMinNavLimit) {
+			}
+			else if (!isCreate && oldNetValue > hardMinNavLimit && currentNetValue < oldNetValue && oldNetValue < softMinNavLimit) {
 				validity = {valid: false, message:`Portfolio Value of ${formatMoneyValueMaxTwoDecimals(currentNetValue)} is less than ${formatMoneyValueMaxTwoDecimals(oldNetValue)}`};
-			} 
+			}
+			else if (!isCreate && currentNetValue < softMinNavLimit && oldNetValue > softMinNavLimit) {
+				validity = {valid: false, message:`Portfolio Value of ${formatMoneyValueMaxTwoDecimals(currentNetValue)} is less than ${formatMoneyValueMaxTwoDecimals(softMinNavLimit)}`};
+			} 			 
 			
 		}
 		 
@@ -396,7 +399,7 @@ function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfoli
 
 				var currentSectors = _.uniq(currentPositions.map(item => _.get(item, 'security.detail.Sector', "")));
 				var hardMaxSectorExposure = _.get(validityRequirements, 'MAX_SECTOR_EXPOSURE.HARD', 180000);
-				var softMaxSectorExposure = _.get(validityRequirements, 'MAX_SECTOR_EXPOSURE.SOFT', 150000);
+				var softMaxSectorExposure = _.get(validityRequirements, 'MAX_SECTOR_EXPOSURE.SOFT', 210000);
 				
 				let currentSectorExposureObj = {};
 				let oldSectorExposureObj = {};

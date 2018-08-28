@@ -326,6 +326,15 @@ module.exports.sendContestEntryDailyDigest = function() {
     })
 }
 
+module.exports.updateWinnerPortfolio = function() {
+
+    //Step 1. Find the earliest active contest
+    //Step 2. Find the top the entries
+    //Step 3. Combine them
+    //Step 4. Create/update the winner portfolio with 3
+
+};
+
 function formatValue(value, options) {
     const outputVal = _.get(options, 'pct', false) ? `${(value*100).toFixed(2)}%` : value;
     if (_.get(options,'color', null)) {

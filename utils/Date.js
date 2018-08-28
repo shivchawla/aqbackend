@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-06-14 10:51:46
+* @Last Modified time: 2018-08-27 20:49:28
 */
 
 module.exports.compareDates = function(date1, date2) {
@@ -11,6 +11,14 @@ module.exports.compareDates = function(date1, date2) {
 
 	return (t1 < t2) ? -1 : (t1 == t2) ? 0 : 1;
 };
+
+module.exports.getLocalDatetime  = function(datetime) {
+	
+	moment.tz(new Date(), "Asia/Kolkata").format();
+
+	//Get datetime in IST time zone
+	var _dtLocalStr = _d.toLocaleString("en-US", {timeZone: "Asia/Kolkata"})
+}
 
 //Return dateTime formatted to Current Date and Time as 5:30AM IST 
 //Applies offset before formatting
@@ -124,3 +132,11 @@ module.exports.getNextWeekday = function(date) {
 
 	return exports.getDate(date);
 };
+
+
+module.exports.formatDate = function(date) {
+	date = !date ? exports.getCurrentDate() : date; 
+	
+	var month = date.getMonth() + 1;
+    return date.getFullYear()+"-"+(month < 10 ? `0${month}` : month)+"-"+date.getDate();    
+}

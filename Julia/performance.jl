@@ -42,6 +42,10 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
 
             performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns, scale = 365, period = ndays)
             dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns, scale = 365, period = ndays)
+            
+            diff_returns_ts = merged_returns["Portfolio"] - merged_returns[benchmark]
+            rollingperformance_diff = Raftaar.calculateperformance_rollingperiods(rename(merge(diff_returns_ts, merged_returns[benchmark]), ["algorithm", "benchmark"]))    
+
             rollingperformance = Raftaar.calculateperformance_rollingperiods(rename(merged_returns, ["algorithm", "benchmark"]))
             staticperformance = Raftaar.calculateperformance_staticperiods(rename(merged_returns, ["algorithm", "benchmark"]))
             
@@ -51,13 +55,13 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             
             performance.portfoliostats.netvalue = portfolio_value.values[end]
             
-            return (merged_value.timestamp[end], performance, dperformance, rollingperformance, staticperformance, rollingperformance_bench, staticperformance_bench)
+            return (merged_value.timestamp[end], performance, dperformance, rollingperformance, rollingperformance_diff, staticperformance, rollingperformance_bench, staticperformance_bench)
         
         elseif benchmark_value != nothing
-            return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
+            return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
         
         else
-            return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
+            return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
         end
     catch err
         rethrow(err)
@@ -96,7 +100,12 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
         ndays = Int(Dates.value(merged_returns.timestamp[end] - merged_returns.timestamp[1])) + 1
 
         performance = Raftaar.calculateperformance(portfolio_returns, benchmark_returns, scale = 365, period = ndays)
+        
         dperformance = Raftaar.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns, scale = 365, period = ndays)
+        
+        diff_returns_ts = merged_returns["Portfolio"] - merged_returns[benchmark]
+        rollingperformance_diff =  Raftaar.calculateperformance_rollingperiods(rename(merge(diff_returns_ts, merged_returns[benchmark]), ["algorithm", "benchmark"]))
+
         rollingperformance = Raftaar.calculateperformance_rollingperiods(rename(merged_returns, ["algorithm", "benchmark"]))
         staticperformance = Raftaar.calculateperformance_staticperiods(rename(merged_returns, ["algorithm", "benchmark"]))
 
@@ -104,13 +113,13 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
         rollingperformance_bench = Raftaar.calculateperformance_rollingperiods(onlybenchmark_returns)
         staticperformance_bench = Raftaar.calculateperformance_staticperiods(onlybenchmark_returns)            
 
-        return (merged_value.timestamp[end], performance, dperformance, rollingperformance, staticperformance, rollingperformance_bench, staticperformance_bench)
+        return (merged_value.timestamp[end], performance, dperformance, rollingperformance, rollingperformance_diff, staticperformance, rollingperformance_bench, staticperformance_bench)
     
     elseif benchmark_value != nothing
-        return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
+        return (benchmark_value.timestamp[end], Performance(), Performance(), Dict{String, Performance}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
 
     else
-        return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
+        return (Date(currentIndiaTime()), Performance(), Performance(), Dict{String, Performance}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}(), Dict{String, Performance}(), Dict{String, Dict{String, Performance}}())
     end
 end
 

@@ -67,7 +67,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                     vals[i,1] = val
                 end
                   
-                (lastdate, performance, dperformance, rolling_performances, static_performances, rolling_performances_bench, static_performances_bench) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
+                (lastdate, performance, dperformance, rolling_performances, rolling_performances_diff, static_performances, rolling_performances_bench, static_performances_bench) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
                 
                 nVDict = Dict{String, Any}()
 
@@ -80,6 +80,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                                             "true" => serialize(performance), 
                                             "diff" => serialize(dperformance), 
                                             "rolling" => serialize(rolling_performances),
+                                            "rolling_diff" => serialize(rolling_performances_diff),
                                             "static" => serialize(static_performances),
                                             "rolling_benchmark" => serialize(rolling_performances_bench),
                                             "static_benchmark" => serialize(static_performances_bench)),  
@@ -90,6 +91,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                                               "true" => serialize(Performance()), 
                                               "diff" => serialize(Performance()), 
                                               "rolling" => serialize(Dict{String, Performance}()),
+                                              "rolling_diff" => serialize(Dict{String, Performance}()),
                                               "static" => serialize(Dict{String, Dict{String, Performance}}()),
                                               "rolling_benchmark" => serialize(Dict{String, Performance}()),
                                               "static_benchmark" => serialize(Dict{String, Dict{String, Performance}}())
@@ -167,7 +169,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                     vals[i,1] = val
                 end
                   
-                (lastdate, performance, dperformance, rolling_performances, static_performances, rolling_performances_bench, static_performances_bench) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
+                (lastdate, performance, dperformance, rolling_performances, rolling_performances_diff, static_performances, rolling_performances_bench, static_performances_bench) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
                 
                 nVDict = Dict{String, Any}()
 
@@ -180,6 +182,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                                             "true" => serialize(performance), 
                                             "diff" => serialize(dperformance), 
                                             "rolling" => serialize(rolling_performances),
+                                            "rolling_diff" => serialize(rolling_performances_diff),
                                             "static" => serialize(static_performances),
                                             "rolling_benchmark" => serialize(rolling_performances_bench),
                                             "static_benchmark" => serialize(static_performances_bench)
@@ -191,6 +194,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                                             "true" => serialize(Performance()), 
                                             "diff" => serialize(Performance()), 
                                             "rolling" => serialize(Dict{String, Performance}()),
+                                            "rolling_diff" => serialize(Dict{String, Performance}()),
                                             "static" => serialize(Dict{String, Dict{String, Performance}}()),
                                             "rolling_benchmark" => serialize(Dict{String, Performance}()),
                                             "static_benchmark" => serialize(Dict{String, Dict{String, Performance}}())
