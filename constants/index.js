@@ -42,7 +42,7 @@ module.exports.contestRatingFields = [
 	{field:"monthly.diff.annualReturn", multiplier:1, outputField: "annualReturn", default: -Inf, scale: 100}, //Ability to beat the market 
 	{field:"monthly.diff.volatility", multiplier:-1, outputField: "volatility", default: Inf, scale: 50},  //Riskiness
 	{field:"monthly.diff.maxLoss", multiplier:-1, outputField: "maxLoss", default: Inf, scale: 50}, //Downside Risk
-	{field:"monthly.information", multiplier:1, outputField: "sharpe", default: -Inf, scale: 70}, //Consistency of returns
+	{field:"monthly.true.information", multiplier:1, outputField: "sharpe", default: -Inf, scale: 70}, //Consistency of returns
 	{field:"monthly.diff.calmar", multiplier:1, outputField: "calmar", default: -Inf, scale: 70}, //Ability to recover
 	{field:"concentration", multiplier:-1, outputField: "concentration", default: 0.0, scale: 20} //Portfolio Diverisification
 
