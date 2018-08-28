@@ -69,7 +69,7 @@ module.exports.updateAnalytics = function(contestId) {
 
                 return Promise.map(ratingTypes, function(ratingType) {
                     var allPerformances = allAdviceAnalytics.map((item, index) => {
-                        return {advice: contestAdviceIds[index], performance: item.performance[ratingType].monthly}
+                        return {advice: contestAdviceIds[index], performance: item.performance[ratingType]}
                     }); 
         
                     return Promise.map(ratingFields, function(ratingField) {
