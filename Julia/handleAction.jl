@@ -339,7 +339,7 @@ function handleRequest(parsemsg::Dict{String, Any})
             currentPortfolio = parsemsg["currentPortfolio"]
 
             (date, transactions) = compute_portfolioTransactions(newPortfolio, currentPortfolio)
-            parsemsg["output"] = Dict(string(date) => [convert_to_node_transaction(t) for t in transactions])
+            parsemsg["output"] = Dict(string(date) => transactions)
 
         elseif action == "compute_fractional_ranking"
             
