@@ -145,3 +145,22 @@ function convert_to_node_portfolio(port::Portfolio)
         rethrow(err)
     end
 end
+
+###
+# Convert Julia portfolio to Node portfolio 
+###
+function convert_to_node_transaction(transaction::OrderFill)
+    try
+        output = Dict{String, Any}()
+
+        output["security"] = convert(Dict{String,Any}, getsecurity(transaction.securitysymbol.id))
+        output["quantity"] = transaction.fillquantity
+        output["price"] = transaction.fillprice
+        output["advice"] = nothing
+        output["date"] = string(Date(transaction.datetime))
+
+        return output
+    catch err
+        rethrow(err)
+    end
+end

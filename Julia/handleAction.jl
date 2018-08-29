@@ -334,6 +334,13 @@ function handleRequest(parsemsg::Dict{String, Any})
             (updatedDate, updated_portfolio) = updatePortfolio_averageprice(portfolioHistory)
             parsemsg["output"] = convert_to_node_portfolio(updated_portfolio)
 
+        elseif action == "compute_portfolio_transactions"
+            newPortfolio = parsemsg["newPortfolio"]
+            currentPortfolio = parsemsg["currentPortfolio"]
+
+            (date, transactions) = compute_portfolioTransactions(newPortfolio, currentPortfolio)
+            parsemsg["output"] = Dict(string(date) => [convert_to_node_transaction(t) for t in transactions])
+
         elseif action == "compute_fractional_ranking"
             
             vals = Dict{String, Float64}()

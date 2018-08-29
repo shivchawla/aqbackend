@@ -607,7 +607,11 @@ end
 function updateportfolio_price(port::Dict{String, Any}, end_date::DateTime = currentIndiaTime(), typ::String = "EOD")
     try
         portfolio = convert(Raftaar.Portfolio, port)    
-        updateportfolio_price(portfolio, end_date, typ)
+
+        #Add check if endDate is greater than equal to current date
+        #Use EOD prices otherwise
+        updatedType = Date(end_date) >= Date(currentIndiaTime()) ? type : "EOD";
+        updateportfolio_price(portfolio, end_date, updatedType)
     catch err
         rethrow(err)
     end
@@ -835,6 +839,44 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
     end
 
     return now(), newPortfolio
+    
+end
+
+
+
+function compute_portfolioTransactions(newPortfolio, currentPortfolio)
+    newPortfolio = newPortfolio != nothing ? convert(Portfolio, newPortfolio) : Raftaar.Portfolio()
+    currentPortfolio = currentPortfolio != nothing ? convert(Portfolio, currentPortfolio) : Raftaar.Portfolio()
+
+    transactions = Vector{OrderFill}()
+
+    lastSymbols = [sym for sym in keys(newPortfolio.positions)]
+    currentSymbols = [sym for sym in keys(currentPortfolio.positions)]
+
+    allSymbols = unique(append!(newSymbols, currentSymbols))
+
+    startDate = DateTime(currentPortfolio.startDate, jsdateformat)
+
+    priceHistory = YRead.history_unadj([sym.ticker for sym in allSymbol], "Close", :Day, 1, startDate)
+
+    for sym in allSymbols
+        currentPosition = currentPortfolio[sym]
+        newPosition = newPortfolio[sym]
+
+        currentQty = currentPosition.quantity
+        newQty = newPosition.quantity
+
+        if (newQty != currentQty) 
+            diffQty = newQty - currentQty
+            
+            priceSymbol = priceHistory != nothing ? priceHistory[sym] != nothing : values(priceHistory[sym][end]) : 0.0
+            
+            push!(transactions, OrderFill(sym, priceSymbol, diffQty, 0, false, startDate))
+        end     
+        
+    end
+
+    return (Date(startDate), transactions)
     
 end
 
