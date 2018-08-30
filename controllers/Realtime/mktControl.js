@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-21 10:40:45
+* @Last Modified time: 2018-08-30 11:24:46
 */
 
 'use strict';
@@ -598,24 +598,20 @@ function _handleStockSubscription(req, res) {
 * Sends the data using WS connection
 */
 function _sendWSResponse(res, data, category, typeId) {
-	if (res) {
+	if (res && res.readyState === WebSocket.OPEN) {
+		var msg = JSON.stringify({
+				type: category,
+				portfolioId: category == "portfolio" ? typeId : null,
+				adviceId: category == "advice" ? typeId : null,
+				ticker: category == "stock" ? typeId : category == "watchlist" ? data.ticker : null,
+				watchlistId: category == "watchlist" ? typeId : null,
+				output: data,
+				date: activeDate});
 
-		if (res.readyState === WebSocket.OPEN) {
-			var msg = JSON.stringify({
-					type: category,
-					portfolioId: category == "portfolio" ? typeId : null,
-					adviceId: category == "advice" ? typeId : null,
-					ticker: category == "stock" ? typeId : category == "watchlist" ? data.ticker : null,
-					watchlistId: category == "watchlist" ? typeId : null,
-					output: data,
-					date: activeDate});
-
-			return res.send(msg);
-		} else {
-			throw new Error("Websocket is not OPEN");
-		}
+		return res.send(msg);
+	} else {
+		APIError.throwJsonError({message: "Websocket is not OPEN"});
 	}
-	
 }
 
 /*
@@ -638,7 +634,7 @@ function _onDataUpdate(typeId, data, category) {
 					resolve(_sendWSResponse(res, _filterData(data, category), category, typeId));
 				}
 			} catch(err) {
-				console.log(err);
+				console.log(err.message);
 				resolve(true);
 			}
 		});

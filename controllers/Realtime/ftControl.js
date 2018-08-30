@@ -11,6 +11,7 @@ const serverPort = require('../../index').serverPort;
 const Promise = require('bluebird');
 const _ = require('lodash');
 const APIError = require('../../utils/error');
+const DateHelper = require('../../utils/Date');
 
 var numAttempts = {};
 var numRequests = 0;
