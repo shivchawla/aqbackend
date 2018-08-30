@@ -393,7 +393,8 @@ function _cashRequirement(oldPortfolio::Portfolio, newPortfolio::Portfolio, date
             end
         end
 
-        cashRequirement += (newQty - oldQty) * values(prices[ticker])[end]
+        priceTicker = dropnan(prices[ticker])
+        cashRequirement += (newQty - oldQty) * (priceTicker !=nothing ? length(priceTicker) > 0 ? values(priceTicker)[end] : 0.0 : 0.0)    
 
     end
 
