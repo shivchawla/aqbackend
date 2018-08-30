@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-02 11:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-12 14:30:42
+* @Last Modified time: 2018-08-30 10:28:05
 */
 
 'use strict';
@@ -28,7 +28,7 @@ function _findDateIndex(dateArray, date) {
 * Function to check if advice portfolio is different from version of advice user has in portfolio
 */
 function _hasAdviceChanged(myPositions, adviceId) {
-	return exports.getAdvicePortfolio(adviceId)
+	return AdviceHelper.getAdvicePortfolio(adviceId)
 	.then(advicePortfolio => {
 		var changed = false;
 		if (advicePortfolio && advicePortfolio.detail) {
@@ -202,6 +202,19 @@ function _updatePortfolioForAveragePrice(portfolioHistory) {
 		WSHelper.handleMktRequest(msg, resolve, reject);
 
 	});
+}
+
+function _computePortfolioTransactions(newPortfolio, currentPortfolio) {
+	return new Promise(function(resolve, reject) {
+
+		var msg = JSON.stringify({action:"compute_portfolio_transactions", 
+    								newPortfolio: newPortfolio,
+    								currentPortfolio: currentPortfolio ? currentPortfolio : null});
+
+
+		WSHelper.handleMktRequest(msg, resolve, reject);
+
+	});	
 }
 
 function _updatePortfolioForSplitsAndDividends(portfolio, startDate, endDate) {
@@ -662,6 +675,18 @@ module.exports.computeUpdatedPortfolioForPrice = function(portfolio, options, da
 	})
 };
 
+
+module.exports.computeUpdatedPortfolioForAveragePrice = function(portfolioHistory) {
+	let latestPortfolioDetail = portfolioHistory.slice(-1)[0];
+	let latestStartDate = latestPortfolioDetail.startDate;
+	let latestEndDate = latestPortfolioDetail.endDate;
+			
+	return _updatePortfolioForAveragePrice(portfolioHistory)
+	.then(updatedLatestDetail => {
+		return {detail: Object.assign({startDate: latestStartDate, endDate: latestEndDate}, updatedLatestDetail)};
+	});
+}
+
 //Gets portfolio for a specific date (Date could be in the history)
 module.exports.getPortfolioForDate = function(portfolioId, options, date) {
 	
@@ -766,7 +791,7 @@ module.exports.getUpdatedPortfolioForEverything = function(portfolioId, options,
 		    exports.getUpdatedPortfolioForPrice(portfolioId, options);
     })
 	.then(portfolio => {
-		//This fucntion need to be takn out of here but how???
+		//This function need to be takn out of here but how???
 		return _getAdviceStats(portfolio, userId)
 		.then(advicePerformance => {
 			return Object.assign({advicePerformance: advicePerformance}, portfolio ? portfolio : {});
@@ -817,7 +842,7 @@ module.exports.getPortfolioHistory = function(portfolioId, options, date) {
     });
 };
 
-//Get current portfolio with realtime prices
+//Get current portfolio with EOD prices
 module.exports.getUpdatedPortfolioForEODPrice = function(portfolioId) {
 	//Append new fields to some basic fields (ADD SPACE - V. IMP)
 	return exports.getUpdatedPortfolioForPrice(portfolioId, {fields: 'detail', priceType:"EOD"});
@@ -946,19 +971,14 @@ module.exports.getUpdatedPortfolioWithAveragePrice = function(portfolioId, optio
 		//Get portfolio History 
 		exports.getPortfolioHistory(portfolioId, {}, date)
 		.then(portfolioHistory => {
-			let latestPortfolioDetail = portfolioHistory.history.slice(-1)[0];
-			let latestStartDate = latestPortfolioDetail.startDate;
-			let latestEndDate = latestPortfolioDetail.endDate;
-
+			
 			//Pass portfolio history to Julia to compute the average price
-			return _updatePortfolioForAveragePrice(portfolioHistory.history)
-			.then(updatedLatestDetail => {
-				return {detail: Object.assign({startDate: latestStartDate, endDate: latestEndDate}, updatedLatestDetail)};
-			})
+			return exports.computeUpdatedPortfolioForAveragePrice(portfolioHistory.history);
 		})
 		.then(latestAveragePricePortfolio => {
 			
 			//Now update the portfolio for latest price (RT or EOD)
+			/*****WHY CAN"T WE USE resolve DIRECTLY???***/  
 			return exports.computeUpdatedPortfolioForPrice(latestAveragePricePortfolio, options, date)
 			.then(finalLatestDetail => {
 				resolve(finalLatestDetail);
@@ -977,48 +997,22 @@ module.exports.getUpdatedPortfolioWithAveragePrice = function(portfolioId, optio
 	});
 }
 
-/*
-* Function to get advice portfolio with populated average price (and latest last price)
-*/
-module.exports.getAdvicePortfolioWithAvgPrice = function(adviceId, date) {
-	return AdviceModel.fetchAdvice({_id: adviceId}, {portfolio:1})
-	.then(advice => {  
-		if (advice) {
-			return exports.getUpdatedPortfolioWithAveragePrice(advice.portfolio, {advice:true}, date)
-		} else {
-			APIError.throwJsonError({message: "Advice not found"});
-		}
-	})	
-};
-
-/*
-* Function to get advice portfolio (uses populateAvg flag to populate average price)
-*/
-module.exports.getAdvicePortfolio = function(adviceId, options, date) {
-	return AdviceModel.fetchAdvice({_id: adviceId}, {portfolio:1})
-	.then(advice => {  
-		if (advice) {
-			return options && options.populateAvg ? 
-				exports.getAdvicePortfolioWithAvgPrice(adviceId, date) : 
-				exports.getUpdatedPortfolioForPrice(advice.portfolio, {}, date)
-		} else {
-			APIError.throwJsonError({message: "Advice not found"});
-		}
-	});
-};
-
-module.exports.getAdvicePnlStats = function(adviceId, date) {
-	return exports.getAdvicePortfolio(adviceId, date)
-	.then(advicePortfolio => {
-		if (advicePortfolio && advicePortfolio.pnlStats) {
-			return advicePortfolio.pnlStats;
-		} else {
-			return {};
-		}
-	});
-};
-
 module.exports.savePortfolio = function(port) {
 	return PortfolioModel.savePortfolio(port, true);
+};
+
+module.exports.getPortfolioTransactions = function(history) {
+	var newPortfolio;
+	var currentPortfolio;
+
+	var transactions = {};
+	return Promise.map(history, function(portfolio) {
+		currentPortfolio = newPortfolio;
+		newPortfolio = portfolio;
+		return _computePortfolioTransactions(newPortfolio, currentPortfolio);
+	})
+	.then(transactionsByDateArray => {
+		return Object.assign({}, ...transactionsByDateArray);
+	});
 };
 

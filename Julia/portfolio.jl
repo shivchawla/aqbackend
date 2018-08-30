@@ -850,7 +850,7 @@ function compute_portfolioTransactions(newPortfolio, currentPortfolio)
     newPortfolio = newPortfolio != nothing ? convert(Portfolio, newPortfolio) : Raftaar.Portfolio()
     currentPortfolio = currentPortfolio != nothing ? convert(Portfolio, currentPortfolio) : Raftaar.Portfolio()
 
-    transactions = Vector{Dict(String, Any)}()
+    transactions = Vector{Dict{String, Any}}()
 
     newSymbols = [sym for sym in keys(newPortfolio.positions)]
     currentSymbols = [sym for sym in keys(currentPortfolio.positions)]
@@ -909,6 +909,7 @@ function compute_portfolioTransactions(newPortfolio, currentPortfolio)
             output["advice"] = nothing
             output["date"] = string(Date(startDate))
             output["realizedPnl"] = realizedPnl
+            output["realizedPnlPct"] = abs(realizedPnl) > 0.0 && abs(currentQty) > 0 && averageprice > 0.0 ? realizedPnl/(abs(currentQty)*averageprice) : 0.0
 
             push!(transactions, output)
         end     

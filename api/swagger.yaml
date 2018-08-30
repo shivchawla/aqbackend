@@ -2002,6 +2002,12 @@ paths:
         type: string
         required: false
         description: date
+      - name: history
+        in: query
+        type: boolean
+        default: false
+        required: false
+        description: portfolio history
       responses:
         200:
           description: OK
