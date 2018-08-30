@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-29 19:36:48
+* @Last Modified time: 2018-08-30 11:29:25
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -577,8 +577,6 @@ module.exports.getAdvicePortfolioHistory = function(adviceId, date) {
 		}
 	})
 	.then(rawHistory => {
-		console.log("Hola - 4");
-		console.log(rawHistory.history.length);
 		return Promise.map(rawHistory.history, function(portfolio) {
 			var endDate = _.get(portfolio, 'endDate', DateHelper.getCurrentDate());
 			//Using portfolio history just for dates
