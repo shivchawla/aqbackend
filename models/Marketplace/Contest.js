@@ -90,6 +90,7 @@ Contest.statics.updateContest = function(query, updates, options) {
 
 Contest.statics.fetchContests = function(query, options = {}) {
     let q = this.find(query);
+    const populate = _.get(options, 'populate', '');
     if (options.skip) {
         q = q.skip(options.skip);
     }
@@ -98,6 +99,20 @@ Contest.statics.fetchContests = function(query, options = {}) {
     }
     if (options.fields) {
         q = q.select(options.fields);
+    }
+    if (options.fields && options.fields.indexOf('winners') && populate.indexOf('advice') !== -1) {
+        q = q.select(options.fields).populate({
+            path: 'winners.advice', 
+            select: 'name advisor',
+            populate: {
+                path: 'advisor', 
+                select: 'user',
+                populate: {
+                    path: 'user',
+                    select: 'firstName lastName'
+                }
+            }
+        });
     }
 
     return q.execAsync()
@@ -323,7 +338,7 @@ Contest.statics.updateRating = function(query, currentAdviceRankingData, simulat
     })
 }
 
-Contest.statics.updateWinners = function(query, adviceRankingData, date) {
+Contest.statics.updateWinners = function(query, currentAdviceRankingData, simulatedAdviceRankingData, date, rankingDetail) {
     return this.findOne(query, {winners: 1, active: 1, rules: 1, endDate: 1})
     .then(contest => {
         let contestId = contest._id;
@@ -333,14 +348,32 @@ Contest.statics.updateWinners = function(query, adviceRankingData, date) {
         const hasEnded = DateHelper.compareDates(contestEndDate, date) < 0 ? true : false;
         if (hasEnded) {
             let winners = [];
-            adviceRankingData.map(rankingData => {
+            currentAdviceRankingData.map(rankingData => {
+                const currentAdviceIdx = _.findIndex(currentAdviceRankingData, adviceData => adviceData.adviceId === (rankingData.adviceId).toString());
+                const simulatedAdviceIdx = _.findIndex(simulatedAdviceRankingData, adviceData => adviceData.adviceId === (rankingData.adviceId).toString());
+                const currentRatingValue = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rating`, null);
+                const simulatedRatingValue = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rating`, null);
+                const currentRatingRank = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rank`, null);
+                const simulatedRatingRank = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rank`, null);
+                
                 winners.push({
                     advice: rankingData.adviceId,
                     rank: {
                         value: _.get(rankingData, 'rank', null), 
                         date, 
-                        rating: _.get(rankingData, 'rating', null)
-                    }
+                        rating: {
+                            current: {
+                                value: currentRatingValue,
+                                rank: currentRatingRank,
+                                detail: getAdviceRatingDetail(rankingDetail, (rankingData.adviceId).toString(), 'current')
+                            },
+                            simulated: {
+                                value: simulatedRatingValue,
+                                rank: simulatedRatingRank,
+                                detail: getAdviceRatingDetail(rankingDetail, (rankingData.adviceId).toString(), 'simulated')
+                            }
+                        }
+                    },
                 })
             });
 

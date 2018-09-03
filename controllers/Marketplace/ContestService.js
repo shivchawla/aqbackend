@@ -91,10 +91,11 @@ module.exports.getContests = function(args, res, next) {
     const shouldGetValidContest = _.get(args, 'current.value', false);
     options.skip = _.get(args, 'skip.value', 0);
     options.limit = _.get(args, 'limit.value', 10);
-    options.fields = 'name startDate endDate winners rules';
-    let query = {active: true};
+    options.fields = 'name startDate endDate winners rules active';
+    let query = {};
+    // let query = {active: true};
     if (shouldGetValidContest) {
-        query = {...query, startDate: {'$gt': currentDate}};
+        query = {...query, active: true, startDate: {'$gt': currentDate}};
         
     }
     ContestModel.fetchContests(query, options)
@@ -105,6 +106,30 @@ module.exports.getContests = function(args, res, next) {
         console.log(err);
         return res.status(400).send(err.message);
     });
+}
+
+module.exports.getAllContests = function(args, res, next) {
+    const options = {};
+    const active = _.get(args, 'active.value', 0);
+    options.skip = _.get(args, 'skip.value', 0);
+    options.limit = _.get(args, 'limit.value', 10);
+    options.fields = 'name startDate endDate winners rules';
+    options.populate = 'advice';
+    let query = {};
+    if (active === 1) {
+        query = {active: true};
+    } else if (active === -1) {
+        query = {active: false};
+    }
+
+    ContestModel.fetchContests(query, options)
+    .then(({contests, count}) => {
+        return res.status(200).send({contests, count});
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(400).send(err.message);
+    })
 }
 
 module.exports.getContestSummary = function(args, res, next) {
@@ -255,7 +280,6 @@ module.exports.getValidContestsToParticipate = function(args, res, next) {
         return res.status(400).send(err.message);
     });
 }
-
 
 module.exports.getContestAdviceSummary = function(args, res, next) {
     const adviceId = _.get(args, 'adviceId.value', '');

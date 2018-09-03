@@ -113,14 +113,13 @@ module.exports.updateAnalytics = function(contestId) {
                     return {adviceId: item.advice, rating: item.rating}
                 });
                 const currentRankingData = _updateArrayWithRankFromRating(arr);
-
                 const simulatedRankingData = _updateArrayWithRankFromRating(calculateAdviceRating(simulatedRanking).map((item, index) => {
                     return {adviceId: item.advice, rating: item.rating};
                 }));
                 return ContestModel.updateRating({_id: contestId}, currentRankingData, simulatedRankingData, currentDate, rankingDetail)
                 .then(() => {
                     const contestId = contest._id;
-                    return ContestModel.updateWinners({_id: contestId}, currentRankingData, currentDate);
+                    return ContestModel.updateWinners({_id: contestId}, currentRankingData, simulatedRankingData, currentDate, rankingDetail);
                 })
             })
         } else {
