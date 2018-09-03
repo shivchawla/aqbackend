@@ -579,7 +579,6 @@ module.exports.sendEmailToContestWinners = function() {
                             return {};
                         }
                     } else if(process.env.NODE_ENV === 'development') {
-                        return;
                         return sendEmail.sendContestWinnerEmail(winnerDigest, 
                             {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
                     }
