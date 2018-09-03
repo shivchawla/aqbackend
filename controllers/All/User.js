@@ -52,6 +52,10 @@ module.exports.sendInfoEmail = function sendInfoEmail(req, res, next) {
     User.sendInfoEmail(req.swagger.params, res, next);
 };
 
+module.exports.sendTemplateEmail = function sendTemplateEmail(req, res, next) {
+    User.sendTemplateEmail(req.swagger.params, res, next);
+};
+
 module.exports.unsubscribeEmail = function(req, res, next) {
     User.unsubscribeEmail(req.swagger.params, res, next);
 };

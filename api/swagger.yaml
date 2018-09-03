@@ -357,6 +357,37 @@ paths:
         400:
           description: Error Sending Email
 
+  /user/sendTemplateEmail:
+    post:
+      tags:
+      - "user"
+      summary: send informational emails from admin using template
+      description: send Info Emails 
+      operationId: sendTemplateEmail
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: templateId
+        in: query
+        required: true
+        type: string
+      - in: query
+        name: sender
+        required: false
+        default: contest
+        type: string
+      x-swagger-router-controller: "User"
+      responses:
+        200:
+          description: OK
+        400:
+          description: Error Sending Email
+
   /user/updateToken:
     put:
       tags:

@@ -247,7 +247,6 @@ exports.verifyCaptchaToken = function(args, res, next) {
     const url = "https://www.google.com/recaptcha/api/siteverify";
     const input = {response: captchaToken, secret:secret};
 
-
     request.post(url, {json: true, body: input}, function(err, response, body) {
         if (!err && response.statusCode === 200) {
             res.status(200).send({message:"Captcha token valid"});  
@@ -259,20 +258,52 @@ exports.verifyCaptchaToken = function(args, res, next) {
 
 exports.sendInfoEmail = function (args, res, next) {
     const user = args.user;
-
+ 
     UserModel.fetchUser({email:'shivchawla2001@gmail.com'})
     .then(adminUser => {
        if(adminUser._id.toString() == user._id.toString()) {
-            return UserModel.fetchUsers({},{firstName:1, lastName:1 , email:1}) 
-       } else {
-            throw new Error("Not Authorized");
-       }
-    })
+             return UserModel.fetchUsers({},{firstName:1, lastName:1 , email:1}) 
+        } else {
+             throw new Error("Not Authorized");
+        }
+     })
     .then(users => {
         var details = args.body.value;
         details.receivers = users;
         sendEmail.sendInfoEmail(details);
         return res.status(200).send("Emails sent successfully");    
+     })
+     .catch(err => {
+         return res.status(400).send(err.message);
+     });
+ };
+
+
+exports.sendTemplateEmail = function (args, res, next) {
+    const userId = _.get(args,'user._id', null);
+    const templateId = _.get(args, 'templateId.value', null);
+    const sender = _.get(args, 'sender.value', 'contest');
+
+    Promise.resolve()
+    .then(() => {
+        if (userId) { 
+            return UserModel.fetchUsers({email:{'$in': config.get('admin_user')}}, {fields:'_id'});
+        } else {
+            return [];
+        }
+    })
+    .then(admins => {
+        if (userId && admins && admins.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
+            return UserModel.fetchUsers({}, {firstName:1, lastName:1 , email:1}) 
+        } else {
+            throw new Error("Not Authorized");
+        }
+    })
+    .then(allUsers => {
+        return sendEmail.sendTemplateEmail(templateId, allUsers, sender);
+    })
+    .then(sent => {
+        return res.status(200).send("Emails sent successfully");
     })
     .catch(err => {
         return res.status(400).send(err.message);

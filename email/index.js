@@ -7,6 +7,7 @@ var hostname = config.get('hostname');
 var truncate = require('truncate-html');
 const _ = require('lodash');
 const UserModel = require('../models/user');
+const Promise = require('bluebird');
 
 var replaceAll = function(str, find, replace) {
     return str.replace(new RegExp(find, 'g'), replace);
@@ -221,23 +222,17 @@ module.exports.threadReplyEmail = function(threadDetails) {
     return;
 };
 
+/*
+* Send information email based on text-body
+*/
 module.exports.sendInfoEmail = function(details) {
-
+ 
     var receivers = details.receivers;
     var templateFileName = details.templateFileName;
     var template = fs.readFileSync(__dirname + `/../views/${templateFileName}`).toString();
     var homeLink = config.get('hostname');
     template = template.replace(/homeLink/g, homeLink);
-    /**
-     * bcc email array should be in the form: [
-     {
-         "email": "sam.doe@example.com",
-         "name": "Sam Doe"
-     }
-     ]
-     * @type {*|SendGrid.Rest.Request}
-     */
-
+ 
     
     receivers.forEach(receiver => {
         var receiverFullName = receiver.firstName.trim() + ' ' + receiver.lastName.trim();
@@ -249,8 +244,7 @@ module.exports.sendInfoEmail = function(details) {
             body: {
                 personalizations: [
                     {
-                        to: [
-                            {
+                        to: [{
                                 email:receiver.email,
                             },
                         ],
@@ -263,7 +257,7 @@ module.exports.sendInfoEmail = function(details) {
                 },
                 content: [
                     {
-                        type: 'text/html',
+                        type: 'text/html',                       
                         value: _t,
                     },
                 ],
@@ -280,8 +274,37 @@ module.exports.sendInfoEmail = function(details) {
         });
     });
 
-    return;
+ };
+
+
+/*
+* Send information email based on template
+*/
+module.exports.sendTemplateEmail = function(templateId, receivers, sender) {
+    var senderDetails = config.get(`sender_details.${sender}`);
+    
+    return Promise.map(receivers, function(receiver) {
+        var userFullName = receiver.firstName + ' ' + receiver.lastName;
+
+        const msg = {
+            to: [{
+                email: receiver.email,
+                name: userFullName
+            }],
+            from: sender,
+            templateId: templateId,
+            substitutions: {
+                userFullName: userFullName,
+            },
+        };
+
+        return sgMail.send(msg);
+    })
+    .then(allEmailsSent => {
+        return true;
+    })
 };
+
 
 /*
 * Email to notify advice status
@@ -359,7 +382,6 @@ module.exports.sendContestStatusEmail = function(contestEntryDetails, userDetail
 
     return sgMail.send(msg);
 };
-
 
 module.exports.sendPerformanceDigest = function(performanceDetail, userDetails) {
    const userFullName = userDetails.firstName+' '+userDetails.lastName;
