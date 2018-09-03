@@ -87,11 +87,12 @@ Contest.statics.saveContest = function(contestDetail) {
 }
 
 Contest.statics.updateContest = function(query, updates, options) {
-    return this.findOneAndUpdate(query, updates, options);
+    return this.findOneAndUpdate(query, {$set: updates}, options);
 }
 
 Contest.statics.fetchContests = function(query, options = {}) {
     let q = this.find(query);
+    const populate = _.get(options, 'populate', '');
     if (options.skip) {
         q = q.skip(options.skip);
     }
@@ -100,6 +101,20 @@ Contest.statics.fetchContests = function(query, options = {}) {
     }
     if (options.fields) {
         q = q.select(options.fields);
+    }
+    if (options.fields && options.fields.indexOf('winners') && populate.indexOf('advice') !== -1) {
+        q = q.select(options.fields).populate({
+            path: 'winners.advice', 
+            select: 'name advisor',
+            populate: {
+                path: 'advisor', 
+                select: 'user',
+                populate: {
+                    path: 'user',
+                    select: 'firstName lastName'
+                }
+            }
+        });
     }
 
     return q.execAsync()
@@ -242,136 +257,6 @@ Contest.statics.prohibitAdviceFromContest = function(query, adviceId) {
     });
 }
 
-Contest.statics.updateRating = function(query, currentAdviceRankingData, simulatedAdviceRankingData, selectedDate, rankingDetail) {
-    const today = DateHelper.getCurrentDate();
-
-    let contestId;
-    return this.findOne(query, {advices: 1})
-    .then(contest => {
-        if (contest) {
-            contestId = contest._id;
-            contest.advices = contest.advices.map(adviceItem => {
-                const currentAdviceIdx = _.findIndex(currentAdviceRankingData, adviceData => adviceData.adviceId === (adviceItem.advice).toString());
-                const simulatedAdviceIdx = _.findIndex(simulatedAdviceRankingData, adviceData => adviceData.adviceId === (adviceItem.advice).toString());
-                if (currentAdviceIdx > -1) {
-                    const rank = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rank`, null);
-                    const currentRatingValue = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rating`, null);
-                    const simulatedRatingValue = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rating`, null);
-                    const currentRatingRank = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rank`, null);
-                    const simulatedRatingRank = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rank`, null);
-                    // find if the date already exists in the rating array
-                    const rankingIdx = _.findIndex(adviceItem.rankingHistory, rankData => {
-                        const rankDate = rankData.date;
-                        return DateHelper.compareDates(rankDate, selectedDate) === 0;
-                    });
-                    if (rankingIdx === -1) { // If date doesn't exist push it into the history
-                        adviceItem.rankingHistory.push({
-                            value: rank, 
-                            date: selectedDate, 
-                            rating: {
-                                current: {
-                                    value: currentRatingValue,
-                                    rank: currentRatingRank,
-                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'current')
-                                },
-                                simulated: {
-                                    value: simulatedRatingValue,
-                                    rank: simulatedRatingRank,
-                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'simulated')
-                                }
-                            }
-                        });
-                    } else { // Modify the rank value
-                        adviceItem.rankingHistory[rankingIdx].value = rank;
-                        adviceItem.rankingHistory[rankingIdx].rating = {
-                            current: {
-                                value: currentRatingValue,
-                                rank: currentRatingRank,
-                                detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'current')
-                            },
-                            simulated: {
-                                value: simulatedRatingValue,
-                                rank: simulatedRatingRank,
-                                detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'simulated')
-                            }
-                        };
-                    }
-                    // Only modify the latestRank if the date is today
-                    if (DateHelper.compareDates(today, selectedDate) === 0){
-                        adviceItem.latestRank = {
-                            value: rank, 
-                            selectedDate, 
-                            rating: {
-                                current: {
-                                    value: currentRatingValue,
-                                    rank: currentRatingRank,
-                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'current')
-                                },
-                                simulated: {
-                                    value: simulatedRatingValue,
-                                    rank: simulatedRatingRank,
-                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'simulated')
-                                }
-                            }
-                        };
-                    }
-                }
-
-                return adviceItem;
-            })
-
-            return this.findOneAndUpdate({_id: contestId}, {$set:contest});
-        }
-    })
-}
-
-Contest.statics.updateWinners = function(query, adviceRankingData, date) {
-    return this.findOne(query, {winners: 1, active: 1, rules: 1, endDate: 1})
-    .then(contest => {
-        let contestId = contest._id;
-        
-        const noOfWinners = contest.rules.prize.length;
-        const contestEndDate = contest.endDate;
-        
-        const hasEnded = DateHelper.compareDates(contestEndDate, date) == 0 ? true : false;
-        if (hasEnded) {
-            let winners = [];
-            for (var i=0; i<noOfWinners;i++) {
-                var rankingData = adviceRankingData[i];
-                winners.push({
-                    advice: rankingData.adviceId,
-                    prize: contest.rules.prize[i],
-                    rank: {
-                        value: _.get(rankingData, 'rank', null), 
-                        date, 
-                        rating: _.get(rankingData, 'rating', null)
-                    }
-                });
-            }
-
-            contest.winners = winners;
-            contest.active = false;
-
-            return this.update({_id: contestId}, {$set: contest});
-        } else {
-            return null;
-        }
-    })
-}
-
-const getAdviceRatingDetail = (rankingDetail, adviceId, type) => {
-    return rankingDetail[type].map((fieldData, index) => {
-        const {field, data} = fieldData;
-        const adviceIndex = _.findIndex(data, item => item.advice === adviceId);
-        
-        return {
-            field, 
-            ratingValue: data[adviceIndex].rating, 
-            rank: data[adviceIndex].rank, 
-            metricValue: data[adviceIndex].metricValue
-        };
-    });
-}
 
 const ContestModel = mongoose.model('Contest', Contest);
 module.exports = ContestModel;

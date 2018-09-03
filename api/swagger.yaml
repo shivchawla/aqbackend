@@ -3020,6 +3020,27 @@ paths:
         400:
           description: 'Invalid Input'
       x-swagger-router-controller: "Contest"
+      
+  /contest/all:
+    get:
+      tags:
+      - contest
+      summary: get all contests, active, inactive or all
+      description: get all contests, active, inactive or all
+      operationId: getAllContests
+      parameters:
+      - name: active
+        in: query
+        type: integer
+        default: 0
+        description: Get all contests (active, inactive or all)
+      
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "Contest"
   
   /contest/{contestId}:
     get:

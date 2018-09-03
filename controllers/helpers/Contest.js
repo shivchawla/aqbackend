@@ -16,17 +16,28 @@ const contestRankingScale = require('../../constants').contestRankingScale;
 const sendEmail = require('../../email');
 const config = require('config');
 
-function _updateArrayWithRankFromRating(array) {
-    let rank = 1;
 
-    return array.map((item, index) => {
-        if (index > 0 && item.rating < array[index - 1].rating) {
-            rank = index + 1;
-        }
+function formatValue(value, options) {
+    const outputVal = _.get(options, 'pct', false) ? `${(value*100).toFixed(2)}%` : value;
+    if (_.get(options,'color', null)) {
+        return value > 0 && !options.inverse ? `<span style="color:green">${outputVal}</span>` :
+            Math.abs(value) > 0 ? `<span style="color:red">${outputVal}</span>` : outputVal;
+    } else {
+        return outputVal;
+    }
+};
+
+const getAdviceRatingDetail = (rankingDetail, adviceId, type) => {
+    return rankingDetail[type].map((fieldData, index) => {
+        const {field, data} = fieldData;
+        const adviceIndex = _.findIndex(data, item => item.advice === adviceId);
         
-        item.rank = rank;
-        
-        return item;
+        return {
+            field, 
+            ratingValue: data[adviceIndex].rating, 
+            rank: data[adviceIndex].rank, 
+            metricValue: data[adviceIndex].metricValue
+        };
     });
 }
 
@@ -43,6 +54,196 @@ const calculateAdviceRating = (ratingObj, allAdviceAnalytics = null, ratingType=
     });
 
     return _updateArrayWithRankFromRating(_.orderBy(items, ['rating'], ['desc']));
+}
+
+
+function _updateRating(contestId, currentAdviceRankingData, simulatedAdviceRankingData, selectedDate, rankingDetail) {
+    const today = DateHelper.getCurrentDate();
+    return ContestModel.fetchContest({_id: contestId}, {advices: 1})
+    .then(contest => {
+        if (contest) {
+            return Promise.map(contest.advices, adviceItem => {
+                const currentAdviceIdx = _.findIndex(currentAdviceRankingData, adviceData => adviceData.adviceId === (adviceItem.advice).toString());
+                const simulatedAdviceIdx = _.findIndex(simulatedAdviceRankingData, adviceData => adviceData.adviceId === (adviceItem.advice).toString());
+                if (currentAdviceIdx > -1) {
+                    const rank = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rank`, null);
+                    const currentRatingValue = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rating`, null);
+                    const simulatedRatingValue = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rating`, null);
+                    const currentRatingRank = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rank`, null);
+                    const simulatedRatingRank = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rank`, null);
+                    // find if the date already exists in the rating array
+                    const rankingIdx = _.findIndex(adviceItem.rankingHistory, rankData => {
+                        const rankDate = rankData.date;
+                        return DateHelper.compareDates(rankDate, selectedDate) === 0;
+                    });
+                    if (rankingIdx === -1) { // If date doesn't exist push it into the history
+                        adviceItem.rankingHistory.push({
+                            value: rank, 
+                            date: selectedDate, 
+                            rating: {
+                                current: {
+                                    value: currentRatingValue,
+                                    rank: currentRatingRank,
+                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'current')
+                                },
+                                simulated: {
+                                    value: simulatedRatingValue,
+                                    rank: simulatedRatingRank,
+                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'simulated')
+                                }
+                            }
+                        });
+                    } else { // Modify the rank value
+                        adviceItem.rankingHistory[rankingIdx].value = rank;
+                        adviceItem.rankingHistory[rankingIdx].rating = {
+                            current: {
+                                value: currentRatingValue,
+                                rank: currentRatingRank,
+                                detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'current')
+                            },
+                            simulated: {
+                                value: simulatedRatingValue,
+                                rank: simulatedRatingRank,
+                                detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'simulated')
+                            }
+                        };
+                    }
+                    // Only modify the latestRank if the date is today
+                    if (DateHelper.compareDates(today, selectedDate) === 0){
+                        adviceItem.latestRank = {
+                            value: rank, 
+                            selectedDate, 
+                            rating: {
+                                current: {
+                                    value: currentRatingValue,
+                                    rank: currentRatingRank,
+                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'current')
+                                },
+                                simulated: {
+                                    value: simulatedRatingValue,
+                                    rank: simulatedRatingRank,
+                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'simulated')
+                                }
+                            }
+                        };
+                    }
+                }
+
+                return adviceItem;
+            })
+            .then(updatedAdvices => {
+                return ContestModel.updateContest({_id: contestId}, {advices: updatedAdvices});    
+            });
+            
+        }
+    });
+}
+
+function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRankingData, date, rankingDetail) {
+    return ContestModel.fetchContest({_id: contestId}, {fields:'winners rules endDate'})
+    .then(contest => {
+        let contestId = contest._id;
+        let rawWinners = [];
+
+        const numWinners = contest.rules.prize.length;
+        const contestEndDate = contest.endDate;
+        
+        const hasEnded = DateHelper.compareDates(contestEndDate, date) == 0 ? true : false;
+        if (hasEnded) {
+            let i=0;
+            while(rawWinners.length < numWinners*3) {
+                const rankingData = currentAdviceRankingData[i++];
+
+                const currentAdviceIdx = _.findIndex(currentAdviceRankingData, adviceData => adviceData.adviceId === (rankingData.adviceId).toString());
+                const simulatedAdviceIdx = _.findIndex(simulatedAdviceRankingData, adviceData => adviceData.adviceId === (rankingData.adviceId).toString());
+                const currentRatingValue = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rating`, null);
+                const simulatedRatingValue = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rating`, null);
+                const currentRatingRank = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rank`, null);
+                const simulatedRatingRank = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rank`, null);
+                     
+                rawWinners.push({
+                    advice: rankingData.adviceId,
+                    rank: {
+                        value: _.get(rankingData, 'rank', null), 
+                        date, 
+                        rating: {
+                            current: {
+                                value: currentRatingValue,
+                                rank: currentRatingRank,
+                                detail: getAdviceRatingDetail(rankingDetail, (rankingData.adviceId).toString(), 'current')
+                            },
+                            simulated: {
+                                value: simulatedRatingValue,
+                                rank: simulatedRatingRank,
+                                detail: getAdviceRatingDetail(rankingDetail, (rankingData.adviceId).toString(), 'simulated')
+                            }
+                        }
+                    },
+                });
+            } //While ends
+
+            return Promise.map(rawWinners, function(winner) {
+                return AdviceModel.fetchAdvice({_id: winner.advice}, {fields: 'advisor'})
+                .then(advice => {
+                    winner.advice = advice.toObject();
+                    return winner
+                })
+            })
+            .then(updatedWinners => {
+                return _.uniqBy(updatedWinners.map(item => {item.advice.advisor = item.advice.advisor.toString(); return item;}), 'advice.advisor');
+            })
+            .then(uniqWinners => {
+                let finalWinners = [];
+
+                let i=1;
+                let k=0;
+                while(k < numWinners && i <= uniqWinners.length) {
+                    var rankXWinners = uniqWinners.filter(item => item.rank.value == i);
+                    var totalXWinners = rankXWinners.length;
+                    var prizeXRankers = contest.rules.prize.slice(k, totalXWinners).map(item => item.value);
+
+                    var totalPrizeMoney = _.sum(prizeXRankers);
+
+                    if (totalXWinners > 0) {
+                        var priceMoneyPerWinner = totalPrizeMoney/totalXWinners;
+                        
+                        for(var j=0; j<totalXWinners; j++) {
+                            finalWinners[k+j] = Object.assign({prize: {value: priceMoneyPerWinner, rank: k+1}}, uniqWinners[k+j]);
+                        }
+                        
+                        i += totalXWinners;
+                        k += totalXWinners;
+
+                    } else { 
+                        i++;
+                    }
+                                           
+                }
+
+                return finalWinners;
+            })
+            .then(finalWinners => {
+                finalWinners = finalWinners.map(item => {item.advice = item.advice._id.toString(); return item;});
+                return ContestModel.updateContest({_id: contestId}, {winners: finalWinners, active: false});    
+            });
+        } else {
+            return null;
+        }
+    })
+}
+
+function _updateArrayWithRankFromRating(array) {
+    let rank = 1;
+
+    return array.map((item, index) => {
+        if (index > 0 && item.rating < array[index - 1].rating) {
+            rank = index + 1;
+        }
+        
+        item.rank = rank;
+        
+        return item;
+    });
 }
 
 function _getAdviceAnalytics(contestAdviceIds) {
@@ -107,27 +308,25 @@ module.exports.updateAnalytics = function(contestId) {
                 })
             })
             .then(([currentRanking, simulatedRanking]) => {
-                const contestId = contest._id;
                 const currentDate = DateHelper.getCurrentDate();
                 var arr = calculateAdviceRating(currentRanking).map((item, index) => {
                     return {adviceId: item.advice, rating: item.rating}
                 });
                 const currentRankingData = _updateArrayWithRankFromRating(arr);
-
                 const simulatedRankingData = _updateArrayWithRankFromRating(calculateAdviceRating(simulatedRanking).map((item, index) => {
                     return {adviceId: item.advice, rating: item.rating};
                 }));
-                return ContestModel.updateRating({_id: contestId}, currentRankingData, simulatedRankingData, currentDate, rankingDetail)
+                
+                return _updateRating(contestId, currentRankingData, simulatedRankingData, currentDate, rankingDetail)
                 .then(() => {
-                    const contestId = contest._id;
-                    return ContestModel.updateWinners({_id: contestId}, currentRankingData, currentDate);
+                    return _updateWinners(contestId, currentRankingData, simulatedRankingData, currentDate, rankingDetail);
                 })
             })
         } else {
             return contest;
         }
     });
-}
+};
 
 module.exports.updateAllAnalytics = () => {
     let contestIds;
@@ -142,7 +341,7 @@ module.exports.updateAllAnalytics = () => {
             console.log("No contests found");
         }
     })
-}
+};
 
 module.exports.getAdviceSummary = function(adviceId) {
     return ContestModel.fetchContests({'advices.advice': adviceId}, {fields: 'name active endDate advices.latestRank advices.advice advices.active advices.withDrawn advices.prohibited'})
@@ -165,7 +364,7 @@ module.exports.getAdviceSummary = function(adviceId) {
         return nContests;
        
     });
-}
+};
 
 module.exports.sendContestEntryDailyDigest = function() {
     let latestContestId;
@@ -324,7 +523,7 @@ module.exports.sendContestEntryDailyDigest = function() {
         console.log("Error while sending performance digest");
         console.log(err.message)
     })
-}
+};
 
 module.exports.sendEmailToContestWinners = function() {
     let contestId, contestName;
@@ -333,7 +532,6 @@ module.exports.sendEmailToContestWinners = function() {
     .then(contest => {
         if (contest) {
             contestId = contest._id;
-         
             if (contestId) {
                 return exports.updateAnalytics(contestId);
             } else {
@@ -350,7 +548,7 @@ module.exports.sendEmailToContestWinners = function() {
     .then(contest => {
         const winners = contest.winners;
         const winnerAdviceIds = winners.map(item => item.advice.toString());
-        
+
         return new Promise.mapSeries(winnerAdviceIds, function(adviceId) {
             
             const winner = winners.find(item => item.advice.toString() == adviceId);
@@ -381,6 +579,7 @@ module.exports.sendEmailToContestWinners = function() {
                             return {};
                         }
                     } else if(process.env.NODE_ENV === 'development') {
+                        return;
                         return sendEmail.sendContestWinnerEmail(winnerDigest, 
                             {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
                     }
@@ -395,7 +594,7 @@ module.exports.sendEmailToContestWinners = function() {
         console.log("Error while sending winner digest");
         console.log(err.message)
     });
-}
+};
 
 module.exports.updateWinnerPortfolio = function() {
 
@@ -403,15 +602,4 @@ module.exports.updateWinnerPortfolio = function() {
     //Step 2. Find the top the entries
     //Step 3. Combine them
     //Step 4. Create/update the winner portfolio with 3
-
 };
-
-function formatValue(value, options) {
-    const outputVal = _.get(options, 'pct', false) ? `${(value*100).toFixed(2)}%` : value;
-    if (_.get(options,'color', null)) {
-        return value > 0 && !options.inverse ? `<span style="color:green">${outputVal}</span>` :
-            Math.abs(value) > 0 ? `<span style="color:red">${outputVal}</span>` : outputVal;
-    } else {
-        return outputVal;
-    }
-}
