@@ -19,6 +19,17 @@ const Rank = new Schema({
     rating: {current: RatingDetail, simulated: RatingDetail}
 });
 
+const Prize = new Schema({
+    rank: {
+        type: Number,
+        required: true
+    },
+    value: {
+        type: Number,
+        required: true
+    }
+});
+
 const Contest = new Schema({
     creator: {
         type: Schema.Types.ObjectId,
@@ -57,21 +68,12 @@ const Contest = new Schema({
 
     winners: [{
         advice: {type: Schema.Types.ObjectId, ref: 'Advice'},
+        prize: Prize,
         rank: Rank
     }],
     
     rules: {
-        prize: [{
-                rank: {
-                    type: Number,
-                    required: true
-                },
-                value: {
-                    type: Number,
-                    required: true
-                }
-            }
-        ],
+        prize: [Prize],
         ruleTemplateFileName: {
             type: String,
             required: true
@@ -330,22 +332,24 @@ Contest.statics.updateWinners = function(query, adviceRankingData, date) {
         
         const noOfWinners = contest.rules.prize.length;
         const contestEndDate = contest.endDate;
-        const hasEnded = DateHelper.compareDates(contestEndDate, date) < 0 ? true : false;
+        
+        const hasEnded = DateHelper.compareDates(contestEndDate, date) == 0 ? true : false;
         if (hasEnded) {
             let winners = [];
-            adviceRankingData.map(rankingData => {
+            for (var i=0; i<noOfWinners;i++) {
+                var rankingData = adviceRankingData[i];
                 winners.push({
                     advice: rankingData.adviceId,
+                    prize: contest.rules.prize[i],
                     rank: {
                         value: _.get(rankingData, 'rank', null), 
                         date, 
                         rating: _.get(rankingData, 'rating', null)
                     }
-                })
-            });
+                });
+            }
 
-            const nWinners = winners.slice(0, noOfWinners);
-            contest.winners = nWinners;
+            contest.winners = winners;
             contest.active = false;
 
             return this.update({_id: contestId}, {$set: contest});

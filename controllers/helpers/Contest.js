@@ -7,7 +7,7 @@ const ContestModel = require('../../models/Marketplace/Contest');
 const AdviceModel = require('../../models/Marketplace/Advice');
 const UserModel = require('../../models/user');
 const PerformanceHelper = require('./Performance');
-const PortfolioHelper = require('./Portfolio');
+const AdviceHelper = require('./Advice');
 const SecurityHelper = require('./Security');
 const AnalyticsHelper = require('./Analytics');
 const ratingFields = require('../../constants').contestRatingFields;
@@ -56,7 +56,7 @@ function _getAdviceAnalytics(contestAdviceIds) {
 }
 
 module.exports.updateAnalytics = function(contestId) {
-    return ContestModel.fetchContest({_id: contestId}, {fields:'advices', advices: {all: true}})
+    return ContestModel.fetchContest({_id: contestId}, {fields:'advices', advices: {all: true}}, )
     .then(contest => {
         const activeAdvices = contest.advices.filter(advice => advice.active === true);
         var contestAdviceIds = activeAdvices.map(item => item.advice);
@@ -169,7 +169,7 @@ module.exports.getAdviceSummary = function(adviceId) {
 
 module.exports.sendContestEntryDailyDigest = function() {
     let latestContestId;
-    ContestModel.fetchContests({active: true, endDate: {$gt: DateHelper.getCurrentDate()}}, {fields: '_id endDate'})
+    ContestModel.fetchContests({active: true, endDate: {$gt: DateHelper.getCurrentDate()}}, {fields: '_id'})
     .then(({contests, count}) => {
         if (contests && count > 0) {
             latestContestId = contests.sort((a,b) => {return a > b ? -1 : 1}).map(item => item._id)[0];
@@ -197,7 +197,7 @@ module.exports.sendContestEntryDailyDigest = function() {
                     PerformanceHelper.getAdvicePerformanceSummary(adviceId),
                     exports.getAdviceSummary(adviceId),
                     //P3   
-                    PortfolioHelper.getAdvicePortfolio(adviceId, {populateAvg: true})
+                    AdviceHelper.getAdvicePortfolio(adviceId, {populateAvg: true})
                     .then(portfolio => {
                         return Promise.map(portfolio.detail.positions, function(item) {
                             return SecurityHelper.getStockLatestDetail({ticker: item.security.ticker}, "RT")
@@ -324,6 +324,77 @@ module.exports.sendContestEntryDailyDigest = function() {
         console.log("Error while sending performance digest");
         console.log(err.message)
     })
+}
+
+module.exports.sendEmailToContestWinners = function() {
+    let contestId, contestName;
+    //ContestModel.fetchContest({active: true, endDate: {$eq: DateHelper.getCurrentDate()}}, {fields: '_id'})
+    ContestModel.fetchContest({endDate: {$eq: DateHelper.getCurrentDate()}}, {fields: '_id'})
+    .then(contest => {
+        if (contest) {
+            contestId = contest._id;
+         
+            if (contestId) {
+                return exports.updateAnalytics(contestId);
+            } else {
+                APIError.jsonError({message: "No contest found"});
+            }
+
+        } else {
+            APIError.jsonError({message: "No contests found"});
+        }
+    })
+    .then(() => {
+        return ContestModel.fetchContest({_id: contestId}, {fields:'winners name'})
+    })
+    .then(contest => {
+        const winners = contest.winners;
+        const winnerAdviceIds = winners.map(item => item.advice.toString());
+        
+        return new Promise.mapSeries(winnerAdviceIds, function(adviceId) {
+            
+            const winner = winners.find(item => item.advice.toString() == adviceId);
+            
+            var winnerDigest = {contestName: contest.name,
+                contestRank: winner.rank.value,
+                prizeMoney: `Rs. ${winner.prize.value}`,
+                leaderboardUrl: `${config.get('hostname')}/contest/leaderboard?contest=${contest.name}`
+            }; 
+
+            //Get advisor details and send email
+            return AdviceModel.fetchAdvice({_id: adviceId}, {fields:'advisor', populate:'advisor'})
+            .then (advice => {
+                const user = _.get(advice, 'advisor.user', null);
+                if (user) {
+                    return UserModel.fetchUser({_id: user._id});
+                } else {
+                    console.log("No user found for advice");
+                    return null;
+                }
+            })
+            .then(user => {
+                if (user) { 
+                    if (user && process.env.NODE_ENV === 'production') {
+                        if (sendDigest) {
+                            return sendEmail.sendContestWinnerEmail(winnerDigest, user);
+                        } else {
+                            return {};
+                        }
+                    } else if(process.env.NODE_ENV === 'development') {
+                        return sendEmail.sendContestWinnerEmail(winnerDigest, 
+                            {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+                    }
+                } else {
+                    return {};
+                }    
+            });
+        });
+            
+    })
+    .catch(err => {
+        console.log("Error while sending winner digest");
+        console.log(err.message)
+    });
 }
 
 module.exports.updateWinnerPortfolio = function() {
