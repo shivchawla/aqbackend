@@ -1,4 +1,8 @@
 
+function _adjustedForMissing(value; default::Float64 = 0.0)
+    value != nothing ? value : default;
+end
+
 function convert(::Type{Dict{String,Any}}, security::Security)                  
     try
 
@@ -43,7 +47,7 @@ function convert(::Type{OrderFill}, transaction::Dict{String, Any})
         end
 
         qty = convert(Int64, get(transaction, "quantity", 0))
-        price = convert(Float64, get(transaction, "price", 0.0)) 
+        price = convert(Float64, _adjustedForMissing(get(transaction, "price", 0.0))) 
         fee = convert(Float64, get(transaction, "commission", 0.0))
 
         cashlinked = get(transaction, "cashLinked", false)
@@ -82,8 +86,8 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
                     
                     #MODIFY the logic to fetch the close price for the date if
                     #price is 0.0 
-                    price = convert(Float64, get(pos, "avgPrice", 0.0))
-                    lastprice = convert(Float64, get(pos, "lastPrice", 0.0))                    
+                    price = convert(Float64, _adjustedForMissing(get(pos, "avgPrice", 0.0)))
+                    lastprice = convert(Float64, _adjustedForMissing(get(pos, "lastPrice", 0.0)))                    
 
                     #Link the position to an advice (Used in marketplace Sub-Portfolio)
                     advice = get(pos, "advice", "")
@@ -132,8 +136,8 @@ function convert_to_node_portfolio(port::Portfolio)
             
             n_pos["security"] = convert(Dict{String,Any}, getsecurity(pos.securitysymbol.id))
             n_pos["quantity"] = pos.quantity
-            n_pos["avgPrice"] = pos.averageprice
-            n_pos["lastPrice"] = pos.lastprice
+            n_pos["avgPrice"] = _adjustedForMissing(pos.averageprice)
+            n_pos["lastPrice"] = _adjustedForMissing(pos.lastprice)
             n_pos["advice"] = pos.advice == "" ? nothing : pos.advice
             n_pos["dividendCash"] = pos.dividendcash
 
@@ -155,7 +159,7 @@ function convert_to_node_transaction(transaction::OrderFill)
 
         output["security"] = convert(Dict{String,Any}, getsecurity(transaction.securitysymbol.id))
         output["quantity"] = transaction.fillquantity
-        output["price"] = transaction.fillprice
+        output["price"] = _adjustedForMissing(transaction.fillprice)
         output["advice"] = nothing
         output["date"] = string(Date(transaction.datetime))
 
