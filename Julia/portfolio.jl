@@ -29,10 +29,12 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
     #Added withing try catch to handle error at YRead 
     try
         #04-09-2018 - Adding forwardfill flag to avoid NaN values on the end date
+        ###Also, get data from ...
+        ##....startdate - 10 days in case startdate data is NaN (forwarfilling won't work)
         if (adjustment && strict) 
-            eod_prices = YRead.history(tickers, "Close", :Day, startdate, enddate, displaylogs=false, forwardfill=true)
+            eod_prices = from(YRead.history(tickers, "Close", :Day, startdate - Dates.Day(10), enddate, displaylogs=false, forwardfill=true), Date(startdate))
         else
-            eod_prices = YRead.history_unadj(tickers, "Close", :Day, startdate, enddate, displaylogs=false, strict = strict, forwardfill=true)
+            eod_prices = from(YRead.history_unadj(tickers, "Close", :Day, startdate - Dates.Day(10), enddate, displaylogs=false, strict = strict, forwardfill=true), Date(startdate))
         end
     catch err
         println(err)
@@ -790,14 +792,16 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
         
         prices = nothing  
         try
-            prices = TimeSeries.head(YRead.history(secids, "Close", :Day, newStartDate, now(), displaylogs=false, forwardfill=true), 1)
+            #GEt data for start date - 10 days and use "from" to filter data
+            #this prevents cases where start date is NaN (forwardfill wont work)
+            prices = TimeSeries.head(from(YRead.history(secids, "Close", :Day, newStartDate - Dates.Day(10) , now(), displaylogs=false, forwardfill=true), newStartDate), 1)
         catch err
             warn("Price data for range not available while calculating average price!!")    
         end
 
         if prices == nothing
             println("Using last available price since $(newStartDate)")
-            prices = YRead.history(secids, "Close", :Day, 1, newStartDate, displaylogs=false, forwardfill=true)
+            prices = TimeSeries.tail(YRead.history(secids, "Close", :Day, 10, newStartDate, displaylogs=false, forwardfill=true), 1)
         end
 
         ####IMPROVEMENT: Use the latest prices when startDate is same as today's data
@@ -845,11 +849,16 @@ function compute_fractional_ranking(vals::Dict{String, Float64}, scale::Float64)
         ks = [k for (k,v) in vals]
         vs = [v for (k,v) in vals]
         
+        #Set infinite values of Node to NaN
+        vs[abs(vs) .== 1.0e9] = NaN        
+
         ksWithNaN = ks[isnan.(vs)]
         ksWithoutNaN = ks[.!isnan.(vs)]
         vsWithoutNaN = vs[.!isnan.(vs)]
 
-        fr = (tiedrank(vsWithoutNaN)-0.5)/length(vsWithoutNaN)
+        #Updated to use z-score to give relative importance to ranking
+        #fr = (tiedrank(vsWithoutNaN)-0.5)/length(vsWithoutNaN)
+        fr = zscore(vsWithoutNaN)
 
         if scale !=0.0
             mx = maximum(fr)
