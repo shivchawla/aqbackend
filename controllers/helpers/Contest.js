@@ -200,7 +200,7 @@ function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRank
                 while(k < numWinners && i <= uniqWinners.length) {
                     var rankXWinners = uniqWinners.filter(item => item.rank.value == i);
                     var totalXWinners = rankXWinners.length;
-                    var prizeXRankers = contest.rules.prize.slice(k, totalXWinners).map(item => item.value);
+                    var prizeXRankers = contest.rules.prize.slice(k, k+totalXWinners).map(item => item.value);
 
                     var totalPrizeMoney = _.sum(prizeXRankers);
 
