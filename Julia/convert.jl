@@ -1,6 +1,6 @@
 
 function _adjustedForMissing(value; default::Float64 = 0.0)
-    value != nothing ? value : default;
+    value != nothing ? !isnan(value) ? value : default : default;
 end
 
 function convert(::Type{Dict{String,Any}}, security::Security)                  
