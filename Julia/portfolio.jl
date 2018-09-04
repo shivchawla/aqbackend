@@ -28,10 +28,11 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
 
     #Added withing try catch to handle error at YRead 
     try
+        #04-09-2018 - Adding forwardfill flag to avoid NaN values on the end date
         if (adjustment && strict) 
-            eod_prices = YRead.history(tickers, "Close", :Day, startdate, enddate, displaylogs=false)
+            eod_prices = YRead.history(tickers, "Close", :Day, startdate, enddate, displaylogs=false, forwardfill=true)
         else
-            eod_prices = YRead.history_unadj(tickers, "Close", :Day, startdate, enddate, displaylogs=false, strict = strict)
+            eod_prices = YRead.history_unadj(tickers, "Close", :Day, startdate, enddate, displaylogs=false, strict = strict, forwardfill=true)
         end
     catch err
         println(err)
@@ -313,7 +314,7 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, ed
         tickers = [sym.ticker for sym in allkeys]    
 
         #Get the Adjusted prices for tickers in the portfolio
-        prices = YRead.history(secids, "Close", :Day, sdate, edate, displaylogs=false)
+        prices = _getPricehistory(tickers, sdate, edate, adjustment = true, appendRealtime=true)
 
         if prices == nothing
             println("Price data not available")
@@ -789,7 +790,7 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
         
         prices = nothing  
         try
-            prices = TimeSeries.head(YRead.history(secids, "Close", :Day, newStartDate, now(), displaylogs=false), 1)
+            prices = TimeSeries.head(YRead.history(secids, "Close", :Day, newStartDate, now(), displaylogs=false, forwardfill=true), 1)
         catch err
             warn("Price data for range not available while calculating average price!!")    
         end
