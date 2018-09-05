@@ -183,14 +183,24 @@ function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRank
             } //While ends
 
             return Promise.map(rawWinners, function(winner) {
-                return AdviceModel.fetchAdvice({_id: winner.advice}, {fields: 'advisor'})
+                return AdviceModel.fetchAdvice({_id: winner.advice}, {fields: 'advisor'}, {populate: 'advisor'})
                 .then(advice => {
                     winner.advice = advice.toObject();
                     return winner
                 })
             })
             .then(updatedWinners => {
-                return _.uniqBy(updatedWinners.map(item => {item.advice.advisor = item.advice.advisor.toString(); return item;}), 'advice.advisor');
+                var notAllowedUsers = config.get('winners_not_allowed');
+                return _.uniqBy(
+                    updatedWinners.filter(item => {
+                        return notAllowedUsers.indexOf(
+                            _.get(item,'advice.advisor.user.email',"")) !=-1
+                        })
+                        .map(item => {
+                            item.advice.advisor = item.advice.advisor._id.toString(); 
+                            return item;
+                        })
+                    , 'advice.advisor');
             })
             .then(uniqWinners => {
                 let finalWinners = [];
