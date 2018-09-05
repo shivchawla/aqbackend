@@ -183,7 +183,7 @@ function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRank
             } //While ends
 
             return Promise.map(rawWinners, function(winner) {
-                return AdviceModel.fetchAdvice({_id: winner.advice}, {fields: 'advisor'}, {populate: 'advisor'})
+                return AdviceModel.fetchAdvice({_id: winner.advice}, {fields: 'advisor', populate: 'advisor'})
                 .then(advice => {
                     winner.advice = advice.toObject();
                     return winner
@@ -330,7 +330,7 @@ module.exports.updateAnalytics = function(contestId) {
                 return _updateRating(contestId, currentRankingData, simulatedRankingData, currentDate, rankingDetail)
                 .then(() => {
                     var currentDatetimeIndia = moment.tz(new Date(), "Asia/Kolkata");
-                    if (currentDatetimeIndia.get('hour') > 18) {
+                    if (currentDatetimeIndia.get('hour') >= 16) {
                         return _updateWinners(contestId, currentRankingData, simulatedRankingData, currentDate, rankingDetail);
                     }
                 });
