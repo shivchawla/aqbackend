@@ -15,7 +15,7 @@ const APIError = require('../../utils/error');
 const contestRankingScale = require('../../constants').contestRankingScale;
 const sendEmail = require('../../email');
 const config = require('config');
-
+const moment = require('moment-timezone');
 
 function formatValue(value, options) {
     const outputVal = _.get(options, 'pct', false) ? `${(value*100).toFixed(2)}%` : value;
@@ -224,7 +224,13 @@ function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRank
             })
             .then(finalWinners => {
                 finalWinners = finalWinners.map(item => {item.advice = item.advice._id.toString(); return item;});
-                return ContestModel.updateContest({_id: contestId}, {winners: finalWinners, active: false});    
+                
+                let active = true;
+                var currentDatetimeIndia = moment.tz(new Date(), "Asia/Kolkata");
+                if (currentDatetimeIndia.get('hour') > 18) {
+                    active = false;
+                }
+                return ContestModel.updateContest({_id: contestId}, {winners: finalWinners, active: active});    
             });
         } else {
             return null;
