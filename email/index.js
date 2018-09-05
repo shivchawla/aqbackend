@@ -291,7 +291,7 @@ module.exports.sendTemplateEmail = function(templateId, receivers, sender) {
                 email: receiver.email,
                 name: userFullName
             }],
-            from: sender,
+            from: senderDetails,
             templateId: templateId,
             substitutions: {
                 userFullName: userFullName,
@@ -302,7 +302,7 @@ module.exports.sendTemplateEmail = function(templateId, receivers, sender) {
     })
     .then(allEmailsSent => {
         return true;
-    })
+    });
 };
 
 
