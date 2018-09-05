@@ -573,14 +573,8 @@ module.exports.sendEmailToContestWinners = function() {
                 .then(user => {
                     if (user) { 
                         if (user && process.env.NODE_ENV === 'production') {
-                            if (sendDigest) {
-                                return sendEmail.sendContestWinnerEmail(winnerDigest, user);
-                            } else {
-                                return {};
-                            }
+                            return sendEmail.sendContestWinnerEmail(winnerDigest, user);
                         } else if(process.env.NODE_ENV === 'development') {
-                            console.log("FCUK");
-                            return {};
                             return sendEmail.sendContestWinnerEmail(winnerDigest, 
                                 {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
                         }
