@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-03 20:21:16
+* @Last Modified time: 2018-09-05 15:15:25
 */
 
 'use strict';
@@ -37,9 +37,5 @@ if (config.get('jobsPort') === serverPort) {
 		if (config.get('send_performance_digest')) {
 	    	ContestHelper.sendContestEntryDailyDigest();
     	}
-	});
-
-	schedule.scheduleJob("0 17 * * 1-5", function() {
-    	ContestHelper.sendEmailToContestWinners();
 	});
 }
