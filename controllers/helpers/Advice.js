@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-27 12:12:14
+* @Last Modified time: 2018-08-30 11:29:25
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -265,7 +265,6 @@ module.exports.getAdviceAnalytics = function(adviceId, recalculate) {
 		}
 	});
 };
-
 
 function _validateAdviceFull(currentPortfolio, validityRequirements, oldPortfolio) {
 	var fields = Object.keys(validityRequirements);
@@ -561,3 +560,64 @@ module.exports.updateAdviceAnalyticsAndPerformanceSummary = function(adviceId, d
 		}
 	});
 };
+
+/*
+* Function to get advice portfolio (uses populateAvg flag to populate average price)
+*/
+module.exports.getAdvicePortfolioHistory = function(adviceId, date) {
+	let portfolioId;
+	
+	return AdviceModel.fetchAdvice({_id: adviceId}, {portfolio:1})
+	.then(advice => {  
+		if (advice) {
+			portfolioId = advice.portfolio;
+			return PortfolioHelper.getPortfolioHistory(advice.portfolio, date);
+		} else {
+			APIError.throwJsonError({message: "Advice not found"});
+		}
+	})
+	.then(rawHistory => {
+		return Promise.map(rawHistory.history, function(portfolio) {
+			var endDate = _.get(portfolio, 'endDate', DateHelper.getCurrentDate());
+			//Using portfolio history just for dates
+			//Now getting updated portfolio for a particular end date
+			return PortfolioHelper.getUpdatedPortfolioWithAveragePrice(portfolioId, {}, endDate)
+			.then(portfolio => {
+				return portfolio.detail;
+			})
+		});
+	});
+};
+
+
+/*
+* Function to get advice portfolio (uses populateAvg flag to populate average price)
+*/
+module.exports.getAdvicePortfolio = function(adviceId, options, date) {
+	return AdviceModel.fetchAdvice({_id: adviceId}, {portfolio:1})
+	.then(advice => {  
+		if (advice) {
+			let portfolioId = advice.portfolio;
+			return options && options.populateAvg ? 
+				PortfolioHelper.getUpdatedPortfolioWithAveragePrice(portfolioId, date) : 
+				PortfolioHelper.getUpdatedPortfolioForPrice(portfolioId, {}, date);
+		} else {
+			APIError.throwJsonError({message: "Advice not found"});
+		}
+	});
+};
+
+module.exports.getAdvicePnlStats = function(adviceId, date) {
+	return exports.getAdvicePortfolio(adviceId, date)
+	.then(advicePortfolio => {
+		if (advicePortfolio && advicePortfolio.pnlStats) {
+			return advicePortfolio.pnlStats;
+		} else {
+			return {};
+		}
+	});
+};
+
+
+
+

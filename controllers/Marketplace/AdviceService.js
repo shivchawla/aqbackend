@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-22 17:44:26
+* @Last Modified time: 2018-08-30 10:26:52
 */
 
 'use strict';
@@ -115,7 +115,7 @@ function _findFirstValidPortfolio(adviceId, date, attempts) {
 	var nDate = DateHelper.getDate(date);
 	nDate.setDate(nDate.getDate() + 1);
 
-	return PortfolioHelper.getAdvicePortfolio(adviceId, nDate)
+	return AdviceHelper.getAdvicePortfolio(adviceId, nDate)
 	.then(portfolioForDate => {
 		if (portfolioForDate && portfolioForDate.detail) {
 			return portfolioForDate;
@@ -544,10 +544,11 @@ module.exports.getAdvices = function(args, res, next) {
     	if(advices) {
     		count = ct;
 	    	return Promise.map(advices, function(advice) {
+    			let adviceId = advice._id;
     			return Promise.all([
-    				PortfolioHelper.getAdvicePnlStats(advice._id),
-    				AdviceHelper.computeAdviceSubscriptionDetail(advice._id, userId),
-    				advice.contestOnly ? ContestHelper.getAdviceSummary(advice._id.toString()) : {}
+    				AdviceHelper.getAdvicePnlStats(adviceId),
+    				AdviceHelper.computeAdviceSubscriptionDetail(adviceId, userId),
+    				advice.contestOnly ? ContestHelper.getAdviceSummary(adviceId.toString()) : {}
 				])
     			.then(([advicePnlStats, subscriptionDetail, contestDetails]) => {
     				return Object.assign(subscriptionDetail, advicePnlStats, {contest: contestDetails}, advice.toObject());
@@ -579,6 +580,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 		AdviceHelper.computeAdviceSubscriptionDetail(adviceId, userId)
 	])
  	.then(([advice, adviceSubscriptionDetail]) => {
+ 		
  		let nAdvice; 
 
  		if(advice && adviceSubscriptionDetail) {
@@ -607,7 +609,7 @@ module.exports.getAdviceSummary = function(args, res, next) {
 
 			return Promise.all([
 				nAdvice,
-				PortfolioHelper.getAdvicePnlStats(adviceId, date),
+				AdviceHelper.getAdvicePnlStats(adviceId, date),
 				fullperformanceFlag ? PerformanceHelper.getAdvicePerformance(adviceId, date, userId) : PerformanceHelper.getAdvicePerformanceSummary(adviceId, date)
 			]);	
 		});
@@ -648,7 +650,7 @@ module.exports.getAdviceDetail = function(args, res, next) {
 			//Add portfolio as of today to the detail
 			return Promise.all([
 				AdviceModel.fetchAdvice({_id:adviceId}, options),
-				options.fields.indexOf("portfolio") !=-1 ? PortfolioHelper.getAdvicePortfolio(adviceId) : null
+				options.fields.indexOf("portfolio") !=-1 ? AdviceHelper.getAdvicePortfolio(adviceId) : null
 			])
 		
 		} else {
@@ -683,6 +685,7 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const userId = args.user._id;
 	const date = args.date.value;
+	const history = _.get(args, 'history.value', false);
 
 	let ndate;
 	return AdviceHelper.isUserAuthorizedToViewAdviceDetail(adviceId, userId)
@@ -698,15 +701,27 @@ module.exports.getAdvicePortfolio = function(args, res, next) {
 				}
 			}
 
-			//Re-run the query after checking 
-			return PortfolioHelper.getAdvicePortfolio(adviceId, {populateAvg: authorizationStatus.isOwner || authorizationStatus.isAdmin}, ndate)
-			.then(portfolioForDate => {
-				if (portfolioForDate && portfolioForDate.detail) {
-					return portfolioForDate;
-				} else {
-					return authorizationStatus.isOwner ? _findFirstValidPortfolio(adviceId, ndate, 100) : null; 
-				}
-			})
+			if (history) {
+				let adviceHistory;
+				return AdviceHelper.getAdvicePortfolioHistory(adviceId)
+				.then(history => {
+					adviceHistory = history;
+					return PortfolioHelper.getPortfolioTransactions(history)
+				})
+				.then(transactions => {
+					return {history: adviceHistory, transactions: transactions};
+				})
+			} else {
+				//Re-run the query after checking 
+				return AdviceHelper.getAdvicePortfolio(adviceId, {populateAvg: authorizationStatus.isOwner || authorizationStatus.isAdmin}, ndate)
+				.then(portfolioForDate => {
+					if (portfolioForDate && portfolioForDate.detail) {
+						return portfolioForDate;
+					} else {
+						return authorizationStatus.isOwner ? _findFirstValidPortfolio(adviceId, ndate, 100) : null; 
+					}
+				})
+			}
 		} else {
 			APIError.throwJsonError({message:"Investor not authorized to view advice detail", errorCode: 1112});
 		}

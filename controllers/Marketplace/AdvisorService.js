@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-24 18:44:50
+* @Last Modified time: 2018-08-29 13:05:33
 */
 
 'use strict';
@@ -139,9 +139,10 @@ module.exports.getAdvisorSummary = function(args, res, next) {
                     //THIS PIECE OF CODE IS IN ADVICE AS WELL
                     //MAKE IT CENTRALIZED
                     return Promise.map(advices, function(advice) {
+                        let adviceId = advice._id;
                         return Promise.all([
-                            PortfolioHelper.getAdvicePnlStats(advice._id),
-                            AdviceHelper.computeAdviceSubscriptionDetail(advice._id, userId)
+                            AdviceHelper.getAdvicePnlStats(adviceId),
+                            AdviceHelper.computeAdviceSubscriptionDetail(adviceId, userId)
                         ])
                         .then(([advicePnlStats, subscriptionDetail]) => {
                             return Object.assign(subscriptionDetail, advicePnlStats, advice.toObject());

@@ -616,7 +616,11 @@ end
 function updateportfolio_price(port::Dict{String, Any}, end_date::DateTime = currentIndiaTime(), typ::String = "EOD")
     try
         portfolio = convert(Raftaar.Portfolio, port)    
-        updateportfolio_price(portfolio, end_date, typ)
+
+        #Add check if endDate is greater than equal to current date
+        #Use EOD prices otherwise
+        updatedType = Date(end_date) >= Date(currentIndiaTime()) ? typ : "EOD"
+        updateportfolio_price(portfolio, end_date, updatedType)
     catch err
         rethrow(err)
     end
@@ -846,6 +850,84 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
     end
 
     return now(), newPortfolio
+    
+end
+
+
+
+function compute_portfolioTransactions(newPortfolio, currentPortfolio)
+    startDate = DateTime(newPortfolio["startDate"], jsdateformat)
+
+    newPortfolio = newPortfolio != nothing ? convert(Portfolio, newPortfolio) : Raftaar.Portfolio()
+    currentPortfolio = currentPortfolio != nothing ? convert(Portfolio, currentPortfolio) : Raftaar.Portfolio()
+
+    transactions = Vector{Dict{String, Any}}()
+
+    newSymbols = [sym for sym in keys(newPortfolio.positions)]
+    currentSymbols = [sym for sym in keys(currentPortfolio.positions)]
+
+    allSymbols = unique(append!(newSymbols, currentSymbols))
+    
+    priceHistory = YRead.history_unadj([sym.ticker for sym in allSymbols], "Close", :Day, 1, startDate)
+
+    for sym in allSymbols
+        currentPosition = currentPortfolio[sym]
+        newPosition = newPortfolio[sym]
+
+        currentQty = currentPosition.quantity
+        newQty = newPosition.quantity
+
+        averageprice = currentPosition.averageprice
+
+        if (newQty != currentQty) 
+            diffQty = newQty - currentQty
+            
+            #=currentQty = 10
+            newQty = 3
+            diffQty = -7
+            pnlDiffQty = max(-7, -10) = -7
+
+            currentQty = 10
+            newQty = -3
+            diffQty = -13
+            pnlDiffQty = max(-13, -10) = -10
+
+
+            currentQty = -10
+            newQty = -3
+            diffQty = 7
+            pnlDiffQty = min(7, 10) = 7
+
+            currentQty = -10
+            newQty = 3
+            diffQty = 13
+            pnlDiffQty = min(13, 10) = 10=#
+
+            isCoverLong = currentQty > 0 && diffQty < 0
+            isCoverShort = currentQty < 0 && diffQty > 0
+
+            pnlDiffQty = isCoverLong ? max(diffQty, -currentQty) : isCoverShort ? min(diffQty, -currentQty) : 0
+
+            priceSymbol = priceHistory != nothing ? priceHistory[sym.ticker] != nothing ? values(priceHistory[sym.ticker])[end] : 0.0 : 0.0
+            
+            realizedPnl = isCoverLong || isCoverShort ? -1.0 * pnlDiffQty * (priceSymbol -  averageprice) : 0.0
+            #push!(transactions, OrderFill(sym, priceSymbol, diffQty, 0.0, false, startDate))
+
+            output = Dict{String, Any}()
+            output["security"] = convert(Dict{String,Any}, getsecurity(sym.id))
+            output["quantity"] = diffQty
+            output["price"] = priceSymbol
+            output["advice"] = nothing
+            output["date"] = string(Date(startDate))
+            output["realizedPnl"] = realizedPnl
+            output["realizedPnlPct"] = abs(realizedPnl) > 0.0 && abs(currentQty) > 0 && averageprice > 0.0 ? realizedPnl/(abs(currentQty)*averageprice) : 0.0
+
+            push!(transactions, output)
+        end     
+        
+    end
+
+    return (Date(startDate), transactions)
     
 end
 
