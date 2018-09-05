@@ -8,6 +8,7 @@ const AdvisorModel = require('../../models/Marketplace/Advisor');
 const ContestHelper = require('../helpers/Contest');
 const APIError = require('../../utils/error');
 const sendEmail = require('../../email');
+const Promise = require('bluebird');
 
 module.exports.createContest = function(args, res, next) {
     const userId = args.user._id;
@@ -288,4 +289,24 @@ module.exports.getContestAdviceSummary = function(args, res, next) {
         res.status(200).send(contests);
     })
     .catch(error => res.status(400).send(error));
+}
+
+module.exports.sendEmailToContestWinners = function(args, res, next) {
+    const userId = args.user._id;
+    const userEmail = _.get(args.user, 'email', null);
+    const admins = config.get('admin_user');
+    Promise.resolve(true)
+    .then(() => {
+        if (admins.indexOf(userEmail) !== -1){ // user is admin and can send email
+            return ContestHelper.sendEmailToContestWinners();
+        } else {
+            APIError.throwJsonError({message: "User not authorized to send email"});
+        }
+    })
+    .then(emailSent => {
+        return res.status(200).send("Winner email sent");
+    })
+    .catch(error => { 
+        return res.status(400).send(error.message)
+    });
 }

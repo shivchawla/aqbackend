@@ -41,3 +41,7 @@ module.exports.getContestAdviceSummary = (req, res, next) => {
 module.exports.getAllContests = (req, res, next) => {
     Contest.getAllContests(req.swagger.params, res, next);
 }
+
+module.exports.sendEmailToContestWinners = (req, res, next) => {
+    Contest.sendEmailToContestWinners(req.swagger.params, res, next);
+}

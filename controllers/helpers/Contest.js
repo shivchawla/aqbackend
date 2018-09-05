@@ -194,7 +194,7 @@ function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRank
                 return _.uniqBy(
                     updatedWinners.filter(item => {
                         return notAllowedUsers.indexOf(
-                            _.get(item,'advice.advisor.user.email',"")) !=-1
+                            _.get(item,'advice.advisor.user.email', "")) ==-1
                         })
                         .map(item => {
                             item.advice.advisor = item.advice.advisor._id.toString(); 
@@ -234,13 +234,7 @@ function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRank
             })
             .then(finalWinners => {
                 finalWinners = finalWinners.map(item => {item.advice = item.advice._id.toString(); return item;});
-                
-                let active = true;
-                var currentDatetimeIndia = moment.tz(new Date(), "Asia/Kolkata");
-                if (currentDatetimeIndia.get('hour') > 18) {
-                    active = false;
-                }
-                return ContestModel.updateContest({_id: contestId}, {winners: finalWinners, active: active});    
+                return ContestModel.updateContest({_id: contestId}, {winners: finalWinners, active: false});    
             });
         } else {
             return null;
@@ -335,9 +329,12 @@ module.exports.updateAnalytics = function(contestId) {
                 
                 return _updateRating(contestId, currentRankingData, simulatedRankingData, currentDate, rankingDetail)
                 .then(() => {
-                    return _updateWinners(contestId, currentRankingData, simulatedRankingData, currentDate, rankingDetail);
-                })
-            })
+                    var currentDatetimeIndia = moment.tz(new Date(), "Asia/Kolkata");
+                    if (currentDatetimeIndia.get('hour') > 18) {
+                        return _updateWinners(contestId, currentRankingData, simulatedRankingData, currentDate, rankingDetail);
+                    }
+                });
+            });
         } else {
             return contest;
         }
@@ -542,72 +539,59 @@ module.exports.sendContestEntryDailyDigest = function() {
 };
 
 module.exports.sendEmailToContestWinners = function() {
+     
     let contestId, contestName;
-    //ContestModel.fetchContest({active: true, endDate: {$eq: DateHelper.getCurrentDate()}}, {fields: '_id'})
-    ContestModel.fetchContest({endDate: {$eq: DateHelper.getCurrentDate()}}, {fields: '_id'})
+    return ContestModel.fetchContest({active:false, endDate: {$eq: DateHelper.getCurrentDate()}}, {fields: '_id winners name'})
     .then(contest => {
         if (contest) {
             contestId = contest._id;
-            if (contestId) {
-                return exports.updateAnalytics(contestId);
-            } else {
-                APIError.jsonError({message: "No contest found"});
-            }
+      
+            const winners = contest.winners;
+            const winnerAdviceIds = winners.map(item => item.advice.toString());
 
-        } else {
-            APIError.jsonError({message: "No contests found"});
-        }
-    })
-    .then(() => {
-        return ContestModel.fetchContest({_id: contestId}, {fields:'winners name'})
-    })
-    .then(contest => {
-        const winners = contest.winners;
-        const winnerAdviceIds = winners.map(item => item.advice.toString());
+            return new Promise.mapSeries(winnerAdviceIds, function(adviceId) {
+                
+                const winner = winners.find(item => item.advice.toString() == adviceId);
+                
+                var winnerDigest = {contestName: contest.name,
+                    contestRank: winner.rank.value,
+                    prizeMoney: `Rs. ${winner.prize.value}`,
+                    leaderboardUrl: `${config.get('hostname')}/contest/leaderboard/${contestId}`
+                }; 
 
-        return new Promise.mapSeries(winnerAdviceIds, function(adviceId) {
-            
-            const winner = winners.find(item => item.advice.toString() == adviceId);
-            
-            var winnerDigest = {contestName: contest.name,
-                contestRank: winner.rank.value,
-                prizeMoney: `Rs. ${winner.prize.value}`,
-                leaderboardUrl: `${config.get('hostname')}/contest/leaderboard?contest=${contest.name}`
-            }; 
-
-            //Get advisor details and send email
-            return AdviceModel.fetchAdvice({_id: adviceId}, {fields:'advisor', populate:'advisor'})
-            .then (advice => {
-                const user = _.get(advice, 'advisor.user', null);
-                if (user) {
-                    return UserModel.fetchUser({_id: user._id});
-                } else {
-                    console.log("No user found for advice");
-                    return null;
-                }
-            })
-            .then(user => {
-                if (user) { 
-                    if (user && process.env.NODE_ENV === 'production') {
-                        if (sendDigest) {
-                            return sendEmail.sendContestWinnerEmail(winnerDigest, user);
-                        } else {
-                            return {};
-                        }
-                    } else if(process.env.NODE_ENV === 'development') {
-                        return sendEmail.sendContestWinnerEmail(winnerDigest, 
-                            {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+                //Get advisor details and send email
+                return AdviceModel.fetchAdvice({_id: adviceId}, {fields:'advisor', populate:'advisor'})
+                .then (advice => {
+                    const user = _.get(advice, 'advisor.user', null);
+                    if (user) {
+                        return UserModel.fetchUser({_id: user._id});
+                    } else {
+                        console.log("No user found for advice");
+                        return null;
                     }
-                } else {
-                    return {};
-                }    
-            });
-        });
-            
-    })
-    .catch(err => {
-        console.log("Error while sending winner digest");
-        console.log(err.message)
+                })
+                .then(user => {
+                    if (user) { 
+                        if (user && process.env.NODE_ENV === 'production') {
+                            if (sendDigest) {
+                                return sendEmail.sendContestWinnerEmail(winnerDigest, user);
+                            } else {
+                                return {};
+                            }
+                        } else if(process.env.NODE_ENV === 'development') {
+                            console.log("FCUK");
+                            return {};
+                            return sendEmail.sendContestWinnerEmail(winnerDigest, 
+                                {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+                        }
+                    } else {
+                        return {};
+                    }    
+                });
+            }); 
+        } else {
+            APIError.throwJsonError({message: "No contests found"});
+        }        
     });
 };
 
