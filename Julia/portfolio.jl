@@ -32,10 +32,12 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
         ###Also, get data from ...
         ##....startdate - 10 days in case startdate data is NaN (forwarfilling won't work)
         if (adjustment && strict) 
-            eod_prices = from(YRead.history(tickers, "Close", :Day, startdate - Dates.Day(10), enddate, displaylogs=false, forwardfill=true), Date(startdate))
+            eod_prices = YRead.history(tickers, "Close", :Day, startdate - Dates.Day(10), enddate, displaylogs=false, forwardfill=true)
         else
-            eod_prices = from(YRead.history_unadj(tickers, "Close", :Day, startdate - Dates.Day(10), enddate, displaylogs=false, strict = strict, forwardfill=true), Date(startdate))
+            eod_prices = YRead.history_unadj(tickers, "Close", :Day, startdate - Dates.Day(10), enddate, displaylogs=false, strict = strict, forwardfill=true)
         end
+
+        eod_prices = eod_prices != nothing ? TimeSeries.from(eod_prices, Date(startdate)) : nothing
     catch err
         println(err)
     end
@@ -55,8 +57,11 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
                 #COnvert the price array to right format for timearray
                 rtPriceArray = Vector{Float64}()
                 rtTimeStamp = nothing
+
+                backstopData = TimeSeries.tail(YRead.history(tickers, "Close", :Day, currentIndiaTime() - Dates.Day(10), currentIndiaTime(), displaylogs=false, forwardfill=true), 1)
+                
                 for ticker in  tickers
-                    priceForTicker = NaN;
+                    priceForTicker = backstopData != nothing ? values(backstopData[ticker])[end] : NaN
                     if haskey(_realtimePrices, ticker)
                         if rtTimeStamp == nothing
                             rtTimeStamp = Date(_realtimePrices[ticker].datetime)
