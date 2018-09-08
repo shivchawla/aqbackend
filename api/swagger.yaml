@@ -40,6 +40,8 @@ tags:
   description: "getting the static configs"
 - name: "contest"
   description: "operations on contest"
+- name: "dailycontest"
+  description: "operations on dailycontest"
   externalDocs:
     description: "Find out more about us"
     url: "http://www.aimsquant.com"
@@ -3242,6 +3244,144 @@ paths:
           description: Invalid Input
       x-swagger-router-controller: "Contest"
 
+  /dailycontest:
+    post:
+      tags: 
+      - dailycontest
+      summary: create a daily contest
+      description: create a daily contest
+      operationId: createDailyContest
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/DailyContest'
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
+    get:
+      tags: 
+      - dailycontest
+      summary: get the daily contest by Id
+      description: get a daily contest
+      operationId: getDailyContest
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: date
+        in: query
+        type: string
+        format: date
+        description: date of contest
+        required: false
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
+  /dailycontest/entry:
+    post:
+      tags: 
+      - dailycontest
+      summary: create a daily contest entry for user
+      description: create a daily contest user
+      operationId: createDailyContestEntry
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        required: true
+        description: "schema body"
+        schema:
+          $ref: "#/definitions/DailyContestEntry"
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
+    put:
+      tags: 
+      - dailycontest
+      summary: update a daily contest entry for user
+      description: create a daily contest user
+      operationId: updateDailyContestEntry
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        required: true
+        description: "schema body"
+        schema:
+          $ref: "#/definitions/DailyContestEntry"
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
+    get:
+      tags: 
+      - dailycontest
+      summary: get the daily contest entry for user
+      description: get a daily contest user
+      operationId: getDailyContestEntry
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: date
+        in: query
+        type: string
+        format: date
+        description: date of contest
+        required: false
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
+
+  
 
 securityDefinitions:
   api_key:
@@ -3947,5 +4087,34 @@ definitions:
       value:
         type: number
 
+  DailyContest:
+    type: object
+    required:
+      - startDate
+    properties:
+      startDate:
+        type: string
+        format: date
 
+  DailyContestEntryConstituent:
+    type: object
+    required:
+      - security
+      - investment
+    properties:
+      security:
+        $ref: '#/definitions/Security'
+      investment:
+        type: number
+        format: long
+        default: 0
 
+  DailyContestEntry:
+    type: object
+    required:
+      - positions
+    properties:
+      positions:
+        type: array
+        items:
+          $ref: '#/definitions/DailyContestEntryConstituent'
