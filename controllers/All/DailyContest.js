@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:54:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-08 10:20:36
+* @Last Modified time: 2018-09-08 13:57:20
 */
 
 const DailyContest = require('../Marketplace/DailyContestService');
@@ -17,7 +17,7 @@ module.exports.getDailyContest = (req, res, next) => {
 };
 
 module.exports.getDailyContestEntry = (req, res, next) => {
-    DailyContest.getContestEntry(req.swagger.params, res, next);
+    DailyContest.getDailyContestEntry(req.swagger.params, res, next);
 };
 
 module.exports.createDailyContestEntry = (req, res, next) => {

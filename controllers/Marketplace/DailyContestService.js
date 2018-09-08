@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-08 13:43:14
+* @Last Modified time: 2018-09-08 14:01:19
 */
 
 'use strict';
@@ -147,28 +147,37 @@ module.exports.getDailyContest = (args, res, next) => {
 };
 
 module.exports.getDailyContestEntry = (args, res, next) => {
-	const date = _.get(args, 'date.value', DateHelper.formatDate());
+	try {
+	const date = _getEffectiveContestDate(_.get(args, 'date.value', DateHelper.getCurrentDate()));
 	const userId = _.get(args, 'user._id', null);
 
-	return AdvisorModel.fetchAdvisor({user: userId}, {_id: 1})
+	return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
 	.then(advisor => {
 		if (advisor) {
 			const advisorId = advisor._id.toString()
-			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, date)
+			return DailyContestEntryModel.fetchEntryForDate({advisor: advisorId}, date)
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}
 	})
 	.then(contestEntry => {
+		if (contestEntry) {
+			return contestEntry.detail[0];
+		} else {
+			APIError.throwJsonError({message: `No contest entry foudn for ${date}`});
+		}
 		//Update the contest entry for price if required
-
-		return res.status(200).send(contestEntry);
-
+	})
+	.then(updatedContestEntry => {
+		return res.status(200).send(updatedContestEntry);
 	})
 	.catch(err => {
 		console.log(err);
 		return res.status(400).send(err.message);		
-	})
+	});
+}catch(err) {
+	console.log(err);
+}
 };
 
 module.exports.createDailyContestEntry = (args, res, next) => {
