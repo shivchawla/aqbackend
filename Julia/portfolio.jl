@@ -1,5 +1,5 @@
 using YRead
-using Raftaar: Security, SecuritySymbol, Portfolio, DollarPortfoio, Position, DollarPosition, OrderFill, TradeBar, Adjustment
+using Raftaar: Security, SecuritySymbol, Portfolio, DollarPortfolio, Position, DollarPosition, OrderFill, TradeBar, Adjustment
 using Raftaar: Performance, PortfolioStats 
 using Raftaar: calculateperformance
 using Raftaar: updateportfolio_fill!, updateportfolio_price!, updateportfolio_splits_dividends!
@@ -874,8 +874,8 @@ function update_dollarportfolio_averageprice(portfolioHistory::Vector{Dict{Strin
     #n1,p1  n2,p2
     #Avg = [(n1P1 + (n2 - n1)*I(n2-n1 > 0)*P2]/max(n1,n2) 
 
-    currentPortfolio = Raftaar.Portfolio()
-    newPortfolio = Raftaar.Portfolio()
+    currentPortfolio = Raftaar.DollarPortfolio()
+    newPortfolio = Raftaar.DollarPortfolio()
 
     for port in portfolioHistory
         newPortfolio = convert(Raftaar.DollarPortfolio, port)
@@ -919,23 +919,14 @@ function update_dollarportfolio_averageprice(portfolioHistory::Vector{Dict{Strin
             currentPosition = currentPortfolio[sym]
             newPosition = newPortfolio[sym]
 
-            currentQty = currentPosition.averageprice > 0.0 ? currentPosition.investment/currentPosition.averageprice : 0.0
-            newQty = newPosition.quantity > 0.0 ? newPosition.investment/newPosition.averageprice : 0.0
-
-            if (newQty > currentQty && currentQty > 0)
-                diffQty = newQty - currentQty
-                newPosition.averageprice = (currentPosition.averageprice*currentQty + diffQty*get(allprices, sym, 0.0))/newQty
-            elseif (newQty <= currentQty && currentQty > 0)
-                newPosition.averageprice = currentPosition.averageprice
-            else   
-                newPosition.averageprice = get(allprices, sym, 0.0)
-            end
-
+            currentInvestment = currentPosition.investment 
+            newInvestment = newPosition.investment
+            
             if (newInvestment > currentInvestment && currentInvestment > 0)
                 diffInvestment = newInvestment - currentInvestment
                 lPrice = get(allprices, sym, 0.0)
                 
-                diffQty = lprice > 0.0 ? diffInvestment/lPrice
+                diffQty = lprice > 0.0 ? diffInvestment/lPrice : 0.0
                 newQty = diffQty + (currentPosition.averageprice > 0.0 ? currentInvestment/currentPosition.averageprice : 0.0)
                 
                 newPosition.averageprice = newInvestment/newQty

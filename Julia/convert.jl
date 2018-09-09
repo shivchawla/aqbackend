@@ -130,7 +130,7 @@ function convert(::Type{DollarPortfolio}, port::Dict{String, Any})
         portfolio = nothing
 
         if haskey(port, "positions")
-            portfolio = Portfolio()
+            portfolio = DollarPortfolio()
 
             positions = port["positions"]
             for pos in positions
@@ -147,7 +147,7 @@ function convert(::Type{DollarPortfolio}, port::Dict{String, Any})
                         end
                     end
 
-                    investment = get(pos, "investment", 0)
+                    investment = convert(Float64, get(pos, "investment", 0))
                     
                     #MODIFY the logic to fetch the close price for the date if
                     #price is 0.0 
