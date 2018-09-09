@@ -1,5 +1,5 @@
 using YRead
-using Raftaar: Security, SecuritySymbol, Portfolio, Position, OrderFill, TradeBar, Adjustment
+using Raftaar: Security, SecuritySymbol, Portfolio, DollarPortfoio, Position, DollarPosition, OrderFill, TradeBar, Adjustment
 using Raftaar: Performance, PortfolioStats 
 using Raftaar: calculateperformance
 using Raftaar: updateportfolio_fill!, updateportfolio_price!, updateportfolio_splits_dividends!
@@ -620,7 +620,7 @@ function updateportfolio_price(port::Dict{String, Any}, end_date::DateTime = cur
         #Add check if endDate is greater than equal to current date
         #Use EOD prices otherwise
         updatedType = Date(end_date) >= Date(currentIndiaTime()) ? typ : "EOD"
-        updateportfolio_price(portfolio, end_date, updatedType)
+        update_raftaarportfolio_price(portfolio, end_date, updatedType)
     catch err
         rethrow(err)
     end
@@ -629,7 +629,7 @@ end
 ###
 # Function to update portfolio with latest price
 ###
-function updateportfolio_price(portfolio::Portfolio, end_date::DateTime = currentIndiaTime(), typ::String = "EOD")
+function update_raftaarportfolio_price(portfolio, end_date::DateTime = currentIndiaTime(), typ::String = "EOD")
     try
         if (typ == "EOD")
             _updateportfolio_EODprice(portfolio, end_date)
@@ -637,6 +637,23 @@ function updateportfolio_price(portfolio::Portfolio, end_date::DateTime = curren
             _updateportfolio_RTprice(portfolio)
         end
         
+    catch err
+        rethrow(err)
+    end
+end
+
+
+###
+# Function to update portfolio with latest price
+###
+function update_dollarportfolio_price(port::Dict{String, Any}, end_date::DateTime = currentIndiaTime(), typ::String = "EOD")
+    try
+        portfolio = convert(Raftaar.DollarPortfolio, port)    
+
+        #Add check if endDate is greater than equal to current date
+        #Use EOD prices otherwise
+        updatedType = Date(end_date) >= Date(currentIndiaTime()) ? typ : "EOD"
+        update_raftaarportfolio_price(portfolio, end_date, updatedType)
     catch err
         rethrow(err)
     end
@@ -850,7 +867,92 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
     end
 
     return now(), newPortfolio
-    
+end
+
+
+function update_dollarportfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}})
+    #n1,p1  n2,p2
+    #Avg = [(n1P1 + (n2 - n1)*I(n2-n1 > 0)*P2]/max(n1,n2) 
+
+    currentPortfolio = Raftaar.Portfolio()
+    newPortfolio = Raftaar.Portfolio()
+
+    for port in portfolioHistory
+        newPortfolio = convert(Raftaar.DollarPortfolio, port)
+        newStartDate = haskey(port, "startDate") ? DateTime(port["startDate"], jsdateformat) : DateTime("2018-01-01")
+
+        allkeys = keys(newPortfolio.positions)
+        secids = [sym.id for sym in allkeys]
+
+        #Get the Adjusted prices for tickers in the portfolio 
+        #FIX: Expanding time period from today to start date (**else adjustment is not included)       
+        
+        prices = nothing  
+        try
+            #GEt data for start date - 10 days and use "from" to filter data
+            #this prevents cases where start date is NaN (forwardfill wont work)
+            prices = TimeSeries.head(from(YRead.history(secids, "Close", :Day, newStartDate - Dates.Day(10) , now(), displaylogs=false, forwardfill=true), newStartDate), 1)
+        catch err
+            warn("Price data for range not available while calculating average price!!")    
+        end
+
+        if prices == nothing
+            println("Using last available price since $(newStartDate)")
+            prices = TimeSeries.tail(YRead.history(secids, "Close", :Day, 10, newStartDate, displaylogs=false, forwardfill=true), 1)
+        end
+
+        ####IMPROVEMENT: Use the latest prices when startDate is same as today's data
+        useRtPrices = false #Flag to indicate whether to use EOD prices or RT prices
+        #RtPrices are used during the middle of the day to compute averageprice (because EOD is not available yet)
+        if Date(newStartDate) >= Date(currentIndiaTime()) && 
+                prices.timestamp[end] != Date(newStartDate)
+            useRtPrices = true         
+        end
+
+        allprices = Dict{SecuritySymbol, Float64}()
+        for sym in allkeys
+            allprices[sym] = useRtPrices && haskey(_realtimePrices, sym.ticker) ? get(_realtimePrices, sym.ticker, TradeBar()).close : 
+                    prices!=nothing && sym.ticker in colnames(prices) ? values(prices[sym.ticker])[end] : 0.0
+        end
+
+        for sym in allkeys
+            currentPosition = currentPortfolio[sym]
+            newPosition = newPortfolio[sym]
+
+            currentQty = currentPosition.averageprice > 0.0 ? currentPosition.investment/currentPosition.averageprice : 0.0
+            newQty = newPosition.quantity > 0.0 ? newPosition.investment/newPosition.averageprice : 0.0
+
+            if (newQty > currentQty && currentQty > 0)
+                diffQty = newQty - currentQty
+                newPosition.averageprice = (currentPosition.averageprice*currentQty + diffQty*get(allprices, sym, 0.0))/newQty
+            elseif (newQty <= currentQty && currentQty > 0)
+                newPosition.averageprice = currentPosition.averageprice
+            else   
+                newPosition.averageprice = get(allprices, sym, 0.0)
+            end
+
+            if (newInvestment > currentInvestment && currentInvestment > 0)
+                diffInvestment = newInvestment - currentInvestment
+                lPrice = get(allprices, sym, 0.0)
+                
+                diffQty = lprice > 0.0 ? diffInvestment/lPrice
+                newQty = diffQty + (currentPosition.averageprice > 0.0 ? currentInvestment/currentPosition.averageprice : 0.0)
+                
+                newPosition.averageprice = newInvestment/newQty
+            elseif (newInvestment <= currentInesv    && currentInvestment > 0)
+                newPosition.averageprice = currentPosition.averageprice
+            else   
+                newPosition.averageprice = get(allprices, sym, 0.0)
+            end
+
+
+            newPortfolio[sym] = newPosition
+        end
+
+        currentPortfolio = newPortfolio
+    end
+
+    return now(), newPortfolio
 end
 
 

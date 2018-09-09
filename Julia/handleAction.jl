@@ -334,12 +334,30 @@ function handleRequest(parsemsg::Dict{String, Any})
             (updatedDate, updated_portfolio) = updatePortfolio_averageprice(portfolioHistory)
             parsemsg["output"] = convert_to_node_portfolio(updated_portfolio)
 
+        elseif action == "update_dollar_portfolio_average_price"
+
+            portfolioHistory = convert(Vector{Dict{String, Any}}, parsemsg["portfolioHistory"])
+            (updatedDate, updated_portfolio) = update_dollarportfolio_averageprice(portfolioHistory)
+            parsemsg["output"] = convert_to_node_dollarportfolio(updated_portfolio)
+
         elseif action == "compute_portfolio_transactions"
             newPortfolio = parsemsg["newPortfolio"]
             currentPortfolio = parsemsg["currentPortfolio"]
 
             (date, transactions) = compute_portfolioTransactions(newPortfolio, currentPortfolio)
             parsemsg["output"] = Dict(string(date) => transactions)
+
+        elseif action == "update_dollar_portfolio_price"    
+            portfolio = parsemsg["portfolio"]
+            date = parsemsg["date"]
+            date = date == "" ? currentIndiaTime() : DateTime(date, jsdateformat)
+            typ = parsemsg["type"]
+            
+            (updatedDate, updated_portfolio) = update_dollarportfolio_price(portfolio, date, typ)
+            
+            #Update, the positions to match the object structure in Node
+            parsemsg["output"] = convert_to_node_dollarportfolio(updated_portfolio)["positions"]
+
 
         elseif action == "compute_fractional_ranking"
             

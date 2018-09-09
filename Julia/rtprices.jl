@@ -4,7 +4,8 @@ const _lastDayPrices = Dict{String, TradeBar}()
 const _codeToTicker = readSecurities()
 const _codeToIndex = readIndices()
 
-function _updateportfolio_EODprice(port::Portfolio, date::DateTime)
+
+function _updateportfolio_EODprice(port, date::DateTime)
     
     updatedDate = currentIndiaTime()
     alltickers = [sym.ticker for (sym, pos) in port.positions]
@@ -39,7 +40,7 @@ function _updateportfolio_EODprice(port::Portfolio, date::DateTime)
     return (updatedDate, port)
 end
 
-function _updateportfolio_RTprice(port::Portfolio)
+function _updateportfolio_RTprice(port)
     
     updatedDate = currentIndiaTime()  
     alltickers = [sym.ticker for (sym, pos) in port.positions]

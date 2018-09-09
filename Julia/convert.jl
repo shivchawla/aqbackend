@@ -124,6 +124,71 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
     end
 end
 
+function convert(::Type{DollarPortfolio}, port::Dict{String, Any})
+
+    try
+        portfolio = nothing
+
+        if haskey(port, "positions")
+            portfolio = Portfolio()
+
+            positions = port["positions"]
+            for pos in positions
+                if haskey(pos, "security")
+                    
+                    security = convert(Raftaar.Security, pos["security"])
+                    
+                    if security == Security()
+                        if pos["security"]["ticker"] == "CASH_INR" 
+                            portfolio.cash += convert(Float64, get(pos, "investment", 0.0))
+                            continue
+                        else
+                            error("Invalid portfolio composition (Invalid Security: $(pos["security"]["ticker"]))")
+                        end
+                    end
+
+                    investment = get(pos, "investment", 0)
+                    
+                    #MODIFY the logic to fetch the close price for the date if
+                    #price is 0.0 
+                    price = convert(Float64, _adjustedForMissing(get(pos, "avgPrice", 0.0)))
+                    lastprice = convert(Float64, _adjustedForMissing(get(pos, "lastPrice", 0.0)))                    
+
+                    #Link the position to an advice (Used in marketplace Sub-Portfolio)
+                    advice = get(pos, "advice", "")
+
+                    #Added check if advice is populated (from node)
+                    if typeof(advice) == Dict{String,Any}
+                        advice = get(advice, "_id", "")    
+                    end
+
+                    advice = advice == nothing ? "" : advice
+                    dividendcash = convert(Float64, get(pos, "dividendCash", 0.0))
+
+                    pos = DollarPosition(security.symbol, investment, price, advice, dividendcash)
+
+                    pos.lastprice = lastprice
+                    # Append to position dictionary
+                    portfolio.positions[security.symbol] = pos
+                       
+                end
+            end
+        else
+            error("Positions key is missing")
+        end
+
+        if haskey(port, "cash")
+            cash = convert(Float64, port["cash"])
+            portfolio.cash += cash
+        end
+
+        return portfolio        
+
+    catch err
+        rethrow(err)
+    end
+end
+
 ###
 # Convert Julia portfolio to Node portfolio 
 ###
@@ -136,6 +201,32 @@ function convert_to_node_portfolio(port::Portfolio)
             
             n_pos["security"] = convert(Dict{String,Any}, getsecurity(pos.securitysymbol.id))
             n_pos["quantity"] = pos.quantity
+            n_pos["avgPrice"] = _adjustedForMissing(pos.averageprice)
+            n_pos["lastPrice"] = _adjustedForMissing(pos.lastprice)
+            n_pos["advice"] = pos.advice == "" ? nothing : pos.advice
+            n_pos["dividendCash"] = pos.dividendcash
+
+            push!(output["positions"], n_pos) 
+        end
+
+        return output
+    catch err
+        rethrow(err)
+    end
+end
+
+###
+# Convert Julia portfolio to Node portfolio 
+###
+function convert_to_node_dollarportfolio(port::DollarPortfolio)
+    try
+        output = Dict{String, Any}("positions" => [], "cash" => port.cash)
+
+        for (sym, pos) in port.positions
+            n_pos = Dict{String, Any}()
+            
+            n_pos["security"] = convert(Dict{String,Any}, getsecurity(pos.securitysymbol.id))
+            n_pos["investment"] = pos.investment
             n_pos["avgPrice"] = _adjustedForMissing(pos.averageprice)
             n_pos["lastPrice"] = _adjustedForMissing(pos.lastprice)
             n_pos["advice"] = pos.advice == "" ? nothing : pos.advice
