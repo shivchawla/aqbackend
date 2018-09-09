@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-08 13:25:30
+* @Last Modified time: 2018-09-09 17:46:11
 */
 
 
@@ -14,6 +14,7 @@ const DateHelper = require('../../utils/Date');
 const Schema = mongoose.Schema;
 
 const Security = require('./Security');
+const DollarPosition = require('./DollarPosition');
 
 const dateFormat = 'YYYY-MM-DD';
 
@@ -47,18 +48,22 @@ const DailyContestEntry = new Schema({
 	
 	updatedDate: Date,
 
-	detail: [{
+	portfolioDetail: [{
 		date: Date,
 		modified: {type:Number, default: 0},
-		positions: [{
-			security: Security,
-			investment: {
-				type: Number,
-				required: true,
-				default: 0,
-			}
-		}]
+		positions: [DollarPosition]
 	}],
+
+	performance: {
+		daily: [{
+			date: Date,
+			pnlStats: Schema.Types.Mixed
+		}],
+
+		aggregate: {
+			pnlStats: Schema.Types.Mixed
+		}
+	}, 
 
 	winnings: {
 		total: Number,
@@ -72,6 +77,18 @@ const DailyContestEntry = new Schema({
 
 });
 
+
+/*Rules
+1. Daily Contest with daily entires
+	Entry is not carried forward the next contest unless user enters the contest deliberately
+	Winner = Highest Daily Change
+2. Daily Contest with weekly entries
+	Entry is carried forward the next contest fot a period of 5 days after which it is dropped
+	Winner = (Rolling 5 day pnl - Rolling 5 day pnl of holding benchmark)
+	If user doesn't enter after 5 days, entries continues but 
+
+*/
+
 DailyContestEntry.statics.createEntry = function(contestEntry) {
     const dailyContestEntry = new this(contestEntry);
     return dailyContestEntry.saveAsync();
@@ -81,16 +98,37 @@ DailyContestEntry.statics.createEntry = function(contestEntry) {
     return this.findOneAndUpdate(query, {$push: {detail: {...portfolio, modified: 0}}});
 }*/
 
-DailyContestEntry.statics.updateEntry = function(query, portfolio) {
+DailyContestEntry.statics.updateEntryPortfolio = function(query, portfolio) {
     const date = portfolio.date;
     const updates = {
-    	$set: {'detail.$.positions': portfolio.positions},
-     	$inc: {'detail.$.modified': 1}
+    	$set: {'portfolioDetail.$.positions': portfolio.positions},
+     	$inc: {'portfolioDetail.$.modified': 1}
  	};
 
-    return this.findOneAndUpdate({...query, 'detail.date':{$eq: date}}, updates);
+    return this.findOneAndUpdate({...query, 'portfolioDetail.date':{$eq: date}}, updates);
     
 };
+
+DailyContestEntry.statics.updateEntryPnlStats = function(query, pnlStats, date) {
+    let q  = {...query, 'performance.daily.date':{$eq: date}};
+    return this.findOne(q)
+    .then(found => {	
+    	
+    	let updates;
+    	
+    	if (found) {
+    		updates = {
+		    	$set: {'performance.daily.$.pnlStats': pnlStats},
+		 	};
+		 	return this.findOneAndUpdate(q, updates);
+    	} else {
+
+    		updates = {$push: {'performance.daily': {date: date, pnlStats: pnlStats}}};
+    		return this.update(query, updates);
+    	}
+    });
+};
+
 
 DailyContestEntry.statics.fetchEntry = function(query, options) {
 	var q = this.findOne(query);
@@ -101,9 +139,17 @@ DailyContestEntry.statics.fetchEntry = function(query, options) {
 	return q.execAsync();
 };
 
-DailyContestEntry.statics.fetchEntryForDate = function(query, date) {
-	return this.findOne({...query, 'detail.date': date}, {'detail.$': 1, createdDate:1, updatedDate:1});
+DailyContestEntry.statics.fetchEntryPortfolioForDate = function(query, date) {
+	return this.findOne({...query, 'portfolioDetail.date': date}, {advisor: 1, 'portfolioDetail.$': 1, createdDate:1, updatedDate: 1});
 };
+
+DailyContestEntry.statics.fetchEntryPnlStatsForDate = function(query, date) {
+	return this.findOne({...query, 'performance.daily.date': date}, {advisor: 1, 'performance.daily.$': 1});
+};
+
 
 const DailyContestEntryModel = mongoose.model('DailyContestEntry', DailyContestEntry);
 module.exports = DailyContestEntryModel;
+
+
+

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:31:05
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-08 13:03:58
+* @Last Modified time: 2018-09-09 17:55:13
 */
 
 'use strict';
@@ -22,12 +22,6 @@ const RatingDetail = new Schema({
     value: Number,
     rank: Number,
     detail: [{field: String, ratingValue: Number, rank: Number, metricValue: Number}],
-});
-
-const Rank = new Schema({
-    value: Number,
-    date: Date,
-    rating: {current: RatingDetail, simulated: RatingDetail}
 });
 
 const Prize = new Schema({
@@ -62,17 +56,15 @@ const DailyContest = new Schema({
 
     winners: [{
         advisor: {type: Schema.Types.ObjectId, ref: 'Advisor'},
-        prize: Prize,
-        rank: Rank
+        rank: Number,
+        pnlStats: Schema.Types.Mixed
     }],
 
-    netPortfolio: {
-    	date: Date, 
-    	positions: [{
-	        security: Security,
-	        investment: Number
-	    }]
-    }
+    totalPositions:[{
+        security: Security,
+        investment: Number,
+        numUsers: Number
+    }]
 });
 
 DailyContest.statics.saveContest = function(contestDetail) {
@@ -83,7 +75,6 @@ DailyContest.statics.saveContest = function(contestDetail) {
 DailyContest.statics.enterContest = function(query, entryId) {
 	return this.findOneAndUpdateAsync(query, {$push: {entries: entryId}});
 };
-
 
 DailyContest.statics.updateContest = function(query, updates, options) {
     return this.findOneAndUpdateAsync(query, {$set: updates}, options);
@@ -135,7 +126,6 @@ DailyContest.statics.fetchContest = function(query, options = {}) {
     if (options.fields) {
         q = q.select(options.fields);
     }
-
 
     if (options.populate.indexOf('winners') !== -1) {
         q = q.select('winners').populate({

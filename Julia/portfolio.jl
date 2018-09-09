@@ -930,7 +930,7 @@ function update_dollarportfolio_averageprice(portfolioHistory::Vector{Dict{Strin
                 newQty = diffQty + (currentPosition.averageprice > 0.0 ? currentInvestment/currentPosition.averageprice : 0.0)
                 
                 newPosition.averageprice = newInvestment/newQty
-            elseif (newInvestment <= currentInesv    && currentInvestment > 0)
+            elseif (newInvestment <= currentInvestment && currentInvestment > 0)
                 newPosition.averageprice = currentPosition.averageprice
             else   
                 newPosition.averageprice = get(allprices, sym, 0.0)

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-08 14:01:19
+* @Last Modified time: 2018-09-09 17:40:50
 */
 
 'use strict';
@@ -20,92 +20,8 @@ const UserModel = require('../../models/user');
 const DailyContestModel = require('../../models/Marketplace/DailyContest');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
-const ContestHelper = require('../helpers/Contest');
-
-const holidays = [
-	"2018-08-22",
-	"2018-09-13",
-	"2018-09-20",
-	"2018-10-02",
-	"2018-10-18",
-	"2018-11-07",
-	"2018-11-08",
-	"2018-11-23",
-	"2018-12-25"
-];
-
-const indiaTimeZone = "Asia/Kolkata";
-
-var marketCloseDatetime = moment("2018-01-01 15:30:00").tz(indiaTimeZone).local();
-var marketCloseMinute = marketCloseDatetime.get('minute');
-var marketCloseHour = marketCloseDatetime.get('hour');
-
-//Run when seconds = 10
-schedule.scheduleJob(`${marketCloseMinute+1}  ${marketCloseHour} * * 1-5`, function() {
-    createNewContest();
-});
-
-function _isBeforeMarketClose(currentDatetime) {
-	return (currentDatetime.get('hour') < 16 && currentDatetime.get('minute') < 30) || currentDatetime.get('hour') < 15;
-}
-
-function _nextNonHolidayWeekday(date) {
-	var nextWeekday = DateHelper.getNextWeekday(date);
-	
-	let isHoliday = false;
-	holidays.forEach(holiday => {
-		isHoliday = isHoliday || DateHelper.compareDates(holiday, nextWeekday) == 0;
-	});
-
-	return isHoliday ? nextNonHolidayWeekday(nextWeekday) : nextWeekday;
-}
-
-function _getEffectiveContestDate(date) {
-	var currentDatetimeIndia = moment(date).tz(indiaTimeZone);
-	
-	const weekday = currentDatetimeIndia.day();
-	const isWeekDay = weekday > 0 && weekday < 6;
-
-	var currentDate = DateHelper.getDate(date);
-
-	let isHoliday = false;
-	holidays.forEach(holiday => {
-		isHoliday = isHoliday || DateHelper.compareDates(holiday, currentDate) == 0;
-	});
-
-	let _d;
-
-	if ( _isBeforeMarketClose(currentDatetimeIndia) && isWeekDay && !isHoliday) {
-		_d = DateHelper.getDate(date);
-	} else {
-		_d = _nextNonHolidayWeekday(date);
-	}
-
-	return moment(_d).set({hour: marketCloseHour, minute: marketCloseMinute}).tz(indiaTimeZone).local();
-}
-
-function createNewContest(date) {
-	var startDate = _getEffectiveContestDate(date);
-	var endDate = moment(startDate).add(1, 'day').tz(indiaTimeZone).local();
-
-	const admins = config.get('admin_user');
-
-	return UserModel.fetchUser({email:{$in: admins}}, {_id:1})
-	.then(adminUser => {
-		if (adminUser) {
-			return DailyContestModel.fetchContest({startDate: startDate}, {_id:1})
-			.then(existingContest => {
-				if (existingContest) {
-					APIError.throwJsonError({message: `Daily Contest already exists for ${startDate}`});
-				} else {
-					return DailyContestModel.saveContest({startDate: startDate, endDate: endDate, active: true, creator: adminUser._id});
-				}
-			})
-		} else {
-			APIError.throwJsonError({message: "Admin not found"});
-		}
-	});
-}
+const DailyContestHelper = require('../helpers/DailyContest');
+const DailyContestEntryHelper = require('../helpers/DailyContestEntry');
 
 module.exports.createDailyContest = function(args, res, next) {
     const userId = args.user._id;
@@ -117,7 +33,7 @@ module.exports.createDailyContest = function(args, res, next) {
     Promise.resolve(true)
     .then(() => {
         if (admins.indexOf(userEmail) !== -1){ // user is admin and can create a contest
-        	return createNewContest(startDate);    
+        	return DailyContestHelper.createNewContest(startDate);    
         } else {
             APIError.throwJsonError({message: 'User is not allowed to create Contest'});
         }
@@ -131,9 +47,9 @@ module.exports.createDailyContest = function(args, res, next) {
 };
 
 module.exports.getDailyContest = (args, res, next) => {
-	const date = _getEffectiveContestDate(_.get(args, 'date.value', DateHelper.getCurrentDate()));
+	const date = DailyContestHelper.getEffectiveContestDate(_.get(args, 'date.value', DateHelper.getCurrentDate()));
 	
-	return DailyContestModel.fetchContest({startDate: date}, {fields:'startDate endDate winners netPortfolio'})
+	return DailyContestModel.fetchContest({startDate: date}, {fields:'startDate endDate winners'})
 	.then(contest => {
 		if (contest) {
 			return res.status(200).send(contest);
@@ -148,25 +64,25 @@ module.exports.getDailyContest = (args, res, next) => {
 
 module.exports.getDailyContestEntry = (args, res, next) => {
 	try {
-	const date = _getEffectiveContestDate(_.get(args, 'date.value', DateHelper.getCurrentDate()));
+	const date = DailyContestHelper.getEffectiveContestDate(_.get(args, 'date.value', DateHelper.getCurrentDate()));
 	const userId = _.get(args, 'user._id', null);
 
 	return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
 	.then(advisor => {
 		if (advisor) {
 			const advisorId = advisor._id.toString()
-			return DailyContestEntryModel.fetchEntryForDate({advisor: advisorId}, date)
+			return DailyContestEntryModel.fetchEntryPortfolioForDate({advisor: advisorId}, date)
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}
 	})
 	.then(contestEntry => {
 		if (contestEntry) {
-			return contestEntry.detail[0];
+			//Update the contest entry for price and security detail - DONE
+			return DailyContestEntryHelper.getUpdatedPortfolio(contestEntry.portfolioDetail[0]);
 		} else {
-			APIError.throwJsonError({message: `No contest entry foudn for ${date}`});
+			APIError.throwJsonError({message: `No contest entry found for ${date}`});
 		}
-		//Update the contest entry for price if required
 	})
 	.then(updatedContestEntry => {
 		return res.status(200).send(updatedContestEntry);
@@ -183,7 +99,7 @@ module.exports.getDailyContestEntry = (args, res, next) => {
 module.exports.createDailyContestEntry = (args, res, next) => {
 	const userId = _.get(args, 'user._id', null);
 	const entryPositions = args.body.value.positions;
-	const contestDate = _getEffectiveContestDate();
+	const contestDate = DailyContestHelper.getEffectiveContestDate();
 	let dailyContest;
 
 	return Promise.all([
@@ -205,10 +121,11 @@ module.exports.createDailyContestEntry = (args, res, next) => {
 				return DailyContestEntryModel.createEntry({
 					advisor: advisorId, 
 					modified: 1,
-					detail: [{
+					portfolioDetail: [{
 						positions: entryPositions, date: contestDate
 					}]
 				});
+		
 			});
 		} else if (!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
@@ -222,6 +139,9 @@ module.exports.createDailyContestEntry = (args, res, next) => {
 	})
 	.then(contestEntered => {
 		//Update the contest entry for price if required
+		return DailyContestHelper.updateFinalPortfolio(contestDate, entryPositions);	
+	})
+	.then(final => {
 		return res.status(200).send("Entry created and contest entered Successfully");
 	})
 	.catch(err => {
@@ -235,14 +155,16 @@ module.exports.updateDailyContestEntry = (args, res, next) => {
 	
 	const userId = _.get(args, 'user._id', null);
 	const entryPositions = args.body.value.positions;
-	const entryDate = _getEffectiveContestDate();
+	const entryDate = DailyContestHelper.getEffectiveContestDate();
 	let dailyContest, advisorId;
+
+	let oldPositions;
 
 	return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
 	.then(advisor => {
 		if (advisor) {
 			advisorId = advisor._id.toString()
-			return DailyContestEntryModel.fetchEntryForDate(
+			return DailyContestEntryModel.fetchEntryPortfolioForDate(
 					{advisor: advisorId}, entryDate); 
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
@@ -251,12 +173,16 @@ module.exports.updateDailyContestEntry = (args, res, next) => {
 	.then(existingEntry => {
 
 		if (existingEntry) {
-			var existingEntryDetail = existingEntry.detail[0];
+			var existingEntryDetail = existingEntry.portfolioDetail[0];
+
+			//These are the old positions 
+			//Used later to udpate final portfolio
+			oldPositions = existingEntryDetail.positions;
 
 			//Check if modified if less than 3 
 			if (existingEntryDetail.modified < config.get('max_dailyentry_changes')) {
 				const updates = {date: entryDate, positions: entryPositions};
-				return DailyContestEntryModel.updateEntry({advisor: advisorId}, updates);
+				return DailyContestEntryModel.updateEntryPortfolio({advisor: advisorId}, updates);
 			} else {
 				APIError.throwJsonError({message: "Entry can't be modified anymore! 3 attempts are over!"});
 			}
@@ -270,7 +196,10 @@ module.exports.updateDailyContestEntry = (args, res, next) => {
 		
 	})
 	.then(entryUpdated => {
-		//Update the contest entry for price if required
+		//Now update the final portfolio (after change in entry)
+		return DailyContestHelper.updateFinalPortfolio(entryDate, entryPositions, oldPositions);	
+	})
+	.then(fin => {
 		return res.status(200).send("Entry updated successfully");
 	})
 	.catch(err => {
