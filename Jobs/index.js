@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-09 17:59:14
+* @Last Modified time: 2018-09-10 14:20:30
 */
 
 'use strict';
@@ -41,11 +41,11 @@ if (config.get('jobsPort') === serverPort) {
     	}
 	});
 
-	schedule.scheduleJob("*/50 * * * 1-5", function() { 
+	schedule.scheduleJob("*/50 5-13 * * 1-5", function() { 
         DailyContestHelper.updateAllEntriesPnlStats();
 	});
 
-	schedule.scheduleJob("0 14 * * * 1-5", function() { 
+	schedule.scheduleJob("0 14 * * 1-5", function() { 
         DailyContestHelper.updateDailyContestWinners();
 	});
 

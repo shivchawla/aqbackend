@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-09 17:40:50
+* @Last Modified time: 2018-09-10 14:30:51
 */
 
 'use strict';
@@ -23,6 +23,10 @@ const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestHelper = require('../helpers/DailyContest');
 const DailyContestEntryHelper = require('../helpers/DailyContestEntry');
 
+/*
+* Create new contest for a start date
+* A contest is generally created automatically(this API is for manual creation)
+*/
 module.exports.createDailyContest = function(args, res, next) {
     const userId = args.user._id;
     const userEmail = _.get(args.user, 'email', null);
@@ -46,10 +50,14 @@ module.exports.createDailyContest = function(args, res, next) {
     })
 };
 
+/*
+* Get current active contest based on date - DONE
+*/
 module.exports.getDailyContest = (args, res, next) => {
-	const date = DailyContestHelper.getEffectiveContestDate(_.get(args, 'date.value', DateHelper.getCurrentDate()));
-	
-	return DailyContestModel.fetchContest({startDate: date}, {fields:'startDate endDate winners'})
+	const _d = _.get(args, 'date.value', '');
+	const date = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
+
+	return DailyContestHelper.getContestForDate(date, {fields:'startDate endDate resultDate winners active'})
 	.then(contest => {
 		if (contest) {
 			return res.status(200).send(contest);
@@ -59,21 +67,35 @@ module.exports.getDailyContest = (args, res, next) => {
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);	
-	})
+	});
 };
 
+/* 
+* Get contest entry for a date
+*/
 module.exports.getDailyContestEntry = (args, res, next) => {
-	try {
-	const date = DailyContestHelper.getEffectiveContestDate(_.get(args, 'date.value', DateHelper.getCurrentDate()));
+	
+	const _d = _.get(args, 'date.value', '');
+	const date = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
+
 	const userId = _.get(args, 'user._id', null);
 
-	return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
-	.then(advisor => {
-		if (advisor) {
+	let contestEndDate;
+	return Promise.all([
+		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
+		DailyContestHelper.getContestForDate(date, {fields: '_id startDate endDate'})
+	])
+	.then(([advisor, contest]) => {
+		if (advisor && contest) {
+
+			let contestEndDate = contest.endDate;
 			const advisorId = advisor._id.toString()
-			return DailyContestEntryModel.fetchEntryPortfolioForDate({advisor: advisorId}, date)
-		} else {
+
+			return DailyContestEntryModel.fetchEntryPortfolioForDate({advisor: advisorId}, contestEndDate)
+		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
+		} else {
+			APIError.throwJsonError({message: `No Contest found for ${date}`});
 		}
 	})
 	.then(contestEntry => {
@@ -81,7 +103,7 @@ module.exports.getDailyContestEntry = (args, res, next) => {
 			//Update the contest entry for price and security detail - DONE
 			return DailyContestEntryHelper.getUpdatedPortfolio(contestEntry.portfolioDetail[0]);
 		} else {
-			APIError.throwJsonError({message: `No contest entry found for ${date}`});
+			APIError.throwJsonError({message: `No contest entry found for ${contestDate}`});
 		}
 	})
 	.then(updatedContestEntry => {
@@ -91,24 +113,26 @@ module.exports.getDailyContestEntry = (args, res, next) => {
 		console.log(err);
 		return res.status(400).send(err.message);		
 	});
-}catch(err) {
-	console.log(err);
-}
 };
 
+/*
+* Create new contest entry for the current contest (if any)
+*/
 module.exports.createDailyContestEntry = (args, res, next) => {
 	const userId = _.get(args, 'user._id', null);
 	const entryPositions = args.body.value.positions;
-	const contestDate = DailyContestHelper.getEffectiveContestDate();
-	let dailyContest;
+	
+	let dailyContest, contestStartDate, contestEndDate;
 
 	return Promise.all([
 		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
-		DailyContestModel.fetchContest({startDate: contestDate}, {fields: '_id'})
+		DailyContestHelper.getContestForDate(DateHelper.getCurrentDate(), {fields: 'startDate endDate'})
 	])
 	.then(([advisor, contest]) => {
 		if (advisor && contest) {
 			dailyContest = contest;
+			contestStartDate = contest.startDate;
+			contestEndDate = contest.endDate;
 
 			const advisorId = advisor._id.toString()
 			
@@ -122,7 +146,7 @@ module.exports.createDailyContestEntry = (args, res, next) => {
 					advisor: advisorId, 
 					modified: 1,
 					portfolioDetail: [{
-						positions: entryPositions, date: contestDate
+						positions: entryPositions, date: contestEndDate
 					}]
 				});
 		
@@ -139,7 +163,7 @@ module.exports.createDailyContestEntry = (args, res, next) => {
 	})
 	.then(contestEntered => {
 		//Update the contest entry for price if required
-		return DailyContestHelper.updateFinalPortfolio(contestDate, entryPositions);	
+		return DailyContestHelper.updateFinalPortfolio(contestStartDate, entryPositions);	
 	})
 	.then(final => {
 		return res.status(200).send("Entry created and contest entered Successfully");
@@ -150,25 +174,33 @@ module.exports.createDailyContestEntry = (args, res, next) => {
 	});
 };
 
+/*
+* Update contest entry for the current contest (if any)
+*/
 module.exports.updateDailyContestEntry = (args, res, next) => {
-	try {
-	
 	const userId = _.get(args, 'user._id', null);
 	const entryPositions = args.body.value.positions;
-	const entryDate = DailyContestHelper.getEffectiveContestDate();
-	let dailyContest, advisorId;
+	let dailyContest, advisorId, contestStartDate, contestEndDate;
 
 	let oldPositions;
 
-	return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
-	.then(advisor => {
-		if (advisor) {
+	return Promise.all([
+		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
+		DailyContestHelper.getContestForDate(DateHelper.getCurrentDate(), {fields: 'startDate endDate'})
+	])
+	.then(([advisor, contest]) => {
+		if (advisor && contest) {
 			advisorId = advisor._id.toString()
+			contestStartDate = contest.startDate;
+			contestEndDate = contest.endDate;
+
 			return DailyContestEntryModel.fetchEntryPortfolioForDate(
-					{advisor: advisorId}, entryDate); 
-		} else {
+					{advisor: advisorId}, contestEndDate); 
+		} else if (!advisor){
 			APIError.throwJsonError({message: "Not a valid user"});
-		} 
+		} else {
+			APIError.throwJsonError({message: "Not active contest found"});
+		}
 	})
 	.then(existingEntry => {
 
@@ -181,7 +213,7 @@ module.exports.updateDailyContestEntry = (args, res, next) => {
 
 			//Check if modified if less than 3 
 			if (existingEntryDetail.modified < config.get('max_dailyentry_changes')) {
-				const updates = {date: entryDate, positions: entryPositions};
+				const updates = {date: contestEndDate, positions: entryPositions};
 				return DailyContestEntryModel.updateEntryPortfolio({advisor: advisorId}, updates);
 			} else {
 				APIError.throwJsonError({message: "Entry can't be modified anymore! 3 attempts are over!"});
@@ -197,7 +229,7 @@ module.exports.updateDailyContestEntry = (args, res, next) => {
 	})
 	.then(entryUpdated => {
 		//Now update the final portfolio (after change in entry)
-		return DailyContestHelper.updateFinalPortfolio(entryDate, entryPositions, oldPositions);	
+		return DailyContestHelper.updateFinalPortfolio(contestStartDate, entryPositions, oldPositions);	
 	})
 	.then(fin => {
 		return res.status(200).send("Entry updated successfully");
@@ -206,10 +238,38 @@ module.exports.updateDailyContestEntry = (args, res, next) => {
 		console.log(err);
 		return res.status(400).send(err.message);		
 	});
-} catch(err) { 
-	console.log(err);
-}
 };
+
+//THIS IS BETTER TIMING TO HANDLE
+//Start date - When submisison starts
+//End date - When submission ends
+//Result Date - When results are declared
+
+/*
+	Calendar date - 11th September 
+	Starts - 11th Market Open
+	Ends - 11th Market Close
+	Results declared - 12th Market Close
+	Show your choice of stocks
+	PnL Job - Runs for contest where resultDate is today
+*/
+
+/*
+	Calendar date - 12th September 
+	Starts - 12th Market Open
+	Ends -  12th Market Close
+	Show your choice of stocks
+	Results declared - on 13th or next business day 
+*/
+
+/*
+	Calendar date - Now (9th Night)
+	Shows timer to upcoming contest tomorrow morning
+	Starts - 10th Market Open
+	Ends - 10th Market Close
+	Show your choice of stocks/Ability 
+	Results declared - on 11th 
+*/
 
 
 

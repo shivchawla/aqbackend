@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-27 20:49:28
+* @Last Modified time: 2018-09-10 12:11:44
 */
 
 module.exports.compareDates = function(date1, date2) {
@@ -108,7 +108,7 @@ module.exports.getFirstMonday = function(offset) {
 };
 
 module.exports.getLatestWeekday = function(date) {
-	date = !date ? exports.getCurrentDate() : date;
+	date = !date ? exports.getCurrentDate() : exports.getDate(date);
 
 	var day = date.getDay();
 	if (!(day == 0 || day == 6)){
@@ -119,7 +119,7 @@ module.exports.getLatestWeekday = function(date) {
 }
 
 module.exports.getNextWeekday = function(date) {
-	date = !date ? exports.getCurrentDate() : date;
+	date = !date ? exports.getCurrentDate() : exports.getDate(date);
 	var day = date.getDay();
 
 	if (day == 6) { //Saturday
@@ -135,7 +135,7 @@ module.exports.getNextWeekday = function(date) {
 
 
 module.exports.formatDate = function(date) {
-	date = !date ? exports.getCurrentDate() : date; 
+	date = !date ? exports.getCurrentDate() : exports.getDate(date); 
 	
 	var month = date.getMonth() + 1;
     return date.getFullYear()+"-"+(month < 10 ? `0${month}` : month)+"-"+date.getDate();    

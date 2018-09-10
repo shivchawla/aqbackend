@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:31:05
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-09 17:55:13
+* @Last Modified time: 2018-09-10 14:18:53
 */
 
 'use strict';
@@ -50,6 +50,16 @@ const DailyContest = new Schema({
     endDate: {
         type: Date,
         required: true
+    },
+
+    resultDate: {
+        type: Date,
+        required: true
+    },
+
+    active: {
+        type: Boolean,
+        default: false
     },
 
     entries: [{type: Schema.Types.ObjectId, ref: 'DailyContestEntry'}],
@@ -151,7 +161,7 @@ DailyContest.statics.fetchContest = function(query, options = {}) {
     return q.execAsync()
     .then(contest => {
         const showEntries = options.fields.indexOf('entries') !== -1;
-        if (showEntries) {
+        if (showEntries && contest) {
             let entries = contest.entries;
 
             contest = {...contest.toObject(), entriesCount: entries.length};
