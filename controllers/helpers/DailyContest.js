@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-10 14:32:01
+* @Last Modified time: 2018-09-11 11:37:54
 */
 
 'use strict';
@@ -225,12 +225,14 @@ module.exports.updateAllEntriesPnlStats = function(){
 module.exports.updateDailyContestWinners = function() {
 	//Find all active entries for today
 	let lastActiveContestId;
-	return exports.getContestWithResultToday({field:'_id entries endDate', entries: {all: true}})
+	let totalPositions;
+	return exports.getContestWithResultToday({field:'_id entries endDate totalPositions', entries: {all: true}})
 	.then(contest => {
 		if (contest) {
 			lastActiveContestId = contest._id;
 			var allEntries = contest.entries;
 			let entryDate = contest.endDate;
+			totalPositions = contest.totalPositions;
 
 			return Promise.mapSeries(allEntries, function(entry) {
 				return DailyContestEntryHelper.getContestEntryPnlStats(entry, entryDate);
@@ -240,19 +242,22 @@ module.exports.updateDailyContestWinners = function() {
 		}
 	})
 	.then(pnlStatsAllAdvisors => {
-		pnlStatsAllAdvisors.sort((a,b) => {
+		let i = 1;
+		
+		var winners = pnlStatsAllAdvisors.sort((a,b) => {
 			return a.pnlStats.totalPnl > b.pnlStats.totalPnl ? -1 : a.pnlStats.totalPnl == b.pnlStats.totalPnl ? 0 : 1; 
-		});
-
-		var winners = pnlStatsAllAdvisors.slice(0, 3);
-
-		let i=1;
-		winners.map(item => {
+		}).slice(0, 3).map(item => {
 			item.rank = i++;
 			return item;
 		});
 
-		return DailyContestModel.updateContest({_id: lastActiveContestId}, {winners: winners, active: false});
+		var topStocks = totalPositions.sort((a,b) => {
+			return a.investment > b.investment ? -1 : a.investment == b.investment ? 0 : 1;
+		}).slice(0, 5).map(item => {
+			return _.pick(item, ['security', 'numUsers']);
+		});
+
+		return DailyContestModel.updateContest({_id: lastActiveContestId}, {winners: winners, topStocks: topStocks, active: false});
 	})
 	.catch(err => {
 		console.log(err.message);

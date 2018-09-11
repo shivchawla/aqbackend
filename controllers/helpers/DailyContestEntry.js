@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-10 14:30:51
+* @Last Modified time: 2018-09-11 13:40:25
 */
 
 'use strict';
@@ -177,8 +177,10 @@ module.exports.updateContestEntryPnlStats = function(entryId, date) {
 module.exports.getContestEntryPnlStats = function(entryId, date) {
 	return DailyContestEntryModel.fetchEntryPnlStatsForDate({_id: entryId}, date)
 	.then(contestEntry => {
-		if (contestEntry.performance.daily && contestEntry.performance.daily.length > 0) {
+		if (_.get(contestEntry, 'performance.daily', null) && contestEntry.performance.daily.length > 0) {
 			return {advisor: contestEntry.advisor, pnlStats: contestEntry.performance.daily[0].pnlStats};
+		} else {
+			APIError.throwJsonError({message: "No performance found"});
 		}
 	})
 	

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:31:05
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-10 14:18:53
+* @Last Modified time: 2018-09-11 11:37:15
 */
 
 'use strict';
@@ -68,6 +68,11 @@ const DailyContest = new Schema({
         advisor: {type: Schema.Types.ObjectId, ref: 'Advisor'},
         rank: Number,
         pnlStats: Schema.Types.Mixed
+    }],
+
+    topStocks: [{
+        security: Security,
+        numUsers: Number,
     }],
 
     totalPositions:[{
