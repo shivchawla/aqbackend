@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-11 11:37:54
+* @Last Modified time: 2018-09-11 17:04:44
 */
 
 'use strict';
@@ -14,6 +14,7 @@ const moment = require('moment-timezone');
 const config = require('config');
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
+const sendEmail = require('../../email');
 
 const UserModel = require('../../models/user');
 const DailyContestModel = require('../../models/Marketplace/DailyContest');
@@ -74,7 +75,6 @@ module.exports.getEffectiveContestDate = function(date) {
 }
 
 module.exports.getStartDateForNewContest = function(date) {
-	try {
 	var datetimeIndia = (date ? moment(new Date(date)) : moment()).tz(indiaTimeZone);
 	var currentDatetimeIndia = moment().tz(indiaTimeZone);
 
@@ -101,10 +101,7 @@ module.exports.getStartDateForNewContest = function(date) {
 	}
 
 	return moment(_finalStartDate).set({hour: marketOpenHour, minute: marketOpenMinute}).tz(indiaTimeZone).local();
-} catch (err) {
-	console.log(err);
-}
-}
+};
 
 module.exports.getEndDateForNewContest = function(date) {
 	var startdate = exports.getStartDateForNewContest(date);
@@ -257,7 +254,25 @@ module.exports.updateDailyContestWinners = function() {
 			return _.pick(item, ['security', 'numUsers']);
 		});
 
-		return DailyContestModel.updateContest({_id: lastActiveContestId}, {winners: winners, topStocks: topStocks, active: false});
+		return DailyContestModel.updateContest({_id: lastActiveContestId}, {winners: winners, topStocks: topStocks, active: false}, {new: true, fields:'winners topStocks'});
+	})
+	.then(updatedContest => {
+		if (updatedContest) {
+			let winners = updatedContest.winners;
+			let topStocks = updatedContest.topStocks;
+			let dailyContestUrl = `${config.get('hostname')}/dailycontest/${lastActiveContestId}/leaderboard`;
+			
+			return Promise.mapSeries(winners, function(winner){
+				return AdvisorModel.fetchAdvisor({_id: winner.advisor})
+				.then(advisor => {
+					if (advisor.user && process.env.NODE_ENV === 'production') {
+						return sendEmail.sendDailyContestWinnerEmail({dailycontestUrl}, advisor.user);
+					} else {
+						console.log("Virtual email sent in development");
+					}
+				});
+			});	
+		}
 	})
 	.catch(err => {
 		console.log(err.message);

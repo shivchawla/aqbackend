@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-10 14:30:51
+* @Last Modified time: 2018-09-11 17:03:04
 */
 
 'use strict';
@@ -57,7 +57,7 @@ module.exports.getDailyContest = (args, res, next) => {
 	const _d = _.get(args, 'date.value', '');
 	const date = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
 
-	return DailyContestHelper.getContestForDate(date, {fields:'startDate endDate resultDate winners active'})
+	return DailyContestHelper.getContestForDate(date, {fields:'startDate endDate resultDate winners topStocks active'})
 	.then(contest => {
 		if (contest) {
 			return res.status(200).send(contest);
@@ -270,14 +270,3 @@ module.exports.updateDailyContestEntry = (args, res, next) => {
 	Show your choice of stocks/Ability 
 	Results declared - on 11th 
 */
-
-
-
-
-
-
-
-
-
-
-
