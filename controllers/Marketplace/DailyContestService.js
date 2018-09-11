@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-11 17:03:04
+* @Last Modified time: 2018-09-11 17:43:26
 */
 
 'use strict';
@@ -103,7 +103,7 @@ module.exports.getDailyContestEntry = (args, res, next) => {
 			//Update the contest entry for price and security detail - DONE
 			return DailyContestEntryHelper.getUpdatedPortfolio(contestEntry.portfolioDetail[0]);
 		} else {
-			APIError.throwJsonError({message: `No contest entry found for ${contestDate}`});
+			APIError.throwJsonError({message: `No contest entry found for ${contestEndDate}`});
 		}
 	})
 	.then(updatedContestEntry => {
