@@ -57,7 +57,13 @@ module.exports.getDailyContest = (args, res, next) => {
 	const _d = _.get(args, 'date.value', '');
 	const date = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
 
-	return DailyContestHelper.getContestForDate(date, {fields:'startDate endDate resultDate winners active'})
+	return DailyContestHelper.getContestForDate(
+		date, 
+		{
+			fields:'startDate endDate resultDate winners topStocks active',
+			populate: 'winners'
+		}
+	)
 	.then(contest => {
 		if (contest) {
 			return res.status(200).send(contest);
@@ -103,7 +109,7 @@ module.exports.getDailyContestEntry = (args, res, next) => {
 			//Update the contest entry for price and security detail - DONE
 			return DailyContestEntryHelper.getUpdatedPortfolio(contestEntry.portfolioDetail[0]);
 		} else {
-			APIError.throwJsonError({message: `No contest entry found for ${contestDate}`});
+			APIError.throwJsonError({message: `No contest entry found for ${_d}`});
 		}
 	})
 	.then(updatedContestEntry => {
@@ -122,7 +128,8 @@ module.exports.createDailyContestEntry = (args, res, next) => {
 	const userId = _.get(args, 'user._id', null);
 	const entryPositions = args.body.value.positions;
 	
-	let dailyContest, contestStartDate, contestEndDate;
+	let dailyContest, contestStartDate, contestEndDate, advisorId;
+	let alreadyExists = false;
 
 	return Promise.all([
 		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
@@ -133,24 +140,9 @@ module.exports.createDailyContestEntry = (args, res, next) => {
 			dailyContest = contest;
 			contestStartDate = contest.startDate;
 			contestEndDate = contest.endDate;
-
-			const advisorId = advisor._id.toString()
+			advisorId = advisor._id.toString();
 			
 			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
-			.then(contestEntry => {
-				if (contestEntry) {
-					APIError.throwJsonError({message: "Contest Entry already exists for the user"});
-				}
-
-				return DailyContestEntryModel.createEntry({
-					advisor: advisorId, 
-					modified: 1,
-					portfolioDetail: [{
-						positions: entryPositions, date: contestEndDate
-					}]
-				});
-		
-			});
 		} else if (!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} else {
@@ -158,8 +150,29 @@ module.exports.createDailyContestEntry = (args, res, next) => {
 		}
 	})
 	.then(contestEntry => {
+		if (contestEntry) {
+			const updates = {date: contestEndDate, positions: entryPositions};
+
+			return DailyContestEntryModel.updateEntryPortfolio({advisor: advisorId}, updates, {new:true, fields:'_id'});
+			//APIError.throwJsonError({message: "Contest Entry already exists for the user"});
+		} else{
+
+			return DailyContestEntryModel.createEntry({
+				advisor: advisorId, 
+				modified: 1,
+				portfolioDetail: [{
+					positions: entryPositions, date: contestEndDate
+				}]
+			});
+		}
+
+	})
+	.then(contestEntry => {
+		console.log('Daily Contest', dailyContest);
+		console.log('Contest Entry', contestEntry);
 		//Now entery Contest
 		return DailyContestModel.enterContest({_id: dailyContest._id}, contestEntry._id);
+		
 	})
 	.then(contestEntered => {
 		//Update the contest entry for price if required

@@ -98,15 +98,22 @@ DailyContestEntry.statics.createEntry = function(contestEntry) {
     return this.findOneAndUpdate(query, {$push: {detail: {...portfolio, modified: 0}}});
 }*/
 
-DailyContestEntry.statics.updateEntryPortfolio = function(query, portfolio) {
+DailyContestEntry.statics.updateEntryPortfolio = function(query, portfolio, options) {
     const date = portfolio.date;
-    const updates = {
-    	$set: {'portfolioDetail.$.positions': portfolio.positions},
-     	$inc: {'portfolioDetail.$.modified': 1}
- 	};
-
-    return this.findOneAndUpdate({...query, 'portfolioDetail.date':{$eq: date}}, updates);
-    
+    let updates = {
+		$set: {'portfolioDetail.$.positions': portfolio.positions},
+		$inc: {'portfolioDetail.$.modified': 1}
+	};	
+	let q = {...query, 'portfolioDetail.date':{$eq: date}};
+	return this.findOne(q)
+	.then(found => {
+		if (found) {
+			return this.findOneAndUpdate(q, updates, options)
+		} else {
+			updates = {$push: {portfolioDetail: portfolio}};
+			return this.update(query, updates, options);
+		}
+	})
 };
 
 DailyContestEntry.statics.updateEntryPnlStats = function(query, pnlStats, date) {

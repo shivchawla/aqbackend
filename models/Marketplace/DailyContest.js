@@ -144,7 +144,7 @@ DailyContest.statics.fetchContest = function(query, options = {}) {
 
     if (options.populate.indexOf('winners') !== -1) {
         q = q.select('winners').populate({
-            path: 'advisor',
+            path: 'winners.advisor',
             select: 'user',
             populate: {
                 path: 'user',
