@@ -153,33 +153,43 @@ function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRank
             let i=0;
             while(rawWinners.length < numWinners*3) {
                 const rankingData = currentAdviceRankingData[i++];
-
                 const currentAdviceIdx = _.findIndex(currentAdviceRankingData, adviceData => adviceData.adviceId === (rankingData.adviceId).toString());
                 const simulatedAdviceIdx = _.findIndex(simulatedAdviceRankingData, adviceData => adviceData.adviceId === (rankingData.adviceId).toString());
                 const currentRatingValue = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rating`, null);
                 const simulatedRatingValue = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rating`, null);
                 const currentRatingRank = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rank`, null);
                 const simulatedRatingRank = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rank`, null);
-                     
-                rawWinners.push({
-                    advice: rankingData.adviceId,
-                    rank: {
-                        value: _.get(rankingData, 'rank', null), 
-                        date, 
-                        rating: {
-                            current: {
-                                value: currentRatingValue,
-                                rank: currentRatingRank,
-                                detail: getAdviceRatingDetail(rankingDetail, (rankingData.adviceId).toString(), 'current')
-                            },
-                            simulated: {
-                                value: simulatedRatingValue,
-                                rank: simulatedRatingRank,
-                                detail: getAdviceRatingDetail(rankingDetail, (rankingData.adviceId).toString(), 'simulated')
+                
+                var currentDetail = getAdviceRatingDetail(rankingDetail, (rankingData.adviceId).toString(), 'current');  
+
+                var totalReturnIdx = currentDetail.findIndex(item => {return item.field == "totalReturn";});
+                let totalReturn = Infinity;
+
+                if (totalReturnIdx != -1) {
+                    totalReturn = currentDetail[totalReturnIdx].metricValue;
+                }
+
+                if (totalReturn > 0) {
+                    rawWinners.push({
+                        advice: rankingData.adviceId,
+                        rank: {
+                            value: _.get(rankingData, 'rank', null), 
+                            date, 
+                            rating: {
+                                current: {
+                                    value: currentRatingValue,
+                                    rank: currentRatingRank,
+                                    detail: currentDetail
+                                },
+                                simulated: {
+                                    value: simulatedRatingValue,
+                                    rank: simulatedRatingRank,
+                                    detail: getAdviceRatingDetail(rankingDetail, (rankingData.adviceId).toString(), 'simulated')
+                                }
                             }
-                        }
-                    },
-                });
+                        },
+                    });
+                }
             } //While ends
 
             return Promise.map(rawWinners, function(winner) {
@@ -338,7 +348,10 @@ module.exports.updateAnalytics = function(contestId) {
         } else {
             return contest;
         }
-    });
+    })
+    .catch(err => {
+        console.log(err);
+    })
 };
 
 module.exports.updateAllAnalytics = () => {

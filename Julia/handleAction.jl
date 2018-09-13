@@ -312,7 +312,7 @@ function handleRequest(parsemsg::Dict{String, Any})
             date = date == "" ? currentIndiaTime() : DateTime(date, jsdateformat)
             typ = parsemsg["type"]
             
-            (updatedDate, updated_portfolio) = updateportfolio_price(portfolio, date, typ)
+            (updatedDate, updated_portfolio) = update_portfolio_price(portfolio, date, typ)
             
             #Update, the positions to match the object structure in Node
             parsemsg["output"] = convert_to_node_portfolio(updated_portfolio)["positions"]
