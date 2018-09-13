@@ -39,6 +39,7 @@ module.exports.goals = [
 const Inf = 1000000000;
 
 module.exports.contestRatingFields = [
+	{field:"monthly.totalReturn", multiplier:0, outputField: "totalReturn", default: -Inf, scale: 0}
 	{field:"monthly.diff.annualReturn", multiplier:1, outputField: "annualReturn", default: -Inf, scale: 100}, //Ability to beat the market 
 	{field:"monthly.diff.volatility", multiplier:-1, outputField: "volatility", default: Inf, scale: 50},  //Riskiness
 	{field:"monthly.diff.maxLoss", multiplier:-1, outputField: "maxLoss", default: Inf, scale: 50}, //Downside Risk

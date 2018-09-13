@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-11 11:37:54
+* @Last Modified time: 2018-09-11 19:59:11
 */
 
 'use strict';
@@ -14,10 +14,12 @@ const moment = require('moment-timezone');
 const config = require('config');
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
+const sendEmail = require('../../email');
 
 const UserModel = require('../../models/user');
 const DailyContestModel = require('../../models/Marketplace/DailyContest');
 const DailyContestEntryHelper = require('./DailyContestEntry');
+const SecurityHelper = require('./Security');
 
 const indiaTimeZone = "Asia/Kolkata";
 
@@ -74,7 +76,6 @@ module.exports.getEffectiveContestDate = function(date) {
 }
 
 module.exports.getStartDateForNewContest = function(date) {
-	try {
 	var datetimeIndia = (date ? moment(new Date(date)) : moment()).tz(indiaTimeZone);
 	var currentDatetimeIndia = moment().tz(indiaTimeZone);
 
@@ -101,10 +102,7 @@ module.exports.getStartDateForNewContest = function(date) {
 	}
 
 	return moment(_finalStartDate).set({hour: marketOpenHour, minute: marketOpenMinute}).tz(indiaTimeZone).local();
-} catch (err) {
-	console.log(err);
-}
-}
+};
 
 module.exports.getEndDateForNewContest = function(date) {
 	var startdate = exports.getStartDateForNewContest(date);
@@ -225,23 +223,33 @@ module.exports.updateAllEntriesPnlStats = function(){
 module.exports.updateDailyContestWinners = function() {
 	//Find all active entries for today
 	let lastActiveContestId;
-	let totalPositions;
 	return exports.getContestWithResultToday({field:'_id entries endDate totalPositions', entries: {all: true}})
 	.then(contest => {
 		if (contest) {
 			lastActiveContestId = contest._id;
 			var allEntries = contest.entries;
 			let entryDate = contest.endDate;
-			totalPositions = contest.totalPositions;
+			let totalPositions = contest.totalPositions;
 
-			return Promise.mapSeries(allEntries, function(entry) {
-				return DailyContestEntryHelper.getContestEntryPnlStats(entry, entryDate);
-			})
+			return Promise.all([
+				//P1
+				Promise.mapSeries(allEntries, function(entry) {
+					return DailyContestEntryHelper.getContestEntryPnlStats(entry, entryDate);
+				}),
+				//P2
+				Promise.mapSeries(totalPositions, function(position) {
+					return SecurityHelper.getStockLatestDetail(position.security)
+					.then(securityDetail => {
+						position.security = securityDetail;
+						return position;
+					})
+				})
+			]);
 		} else {
 			APIError.throwJsonError({message: "No contest with result date today"})
 		}
 	})
-	.then(pnlStatsAllAdvisors => {
+	.then(([pnlStatsAllAdvisors, populatedTotalPositions]) => {
 		let i = 1;
 		
 		var winners = pnlStatsAllAdvisors.sort((a,b) => {
@@ -251,13 +259,31 @@ module.exports.updateDailyContestWinners = function() {
 			return item;
 		});
 
-		var topStocks = totalPositions.sort((a,b) => {
+		var topStocks = populatedTotalPositions.sort((a,b) => {
 			return a.investment > b.investment ? -1 : a.investment == b.investment ? 0 : 1;
 		}).slice(0, 5).map(item => {
 			return _.pick(item, ['security', 'numUsers']);
 		});
 
-		return DailyContestModel.updateContest({_id: lastActiveContestId}, {winners: winners, topStocks: topStocks, active: false});
+		return DailyContestModel.updateContest({_id: lastActiveContestId}, {winners: winners, topStocks: topStocks, active: false}, {new: true, fields:'winners topStocks'});
+	})
+	.then(updatedContest => {
+		if (updatedContest) {
+			let winners = updatedContest.winners;
+			let topStocks = updatedContest.topStocks;
+			let dailyContestUrl = `${config.get('hostname')}/dailycontest/${lastActiveContestId}/leaderboard`;
+			
+			return Promise.mapSeries(winners, function(winner){
+				return AdvisorModel.fetchAdvisor({_id: winner.advisor})
+				.then(advisor => {
+					if (advisor.user && process.env.NODE_ENV === 'production') {
+						return sendEmail.sendDailyContestWinnerEmail({dailycontestUrl}, advisor.user);
+					} else {
+						console.log("Virtual email sent in development");
+					}
+				});
+			});	
+		}
 	})
 	.catch(err => {
 		console.log(err.message);

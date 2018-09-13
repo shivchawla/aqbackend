@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-04-26 10:01:04
+* @Last Modified time: 2018-09-11 15:55:07
 */
 'use strict';
 
@@ -184,7 +184,7 @@ Advisor.statics.fetchAdvisors = function(query, options) {
 Advisor.statics.fetchAdvisor = function(query, options) {
 	//FETCH creates a new document with default if insert is TRUE
 	var q = this.findOneAndUpdate(query, {}, {upsert: options.insert, new: options.insert, setDefaultsOnInsert: options.insert})
-			.populate('user', 'firstName lastName');
+			.populate('user', 'firstName lastName email');
 
 	if(options.fields) {
 		//options.fields = options.fields.replace(',',' ');

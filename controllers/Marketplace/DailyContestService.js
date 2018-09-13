@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-10 14:30:51
+* @Last Modified time: 2018-09-11 17:43:26
 */
 
 'use strict';
@@ -283,14 +283,3 @@ module.exports.updateDailyContestEntry = (args, res, next) => {
 	Show your choice of stocks/Ability 
 	Results declared - on 11th 
 */
-
-
-
-
-
-
-
-
-
-
-

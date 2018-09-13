@@ -613,7 +613,7 @@ end
 ###
 # Function to update portfolio with latest price
 ###
-function updateportfolio_price(port::Dict{String, Any}, end_date::DateTime = currentIndiaTime(), typ::String = "EOD")
+function update_portfolio_price(port::Dict{String, Any}, end_date::DateTime = currentIndiaTime(), typ::String = "EOD")
     try
         portfolio = convert(Raftaar.Portfolio, port)    
 
@@ -641,7 +641,6 @@ function update_raftaarportfolio_price(portfolio, end_date::DateTime = currentIn
         rethrow(err)
     end
 end
-
 
 ###
 # Function to update portfolio with latest price
@@ -794,7 +793,6 @@ function compute_portfolio_metrics(port::Dict{String, Any}, start_date::DateTime
     end
 end
 
-
 ###
 # Function to compute averageprice of current holdings
 # Used for advice portfolio (As advice portfolio doesn't have any transactions)
@@ -868,7 +866,6 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
 
     return now(), newPortfolio
 end
-
 
 function update_dollarportfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}})
     #n1,p1  n2,p2
@@ -946,8 +943,6 @@ function update_dollarportfolio_averageprice(portfolioHistory::Vector{Dict{Strin
     return now(), newPortfolio
 end
 
-
-
 function compute_portfolioTransactions(newPortfolio, currentPortfolio)
     startDate = DateTime(newPortfolio["startDate"], jsdateformat)
 
@@ -1021,7 +1016,6 @@ function compute_portfolioTransactions(newPortfolio, currentPortfolio)
     end
 
     return (Date(startDate), transactions)
-    
 end
 
 function compute_fractional_ranking(vals::Dict{String, Float64}, scale::Float64)
@@ -1057,7 +1051,7 @@ function compute_fractional_ranking(vals::Dict{String, Float64}, scale::Float64)
         frDict = Dict{String, Float64}()
         
         for (i, k) in enumerate(ksWithoutNaN)
-            frDict[k] = fr[i]
+            frDict[k] = !isnan(fr[i]) ? fr[i] : 0.0
         end
 
         for (i, k) in enumerate(ksWithNaN)
