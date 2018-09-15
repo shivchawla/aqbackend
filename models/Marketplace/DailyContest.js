@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:31:05
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-11 17:01:56
+* @Last Modified time: 2018-09-15 20:19:10
 */
 
 'use strict';
@@ -77,7 +77,9 @@ const DailyContest = new Schema({
 
     totalPositions:[{
         security: Security,
-        investment: Number,
+        netInvestment: Number,
+        longInvestment: Number,
+        shortInvestment:Number,
         numUsers: Number
     }]
 });

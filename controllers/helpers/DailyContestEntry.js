@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-11 13:40:25
+* @Last Modified time: 2018-09-13 18:45:35
 */
 
 'use strict';
@@ -172,7 +172,6 @@ module.exports.updateContestEntryPnlStats = function(entryId, date) {
 		return DailyContestEntryModel.updateEntryPnlStats({_id: entryId}, pnlStats, date);
 	});
 };
-
 
 module.exports.getContestEntryPnlStats = function(entryId, date) {
 	return DailyContestEntryModel.fetchEntryPnlStatsForDate({_id: entryId}, date)

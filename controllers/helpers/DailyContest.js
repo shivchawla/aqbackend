@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-11 19:59:11
+* @Last Modified time: 2018-09-15 20:22:18
 */
 
 'use strict';
@@ -17,6 +17,7 @@ const APIError = require('../../utils/error');
 const sendEmail = require('../../email');
 
 const UserModel = require('../../models/user');
+const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestModel = require('../../models/Marketplace/DailyContest');
 const DailyContestEntryHelper = require('./DailyContestEntry');
 const SecurityHelper = require('./Security');
@@ -107,7 +108,7 @@ module.exports.getStartDateForNewContest = function(date) {
 module.exports.getEndDateForNewContest = function(date) {
 	var startdate = exports.getStartDateForNewContest(date);
 	return moment(startdate).set({hour: marketCloseHour, minute: marketCloseMinute}).tz(indiaTimeZone).local();
-}
+};
 
 module.exports.getResultDateForNewContest = function(date) {
 	var contestEndDate = exports.getEndDateForNewContest(date);
@@ -165,7 +166,9 @@ module.exports.updateFinalPortfolio = function(date, newPositions, oldPositions)
 				var idx = totalPositions.findIndex(item => {return item.security.ticker == newItem.security.ticker});
 				
 				if (idx !=-1) {
-					totalPositions[idx].investment += newItem.investment;
+					totalPositions[idx].netInvestment += newItem.investment;
+					totalPositions[idx].longInvestment += newItem.investment > 0 ? newItem.investment : 0;
+					totalPositions[idx].shortInvestment += newItem.investment < 0 ? newItem.investment : 0;
 					totalPositions[idx].numUsers ++;
 				} else {
 					totalPositions.push({...newItem, numUsers: 1});
@@ -180,7 +183,9 @@ module.exports.updateFinalPortfolio = function(date, newPositions, oldPositions)
 					var idx = totalPositions.findIndex(item => {return item.security.ticker == oldItem.security.ticker});
 					
 					if (idx !=-1) {
-						totalPositions[idx].investment -= oldItem.investment;
+						totalPositions[idx].netInvestment -= oldItem.investment;
+						totalPositions[idx].longInvestment -= oldItem.investment > 0 ? oldItem.investment : 0;
+						totalPositions[idx].shortInvestment -= oldItem.investment < 0 ? oldItem.investment : 0;
 						totalPositions[idx].numUsers--;
 					} else {
 						console.log("OOPS!! Old Position not found! This should not happen");
@@ -229,7 +234,7 @@ module.exports.updateDailyContestWinners = function() {
 			lastActiveContestId = contest._id;
 			var allEntries = contest.entries;
 			let entryDate = contest.endDate;
-			let totalPositions = contest.totalPositions;
+			let totalPositions = contest.totalPositions.toObject();
 
 			return Promise.all([
 				//P1
@@ -250,6 +255,7 @@ module.exports.updateDailyContestWinners = function() {
 		}
 	})
 	.then(([pnlStatsAllAdvisors, populatedTotalPositions]) => {
+
 		let i = 1;
 		
 		var winners = pnlStatsAllAdvisors.sort((a,b) => {
@@ -260,7 +266,7 @@ module.exports.updateDailyContestWinners = function() {
 		});
 
 		var topStocks = populatedTotalPositions.sort((a,b) => {
-			return a.investment > b.investment ? -1 : a.investment == b.investment ? 0 : 1;
+			return a.netInvestment > b.netInvestment ? -1 : a.netInvestment == b.netInvestment ? 0 : 1;
 		}).slice(0, 5).map(item => {
 			return _.pick(item, ['security', 'numUsers']);
 		});
@@ -274,7 +280,7 @@ module.exports.updateDailyContestWinners = function() {
 			let dailyContestUrl = `${config.get('hostname')}/dailycontest/${lastActiveContestId}/leaderboard`;
 			
 			return Promise.mapSeries(winners, function(winner){
-				return AdvisorModel.fetchAdvisor({_id: winner.advisor})
+				return AdvisorModel.fetchAdvisor({_id: winner.advisor}, {insert: true})
 				.then(advisor => {
 					if (advisor.user && process.env.NODE_ENV === 'production') {
 						return sendEmail.sendDailyContestWinnerEmail({dailycontestUrl}, advisor.user);
