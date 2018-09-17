@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-13 18:45:35
+* @Last Modified time: 2018-09-15 20:31:58
 */
 
 'use strict';
@@ -31,7 +31,7 @@ function _computePnlStats(portfolio) {
 	var maxPnl;
 
 	portfolio.positions.forEach(item => {
-		cost += item.investment
+		cost += Math.abs(item.investment)
 		var _cv = item.avgPrice > 0.0 ? item.investment * (item.lastPrice/item.avgPrice) : item.investment
 		var currentValue = _cv + (item.dividendCash ? item.dividendCash : 0.0);
 		
@@ -75,7 +75,7 @@ function _populateStats(portfolio) {
 		var positions = _.get(port, 'positions', []);
 
 		positions.forEach(item => {
-		 	totalVal += item.avgPrice > 0.0 ? (item.investment/item.avgPrice)*item.lastPrice : item.investment;
+		 	totalVal += Math.abs(item.avgPrice > 0.0 ? (item.investment/item.avgPrice)*item.lastPrice : item.investment);
 		});
 
 		positions.map(item => {
@@ -84,7 +84,7 @@ function _populateStats(portfolio) {
 			item.weightInPortfolio = weight;
 			//Added unrealized PnL (and %).
 			item.unrealizedPnl = value - item.investment;
-			item.unrealizedPnlPct = item.investment > 0 ? (value - item.investment)/item.investment : 0.0;
+			item.unrealizedPnlPct = Math.abs(item.investment) > 0 ? (value - item.investment)/Math.abs(item.investment) : 0.0;
 			
 			return item;
 		});
