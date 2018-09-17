@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-18 19:51:45
+* @Last Modified time: 2018-09-17 11:17:25
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -220,15 +220,19 @@ module.exports.getStockLatestDetail = function(security, type) {
 		.then(securityPerformance => {
 			var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
 			if(update) {
-				return _computeStockLatestDetail(security, type)
-				.then(detail => {
+				return Promise.all([
+					_computeStockLatestDetail(security, type),
+					_getSecurityDetail(security)
+				])
+				.then(([performanceDetail, securityDetail]) => {
 					if (type == "EOD") {
-						return SecurityPerformanceModel.updateLatestDetail(query, detail)
+						return SecurityPerformanceModel.updateLatestDetail(query, performanceDetail)
 						.then(performance => {
 							resolve(performance.toObject());
 						});
 					} else {
-						resolve(Object.assign({}, security, {latestDetail: detail}));
+						security.detail = securityDetail;
+						resolve(Object.assign({}, security, {latestDetail: performanceDetail}));
 					}
 					
 				});
@@ -332,19 +336,14 @@ function _computeStockLatestDetail(security, type) {
 function _computeStockPerformance(security) {
 	return new Promise(resolve => {
 		
-		_getSecurityDetail(security)
-			//_computeStockStaticPerformanceDetail(security),
-			//_computeStockRollingPerformanceDetail(security),
-			//_computeStockPriceHistory(security),
-			//_computeStockLatestDetail(security)
-		//])
-		.then(securityDetail => { //, staticDetail, rollingDetail, priceHistory, latestDetail]) => {
+		Promise.all([
+			_getSecurityDetail(security),
+			_computeStockRollingPerformanceDetail(security)
+		])
+		.then(([securityDetail, rollingDetail]) => {
 			var updates = {
 				"security.detail": securityDetail,
-				//staticPerformance: {detail:staticDetail, updatedDate: new Date()}, 
-				//rollingPerformance: {detail:rollingDetail, updatedDate: new Date()},
-				//priceHistory: {values: priceHistory.filter(item => {return item.price !=null}), updatedDate: new Date()},
-				//latestDetail: {values: latestDetail, updatedDate: new Date()},
+				rollingPerformance: {detail:rollingDetail, updatedDate: new Date()},
 			};
 
 			resolve(updates);
@@ -357,30 +356,39 @@ function _computeStockPerformance(security) {
 };
 
 module.exports.updateStockList = function() {
+
+	console.log("Shivaaa");
+
 	return exports.countSecurities()
 	.then(count => {
 		return exports.findSecurities("", 0);	
 	})
 	.then(securities => {
-		return Promise.mapSeries(securities, function(security) {
-			const query = {'security.ticker': security.ticker,
-					'security.exchange': security.exchange,
-					'security.securityType': security.securityType,
-					'security.country': security.country
-				};
+		return Promise.map(securities, function(security) {
+			if (security.ticker != "") {
+				const query = {'security.ticker': security.ticker,
+						'security.exchange': security.exchange,
+						'security.securityType': security.securityType,
+						'security.country': security.country
+					};
 
-			const sec = {ticker: security.ticker,
-					exchange: security.exchange,
-					securityType: security.securityType,
-					country: security.country
-				};		
-			return _computeStockPerformance(sec)
-			.then(pf => {
-				//console.log(pf);
-				//return;
-				return SecurityPerformanceModel.updateSecurityPerformance(query, pf);
-			});	
-		});
+				const sec = {ticker: security.ticker,
+						exchange: security.exchange,
+						securityType: security.securityType,
+						country: security.country
+					};		
+				return _computeStockPerformance(sec)
+				.then(pf => {
+					console.log(security);
+					
+					//return;
+					return SecurityPerformanceModel.updateSecurityPerformance(query, pf);
+				});
+			} else {
+				return;
+			}	
+			//ADDING CONCURRENCY TO LIMIT SIMULTAENOUS EXECUTION LIMIT to 4
+		}, {concurrency: 4});
 	})
 	.catch(err => {
 		console.log(err);
@@ -398,6 +406,27 @@ module.exports.updateRealtimePrices = function(fname, type) {
     })
 };
 
+
+function _getRawStockList(fname) {
+	return new Promise(resolve => {
+		let universeList = [];
+		if (fs.existsSync(fname)){
+			csv.fromPath(fname, {headers:true})
+		    .on("data", function(data){
+		        universeList.push(data.Symbol);
+		    })
+		    .on("end", function(){
+		        resolve(universeList);
+		    })
+		    .on("error" , function(err) {
+		    	resolve([]);
+		    });
+		} else {
+			resolve([]);
+		}
+	});
+}
+
 module.exports.getStockList = function(search, options) {
 	const universe = options.universe;
 	const sector = options.sector;
@@ -405,35 +434,25 @@ module.exports.getStockList = function(search, options) {
 	const skip = _.get(options, 'skip', 0);
 	const limit = _.get(options, 'limit', 0);
 
+	let shortableUniverseList;
 	return Promise.resolve()
 	.then(() => {	
-		return new Promise(resolve => {
-			if (universe) {
-
-				let universeList = [];
-				const fname = path.resolve(path.join(__dirname, `../../documents/universe/ind_${universe.replace(new RegExp("_",'g'),"").toLowerCase()}list.csv`));
-				
-				if (fs.existsSync(fname)){
-					
-					csv.fromPath(fname, {headers:true})
-				    .on("data", function(data){
-				        universeList.push(data.Symbol);
-				    })
-				    .on("end", function(){
-				        resolve(universeList);
-				    })
-				    .on("error" , function() {
-				    	resolve([]);
-				    });
-				} else {
-					resolve([]);
-				}
-			} else {
-				resolve([]);
-			}
-		});
+		if (universe) {
+			const fname = path.resolve(path.join(__dirname, `../../documents/universe/ind_${universe.replace(new RegExp("_",'g'),"").toLowerCase()}list.csv`));
+			const fname_shortable = path.resolve(path.join(__dirname, `../../documents/universe/ind_${universe.replace(new RegExp("_",'g'),"").toLowerCase()}list_shortable.csv`));
+			
+			return Promise.all([
+				_getRawStockList(fname),
+				_getRawStockList(fname_shortable)
+			]);
+		} else {
+			return [];
+		}
 	})
-	.then(universeList => {
+	.then(([universeList, sUniverseList]) => {
+
+		//Populate stocks that can be shorted
+		shortableUniverseList = sUniverseList;
 
 		var startWithSearch = `(^${search}.*)$`; 
 		var q1 = {'security.ticker': {$regex: startWithSearch, $options: "i"}};
@@ -501,11 +520,11 @@ module.exports.getStockList = function(search, options) {
 	})
 	.then(([exactMatch, nearMatchTicker, nearMatchName, niftyExactMatch, niftyNearMatch]) => {
 
-		var securitiesExactMatch = exactMatch.map(item => item.security);
-		var securitiesNearMatchTicker = nearMatchTicker.map(item => item.security);
-		var securitiesNearMatchName = nearMatchName.map(item => item.security);
-		var securitiesNiftyExactMatch = niftyExactMatch.map(item => item.security);
-		var securitiesNiftyNearMatch = niftyNearMatch.map(item => item.security);
+		var securitiesExactMatch = exactMatch.map(item => item.toObject().security);
+		var securitiesNearMatchTicker = nearMatchTicker.map(item => item.toObject().security);
+		var securitiesNearMatchName = nearMatchName.map(item => item.toObject().security);
+		var securitiesNiftyExactMatch = niftyExactMatch.map(item => item.toObject().security);
+		var securitiesNiftyNearMatch = niftyNearMatch.map(item => item.toObject().security);
 
 		var totalSecurities = securitiesExactMatch.concat(securitiesNearMatchTicker).concat(securitiesNearMatchName).concat(securitiesNiftyExactMatch).concat(securitiesNiftyNearMatch);
 		
@@ -513,6 +532,22 @@ module.exports.getStockList = function(search, options) {
 		totalSecurities = totalSecurities.filter((item, pos, arr) => {
 				return arr.map(itemS => itemS["ticker"]).indexOf(item["ticker"])==pos;});
 
-		return limit > 0 ? totalSecurities.slice(0, limit) : totalSecurities;
+		//Slice the output
+		totalSecurities = limit > 0 ? totalSecurities.slice(0, limit) : totalSecurities;
+
+		//Fill shortable flag
+		totalSecurities = shortableUniverseList.length > 0 ? 
+			totalSecurities.map(item => {
+				var shortIdx = shortableUniverseList.indexOf(item.ticker);
+				if (shortIdx != -1) {
+					item = Object.assign({shortable: true}, item);
+				}
+
+				return item;
+
+			}) : totalSecurities;
+
+		return totalSecurities;
+
 	});
 };
