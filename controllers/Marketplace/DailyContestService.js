@@ -168,8 +168,6 @@ module.exports.createDailyContestEntry = (args, res, next) => {
 
 	})
 	.then(contestEntry => {
-		console.log('Daily Contest', dailyContest);
-		console.log('Contest Entry', contestEntry);
 		//Now entery Contest
 		return DailyContestModel.enterContest({_id: dailyContest._id}, contestEntry._id);
 		

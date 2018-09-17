@@ -111,7 +111,7 @@ DailyContestEntry.statics.updateEntryPortfolio = function(query, portfolio, opti
 			return this.findOneAndUpdate(q, updates, options)
 		} else {
 			updates = {$push: {portfolioDetail: portfolio}};
-			return this.update(query, updates, options);
+			return this.findOneAndUpdate(query, updates, options);
 		}
 	})
 };
@@ -131,7 +131,7 @@ DailyContestEntry.statics.updateEntryPnlStats = function(query, pnlStats, date) 
     	} else {
 
     		updates = {$push: {'performance.daily': {date: date, pnlStats: pnlStats}}};
-    		return this.update(query, updates);
+    		return this.findOneAndUpdate(query, updates);
     	}
     });
 };
