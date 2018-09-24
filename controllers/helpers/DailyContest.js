@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-15 20:22:18
+* @Last Modified time: 2018-09-24 12:16:05
 */
 
 'use strict';
@@ -50,7 +50,7 @@ schedule.scheduleJob(`${marketCloseMinute+1}  ${marketCloseHour} * * 1-5`, funct
 });
 
 module.exports.getContestSpecificDateTime = function(date) {
-	moment(data).set({hour: marketCloseHour, minute: marketCloseMinute}).tz(indiaTimeZone).local();
+	moment(date).tz(indiaTimeZone).set({hour: marketCloseHour, minute: marketCloseMinute}).local();
 };
 
 function _isBeforeMarketClose(currentDatetime) {
@@ -73,7 +73,7 @@ function _nextNonHolidayWeekday(date) {
 }
 
 module.exports.getEffectiveContestDate = function(date) {
-	return moment(date).set({hour: marketOpenHour, minute: marketOpenMinute}).tz(indiaTimeZone).local();
+	return moment(date).tz(indiaTimeZone).set({hour: marketOpenHour, minute: marketOpenMinute}).local();
 }
 
 module.exports.getStartDateForNewContest = function(date) {
@@ -99,22 +99,22 @@ module.exports.getStartDateForNewContest = function(date) {
 	if ( _isBeforeMarketOpen(_tentativeStartDatetime) && isWeekDay && !isHoliday) {
 		_finalStartDate = DateHelper.getDate(_tentativeStartDatetime);
 	} else {
-		_finalStartDate = _nextNonHolidayWeekday(_tentativeStartDatetime.format());
+		_finalStartDate = _nextNonHolidayWeekday(_tentativeStartDatetime.toDate());
 	}
 
-	return moment(_finalStartDate).set({hour: marketOpenHour, minute: marketOpenMinute}).tz(indiaTimeZone).local();
+	return moment(_finalStartDate).tz(indiaTimeZone).set({hour: marketOpenHour, minute: marketOpenMinute}).local();
 };
 
 module.exports.getEndDateForNewContest = function(date) {
 	var startdate = exports.getStartDateForNewContest(date);
-	return moment(startdate).set({hour: marketCloseHour, minute: marketCloseMinute}).tz(indiaTimeZone).local();
+	return moment(startdate).tz(indiaTimeZone).set({hour: marketCloseHour, minute: marketCloseMinute}).local();
 };
 
 module.exports.getResultDateForNewContest = function(date) {
 	var contestEndDate = exports.getEndDateForNewContest(date);
 	//Reslt date is one trading after the close of contest
-	var _next = _nextNonHolidayWeekday(contestEndDate.format());
-	return moment(_next).set({hour: marketCloseHour, minute: marketCloseMinute}).tz(indiaTimeZone).local();	
+	var _next = _nextNonHolidayWeekday(contestEndDate.toDate());
+	return moment(_next).tz(indiaTimeZone).set({hour: marketCloseHour, minute: marketCloseMinute}).local();	
 };
 
 module.exports.getContestForDate = function(date, options) {
@@ -202,7 +202,7 @@ module.exports.updateFinalPortfolio = function(date, newPositions, oldPositions)
 };
 
 module.exports.getContestWithResultToday = function(options) {
-	const datetimeIndia = moment(DateHelper.getCurrentDate()).set({hour: marketCloseHour, minute: marketCloseMinute}).tz(indiaTimeZone).local();	
+	const datetimeIndia = moment(DateHelper.getCurrentDate()).tz(indiaTimeZone).set({hour: marketCloseHour, minute: marketCloseMinute}).local();	
 	return DailyContestModel.fetchContest({resultDate: datetimeIndia, active: true}, options);
 };
 
@@ -245,7 +245,8 @@ module.exports.updateDailyContestWinners = function() {
 				Promise.mapSeries(totalPositions, function(position) {
 					return SecurityHelper.getStockLatestDetail(position.security)
 					.then(securityDetail => {
-						position.security = securityDetail;
+						position.security.detail = securityDetail.detail;
+						position.lastDetail = securityDetail.latestDetail
 						return position;
 					})
 				})
@@ -268,10 +269,10 @@ module.exports.updateDailyContestWinners = function() {
 		var topStocks = populatedTotalPositions.sort((a,b) => {
 			return a.netInvestment > b.netInvestment ? -1 : a.netInvestment == b.netInvestment ? 0 : 1;
 		}).slice(0, 5).map(item => {
-			return _.pick(item, ['security', 'numUsers']);
+			return _.pick(item, ['security', 'numUsers', 'lastDetail']);
 		});
 
-		return DailyContestModel.updateContest({_id: lastActiveContestId}, {winners: winners, topStocks: topStocks, active: false}, {new: true, fields:'winners topStocks'});
+		return DailyContestModel.updateContest({_id: lastActiveContestId}, {winners: winners, topStocks: topStocks, active: true}, {new: true, fields:'winners topStocks'});
 	})
 	.then(updatedContest => {
 		if (updatedContest) {

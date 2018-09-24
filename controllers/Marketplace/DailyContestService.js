@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-11 17:43:26
+* @Last Modified time: 2018-09-20 10:34:10
 */
 
 'use strict';
@@ -116,7 +116,7 @@ module.exports.getDailyContestEntry = (args, res, next) => {
 		return res.status(200).send(updatedContestEntry);
 	})
 	.catch(err => {
-		console.log(err);
+		//console.log(err);
 		return res.status(400).send(err.message);		
 	});
 };
@@ -180,7 +180,7 @@ module.exports.createDailyContestEntry = (args, res, next) => {
 		return res.status(200).send("Entry created and contest entered Successfully");
 	})
 	.catch(err => {
-		console.log(err);
+		//console.log(err);
 		return res.status(400).send(err.message);		
 	});
 };
@@ -246,7 +246,7 @@ module.exports.updateDailyContestEntry = (args, res, next) => {
 		return res.status(200).send("Entry updated successfully");
 	})
 	.catch(err => {
-		console.log(err);
+		//console.log(err);
 		return res.status(400).send(err.message);		
 	});
 };
