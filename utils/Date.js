@@ -2,8 +2,23 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-10 12:11:44
+* @Last Modified time: 2018-09-24 19:59:16
 */
+const moment = require('moment-timezone');
+const indiaTimeZone = "Asia/Kolkata";
+
+var marketOpenDatetime = moment("2018-01-01 09:30:00").tz(indiaTimeZone).local();
+var marketOpenMinute = marketOpenDatetime.get('minute');
+var marketOpenHour = marketOpenDatetime.get('hour');
+
+var marketCloseDatetime = moment("2018-01-01 15:30:00").tz(indiaTimeZone).local();
+var marketCloseMinute = marketCloseDatetime.get('minute');
+var marketCloseHour = marketCloseDatetime.get('hour');
+
+
+module.exports.getMarketClose = function(date) {
+	return moment(date).tz(indiaTimeZone).set({hour: marketCloseHour, minute: marketCloseMinute, second:0, millisecond: 0}).local();
+};
 
 module.exports.compareDates = function(date1, date2) {
 	var t1 = new Date(date1).getTime();
@@ -133,10 +148,26 @@ module.exports.getNextWeekday = function(date) {
 	return exports.getDate(date);
 };
 
-
 module.exports.formatDate = function(date) {
 	date = !date ? exports.getCurrentDate() : exports.getDate(date); 
 	
 	var month = date.getMonth() + 1;
     return date.getFullYear()+"-"+(month < 10 ? `0${month}` : month)+"-"+date.getDate();    
-}
+};
+
+module.exports.getDatesInWeek = function(date, offset=0) {
+	
+	var _md = moment(date).tz(indiaTimeZone);
+	var week = _md.get('week');
+
+	var dates = [];
+
+	var _d = moment().day('Monday').week(week + offset);
+
+	for (var i=0;i<=5;i++) {
+		dates.push(moment(_d).add(i, 'days').toDate());
+	}
+
+	return dates;
+
+};

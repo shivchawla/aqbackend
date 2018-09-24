@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-09 17:46:11
+* @Last Modified time: 2018-09-24 19:43:35
 */
 
 
@@ -56,6 +56,11 @@ const DailyContestEntry = new Schema({
 
 	performance: {
 		daily: [{
+			date: Date,
+			pnlStats: Schema.Types.Mixed
+		}],
+
+		weekly: [{
 			date: Date,
 			pnlStats: Schema.Types.Mixed
 		}],
@@ -117,22 +122,47 @@ DailyContestEntry.statics.updateEntryPortfolio = function(query, portfolio, opti
 };
 
 DailyContestEntry.statics.updateEntryPnlStats = function(query, pnlStats, date) {
-    let q  = {...query, 'performance.daily.date':{$eq: date}};
-    return this.findOne(q)
-    .then(found => {	
-    	
-    	let updates;
-    	
-    	if (found) {
-    		updates = {
-		    	$set: {'performance.daily.$.pnlStats': pnlStats},
-		 	};
-		 	return this.findOneAndUpdate(q, updates);
-    	} else {
+    let qDaily  = {...query, 'performance.daily.date':{$eq: date}};
+    let qWeekly  = {...query, 'performance.weekly.date':{$eq: date}};
+    return Promise.all([
+    	this.findOne(qDaily),
+    	this.findOne(qWeekly)
+	])
+    .then(([foundDaily, foundWeekly]) => {	
+    	return Promise.resolve()
+    	.then(() => {
+	    	let updates;
+	    	
+	    	if (foundDaily) {
+	    		updates = {
+			    	$set: {'performance.daily.$.pnlStats': pnlStats.daily},
+			 	};
+			 	
+			 	return this.findOneAndUpdate(qDaily, updates);
+	    	} else {
 
-    		updates = {$push: {'performance.daily': {date: date, pnlStats: pnlStats}}};
-    		return this.findOneAndUpdate(query, updates);
-    	}
+	    		updates = {$push: {'performance.daily': {date: date, pnlStats: pnlStats.daily}}};
+	    		return this.findOneAndUpdate(query, updates);
+	    	}
+    	})
+    	.then(upatedDaily => {
+    		return Promise.resolve()
+    		.then(() => {
+	    		let updates;
+		    	
+		    	if (foundWeekly) {
+		    		updates = {
+				    	$set: {'performance.weekly.$.pnlStats': pnlStats.weekly},
+				 	};
+				 	
+				 	return this.findOneAndUpdate(qWeekly, updates);
+		    	} else {
+
+		    		updates = {$push: {'performance.weekly': {date: date, pnlStats: pnlStats.weekly}}};
+		    		return this.findOneAndUpdate(query, updates);
+		    	}
+	    	})
+    	})
     });
 };
 
@@ -152,6 +182,10 @@ DailyContestEntry.statics.fetchEntryPortfolioForDate = function(query, date) {
 
 DailyContestEntry.statics.fetchEntryPnlStatsForDate = function(query, date) {
 	return this.findOne({...query, 'performance.daily.date': date}, {advisor: 1, 'performance.daily.$': 1});
+};
+
+DailyContestEntry.statics.fetchEntryPnlStatsForWeek = function(query, date) {
+	return this.findOne({...query, 'performance.weekly.date': date}, {advisor: 1, 'performance.weekly.$': 1});
 };
 
 

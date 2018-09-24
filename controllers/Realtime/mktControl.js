@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-30 11:24:46
+* @Last Modified time: 2018-09-20 10:19:23
 */
 
 'use strict';
@@ -265,8 +265,12 @@ function processLatestFiles() {
 		]);
 	})
 	.then(([s1, s2]) => {
-		console.log("Successfully updated the stock prices");
-		return _sendAllUpdates()
+		if (s1 && s2) {
+			console.log("Successfully updated the stock prices");
+			return _sendAllUpdates()
+		} else {
+			console.log("No Realtime files for Ind/Mkt to use");
+		}
 	})
 	.catch(err => {
 		console.log("Error downloading Realtime Data")

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-15 20:31:58
+* @Last Modified time: 2018-09-24 20:03:29
 */
 
 'use strict';
@@ -95,6 +95,71 @@ function _populateStats(portfolio) {
 	});
 }
 
+function _getPnlStatsForWeek(entryId, date) {
+	//Get week of date
+	var datesInWeek = DateHelper.getDatesInWeek(date);
+
+	return Promise.map(datesInWeek, function(d) {
+		//convert date to match the result time
+		var _d = DateHelper.getMarketClose(d);
+
+		return DailyContestEntryModel.fetchEntryPnlStatsForDate({_id: entryId}, _d)
+		.then(contestEntry => {
+			if (_.get(contestEntry, 'performance.daily', null) && contestEntry.performance.daily.length > 0) {
+				return contestEntry.performance.daily[0].pnlStats;
+			} else {
+				return null;
+			}
+		});
+	})
+	.then(pnlStatsAllDatesInWeek => {
+
+		let pnlStatsForWeek = {
+			totalPnl: 0.0, totalPnlPct: 0.0, 
+			cost: 0.0, netValue: 0.0, 
+			minPnl: null, maxPnl: null, 
+			profitFactor: 0.0, 
+			pnlPositive: 0.0, pnlNegative: 0.0,
+			days: 0
+		};
+		
+		pnlStatsAllDatesInWeek.forEach(pnlStatsForDay => {
+			if (pnlStatsForDay) {
+				const {totalPnl = 0.0, totalPnlPct = 0.0, 
+					cost = 0.0, netValue = 0.0, 
+					cash = 0.0, minPnl = null, 
+					maxPnl = null, profitFactor = 0.0, 
+					pnlPositive = 0.0, pnlNegative = 0.0} = pnlStatsForDay;
+
+
+				pnlStatsForWeek.totalPnl += totalPnl;
+				pnlStatsForWeek.cost += cost;
+				pnlStatsForWeek.netValue += netValue;
+				pnlStatsForWeek.minPnl = minPnl ? (pnlStatsForWeek.minPnl &&   
+						pnlStatsForWeek.minPnl > minPnl.value) ? minPnl : pnlStatsForWeek.minPnl : pnlStatsForWeek.minPnl;
+
+				pnlStatsForWeek.maxPnl = maxPnl ? (pnlStatsForWeek.maxPnl &&   
+						pnlStatsForWeek.maxPnl > maxPnl.value) ? maxPnl : pnlStatsForWeek.maxPnl : pnlStatsForWeek.maxPnl;
+
+				pnlStatsForWeek.pnlPositive += pnlPositive;
+				pnlStatsForWeek.pnlNegative += pnlNegative;
+
+				pnlStatsForWeek.pnlNegative += pnlNegative;
+
+				pnlStatsForWeek.days += 1;  
+			}	    
+		});
+
+		if (pnlStatsForWeek.days > 0) {
+			pnlStatsForWeek.totalPnlPct = pnlStatsForWeek.cost > 0.0 ? pnlStatsForWeek.totalPnl/pnlStatsForWeek.cost : 0.0;
+			pnlStatsForWeek.profitFactor = pnlStatsForWeek.pnlNegative > 0.0 ? pnlStatsForWeek.pnlPositive/pnlStatsForWeek.pnlNegative : NaN;
+		}	
+
+		return pnlStatsForWeek;	
+
+	});
+}
+
 function _updatePortfolioForAveragePrice(portfolioHistory) {
 	return new Promise(function(resolve, reject) {
 
@@ -123,8 +188,7 @@ function _updatePositionsForPrice(positions, type, date) {
 	}
 };
 
-module.exports.getUpdatedPortfolioForPrice = function(portfolio, typ) {
-	
+module.exports.getUpdatedPortfolioForPrice = function(portfolio, typ) {	
 	return _updatePositionsForPrice(portfolio.positions, portfolio.date, typ)
 	.then(portfolio => {
 		if (portfolio) {
@@ -166,9 +230,14 @@ module.exports.getUpdatedContestEntry = function(entryId, date) {
 };
 
 module.exports.updateContestEntryPnlStats = function(entryId, date) {
-	return exports.getUpdatedContestEntry(entryId, date)
-	.then(updatedContestEntry => {
-		var pnlStats = _.get(updatedContestEntry, 'pnlStats', {});
+	return Promise.all([
+		exports.getUpdatedContestEntry(entryId, date),
+		_getPnlStatsForWeek(entryId, date)
+	])
+	.then(([updatedContestEntryForDate, pnlStatsForWeek]) => {
+		var pnlStatsForDay = _.get(updatedContestEntryForDate, 'pnlStats', {});
+		let pnlStats = {daily: pnlStatsForDay, weekly: pnlStatsForWeek};
+
 		return DailyContestEntryModel.updateEntryPnlStats({_id: entryId}, pnlStats, date);
 	});
 };
@@ -182,6 +251,4 @@ module.exports.getContestEntryPnlStats = function(entryId, date) {
 			APIError.throwJsonError({message: "No performance found"});
 		}
 	})
-	
-	
 };

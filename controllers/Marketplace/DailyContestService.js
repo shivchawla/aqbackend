@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-20 10:34:10
+* @Last Modified time: 2018-09-24 20:04:46
 */
 
 'use strict';
@@ -60,8 +60,8 @@ module.exports.getDailyContest = (args, res, next) => {
 	return DailyContestHelper.getContestForDate(
 		date, 
 		{
-			fields:'startDate endDate resultDate winners topStocks active',
-			populate: 'winners'
+			fields:'startDate endDate resultDate winners winners_weekly topStocks topStocks_weekly active',
+			populate: 'winners winners_weekly'
 		}
 	)
 	.then(contest => {

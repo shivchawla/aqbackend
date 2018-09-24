@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-24 12:16:05
+* @Last Modified time: 2018-09-24 20:03:15
 */
 
 'use strict';
@@ -19,6 +19,8 @@ const sendEmail = require('../../email');
 const UserModel = require('../../models/user');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestModel = require('../../models/Marketplace/DailyContest');
+const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
+
 const DailyContestEntryHelper = require('./DailyContestEntry');
 const SecurityHelper = require('./Security');
 
@@ -211,7 +213,10 @@ module.exports.updateAllEntriesPnlStats = function(){
 	return exports.getContestWithResultToday({fields:'_id entries endDate', entries: {all: true}})
 	.then(contest => {
 		if (contest) {
+
 			var allEntries = contest.entries;
+
+			//Pnl is mapped to the end date of entry
 			let entryDate = contest.endDate;
 			return Promise.mapSeries(allEntries, function(entry) {
 				return DailyContestEntryHelper.updateContestEntryPnlStats(entry, entryDate);
@@ -267,7 +272,7 @@ module.exports.updateDailyContestWinners = function() {
 		});
 
 		var topStocks = populatedTotalPositions.sort((a,b) => {
-			return a.netInvestment > b.netInvestment ? -1 : a.netInvestment == b.netInvestment ? 0 : 1;
+			return a.numUsers > b.numUsers ? -1 : a.numUsers == b.numUsers ? 0 : 1;
 		}).slice(0, 5).map(item => {
 			return _.pick(item, ['security', 'numUsers', 'lastDetail']);
 		});
@@ -284,7 +289,8 @@ module.exports.updateDailyContestWinners = function() {
 				return AdvisorModel.fetchAdvisor({_id: winner.advisor}, {insert: true})
 				.then(advisor => {
 					if (advisor.user && process.env.NODE_ENV === 'production') {
-						return sendEmail.sendDailyContestWinnerEmail({dailycontestUrl}, advisor.user);
+						console.log("No Daily winners");
+						//return sendEmail.sendDailyContestWinnerEmail({dailycontestUrl}, advisor.user);
 					} else {
 						console.log("Virtual email sent in development");
 					}
@@ -295,4 +301,132 @@ module.exports.updateDailyContestWinners = function() {
 	.catch(err => {
 		console.log(err.message);
 	})
+};
+
+module.exports.updateWeeklyContestWinners = function() {
+	return exports.getContestWithResultToday({endDate:1, startDate:1})
+	.then(contestResultToday => {
+		if (contestResultToday){
+			//Get the endDate of this contest	
+			var endDate = contestResultToday.endDate;
+			var startDate = contestResultToday.startDate;
+
+			var datesInWeekOfThisContest = DateHelper.getDatesInWeek(endDate);
+			let totalPositions_weekly = [];
+
+
+			return Promise.mapSeries(datesInWeekOfThisContest, function(date) {
+				var _d = DateHelper.getMarketClose(date);
+
+				return DailyContestModel.fetchContest({endDate: _d}, {totalPositions:1})
+				.then(contest => {
+					if (contest) {
+						var totalPositions_daily = _.get(contest, 'totalPositions', []);
+
+						totalPositions_daily.forEach(item => {
+							var ticker = item.security.ticker;
+
+							var idx = totalPositions_weekly.map(item => _.get(item, 'security.ticker', '')).indexOf(ticker);
+							if (idx!=-1) {
+
+								var _rollingWeeklyTotalPosition = Object.asssign({}, totalPositions_weekly[idx]);
+
+								_rollingWeeklyTotalPosition.netInvestment += item.netInvestment;
+								_rollingWeeklyTotalPosition.longInvestment += item.longInvestment;
+								_rollingWeeklyTotalPosition.shortInvestment += item.shortInvestment;
+								_rollingWeeklyTotalPosition.numUsers += item.numUsers;
+
+								totalPositions_weekly[idx]  = _rollingWeeklyTotalPosition;
+							} else {
+								totalPositions_weekly.push(item);
+							}
+
+						});
+
+						return totalPositions_weekly;
+						
+					} else {
+						return null;
+					}
+				})
+				.then(weeklyPositions => {
+					if(weeklyPositions) {
+						return DailyContestModel.updateContest({endDate: _d}, {totalPositions_weekly: weeklyPositions});
+					} else {
+						null;
+					}	
+				});	
+			})
+			.then(contestIds => {
+				//Update all daily contest for the last week with winners 
+				//on First Trading Day of next week
+				//and tops picks
+				
+				if (moment(endDate).get('week') > moment().get('week')) {//
+
+					//Logic to compute weekly winners based on 
+					//get contest with endDate
+					return exports.getContestForDate(startDate, {field:'_id entries endDate totalPositions_weekly', entries: {all: true}})
+					.then(contest => {
+						if (contest) {
+							//lastActiveContestId = contest._id;
+							var allEntries = contest.entries;
+							let entryDate = contest.endDate;
+							let totalPositions = contest.totalPositions_weekly.toObject();
+
+							return Promise.all([
+								//P1
+								Promise.mapSeries(totalPositions, function(position) {
+									return SecurityHelper.getStockLatestDetail(position.security)
+									.then(securityDetail => {
+										position.security.detail = securityDetail.detail;
+										position.lastDetail = securityDetail.latestDetail
+										return position;
+									})
+								}),
+								//p2
+								Promise.mapSeries(allEntries, function(entry) {
+									return DailyContestEntryModel.fetchEntryPnlStatsForWeek({_id: entry}, entryDate)
+									.then(contestEntry => {
+										if (_.get(contestEntry, 'performance.weekly', null) && contestEntry.performance.weekly.length > 0) {
+											return {advisor: contestEntry.advisor, pnlStats: contestEntry.performance.weekly[0].pnlStats};
+										}
+									});
+								})
+							])
+							.then(([populatedTotalPositions, pnlStatsAllAdvisors]) => {
+								let i = 1;
+		
+								var winners = pnlStatsAllAdvisors.sort((a,b) => {
+									return a.pnlStats.totalPnl > b.pnlStats.totalPnl ? -1 : a.pnlStats.totalPnl == b.pnlStats.totalPnl ? 0 : 1; 
+								}).slice(0, 3).map(item => {
+									item.rank = i++;
+									return item;
+								});
+
+
+								var topStocks = populatedTotalPositions.sort((a,b) => {
+									return a.numUsers > b.numUsers ? -1 : a.numUsers == b.numUsers ? 0 : 1;
+								}).slice(0, 5).map(item => {
+									return _.pick(item, ['security', 'numUsers', 'lastDetail']);
+								});
+
+								return Promise.map(contestIds, function(contestId) {
+									if (contestId) {
+										return DailyContestModel.updateContest({_id: contestId}, {winners_weekly: winners, topStocks_weekly: topStocks}, {new: true, fields:'winners topStocks'});
+									}
+								});
+
+							});
+						}
+					})				
+				} else {
+					console.log("Week is not over yet!!");
+				}
+			});
+		}
+	})
+	.catch(err => {
+		console.log(err);
+	});
 };

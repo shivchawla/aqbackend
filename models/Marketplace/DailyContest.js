@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:31:05
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-15 20:19:10
+* @Last Modified time: 2018-09-24 18:09:16
 */
 
 'use strict';
@@ -70,12 +70,33 @@ const DailyContest = new Schema({
         pnlStats: Schema.Types.Mixed
     }],
 
+    winners_weekly: [{
+        advisor: {type: Schema.Types.ObjectId, ref: 'Advisor'},
+        rank: Number,
+        pnlStats: Schema.Types.Mixed
+    }],
+
     topStocks: [{
         security: Security,
-        numUsers: Number,
+        lastDetail: Schema.Types.Mixed,
+        numUsers: Number
+    }],
+
+    topStocks_weekly: [{
+        security: Security,
+        lastDetail: Schema.Types.Mixed,
+        numUsers: Number
     }],
 
     totalPositions:[{
+        security: Security,
+        netInvestment: Number,
+        longInvestment: Number,
+        shortInvestment:Number,
+        numUsers: Number
+    }],
+
+    totalPositions_weekly:[{
         security: Security,
         netInvestment: Number,
         longInvestment: Number,

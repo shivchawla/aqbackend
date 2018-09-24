@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-10 14:20:30
+* @Last Modified time: 2018-09-24 20:05:23
 */
 
 'use strict';
@@ -11,6 +11,7 @@ const AnalyticsHelper = require('../controllers/helpers/Analytics');
 const SecurityHelper = require('../controllers/helpers/Security');
 const ContestHelper = require('../controllers/helpers/Contest');
 const DailyContestHelper = require('../controllers/helpers/DailyContest');
+const DateHelper = require('../utils/Date');
 
 const schedule = require('node-schedule');
 const config = require('config');
@@ -41,12 +42,21 @@ if (config.get('jobsPort') === serverPort) {
     	}
 	});
 
-	schedule.scheduleJob("*/50 5-13 * * 1-5", function() { 
+	//DailyContestHelper.updateAllEntriesPnlStats();
+	//DailyContestHelper.updateDailyContestWinners();
+	
+	schedule.scheduleJob("*/50 5-12 * * 1-5", function() { 
         DailyContestHelper.updateAllEntriesPnlStats();
 	});
 
-	schedule.scheduleJob("0 14 * * 1-5", function() { 
-        DailyContestHelper.updateDailyContestWinners();
+	schedule.scheduleJob("30 13 * * 1-5", function() { 
+		DailyContestHelper.updateAllEntriesPnlStats()
+        .then(() => {
+        	return DailyContestHelper.updateDailyContestWinners()
+        	.then(() => {
+        		return DailyContestHelper.updateWeeklyContestWinners();
+        	});
+    	});
 	});
 
 }
