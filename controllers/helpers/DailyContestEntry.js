@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-25 14:12:59
+* @Last Modified time: 2018-09-25 16:37:32
 */
 
 'use strict';
@@ -256,7 +256,7 @@ module.exports.getUpdatedContestEntry = function(entryId, date, populatePnl=fals
 	})
 	.then(([contestEntryPortfolioDetail, pnlStats]) => {
 		return populatePnl && pnlStats ? 
-			Object.assign({pnlStats: pnlStats}, contestEntryPortfolioDetail) :
+			Object.assign({pnlStats: pnlStats.toObject()}, contestEntryPortfolioDetail) :
 			contestEntryPortfolioDetail;
 	});
 };
