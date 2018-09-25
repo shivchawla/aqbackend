@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-24 20:05:23
+* @Last Modified time: 2018-09-25 18:22:01
 */
 
 'use strict';
@@ -42,21 +42,27 @@ if (config.get('jobsPort') === serverPort) {
     	}
 	});
 
-	//DailyContestHelper.updateAllEntriesPnlStats();
-	//DailyContestHelper.updateDailyContestWinners();
-	
+	schedule.scheduleJob("*/20 5-12 * * 1-5", function() { 
+        DailyContestHelper.updateAllEntriesPnlStats();
+	});
+
 	schedule.scheduleJob("*/50 5-12 * * 1-5", function() { 
         DailyContestHelper.updateAllEntriesPnlStats();
 	});
 
-	schedule.scheduleJob("30 13 * * 1-5", function() { 
-		DailyContestHelper.updateAllEntriesPnlStats()
+	//12:30 - Indian(4:00 PM)
+	schedule.scheduleJob("30 12 * * 1-5", function() { 
+		return Promise.all([
+			DailyContestHelper.updateAllEntriesPnlStats(),
+			DailyContestHelper.updateDailyTopPicks(),
+			DailyContestHelper.updateWeeklyTopPicks(),
+		])
         .then(() => {
         	return DailyContestHelper.updateDailyContestWinners()
-        	.then(() => {
-        		return DailyContestHelper.updateWeeklyContestWinners();
-        	});
-    	});
+    	})
+    	.then(() => {
+    		return DailyContestHelper.updateWeeklyContestWinners();
+    	})
 	});
 
 }

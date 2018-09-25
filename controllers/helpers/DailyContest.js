@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-24 20:03:15
+* @Last Modified time: 2018-09-25 18:14:19
 */
 
 'use strict';
@@ -25,18 +25,6 @@ const DailyContestEntryHelper = require('./DailyContestEntry');
 const SecurityHelper = require('./Security');
 
 const indiaTimeZone = "Asia/Kolkata";
-
-const holidays = [
-	"2018-08-22",
-	"2018-09-13",
-	"2018-09-20",
-	"2018-10-02",
-	"2018-10-18",
-	"2018-11-07",
-	"2018-11-08",
-	"2018-11-23",
-	"2018-12-25"
-];
 
 var marketOpenDatetime = moment("2018-01-01 09:30:00").tz(indiaTimeZone).local();
 var marketOpenMinute = marketOpenDatetime.get('minute');
@@ -63,17 +51,6 @@ function _isBeforeMarketOpen(currentDatetime) {
 	return (currentDatetime.get('hour') < 10 && currentDatetime.get('minute') < 30) || currentDatetime.get('hour') < 9;
 }
 
-function _nextNonHolidayWeekday(date) {
-	var nextWeekday = DateHelper.getNextWeekday(date);
-	
-	let isHoliday = false;
-	holidays.forEach(holiday => {
-		isHoliday = isHoliday || DateHelper.compareDates(holiday, nextWeekday) == 0;
-	});
-
-	return isHoliday ? _nextNonHolidayWeekday(nextWeekday) : nextWeekday;
-}
-
 module.exports.getEffectiveContestDate = function(date) {
 	return moment(date).tz(indiaTimeZone).set({hour: marketOpenHour, minute: marketOpenMinute}).local();
 }
@@ -92,16 +69,13 @@ module.exports.getStartDateForNewContest = function(date) {
 	const weekday = _tentativeStartDatetime.get('day');
 	const isWeekDay = weekday > 0 && weekday < 6;
 
-	let isHoliday = false;
-	holidays.forEach(holiday => {
-		isHoliday = isHoliday || DateHelper.compareDates(holiday, date) == 0;
-	});
+	let isHoliday = DateHelper.IsHoliday(date);
 
 	let _finalStartDate;
 	if ( _isBeforeMarketOpen(_tentativeStartDatetime) && isWeekDay && !isHoliday) {
 		_finalStartDate = DateHelper.getDate(_tentativeStartDatetime);
 	} else {
-		_finalStartDate = _nextNonHolidayWeekday(_tentativeStartDatetime.toDate());
+		_finalStartDate = DateHelper.getNextNonHolidayWeekday(_tentativeStartDatetime.toDate());
 	}
 
 	return moment(_finalStartDate).tz(indiaTimeZone).set({hour: marketOpenHour, minute: marketOpenMinute}).local();
@@ -115,7 +89,7 @@ module.exports.getEndDateForNewContest = function(date) {
 module.exports.getResultDateForNewContest = function(date) {
 	var contestEndDate = exports.getEndDateForNewContest(date);
 	//Reslt date is one trading after the close of contest
-	var _next = _nextNonHolidayWeekday(contestEndDate.toDate());
+	var _next = DateHelper.getNextNonHolidayWeekday(contestEndDate.toDate());
 	return moment(_next).tz(indiaTimeZone).set({hour: marketCloseHour, minute: marketCloseMinute}).local();	
 };
 
@@ -208,6 +182,11 @@ module.exports.getContestWithResultToday = function(options) {
 	return DailyContestModel.fetchContest({resultDate: datetimeIndia, active: true}, options);
 };
 
+module.exports.getContestWithEndDateToday = function(options) {
+	const datetimeIndia = moment(DateHelper.getCurrentDate()).tz(indiaTimeZone).set({hour: marketCloseHour, minute: marketCloseMinute}).local();	
+	return DailyContestModel.fetchContest({endDate: datetimeIndia, active: true}, options);
+};
+
 module.exports.updateAllEntriesPnlStats = function(){
 	//Find all active entries for today
 	return exports.getContestWithResultToday({fields:'_id entries endDate', entries: {all: true}})
@@ -230,6 +209,45 @@ module.exports.updateAllEntriesPnlStats = function(){
 	});
 };
 
+module.exports.updateDailyTopPicks = function() {
+	//Find all active entries for today
+	let lastActiveContestId;
+	return exports.getContestWithEndDateToday({field:'_id entries endDate totalPositions', entries: {all: true}})
+	.then(contest => {
+		if (contest) {
+			lastActiveContestId = contest._id;
+			var allEntries = contest.entries;
+			let entryDate = contest.endDate;
+			let totalPositions = contest.totalPositions.toObject();
+
+			
+			return Promise.mapSeries(totalPositions, function(position) {
+				return SecurityHelper.getStockLatestDetail(position.security)
+				.then(securityDetail => {
+					position.security.detail = securityDetail.detail;
+					position.lastDetail = securityDetail.latestDetail
+					return position;
+				})
+			})
+		} else {
+			APIError.throwJsonError({message: "No contest with end date today"})
+		}
+	})
+	.then(populatedTotalPositions => {
+
+		var topStocks = populatedTotalPositions.sort((a,b) => {
+			return a.numUsers > b.numUsers ? -1 : a.numUsers == b.numUsers ? 0 : 1;
+		}).slice(0, 5).map(item => {
+			return _.pick(item, ['security', 'numUsers', 'lastDetail']);
+		});
+
+		return DailyContestModel.updateContest({_id: lastActiveContestId}, {topStocks: topStocks}, {new: true, fields:'topStocks'});
+	})
+	.catch(err => {
+		console.log(err.message);
+	})
+};
+
 module.exports.updateDailyContestWinners = function() {
 	//Find all active entries for today
 	let lastActiveContestId;
@@ -244,23 +262,22 @@ module.exports.updateDailyContestWinners = function() {
 			return Promise.all([
 				//P1
 				Promise.mapSeries(allEntries, function(entry) {
-					return DailyContestEntryHelper.getContestEntryPnlStats(entry, entryDate);
+					return DailyContestEntryHelper.getContestEntryDailyPnlStats(entry, entryDate);
 				}),
-				//P2
-				Promise.mapSeries(totalPositions, function(position) {
-					return SecurityHelper.getStockLatestDetail(position.security)
-					.then(securityDetail => {
-						position.security.detail = securityDetail.detail;
-						position.lastDetail = securityDetail.latestDetail
-						return position;
+				//P2 - update and set the entry for date to be incactive
+				Promise.mapSeries(allEntries, function(entry) {
+					return DailyContestEntryHelper.getUpdatedContestEntry(entry, entryDate)
+					.then(updatedContestEntry => {
+						const updates = {date: entryDate, positions: updatedContestEntry.positions, active: false};
+						return DailyContestEntryModel.updateEntryPortfolio({_id: entry}, updates);
 					})
-				})
+				}),
 			]);
 		} else {
 			APIError.throwJsonError({message: "No contest with result date today"})
 		}
 	})
-	.then(([pnlStatsAllAdvisors, populatedTotalPositions]) => {
+	.then(([pnlStatsAllAdvisors, x]) => {
 
 		let i = 1;
 		
@@ -271,13 +288,7 @@ module.exports.updateDailyContestWinners = function() {
 			return item;
 		});
 
-		var topStocks = populatedTotalPositions.sort((a,b) => {
-			return a.numUsers > b.numUsers ? -1 : a.numUsers == b.numUsers ? 0 : 1;
-		}).slice(0, 5).map(item => {
-			return _.pick(item, ['security', 'numUsers', 'lastDetail']);
-		});
-
-		return DailyContestModel.updateContest({_id: lastActiveContestId}, {winners: winners, topStocks: topStocks, active: true}, {new: true, fields:'winners topStocks'});
+		return DailyContestModel.updateContest({_id: lastActiveContestId}, {winners: winners, active: false}, {new: true, fields:'winners topStocks'});
 	})
 	.then(updatedContest => {
 		if (updatedContest) {
@@ -301,6 +312,115 @@ module.exports.updateDailyContestWinners = function() {
 	.catch(err => {
 		console.log(err.message);
 	})
+};
+
+module.exports.updateWeeklyTopPicks = function() {
+	return exports.getContestWithEndDateToday({endDate:1, startDate:1})
+	.then(contestEndingToday => {
+		if (contestEndingToday){
+			//Get the endDate of this contest	
+			var endDate = contestEndingToday.endDate;
+			var startDate = contestEndingToday.startDate;
+
+			var datesInWeekOfThisContest = DateHelper.getDatesInWeek(endDate);
+			let totalPositions_weekly = [];
+
+			return Promise.mapSeries(datesInWeekOfThisContest, function(date) {
+				var _d = DateHelper.getMarketClose(date);
+
+				return DailyContestModel.fetchContest({endDate: _d}, {totalPositions:1})
+				.then(contest => {
+					if (contest) {
+						var totalPositions_daily = _.get(contest, 'totalPositions', []);
+
+						totalPositions_daily.forEach(item => {
+							var ticker = item.security.ticker;
+
+							var idx = totalPositions_weekly.map(item => _.get(item, 'security.ticker', '')).indexOf(ticker);
+							if (idx!=-1) {
+
+								var _rollingWeeklyTotalPosition = Object.asssign({}, totalPositions_weekly[idx]);
+
+								_rollingWeeklyTotalPosition.netInvestment += item.netInvestment;
+								_rollingWeeklyTotalPosition.longInvestment += item.longInvestment;
+								_rollingWeeklyTotalPosition.shortInvestment += item.shortInvestment;
+								_rollingWeeklyTotalPosition.numUsers += item.numUsers;
+
+								totalPositions_weekly[idx]  = _rollingWeeklyTotalPosition;
+							} else {
+								totalPositions_weekly.push(item);
+							}
+
+						});
+
+						return totalPositions_weekly;
+						
+					} else {
+						return null;
+					}
+				})
+				.then(weeklyPositions => {
+					if(weeklyPositions) {
+						return DailyContestModel.updateContest({endDate: _d}, {totalPositions_weekly: weeklyPositions});
+					} else {
+						null;
+					}	
+				});	
+			})
+			.then(contestIds => {
+				//Update all daily contest for the last week with winners 
+				//on First Trading Day of next week
+				//and tops picks
+				var nextWeekDay = DateHelper.getNextNonHolidayWeekday(endDate);
+
+				//If the week is ending today
+				if (moment(endDate).get('week') < moment(nextWeekDay).get('week')) {//
+
+					//Logic to compute weekly winners based on 
+					//get contest with endDate
+					return exports.getContestForDate(startDate, {field:'_id entries endDate totalPositions_weekly', entries: {all: true}})
+					.then(contest => {
+						if (contest) {
+							//lastActiveContestId = contest._id;
+							var allEntries = contest.entries;
+							let entryDate = contest.endDate;
+							let totalPositions = contest.totalPositions_weekly.toObject();
+
+							
+							return Promise.mapSeries(totalPositions, function(position) {
+								return SecurityHelper.getStockLatestDetail(position.security)
+								.then(securityDetail => {
+									position.security.detail = securityDetail.detail;
+									position.lastDetail = securityDetail.latestDetail
+									return position;
+								})
+							})
+							.then(populatedTotalPositions => {
+
+								var topStocks = populatedTotalPositions.sort((a,b) => {
+									return a.numUsers > b.numUsers ? -1 : a.numUsers == b.numUsers ? 0 : 1;
+								}).slice(0, 5).map(item => {
+									return _.pick(item, ['security', 'numUsers', 'lastDetail']);
+								});
+
+								return Promise.map(contestIds, function(contestId) {
+									if (contestId) {
+										return DailyContestModel.updateContest({_id: contestId}, {topStocks_weekly: topStocks}, {new: true, fields:'topStocks'});
+									}
+								});
+
+							});
+						}
+					})				
+				} else {
+					console.log("Week is not over yet!!");
+				}
+			});
+		}
+	})
+	.catch(err => {
+		console.log(err);
+	});
 };
 
 module.exports.updateWeeklyContestWinners = function() {
@@ -362,7 +482,7 @@ module.exports.updateWeeklyContestWinners = function() {
 				//on First Trading Day of next week
 				//and tops picks
 				
-				if (moment(endDate).get('week') > moment().get('week')) {//
+				if (moment(endDate).get('week') < moment().get('week')) {//
 
 					//Logic to compute weekly winners based on 
 					//get contest with endDate
@@ -374,27 +494,15 @@ module.exports.updateWeeklyContestWinners = function() {
 							let entryDate = contest.endDate;
 							let totalPositions = contest.totalPositions_weekly.toObject();
 
-							return Promise.all([
-								//P1
-								Promise.mapSeries(totalPositions, function(position) {
-									return SecurityHelper.getStockLatestDetail(position.security)
-									.then(securityDetail => {
-										position.security.detail = securityDetail.detail;
-										position.lastDetail = securityDetail.latestDetail
-										return position;
-									})
-								}),
-								//p2
-								Promise.mapSeries(allEntries, function(entry) {
-									return DailyContestEntryModel.fetchEntryPnlStatsForWeek({_id: entry}, entryDate)
-									.then(contestEntry => {
-										if (_.get(contestEntry, 'performance.weekly', null) && contestEntry.performance.weekly.length > 0) {
-											return {advisor: contestEntry.advisor, pnlStats: contestEntry.performance.weekly[0].pnlStats};
-										}
-									});
-								})
-							])
-							.then(([populatedTotalPositions, pnlStatsAllAdvisors]) => {
+							return Promise.mapSeries(allEntries, function(entry) {
+								return DailyContestEntryModel.fetchEntryPnlStatsForWeek({_id: entry}, entryDate)
+								.then(contestEntry => {
+									if (_.get(contestEntry, 'performance.weekly', null) && contestEntry.performance.weekly.length > 0) {
+										return {advisor: contestEntry.advisor, pnlStats: contestEntry.performance.weekly[0].pnlStats};
+									}
+								});
+							})
+							.then(pnlStatsAllAdvisors => {
 								let i = 1;
 		
 								var winners = pnlStatsAllAdvisors.sort((a,b) => {
@@ -404,16 +512,9 @@ module.exports.updateWeeklyContestWinners = function() {
 									return item;
 								});
 
-
-								var topStocks = populatedTotalPositions.sort((a,b) => {
-									return a.numUsers > b.numUsers ? -1 : a.numUsers == b.numUsers ? 0 : 1;
-								}).slice(0, 5).map(item => {
-									return _.pick(item, ['security', 'numUsers', 'lastDetail']);
-								});
-
 								return Promise.map(contestIds, function(contestId) {
 									if (contestId) {
-										return DailyContestModel.updateContest({_id: contestId}, {winners_weekly: winners, topStocks_weekly: topStocks}, {new: true, fields:'winners topStocks'});
+										return DailyContestModel.updateContest({_id: contestId}, {winners_weekly: winners}, {new: true, fields:'winners_weekly'});
 									}
 								});
 
