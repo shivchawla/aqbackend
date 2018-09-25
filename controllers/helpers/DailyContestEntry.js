@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-25 20:30:34
+* @Last Modified time: 2018-09-25 21:01:58
 */
 
 'use strict';
@@ -213,7 +213,7 @@ module.exports.getUpdatedPortfolioForAveragePrice = function(portfolio) {
 	})
 	.then(updatedPositions => {
 		if (updatedPositions) {
-			return Object.assign({positions: updatedPositions, cash: _.get(portfolio, 'cash', 0.0)}, portfolio);
+			return Object.assign(portfolio, {positions: updatedPositions, cash: _.get(portfolio, 'cash', 0.0)});
 			//return populatePnl ? _populateStats({positions: updatedPositions, cash: _.get(portfolio, 'cash', 0.0)}) : {positions: updatedPositions};
 		} else {
 			return portfolio;
@@ -301,7 +301,7 @@ module.exports.getContestEntryPnlStats = function(entryId, date) {
 module.exports.getContestEntryDailyPnlStats = function(entryId, date) {
 	return DailyContestEntryModel.fetchEntryPnlStatsForDate({_id: entryId}, date)
 	.then(contestEntryDoc => {
-		let contestEntry = contestEntryDoc.toObject();
+		let contestEntry = contestEntryDoc ? contestEntryDoc.toObject() : {};
 		if (_.get(contestEntry, 'performance.daily', null) && contestEntry.performance.daily.length > 0) {
 			return {advisor: contestEntry.advisor, pnlStats: contestEntry.performance.daily[0].pnlStats};
 		} else {
@@ -314,7 +314,7 @@ module.exports.getContestEntryDailyPnlStats = function(entryId, date) {
 module.exports.getContestEntryWeeklyPnlStats = function(entryId, date) {
 	return DailyContestEntryModel.fetchEntryPnlStatsForDate({_id: entryId}, date)
 	.then(contestEntryDoc => {
-		let contestEntry = contestEntryDoc.toObject();
+		let contestEntry = contestEntryDoc ? contestEntryDoc.toObject() : {};
 		if (_.get(contestEntry, 'performance.daily', null) && contestEntry.performance.daily.length > 0) {
 			return {advisor: contestEntry.advisor, pnlStats: contestEntry.performance.daily[0].pnlStats};
 		} else {
