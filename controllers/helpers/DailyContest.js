@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-25 18:14:19
+* @Last Modified time: 2018-09-25 19:35:21
 */
 
 'use strict';
@@ -339,7 +339,7 @@ module.exports.updateWeeklyTopPicks = function() {
 							var idx = totalPositions_weekly.map(item => _.get(item, 'security.ticker', '')).indexOf(ticker);
 							if (idx!=-1) {
 
-								var _rollingWeeklyTotalPosition = Object.asssign({}, totalPositions_weekly[idx]);
+								var _rollingWeeklyTotalPosition = Object.assign({}, totalPositions_weekly[idx]);
 
 								_rollingWeeklyTotalPosition.netInvestment += item.netInvestment;
 								_rollingWeeklyTotalPosition.longInvestment += item.longInvestment;
