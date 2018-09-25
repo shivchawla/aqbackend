@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-24 19:43:35
+* @Last Modified time: 2018-09-25 11:15:42
 */
 
 
@@ -51,7 +51,8 @@ const DailyContestEntry = new Schema({
 	portfolioDetail: [{
 		date: Date,
 		modified: {type:Number, default: 0},
-		positions: [DollarPosition]
+		positions: [DollarPosition],
+		active: {type: Boolean, default: true},
 	}],
 
 	performance: {
@@ -105,10 +106,13 @@ DailyContestEntry.statics.createEntry = function(contestEntry) {
 
 DailyContestEntry.statics.updateEntryPortfolio = function(query, portfolio, options) {
     const date = portfolio.date;
+    const activeStatus = portfolio.active ? portfolio.active : true
+    
     let updates = {
-		$set: {'portfolioDetail.$.positions': portfolio.positions},
+		$set: {'portfolioDetail.$.positions': portfolio.positions, active: activeStatus},
 		$inc: {'portfolioDetail.$.modified': 1}
-	};	
+	};
+
 	let q = {...query, 'portfolioDetail.date':{$eq: date}};
 	return this.findOne(q)
 	.then(found => {

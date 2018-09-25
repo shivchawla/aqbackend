@@ -3373,6 +3373,11 @@ paths:
         format: date
         description: date of contest
         required: false
+      - name: populatePnl
+        in: query
+        type: string
+        description: flag to populate Pnl
+        required: false
       responses:
         200:
           description: OK

@@ -2,10 +2,22 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-24 19:59:16
+* @Last Modified time: 2018-09-25 13:12:38
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
+
+const holidays = [
+	"2018-08-22",
+	"2018-09-13",
+	"2018-09-20",
+	"2018-10-02",
+	"2018-10-18",
+	"2018-11-07",
+	"2018-11-08",
+	"2018-11-23",
+	"2018-12-25"
+];
 
 var marketOpenDatetime = moment("2018-01-01 09:30:00").tz(indiaTimeZone).local();
 var marketOpenMinute = marketOpenDatetime.get('minute');
@@ -169,5 +181,21 @@ module.exports.getDatesInWeek = function(date, offset=0) {
 	}
 
 	return dates;
-
 };
+
+module.exports.getNextNonHolidayWeekday = function(date) {
+	var nextWeekday = exports.getNextWeekday(date);
+	let isHoliday = exports.IsHoliday(nextWeekday);
+	return isHoliday ? exports.nextNonHolidayWeekday(nextWeekday) : nextWeekday;
+};
+
+module.exports.IsHoliday = function(date) {
+	let isHoliday = false;
+	holidays.forEach(holiday => {
+		isHoliday = isHoliday || exports.compareDates(holiday, date) == 0;
+	});
+
+	return isHoliday;
+};
+
+

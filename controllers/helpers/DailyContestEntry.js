@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-24 20:03:29
+* @Last Modified time: 2018-09-25 14:12:59
 */
 
 'use strict';
@@ -171,7 +171,7 @@ function _updatePortfolioForAveragePrice(portfolioHistory) {
 	});
 }
 
-function _updatePositionsForPrice(positions, type, date) {
+function _updatePositionsForPrice(positions, date, type) {
 	if (positions) {
 		return new Promise((resolve, reject) => {
 
@@ -188,8 +188,11 @@ function _updatePositionsForPrice(positions, type, date) {
 	}
 };
 
+//portfolio.date is the start date of the portfolio
+//computing portfolio pricing based on this date will be WRONG
+//MUST ADD one trading day to if
 module.exports.getUpdatedPortfolioForPrice = function(portfolio, typ) {	
-	return _updatePositionsForPrice(portfolio.positions, portfolio.date, typ)
+	return _updatePositionsForPrice(portfolio.positions, DateHelper.getNextNonHolidayWeekday(portfolio.date), typ)
 	.then(portfolio => {
 		if (portfolio) {
 			return _populateStats(portfolio);
@@ -203,15 +206,15 @@ module.exports.getUpdatedPortfolioForPrice = function(portfolio, typ) {
 };
 
 module.exports.getUpdatedPortfolioForAveragePrice = function(portfolio) {
-	
 	return _updatePortfolioForAveragePrice([{positions: portfolio.positions, startDate: portfolio.date}])
 	.then(updatedAvgPricePortfolio => {
 		var _partialUpdatedPositions = updatedAvgPricePortfolio ? updatedAvgPricePortfolio.positions : portfolio.positions;
-		return _updatePositionsForPrice(_partialUpdatedPositions); //, "RT", portfolio.date);
+		return _updatePositionsForPrice(_partialUpdatedPositions, DateHelper.getNextNonHolidayWeekday(portfolio.date));
 	})
 	.then(updatedPositions => {
 		if (updatedPositions) {
-			return _populateStats({positions: updatedPositions, cash: _.get(portfolio, 'cash', 0.0)});
+			return Object.assign({positions: updatedPositions, cash: _.get(portfolio, 'cash', 0.0)}, portfolio);
+			//return populatePnl ? _populateStats({positions: updatedPositions, cash: _.get(portfolio, 'cash', 0.0)}) : {positions: updatedPositions};
 		} else {
 			return portfolio;
 		}
@@ -222,33 +225,98 @@ module.exports.getUpdatedPortfolio = function(portfolio) {
 	return exports.getUpdatedPortfolioForAveragePrice(portfolio);
 };
 
-module.exports.getUpdatedContestEntry = function(entryId, date) {
+module.exports.getUpdatedContestPortfolioDetail = function(entryId, date) {
 	return DailyContestEntryModel.fetchEntryPortfolioForDate({_id: entryId}, date)
 	.then(contestEntry => {
-		return exports.getUpdatedPortfolio(contestEntry.portfolioDetail[0]);
+		let _storedPortfolioDetail = null;
+		
+		if (_.get(contestEntry, 'portfolioDetail', null) && contestEntry.portfolioDetail.length > 0) {
+			_storedPortfolioDetail = contestEntry.portfolioDetail[0];
+		}
+
+		return _.get(_storedPortfolioDetail, 'active', true)  && _storedPortfolioDetail ? 	
+			exports.getUpdatedPortfolio(_storedPortfolioDetail)
+			.then(updatedPortfolioDetail => {
+				return Object.assign(_storedPortfolioDetail, updatedPortfolioDetail);
+			}) :
+			_storedPortfolioDetail;
+	})
+}
+	
+module.exports.getUpdatedContestEntry = function(entryId, date, populatePnl=false) {
+	return Promise.resolve()
+	.then(() => {
+		return populatePnl ? exports.updateContestEntryPnlStats(entryId, date) : null		
+	})
+	.then(() => {
+		return Promise.all([
+			exports.getUpdatedContestPortfolioDetail(entryId, date),
+			populatePnl ? exports.getContestEntryPnlStats(entryId, date) : null
+		]);	
+	})
+	.then(([contestEntryPortfolioDetail, pnlStats]) => {
+		return populatePnl && pnlStats ? 
+			Object.assign({pnlStats: pnlStats}, contestEntryPortfolioDetail) :
+			contestEntryPortfolioDetail;
 	});
 };
 
 module.exports.updateContestEntryPnlStats = function(entryId, date) {
-	return Promise.all([
-		exports.getUpdatedContestEntry(entryId, date),
-		_getPnlStatsForWeek(entryId, date)
-	])
-	.then(([updatedContestEntryForDate, pnlStatsForWeek]) => {
-		var pnlStatsForDay = _.get(updatedContestEntryForDate, 'pnlStats', {});
-		let pnlStats = {daily: pnlStatsForDay, weekly: pnlStatsForWeek};
+	
+	return exports.getUpdatedContestPortfolioDetail(entryId, date)
+	.then(contestEntryPortfolioDetail => {
+		let entryActive;
 
-		return DailyContestEntryModel.updateEntryPnlStats({_id: entryId}, pnlStats, date);
+		if (contestEntryPortfolioDetail){		
+			entryActive = _.get(contestEntryPortfolioDetail, 'active', true); 			
+		} 
+
+		var updatedPositions = _.get(contestEntryPortfolioDetail, 'positions', []);
+		return entryActive ? Promise.all([
+			_populateStats({positions: updatedPositions}),
+			_getPnlStatsForWeek(entryId, date)
+		]) : [null, null];	
+			
+	})
+	.then(([updatedContestEntryForDate, pnlStatsForWeek]) => {
+		if (pnlStatsForWeek && updatedContestEntryForDate) {
+			var pnlStatsForDay = _.get(updatedContestEntryForDate, 'pnlStats', {});
+			let pnlStats = {daily: pnlStatsForDay, weekly: pnlStatsForWeek};
+
+			return DailyContestEntryModel.updateEntryPnlStats({_id: entryId}, pnlStats, date);
+		}
 	});
 };
 
 module.exports.getContestEntryPnlStats = function(entryId, date) {
+	return Promise.all([
+		exports.getContestEntryDailyPnlStats(entryId, date),
+		exports.getContestEntryWeeklyPnlStats(entryId, date)
+	])
+	.then(([pnlStatsForDay, pnlStatsForWeek]) => {
+		return {weekly: pnlStatsForWeek.pnlStats, daily: pnlStatsForDay.pnlStats};
+	});
+};
+
+module.exports.getContestEntryDailyPnlStats = function(entryId, date) {
 	return DailyContestEntryModel.fetchEntryPnlStatsForDate({_id: entryId}, date)
 	.then(contestEntry => {
 		if (_.get(contestEntry, 'performance.daily', null) && contestEntry.performance.daily.length > 0) {
 			return {advisor: contestEntry.advisor, pnlStats: contestEntry.performance.daily[0].pnlStats};
 		} else {
-			APIError.throwJsonError({message: "No performance found"});
+			return null;
+		}
+	})
+};
+
+
+module.exports.getContestEntryWeeklyPnlStats = function(entryId, date) {
+	return DailyContestEntryModel.fetchEntryPnlStatsForDate({_id: entryId}, date)
+	.then(contestEntry => {
+		if (_.get(contestEntry, 'performance.daily', null) && contestEntry.performance.daily.length > 0) {
+			return {advisor: contestEntry.advisor, pnlStats: contestEntry.performance.daily[0].pnlStats};
+		} else {
+			return null;
 		}
 	})
 };
