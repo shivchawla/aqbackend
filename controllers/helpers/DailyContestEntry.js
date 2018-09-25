@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-25 19:22:27
+* @Last Modified time: 2018-09-25 20:30:34
 */
 
 'use strict';
@@ -231,7 +231,7 @@ module.exports.getUpdatedContestPortfolioDetail = function(entryId, date) {
 		let _storedPortfolioDetail = null;
 		
 		if (_.get(contestEntry, 'portfolioDetail', null) && contestEntry.portfolioDetail.length > 0) {
-			_storedPortfolioDetail = contestEntry.portfolioDetail[0];
+			_storedPortfolioDetail = contestEntry.toObject().portfolioDetail[0];
 		}
 
 		return _.get(_storedPortfolioDetail, 'active', true)  && _storedPortfolioDetail ? 	
