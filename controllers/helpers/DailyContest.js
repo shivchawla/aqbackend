@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-25 19:35:21
+* @Last Modified time: 2018-09-26 12:59:31
 */
 
 'use strict';
@@ -282,7 +282,7 @@ module.exports.updateDailyContestWinners = function() {
 		let i = 1;
 		
 		var winners = pnlStatsAllAdvisors.sort((a,b) => {
-			return a.pnlStats.totalPnl > b.pnlStats.totalPnl ? -1 : a.pnlStats.totalPnl == b.pnlStats.totalPnl ? 0 : 1; 
+			return a.pnlStats.total.pnl > b.pnlStats.total.pnl ? -1 : a.pnlStats.total.pnl == b.pnlStats.total.pnl ? 0 : 1; 
 		}).slice(0, 3).map(item => {
 			item.rank = i++;
 			return item;
@@ -506,7 +506,7 @@ module.exports.updateWeeklyContestWinners = function() {
 								let i = 1;
 		
 								var winners = pnlStatsAllAdvisors.sort((a,b) => {
-									return a.pnlStats.totalPnl > b.pnlStats.totalPnl ? -1 : a.pnlStats.totalPnl == b.pnlStats.totalPnl ? 0 : 1; 
+									return a.pnlStats.total.pnl > b.pnlStats.total.pnl ? -1 : a.pnlStats.total.pnl == b.pnlStats.total.pnl ? 0 : 1; 
 								}).slice(0, 3).map(item => {
 									item.rank = i++;
 									return item;

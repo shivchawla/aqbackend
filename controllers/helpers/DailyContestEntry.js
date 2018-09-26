@@ -2,7 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-26 12:14:54
+<<<<<<< Updated upstream
+* @Last Modified time: 2018-09-26 13:02:52
+=======
+* @Last Modified time: 2018-09-26 12:48:17
+>>>>>>> Stashed changes
 */
 
 'use strict';
@@ -21,27 +25,47 @@ const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEnt
 function _computePnlStats(portfolio) {
 	var totalPnl = 0.0;
 	var totalPnlPct = 0.0;
+	
 	var cost = 0.0;
+	var cost_long = 0.0;
+	var cost_short = 0.0;
+	
 	var netValue = 0.0;
-	var cash = portfolio.cash;
+	var netValue_long = 0.0;
+	var netValue_short = 0.0;
+	var grossValue = 0.0;
+
+	var cash = _.get(portfolio, 'cash', 0.0);
+
 	var pnlPositive = 0;
 	var pnlNegative = 0;
 	
-	var minPnl;
-	var maxPnl;
+	var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
 
 	portfolio.positions.forEach(item => {
-		cost += Math.abs(item.investment)
+		cost += Math.abs(item.investment);
+		cost_long += item.investment > 0.0 ? Math.abs(item.investment) : 0.0;
+		cost_short += item.investment < 0.0 ? Math.abs(item.investment) : 0.0;
+
 		var _cv = item.avgPrice > 0.0 ? item.investment * (item.lastPrice/item.avgPrice) : item.investment
 		var currentValue = _cv + (item.dividendCash ? item.dividendCash : 0.0);
 		
 		var pnl = (currentValue - item.investment)
 		totalPnl += pnl;
+		totalPnl_long += item.investment > 0 ? pnl : 0.0;
+		totalPnl_short += item.investment < 0 ? pnl : 0.0;
 		
 		pnlPositive += pnl > 0 ? pnl : 0.0;
+		pnlPositive_long += item.investment > 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
+		pnlPositive_short += item.investment < 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
 		pnlNegative += pnl < 0 ? Math.abs(pnl) : 0.0;
+		pnlNegative_long += item.investment > 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
+		pnlNegative_short += item.investment < 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
 
-		netValue += currentValue + portfolio.cash;
+		netValue += currentValue;
+		grossValue += Math.abs(currentValue);
+		netValue_long += item.investment > 0 ? Math.abs(currentValue) : 0.0;
+		netValue_short += item.investment < 0 ? Math.abs(currentValue) : 0.0; 
 
 		minPnl = minPnl ? 
 					pnl < minPnl.value ? {security: item.security, value: pnl} : minPnl : 
@@ -49,17 +73,55 @@ function _computePnlStats(portfolio) {
 		maxPnl = maxPnl ? 
 					pnl > maxPnl.value ? {security: item.security, value: pnl} : maxPnl : 
 					{security: item.security, value: pnl};
+
+
+		if (item.invstment < 0.0) {			
+			minPnl_short = minPnl_short ? 
+				pnl < minPnl_short.value ? {security: item.security, value: pnl} : minPnl_short : 
+			    {security: item.security, value: pnl};
+	    	maxPnl_short = maxPnl_short ? 
+				pnl > maxPnl_short.value ? {security: item.security, value: pnl} : maxPnl_short : 
+				{security: item.security, value: pnl};
+
+	    } else {
+			minPnl_long = minPnl_long ? 
+				pnl < minPnl_long.value ? {security: item.security, value: pnl} : minPnl_long : 
+			    {security: item.security, value: pnl};
+	    	maxPnl_long = maxPnl_long ? 
+				pnl > maxPnl_long.value ? {security: item.security, value: pnl} : maxPnl_long : 
+				{security: item.security, value: pnl};
+		}
+
+
 	});
 
+	netvalue += cash;
+	grossValue += cash;
+
 	var profitFactor = pnlNegative > 0.0 ? pnlPositive/pnlNegative : NaN;
+	var profitFactor_long = pnlNegative_long > 0.0 ? pnlPositive_long/pnlNegative_long : NaN;
+	var profitFactor_short = pnlNegative_short > 0.0 ? pnlPositive_short/pnlNegative_short : NaN;
 
 	totalPnlPct = cost > 0.0 ? totalPnl/cost : 0.0;
 
-	return {totalPnl: totalPnl, totalPnlPct: totalPnlPct, 
-		cost: cost, netValue: netValue, 
-		cash: cash, minPnl: minPnl, 
-		maxPnl: maxPnl, profitFactor: profitFactor, 
-		pnlPositive: pnlPositive, pnlNegative: pnlNegative};
+	return {
+		total: {pnl: totalPnl, pnlPct: pnlPct, 
+			cost: cost, netValue: netValue, grossValue: grossValue,
+			cash: cash, minPnl: minPnl, 
+			maxPnl: maxPnl, profitFactor: profitFactor, 
+			pnlPositive: pnlPositive, pnlNegative: pnlNegative},
+		long: {pnl: totalPnl_long, pnlPct: totalPnlPct_long, 
+			cost: cost_long, netValue: netValue_long, 
+			cash: cash, minPnl: minPnl_long, 
+			maxPnl: maxPnl_long, profitFactor: profitFactor_long, 
+			pnlPositive: pnlPositive_long, pnlNegative: pnlNegative_long},
+		short: {pnl: totalPnl_short, pnlPct: totalPnlPct_short, 
+			cost: cost_short, netValue: netValue_short, 
+			cash: cash, minPnl: minPnl_short, 
+			maxPnl: maxPnl_short, profitFactor: profitFactor_short, 
+			pnlPositive: pnlPositive_short, pnlNegative: pnlNegative_short}
+		};
+		
 }
 
 /*
@@ -129,7 +191,21 @@ function _getPnlStatsForWeek(entryId, date) {
 					cost = 0.0, netValue = 0.0, 
 					cash = 0.0, minPnl = null, 
 					maxPnl = null, profitFactor = 0.0, 
-					pnlPositive = 0.0, pnlNegative = 0.0} = pnlStatsForDay;
+					pnlPositive = 0.0, pnlNegative = 0.0} = pnlStatsForDay.total;
+
+
+				const {totalPnl_long = 0.0, totalPnlPct_long = 0.0, 
+					cost_long = 0.0, netValue_long = 0.0, 
+					cash = 0.0, minPnl = null, 
+					maxPnl = null, profitFactor = 0.0, 
+					pnlPositive = 0.0, pnlNegative = 0.0} = pnlStatsForDay.long;
+
+
+				const {totalPnl = 0.0, totalPnlPct = 0.0, 
+					cost = 0.0, netValue = 0.0, 
+					cash = 0.0, minPnl = null, 
+					maxPnl = null, profitFactor = 0.0, 
+					pnlPositive = 0.0, pnlNegative = 0.0} = pnlStatsForDay.short;
 
 
 				pnlStatsForWeek.totalPnl += totalPnl;
