@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-26 13:08:22
+* @Last Modified time: 2018-09-26 13:14:05
 */
 
 'use strict';
@@ -35,6 +35,10 @@ function _computePnlStats(portfolio) {
 	var cash = _.get(portfolio, 'cash', 0.0);
 	var pnlPositive = 0;
 	var pnlNegative = 0;
+	var pnlPositive_long = 0;
+	var pnlNegative_long = 0;
+	var pnlPositive_short = 0;
+	var pnlNegative_short = 0;
 	
 	var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
 
