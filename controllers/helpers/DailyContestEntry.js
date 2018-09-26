@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-26 12:14:54
+* @Last Modified time: 2018-09-26 12:23:52
 */
 
 'use strict';
@@ -23,7 +23,7 @@ function _computePnlStats(portfolio) {
 	var totalPnlPct = 0.0;
 	var cost = 0.0;
 	var netValue = 0.0;
-	var cash = portfolio.cash;
+	var cash = _.get(portfolio, 'cash', 0.0);
 	var pnlPositive = 0;
 	var pnlNegative = 0;
 	
@@ -33,7 +33,7 @@ function _computePnlStats(portfolio) {
 	portfolio.positions.forEach(item => {
 		cost += Math.abs(item.investment)
 		var _cv = item.avgPrice > 0.0 ? item.investment * (item.lastPrice/item.avgPrice) : item.investment
-		var currentValue = _cv + (item.dividendCash ? item.dividendCash : 0.0);
+		var currentValue = _cv + _.get(item, 'dividendCash', 0.0);
 		
 		var pnl = (currentValue - item.investment)
 		totalPnl += pnl;
@@ -41,7 +41,7 @@ function _computePnlStats(portfolio) {
 		pnlPositive += pnl > 0 ? pnl : 0.0;
 		pnlNegative += pnl < 0 ? Math.abs(pnl) : 0.0;
 
-		netValue += currentValue + portfolio.cash;
+		netValue += currentValue + cash;
 
 		minPnl = minPnl ? 
 					pnl < minPnl.value ? {security: item.security, value: pnl} : minPnl : 
