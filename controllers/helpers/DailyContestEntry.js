@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-26 13:14:05
+* @Last Modified time: 2018-09-26 13:26:58
 */
 
 'use strict';
@@ -75,7 +75,7 @@ function _computePnlStats(portfolio) {
 					{security: item.security, value: pnl};
 
 
-		if (item.invstment < 0.0) {			
+		if (item.investment < 0.0) {			
 			minPnl_short = minPnl_short ? 
 				pnl < minPnl_short.value ? {security: item.security, value: pnl} : minPnl_short : 
 			    {security: item.security, value: pnl};
@@ -95,7 +95,7 @@ function _computePnlStats(portfolio) {
 
 	});
 
-	netvalue += cash;
+	netValue += cash;
 	grossValue += cash;
 
 	var profitFactor = pnlNegative > 0.0 ? pnlPositive/pnlNegative : NaN;
@@ -103,9 +103,11 @@ function _computePnlStats(portfolio) {
 	var profitFactor_short = pnlNegative_short > 0.0 ? pnlPositive_short/pnlNegative_short : NaN;
 
 	totalPnlPct = cost > 0.0 ? totalPnl/cost : 0.0;
+	totalPnlPct_long = cost_long > 0.0 ? totalPnl_long/cost_long : 0.0;
+	totalPnlPct_short = cost_short > 0.0 ? totalPnl_short/cost_short : 0.0;
 
 	return {
-		total: {pnl: totalPnl, pnlPct: pnlPct, 
+		total: {pnl: totalPnl, pnlPct: totalPnlPct, 
 			cost: cost, netValue: netValue, grossValue: grossValue,
 			cash: cash, minPnl: minPnl, 
 			maxPnl: maxPnl, profitFactor: profitFactor, 
