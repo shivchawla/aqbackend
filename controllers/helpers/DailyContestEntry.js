@@ -2,7 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
+<<<<<<< Updated upstream
 * @Last Modified time: 2018-09-26 13:26:58
+=======
+* @Last Modified time: 2018-09-26 17:06:12
+>>>>>>> Stashed changes
 */
 
 'use strict';
@@ -344,7 +348,7 @@ module.exports.getUpdatedContestEntry = function(entryId, date, populatePnl=fals
 		]);	
 	})
 	.then(([contestEntryPortfolioDetail, pnlStats]) => {
-		return populatePnl && pnlStats ? 
+		return populatePnl && pnlStats && contestEntryPortfolioDetail ? 
 			Object.assign({pnlStats: pnlStats}, contestEntryPortfolioDetail) :
 			contestEntryPortfolioDetail;
 	});
@@ -355,13 +359,12 @@ module.exports.updateContestEntryPnlStats = function(entryId, date) {
 	let entryActive;
 	return exports.getUpdatedContestPortfolioDetail(entryId, date)
 	.then(contestEntryPortfolioDetail => {
-		
 		if (contestEntryPortfolioDetail){		
 			entryActive = _.get(contestEntryPortfolioDetail, 'active', true); 			
 		} 
 
 		var updatedPositions = _.get(contestEntryPortfolioDetail, 'positions', []);
-		return entryActive ? _populateStats({positions: updatedPositions}) : null;
+		return entryActive && updatedPositions.length > 0 ? _populateStats({positions: updatedPositions}) : null;
 			
 	})
 	.then(updatedContestEntryForDate => {
@@ -389,7 +392,10 @@ module.exports.getContestEntryPnlStats = function(entryId, date) {
 		exports.getContestEntryWeeklyPnlStats(entryId, date)
 	])
 	.then(([pnlStatsForDay, pnlStatsForWeek]) => {
-		return {weekly: pnlStatsForWeek.pnlStats, daily: pnlStatsForDay.pnlStats};
+		return {
+			weekly: _.get(pnlStatsForWeek,'pnlStats', null),
+		 	daily: _.get(pnlStatsForDay, 'pnlStats', null)
+	 	};
 	});
 };
 
