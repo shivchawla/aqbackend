@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-26 11:51:39
+* @Last Modified time: 2018-09-26 12:01:51
 */
 
 
@@ -136,7 +136,7 @@ DailyContestEntry.statics.updateEntryPnlStats = function(query, pnlStats, date) 
 		qDate = {...query, 'performance.weekly.date':{$eq: date}};
     }
    
-    return this.findOne(q)
+    return this.findOne(qDate)
     .then(found => {	
 		let updates;
     	
