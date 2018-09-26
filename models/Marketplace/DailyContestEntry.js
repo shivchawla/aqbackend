@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-25 11:15:42
+* @Last Modified time: 2018-09-26 11:51:39
 */
 
 
@@ -126,47 +126,36 @@ DailyContestEntry.statics.updateEntryPortfolio = function(query, portfolio, opti
 };
 
 DailyContestEntry.statics.updateEntryPnlStats = function(query, pnlStats, date) {
-    let qDaily  = {...query, 'performance.daily.date':{$eq: date}};
-    let qWeekly  = {...query, 'performance.weekly.date':{$eq: date}};
-    return Promise.all([
-    	this.findOne(qDaily),
-    	this.findOne(qWeekly)
-	])
-    .then(([foundDaily, foundWeekly]) => {	
-    	return Promise.resolve()
-    	.then(() => {
-	    	let updates;
-	    	
-	    	if (foundDaily) {
-	    		updates = {
-			    	$set: {'performance.daily.$.pnlStats': pnlStats.daily},
-			 	};
-			 	
-			 	return this.findOneAndUpdate(qDaily, updates);
-	    	} else {
+	
+    let qDate;
+    let daily = pnlStats.daily ? true : false;
 
-	    		updates = {$push: {'performance.daily': {date: date, pnlStats: pnlStats.daily}}};
-	    		return this.findOneAndUpdate(query, updates);
-	    	}
-    	})
-    	.then(upatedDaily => {
-    		return Promise.resolve()
-    		.then(() => {
-	    		let updates;
-		    	
-		    	if (foundWeekly) {
-		    		updates = {
-				    	$set: {'performance.weekly.$.pnlStats': pnlStats.weekly},
-				 	};
-				 	
-				 	return this.findOneAndUpdate(qWeekly, updates);
-		    	} else {
+    if (daily){
+		qDate = {...query, 'performance.daily.date':{$eq: date}};
+    } else {
+		qDate = {...query, 'performance.weekly.date':{$eq: date}};
+    }
+   
+    return this.findOne(q)
+    .then(found => {	
+		let updates;
+    	
+    	if (found) {
+    		
+    		updates = {
+		    	$set: daily ? {'performance.daily.$.pnlStats': pnlStats.daily} : 
+		    		{'performance.weekly.$.pnlStats': pnlStats.weekly}
+		 	};
+		 	
+		 	return this.findOneAndUpdate(qDate, updates);
+    	} else {
 
-		    		updates = {$push: {'performance.weekly': {date: date, pnlStats: pnlStats.weekly}}};
-		    		return this.findOneAndUpdate(query, updates);
-		    	}
-	    	})
-    	})
+    		updates = {$push: daily ? 
+				{'performance.daily': {date: date, pnlStats: pnlStats.daily}} : 
+				{'performance.weekly': {date: date, pnlStats: pnlStats.weekly}} 
+			};
+    		return this.findOneAndUpdate(query, updates);
+    	}
     });
 };
 

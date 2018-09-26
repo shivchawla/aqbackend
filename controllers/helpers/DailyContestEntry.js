@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-25 21:01:58
+* @Last Modified time: 2018-09-26 11:52:34
 */
 
 'use strict';
@@ -263,29 +263,35 @@ module.exports.getUpdatedContestEntry = function(entryId, date, populatePnl=fals
 
 module.exports.updateContestEntryPnlStats = function(entryId, date) {
 	
+	let entryActive;
 	return exports.getUpdatedContestPortfolioDetail(entryId, date)
 	.then(contestEntryPortfolioDetail => {
-		let entryActive;
-
+		
 		if (contestEntryPortfolioDetail){		
 			entryActive = _.get(contestEntryPortfolioDetail, 'active', true); 			
 		} 
 
 		var updatedPositions = _.get(contestEntryPortfolioDetail, 'positions', []);
-		return entryActive ? Promise.all([
-			_populateStats({positions: updatedPositions}),
-			_getPnlStatsForWeek(entryId, date)
-		]) : [null, null];	
+		return entryActive ? _populateStats({positions: updatedPositions}) : null;
 			
 	})
-	.then(([updatedContestEntryForDate, pnlStatsForWeek]) => {
-		if (pnlStatsForWeek && updatedContestEntryForDate) {
+	.then(updatedContestEntryForDate => {
+		if (updatedContestEntryForDate && entryActive) {
 			var pnlStatsForDay = _.get(updatedContestEntryForDate, 'pnlStats', {});
-			let pnlStats = {daily: pnlStatsForDay, weekly: pnlStatsForWeek};
+			let pnlStats = {daily: pnlStatsForDay};
 
 			return DailyContestEntryModel.updateEntryPnlStats({_id: entryId}, pnlStats, date);
 		}
-	});
+	})
+	.then(() => {
+		return entryActive ? _getPnlStatsForWeek(entryId, date) : null;
+	})
+	.then(pnlStatsForWeek => {
+		if (pnlStatsForWeek) {
+			let pnlStats = {weekly: pnlStatsForWeek};
+			return DailyContestEntryModel.updateEntryPnlStats({_id: entryId}, pnlStats, date);
+		}
+	})
 };
 
 module.exports.getContestEntryPnlStats = function(entryId, date) {
