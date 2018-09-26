@@ -2,11 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-<<<<<<< Updated upstream
-* @Last Modified time: 2018-09-26 13:02:52
-=======
-* @Last Modified time: 2018-09-26 12:48:17
->>>>>>> Stashed changes
+* @Last Modified time: 2018-09-26 13:08:22
 */
 
 'use strict';
@@ -25,18 +21,18 @@ const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEnt
 function _computePnlStats(portfolio) {
 	var totalPnl = 0.0;
 	var totalPnlPct = 0.0;
-	
+	var totalPnl_long = 0.0;
+	var totalPnlPct_long = 0.0;
+	var totalPnl_short = 0.0;
+	var totalPnlPct_short = 0.0;
 	var cost = 0.0;
 	var cost_long = 0.0;
 	var cost_short = 0.0;
-	
 	var netValue = 0.0;
 	var netValue_long = 0.0;
 	var netValue_short = 0.0;
 	var grossValue = 0.0;
-
 	var cash = _.get(portfolio, 'cash', 0.0);
-
 	var pnlPositive = 0;
 	var pnlNegative = 0;
 	
@@ -48,7 +44,7 @@ function _computePnlStats(portfolio) {
 		cost_short += item.investment < 0.0 ? Math.abs(item.investment) : 0.0;
 
 		var _cv = item.avgPrice > 0.0 ? item.investment * (item.lastPrice/item.avgPrice) : item.investment
-		var currentValue = _cv + (item.dividendCash ? item.dividendCash : 0.0);
+		var currentValue = _cv + _.get(item, 'dividendCash', 0.0);
 		
 		var pnl = (currentValue - item.investment)
 		totalPnl += pnl;
@@ -177,59 +173,70 @@ function _getPnlStatsForWeek(entryId, date) {
 	.then(pnlStatsAllDatesInWeek => {
 
 		let pnlStatsForWeek = {
-			totalPnl: 0.0, totalPnlPct: 0.0, 
-			cost: 0.0, netValue: 0.0, 
-			minPnl: null, maxPnl: null, 
-			profitFactor: 0.0, 
-			pnlPositive: 0.0, pnlNegative: 0.0,
-			days: 0
+			total: {
+				pnl: 0.0, pnlPct: 0.0, 
+				cost: 0.0, netValue: 0.0, 
+				minPnl: null, maxPnl: null, 
+				profitFactor: 0.0, 
+				pnlPositive: 0.0, pnlNegative: 0.0,
+				days: 0
+			},
+
+			long: {
+				pnl: 0.0, pnlPct: 0.0, 
+				cost: 0.0, netValue: 0.0, 
+				minPnl: null, maxPnl: null, 
+				profitFactor: 0.0, 
+				pnlPositive: 0.0, pnlNegative: 0.0,
+				days: 0
+			},
+
+			short: {
+				pnl: 0.0, pnlPct: 0.0, 
+				cost: 0.0, netValue: 0.0, 
+				minPnl: null, maxPnl: null, 
+				profitFactor: 0.0, 
+				pnlPositive: 0.0, pnlNegative: 0.0,
+				days: 0
+			},
 		};
 		
 		pnlStatsAllDatesInWeek.forEach(pnlStatsForDay => {
 			if (pnlStatsForDay) {
-				const {totalPnl = 0.0, totalPnlPct = 0.0, 
+
+				['total', 'long', 'short'].forEach(type => {
+					const {pnl = 0.0, pnlPct = 0.0, 
 					cost = 0.0, netValue = 0.0, 
 					cash = 0.0, minPnl = null, 
 					maxPnl = null, profitFactor = 0.0, 
-					pnlPositive = 0.0, pnlNegative = 0.0} = pnlStatsForDay.total;
+					pnlPositive = 0.0, pnlNegative = 0.0} = _.get(pnlStatsForDay, type, {});
+	
+					pnlStatsForWeek[type].pnl += pnl;
+					pnlStatsForWeek[type].cost += cost;
+					pnlStatsForWeek[type].netValue += netValue;
+					pnlStatsForWeek[type].minPnl = minPnl ? (pnlStatsForWeek[type].minPnl &&   
+							pnlStatsForWeek[type].minPnl > minPnl.value) ? minPnl : pnlStatsForWeek[type].minPnl : pnlStatsForWeek[type].minPnl;
 
+					pnlStatsForWeek[type].maxPnl = maxPnl ? (pnlStatsForWeek[type].maxPnl &&   
+							pnlStatsForWeek[type].maxPnl > maxPnl.value) ? maxPnl : pnlStatsForWeek[type].maxPnl : pnlStatsForWeek[type].maxPnl;
 
-				const {totalPnl_long = 0.0, totalPnlPct_long = 0.0, 
-					cost_long = 0.0, netValue_long = 0.0, 
-					cash = 0.0, minPnl = null, 
-					maxPnl = null, profitFactor = 0.0, 
-					pnlPositive = 0.0, pnlNegative = 0.0} = pnlStatsForDay.long;
+					pnlStatsForWeek[type].pnlPositive += pnlPositive;
+					pnlStatsForWeek[type].pnlNegative += pnlNegative;
 
+					pnlStatsForWeek[type].pnlNegative += pnlNegative;
 
-				const {totalPnl = 0.0, totalPnlPct = 0.0, 
-					cost = 0.0, netValue = 0.0, 
-					cash = 0.0, minPnl = null, 
-					maxPnl = null, profitFactor = 0.0, 
-					pnlPositive = 0.0, pnlNegative = 0.0} = pnlStatsForDay.short;
-
-
-				pnlStatsForWeek.totalPnl += totalPnl;
-				pnlStatsForWeek.cost += cost;
-				pnlStatsForWeek.netValue += netValue;
-				pnlStatsForWeek.minPnl = minPnl ? (pnlStatsForWeek.minPnl &&   
-						pnlStatsForWeek.minPnl > minPnl.value) ? minPnl : pnlStatsForWeek.minPnl : pnlStatsForWeek.minPnl;
-
-				pnlStatsForWeek.maxPnl = maxPnl ? (pnlStatsForWeek.maxPnl &&   
-						pnlStatsForWeek.maxPnl > maxPnl.value) ? maxPnl : pnlStatsForWeek.maxPnl : pnlStatsForWeek.maxPnl;
-
-				pnlStatsForWeek.pnlPositive += pnlPositive;
-				pnlStatsForWeek.pnlNegative += pnlNegative;
-
-				pnlStatsForWeek.pnlNegative += pnlNegative;
-
-				pnlStatsForWeek.days += 1;  
+					pnlStatsForWeek[type].days += 1; 
+				}) 
 			}	    
 		});
 
-		if (pnlStatsForWeek.days > 0) {
-			pnlStatsForWeek.totalPnlPct = pnlStatsForWeek.cost > 0.0 ? pnlStatsForWeek.totalPnl/pnlStatsForWeek.cost : 0.0;
-			pnlStatsForWeek.profitFactor = pnlStatsForWeek.pnlNegative > 0.0 ? pnlStatsForWeek.pnlPositive/pnlStatsForWeek.pnlNegative : NaN;
-		}	
+
+		['total', 'long', 'short'].forEach(type => {
+			if (pnlStatsForWeek[type].days > 0) {
+				pnlStatsForWeek[type].pnlPct = pnlStatsForWeek[type].cost > 0.0 ? pnlStatsForWeek[type].pnl/pnlStatsForWeek[type].cost : 0.0;
+				pnlStatsForWeek[type].profitFactor = pnlStatsForWeek[type].pnlNegative > 0.0 ? pnlStatsForWeek[type].pnlPositive/pnlStatsForWeek[type].pnlNegative : NaN;
+			}
+		});	
 
 		return pnlStatsForWeek;	
 
