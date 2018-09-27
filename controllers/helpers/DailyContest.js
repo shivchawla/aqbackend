@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-27 11:49:47
+* @Last Modified time: 2018-09-27 13:15:13
 */
 
 'use strict';
@@ -155,6 +155,7 @@ module.exports.updateFinalPortfolio = function(date, newPositions, oldPositions)
 					}
 				} else {
 					totalPositions.push({
+						security: newItem.security,
 						investment: {
 							total: newItem.investment,
 							long: newItem.investment > 0 ? newItem.investment : 0,
@@ -305,7 +306,7 @@ module.exports.updateDailyContestWinners = function() {
 
 		let i = 1;
 		
-		var winners = pnlStatsAllAdvisors.sort((a,b) => {
+		var winners = pnlStatsAllAdvisors.filter(item => item !== null).sort((a,b) => {
 			return a.pnlStats.total.pnl > b.pnlStats.total.pnl ? -1 : a.pnlStats.total.pnl == b.pnlStats.total.pnl ? 0 : 1; 
 		}).slice(0, 3).map(item => {
 			item.rank = i++;
@@ -463,46 +464,7 @@ module.exports.updateWeeklyContestWinners = function() {
 			return Promise.mapSeries(datesInWeekOfThisContest, function(date) {
 				var _d = DateHelper.getMarketClose(date);
 
-				return DailyContestModel.fetchContest({endDate: _d}, {totalPositions:1})
-				.then(contest => {
-					if (contest) {
-						var totalPositions_daily = _.get(contest, 'totalPositions', []);
-
-						totalPositions_daily.forEach(item => {
-							var ticker = item.security.ticker;
-
-							var idx = totalPositions_weekly.map(item => _.get(item, 'security.ticker', '')).indexOf(ticker);
-							if (idx!=-1) {
-
-								var _rollingWeeklyTotalPosition = Object.asssign({}, totalPositions_weekly[idx]);
-
-								_rollingWeeklyTotalPosition.investment.total += _.get(item, 'investment.total', 0.0);
-								_rollingWeeklyTotalPosition.investment.long +=  _.get(item, 'investment.long', 0.0);
-								_rollingWeeklyTotalPosition.investment.short +=  _.get(item, 'investment.short', 0.0);
-								_rollingWeeklyTotalPosition.numUsers.total += _.get(item, 'numUsers.total',0);
-								_rollingWeeklyTotalPosition.numUsers.long +=  _.get(item, 'numUsers.long', 0);
-								_rollingWeeklyTotalPosition.numUsers.long +=  _.get(item, 'numUsers.short', 0);
-
-								totalPositions_weekly[idx]  = _rollingWeeklyTotalPosition;
-							} else {
-								totalPositions_weekly.push(item);
-							}
-
-						});
-
-						return totalPositions_weekly;
-						
-					} else {
-						return null;
-					}
-				})
-				.then(weeklyPositions => {
-					if(weeklyPositions) {
-						return DailyContestModel.updateContest({endDate: _d}, {totalPositions_weekly: weeklyPositions});
-					} else {
-						null;
-					}	
-				});	
+				return DailyContestModel.fetchContest({endDate: _d}, {_id:1})
 			})
 			.then(contestIds => {
 				//Update all daily contest for the last week with winners 
