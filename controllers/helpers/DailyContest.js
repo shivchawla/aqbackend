@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-26 12:59:31
+* @Last Modified time: 2018-09-27 11:49:47
 */
 
 'use strict';
@@ -142,12 +142,30 @@ module.exports.updateFinalPortfolio = function(date, newPositions, oldPositions)
 				var idx = totalPositions.findIndex(item => {return item.security.ticker == newItem.security.ticker});
 				
 				if (idx !=-1) {
-					totalPositions[idx].netInvestment += newItem.investment;
-					totalPositions[idx].longInvestment += newItem.investment > 0 ? newItem.investment : 0;
-					totalPositions[idx].shortInvestment += newItem.investment < 0 ? newItem.investment : 0;
-					totalPositions[idx].numUsers ++;
+					totalPositions[idx].investment.total += newItem.investment;
+					totalPositions[idx].investment.long += newItem.investment > 0 ? newItem.investment : 0;
+					totalPositions[idx].investment.short += newItem.investment < 0 ? newItem.investment : 0;
+					totalPositions[idx].numUsers.total++;
+					if (newItem.investment > 0) {
+						totalPositions[idx].numUsers.long++
+					}
+
+					if (newItem.investment < 0) {
+						totalPositions[idx].numUsers.short++
+					}
 				} else {
-					totalPositions.push({...newItem, numUsers: 1});
+					totalPositions.push({
+						investment: {
+							total: newItem.investment,
+							long: newItem.investment > 0 ? newItem.investment : 0,
+							short: newItem.investment < 0 ? newItem.investment : 0
+						},
+						numUsers: {
+							total: 1,
+							long: newItem.investment > 0 ? 1 : 0,
+							short: newItem.investment < 0 ? 1 : 0,
+						}
+					});
 				}
 
 			});
@@ -159,10 +177,17 @@ module.exports.updateFinalPortfolio = function(date, newPositions, oldPositions)
 					var idx = totalPositions.findIndex(item => {return item.security.ticker == oldItem.security.ticker});
 					
 					if (idx !=-1) {
-						totalPositions[idx].netInvestment -= oldItem.investment;
-						totalPositions[idx].longInvestment -= oldItem.investment > 0 ? oldItem.investment : 0;
-						totalPositions[idx].shortInvestment -= oldItem.investment < 0 ? oldItem.investment : 0;
-						totalPositions[idx].numUsers--;
+						totalPositions[idx].investment.total -= oldItem.investment;
+						totalPositions[idx].investment.long -= oldItem.investment > 0 ? oldItem.investment : 0;
+						totalPositions[idx].investment.short -= oldItem.investment < 0 ? oldItem.investment : 0;
+						totalPositions[idx].numUsers.total++;
+						if (oldItem.investment > 0) {
+							totalPositions[idx].numUsers.long--;
+						}
+
+						if (oldItem.investment < 0) {
+							totalPositions[idx].numUsers.short--
+						}
 					} else {
 						console.log("OOPS!! Old Position not found! This should not happen");
 					}
@@ -219,7 +244,6 @@ module.exports.updateDailyTopPicks = function() {
 			var allEntries = contest.entries;
 			let entryDate = contest.endDate;
 			let totalPositions = contest.totalPositions.toObject();
-
 			
 			return Promise.mapSeries(totalPositions, function(position) {
 				return SecurityHelper.getStockLatestDetail(position.security)
@@ -236,7 +260,7 @@ module.exports.updateDailyTopPicks = function() {
 	.then(populatedTotalPositions => {
 
 		var topStocks = populatedTotalPositions.sort((a,b) => {
-			return a.numUsers > b.numUsers ? -1 : a.numUsers == b.numUsers ? 0 : 1;
+			return a.numUsers.total > b.numUsers.total ? -1 : a.numUsers.total == b.numUsers.total ? 0 : 1;
 		}).slice(0, 5).map(item => {
 			return _.pick(item, ['security', 'numUsers', 'lastDetail']);
 		});
@@ -251,7 +275,7 @@ module.exports.updateDailyTopPicks = function() {
 module.exports.updateDailyContestWinners = function() {
 	//Find all active entries for today
 	let lastActiveContestId;
-	return exports.getContestWithResultToday({field:'_id entries endDate totalPositions', entries: {all: true}})
+	return exports.getContestWithResultToday({field:'_id entries endDate', entries: {all: true}})
 	.then(contest => {
 		if (contest) {
 			lastActiveContestId = contest._id;
@@ -341,10 +365,12 @@ module.exports.updateWeeklyTopPicks = function() {
 
 								var _rollingWeeklyTotalPosition = Object.assign({}, totalPositions_weekly[idx]);
 
-								_rollingWeeklyTotalPosition.netInvestment += item.netInvestment;
-								_rollingWeeklyTotalPosition.longInvestment += item.longInvestment;
-								_rollingWeeklyTotalPosition.shortInvestment += item.shortInvestment;
-								_rollingWeeklyTotalPosition.numUsers += item.numUsers;
+								_rollingWeeklyTotalPosition.investment.total +=  _.get(item, 'investment.total', 0.0);
+								_rollingWeeklyTotalPosition.investment.long +=  _.get(item, 'investment.long', 0.0);
+								_rollingWeeklyTotalPosition.investment.short +=  _.get(item, 'investment.short', 0.0);
+								_rollingWeeklyTotalPosition.numUsers.total +=  _.get(item, 'numUsers.total', 0);
+								_rollingWeeklyTotalPosition.numUsers.long +=  _.get(item, 'numUsers.long', 0);
+								_rollingWeeklyTotalPosition.numUsers.short +=  _.get(item, 'numUsers.short', 0);
 
 								totalPositions_weekly[idx]  = _rollingWeeklyTotalPosition;
 							} else {
@@ -434,7 +460,6 @@ module.exports.updateWeeklyContestWinners = function() {
 			var datesInWeekOfThisContest = DateHelper.getDatesInWeek(endDate);
 			let totalPositions_weekly = [];
 
-
 			return Promise.mapSeries(datesInWeekOfThisContest, function(date) {
 				var _d = DateHelper.getMarketClose(date);
 
@@ -451,10 +476,12 @@ module.exports.updateWeeklyContestWinners = function() {
 
 								var _rollingWeeklyTotalPosition = Object.asssign({}, totalPositions_weekly[idx]);
 
-								_rollingWeeklyTotalPosition.netInvestment += item.netInvestment;
-								_rollingWeeklyTotalPosition.longInvestment += item.longInvestment;
-								_rollingWeeklyTotalPosition.shortInvestment += item.shortInvestment;
-								_rollingWeeklyTotalPosition.numUsers += item.numUsers;
+								_rollingWeeklyTotalPosition.investment.total += _.get(item, 'investment.total', 0.0);
+								_rollingWeeklyTotalPosition.investment.long +=  _.get(item, 'investment.long', 0.0);
+								_rollingWeeklyTotalPosition.investment.short +=  _.get(item, 'investment.short', 0.0);
+								_rollingWeeklyTotalPosition.numUsers.total += _.get(item, 'numUsers.total',0);
+								_rollingWeeklyTotalPosition.numUsers.long +=  _.get(item, 'numUsers.long', 0);
+								_rollingWeeklyTotalPosition.numUsers.long +=  _.get(item, 'numUsers.short', 0);
 
 								totalPositions_weekly[idx]  = _rollingWeeklyTotalPosition;
 							} else {
