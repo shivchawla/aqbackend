@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-07-10 12:34:59
+* @Last Modified time: 2018-09-28 11:31:46
 */
 
 'use strict';
@@ -15,19 +15,19 @@ const Advice = require('./Advice');
 const Position = new Schema({
 	security: Security,
 
+	investment: {
+		type: Number,
+		default: 0.0,
+	},
+
 	quantity: {
 		type: Number,
-		required: true,
 		default: 0,
 	},
 
 	avgPrice: Number,
 
 	lastPrice: Number,
-
-	//unrealizedPnL: Number,
-
-	//realizedPnL: Number,
 
 	totalFees: Number,
 

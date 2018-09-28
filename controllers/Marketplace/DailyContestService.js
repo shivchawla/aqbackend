@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-25 14:13:25
+* @Last Modified time: 2018-09-27 20:12:01
 */
 
 'use strict';
@@ -87,7 +87,7 @@ module.exports.getDailyContestEntry = (args, res, next) => {
 	const userId = _.get(args, 'user._id', null);
 	const populatePnl = _.get(args, 'populatePnl.value', false);
 
-	let contestEndDate;
+	let contestEndDate, contestStartDate;
 	return Promise.all([
 		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
 		DailyContestHelper.getContestForDate(date, {fields: '_id startDate endDate'})

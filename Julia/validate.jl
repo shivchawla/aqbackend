@@ -108,6 +108,53 @@ function _validate_adviceportfolio(advicePortfolio::Dict{String, Any}, lastAdvic
     end 
 end 
 
+function _validate_contest_entry(entry::Dict{String, Any}, lastEntry::Dict{String, Any}; dollarPosition::Bool=false)
+    
+    jsFormat = "yyyy-mm-ddTHH:MM:SS.sssZ"
+    # Validate 3 components of portfolio
+    #a. positions
+    #b. start and end dates
+    #c. benchmark
+    try
+
+        portfolio = get(entry, "portfolio", Dict{String, Any}())
+        oldPortfolio = get(lastEntry, "portfolio", Dict{String, Any}())
+        
+        if portfolio == Dict{String, Any}()
+            error("Advice doesn't contain portfolio")
+        end
+
+        #If portfolio has benchmark
+        if haskey(portfolio, "benchmark") 
+            benchmark = convert(Raftaar.Security, portfolio["benchmark"])
+             
+            if haskey(oldPortfolio, "benchmark")
+                benchmark_old = convert(Raftaar.Security, oldPortfolio["benchmark"])
+                if benchmark != benchmark_old
+                    error("Benchmark change is not valid for active advice")
+                end
+            end
+
+            if benchmark == Security()
+                error("Invalid Benchmark Security")
+            end
+        else
+            error("Advice doesn't contain benchmark Security")
+        end
+
+        portfolioDetail = get(portfolio, "detail", Dict{String, Any}())
+        oldPortfolioDetail = get(oldPortfolio, "detail", Dict{String, Any}())
+       
+        #Validating positions and benchmark
+        (valid_port, port) = _validate_portfolio(portfolio, checkbenchmark = false, dollarposition=true)
+
+        return valid_port
+        
+    catch err
+        rethrow(err)
+    end
+end 
+
 ###
 # Function to validate a security (against database data)
 ###
@@ -191,11 +238,13 @@ end
 # Internal Function
 # Validate portfolio for positions (and internal stocks)
 ###
-function _validate_portfolio(port::Dict{String, Any}; checkbenchmark = true)   
+function _validate_portfolio(port::Dict{String, Any}; checkbenchmark = true, dollarposition = false)   
     try 
         portfolio = nothing
         if haskey(port, "detail")
-            portfolio = convert(Raftaar.Portfolio, port["detail"])
+            portfolio = !dollarposition ? 
+                convert(Raftaar.Portfolio, port["detail"]) :
+                convert(Raftaar.DollarPortfolio, port["detail"])
         else
             error("Empty portfolio")
         end 

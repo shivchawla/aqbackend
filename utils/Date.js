@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-25 13:12:38
+* @Last Modified time: 2018-09-28 16:20:08
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -186,7 +186,7 @@ module.exports.getDatesInWeek = function(date, offset=0) {
 module.exports.getNextNonHolidayWeekday = function(date) {
 	var nextWeekday = exports.getNextWeekday(date);
 	let isHoliday = exports.IsHoliday(nextWeekday);
-	return isHoliday ? exports.nextNonHolidayWeekday(nextWeekday) : nextWeekday;
+	return isHoliday ? exports.getNextNonHolidayWeekday(nextWeekday) : nextWeekday;
 };
 
 module.exports.IsHoliday = function(date) {
@@ -196,6 +196,10 @@ module.exports.IsHoliday = function(date) {
 	});
 
 	return isHoliday;
+};
+
+module.exports.getCurrentIndiaDateTime = function() {
+	return moment.tz(new Date(), "Asia/Kolkata"); 
 };
 
 

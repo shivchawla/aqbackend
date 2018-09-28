@@ -96,7 +96,7 @@ module.exports.getContests = function(args, res, next) {
     let query = {};
     // let query = {active: true};
     if (shouldGetValidContest) {
-        query = {...query, active: true, startDate: {'$gt': currentDate}};
+        query = {...query, active: true, startDate: {'$gte': currentDate}};
         
     }
     ContestModel.fetchContests(query, options)
@@ -147,7 +147,7 @@ module.exports.getContestSummary = function(args, res, next) {
     });
 }
 
-module.exports.getContestAdvices = function(args, res, next) {
+module.exports.getEntriesInContest = function(args, res, next) {
     const contestId = _.get(args, 'contestId.value', 0);
     const skip = _.get(args, 'skip.value', 0);
     const limit = _.get(args, 'limit.value', 10);
@@ -164,7 +164,7 @@ module.exports.getContestAdvices = function(args, res, next) {
     })
 }
 
-module.exports.updateAdviceInContest = function(args, res, next) {
+module.exports.updateEntryStatusInContest = function(args, res, next) {
     const admins = config.get('admin_user');
     const userEmail = _.get(args, 'user.email', null);
     const userId = _.get(args, 'user._id', null);
@@ -243,7 +243,7 @@ module.exports.updateAdviceInContest = function(args, res, next) {
     })
 }
 
-module.exports.getAdviceSummary = function(args, res, next) {
+module.exports.getContestEntryRankSummaryInLatestContest = function(args, res, next) {
     const adviceId = _.get(args, 'adviceId.value', 0);
     ContestModel.fetchContests({active: true})
     .then(({contests, count}) => {
@@ -282,7 +282,7 @@ module.exports.getValidContestsToParticipate = function(args, res, next) {
     });
 }
 
-module.exports.getContestAdviceSummary = function(args, res, next) {
+module.exports.getContestEntryRankSummaryInAllContests = function(args, res, next) {
     const adviceId = _.get(args, 'adviceId.value', '');
     return ContestHelper.getAdviceSummary(adviceId)
     .then(contests => {

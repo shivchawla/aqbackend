@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-27 12:13:30
+* @Last Modified time: 2018-09-28 16:29:42
 */
 
 'use strict';
@@ -123,7 +123,6 @@ function _computePnlStats(portfolio) {
 			maxPnl: maxPnl_short, profitFactor: profitFactor_short, 
 			pnlPositive: pnlPositive_short, pnlNegative: pnlNegative_short}
 		};
-		
 }
 
 /*

@@ -40,6 +40,8 @@ tags:
   description: "getting the static configs"
 - name: "contest"
   description: "operations on contest"
+- name: "contestentry"
+  description: "operations on contest entry"
 - name: "dailycontest"
   description: "operations on dailycontest"
   externalDocs:
@@ -3095,13 +3097,13 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "Contest"
 
-  /contest/{contestId}/advices:
+  /contest/{contestId}/entries:
     get:
       tags:
       - contest
-      summary: get contest advices
-      description: Get the advices in a particular contest
-      operationId: getContestAdvices
+      summary: get contest enries
+      description: Get all the entries in a particular contest
+      operationId: getEntriesInContest
       parameters:    
       - name: contestId
         in: path
@@ -3126,13 +3128,13 @@ paths:
           description: Invalid Input
       x-swagger-router-controller: "Contest"
   
-  /contest/entry/all/{adviceId}:
+  /contest/entry/all/{entryId}:
     get:
       tags:
       - contest
-      summary: get the advice summary from a particular contest
+      summary: get the contest entry's rank summary for all contest
       description: Get the advice summary of an advice that is inside the specific contest
-      operationId: getContestAdviceSummary
+      operationId: getContestEntryRankSummaryInAllContests
       security:
       - api_key: []
       parameters:
@@ -3141,7 +3143,7 @@ paths:
         description: "auth token"
         type: "string"
         required: true
-      - name: adviceId
+      - name: entryId
         in: path
         required: true
         type: string
@@ -3152,13 +3154,13 @@ paths:
           description: Invalid Input
       x-swagger-router-controller: "Contest" 
   
-  /contest/entry/{adviceId}:
+  /contest/entry/{entryId}:
     get:
       tags:
       - contest
-      summary: get the advice summary inside the contest
+      summary: get the contest entry summary inside the contest
       description: Get the advice summary inside the contest
-      operationId: getAdviceSummary
+      operationId: getContestEntryRankSummaryInLatestContest
       security:
       - api_key: []
       parameters:
@@ -3167,7 +3169,7 @@ paths:
         description: "auth token"
         type: "string"
         required: true
-      - name: adviceId
+      - name: entryId
         in: path
         required: true
         type: string
@@ -3178,13 +3180,13 @@ paths:
           description: Invalid Input
       x-swagger-router-controller: "Contest"
 
-  /contest/{adviceId}/action:
+  /contest/{entryId}/action:
     post:
       tags:
       - contest
-      summary: insert, prohibit or withdraw an advice
-      description: Insert, Prohibit or Withdraw an advice from the Contest
-      operationId: updateAdviceInContest
+      summary: insert, prohibit or withdraw a contest entry
+      description: Insert, Prohibit or Withdraw a conest entry from the Contest
+      operationId: updateEntryInContest
       security:
       - api_key: []
       parameters:
@@ -3193,7 +3195,7 @@ paths:
         description: "auth token"
         type: "string"
         required: true
-      - name: adviceId
+      - name: entryId
         in: path
         required: true
         type: string
@@ -3243,6 +3245,255 @@ paths:
         400:
           description: Invalid Input
       x-swagger-router-controller: "Contest"
+
+  /contestentry/validate:
+    post:
+      tags:
+      - contestentry
+      summary: validate a contest entry
+      description: validate a contest entry
+      operationId: validateContestEntry
+      security: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: false
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/Advice'
+      - name: operation
+        in: query
+        required: true
+        type: string
+        default: "create"
+        enum: ["create", "update"]
+      - name: entryId
+        in: query
+        required: false
+        type: string
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "Advice"
+
+  /contestentry/create:
+    post:
+      tags:
+      - contestentry
+      summary: create a contest entry
+      description: create a contest entry
+      operationId: createContestEntry
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/ContestEntry'
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "ContestEntry"
+  
+  /contestentry:
+    get:
+      tags:
+      - contestentry
+      summary: get all contest entries
+      description: get contest entries
+      operationId: getContestEntries
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: advisor
+        in: query
+        type: string
+        format: uuid
+        required: false
+        description: advisor id
+      - name: personal
+        in: query
+        type: string
+        required: false
+        default: "0,1"
+        description: advice owner
+      - name: skip
+        in: query
+        type: integer
+        required: false
+        default: 0
+        description: skip records
+      - name: limit
+        in: query
+        type: integer
+        required: false
+        default: 10
+        description: limit number of entries
+      - name: order
+        type: number
+        required: true
+        in: query
+        default: -1
+        description: sort order
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "ContestEntry"
+
+  /contestentry/{entryId}:
+    patch:
+      tags:
+      - contestentry
+      summary: update contest entry 
+      description: updates the contest entry 
+      consumes:
+      - application/json
+      operationId: updateContestEntry
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: entryId
+        in: path
+        required: true
+        type: string
+      - name: body
+        in: body
+        required: true
+        schema: 
+          $ref: '#/definitions/ContestEntry'
+      responses:
+        200:
+          description: "updated advice"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "ContestEntry"
+  
+    get:
+      tags:
+      - contestentry
+      summary: get contest entry summary 
+      description: Get contest entries basic details 
+      operationId: getContestEntrySummary
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: entryId
+        in: path
+        type: string
+        required: true
+      - name: fullperformance
+        in: query
+        type: boolean
+        default: false
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "ContestEntry"
+  
+  /contestentry/{entryId}/detail:    
+    get:
+      tags:
+      - contestentry
+      summary: get contest entry detail
+      description: Gets the complete contest entry detail
+      operationId: getContestEntryDetail
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: entryId
+        in: path
+        type: string
+        required: true
+      - name: fields
+        in: query
+        type: string
+        default: ""
+        required: false
+        description: selection fields
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "ContestEntry"
+
+  /contestentry/{entryId}/portfolio:    
+    get:
+      tags:
+      - contestentry
+      summary: get contest entry portfolio for any date
+      description: Gets the contest entry portfolio for any date
+      operationId: getContestEntryPortfolio
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: entryId
+        in: path
+        type: string
+        required: true
+      - name: date
+        in: query
+        type: string
+        required: false
+        description: date
+      - name: history
+        in: query
+        type: boolean
+        default: false
+        required: false
+        description: portfolio history
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "ContestEntry"  
+
 
   /dailycontest:
     post:
@@ -3620,10 +3871,13 @@ definitions:
     type: object
     required:
       - security
-      - quantity
     properties:
       security:
         $ref: '#/definitions/Security'
+      investment:
+        type: number
+        format: number
+        default: 0.0  
       quantity:
         type: number
         format: long
@@ -4004,7 +4258,18 @@ definitions:
         type: string
       userId:
         type: string
-  
+
+  ContestEntry:
+    type: object
+    required:
+      - name
+      - portfolio
+    properties:
+      name: 
+        type: string
+      portfolio:
+        $ref: "#/definitions/Portfolio"
+
   Contest:
     type: object
     required:
@@ -4068,27 +4333,6 @@ definitions:
     properties: 
       rank:
         type: number
-      value:
-        type: number
-  
-  RankingData:
-    type: object
-    required:
-      - rankingData
-    properties:
-      rankingData:
-        type: array
-        items:
-          $ref: '#/definitions/ContestRank'      
-
-  ContestRank:
-    type: object
-    required:
-      - value
-      - adviceId
-    properties:
-      adviceId:
-        type: string
       value:
         type: number
 

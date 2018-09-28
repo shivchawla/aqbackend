@@ -26,16 +26,16 @@ module.exports.updateAllContestRanks = (req, res, next) => {
     ContestHelper.updateAllAnalytics();
 };
 
-module.exports.getAdviceSummary = (req, res, next) => {
-    Contest.getAdviceSummary(req.swagger.params, res, next);
+module.exports.getContestEntryRankSummaryInLatestContest = (req, res, next) => {
+    Contest.getContestEntryRankSummaryInLatestContest(req.swagger.params, res, next);
 };
 
-module.exports.getContestAdvices = (req, res, next) => {
-    Contest.getContestAdvices(req.swagger.params, res, next);
+module.exports.getEntriesInContest = (req, res, next) => {
+    Contest.getEntriesInContest(req.swagger.params, res, next);
 };
 
-module.exports.getContestAdviceSummary = (req, res, next) => {
-    Contest.getContestAdviceSummary(req.swagger.params, res, next);
+module.exports.getContestEntryRankSummaryinAllContests = (req, res, next) => {
+    Contest.getContestEntryRankSummaryinAllContests(req.swagger.params, res, next);
 }
 
 module.exports.getAllContests = (req, res, next) => {
