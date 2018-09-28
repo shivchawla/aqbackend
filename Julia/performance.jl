@@ -212,7 +212,7 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
 
         elseif (benchmark_prices != nothing)
             benchmark_prices = dropnan(benchmark_prices, :any)
-            (updatedDate, updatedPortfolio) = updateportfolio_price(port_raftaar, currentIndiaTime())
+            (updatedDate, updatedPortfolio) = update_raftaarportfolio_price(port_raftaar, currentIndiaTime())
             
             performance_allstocks = [merge(Dict("ticker" => sym.ticker), compute_pnl_stats(pos)) for (sym,pos) in updatedPortfolio.positions]
             

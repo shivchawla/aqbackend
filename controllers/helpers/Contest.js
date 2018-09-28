@@ -151,7 +151,7 @@ function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRank
         const hasEnded = DateHelper.compareDates(contestEndDate, date) == 0 ? true : false;
         if (hasEnded) {
             let i=0;
-            while(rawWinners.length < numWinners*3) {
+            while(rawWinners.length < numWinners*3 && i < currentAdviceRankingData.length) {
                 const rankingData = currentAdviceRankingData[i++];
                 const currentAdviceIdx = _.findIndex(currentAdviceRankingData, adviceData => adviceData.adviceId === (rankingData.adviceId).toString());
                 const simulatedAdviceIdx = _.findIndex(simulatedAdviceRankingData, adviceData => adviceData.adviceId === (rankingData.adviceId).toString());
