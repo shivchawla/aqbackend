@@ -21,6 +21,16 @@ function handleRequest(parsemsg::Dict{String, Any})
           valid = _validate_advice(currentAdvice, lastAdvice) 
           parsemsg["output"] = valid
 
+        elseif action == "validate_contest_entry"
+          valid = false
+          
+          currentEntry= parsemsg["entry"]
+          lastEntry = parsemsg["lastEntry"] == "" ? Dict{String,Any}() : parsemsg["lastEntry"]
+          dollarPosition = parsemsg["dollarPosition"] == "" ? false : parsemsg["dollarPosition"]
+          
+          valid = _validate_contest_entry(currentEntry, lastEntry, dollarPosition = dollarPosition) 
+          parsemsg["output"] = valid
+
         elseif action == "validate_portfolio"
             
           valid = false
