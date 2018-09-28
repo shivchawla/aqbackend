@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-12 14:33:52
+* @Last Modified time: 2018-09-28 20:30:00
 */
 
 'use strict';
@@ -19,6 +19,10 @@ var ObjectId = mongoose.Types.ObjectId;
 const PortfolioDetail = new Schema({
 	startDate: Date,
 	endDate: Date,
+
+	type: {
+		default: "shares"
+	},
 
 	positions: [Position],
 	

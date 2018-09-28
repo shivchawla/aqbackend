@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-28 12:39:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-28 16:29:21
+* @Last Modified time: 2018-09-28 19:16:16
 */
 
 'use strict';
@@ -52,7 +52,7 @@ function _filterActive(objs) {
 
 function _getSuggestedContestEntryName(benchmark) {
 	return new Promise(resolve => {
-		ContestEntryModel.countContestEntries({})
+		ContestEntryModel.countEntries({})
 		.then(count => {
 			resolve(`Contest Entry#${count + 1} vs ${benchmark}`);
 		})
@@ -298,13 +298,13 @@ module.exports.saveContestEntry = function(contestEntry, advisorId, effectiveSta
 		       	updatedDate: new Date(),
 			};
 
-		    return ContestEntryModel.saveEntry(entry);
+		    return ContestEntryModel.saveContestEntry(entry);
 	    } else {
 	    	APIError.throwJsonError({userId: userId, message:"Invalid Portfolio! Can't create contest entry with invalid portfolio", errorCode: 1110});
 	    }
 	})
-    .then(savedAdvice => {
-    	if(savedAdvice) {
+    .then(savedContestEntry => {
+    	if(savedContestEntry) {
     		return Promise.all([
     			savedContestEntry,
     			exports.updateContestEntryPerformanceSummary(savedContestEntry._id, savedContestEntry.portfolio.startDate),
@@ -314,6 +314,7 @@ module.exports.saveContestEntry = function(contestEntry, advisorId, effectiveSta
     	}
     })
     .then(([savedContestEntry, performance]) => {
+
     	return Object.assign(performance, savedContestEntry.toObject());
     })
 };
@@ -339,10 +340,10 @@ module.exports.getContestEntryAccessStatus = function(entryId, userId) {
 			APIError.throwJsonError({message: "Advice not found", errorCode: 1101});	
 		}
 
-		return  Object.assign({subscriptionDetail: subscriptionDetail}, {
+		return  {
 			isAdmin: advisor && adminAdvisor ? advisor.equals(adminAdvisor._id) : false,
 			isOwner: advisor && contestEntry.advisor ? advisor.equals(contestEntry.advisor) : false
-		});
+		};
 	});
 };
 
@@ -396,11 +397,13 @@ module.exports.validateContestEntry = function(contestEntry, oldContestEntry, do
 
     })
     .then(preliminaryContestEntryValidity => {
+    	console.log(preliminaryContestEntryValidity);
+
     	let valid = preliminaryContestEntryValidity;
     	let validity = {};
 
     	if (config.get('validate_contest_entry_full')) {
-	    	if (preliminaryAdviceValidity) {
+	    	if (preliminaryContestEntryValidity) {
 	    		var portfolio = contestEntry.portfolio;
 	    		var oldPortfolio = oldContestEntry ? oldContestEntry.portfolio : null; 
 	    		return Promise.all([
@@ -431,17 +434,17 @@ module.exports.validateContestEntry = function(contestEntry, oldContestEntry, do
 				return {valid: false, detail: {'PRELIMINARY_CHECK': {valid: false}}};
 			}
 		} else {
-			return {valid: preliminaryAdviceValidity, detail: {'PRELIMINARY_CHECK': {valid: preliminaryAdviceValidity}}};
+			return {valid: preliminaryContestEntryValidity, detail: {'PRELIMINARY_CHECK': {valid: preliminaryContestEntryValidity}}};
 		}
     });
 };
 
 module.exports.updateContestEntryPerformanceSummary = function(entryId, date) {
-	return PerformanceHelper.computeAdvicePerformanceSummary(entryId, date)
+	return PerformanceHelper.computeContestEntryPerformanceSummary(entryId, date)
 	.then(contestEntryPerformanceSummary => {
-		return ContestEntryModel.updatePerformance({_id: entryId}, {performanceSummary: contestEntryPerformanceSummary});
+		return ContestEntryModel.updatePerformance({_id: entryId}, contestEntryPerformanceSummary);
 	})
-	.then(contest => {
+	.then(contestEntry => {
 		if (contestEntry) {
 			return {performanceSummary: contestEntry.performanceSummary};
 		} else{

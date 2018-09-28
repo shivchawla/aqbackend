@@ -4,10 +4,10 @@ const _ = require('lodash');
 const Promise = require('bluebird');
 const DateHelper = require('../../utils/Date');
 const ContestModel = require('../../models/Marketplace/Contest');
-const AdviceModel = require('../../models/Marketplace/Advice');
+const ContestEntryModel = require('../../models/Marketplace/ContestEntry');
 const UserModel = require('../../models/user');
 const PerformanceHelper = require('./Performance');
-const AdviceHelper = require('./Advice');
+const ContestContestEntryHelper = require('./ContestEntry');
 const SecurityHelper = require('./Security');
 const AnalyticsHelper = require('./Analytics');
 const ratingFields = require('../../constants').contestRatingFields;
@@ -27,29 +27,29 @@ function formatValue(value, options) {
     }
 };
 
-const getAdviceRatingDetail = (rankingDetail, adviceId, type) => {
+const getEntryRatingDetail = (rankingDetail, entryId, type) => {
     return rankingDetail[type].map((fieldData, index) => {
         const {field, data} = fieldData;
-        const adviceIndex = _.findIndex(data, item => item.advice === adviceId);
+        const entryIndex = _.findIndex(data, item => item.entry === entryId);
         
         return {
             field, 
-            ratingValue: data[adviceIndex].rating, 
-            rank: data[adviceIndex].rank, 
-            metricValue: data[adviceIndex].metricValue
+            ratingValue: data[entryIndex].rating, 
+            rank: data[entryIndex].rank, 
+            metricValue: data[entryIndex].metricValue
         };
     });
 }
 
-const calculateAdviceRating = (ratingObj, allAdviceAnalytics = null, ratingType='current', field='maxLoss') =>  {
-    const items = Object.keys(ratingObj).map(ratingAdviceId => {
-        if (allAdviceAnalytics !== null) {
-            const advicePerformance = allAdviceAnalytics.filter(item => (item.advice).toString() === ratingAdviceId)[0];
-            const metricValue = _.get(advicePerformance, `performance[${ratingType}][${field}]`, 0);
+const calculateEntryRating = (ratingObj, allEntryAnalytics = null, ratingType='current', field='maxLoss') =>  {
+    const items = Object.keys(ratingObj).map(ratingEntryId => {
+        if (allEntryAnalytics !== null) {
+            const entryPerformance = allEntryAnalytics.filter(item => (item.entry).toString() === ratingEntryId)[0];
+            const metricValue = _.get(entryPerformance, `performance[${ratingType}][${field}]`, 0);
 
-            return {advice: ratingAdviceId, rating: ratingObj[ratingAdviceId], metricValue};
+            return {entry: ratingEntryId, rating: ratingObj[ratingEntryId], metricValue};
         } else {
-            return {advice: ratingAdviceId, rating: ratingObj[ratingAdviceId]};
+            return {entry: ratingEntryId, rating: ratingObj[ratingEntryId]};
         }
     });
 
@@ -57,89 +57,89 @@ const calculateAdviceRating = (ratingObj, allAdviceAnalytics = null, ratingType=
 }
 
 
-function _updateRating(contestId, currentAdviceRankingData, simulatedAdviceRankingData, selectedDate, rankingDetail) {
+function _updateRating(contestId, currentEntryRankingData, simulatedEntryRankingData, selectedDate, rankingDetail) {
     const today = DateHelper.getCurrentDate();
-    return ContestModel.fetchContest({_id: contestId}, {advices: 1})
+    return ContestModel.fetchContest({_id: contestId}, {entries: 1})
     .then(contest => {
         if (contest) {
-            return Promise.map(contest.advices, adviceItem => {
-                const currentAdviceIdx = _.findIndex(currentAdviceRankingData, adviceData => adviceData.adviceId === (adviceItem.advice).toString());
-                const simulatedAdviceIdx = _.findIndex(simulatedAdviceRankingData, adviceData => adviceData.adviceId === (adviceItem.advice).toString());
-                if (currentAdviceIdx > -1) {
-                    const rank = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rank`, null);
-                    const currentRatingValue = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rating`, null);
-                    const simulatedRatingValue = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rating`, null);
-                    const currentRatingRank = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rank`, null);
-                    const simulatedRatingRank = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rank`, null);
+            return Promise.map(contest.entries, entryItem => {
+                const currentEntryIdx = _.findIndex(currentEntryRankingData, entryData => entryData.entryId === (entryItem.entry).toString());
+                const simulatedEntryIdx = _.findIndex(simulatedEntryRankingData, entryData => entryData.entryId === (entryItem.entry).toString());
+                if (currentEntryIdx > -1) {
+                    const rank = _.get(currentEntryRankingData, `[${currentEntryIdx}].rank`, null);
+                    const currentRatingValue = _.get(currentEntryRankingData, `[${currentEntryIdx}].rating`, null);
+                    const simulatedRatingValue = _.get(simulatedEntryRankingData, `[${simulatedEntryIdx}].rating`, null);
+                    const currentRatingRank = _.get(currentEntryRankingData, `[${currentEntryIdx}].rank`, null);
+                    const simulatedRatingRank = _.get(simulatedEntryRankingData, `[${simulatedEntryIdx}].rank`, null);
                     // find if the date already exists in the rating array
-                    const rankingIdx = _.findIndex(adviceItem.rankingHistory, rankData => {
+                    const rankingIdx = _.findIndex(entryItem.rankingHistory, rankData => {
                         const rankDate = rankData.date;
                         return DateHelper.compareDates(rankDate, selectedDate) === 0;
                     });
                     if (rankingIdx === -1) { // If date doesn't exist push it into the history
-                        adviceItem.rankingHistory.push({
+                        entryItem.rankingHistory.push({
                             value: rank, 
                             date: selectedDate, 
                             rating: {
                                 current: {
                                     value: currentRatingValue,
                                     rank: currentRatingRank,
-                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'current')
+                                    detail: getEntryRatingDetail(rankingDetail, (entryItem.entry).toString(), 'current')
                                 },
                                 simulated: {
                                     value: simulatedRatingValue,
                                     rank: simulatedRatingRank,
-                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'simulated')
+                                    detail: getEntryRatingDetail(rankingDetail, (entryItem.entry).toString(), 'simulated')
                                 }
                             }
                         });
                     } else { // Modify the rank value
-                        adviceItem.rankingHistory[rankingIdx].value = rank;
-                        adviceItem.rankingHistory[rankingIdx].rating = {
+                        entryItem.rankingHistory[rankingIdx].value = rank;
+                        entryItem.rankingHistory[rankingIdx].rating = {
                             current: {
                                 value: currentRatingValue,
                                 rank: currentRatingRank,
-                                detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'current')
+                                detail: getEntryRatingDetail(rankingDetail, (entryItem.entry).toString(), 'current')
                             },
                             simulated: {
                                 value: simulatedRatingValue,
                                 rank: simulatedRatingRank,
-                                detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'simulated')
+                                detail: getEntryRatingDetail(rankingDetail, (entryItem.entry).toString(), 'simulated')
                             }
                         };
                     }
                     // Only modify the latestRank if the date is today
                     if (DateHelper.compareDates(today, selectedDate) === 0){
-                        adviceItem.latestRank = {
+                        entryItem.latestRank = {
                             value: rank, 
                             selectedDate, 
                             rating: {
                                 current: {
                                     value: currentRatingValue,
                                     rank: currentRatingRank,
-                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'current')
+                                    detail: getEntryRatingDetail(rankingDetail, (entryItem.entry).toString(), 'current')
                                 },
                                 simulated: {
                                     value: simulatedRatingValue,
                                     rank: simulatedRatingRank,
-                                    detail: getAdviceRatingDetail(rankingDetail, (adviceItem.advice).toString(), 'simulated')
+                                    detail: getEntryRatingDetail(rankingDetail, (entryItem.entry).toString(), 'simulated')
                                 }
                             }
                         };
                     }
                 }
 
-                return adviceItem;
+                return entryItem;
             })
-            .then(updatedAdvices => {
-                return ContestModel.updateContest({_id: contestId}, {advices: updatedAdvices});    
+            .then(updatedEntrys => {
+                return ContestModel.updateContest({_id: contestId}, {entries: updatedEntrys});    
             });
             
         }
     });
 }
 
-function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRankingData, date, rankingDetail) {
+function _updateWinners(contestId, currentEntryRankingData, simulatedEntryRankingData, date, rankingDetail) {
     return ContestModel.fetchContest({_id: contestId}, {fields:'winners rules endDate'})
     .then(contest => {
         let contestId = contest._id;
@@ -151,16 +151,16 @@ function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRank
         const hasEnded = DateHelper.compareDates(contestEndDate, date) == 0 ? true : false;
         if (hasEnded) {
             let i=0;
-            while(rawWinners.length < numWinners*3 && i < currentAdviceRankingData.length) {
-                const rankingData = currentAdviceRankingData[i++];
-                const currentAdviceIdx = _.findIndex(currentAdviceRankingData, adviceData => adviceData.adviceId === (rankingData.adviceId).toString());
-                const simulatedAdviceIdx = _.findIndex(simulatedAdviceRankingData, adviceData => adviceData.adviceId === (rankingData.adviceId).toString());
-                const currentRatingValue = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rating`, null);
-                const simulatedRatingValue = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rating`, null);
-                const currentRatingRank = _.get(currentAdviceRankingData, `[${currentAdviceIdx}].rank`, null);
-                const simulatedRatingRank = _.get(simulatedAdviceRankingData, `[${simulatedAdviceIdx}].rank`, null);
+            while(rawWinners.length < numWinners*3 && i < currentEntryRankingData.length) {
+                const rankingData = currentEntryRankingData[i++];
+                const currentEntryIdx = _.findIndex(currentEntryRankingData, entryData => entryData.entryId === (rankingData.entryId).toString());
+                const simulatedEntryIdx = _.findIndex(simulatedEntryRankingData, entryData => entryData.entryId === (rankingData.entryId).toString());
+                const currentRatingValue = _.get(currentEntryRankingData, `[${currentEntryIdx}].rating`, null);
+                const simulatedRatingValue = _.get(simulatedEntryRankingData, `[${simulatedEntryIdx}].rating`, null);
+                const currentRatingRank = _.get(currentEntryRankingData, `[${currentEntryIdx}].rank`, null);
+                const simulatedRatingRank = _.get(simulatedEntryRankingData, `[${simulatedEntryIdx}].rank`, null);
                 
-                var currentDetail = getAdviceRatingDetail(rankingDetail, (rankingData.adviceId).toString(), 'current');  
+                var currentDetail = getEntryRatingDetail(rankingDetail, (rankingData.entryId).toString(), 'current');  
 
                 var totalReturnIdx = currentDetail.findIndex(item => {return item.field == "totalReturn";});
                 let totalReturn = Infinity;
@@ -171,7 +171,7 @@ function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRank
 
                 if (totalReturn > 0) {
                     rawWinners.push({
-                        advice: rankingData.adviceId,
+                        entry: rankingData.entryId,
                         rank: {
                             value: _.get(rankingData, 'rank', null), 
                             date, 
@@ -184,7 +184,7 @@ function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRank
                                 simulated: {
                                     value: simulatedRatingValue,
                                     rank: simulatedRatingRank,
-                                    detail: getAdviceRatingDetail(rankingDetail, (rankingData.adviceId).toString(), 'simulated')
+                                    detail: getEntryRatingDetail(rankingDetail, (rankingData.entryId).toString(), 'simulated')
                                 }
                             }
                         },
@@ -193,9 +193,9 @@ function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRank
             } //While ends
 
             return Promise.map(rawWinners, function(winner) {
-                return AdviceModel.fetchAdvice({_id: winner.advice}, {fields: 'advisor', populate: 'advisor'})
-                .then(advice => {
-                    winner.advice = advice.toObject();
+                return EntryModel.fetchEntry({_id: winner.entry}, {fields: 'advisor', populate: 'advisor'})
+                .then(entry => {
+                    winner.entry = entry.toObject();
                     return winner
                 })
             })
@@ -204,13 +204,13 @@ function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRank
                 return _.uniqBy(
                     updatedWinners.filter(item => {
                         return notAllowedUsers.indexOf(
-                            _.get(item,'advice.advisor.user.email', "")) ==-1
+                            _.get(item,'entry.advisor.user.email', "")) ==-1
                         })
                         .map(item => {
-                            item.advice.advisor = item.advice.advisor._id.toString(); 
+                            item.entry.advisor = item.entry.advisor._id.toString(); 
                             return item;
                         })
-                    , 'advice.advisor');
+                    , 'entry.advisor');
             })
             .then(uniqWinners => {
                 let finalWinners = [];
@@ -243,7 +243,7 @@ function _updateWinners(contestId, currentAdviceRankingData, simulatedAdviceRank
                 return finalWinners;
             })
             .then(finalWinners => {
-                finalWinners = finalWinners.map(item => {item.advice = item.advice._id.toString(); return item;});
+                finalWinners = finalWinners.map(item => {item.entry = item.entry._id.toString(); return item;});
                 return ContestModel.updateContest({_id: contestId}, {winners: finalWinners, active: false});    
             });
         } else {
@@ -266,37 +266,37 @@ function _updateArrayWithRankFromRating(array) {
     });
 }
 
-function _getAdviceAnalytics(contestAdviceIds) {
-    return Promise.map(contestAdviceIds, adviceId => {
-        let advice = adviceId;
-        return PerformanceHelper.getAdvicePerformanceSummary(adviceId)
+function _getEntryAnalytics(contestEntryIds) {
+    return Promise.map(contestEntryIds, entryId => {
+        let entry = entryId;
+        return PerformanceHelper.getEntryPerformanceSummary(entryId)
         .then(performance => {
-            return {advice: advice, performance: performance};
+            return {entry: entry, performance: performance};
         })
     });
 }
 
 module.exports.updateAnalytics = function(contestId) {
-    return ContestModel.fetchContest({_id: contestId}, {fields:'advices', advices: {all: true}}, )
+    return ContestModel.fetchContest({_id: contestId}, {fields:'entries', entries: {all: true}}, )
     .then(contest => {
-        const activeAdvices = contest.advices.filter(advice => advice.active === true);
-        var contestAdviceIds = activeAdvices.map(item => item.advice);
+        const activeEntrys = contest.entries.filter(entry => entry.active === true);
+        var contestEntryIds = activeEntrys.map(item => item.entry);
         const rankingDetail = {current: [], simulated: []};
 
-        if (activeAdvices.length > 0) {
-            return _getAdviceAnalytics(contestAdviceIds)
-            .then(allAdviceAnalytics => {
+        if (activeEntrys.length > 0) {
+            return _getEntryAnalytics(contestEntryIds)
+            .then(allEntryAnalytics => {
                 var ratingTypes = ["current", "simulated"];
 
                 return Promise.map(ratingTypes, function(ratingType) {
-                    var allPerformances = allAdviceAnalytics.map((item, index) => {
-                        return {advice: contestAdviceIds[index], performance: item.performance[ratingType]}
+                    var allPerformances = allEntryAnalytics.map((item, index) => {
+                        return {entry: contestEntryIds[index], performance: item.performance[ratingType]}
                     }); 
         
                     return Promise.map(ratingFields, function(ratingField) {
                         var valueRatingField = {};
                         allPerformances.forEach(item => {
-                            var key = item.advice; 
+                            var key = item.entry; 
                             
                             //The ratingField contains true or diff
                             valueRatingField[key] = (_.get(item, `performance.${ratingField.field}`, ratingField.default) || ratingField.default) * ratingField.multiplier;
@@ -306,7 +306,7 @@ module.exports.updateAnalytics = function(contestId) {
                         .then(frs => {
                             rankingDetail[ratingType].push({
                                 field: ratingField.outputField, 
-                                data: calculateAdviceRating(frs, allAdviceAnalytics, ratingType, ratingField.field),
+                                data: calculateEntryRating(frs, allEntryAnalytics, ratingType, ratingField.field),
                             });
 
                             return frs;
@@ -314,13 +314,13 @@ module.exports.updateAnalytics = function(contestId) {
                     })
                     .then(allFrs => {
                         var totalRankings = {};
-                        contestAdviceIds.forEach(adviceId => {
+                        contestEntryIds.forEach(entryId => {
                             let sum = 0.0
                             allFrs.forEach(rankings => {
-                                sum += rankings[adviceId];
+                                sum += rankings[entryId];
                             });
         
-                            totalRankings[adviceId] = sum;
+                            totalRankings[entryId] = sum;
                         });
 
                         return AnalyticsHelper._computeFractionalRanking(totalRankings, contestRankingScale);
@@ -329,12 +329,12 @@ module.exports.updateAnalytics = function(contestId) {
             })
             .then(([currentRanking, simulatedRanking]) => {
                 const currentDate = DateHelper.getCurrentDate();
-                var arr = calculateAdviceRating(currentRanking).map((item, index) => {
-                    return {adviceId: item.advice, rating: item.rating}
+                var arr = calculateEntryRating(currentRanking).map((item, index) => {
+                    return {entryId: item.entry, rating: item.rating}
                 });
                 const currentRankingData = _updateArrayWithRankFromRating(arr);
-                const simulatedRankingData = _updateArrayWithRankFromRating(calculateAdviceRating(simulatedRanking).map((item, index) => {
-                    return {adviceId: item.advice, rating: item.rating};
+                const simulatedRankingData = _updateArrayWithRankFromRating(calculateEntryRating(simulatedRanking).map((item, index) => {
+                    return {entryId: item.entry, rating: item.rating};
                 }));
                 
                 return _updateRating(contestId, currentRankingData, simulatedRankingData, currentDate, rankingDetail)
@@ -369,20 +369,20 @@ module.exports.updateAllAnalytics = () => {
     })
 };
 
-module.exports.getAdviceSummary = function(adviceId) {
-    return ContestModel.fetchContests({'advices.advice': adviceId}, {fields: 'name active endDate advices.latestRank advices.advice advices.active advices.withDrawn advices.prohibited'})
+module.exports.getContestEntrySummary = function(entryId) {
+    return ContestModel.fetchContests({'entries.entry': entryId}, {fields: 'name active endDate entries.latestRank entries.entry entries.active entries.withDrawn entries.prohibited'})
     .then(({contests, count}) => {
         const nContests = [];
         contests.map(contest => {
 
-            const requiredAdviceIndex = _.findIndex(contest.advices, adviceItem => (adviceItem.advice).toString() === adviceId);
-            if (requiredAdviceIndex !== -1) {
+            const requiredEntryIndex = _.findIndex(contest.entries, entryItem => (entryItem.entry).toString() === entryId);
+            if (requiredEntryIndex !== -1) {
                 nContests.push({
                     name: contest.name,
                     _id: contest._id,
                     active: contest.active,
                     endDate: contest.endDate,
-                    adviceSummary: contest.advices[requiredAdviceIndex]
+                    entrySummary: contest.entries[requiredEntryIndex]
                 });
             }
         });
@@ -410,19 +410,19 @@ module.exports.sendContestEntryDailyDigest = function() {
         }
     })
     .then(() => {
-        return ContestModel.fetchContest({_id: latestContestId}, {fields:'advices', advices: {all: true}})
+        return ContestModel.fetchContest({_id: latestContestId}, {fields:'entries', entries: {all: true}})
     })
     .then(contest => {
-        const activeAdvices = contest.advices.filter(advice => advice.active === true);
-        var contestAdviceIds = activeAdvices.map(item => item.advice.toString());
+        const activeEntrys = contest.entries.filter(entry => entry.active === true);
+        var contestEntryIds = activeEntrys.map(item => item.entry.toString());
 
-        if (activeAdvices.length > 0) {
-            return Promise.mapSeries(contestAdviceIds, function(adviceId) {
+        if (activeEntrys.length > 0) {
+            return Promise.mapSeries(contestEntryIds, function(entryId) {
                 return Promise.all([
-                    PerformanceHelper.getAdvicePerformanceSummary(adviceId),
-                    exports.getAdviceSummary(adviceId),
+                    PerformanceHelper.getContestEntryPerformanceSummary(entryId),
+                    exports.getEntrySummary(entryId),
                     //P3   
-                    AdviceHelper.getAdvicePortfolio(adviceId, {populateAvg: true})
+                    ContestEntryHelper.getContestEntryPortfolio(entryId, {populateAvg: true})
                     .then(portfolio => {
                         return Promise.map(portfolio.detail.positions, function(item) {
                             return SecurityHelper.getStockLatestDetail({ticker: item.security.ticker}, "RT")
@@ -432,30 +432,30 @@ module.exports.sendContestEntryDailyDigest = function() {
                         });        
                     }) //P3
                 ])
-                .then(([performance, adviceSummaryContest, positions]) => {
-                    return {advice: adviceId, positions, performance, adviceSummaryContest};
+                .then(([performance, entrySummaryContest, positions]) => {
+                    return {entry: entryId, positions, performance, entrySummaryContest};
                 })
 
             });
         } else {
-            APIError.jsonError({message:"No active advices found"});
+            APIError.jsonError({message:"No active entries found"});
         }
     })
-    .then(allAdviceInfo => {
+    .then(allEntryInfo => {
         let i = 1;
-        return Promise.map(allAdviceInfo, function(item) {
-            var adviceId = item.advice;
+        return Promise.map(allEntryInfo, function(item) {
+            var entryId = item.entry;
             var performance = item.performance;
             var positions = item.positions;
-            var adviceSummaryContest = item.adviceSummaryContest.filter(contestItem => contestItem.active == true);
+            var entrySummaryContest = item.entrySummaryContest.filter(contestItem => contestItem.active == true);
 
-            var allActiveRanks = adviceSummaryContest.map(item => {return {name: item.name , endDate: item.endDate, rank: item.adviceSummary.latestRank.value}}).sort((a,b) => {return DateHelper.compareDates(a.endDate, b.endDate) == 1 ? -1 : 1});
+            var allActiveRanks = entrySummaryContest.map(item => {return {name: item.name , endDate: item.endDate, rank: item.entrySummary.latestRank.value}}).sort((a,b) => {return DateHelper.compareDates(a.endDate, b.endDate) == 1 ? -1 : 1});
 
             var latestRank =  allActiveRanks.length > 0 ? allActiveRanks[0] : {};
 
             var performanceDigest = {
-                contestEntryUrl: `${config.get('hostname')}/contest/entry/${adviceId}`,
-                updateContestEntryUrl: `${config.get('hostname')}/contest/updateentry/${adviceId}`,
+                contestEntryUrl: `${config.get('hostname')}/contest/entry/${entryId}`,
+                updateContestEntryUrl: `${config.get('hostname')}/contest/updateentry/${entryId}`,
                 leaderboardUrl: `${config.get('hostname')}/contest/leaderboard`,
             };
             
@@ -506,13 +506,13 @@ module.exports.sendContestEntryDailyDigest = function() {
             }
 
             //Get advisor details and send email
-            return AdviceModel.fetchAdvice({_id: adviceId}, {fields:'advisor', populate:'advisor'})
-            .then (advice => {
-                const user = _.get(advice, 'advisor.user', null);
+            return EntryModel.fetchEntry({_id: entryId}, {fields:'advisor', populate:'advisor'})
+            .then (entry => {
+                const user = _.get(entry, 'advisor.user', null);
                 if (user) {
                     return UserModel.fetchUser({_id: user._id});
                 } else {
-                    console.log("No user found for advice");
+                    console.log("No user found for entry");
                     return null;
                 }
             })
@@ -560,11 +560,11 @@ module.exports.sendEmailToContestWinners = function() {
             contestId = contest._id;
       
             const winners = contest.winners;
-            const winnerAdviceIds = winners.map(item => item.advice.toString());
+            const winnerEntryIds = winners.map(item => item.entry.toString());
 
-            return new Promise.mapSeries(winnerAdviceIds, function(adviceId) {
+            return new Promise.mapSeries(winnerEntryIds, function(entryId) {
                 
-                const winner = winners.find(item => item.advice.toString() == adviceId);
+                const winner = winners.find(item => item.entry.toString() == entryId);
                 
                 var winnerDigest = {contestName: contest.name,
                     contestRank: winner.rank.value,
@@ -573,13 +573,13 @@ module.exports.sendEmailToContestWinners = function() {
                 }; 
 
                 //Get advisor details and send email
-                return AdviceModel.fetchAdvice({_id: adviceId}, {fields:'advisor', populate:'advisor'})
-                .then (advice => {
-                    const user = _.get(advice, 'advisor.user', null);
+                return EntryModel.fetchEntry({_id: entryId}, {fields:'advisor', populate:'advisor'})
+                .then (entry => {
+                    const user = _.get(entry, 'advisor.user', null);
                     if (user) {
                         return UserModel.fetchUser({_id: user._id});
                     } else {
-                        console.log("No user found for advice");
+                        console.log("No user found for entry");
                         return null;
                     }
                 })

@@ -2,13 +2,14 @@
 * @Author: Shiv Chawla
 * @Date:   2018-01-23 19:00:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-05-08 22:37:47
+* @Last Modified time: 2018-09-28 20:22:18
 */
 
 'use strict'
 const InvestorModel = require('../../models/Marketplace/Investor');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const AdviceModel = require('../../models/Marketplace/Advice');
+const ContestEntryModel = require('../../models/Marketplace/ContestEntry');
 const PortfolioModel = require('../../models/Marketplace/Portfolio');
 const PerformanceModel = require('../../models/Marketplace/Performance');
 const APIError = require('../../utils/error');
@@ -79,6 +80,56 @@ module.exports.getPerformanceAdvicePortfolio = function(args, res, next) {
 			}
 		} else if(!advice) {
 			APIError.throwJsonError({userId: userId, message: "Advice not found", errorCode: 1101});
+		} else if(!advisor) {
+			APIError.throwJsonError({userId: userId, message: "Advisor not found", errorCode: 1201});
+		}
+	})
+	.then(performance => {
+		if(performance) {
+			var currentPerformance = performance.current;
+			if (!showDetail && currentPerformance) {
+				//Remove the composition and constituent performance if 
+				//user is not authorized to view detail
+				currentPerformance.metrics.portfolioMetrics	= null;
+				currentPerformance.metrics.constituentPerformance = null;
+			}
+
+			return res.status(200).send(performance);
+		} else {
+			APIError.throwJsonError({message: "Internal calculating portfolio performance", errorCode: 1604});
+		}
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	});
+};
+
+module.exports.getPerformanceContestEntryPortfolio = function(args, res, next) {
+		
+	const entryId = args.entryId.value;
+	const userId = args.user._id;
+
+	let showDetail;
+	let portfolioId;
+
+	return Promise.all([
+			ContestEntryModel.fetchAdvice({_id: entryId, deleted:false}, {fields: 'advisor portfolio'}),
+			AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id'}),
+			InvestorModel.fetchInvestor({user:userId}, {fields:'_id', insert: true})])
+	.then(([contestEntry, advisor, investor]) => {
+		if (contestEntry && advisor) {
+			const advisorId = advisor._id;
+			const investorId = investor._id.toString();
+
+			showDetail = contestEntry.advisor.equals(advisorId);
+			if (showDetail) {
+				portfolioId = contestEntry.portfolio;
+				return PerformanceHelper.getAllPerformance(portfolioId);
+			} else {
+				APIError.throwJsonError({userId: userId, message:"Investor not authorized to view", errorCode: 1304});
+			}
+		} else if(!contestEntry) {
+			APIError.throwJsonError({userId: userId, message: "Contest entry not found", errorCode: 1101});
 		} else if(!advisor) {
 			APIError.throwJsonError({userId: userId, message: "Advisor not found", errorCode: 1201});
 		}

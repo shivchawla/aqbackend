@@ -3,7 +3,7 @@ const _ = require('lodash');
 const config = require('config');
 const DateHelper = require('../../utils/Date');
 const ContestModel = require('../../models/Marketplace/Contest');
-const AdviceModel = require('../../models/Marketplace/Advice');
+const ContestEntryModel = require('../../models/Marketplace/ContestEntry');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const ContestHelper = require('../helpers/Contest');
 const APIError = require('../../utils/error');
@@ -26,7 +26,7 @@ module.exports.createContest = function(args, res, next) {
                 // Get the contest before the one to be created
                 return ContestModel.fetchContests(
                     {active: true, startDate: {$lt: startDate}}, 
-                    {fields: 'name startDate endDate advices'}
+                    {fields: 'name startDate endDate entries'}
                 );
             } else {
                 APIError.throwJsonError({message: 'The duration of the contest should be more than 1 day'});
@@ -39,14 +39,14 @@ module.exports.createContest = function(args, res, next) {
         if (count > 0) { // There is contest present before the one to be created
             // Getting the latest contest
             let latestContest = contests[count - 1];
-            let activeAdvices = latestContest.advices.filter(advice => advice.active === true);
-            activeAdvices = activeAdvices.map(advice => {
+            let activeEntries = latestContest.entries.filter(entry => entry.active === true);
+            activeEntries = activeEntries.map(entry => {
                 return {
-                    ..._.pick(advice, ['advice', 'withDrawn', 'active', 'prohibited']),
+                    ..._.pick(entry, ['entry', 'withDrawn', 'active', 'prohibited']),
                     rankingHistory: []
                 }
             });
-            return ContestModel.saveContest({...contest, creator: userId, advices: activeAdvices});
+            return ContestModel.saveContest({...contest, creator: userId, entries: activeEntries});
         } else {
             return ContestModel.saveContest({...contest, creator: userId})
         }
@@ -115,7 +115,7 @@ module.exports.getAllContests = function(args, res, next) {
     options.skip = _.get(args, 'skip.value', 0);
     options.limit = _.get(args, 'limit.value', 10);
     options.fields = 'name startDate endDate winners rules';
-    options.populate = 'advice';
+    options.populate = 'entry';
     let query = {};
     if (active === 1) {
         query = {active: true};
@@ -152,9 +152,9 @@ module.exports.getEntriesInContest = function(args, res, next) {
     const skip = _.get(args, 'skip.value', 0);
     const limit = _.get(args, 'limit.value', 10);
     const options = {};
-    options.fields = 'name startDate endDate advices';
-    options.populate = 'advice';
-    options.advices = {skip,limit};
+    options.fields = 'name startDate endDate entries';
+    options.populate = 'entry';
+    options.entries = {skip,limit};
     ContestModel.fetchContest({_id: contestId}, options)
     .then(contest => {
         res.status(200).send(contest);
@@ -168,53 +168,52 @@ module.exports.updateEntryStatusInContest = function(args, res, next) {
     const admins = config.get('admin_user');
     const userEmail = _.get(args, 'user.email', null);
     const userId = _.get(args, 'user._id', null);
-    const adviceId = _.get(args, 'adviceId.value', 0);
+    const entryId = _.get(args, 'entryId.value', 0);
     const operationType = _.get(args, 'type.value', 'add');
     const currentDate = DateHelper.getCurrentDate();
     
     let isAdmin, isOwner;
-    let adviceOwner;
+    let entryOwner;
 
     Promise.all([
         AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id'}),
-        AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'advisor', populate:'advisor'})
+        ContestEntryModel.fetchEntry({_id: entryId}, {fields: 'advisor', populate:'advisor'})
     ])
-    .then(([advisor, advice]) => {
+    .then(([advisor, entry]) => {
         if (!advisor) {
 			APIError.throwJsonError({message:"Advisor not found"});
         }
 
-        if (!advice) {
-            APIError.throwJsonError({message:"Advice not found"});
+        if (!entry) {
+            APIError.throwJsonError({message:"Contest entry not found"});
         }
 
 
         isAdmin = admins.indexOf(userEmail) !== -1;
-        isOwner = advisor && advice ? advisor._id.equals(advice.advisor._id) : false;
+        isOwner = advisor && entry ? advisor._id.equals(entry.advisor._id) : false;
 
-        adviceOwner = _.get(advice, 'advisor.user', {});
+        entryOwner = _.get(entry, 'advisor.user', {});
 
         switch(operationType) {
             case "enter":
                 if (isOwner) {
-                    return ContestModel.insertAdviceToContest(adviceId)
+                    return ContestModel.insertEntryToContest(entryId)
                 } else {
                     return APIError.throwJsonError({message: "Not authorized to enter the contest"});
                 }
             case "withdraw":
                 if (isOwner) {
-                    return ContestModel.withdrawAdviceFromContest({active: true, endDate: {'$gt': currentDate}}, adviceId);
+                    return ContestModel.withdrawEntryFromContest({active: true, endDate: {'$gt': currentDate}}, entryId);
                 } else {
                     return APIError.throwJsonError({message: "Not authorized to withdraw from contest"});
                 }
             case "prohibit":
                 if (isAdmin) {
                     return Promise.all([
-                        ContestModel.prohibitAdviceFromContest({active: true, endDate: {'$gt': currentDate}}, adviceId),
-                        // AdviceModel.prohibitAdvice({_id: adviceId})
+                        ContestModel.prohibitEntryFromContest({active: true, endDate: {'$gt': currentDate}}, entryId),
                     ]);
                 } else {
-                    return APIError.throwJsonError({message: "Not authorized to prohibit advice from contest"});
+                    return APIError.throwJsonError({message: "Not authorized to prohibit entry from contest"});
                 }
             default:
                 return APIError.throwJsonError({message: 'Please choose a valid operation type'})
@@ -223,9 +222,9 @@ module.exports.updateEntryStatusInContest = function(args, res, next) {
     })
     .then(updatedContest => {
         var emailData = {
-                        contestEntryUrl: `${config.get('hostname')}/contest/entry/${adviceId}`,
+                        contestEntryUrl: `${config.get('hostname')}/contest/entry/${entryId}`,
                         leaderboardUrl: `${config.get('hostname')}/contest/leaderboard`,
-                        updateContestEntryUrl: `${config.get('hostname')}/contest/updateadvice/${adviceId}`,
+                        updateContestEntryUrl: `${config.get('hostname')}/contest/updateentry/${entryId}`,
                         type: operationType
                     };
                             
@@ -233,7 +232,7 @@ module.exports.updateEntryStatusInContest = function(args, res, next) {
         ContestHelper.updateAnalytics(updatedContest._id);
         
         //Send an email
-        sendEmail.sendContestStatusEmail(emailData, operationType == "prohibit" ? adviceOwner : args.user);
+        sendEmail.sendContestStatusEmail(emailData, operationType == "prohibit" ? entryOwner : args.user);
         
         //Send response
         return res.status(200).send({message: `Successfully completed operation: ${operationType}`});
@@ -244,24 +243,24 @@ module.exports.updateEntryStatusInContest = function(args, res, next) {
 }
 
 module.exports.getContestEntryRankSummaryInLatestContest = function(args, res, next) {
-    const adviceId = _.get(args, 'adviceId.value', 0);
+    const entryId = _.get(args, 'entryId.value', 0);
     ContestModel.fetchContests({active: true})
     .then(({contests, count}) => {
         const latestContest = contests[count -1];
         const contestId = _.get(latestContest, '_id', '').toString();
         const options = {};
-        options.fields = 'advices';
-        options.advices = {all: true, ignoreInactive: false};
+        options.fields = 'entries';
+        options.entries = {all: true, ignoreInactive: false};
         return ContestModel.fetchContest({_id: contestId}, options)
     })
     .then(contest => {
-        const advices = _.get(contest, 'advices', []);
-        // Get the advice which matches the adviceId
-        const adviceIdx = _.findIndex(advices, adviceItem => (adviceItem.advice).toString() === adviceId);
-        if (adviceIdx === -1) {
-            APIError.throwJsonError({message: 'Advice is not present in this contest'});
+        const entries = _.get(contest, 'entries', []);
+        // Get the entry which matches the entryId
+        const entryIdx = _.findIndex(entries, entryItem => (entryItem.entry).toString() === entryId);
+        if (entryIdx === -1) {
+            APIError.throwJsonError({message: 'Contest entry is not present in this contest'});
         } else {
-            res.status(200).send(advices[adviceIdx]);
+            res.status(200).send(entries[entryIdx]);
         }   
     })
     .catch(err => {
@@ -283,8 +282,8 @@ module.exports.getValidContestsToParticipate = function(args, res, next) {
 }
 
 module.exports.getContestEntryRankSummaryInAllContests = function(args, res, next) {
-    const adviceId = _.get(args, 'adviceId.value', '');
-    return ContestHelper.getAdviceSummary(adviceId)
+    const entryId = _.get(args, 'entryId.value', '');
+    return ContestHelper.getContestEntrySummary(entryId)
     .then(contests => {
         res.status(200).send(contests);
     })

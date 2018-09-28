@@ -2777,6 +2777,35 @@ paths:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Performance"
 
+  /performance/contestentry/{entryId}:
+    get:
+      tags:
+      - performance
+      summary: get portfolio historical performance of contestentry portfolio
+      description: get portfolio historical performance of contest entry portfolio
+      operationId: getPerformanceContestEntryPortfolio
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: entryId
+        in: path
+        required: true
+        type: string
+        description: Conest Entry Id
+      responses:
+        200:
+          description: "get stock performance detail of contest entry portfolio"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Performance"
+
   /performance:
     post:
       tags:
@@ -3253,18 +3282,19 @@ paths:
       summary: validate a contest entry
       description: validate a contest entry
       operationId: validateContestEntry
-      security: []
+      security: 
+        - api_key: []
       parameters:
       - name: "aimsquant-token"
         in: "header"
         description: "auth token"
         type: "string"
-        required: false
+        required: true
       - name: body
         in: body
         required: true
         schema:
-          $ref: '#/definitions/Advice'
+          $ref: '#/definitions/ContestEntry'
       - name: operation
         in: query
         required: true
@@ -3280,7 +3310,43 @@ paths:
           description: OK
         400:
           description: 'Invalid input'
-      x-swagger-router-controller: "Advice"
+      x-swagger-router-controller: "ContestEntry"
+
+  /contestentry/validate_default:
+    post:
+      tags:
+      - contestentry
+      summary: validate a contest entry
+      description: validate a contest entry
+      operationId: validateContestEntry
+      security: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: false
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/ContestEntry'
+      - name: operation
+        in: query
+        required: true
+        type: string
+        default: "create"
+        enum: ["create", "update"]
+      - name: entryId
+        in: query
+        required: false
+        type: string
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid input'
+      x-swagger-router-controller: "ContestEntry"
 
   /contestentry/create:
     post:
@@ -3348,12 +3414,6 @@ paths:
         required: false
         default: 10
         description: limit number of entries
-      - name: order
-        type: number
-        required: true
-        in: query
-        default: -1
-        description: sort order
       responses:
         200:
           description: OK

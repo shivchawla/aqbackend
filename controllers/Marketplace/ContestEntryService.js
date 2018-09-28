@@ -89,6 +89,7 @@ function _findFirstValidPortfolio(entryId, date, attempts) {
 	});
 }
 
+//THIS WORKS FINE!!
 module.exports.createContestEntry = function(args, res, next) {
 
 	const userId = args.user._id;
@@ -123,7 +124,7 @@ module.exports.createContestEntry = function(args, res, next) {
 	})
 	.then(validity => {
 		if(validity.valid) {
-			return ContestEntryHelper.saveEntry(contestEntry, advisorId, effectiveStartDate, args.user);
+			return ContestEntryHelper.saveContestEntry(contestEntry, advisorId, effectiveStartDate, args.user);
 		} else {
 			APIError.throwJsonError({message: "Invalid contestEntry", detail: validity.detail, errorCode: 1108});
 		}
@@ -136,10 +137,12 @@ module.exports.createContestEntry = function(args, res, next) {
     });
 };
 
+//Work for preliminary validation
 module.exports.validateContestEntry = function(args, res, next) {
+	
 	const contestEntry = _.get(args,'body.value', null);
 	const operation = _.get(args,'operation.value', "create");
-	const contestEntryId = _.get(args, 'entryId.value', null);
+	const entryId = _.get(args, 'entryId.value', null);
 	const userId = _.get(args, 'user._id', null);
 
 	return Promise.resolve()
@@ -179,7 +182,9 @@ module.exports.validateContestEntry = function(args, res, next) {
     });
 };
 
+//WORKS
 module.exports.updateContestEntry = function(args, res, next) {
+
 	const entryId = args.entryId.value;
 	const userId = args.user._id;
 	const newContestEntry = args.body.value;
@@ -191,7 +196,7 @@ module.exports.updateContestEntry = function(args, res, next) {
 
 	return Promise.all([
 		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
-		ContestEntryModel.fetchContestEntry({_id: entryId, deleted: false}, {fields: contestEntryFields, populate: 'portfolio'})
+		ContestEntryModel.fetchEntry({_id: entryId, deleted: false}, {fields: contestEntryFields, populate: 'portfolio'})
 	])
 	.then(([advisor, contestEntry]) => {
 
@@ -243,90 +248,27 @@ module.exports.updateContestEntry = function(args, res, next) {
 	})
 };
 
+//WORKS
 module.exports.getContestEntries = function(args, res, next) {
-	const userId = args.user ? args.user._id : null;
+
+	const userId = _.get(args, 'user._id', null);
     const options = {};
 	options.skip = args.skip.value;
     options.limit = args.limit.value;
-    options.order = args.order.value || 1;
-
-    const performanceType = args.performanceType.value;
-	var pType = "simulated";
-	if(performanceType) {
-		pType = performanceType;
-	}
-	
-    let count;
-    var orderParam = args.orderParam.value || `rating.${pType}`;
-	if (["return", "volatility", "sharpe", "maxLoss", "currentLoss", "dailyChange", "netValue"].indexOf(orderParam) != -1) {
-		if (orderParam == "return") {
-			orderParam = "annualReturn"
-		}
-
-		if (orderParam == "dailyChange") {
-			orderParam = "dailyNAVChangeEODPct";
-		}
-
-		orderParam = `performanceSummary.${pType}.${orderParam}`;
-	} else if(["numFollowers", "numSubscribers"].indexOf(orderParam) !=-1) {
-		orderParam = `latestAnalytics.${orderParam}`;
-	} else if(["rating"].indexOf(orderParam) != -1) {
-		orderParam = `rating.${pType}`;
-	}
-
-	options.orderParam = orderParam;
-
-    options.fields = 'name createdDate updatedDate advisor public contestOnly approvalRequested latestApproval prohibited rebalance maxNotional performanceSummary rating startDate';
+ 
+    options.fields = 'name createdDate updatedDate advisor prohibited performanceSummary rating startDate';
 
 	var query = {deleted: false};
 	
-    var performanceFilters = {netValue: {field: "netValueEOD", min: 0, max: 200000}, 
-								sharpe: {field:"sharpe", min: -10, max: 10}, 
-								volatility: {field:"volatility", min: 0, max: 0.5}, 
-								return: {field:"annualReturn", min: -1, max: 1},  
-								maxLoss: {field:"maxLoss", min: -1, max: 0},  
-								currentLoss: {field: "currentLoss", min: -1, max: 0}, 
-								beta: {field: "beta", min: -1, max: 2}
-							};
-
-	Object.keys(performanceFilters).forEach(item => {
-		var majorKey = `performanceSummary.${pType}.`; //performanceSummary.current.return
-    	if(args[item]) {
-    		var values = args[item].value;
-	    	var valueCategories = values.split(",").map(item => parseFloat(item.trim()));
-	    	var key = majorKey + performanceFilters[item].field;
-	    	if (valueCategories.length > 0 && valueCategories[0] > performanceFilters[item].min) {
-	    		query = {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$gte': valueCategories[0]}}]}]};
-    		}
-
-    		if (valueCategories.length > 1 && valueCategories[1] < performanceFilters[item].max) {
-	    		query = {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$lte': valueCategories[1]}}]}]};
-    		}
-		}
-    });
-
-    if (args["rating"]){
-    	var key = `rating.${pType}`; 
-    	var values = args["rating"].value;
-    	var valueCategories = values.split(",").map(item => parseFloat(item.trim()));
-    	
-    	query = valueCategories.length > 0 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$gte': valueCategories[0]}}]}]} : query; 
-    	query = valueCategories.length > 1 ? {'$and': [query, {'$or': [{[key]: {'$exists':false}}, {[key]: {'$lte': valueCategories[1]}}]}]} : query; 
-    }
-
     //You should only be able to see personal entries if contestOnly is true
-    const personal = contestOnly ? "1" : args.personal.value;
+    const personal = args.personal.value;
 	const advisorId = args.advisor.value;
 	
-    const search = args.search.value;
-    if (search) {
-    	var nearMatch = `^(.*?(${search})[^$]*)$`;
-        query.name = {$regex: nearMatch, $options: "i"};
-    }
-
    	let userInvestorId;
    	let userAdvisorId;
    	let isUserAdmin;
+
+   	let count;
     return Promise.all([
     	userId ? AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id', insert: true}) : null,
 		userId ? InvestorModel.fetchInvestor({user:userId}, {fields: '_id', insert: true}) : null,
@@ -389,7 +331,7 @@ module.exports.getContestEntries = function(args, res, next) {
     			let entryId = entry._id;
     			return Promise.all([
     				ContestEntryHelper.getContestEntryPnlStats(entryId),
-    				ContestHelper.getContestSummary(entryId)
+    				ContestHelper.getContestEntrySummary(entryId)
 				])
     			.then(([contestEntryPnlStats, contestDetails]) => {
     				return Object.assign(contestEntryPnlStats, {contest: contestDetails}, entry.toObject());
@@ -407,6 +349,7 @@ module.exports.getContestEntries = function(args, res, next) {
     });
 };
 
+//WORKS
 module.exports.getContestEntrySummary = function(args, res, next) {
 	const entryId = args.entryId.value;
 	const userId = args.user ? args.user._id : null;
@@ -416,7 +359,7 @@ module.exports.getContestEntrySummary = function(args, res, next) {
 	options.fields = 'name createdDate updatedDate advisor prohibited portfolio rating';
 	options.populate = 'advisor benchmark';
 	
-	return ConestEntryModel.fetchEntry({_id: entryId, deleted: false}, options)
+	return ContestEntryModel.fetchEntry({_id: entryId, deleted: false}, options)
  	.then(contestEntry => {
  		let nContestEntry; 
  		if(contestEntry) {
@@ -454,7 +397,7 @@ module.exports.getContestEntrySummary = function(args, res, next) {
  	})
  	.catch(err => {
     	return res.status(400).send(err.message);
-    });    
+    });   
 };
 
 /*

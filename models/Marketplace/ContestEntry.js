@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-28 10:45:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-28 11:42:45
+* @Last Modified time: 2018-09-28 18:41:03
 */
 
 'use strict';
@@ -184,10 +184,9 @@ ContestEntry.statics.deleteEntry = function(query) {
 
 //Will this be used??
 //Is this used???
-ContestEntry.statics.updatePerformance = function(query, performance) {
+ContestEntry.statics.updatePerformance = function(query, performanceSummary) {
     return this.findOne(query, {performanceSummary:1})
     .then(entry => {
-        var performanceSummary = entry.performanceSummary;
 
         if(!entry.performanceSummary) {
             entry.performanceSummary = {};

@@ -2,11 +2,12 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:15:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-28 19:56:29
+* @Last Modified time: 2018-09-28 20:11:58
 */
 
 'use strict';
 const AdviceModel = require('../../models/Marketplace/Advice');
+const ContestEntryModel = require('../../models/Marketplace/ContestEntry');
 const PortfolioModel = require('../../models/Marketplace/Portfolio');
 const PerformanceModel = require('../../models/Marketplace/Performance');
 const InvestorModel = require('../../models/Marketplace/Investor');
@@ -583,6 +584,29 @@ module.exports.computeAdvicePerformanceSummary = function(adviceId, date) {
 	});
 };
 
+module.exports.computeContestEntryPerformanceSummary = function(entryId, date) {
+	return ContestEntryModel.fetchEntry({_id: entryId}, {fields: 'portfolio'})
+	.then(contestEntry => {
+		if (contestEntry) {
+			return Promise.all([
+				exports.computeAllPerformanceSummary(contestEntry.portfolio, {advice: true}, date),
+				PortfolioHelper.computePortfolioAnalytics(contestEntry.portfolio, date)
+			]);
+		} else {
+			APIError.throwJsonError({message: "Contest entry not found", errorCode:1102});
+		}
+	})
+	.then(([performanceSummary, portfolioAnalytics]) => {
+		var currentPeformanceSummary = performanceSummary.current ? performanceSummary.current : {};
+		performanceSummary.current = Object.assign(currentPeformanceSummary, portfolioAnalytics);
+
+		return performanceSummary;
+	})
+	.catch(err => {
+		return {error: err.message};
+	});
+};
+
 //RECALCULATE IS NOT USED - 23/03/2018
 module.exports.getAdvicePerformanceSummary = function(adviceId, date, recalculate) {
 	return AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'performanceSummary'})
@@ -591,6 +615,18 @@ module.exports.getAdvicePerformanceSummary = function(adviceId, date, recalculat
 			return exports.computeAdvicePerformanceSummary(adviceId, date);
 		} else {
 			return advice.performanceSummary
+		}
+	})
+};
+
+//RECALCULATE IS NOT USED - 23/03/2018
+module.exports.getContestEntryPerformanceSummary = function(entryId, date, recalculate) {
+	return ContestEntryModel.fetchEntry({_id: entryId}, {fields: 'performanceSummary'})
+	.then(contestEntry => {
+		if (!contestEntry.performanceSummary || recalculate) {
+			return exports.computeContestEntryPerformanceSummary(entryId, date);
+		} else {
+			return contestEntry.performanceSummary
 		}
 	})
 };
@@ -617,6 +653,54 @@ module.exports.getAdvicePerformance = function(adviceId, date, userId) {
 			}
 		} else if(!advice) {
 			APIError.throwJsonError({userId: userId, message: "Advice not found", errorCode: 1101});
+		} 
+	})
+	.then(performance => {
+		if(performance) {
+			if (!showDetail) {
+				var currentPerformance = performance.current;
+				var simulatedPerformance = performance.simulated;
+				//Remove the composition and constituent performance if 
+				//user is not authorized to view detail
+				if (currentPerformance) {
+					currentPerformance.metrics.portfolioMetrics	= null;
+					currentPerformance.metrics.constituentPerformance = null;
+				}
+
+				if (simulatedPerformance) {
+					simulatedPerformance.metrics.portfolioMetrics	= null;
+					simulatedPerformance.metrics.constituentPerformance = null;
+				} 
+			}
+			return performance;
+		} else {
+			APIError.throwJsonError({message: "Internal calculating portfolio performance", errorCode: 1604});
+		}
+	});
+};
+
+
+module.exports.getContestEntryPerformance = function(entryId, date, userId) {
+	let showDetail;
+
+	return Promise.all([
+		ContestEntryModel.fetchEntry({_id: entryId, deleted:false}, {fields: 'advisor portfolio'}),
+		userId ? AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id'}) : null,
+		userId ? InvestorModel.fetchInvestor({user:userId}, {fields:'_id', insert: true}) : null
+	])
+	.then(([contestEntry, advisor, investor]) => {
+		if (contestEntry) {
+			const advisorId = advisor ? advisor._id : null;
+			const investorId = investor ? investor._id.toString() : "";
+
+			showDetail = contestEntry.advisor.equals(advisorId);
+			if (showDetail) {
+				return exports.getAllPerformance(contestEntry.portfolio, {isAdvice: true}, date);
+			} else {
+				APIError.throwJsonError({userId: userId, message:"Investor not authorized to view", errorCode: 1304});
+			}
+		} else if(!contestEntry) {
+			APIError.throwJsonError({userId: userId, message: "Contest entry not found", errorCode: 1101});
 		} 
 	})
 	.then(performance => {
