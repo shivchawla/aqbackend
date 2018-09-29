@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-28 10:45:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-28 18:41:03
+* @Last Modified time: 2018-09-29 11:44:07
 */
 
 'use strict';
@@ -140,10 +140,11 @@ ContestEntry.statics.fetchEntry = function(query, options) {
     }
 
     if(options.populate.indexOf('advisor') != -1) {
-        q = q.select('advisor').populate({path:'advisor', select:'user _id',
-                                        populate:{path: 'user', 
-                                            select:'_id firstName lastName email'}
-                                });
+        q = q.select('advisor')
+        	.populate({path:'advisor', select:'user _id',
+                populate:{path: 'user', 
+                    select:'_id firstName lastName email'}
+        	});
     }
 
 	return q.execAsync();

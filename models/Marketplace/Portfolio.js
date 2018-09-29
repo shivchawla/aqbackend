@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-28 20:30:00
+* @Last Modified time: 2018-09-29 11:44:29
 */
 
 'use strict';
@@ -20,8 +20,10 @@ const PortfolioDetail = new Schema({
 	startDate: Date,
 	endDate: Date,
 
-	type: {
-		default: "shares"
+	positionType: {
+		type: String,
+		enum:['shares', 'notional'],
+		default: 'shares'
 	},
 
 	positions: [Position],

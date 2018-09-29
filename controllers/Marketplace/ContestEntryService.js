@@ -117,7 +117,9 @@ module.exports.createContestEntry = function(args, res, next) {
 		contestEntry.portfolio.detail.startDate = effStartDate;
 
 		if(entries.length < config.get('max_contest_entries_per_advisor')) {
-			return ContestEntryHelper.validateContestEntry(contestEntry, "");
+			
+			var dollarPosition =  _.get(contestEntry, 'portfolio.detail.positionType', 'shares') == 'notional';
+			return ContestEntryHelper.validateContestEntry({current:contestEntry, old:""}, {dollarPosition: dollarPosition});
 		} else {
 			APIError.throwJsonError({advisorId: advisorId, message:"Contest entries limit exceed. Can't add more contest entries.", errorCode: 1109});
 		}
@@ -169,7 +171,14 @@ module.exports.validateContestEntry = function(args, res, next) {
 	})
 	.then(oldContestEntry => {
 		if (contestEntry) {
-			return ContestEntryHelper.validateContestEntry(contestEntry, oldContestEntry);
+			var oldPositionType = _.get(oldContestEntry, 'portfolio.detail.positionType', 'shares');
+			var newPositionType = _.get(contestEntry, 'portfolio.detail.positionType', 'shares');
+
+			if (oldPositionType !== newPositionType && oldContestEntry){
+				APIError.throwJsonError({message: "Inconsistent position types"})
+			}
+
+			return ContestEntryHelper.validateContestEntry({current: contestEntry, old: oldContestEntry}, {dollarPosition: newPositionType=='notional'});
 		} else {
 			APIError.throwJsonError({message:"Invalid input contest entry"});
 		}	
@@ -198,9 +207,9 @@ module.exports.updateContestEntry = function(args, res, next) {
 		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
 		ContestEntryModel.fetchEntry({_id: entryId, deleted: false}, {fields: contestEntryFields, populate: 'portfolio'})
 	])
-	.then(([advisor, contestEntry]) => {
+	.then(([advisor, oldContestEntry]) => {
 
-		if(advisor && contestEntry) {
+		if(advisor && oldContestEntry) {
 			if(contestEntry.advisor.equals(advisor._id)) {
 
 				let allowedKeys = ['portfolio'];
@@ -216,8 +225,16 @@ module.exports.updateContestEntry = function(args, res, next) {
 					nextValidDate = newStartDate;
 				}
 
-				contestEntryPortfolioId = contestEntry.portfolio._id;
-				return ContestEntryHelper.validateContestEntry(newContestEntry, contestEntry.toObject());
+				contestEntryPortfolioId = oldContestEntry.portfolio._id;
+
+				var oldPositionType = _.get(oldContestEntry, 'portfolio.detail.positionType', 'shares');
+				var newPositionType = _.get(newContestEntry, 'portfolio.detail.positionType', 'shares');
+
+				if (oldPositionType !== newPositionType && oldContestEntry){
+					APIError.throwJsonError({message: "Inconsistent position types"})
+				}
+
+				return ContestEntryHelper.validateContestEntry({current: newContestEntry, old: oldContestEntry.toObject()}, {dollarPosition: newPositionType=='notional'});
 			
 			} else {
 				APIError.throwJsonError({message: "Advisor not authorized to update", errorCode: 1107});

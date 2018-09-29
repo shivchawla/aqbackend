@@ -102,6 +102,27 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
     end     
 end
 
+function _isNotionalPortfolio(portfolio)
+    typeof(portfolio) == Raftaar.DollarPortfolio    
+end
+
+function _getquantity(pos; notionalPortfolio=false)
+    if(!notionalPortfolio)
+        pos.quantity
+    else
+        pos.averageprice > 0.0 ? pos.investment/pos.averageprice : 0
+    end
+end
+
+function _getquantity(port, symbol)
+    notionalPortfolio = _isNotionalPortfolio(port)
+    if(!notionalPortfolio)
+        pos.quantity
+    else
+        pos.averageprice > 0.0 ? pos.investment/pos.averageprice : 0
+    end
+end
+
 #Use this fucntion to updated portfolio with dividendCash accumulated
 function _updatePortfolioHistory_dividendCash(portfolioHistoryCollection)
     dividendCash = 0.0
@@ -109,7 +130,7 @@ function _updatePortfolioHistory_dividendCash(portfolioHistoryCollection)
     outputTuple = Vector{Any}()
 
     for (i, collection) in enumerate(portfolioHistoryCollection)
-        portfolio = convert(Raftaar.Portfolio, collection["portfolio"])
+        portfolio = convertPortfolio(collection["portfolio"])
         startdate = DateTime(collection["startDate"], format)
         enddate = DateTime(collection["endDate"], format)
         
@@ -119,7 +140,7 @@ function _updatePortfolioHistory_dividendCash(portfolioHistoryCollection)
         
         if i > 1
             lastCollection = portfolioHistoryCollection[i-1]
-            last_portfolio = convert(Raftaar.Portfolio, lastCollection["portfolio"])
+            last_portfolio = convertPortfolio(lastCollection["portfolio"])
             last_startdate = DateTime(lastCollection["startDate"], format)
             last_enddate = DateTime(lastCollection["endDate"], format)
         end
@@ -130,11 +151,11 @@ function _updatePortfolioHistory_dividendCash(portfolioHistoryCollection)
         cashRequirement = 0.0
         for ticker in tickers
             symbol = getsecurity(ticker).symbol
-            qty = portfolio[symbol].quantity
+            qty = _getquantity(portfolio, symbol)
 
             lastqty = 0
             if last_portfolio != nothing
-                lastqty = last_portfolio[symbol].quantity
+                lastqty = _getquantity(last_portfolio, symbol)
             end
 
             if haskey(adjustments, symbol.id)
@@ -170,9 +191,10 @@ end
 # Compute portfolio value on latest date
 # OUTPUT: portfolio value 
 ###
-function _compute_latest_portfoliovalue(portfolio::Portfolio)
+function _compute_latest_portfoliovalue(portfolio)
    
     try
+
         # Get the list of ticker
         secids = [sym.id for sym in keys(portfolio.positions)]    
 
@@ -195,7 +217,7 @@ function _compute_latest_portfoliovalue(portfolio::Portfolio)
             ticker = sym.ticker
             
             close = prices[ticker].values[end]
-            equity_value += pos.quantity * close 
+            equity_value += _getquantity(portfolio, sym) * close 
         end
 
         portfolio_value = equity_value + portfolio.cash
@@ -209,7 +231,7 @@ end
 # Compute portfolio value over a period
 # OUTPUT: portfolio value vector
 ###
-function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime; adjustment::Bool=false, excludeCash::Bool = false)
+#=function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end_date::DateTime; adjustment::Bool=false, excludeCash::Bool = false)
     try
         # Get the list of ticker
         tickers = [sym.ticker for sym in keys(portfolio.positions)]    
@@ -274,6 +296,74 @@ function _compute_portfoliovalue(portfolio::Portfolio, start_date::DateTime, end
     catch err
         rethrow(err)
     end
+end=#
+function _compute_portfoliovalue(portfolio, start_date::DateTime, end_date::DateTime; adjustment::Bool=false, excludeCash::Bool = false)
+    try
+
+        # Get the list of ticker
+        tickers = [sym.ticker for sym in keys(portfolio.positions)]    
+
+        prices = nothing
+        
+        if adjustment 
+            #Get the ADJUSTED prices for tickers in the portfolio
+            #*****TAKING  A LEAP OF FAITH AND apending realtime data*******#
+            prices = _getPricehistory(tickers, start_date, end_date, adjustment = adjustment, appendRealtime=true)
+        else
+            #Get the UNADJUSTED prices for tickers in the portfolio (with appended realtime)
+            prices = _getPricehistory(tickers, start_date, end_date, appendRealtime = true)
+        end
+
+        #Using benchmark prices to filter out days when benchmark is not available
+        #Remove benchmark prices where it's NaN
+        #This is imortant becuse Qaundl/XNSE has data for holidays as well
+        #******BUT SOMETIMES, this can be FLAWED as NSE dataset can have missing dates
+        benchmark_prices = _getPricehistory(["NIFTY_50"], start_date, end_date, strict=false, appendRealtime=true)
+        merged_prices = nothing
+
+        if prices != nothing && benchmark_prices != nothing
+            merged_prices = filternan(to(from(merge(prices, benchmark_prices, :right), Date(start_date)), Date(end_date)))
+        end
+
+        if merged_prices == nothing
+            println("Price data not available")
+            dt_array = benchmark_prices != nothing ? benchmark_prices.timestamp : []
+            if length(dt_array) == 0 
+                return nothing
+            end
+
+            return TimeArray([dt for dt in dt_array], portfolio.cash*ones(length(dt_array)), ["Portfolio"])
+        end
+
+        ts = merged_prices.timestamp
+
+        nrows = length(ts)
+        portfolio_value = zeros(nrows, 1)
+
+        for (i, date) in enumerate(ts)
+
+            equity_value = 0.0
+            
+            for (sym, pos) in portfolio.positions
+
+                ticker = sym.ticker
+                
+                #IMPROVEMENT: Using Last Non-NaN prices 
+                _temp_ts_close_non_nan = values(dropnan(to(merged_prices[ticker], date), :any))
+                _last_valid_close = length(_temp_ts_close_non_nan) > 0 ? _temp_ts_close_non_nan[end] : 0.0
+                
+                qty = _getquantity(portfolio, sym)
+                equity_value += qty * _last_valid_close)
+            end
+
+            portfolio_value[i, 1] = equity_value + (excludeCash ? 0.0 : portfolio.cash)
+        end
+
+        return TimeArray(ts, portfolio_value, ["Portfolio"])
+
+    catch err
+        rethrow(err)
+    end
 end
 
 ###
@@ -283,7 +373,7 @@ end
 ###
 function _compute_portfoliovalue(port::Dict{String, Any}, date::DateTime)
     try
-        portfolio = convert(Raftaar.Portfolio, port)
+        portfolio = convertPortfolio(port)
         portfolio_value = _compute_portfoliovalue(portfolio, date, date)
 
         return portfolio_value.values[1]
@@ -303,9 +393,9 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, ed
             (Date(currentIndiaTime()), [], "concentration" => 0.0) :
             (Date(currentIndiaTime()), [Dict("weight" => 1.0, "ticker" => "CASH_INR")], 0.0)
 
-        portfolio = convert(Raftaar.Portfolio, port)
+        portfolio = convertPortfolio(port)
 
-        portfolio_value_raw = _compute_portfoliovalue(portfolio, sdate, edate, excludeCash=excludeCash)
+        portfolio_value_raw = _compute_raftaarportfolio_netvalue(portfolio, sdate, edate, excludeCash=excludeCash)
         portfolio_values = portfolio_value_raw != nothing ? dropnan(portfolio_value_raw, :any) : nothing
 
         if portfolio_values == nothing || length(portfolio_values) == 0 
@@ -336,7 +426,7 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, ed
             _temp_ts_close_non_nan = values(dropnan(prices[ticker], :any))
             _last_valid_close = length(_temp_ts_close_non_nan) > 0 ? _temp_ts_close_non_nan[end] : 0.0
 
-            equity_value = portfolio.positions[sym].quantity * _last_valid_close
+            equity_value = _getquantity(portfolio, sym) * _last_valid_close
             equity_value_wt[i] = portfolio_value > 0.0 ? equity_value/portfolio_value : 0.0;
         end
 
@@ -354,7 +444,7 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, ed
     end
 end
 
-function _cashRequirement(oldPortfolio::Portfolio, newPortfolio::Portfolio, date::DateTime)
+function _cashRequirement(oldPortfolio, newPortfolio, date::DateTime)
 
     newTickers = [sym.ticker for (sym, newPos) in newPortfolio.positions]
     oldTickers = [sym.ticker for (sym, oldPos) in oldPortfolio.positions]
@@ -386,8 +476,8 @@ function _cashRequirement(oldPortfolio::Portfolio, newPortfolio::Portfolio, date
     cashRequirement = 0.0
     for ticker in allTickers
         symbol = getsecurity(ticker).symbol
-        newQty = newPortfolio[symbol].quantity
-        oldQty = oldPortfolio[symbol].quantity
+        newQty = _getquantity(newPortfolio, symbol)
+        oldQty = _getquantity(oldPortfolio, symbol)
 
         if haskey(adjustments, symbol.id)
             adjustmentForDates = adjustments[symbol.id]
@@ -561,14 +651,20 @@ end
 Compute portfolio value for a given period (start and end date)
 OUTPUT: Vector of portfolio value
 =#
-function compute_portfolio_value_period(port, startDate::DateTime, endDate::DateTime; excludeCash::Bool = false)
+function compute_portfolio_value_period(port::Dict{String, Any}, startDate::DateTime, endDate::DateTime; excludeCash::Bool = false)
     try
         
-        # the dates are string without sssZ format(JS)..not need to convert
-        #startDate = DateTime(startDate[1:end-1])
-        #endDate = DateTime(endDate[1:end-1])
+        portfolio = convertPortfolio(port)
 
-        portfolio = convert(Raftaar.Portfolio, port)
+        if _isNotionalPortfolio(portfolio)
+
+            dt, portfolio = update_dollarportfolio_averageprice(
+                                [Dict("portfolio" => port, 
+                                    "startDate" => startDate*"Z", 
+                                    "endDate" => endDate*"Z"
+                                )]) 
+        end
+
         portfolio_value = _compute_portfoliovalue(portfolio, startDate, endDate, excludeCash = excludeCash, adjustment=true)
 
         return (portfolio_value.values, portfolio_value.timestamp)
@@ -584,7 +680,7 @@ function updateportfolio_transactions(port::Dict{String, Any}, transactions::Vec
     
     try
 
-        portfolio = convert(Raftaar.Portfolio, port)
+        portfolio = convertPortfolio(port)
         cash = 0.0
         
         fills = Vector{OrderFill}()
@@ -615,7 +711,7 @@ end
 ###
 function update_portfolio_price(port::Dict{String, Any}, end_date::DateTime = currentIndiaTime(), typ::String = "EOD")
     try
-        portfolio = convert(Raftaar.Portfolio, port)    
+        portfolio = convertPortfolio(port)    
 
         #Add check if endDate is greater than equal to current date
         #Use EOD prices otherwise
@@ -659,7 +755,8 @@ function update_dollarportfolio_price(port::Dict{String, Any}, end_date::DateTim
 end
 
 function updateportfolio_splitsAndDividends(portfolio::Dict{String,Any}, startdate::DateTime = currentIndiaTime(), enddate::DateTime = currentIndiaTime())
-    port = convert(Raftaar.Portfolio, portfolio)
+    port = convertPortfolio(portfolio)
+
     output = Vector{Dict{String, Any}}()
 
     adjustmentsByDate = Dict{Date, Dict{SecuritySymbol, Adjustment}}()
@@ -801,11 +898,12 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
     #n1,p1  n2,p2
     #Avg = [(n1P1 + (n2 - n1)*I(n2-n1 > 0)*P2]/max(n1,n2) 
 
+    ##THIS FUNCTION IS ONLY MEANT FOR "SHARES" BASED PORTFOLIO
     currentPortfolio = Raftaar.Portfolio()
     newPortfolio = Raftaar.Portfolio()
 
     for port in portfolioHistory
-        newPortfolio = convert(Raftaar.Portfolio, port)
+        newPortfolio = convertPortfolio(port)
         newStartDate = haskey(port, "startDate") ? DateTime(port["startDate"], jsdateformat) : DateTime("2018-01-01")
 
         allkeys = keys(newPortfolio.positions)
@@ -846,8 +944,8 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
             currentPosition = currentPortfolio[sym]
             newPosition = newPortfolio[sym]
 
-            currentQty = currentPosition.quantity
-            newQty = newPosition.quantity
+            currentQty = _getquantity(currentPortfolio, sym)
+            newQty = _getquantity(newPortfolio, sym)
 
             if (newQty > currentQty && currentQty > 0)
                 diffQty = newQty - currentQty
@@ -866,6 +964,7 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
 
     return now(), newPortfolio
 end
+
 
 function update_dollarportfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}})
     #n1,p1  n2,p2
@@ -979,8 +1078,8 @@ function compute_portfolioTransactions(newPortfolio, currentPortfolio)
         currentPosition = currentPortfolio[sym]
         newPosition = newPortfolio[sym]
 
-        currentQty = currentPosition.quantity
-        newQty = newPosition.quantity
+        currentQty = _getquantity(currentPortfolio, sym)
+        newQty = _getquantity(newPortfolio, sym)
 
         averageprice = currentPosition.averageprice
 

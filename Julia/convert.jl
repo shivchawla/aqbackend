@@ -59,6 +59,12 @@ function convert(::Type{OrderFill}, transaction::Dict{String, Any})
     end
 end
 
+function convertPortfolio(port)
+    get(port, "positionType", "shares") == "shares" ? 
+        convert(Raftaar.Portfolio, port) :
+        convert(Raftaar.DollarPortfolio, port)
+end
+
 function convert(::Type{Portfolio}, port::Dict{String, Any})
 
     try

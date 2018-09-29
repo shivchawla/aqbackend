@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-28 12:39:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-28 19:16:16
+* @Last Modified time: 2018-09-29 11:33:23
 */
 
 'use strict';
@@ -377,9 +377,16 @@ module.exports.isUserAuthorizedToViewContestEntrySummary = function(entryId, use
 /*
 * Send request to Julia Server to validate contest entry
 */
-module.exports.validateContestEntry = function(contestEntry, oldContestEntry, dollarPosition=false) {
+module.exports.validateContestEntry = function(contestEntry, options) {
+	var currentContestEntry = _.get(contestEntry, 'current', null);
 
-	const validityRequirements = _getContestEntryOptions(_.get(contestEntry, 'portfolio.benchmark.ticker', ""));
+	if(!currentContestEntry) {
+		return {valid: false, message: "Contest entry null/not present"};
+	}
+	
+	var oldContestEntry = _.get(contestEntry, 'old', "") || "";
+
+	const validityRequirements = _getContestEntryOptions(_.get(currentContestEntry, 'portfolio.benchmark.ticker', ""));
 	
 	if (!validityRequirements) {
 		return {valid: false, message: "Invalid benchmark"};
@@ -388,9 +395,9 @@ module.exports.validateContestEntry = function(contestEntry, oldContestEntry, do
 	return new Promise((resolve, reject) => {
 		var msg = JSON.stringify({
 			action:"validate_contest_entry", 
-			entry: contestEntry,
-			lastEntry: oldContestEntry ? oldContestEntry : "",
-			dollarPosition: dollarPosition ? dollarPosition : ""
+			entry: currentContestEntry,
+			lastEntry: oldContestEntry,
+			dollarPosition: _.get(options, 'dollarPosition', false)
 		});
 
 		WSHelper.handleMktRequest(msg, resolve, reject);
