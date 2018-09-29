@@ -658,10 +658,10 @@ function compute_portfolio_value_period(port::Dict{String, Any}, startDate::Date
         portfolio = convertPortfolio(port)
 
         if _isNotionalPortfolio(portfolio)
-            port["startDate"] = string(startDate)*"Z"
-            port["endDate"] = string(endDate)*"Z"
+            port["startDate"] = string(startDate)*".000Z"
+            port["endDate"] = string(endDate)*".000Z"
 
-            dt, portfolio = update_dollarportfolio_averageprice([port]) 
+            dt, portfolio = _update_dollarportfolio_averageprice([port]) 
         end
 
         portfolio_value = _compute_portfoliovalue(portfolio, startDate, endDate, excludeCash = excludeCash, adjustment=true)
