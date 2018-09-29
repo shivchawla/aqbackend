@@ -116,7 +116,7 @@ end
 
 function _getquantity(port, symbol)
     notionalPortfolio = _isNotionalPortfolio(port)
-    pos = port[sym]
+    pos = port[symbol]
     if(!notionalPortfolio)
         pos.quantity
     else
@@ -658,8 +658,8 @@ function compute_portfolio_value_period(port::Dict{String, Any}, startDate::Date
         portfolio = convertPortfolio(port)
 
         if _isNotionalPortfolio(portfolio)
-            port["startDate"] = startDate*"Z"
-            port["endDate"] = endDate*"Z"
+            port["startDate"] = string(startDate)*"Z"
+            port["endDate"] = string(endDate)*"Z"
 
             dt, portfolio = update_dollarportfolio_averageprice([port]) 
         end
