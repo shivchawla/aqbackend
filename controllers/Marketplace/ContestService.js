@@ -35,7 +35,7 @@ module.exports.createContest = function(args, res, next) {
             APIError.throwJsonError({message: 'User is not allowed to create Contest'});
         }
     })
-    .then(({contests, count}) => {
+    .then(([contests, count]) => {
         if (count > 0) { // There is contest present before the one to be created
             // Getting the latest contest
             let latestContest = contests[count - 1];
@@ -100,7 +100,7 @@ module.exports.getContests = function(args, res, next) {
         
     }
     ContestModel.fetchContests(query, options)
-    .then(({contests, count}) => {
+    .then(([contests, count]) => {
         return res.status(200).send({contests, count});
     })
     .catch(err => {
@@ -124,7 +124,7 @@ module.exports.getAllContests = function(args, res, next) {
     }
 
     ContestModel.fetchContests(query, options)
-    .then(({contests, count}) => {
+    .then(([contests, count]) => {
         return res.status(200).send({contests, count});
     })
     .catch(err => {
@@ -245,7 +245,7 @@ module.exports.updateEntryStatusInContest = function(args, res, next) {
 module.exports.getContestEntryRankSummaryInLatestContest = function(args, res, next) {
     const entryId = _.get(args, 'entryId.value', 0);
     ContestModel.fetchContests({active: true})
-    .then(({contests, count}) => {
+    .then(([contests, count]) => {
         const latestContest = contests[count -1];
         const contestId = _.get(latestContest, '_id', '').toString();
         const options = {};
@@ -273,7 +273,7 @@ module.exports.getValidContestsToParticipate = function(args, res, next) {
     options.fields = 'name startDate endDate';
     const currentDate = DateHelper.getCurrentDate();
     ContestModel.fetchContests({active: true, startDate: {'$gt': currentDate}})
-    .then(({contests, count}) => {
+    .then(([contests, count]) => {
         return res.status(200).send({contests, count});
     })
     .catch(err => {

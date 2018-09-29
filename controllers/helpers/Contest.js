@@ -56,7 +56,6 @@ const calculateEntryRating = (ratingObj, allEntryAnalytics = null, ratingType='c
     return _updateArrayWithRankFromRating(_.orderBy(items, ['rating'], ['desc']));
 }
 
-
 function _updateRating(contestId, currentEntryRankingData, simulatedEntryRankingData, selectedDate, rankingDetail) {
     const today = DateHelper.getCurrentDate();
     return ContestModel.fetchContest({_id: contestId}, {entries: 1})
@@ -131,8 +130,8 @@ function _updateRating(contestId, currentEntryRankingData, simulatedEntryRanking
 
                 return entryItem;
             })
-            .then(updatedEntrys => {
-                return ContestModel.updateContest({_id: contestId}, {entries: updatedEntrys});    
+            .then(updatedEntries => {
+                return ContestModel.updateContest({_id: contestId}, {entries: updatedEntries});    
             });
             
         }
@@ -266,65 +265,81 @@ function _updateArrayWithRankFromRating(array) {
     });
 }
 
-function _getEntryAnalytics(contestEntryIds) {
+function _getContestEntryAnalytics(contestEntryIds) {
     return Promise.map(contestEntryIds, entryId => {
-        let entry = entryId;
-        return PerformanceHelper.getEntryPerformanceSummary(entryId)
+        return PerformanceHelper.getContestEntryPerformanceSummary(entryId)
         .then(performance => {
-            return {entry: entry, performance: performance};
+            return {entry: entryId, performance: performance};
         })
     });
 }
 
+function _getContestEntryAnalytics_Single(contestEntryId) {
+    return PerformanceHelper.getContestEntryPerformanceSummary(entryId)
+    .then(performance => {
+        return {entry: entry, performance: performance};
+    })
+}
+
+/*
+*   Helper function to compute fractional ranks based on analytics
+*/
+function _computeRank(allEntryAnalytics, ratingType) {
+     
+    var allPerformances = allEntryAnalytics.map((item, index) => {
+        return {entry: item.entry, performance: item.performance[ratingType]}
+    }); 
+
+    return Promise.map(ratingFields, function(ratingField) {
+        var valueRatingField = {};
+        allPerformances.forEach(item => {
+            var key = item.entry; 
+            
+            //The ratingField contains true or diff
+            valueRatingField[key] = (_.get(item, `performance.${ratingField.field}`, ratingField.default) || ratingField.default) * ratingField.multiplier;
+        });
+
+        return AnalyticsHelper._computeFractionalRanking(valueRatingField, ratingField.scale)
+        .then(frs => {
+            rankingDetail[ratingType].push({
+                field: ratingField.outputField, 
+                data: calculateEntryRating(frs, allEntryAnalytics, ratingType, ratingField.field),
+            });
+
+            return frs;
+        })
+    })
+    .then(allFrs => {
+        var totalRankings = {};
+        contestEntryIds.forEach(entryId => {
+            let sum = 0.0
+            allFrs.forEach(rankings => {
+                sum += rankings[entryId];
+            });
+
+            totalRankings[entryId] = sum;
+        });
+
+        return AnalyticsHelper._computeFractionalRanking(totalRankings, contestRankingScale);
+    })
+}
+
+/*
+* Update analytics for particular contest
+*/
 module.exports.updateAnalytics = function(contestId) {
     return ContestModel.fetchContest({_id: contestId}, {fields:'entries', entries: {all: true}}, )
     .then(contest => {
-        const activeEntrys = contest.entries.filter(entry => entry.active === true);
-        var contestEntryIds = activeEntrys.map(item => item.entry);
+        const activeEntries = contest.entries.filter(entry => entry.active === true);
+        var contestEntryIds = activeEntries.map(item => item.entry);
         const rankingDetail = {current: [], simulated: []};
 
-        if (activeEntrys.length > 0) {
-            return _getEntryAnalytics(contestEntryIds)
+        if (activeEntries.length > 0) {
+            return _getContestEntryAnalytics(contestEntryIds)
             .then(allEntryAnalytics => {
                 var ratingTypes = ["current", "simulated"];
-
                 return Promise.map(ratingTypes, function(ratingType) {
-                    var allPerformances = allEntryAnalytics.map((item, index) => {
-                        return {entry: contestEntryIds[index], performance: item.performance[ratingType]}
-                    }); 
-        
-                    return Promise.map(ratingFields, function(ratingField) {
-                        var valueRatingField = {};
-                        allPerformances.forEach(item => {
-                            var key = item.entry; 
-                            
-                            //The ratingField contains true or diff
-                            valueRatingField[key] = (_.get(item, `performance.${ratingField.field}`, ratingField.default) || ratingField.default) * ratingField.multiplier;
-                        });
-
-                        return AnalyticsHelper._computeFractionalRanking(valueRatingField, ratingField.scale)
-                        .then(frs => {
-                            rankingDetail[ratingType].push({
-                                field: ratingField.outputField, 
-                                data: calculateEntryRating(frs, allEntryAnalytics, ratingType, ratingField.field),
-                            });
-
-                            return frs;
-                        })
-                    })
-                    .then(allFrs => {
-                        var totalRankings = {};
-                        contestEntryIds.forEach(entryId => {
-                            let sum = 0.0
-                            allFrs.forEach(rankings => {
-                                sum += rankings[entryId];
-                            });
-        
-                            totalRankings[entryId] = sum;
-                        });
-
-                        return AnalyticsHelper._computeFractionalRanking(totalRankings, contestRankingScale);
-                    })
+                    return _computeRank(allEntryAnalytics, ratingType);
                 })
             })
             .then(([currentRanking, simulatedRanking]) => {
@@ -339,7 +354,7 @@ module.exports.updateAnalytics = function(contestId) {
                 
                 return _updateRating(contestId, currentRankingData, simulatedRankingData, currentDate, rankingDetail)
                 .then(() => {
-                    var currentDatetimeIndia = moment.tz(new Date(), "Asia/Kolkata");
+                    var currentDatetimeIndia = DateHelper.getCurrentIndiaDateTime();
                     if (currentDatetimeIndia.get('hour') >= 16) {
                         return _updateWinners(contestId, currentRankingData, simulatedRankingData, currentDate, rankingDetail);
                     }
@@ -354,10 +369,13 @@ module.exports.updateAnalytics = function(contestId) {
     })
 };
 
+/*
+* Update analytics for all contests 
+*/
 module.exports.updateAllAnalytics = () => {
     let contestIds;
     ContestModel.fetchContests({active: true}, {fields: '_id'})
-    .then(({contests, count}) => {
+    .then(([contests, count]) => {
         if (contests) {
             contestIds = contests.map(contest => contest._id);
             return Promise.mapSeries(contestIds, contestId => {
@@ -371,7 +389,7 @@ module.exports.updateAllAnalytics = () => {
 
 module.exports.getContestEntrySummary = function(entryId) {
     return ContestModel.fetchContests({'entries.entry': entryId}, {fields: 'name active endDate entries.latestRank entries.entry entries.active entries.withDrawn entries.prohibited'})
-    .then(({contests, count}) => {
+    .then(([contests, count]) => {
         const nContests = [];
         contests.map(contest => {
 
@@ -395,7 +413,7 @@ module.exports.getContestEntrySummary = function(entryId) {
 module.exports.sendContestEntryDailyDigest = function() {
     let latestContestId;
     ContestModel.fetchContests({active: true, endDate: {$gt: DateHelper.getCurrentDate()}}, {fields: '_id'})
-    .then(({contests, count}) => {
+    .then(([contests, count]) => {
         if (contests && count > 0) {
             latestContestId = contests.sort((a,b) => {return a > b ? -1 : 1}).map(item => item._id)[0];
             
@@ -413,10 +431,10 @@ module.exports.sendContestEntryDailyDigest = function() {
         return ContestModel.fetchContest({_id: latestContestId}, {fields:'entries', entries: {all: true}})
     })
     .then(contest => {
-        const activeEntrys = contest.entries.filter(entry => entry.active === true);
-        var contestEntryIds = activeEntrys.map(item => item.entry.toString());
+        const activeEntries = contest.entries.filter(entry => entry.active === true);
+        var contestEntryIds = activeEntries.map(item => item.entry.toString());
 
-        if (activeEntrys.length > 0) {
+        if (activeEntries.length > 0) {
             return Promise.mapSeries(contestEntryIds, function(entryId) {
                 return Promise.all([
                     PerformanceHelper.getContestEntryPerformanceSummary(entryId),
