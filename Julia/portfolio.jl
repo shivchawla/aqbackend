@@ -102,28 +102,6 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
     end     
 end
 
-function _isNotionalPortfolio(portfolio)
-    typeof(portfolio) == Raftaar.DollarPortfolio    
-end
-
-function _getquantity(pos; notionalPortfolio=false)
-    if(!notionalPortfolio)
-        pos.quantity
-    else
-        pos.averageprice > 0.0 ? pos.investment/pos.averageprice : 0
-    end
-end
-
-function _getquantity(port, symbol)
-    notionalPortfolio = _isNotionalPortfolio(port)
-    pos = port[symbol]
-    if(!notionalPortfolio)
-        pos.quantity
-    else
-        pos.averageprice > 0.0 ? pos.investment/pos.averageprice : 0
-    end
-end
-
 #Use this fucntion to updated portfolio with dividendCash accumulated
 function _updatePortfolioHistory_dividendCash(portfolioHistoryCollection)
     dividendCash = 0.0

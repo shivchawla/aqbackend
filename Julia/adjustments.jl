@@ -60,15 +60,16 @@ function _get_bonus(date::DateTime)
     return bonus
 end
 
-function _update_portfolio_dividends(port::Portfolio, date::DateTime = currentIndiaTime())
+function _update_portfolio_dividends(port, date::DateTime = currentIndiaTime())
     dividends = _get_dividends(date)
     cashgen = 0.0
     updated = false
     for (sym,dividend) in dividends
         pos = port[sym]
-        if pos.quantity > 0
+        qty = _getquantity(port, sym)
+        if qty != 0.0
             updated = true
-            dividendcash = pos.quantity * dividend
+            dividendcash = qty * dividend
             pos.dividendcash += dividendcash
             cashgen += dividendcash
             pos.lastprice = pos.lastprice > 0 ? pos.lastprice - dividend : 0.0
@@ -80,32 +81,47 @@ function _update_portfolio_dividends(port::Portfolio, date::DateTime = currentIn
     return (updated, port)
 end
 
-function _update_portfolio_splits(port::Portfolio, date::DateTime = currentIndiaTime())
+function _update_portfolio_splits(port, date::DateTime = currentIndiaTime())
     splits = _get_splits(date)
 
     updated = false
+
     for (sym, splt) in splits
         pos = port[sym]
-        if pos.quantity > 0
+        qty = _getquantity(port, sym)
+        
+        if qty != 0.0
             updated = true
-            pos.quantity = Int(round(pos.quantity * 1.0/splt, 0))
+            
+            if pos.quantity != nothing # if "share" portfolio
+                pos.quantity = Int(round(qty * 1.0/splt, 0))
+            end
+
             pos.lastprice = pos.lastprice * splt
             pos.averageprice = pos.averageprice * splt
+
         end
+
     end
 
     return (updated, port)
 end
 
-function _update_portfolio_bonus(port::Portfolio, date::DateTime = currentIndiaTime())
+function _update_portfolio_bonus(port, date::DateTime = currentIndiaTime())
     bonus = _get_bonus(date)
 
     updated = false
     for (sym, bns) in bonus
         pos = port[sym]
-        if pos.quantity > 0
+        qty = _getquantity(port, sym)
+        
+        if qty != 0.0
             updated = true
-            pos.quantity = Int(round(pos.quantity * 1.0/bns, 0))
+            
+            if pos.quantity != nothing  # if "share" portfolio
+                pos.quantity = Int(round(pos.quantity * 1.0/bns, 0))
+            end
+
             pos.lastprice = pos.lastprice * bns
             pos.averageprice = pos.averageprice * bns
         end
@@ -113,3 +129,4 @@ function _update_portfolio_bonus(port::Portfolio, date::DateTime = currentIndiaT
 
     return (updated, port)
 end
+

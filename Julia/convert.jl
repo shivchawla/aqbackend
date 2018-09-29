@@ -269,3 +269,26 @@ function convert_to_node_transaction(transaction::OrderFill)
         rethrow(err)
     end
 end
+
+
+function _isNotionalPortfolio(portfolio)
+    typeof(portfolio) == Raftaar.DollarPortfolio    
+end
+
+function _getquantity(pos; notionalPortfolio=false)
+    if(!notionalPortfolio)
+        pos.quantity
+    else
+        pos.averageprice > 0.0 ? pos.investment/pos.averageprice : 0
+    end
+end
+
+function _getquantity(port, symbol)
+    notionalPortfolio = _isNotionalPortfolio(port)
+    pos = port[symbol]
+    if(!notionalPortfolio)
+        pos.quantity
+    else
+        pos.averageprice > 0.0 ? pos.investment/pos.averageprice : 0
+    end
+end
