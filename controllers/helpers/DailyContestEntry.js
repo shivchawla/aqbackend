@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-28 16:29:42
+* @Last Modified time: 2018-09-29 13:45:18
 */
 
 'use strict';
@@ -251,7 +251,7 @@ function _getPnlStatsForWeek(entryId, date) {
 function _updatePortfolioForAveragePrice(portfolioHistory) {
 	return new Promise(function(resolve, reject) {
 
-		var msg = JSON.stringify({action:"update_dollar_portfolio_average_price", 
+		var msg = JSON.stringify({action:"update_portfolio_average_price", 
     								portfolioHistory: portfolioHistory});
         								
 		WSHelper.handleMktRequest(msg, resolve, reject);
@@ -294,7 +294,7 @@ module.exports.getUpdatedPortfolioForPrice = function(portfolio, typ) {
 };
 
 module.exports.getUpdatedPortfolioForAveragePrice = function(portfolio) {
-	return _updatePortfolioForAveragePrice([{positions: portfolio.positions, startDate: portfolio.date}])
+	return _updatePortfolioForAveragePrice([{...portfolio, startDate: portfolio.date}])
 	.then(updatedAvgPricePortfolio => {
 		var _partialUpdatedPositions = updatedAvgPricePortfolio ? updatedAvgPricePortfolio.positions : portfolio.positions;
 		return _updatePositionsForPrice(_partialUpdatedPositions, DateHelper.getNextNonHolidayWeekday(portfolio.date));
@@ -302,7 +302,6 @@ module.exports.getUpdatedPortfolioForAveragePrice = function(portfolio) {
 	.then(updatedPositions => {
 		if (updatedPositions) {
 			return Object.assign(portfolio, {positions: updatedPositions, cash: _.get(portfolio, 'cash', 0.0)});
-			//return populatePnl ? _populateStats({positions: updatedPositions, cash: _.get(portfolio, 'cash', 0.0)}) : {positions: updatedPositions};
 		} else {
 			return portfolio;
 		}

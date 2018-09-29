@@ -657,12 +657,10 @@ function compute_portfolio_value_period(port::Dict{String, Any}, startDate::Date
         portfolio = convertPortfolio(port)
 
         if _isNotionalPortfolio(portfolio)
+            port["startDate"] = startDate*"Z"
+            port["endDate"] = endDate*"Z"
 
-            dt, portfolio = update_dollarportfolio_averageprice(
-                                [Dict("portfolio" => port, 
-                                    "startDate" => startDate*"Z", 
-                                    "endDate" => endDate*"Z"
-                                )]) 
+            dt, portfolio = update_dollarportfolio_averageprice([port]) 
         end
 
         portfolio_value = _compute_portfoliovalue(portfolio, startDate, endDate, excludeCash = excludeCash, adjustment=true)
@@ -712,7 +710,6 @@ end
 function update_portfolio_price(port::Dict{String, Any}, end_date::DateTime = currentIndiaTime(), typ::String = "EOD")
     try
         portfolio = convertPortfolio(port)    
-
         #Add check if endDate is greater than equal to current date
         #Use EOD prices otherwise
         updatedType = Date(end_date) >= Date(currentIndiaTime()) ? typ : "EOD"
@@ -741,7 +738,7 @@ end
 ###
 # Function to update portfolio with latest price
 ###
-function update_dollarportfolio_price(port::Dict{String, Any}, end_date::DateTime = currentIndiaTime(), typ::String = "EOD")
+#=function update_dollarportfolio_price(port::Dict{String, Any}, end_date::DateTime = currentIndiaTime(), typ::String = "EOD")
     try
         portfolio = convert(Raftaar.DollarPortfolio, port)    
 
@@ -752,7 +749,7 @@ function update_dollarportfolio_price(port::Dict{String, Any}, end_date::DateTim
     catch err
         rethrow(err)
     end
-end
+end=#
 
 function updateportfolio_splitsAndDividends(portfolio::Dict{String,Any}, startdate::DateTime = currentIndiaTime(), enddate::DateTime = currentIndiaTime())
     port = convertPortfolio(portfolio)
@@ -898,7 +895,17 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
     #n1,p1  n2,p2
     #Avg = [(n1P1 + (n2 - n1)*I(n2-n1 > 0)*P2]/max(n1,n2) 
 
-    ##THIS FUNCTION IS ONLY MEANT FOR "SHARES" BASED PORTFOLIO
+    isNotionalPortfolio = _isNotionalPortfolio(portfolioHistory[0])
+
+    if (isNotionalPortfolio) 
+        _update_dollarportfolio_averageprice(portfolioHistory)
+    else
+        _update_portfolio_averageprice(portfolioHistory)(portfolioHistory)
+    end
+end
+
+function _update_portfolio_averageprice(portfolioHistory)
+
     currentPortfolio = Raftaar.Portfolio()
     newPortfolio = Raftaar.Portfolio()
 
@@ -965,8 +972,7 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
     return now(), newPortfolio
 end
 
-
-function update_dollarportfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}})
+function _update_dollarportfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}})
     #n1,p1  n2,p2
     #Avg = [(n1P1 + (n2 - n1)*I(n2-n1 > 0)*P2]/max(n1,n2) 
 
