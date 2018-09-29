@@ -118,16 +118,10 @@ Contest.statics.fetchContests = function(query, options = {}) {
         });
     }
 
-    return q.execAsync()
-    .then(contests => {
-        return this.count(query)
-        .then(count => {
-            return {
-                contests, 
-                count
-            };
-        })
-    });
+    return Promise.all([
+        q.execAsync(),
+        this.count(query)
+    ]);
 }
 
 Contest.statics.fetchContest = function(query, options = {}) {

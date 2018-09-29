@@ -198,7 +198,11 @@ end
 ###
 # Convert Julia portfolio to Node portfolio 
 ###
-function convert_to_node_portfolio(port::Portfolio)
+function convert_to_node_portfolio(port)
+    if _isNotionalPortfolio(port)
+        return convert_to_node_dollarportfolio(port)
+    end
+
     try
         output = Dict{String, Any}("positions" => [], "cash" => port.cash)
 

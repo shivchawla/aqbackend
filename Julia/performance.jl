@@ -11,7 +11,7 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             error("Start date is greater than End date. Can't compute performance")
         end
 
-        portfolio = convert(Raftaar.Portfolio, port)
+        portfolio = convertPortfolio(port)
 
         cash = haskey(port, "cash") ? port["cash"] : 0.0
 
@@ -192,7 +192,7 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
         end
         performance_allstocks = Dict{String, Any}[]
         
-        port_raftaar = convert(Raftaar.Portfolio, port)
+        port_raftaar = convertPortfolio(port)
         
         all_tickers = String[]
         for (sym, pos) in port_raftaar.positions
@@ -214,7 +214,7 @@ function compute_performance_constituents(port::Dict{String, Any}, start_date::D
             benchmark_prices = dropnan(benchmark_prices, :any)
             (updatedDate, updatedPortfolio) = update_raftaarportfolio_price(port_raftaar, currentIndiaTime())
             
-            performance_allstocks = [merge(Dict("ticker" => sym.ticker), compute_pnl_stats(pos)) for (sym,pos) in updatedPortfolio.positions]
+            performance_allstocks = [merge(Dict("ticker" => sym.ticker), compute_pnl_stats(updatedPortfolio, sym)) for (sym,pos) in updatedPortfolio.positions]
             
             return (Date(updatedDate), performance_allstocks)
         
@@ -573,8 +573,8 @@ function history_nostrict(ticker, dtypes::Vector{String}, res::Symbol, sd::DateT
     return data
 end
 
-function compute_pnl_stats(pos::Position)
-    pnl = pos.lastprice > 0.0 ? pos.quantity * (pos.lastprice - pos.averageprice) : 0.0
+function compute_pnl_stats(port, sym)
+    pnl = pos.lastprice > 0.0 ? _getquantity(port, sym) * (pos.lastprice - pos.averageprice) : 0.0
     pnlpct = pos.averageprice > 0.0 ? round(100.0 * (pos.lastprice/pos.averageprice - 1.0), 2) : 0.0
     return Dict{String, Any}("pnl" => pnl, "pnl_pct" => pnlpct)
 end
