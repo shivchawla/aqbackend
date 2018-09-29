@@ -116,6 +116,7 @@ end
 
 function _getquantity(port, symbol)
     notionalPortfolio = _isNotionalPortfolio(port)
+    pos = port[sym]
     if(!notionalPortfolio)
         pos.quantity
     else
@@ -353,7 +354,7 @@ function _compute_portfoliovalue(portfolio, start_date::DateTime, end_date::Date
                 _last_valid_close = length(_temp_ts_close_non_nan) > 0 ? _temp_ts_close_non_nan[end] : 0.0
                 
                 qty = _getquantity(portfolio, sym)
-                equity_value += qty * _last_valid_close)
+                equity_value += qty * _last_valid_close
             end
 
             portfolio_value[i, 1] = equity_value + (excludeCash ? 0.0 : portfolio.cash)
@@ -395,7 +396,7 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, ed
 
         portfolio = convertPortfolio(port)
 
-        portfolio_value_raw = _compute_raftaarportfolio_netvalue(portfolio, sdate, edate, excludeCash=excludeCash)
+        portfolio_value_raw = _compute_portfoliovalue(portfolio, sdate, edate, excludeCash=excludeCash)
         portfolio_values = portfolio_value_raw != nothing ? dropnan(portfolio_value_raw, :any) : nothing
 
         if portfolio_values == nothing || length(portfolio_values) == 0 
