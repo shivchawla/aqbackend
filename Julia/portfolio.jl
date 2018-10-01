@@ -640,6 +640,12 @@ function compute_portfolio_value_period(port::Dict{String, Any}, startDate::Date
             port["endDate"] = string(endDate)*".000Z"
 
             dt, portfolio = _update_dollarportfolio_averageprice([port]) 
+
+            #adjust the portfolio in histroy for splits/dividends    
+            output  = updateportfolio_splitsAndDividends(convert_to_node_portfolio(portfolio), startDate, endDate)
+
+            portfolio = convertPortfolio(output[end])
+
         end
 
         portfolio_value = _compute_portfoliovalue(portfolio, startDate, endDate, excludeCash = excludeCash, adjustment=true)

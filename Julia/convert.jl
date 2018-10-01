@@ -230,7 +230,7 @@ end
 ###
 function convert_to_node_dollarportfolio(port::DollarPortfolio)
     try
-        output = Dict{String, Any}("positions" => [], "cash" => port.cash)
+        output = Dict{String, Any}("positions" => [], "cash" => port.cash, "positionType" => "notional")
 
         for (sym, pos) in port.positions
             n_pos = Dict{String, Any}()
