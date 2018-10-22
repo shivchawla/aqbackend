@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-22 19:05:36
+* @Last Modified time: 2018-10-22 19:11:45
 */
 
 'use strict';
@@ -90,7 +90,7 @@ module.exports.getStartDateForNewContest = function(date) {
 	const weekday = _tentativeStartDatetime.get('day');
 	const isWeekDay = weekday > 0 && weekday < 6;
 
-	let isHoliday = DateHelper.IsHoliday(date);
+	let isHoliday = DateHelper.isHoliday(date);
 
 	let _finalStartDate;
 	if ( _isBeforeMarketOpen(_tentativeStartDatetime) && isWeekDay && !isHoliday) {
