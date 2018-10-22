@@ -880,12 +880,12 @@ function updatePortfolio_averageprice(portfolioHistory::Vector{Dict{String, Any}
     #n1,p1  n2,p2
     #Avg = [(n1P1 + (n2 - n1)*I(n2-n1 > 0)*P2]/max(n1,n2) 
 
-    isNotionalPortfolio = _isNotionalPortfolio(portfolioHistory[0])
+    isNotionalPortfolio = _isNotionalPortfolio(convertPortfolio(portfolioHistory[1]))
 
     if (isNotionalPortfolio) 
         _update_dollarportfolio_averageprice(portfolioHistory)
     else
-        _update_portfolio_averageprice(portfolioHistory)(portfolioHistory)
+        _update_portfolio_averageprice(portfolioHistory)
     end
 end
 

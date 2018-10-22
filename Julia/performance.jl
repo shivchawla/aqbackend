@@ -574,6 +574,7 @@ function history_nostrict(ticker, dtypes::Vector{String}, res::Symbol, sd::DateT
 end
 
 function compute_pnl_stats(port, sym)
+    pos = port[symbol]
     pnl = pos.lastprice > 0.0 ? _getquantity(port, sym) * (pos.lastprice - pos.averageprice) : 0.0
     pnlpct = pos.averageprice > 0.0 ? round(100.0 * (pos.lastprice/pos.averageprice - 1.0), 2) : 0.0
     return Dict{String, Any}("pnl" => pnl, "pnl_pct" => pnlpct)

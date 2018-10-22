@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-28 16:20:08
+* @Last Modified time: 2018-10-20 14:02:09
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -17,7 +17,7 @@ const holidays = [
 	"2018-11-08",
 	"2018-11-23",
 	"2018-12-25"
-];
+].map(item => moment(item).tz(indiaTimeZone));
 
 var marketOpenDatetime = moment("2018-01-01 09:30:00").tz(indiaTimeZone).local();
 var marketOpenMinute = marketOpenDatetime.get('minute');
@@ -26,7 +26,6 @@ var marketOpenHour = marketOpenDatetime.get('hour');
 var marketCloseDatetime = moment("2018-01-01 15:30:00").tz(indiaTimeZone).local();
 var marketCloseMinute = marketCloseDatetime.get('minute');
 var marketCloseHour = marketCloseDatetime.get('hour');
-
 
 module.exports.getMarketClose = function(date) {
 	return moment(date).tz(indiaTimeZone).set({hour: marketCloseHour, minute: marketCloseMinute, second:0, millisecond: 0}).local();
@@ -80,10 +79,10 @@ module.exports.getLocalDate = function(dateTime, offset) {
 	return _od;
 };
 
-//Return dateTime formatted to Current Date and Time as 5:30AM IST
+//Return dateTime formatted to Current Date and Time as 00:00:00 IST
 module.exports.getDate = function(dateTime) {
-	
-	return exports.getLocalDate(dateTime, 0);
+	return (dateTime ? moment(dateTime) : moment()).tz(indiaTimeZone).toDate();
+	//return exports.getLocalDate(dateTime, 0);
 };
 
 //Return dateTime formatted to Current Date and Time as 5:30AM IST
@@ -185,21 +184,17 @@ module.exports.getDatesInWeek = function(date, offset=0) {
 
 module.exports.getNextNonHolidayWeekday = function(date) {
 	var nextWeekday = exports.getNextWeekday(date);
-	let isHoliday = exports.IsHoliday(nextWeekday);
+	let isHoliday = exports.isHoliday(nextWeekday);
 	return isHoliday ? exports.getNextNonHolidayWeekday(nextWeekday) : nextWeekday;
-};
-
-module.exports.IsHoliday = function(date) {
-	let isHoliday = false;
-	holidays.forEach(holiday => {
-		isHoliday = isHoliday || exports.compareDates(holiday, date) == 0;
-	});
-
-	return isHoliday;
 };
 
 module.exports.getCurrentIndiaDateTime = function() {
 	return moment.tz(new Date(), "Asia/Kolkata"); 
+};
+
+module.exports.isHoliday = function(date) {
+	date = !date ? module.exports.getCurrentDate() : date;
+	return holidays.findIndex(item => {return item.isSame(moment(date));}) !== -1;
 };
 
 

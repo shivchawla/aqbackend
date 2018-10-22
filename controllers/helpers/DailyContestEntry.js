@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-29 13:45:18
+* @Last Modified time: 2018-10-20 14:07:31
 */
 
 'use strict';
@@ -263,7 +263,7 @@ function _updatePositionsForPrice(positions, date, type) {
 	if (positions) {
 		return new Promise((resolve, reject) => {
 
-			var msg = JSON.stringify({action:"update_dollar_portfolio_price", 
+			var msg = JSON.stringify({action:"update_portfolio_price", 
 	            						portfolio: {positions: positions},
 	            						date: !date || date == "" ? DateHelper.getCurrentDate() : date,
 	            						type: type ? type : "RT"});
@@ -336,6 +336,7 @@ module.exports.getUpdatedContestEntry = function(entryId, date, populatePnl=fals
 		return populatePnl ? exports.updateContestEntryPnlStats(entryId, date) : null		
 	})
 	.then(() => {
+
 		return Promise.all([
 			exports.getUpdatedContestPortfolioDetail(entryId, date),
 			populatePnl ? exports.getContestEntryPnlStats(entryId, date) : null
@@ -362,6 +363,7 @@ module.exports.updateContestEntryPnlStats = function(entryId, date) {
 			
 	})
 	.then(updatedContestEntryForDate => {
+
 		if (updatedContestEntryForDate && entryActive) {
 			var pnlStatsForDay = _.get(updatedContestEntryForDate, 'pnlStats', {});
 			let pnlStats = {daily: pnlStatsForDay};
