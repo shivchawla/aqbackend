@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-27 13:15:13
+* @Last Modified time: 2018-10-22 19:05:36
 */
 
 'use strict';
@@ -26,21 +26,42 @@ const SecurityHelper = require('./Security');
 
 const indiaTimeZone = "Asia/Kolkata";
 
-var marketOpenDatetime = moment("2018-01-01 09:30:00").tz(indiaTimeZone).local();
-var marketOpenMinute = marketOpenDatetime.get('minute');
-var marketOpenHour = marketOpenDatetime.get('hour');
+function getMarketOpen() {
+	var cd = moment().format("YYYY-MM-DD");
+	return moment.tz(`${cd} 09:30:00`, indiaTimeZone).local();
+}
 
-var marketCloseDatetime = moment("2018-01-01 15:30:00").tz(indiaTimeZone).local();
-var marketCloseMinute = marketCloseDatetime.get('minute');
-var marketCloseHour = marketCloseDatetime.get('hour');
+function getMarketClose() {
+	var cd = moment().format("YYYY-MM-DD");
+	return moment.tz(`${cd} 15:30:00`, indiaTimeZone).local();
+}
 
-//Run when seconds = 10
-schedule.scheduleJob(`${marketCloseMinute+1}  ${marketCloseHour} * * 1-5`, function() {
-    exports.createNewContest();
+function getMarketOpenHour() {
+	return getMarketOpen().get('hour');
+}
+
+function getMarketOpenMinute(){
+	return getMarketOpen().get('minute');
+}
+
+function getMarketCloseHour() {
+	return getMarketClose().get('hour');
+}
+
+function getMarketCloseMinute(){
+	return getMarketClose().get('minute');
+}
+
+schedule.scheduleJob(`* * * * 1-5`, function() {
+	var currentHour = moment().get('hour');
+	var currentMinute = moment().get('minute');
+	if (currentHour == getMarketCloseHour() && currentMinute == getMarketCloseMinute()+1) {
+    	exports.createNewContest();
+	}
 });
 
 module.exports.getContestSpecificDateTime = function(date) {
-	moment(date).tz(indiaTimeZone).set({hour: marketCloseHour, minute: marketCloseMinute}).local();
+	moment(date).tz(indiaTimeZone).set({hour: getMarketCloseHour(), minute: getMarketCloseMinute()}).local();
 };
 
 function _isBeforeMarketClose(currentDatetime) {
@@ -52,7 +73,7 @@ function _isBeforeMarketOpen(currentDatetime) {
 }
 
 module.exports.getEffectiveContestDate = function(date) {
-	return moment(date).tz(indiaTimeZone).set({hour: marketOpenHour, minute: marketOpenMinute}).local();
+	return moment(date).tz(indiaTimeZone).set({hour: getMarketOpenHour(), minute: getMarketOpenMinute()}).local();
 }
 
 module.exports.getStartDateForNewContest = function(date) {
@@ -78,19 +99,19 @@ module.exports.getStartDateForNewContest = function(date) {
 		_finalStartDate = DateHelper.getNextNonHolidayWeekday(_tentativeStartDatetime.toDate());
 	}
 
-	return moment(_finalStartDate).tz(indiaTimeZone).set({hour: marketOpenHour, minute: marketOpenMinute}).local();
+	return moment(_finalStartDate).tz(indiaTimeZone).set({hour: getMarketOpenHour(), minute: getMarketOpenMinute()}).local();
 };
 
 module.exports.getEndDateForNewContest = function(date) {
 	var startdate = exports.getStartDateForNewContest(date);
-	return moment(startdate).tz(indiaTimeZone).set({hour: marketCloseHour, minute: marketCloseMinute}).local();
+	return moment(startdate).tz(indiaTimeZone).set({hour: getMarketCloseHour(), minute: getMarketCloseMinute()}).local();
 };
 
 module.exports.getResultDateForNewContest = function(date) {
 	var contestEndDate = exports.getEndDateForNewContest(date);
 	//Reslt date is one trading after the close of contest
 	var _next = DateHelper.getNextNonHolidayWeekday(contestEndDate.toDate());
-	return moment(_next).tz(indiaTimeZone).set({hour: marketCloseHour, minute: marketCloseMinute}).local();	
+	return moment(_next).tz(indiaTimeZone).set({hour: getMarketCloseHour(), minute: getMarketCloseMinute()}).local();	
 };
 
 module.exports.getContestForDate = function(date, options) {
@@ -204,12 +225,12 @@ module.exports.updateFinalPortfolio = function(date, newPositions, oldPositions)
 };
 
 module.exports.getContestWithResultToday = function(options) {
-	const datetimeIndia = moment(DateHelper.getCurrentDate()).tz(indiaTimeZone).set({hour: marketCloseHour, minute: marketCloseMinute}).local();	
+	const datetimeIndia = moment(DateHelper.getCurrentDate()).tz(indiaTimeZone).set({hour: getMarketCloseHour(), minute: getMarketCloseMinute()}).local();	
 	return DailyContestModel.fetchContest({resultDate: datetimeIndia, active: true}, options);
 };
 
 module.exports.getContestWithEndDateToday = function(options) {
-	const datetimeIndia = moment(DateHelper.getCurrentDate()).tz(indiaTimeZone).set({hour: marketCloseHour, minute: marketCloseMinute}).local();	
+	const datetimeIndia = moment(DateHelper.getCurrentDate()).tz(indiaTimeZone).set({hour: getMarketCloseHour(), minute: getMarketCloseMinute()}).local();	
 	return DailyContestModel.fetchContest({endDate: datetimeIndia, active: true}, options);
 };
 
