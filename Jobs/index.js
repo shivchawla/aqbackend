@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-25 18:22:01
+* @Last Modified time: 2018-10-22 19:40:40
 */
 
 'use strict';
@@ -50,19 +50,24 @@ if (config.get('jobsPort') === serverPort) {
         DailyContestHelper.updateAllEntriesPnlStats();
 	});
 
-	//12:30 - Indian(4:00 PM)
-	schedule.scheduleJob("30 12 * * 1-5", function() { 
-		return Promise.all([
-			DailyContestHelper.updateAllEntriesPnlStats(),
-			DailyContestHelper.updateDailyTopPicks(),
-			DailyContestHelper.updateWeeklyTopPicks(),
-		])
-        .then(() => {
-        	return DailyContestHelper.updateDailyContestWinners()
-    	})
-    	.then(() => {
-    		return DailyContestHelper.updateWeeklyContestWinners();
-    	})
+	//Run every minute BUT complete execution at market Close ONLY
+	schedule.scheduleJob("* * * * 1-5", function() { 
+		var currentHour = moment().get('hour');
+		var currentMinute = moment().get('minute');
+		var offset = 30;
+		if (currentHour == exports.getMarketCloseHour() && currentMinute == exports.getMarketCloseMinute() + offset) {
+			return Promise.all([
+				DailyContestHelper.updateAllEntriesPnlStats(),
+				DailyContestHelper.updateDailyTopPicks(),
+				DailyContestHelper.updateWeeklyTopPicks(),
+			])
+	        .then(() => {
+	        	return DailyContestHelper.updateDailyContestWinners()
+	    	})
+	    	.then(() => {
+	    		return DailyContestHelper.updateWeeklyContestWinners();
+	    	})
+    	}
 	});
 
 }
