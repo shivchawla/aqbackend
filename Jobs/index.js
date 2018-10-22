@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-22 19:44:45
+* @Last Modified time: 2018-10-22 19:47:57
 */
 
 'use strict';
@@ -57,7 +57,7 @@ if (config.get('jobsPort') === serverPort) {
 		var currentHour = moment().get('hour');
 		var currentMinute = moment().get('minute');
 		var offset = 30;
-		if (currentHour == exports.getMarketCloseHour() && currentMinute == exports.getMarketCloseMinute() + offset) {
+		if (currentHour == DateHelper.getMarketCloseHour() && currentMinute == DateHelper.getMarketCloseMinute() + offset) {
 			return Promise.all([
 				DailyContestHelper.updateAllEntriesPnlStats(),
 				DailyContestHelper.updateDailyTopPicks(),
