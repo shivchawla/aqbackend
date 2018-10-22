@@ -4028,10 +4028,9 @@ definitions:
   PortfolioDetail:
     type: object
     required:
-      #- startDate
-      #- endDate
       - positions
       - cash
+      - positionType
     properties:
       startDate:
         type: string
@@ -4046,6 +4045,10 @@ definitions:
       cash:
         type: number
         default: 0.0
+      positionType:
+        type: string
+        default: 'shares'
+        enum: ['shares', 'notional']
     
 #Portfolio
   Portfolio:
@@ -4061,6 +4064,7 @@ definitions:
         $ref: '#/definitions/PortfolioDetail'
       benchmark:
         $ref: '#/definitions/Security'
+      
 
 
 #Advice definition
