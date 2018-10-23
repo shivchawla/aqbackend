@@ -27,7 +27,7 @@ function _getEffectiveContestEntryStartDate(selectedStartDate) {
 
 	var currentDate = DateHelper.getCurrentDate();
 
-	let isHoliday = DateHelper.IsHoliday(currentDate);
+	let isHoliday = DateHelper.isHoliday(currentDate);
 	
 	if (currentDatetimeIndia.get('hour') < 12 && isWeekDay && !isHoliday) {
 		return DateHelper.getCurrentDate();
