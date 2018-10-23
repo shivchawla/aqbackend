@@ -4065,8 +4065,6 @@ definitions:
       benchmark:
         $ref: '#/definitions/Security'
       
-
-
 #Advice definition
   Advice:
     type: object

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-20 14:07:31
+* @Last Modified time: 2018-10-23 10:50:21
 */
 
 'use strict';
@@ -264,7 +264,7 @@ function _updatePositionsForPrice(positions, date, type) {
 		return new Promise((resolve, reject) => {
 
 			var msg = JSON.stringify({action:"update_portfolio_price", 
-	            						portfolio: {positions: positions},
+	            						portfolio: {positions: positions, positionType:'notional'},
 	            						date: !date || date == "" ? DateHelper.getCurrentDate() : date,
 	            						type: type ? type : "RT"});
          	
@@ -294,7 +294,7 @@ module.exports.getUpdatedPortfolioForPrice = function(portfolio, typ) {
 };
 
 module.exports.getUpdatedPortfolioForAveragePrice = function(portfolio) {
-	return _updatePortfolioForAveragePrice([{...portfolio, startDate: portfolio.date}])
+	return _updatePortfolioForAveragePrice([{...portfolio, positionType:'notional', startDate: portfolio.date}])
 	.then(updatedAvgPricePortfolio => {
 		var _partialUpdatedPositions = updatedAvgPricePortfolio ? updatedAvgPricePortfolio.positions : portfolio.positions;
 		return _updatePositionsForPrice(_partialUpdatedPositions, DateHelper.getNextNonHolidayWeekday(portfolio.date));
