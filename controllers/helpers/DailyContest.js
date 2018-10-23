@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-22 20:20:25
+* @Last Modified time: 2018-10-23 17:03:35
 */
 
 'use strict';
@@ -175,8 +175,7 @@ module.exports.updateFinalPortfolio = function(date, newPositions, oldPositions)
 
 			});
 
-			//Now get rid of old positions (if olo positions in not null)
-
+			//Now get rid of old positions (if old positions in not null)
 			if (oldPositions) {
 				oldPositions.filter(oldItem => {
 					var idx = totalPositions.findIndex(item => {return item.security.ticker == oldItem.security.ticker});
@@ -185,7 +184,7 @@ module.exports.updateFinalPortfolio = function(date, newPositions, oldPositions)
 						totalPositions[idx].investment.total -= oldItem.investment;
 						totalPositions[idx].investment.long -= oldItem.investment > 0 ? oldItem.investment : 0;
 						totalPositions[idx].investment.short -= oldItem.investment < 0 ? oldItem.investment : 0;
-						totalPositions[idx].numUsers.total++;
+						totalPositions[idx].numUsers.total--;
 						if (oldItem.investment > 0) {
 							totalPositions[idx].numUsers.long--;
 						}
