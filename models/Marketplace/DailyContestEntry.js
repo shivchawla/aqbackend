@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-26 12:01:51
+* @Last Modified time: 2018-10-26 19:01:57
 */
 
 
@@ -41,20 +41,36 @@ const Prize = new Schema({
     }
 });
 
+const Prediction = new Schema({
+	position: {
+		type: DollarPosition,
+		required: true
+	},
+	target: {
+		type: Number,
+		required: true
+	},
+	endDate: {
+		type: Date,
+		required: true
+	},
+	startDate: {
+		type: Date,
+		required: true
+	},
+	active: {type: Boolean, default: true},
+	modified: {type:Number, default: 0}
+});
+
 const DailyContestEntry = new Schema({  
 	advisor: {type: Schema.Types.ObjectId, ref: 'Advisor'},
 	
-	createdDate:Date,
+	createdDate: Date,
 	
 	updatedDate: Date,
 
-	portfolioDetail: [{
-		date: Date,
-		modified: {type:Number, default: 0},
-		positions: [DollarPosition],
-		active: {type: Boolean, default: true},
-	}],
-
+	predictions: [Prediction],
+		
 	performance: {
 		daily: [{
 			date: Date,
@@ -85,14 +101,8 @@ const DailyContestEntry = new Schema({
 
 
 /*Rules
-1. Daily Contest with daily entires
-	Entry is not carried forward the next contest unless user enters the contest deliberately
-	Winner = Highest Daily Change
-2. Daily Contest with weekly entries
-	Entry is carried forward the next contest fot a period of 5 days after which it is dropped
-	Winner = (Rolling 5 day pnl - Rolling 5 day pnl of holding benchmark)
-	If user doesn't enter after 5 days, entries continues but 
-
+1. Entry Item can be added any day
+2. EntryItem = Stock/Target/Direction/StartDate/EndDate
 */
 
 DailyContestEntry.statics.createEntry = function(contestEntry) {
@@ -100,29 +110,28 @@ DailyContestEntry.statics.createEntry = function(contestEntry) {
     return dailyContestEntry.saveAsync();
 }
 
-/*DailyContestEntry.statics.addPortfolio = function(query, portfolio) {
-    return this.findOneAndUpdate(query, {$push: {detail: {...portfolio, modified: 0}}});
-}*/
+DailyContestEntry.statics.addEntryPredictions = function(query, predictions, options) {
+	return this.findOneAndUpdate(query, {$push: {predictions: {$each: predictions}}}, options)
+};
 
-DailyContestEntry.statics.updateEntryPortfolio = function(query, portfolio, options) {
-    const date = portfolio.date;
-    const activeStatus = portfolio.active ? portfolio.active : true
-    
-    let updates = {
-		$set: {'portfolioDetail.$.positions': portfolio.positions, active: activeStatus},
-		$inc: {'portfolioDetail.$.modified': 1}
+DailyContestEntry.statics.updateEntryPredictions = function(query, predictions, date, options) {
+	
+	console.log(date);
+	let updateOne = {
+		updatedDate: new Date(),
+		$pull: {predictions:{startDate: date}}
 	};
 
-	let q = {...query, 'portfolioDetail.date':{$eq: date}};
-	return this.findOne(q)
-	.then(found => {
-		if (found) {
-			return this.findOneAndUpdate(q, updates, options)
-		} else {
-			updates = {$push: {portfolioDetail: portfolio}};
-			return this.findOneAndUpdate(query, updates, options);
-		}
-	})
+	let updateTwo = {
+		updatedDate: new Date(),
+	 	$push: {predictions: {$each: predictions}}
+	};
+
+	return this.findOneAndUpdateAsync(query, updateOne)
+	.then(() => {
+		return this.findOneAndUpdateAsync(query, updateTwo);
+	});
+
 };
 
 DailyContestEntry.statics.updateEntryPnlStats = function(query, pnlStats, date) {
@@ -169,8 +178,9 @@ DailyContestEntry.statics.fetchEntry = function(query, options) {
 	return q.execAsync();
 };
 
-DailyContestEntry.statics.fetchEntryPortfolioForDate = function(query, date) {
-	return this.findOne({...query, 'portfolioDetail.date': date}, {advisor: 1, 'portfolioDetail.$': 1, createdDate:1, updatedDate: 1});
+
+DailyContestEntry.statics.fetchEntryPredictionsForDate = function(query, date) {
+	return this.findOne({...query, 'predictions.startDate': date}, {advisor: 1, 'predictions.$': 1, createdDate:1, updatedDate: 1});
 };
 
 DailyContestEntry.statics.fetchEntryPnlStatsForDate = function(query, date) {

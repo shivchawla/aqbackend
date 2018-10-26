@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-22 21:09:08
+* @Last Modified time: 2018-10-26 19:45:58
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -17,24 +17,32 @@ const holidays = [
 	"2018-11-08",
 	"2018-11-23",
 	"2018-12-25"
-].map(item => moment(item).tz(indiaTimeZone));
+].map(item => moment.tz(item, indiaTimeZone));
 
-function getMarketOpen() {
-	var cd = moment().format("YYYY-MM-DD");
+function _isBeforeMarketClose() {
+	return moment().isBefore(exports.getMarketClose());
+}
+
+function _isAfterMarketOpen() {
+	return moment().isAfter(exports.getMarketOpen());
+}
+
+module.exports.getMarketOpen = function() {
+	var cd = moment().tz(indiaTimeZone).format("YYYY-MM-DD");
 	return moment.tz(`${cd} 09:30:00`, indiaTimeZone).local();
 }
 
 module.exports.getMarketClose = function() {
-	var cd = moment().format("YYYY-MM-DD");
-	return moment.tz(`${cd} 15:30:00`, indiaTimeZone).local();
+	var cd = moment().tz(indiaTimeZone).format("YYYY-MM-DD");
+	return moment.tz(`${cd} 23:30:00`, indiaTimeZone).local();
 }
 
 module.exports.getMarketOpenHour = function() {
-	return getMarketOpen().get('hour');
+	return exports.getMarketOpen().get('hour');
 }
 
 module.exports.getMarketOpenMinute = function(){
-	return getMarketOpen().get('minute');
+	return exports.getMarketOpen().get('minute');
 }
 
 module.exports.getMarketCloseHour = function() {
@@ -46,8 +54,8 @@ module.exports.getMarketCloseMinute = function(){
 }
 
 module.exports.compareDates = function(date1, date2) {
-	var t1 = new Date(date1).getTime();
-	var t2 = new Date(date2).getTime();
+	var t1 = exports.getDate(date1).getTime();
+	var t2 = exports.getDate(date2).getTime();
 
 	return (t1 < t2) ? -1 : (t1 == t2) ? 0 : 1;
 };
@@ -95,7 +103,7 @@ module.exports.getLocalDate = function(dateTime, offset) {
 
 //Return dateTime formatted to Current Date and Time as 00:00:00 IST
 module.exports.getDate = function(dateTime) {
-	return (dateTime ? moment(dateTime) : moment()).tz(indiaTimeZone).toDate();
+	return (dateTime ? moment(dateTime) : moment()).tz(indiaTimeZone).set({hour:0, minute:0, second:0, millisecond:0}).toDate();
 	//return exports.getLocalDate(dateTime, 0);
 };
 
@@ -208,7 +216,15 @@ module.exports.getCurrentIndiaDateTime = function() {
 
 module.exports.isHoliday = function(date) {
 	date = !date ? module.exports.getCurrentDate() : date;
-	return holidays.findIndex(item => {return item.isSame(moment(date));}) !== -1;
+	return date.getDay() == 0 || date.getDay() == 6 || holidays.findIndex(item => {return item.isSame(moment(date));}) !== -1;
 };
 
+module.exports.getMarketCloseDateTime = function(date) {
+	return moment.tz(date, indiaTimeZone).set({hour: exports.getMarketCloseHour(), minute: exports.getMarketCloseMinute(), second: 0, millisecond: 0}).local();
+};
 
+module.exports.isMarketTrading = function() {
+	if (!exports.isHoliday()) {
+		return _isAfterMarketOpen() && _isBeforeMarketClose();
+	}
+};

@@ -49,7 +49,7 @@ tags:
     url: "http://www.aimsquant.com"
 
 schemes:
-- "https"
+- "http"
 produces:
 - "application/json"
 paths:
@@ -3555,13 +3555,67 @@ paths:
       x-swagger-router-controller: "ContestEntry"  
 
 
-  /dailycontest:
+  # /dailycontest:
+  #   post:
+  #     tags: 
+  #     - dailycontest
+  #     summary: create a daily contest
+  #     description: create a daily contest
+  #     operationId: createDailyContest
+  #     security: 
+  #     - api_key: []
+  #     parameters:
+  #     - name: "aimsquant-token"
+  #       in: "header"
+  #       description: "auth token"
+  #       type: "string"
+  #       required: true
+  #     - name: body
+  #       in: body
+  #       required: true
+  #       schema:
+  #         $ref: '#/definitions/DailyContest'
+  #     responses:
+  #       200:
+  #         description: OK
+  #       400:
+  #         description: 'Invalid Input'
+  #     x-swagger-router-controller: "DailyContest"
+
+  #   get:
+  #     tags: 
+  #     - dailycontest
+  #     summary: get the daily contest by Id
+  #     description: get a daily contest
+  #     operationId: getDailyContest
+  #     security: 
+  #     - api_key: []
+  #     parameters:
+  #     - name: "aimsquant-token"
+  #       in: "header"
+  #       description: "auth token"
+  #       type: "string"
+  #       required: true
+  #     - name: date
+  #       in: query
+  #       type: string
+  #       format: date
+  #       description: date of contest
+  #       required: false
+  #     responses:
+  #       200:
+  #         description: OK
+  #       400:
+  #         description: 'Invalid Input'
+  #     x-swagger-router-controller: "DailyContest"=#
+
+  /dailycontest/prediction:
     post:
       tags: 
       - dailycontest
-      summary: create a daily contest
-      description: create a daily contest
-      operationId: createDailyContest
+      summary: Add stock predictions 
+      description: add stock predictions
+      operationId: updateDailyContestPredictions
       security: 
       - api_key: []
       parameters:
@@ -3573,90 +3627,15 @@ paths:
       - name: body
         in: body
         required: true
+        description: "schema body"
         schema:
-          $ref: '#/definitions/DailyContest'
-      responses:
-        200:
-          description: OK
-        400:
-          description: 'Invalid Input'
-      x-swagger-router-controller: "DailyContest"
-
-    get:
-      tags: 
-      - dailycontest
-      summary: get the daily contest by Id
-      description: get a daily contest
-      operationId: getDailyContest
-      security: 
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: date
+          $ref: "#/definitions/DailyContestPredictions"
+      - name: operation
         in: query
+        required: true
         type: string
-        format: date
-        description: date of contest
-        required: false
-      responses:
-        200:
-          description: OK
-        400:
-          description: 'Invalid Input'
-      x-swagger-router-controller: "DailyContest"
-
-  /dailycontest/entry:
-    post:
-      tags: 
-      - dailycontest
-      summary: create a daily contest entry for user
-      description: create a daily contest user
-      operationId: createDailyContestEntry
-      security: 
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: body
-        in: body
-        required: true
-        description: "schema body"
-        schema:
-          $ref: "#/definitions/DailyContestEntry"
-      responses:
-        200:
-          description: OK
-        400:
-          description: 'Invalid Input'
-      x-swagger-router-controller: "DailyContest"
-
-    put:
-      tags: 
-      - dailycontest
-      summary: update a daily contest entry for user
-      description: create a daily contest user
-      operationId: updateDailyContestEntry
-      security: 
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: body
-        in: body
-        required: true
-        description: "schema body"
-        schema:
-          $ref: "#/definitions/DailyContestEntry"
+        default: "insert"
+        enum: ["update", "insert"]
       responses:
         200:
           description: OK
@@ -3669,7 +3648,7 @@ paths:
       - dailycontest
       summary: get the daily contest entry for user
       description: get a daily contest user
-      operationId: getDailyContestEntry
+      operationId: getDailyContestPredictions
       security: 
       - api_key: []
       parameters:
@@ -3686,7 +3665,7 @@ paths:
         required: false
       - name: populatePnl
         in: query
-        type: string
+        type: boolean
         description: flag to populate Pnl
         required: false
       responses:
@@ -3697,7 +3676,6 @@ paths:
       x-swagger-router-controller: "DailyContest"
 
 
-  
 
 securityDefinitions:
   api_key:
@@ -4398,34 +4376,33 @@ definitions:
       value:
         type: number
 
-  DailyContest:
+  StockPrediction:
     type: object
     required:
+      - position
       - startDate
+      - endDate
+      - target
     properties:
+      position:
+        type: object
+        $ref: '#/definitions/Position'
       startDate:
         type: string
         format: date
-
-  DailyContestEntryConstituent:
-    type: object
-    required:
-      - security
-      - investment
-    properties:
-      security:
-        $ref: '#/definitions/Security'
-      investment:
+      endDate:
+        type: string
+        format: date
+      target:
         type: number
-        format: long
-        default: 0
 
-  DailyContestEntry:
+  DailyContestPredictions:
     type: object
     required:
-      - positions
+      - predictions
     properties:
-      positions:
+      predictions:
         type: array
         items:
-          $ref: '#/definitions/DailyContestEntryConstituent'
+          $ref: '#/definitions/StockPrediction'
+

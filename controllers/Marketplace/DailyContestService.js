@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-27 20:12:01
+* @Last Modified time: 2018-10-26 19:58:11
 */
 
 'use strict';
@@ -17,88 +17,31 @@ const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
 
 const UserModel = require('../../models/user');
-const DailyContestModel = require('../../models/Marketplace/DailyContest');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
-const DailyContestHelper = require('../helpers/DailyContest');
 const DailyContestEntryHelper = require('../helpers/DailyContestEntry');
+const DailyContestHelper = require('../helpers/DailyContest');
 
-/*
-* Create new contest for a start date
-* A contest is generally created automatically(this API is for manual creation)
-*/
-module.exports.createDailyContest = function(args, res, next) {
-    const userId = args.user._id;
-    const userEmail = _.get(args.user, 'email', null);
-    const admins = config.get('admin_user');
-    const contest = args.body.value;
-    const startDate = _.get(contest, 'startDate', DateHelper.getCurrentDate());
-
-    Promise.resolve(true)
-    .then(() => {
-        if (admins.indexOf(userEmail) !== -1){ // user is admin and can create a contest
-        	return DailyContestHelper.createNewContest(startDate);    
-        } else {
-            APIError.throwJsonError({message: 'User is not allowed to create Contest'});
-        }
-    })
-    .then(createdContest => {
-        res.status(200).send(_.pick(createdContest, ['active', 'startDate', 'endDate']));
-    })
-    .catch(err => {
-        res.status(400).send(err.message);
-    })
-};
-
-/*
-* Get current active contest based on date - DONE
-*/
-module.exports.getDailyContest = (args, res, next) => {
-	const _d = _.get(args, 'date.value', '');
-	const date = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
-
-	return DailyContestHelper.getContestForDate(
-		date, 
-		{
-			fields:'startDate endDate resultDate winners winners_weekly topStocks topStocks_weekly active',
-			populate: 'winners winners_weekly'
-		}
-	)
-	.then(contest => {
-		if (contest) {
-			return res.status(200).send(contest);
-		} else {
-			APIError.throwJsonError({message: `No contest for ${date}`});
-		}
-	})
-	.catch(err => {
-		return res.status(400).send(err.message);	
-	});
-};
 
 /* 
 * Get contest entry for a date
 */
-module.exports.getDailyContestEntry = (args, res, next) => {
-	
+module.exports.getDailyContestPredictions = (args, res, next) => {
+	try{
 	const _d = _.get(args, 'date.value', '');
 	const date = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
 
 	const userId = _.get(args, 'user._id', null);
 	const populatePnl = _.get(args, 'populatePnl.value', false);
 
-	let contestEndDate, contestStartDate;
-	return Promise.all([
-		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
-		DailyContestHelper.getContestForDate(date, {fields: '_id startDate endDate'})
-	])
-	.then(([advisor, contest]) => {
-		if (advisor && contest) {
+	let entryDate = DateHelper.getMarketCloseDateTime(date);
 
-			contestEndDate = contest.endDate;
+	return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
+	.then(advisor => {
+		if (advisor) {
 			const advisorId = advisor._id.toString()
 
-			return DailyContestEntryModel.fetchEntry({advisor: advisorId})
+			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} else {
@@ -107,7 +50,7 @@ module.exports.getDailyContestEntry = (args, res, next) => {
 	})
 	.then(contestEntry => {
 		if (contestEntry) {
-			return DailyContestEntryHelper.getUpdatedContestEntry(contestEntry._id, contestEndDate, populatePnl)
+			return DailyContestEntryHelper.getUpdatedContestEntryForDate(contestEntry._id, entryDate, populatePnl)
 		} else {
 			APIError.throwJsonError({message: `No contest entry found for ${_d}`});
 		}
@@ -123,137 +66,97 @@ module.exports.getDailyContestEntry = (args, res, next) => {
 		//console.log(err);
 		return res.status(400).send(err.message);		
 	});
+
+	} catch(err) {
+		console.log(err);
+	}
 };
 
-/*
-* Create new contest entry for the current contest (if any)
-*/
-module.exports.createDailyContestEntry = (args, res, next) => {
-	const userId = _.get(args, 'user._id', null);
-	const entryPositions = args.body.value.positions;
-	
-	let dailyContest, contestStartDate, contestEndDate, advisorId;
-	let alreadyExists = false;
 
-	return Promise.all([
-		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
-		DailyContestHelper.getContestForDate(DateHelper.getCurrentDate(), {fields: 'startDate endDate'})
-	])
-	.then(([advisor, contest]) => {
-		if (advisor && contest) {
-			dailyContest = contest;
-			contestStartDate = contest.startDate;
-			contestEndDate = contest.endDate;
+/*
+* Update predictions for the contest
+*/
+module.exports.updateDailyContestPredictions = (args, res, next) => {
+	
+	const userId = _.get(args, 'user._id', null);
+	const entryPredictions = args.body.value.predictions;
+	const action = args.operation.value;
+	
+	let advisorId;
+	return Promise.resolve()
+	.then(() => {
+		if (DateHelper.isMarketTrading()) {
+			return true;
+		} else {
+			APIError.throwJsonError({msg: "Market is currently closed"});
+		}
+	})
+	.then(() => {
+		return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
+	})
+	.then(advisor => {
+		if (advisor) {
 			advisorId = advisor._id.toString();
 			
 			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
-		} else if (!advisor) {
-			APIError.throwJsonError({message: "Not a valid user"});
 		} else {
-			APIError.throwJsonError({message: "No active contest found"});
+			APIError.throwJsonError({message: "Not a valid user"});
 		}
 	})
 	.then(contestEntry => {
-		if (contestEntry) {
-			const updates = {date: contestEndDate, positions: entryPositions};
+		var adjustedPredictions = entryPredictions.map(item => {
+			
+			if (DateHelper.compareDates(item.endDate, item.startDate) == 1 && 
+					DateHelper.compareDates(item.startDate, DateHelper.getCurrentDate()) == 0) {
+				
+				item.startDate = DateHelper.getMarketCloseDateTime(item.startDate);
+				item.endDate = DateHelper.getMarketCloseDateTime(item.endDate);
+				item.active = true;
+				item.modified = 1;
 
-			return DailyContestEntryModel.updateEntryPortfolio({advisor: advisorId}, updates, {new:true, fields:'_id'});
-			//APIError.throwJsonError({message: "Contest Entry already exists for the user"});
-		} else{
+				return item;
 
-			return DailyContestEntryModel.createEntry({
-				advisor: advisorId, 
-				modified: 1,
-				portfolioDetail: [{
-					positions: entryPositions, date: contestEndDate
-				}]
-			});
-		}
-
-	})
-	.then(contestEntry => {
-		//Now entery Contest
-		return DailyContestModel.enterContest({_id: dailyContest._id}, contestEntry._id);
-		
-	})
-	.then(contestEntered => {
-		//Update the contest entry for price if required
-		return DailyContestHelper.updateFinalPortfolio(contestStartDate, entryPositions);	
-	})
-	.then(final => {
-		return res.status(200).send("Entry created and contest entered Successfully");
-	})
-	.catch(err => {
-		//console.log(err);
-		return res.status(400).send(err.message);		
-	});
-};
-
-/*
-* Update contest entry for the current contest (if any)
-*/
-module.exports.updateDailyContestEntry = (args, res, next) => {
-	const userId = _.get(args, 'user._id', null);
-	const entryPositions = args.body.value.positions;
-	let dailyContest, advisorId, contestStartDate, contestEndDate;
-
-	let oldPositions;
-
-	return Promise.all([
-		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
-		DailyContestHelper.getContestForDate(DateHelper.getCurrentDate(), {fields: 'startDate endDate'})
-	])
-	.then(([advisor, contest]) => {
-		if (advisor && contest) {
-			advisorId = advisor._id.toString()
-			contestStartDate = contest.startDate;
-			contestEndDate = contest.endDate;
-
-			return DailyContestEntryModel.fetchEntryPortfolioForDate(
-					{advisor: advisorId}, contestEndDate); 
-		} else if (!advisor){
-			APIError.throwJsonError({message: "Not a valid user"});
-		} else {
-			APIError.throwJsonError({message: "Not active contest found"});
-		}
-	})
-	.then(existingEntry => {
-
-		if (existingEntry) {
-			var existingEntryDetail = existingEntry.portfolioDetail[0];
-
-			//These are the old positions 
-			//Used later to udpate final portfolio
-			oldPositions = existingEntryDetail.positions;
-
-			//Check if modified if less than 3 
-			if (existingEntryDetail.modified < config.get('max_dailyentry_changes')) {
-				const updates = {date: contestEndDate, positions: entryPositions};
-				return DailyContestEntryModel.updateEntryPortfolio({advisor: advisorId}, updates);
 			} else {
-				APIError.throwJsonError({message: "Entry can't be modified anymore! 3 attempts are over!"});
+				console.log("Invalid prediction");
+				return null;
+			}
+		}).filter(item => item);
+
+		if (contestEntry) {
+
+			if (action == "update") {
+				var uniquePredictionDates = _.uniq(adjustedPredictions.map(item => item.startDate));
+				if (uniquePredictionDates.length > 1) {
+					APIError.throwJsonError({msg: "Only predictions for single date can be updated"});
+				}
+
+				//How to compare the prediction supplied to existing predictions? 
+				//No need to compare..Just remove the old ones and add the new ones
+				
+				return DailyContestEntryModel.updateEntryPredictions({_id: contestEntry._id}, adjustedPredictions, uniquePredictionDates[0], {new:true, fields:'_id'});
+			} else {
+				return DailyContestEntryModel.addEntryPredictions({_id: contestEntry._id}, adjustedPredictions, {new:true, fields:'_id'});	
 			}
 			
 		} else {
-			//If entry doesn't exit => entry date has alread passed
-			//FE should avoid such cases
-			//But in any case
-			APIError.throwJsonError({message: "Deadline passed. Enter in New Contest"});  
+			return DailyContestEntryModel.createEntry({
+				advisor: advisorId, 
+				createdDate: new Date(),
+				updatedDate: new Date(),
+				predictions: adjustedPredictions
+			});
 		}
-		
 	})
-	.then(entryUpdated => {
-		//Now update the final portfolio (after change in entry)
-		return DailyContestHelper.updateFinalPortfolio(contestStartDate, entryPositions, oldPositions);	
-	})
-	.then(fin => {
-		return res.status(200).send("Entry updated successfully");
+	.then(final => {
+		return res.status(200).send("Predictions updated successfully");
 	})
 	.catch(err => {
 		//console.log(err);
 		return res.status(400).send(err.message);		
 	});
+
 };
+
 
 //THIS IS BETTER TIMING TO HANDLE
 //Start date - When submisison starts

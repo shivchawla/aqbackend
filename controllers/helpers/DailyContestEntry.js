@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-23 10:50:21
+* @Last Modified time: 2018-10-26 20:54:15
 */
 
 'use strict';
@@ -128,7 +128,7 @@ function _computePnlStats(portfolio) {
 /*
 * Populate pnl stats, netvalue, unrealized Pnl for the portfolio (and individual positions)
 */
-function _populateStats(portfolio) {
+function _getPnlStats(portfolio) {
 
 	return new Promise(resolve => {
 		var port = Object.assign({}, portfolio);
@@ -153,8 +153,9 @@ function _populateStats(portfolio) {
 		});
 
 		var pnlStats = _computePnlStats(port);
+		resolve(_computePnlStats(port));
 
-		resolve(Object.assign(port, {pnlStats: pnlStats}));
+		//resolve(Object.assign(port, {pnlStats: pnlStats}));
 	});
 }
 
@@ -276,6 +277,14 @@ function _updatePositionsForPrice(positions, date, type) {
 	}
 };
 
+module.exports.getEffectiveEntryDate = function(date) {
+	return moment(date).set({hour: DateHelper.getMarketCloseHour(), minute: DateHelper.getMarketCloseMinute(), second: 0, millisecond: 0}).local();
+};
+
+module.exports.IsMarketOpen = function(date) {
+
+};
+
 //portfolio.date is the start date of the portfolio
 //computing portfolio pricing based on this date will be WRONG
 //MUST ADD one trading day to if
@@ -308,71 +317,85 @@ module.exports.getUpdatedPortfolioForAveragePrice = function(portfolio) {
 	});
 };
 
-module.exports.getUpdatedPortfolio = function(portfolio) {
-	return exports.getUpdatedPortfolioForAveragePrice(portfolio);
+function _computeUpdatedPredictions(predictions, date) {
+	return Promise.map(predictions, function(prediction) {
+		return _updatePortfolioForAveragePrice([{positions: [prediction.position], date: prediction.startDate, positionType:'notional', startDate: prediction.startDate}])
+		.then(updatedAvgPricePredictionPortfolio => {
+			var _partialUpdatedPositions = updatedAvgPricePredictionPortfolio ? updatedAvgPricePredictionPortfolio.positions : [prediction.position];
+			return _updatePositionsForPrice(_partialUpdatedPositions, date);
+		})
+		.then(updatedPositions => {
+			if (updatedPositions) {
+				return Object.assign(prediction, {position: updatedPositions[0]});
+			} else {
+				return prediction;
+			}
+		});
+	});	
 };
 
-module.exports.getUpdatedContestPortfolioDetail = function(entryId, date) {
-	return DailyContestEntryModel.fetchEntryPortfolioForDate({_id: entryId}, date)
+function getUpdatedPredictionsForDate(entryId, date) {
+	return DailyContestEntryModel.fetchEntryPredictionsForDate({_id: entryId}, date)
 	.then(contestEntry => {
-		let _storedPortfolioDetail = null;
+		let _storedPredictions = null;
 		
-		if (_.get(contestEntry, 'portfolioDetail', null) && contestEntry.portfolioDetail.length > 0) {
-			_storedPortfolioDetail = contestEntry.toObject().portfolioDetail[0];
+		if (_.get(contestEntry, 'predictions', null) && contestEntry.predictions.length > 0) {
+			_storedPredictions = contestEntry.toObject().predictions;
 		}
 
-		return _.get(_storedPortfolioDetail, 'active', true)  && _storedPortfolioDetail ? 	
-			exports.getUpdatedPortfolio(_storedPortfolioDetail)
-			.then(updatedPortfolioDetail => {
-				return Object.assign(_storedPortfolioDetail, updatedPortfolioDetail);
+		var inActivePredictions  = _storedPredictions ? _storedPredictions.filter(item => !item.active) : [];
+		var activePredictions  = _storedPredictions ? _storedPredictions.filter(item => item.active) : [];
+		return activePredictions.length > 0 ? 	
+			_computeUpdatedPredictions(activePredictions)
+			.then(updatedActivePredictions => {
+				return inActivePredictions.concat(activePredictions);
 			}) :
-			_storedPortfolioDetail;
+			_storedPredictions;
 	})
-}
+};
 	
-module.exports.getUpdatedContestEntry = function(entryId, date, populatePnl=false) {
-	return Promise.resolve()
-	.then(() => {
-		return populatePnl ? exports.updateContestEntryPnlStats(entryId, date) : null		
+module.exports.getUpdatedContestEntryForDate = function(entryId, date, populatePnl=false) {
+	let updatedPredictions;
+	return getUpdatedPredictionsForDate(entryId, date)
+	.then(updatedPds => {
+		updatedPredictions = updatedPds;
+		return populatePnl ? exports.updateContestEntryPnlStats(entryId, date, updatedPredictions) : null		
 	})
-	.then(() => {
-
-		return Promise.all([
-			exports.getUpdatedContestPortfolioDetail(entryId, date),
-			populatePnl ? exports.getContestEntryPnlStats(entryId, date) : null
-		]);	
+	.then(pnlStatsUpdated => {
+		return populatePnl ? exports.getContestEntryPnlStats(entryId, date) : null;
 	})
-	.then(([contestEntryPortfolioDetail, pnlStats]) => {
-		return populatePnl && pnlStats && contestEntryPortfolioDetail ? 
-			Object.assign({pnlStats: pnlStats}, contestEntryPortfolioDetail) :
-			contestEntryPortfolioDetail;
+	.then(pnlStats => {
+		return populatePnl && pnlStats && updatedPredictions ? 
+			Object.assign({pnlStats: pnlStats}, {predictions: updatedPredictions}) :
+			{predictions: updatedPredictions};
 	});
 };
 
-module.exports.updateContestEntryPnlStats = function(entryId, date) {
+module.exports.updateContestEntryPnlStats = function(entryId, date, updatedPredictions = null) {
 	
 	let entryActive;
-	return exports.getUpdatedContestPortfolioDetail(entryId, date)
-	.then(contestEntryPortfolioDetail => {
-		if (contestEntryPortfolioDetail){		
-			entryActive = _.get(contestEntryPortfolioDetail, 'active', true); 			
-		} 
-
-		var updatedPositions = _.get(contestEntryPortfolioDetail, 'positions', []);
-		return entryActive && updatedPositions.length > 0 ? _populateStats({positions: updatedPositions}) : null;
-			
+	return Promise.resolve()
+	.then(() => {
+		if (updatedPredictions) {
+			return updatedPredictions;
+		} else {
+			return getUpdatedPredictionsForDate(entryId, date);
+		}
 	})
-	.then(updatedContestEntryForDate => {
+	.then(contestEntryPredictions => {
+		
+		var predictionPositions = contestEntryPredictions ? contestEntryPredictions.map(item => item.position) : [];
+		return predictionPositions.length > 0 ? _getPnlStats({positions: predictionPositions}) : null;
+	})
+	.then(pnlStatsForPredictions => {
 
-		if (updatedContestEntryForDate && entryActive) {
-			var pnlStatsForDay = _.get(updatedContestEntryForDate, 'pnlStats', {});
-			let pnlStats = {daily: pnlStatsForDay};
-
+		if (pnlStatsForPredictions) {
+			let pnlStats = {daily: pnlStatsForPredictions};
 			return DailyContestEntryModel.updateEntryPnlStats({_id: entryId}, pnlStats, date);
 		}
 	})
 	.then(() => {
-		return entryActive ? _getPnlStatsForWeek(entryId, date) : null;
+		return _getPnlStatsForWeek(entryId, date);
 	})
 	.then(pnlStatsForWeek => {
 		if (pnlStatsForWeek) {
