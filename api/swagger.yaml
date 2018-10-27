@@ -49,7 +49,7 @@ tags:
     url: "http://www.aimsquant.com"
 
 schemes:
-- "http"
+- "https"
 produces:
 - "application/json"
 paths:
@@ -3663,6 +3663,13 @@ paths:
         format: date
         description: date of contest
         required: false
+      - name: category
+        in: query
+        type: string
+        description: status of prediction
+        default: "started"
+        enum: ["started", "ended", "active"]
+        required: false
       - name: populatePnl
         in: query
         type: boolean
@@ -3675,6 +3682,40 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
+  /dailycontest/pnl:
+    get:
+      tags: 
+      - dailycontest
+      summary: get the pnl of contest entry
+      description: get the pnl of contest entry
+      operationId: getDailyContestPnl
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: date
+        in: query
+        type: string
+        format: date
+        description: date of contest
+        required: false
+      - name: category
+        in: query
+        type: string
+        description: status of prediction
+        default: "total"
+        enum: ["daily", "total"]
+        required: false
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
 
 
 securityDefinitions:

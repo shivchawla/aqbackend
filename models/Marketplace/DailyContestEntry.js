@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-26 19:01:57
+* @Last Modified time: 2018-10-27 17:06:29
 */
 
 
@@ -10,6 +10,8 @@
 const _ = require('lodash');
 const mongoose = require('mongoose');
 const Promise = require('bluebird');
+const moment = require('moment');
+
 const DateHelper = require('../../utils/Date');
 const Schema = mongoose.Schema;
 
@@ -58,7 +60,10 @@ const Prediction = new Schema({
 		type: Date,
 		required: true
 	},
-	active: {type: Boolean, default: true},
+	success: {
+		status: {type: Boolean, default: false},
+		date: Date
+	},
 	modified: {type:Number, default: 0}
 });
 
@@ -71,34 +76,36 @@ const DailyContestEntry = new Schema({
 
 	predictions: [Prediction],
 		
-	performance: {
-		daily: [{
-			date: Date,
-			pnlStats: Schema.Types.Mixed
-		}],
+	// performance: {
+	// 	daily: [{
+	// 		date: Date,
+	// 		pnlStats: Schema.Types.Mixed
+	// 	}],
 
-		weekly: [{
-			date: Date,
-			pnlStats: Schema.Types.Mixed
-		}],
+	// 	cumulative: [{
+	// 		date: Date,
+	// 		pnlStats: {
+	// 			active: Schema.Types.Mixed
+	// 			all: Scehma.Types.Mixed
+	// 		}
+	// 	}],
 
-		aggregate: {
-			pnlStats: Schema.Types.Mixed
-		}
-	}, 
+	// 	aggregate: {
+	// 		pnlStats: Schema.Types.Mixed
+	// 	}
+	// }, 
 
-	winnings: {
-		total: Number,
-		rank: Number,
-		daily: [{
-			date: Date,
-			total: Number,
-			rank: Number
-		}]
-	}
+	// winnings: {
+	// 	total: Number,
+	// 	rank: Number,
+	// 	daily: [{
+	// 		date: Date,
+	// 		total: Number,
+	// 		rank: Number
+	// 	}]
+	// }
 
 });
-
 
 /*Rules
 1. Entry Item can be added any day
@@ -116,7 +123,6 @@ DailyContestEntry.statics.addEntryPredictions = function(query, predictions, opt
 
 DailyContestEntry.statics.updateEntryPredictions = function(query, predictions, date, options) {
 	
-	console.log(date);
 	let updateOne = {
 		updatedDate: new Date(),
 		$pull: {predictions:{startDate: date}}
@@ -131,43 +137,7 @@ DailyContestEntry.statics.updateEntryPredictions = function(query, predictions, 
 	.then(() => {
 		return this.findOneAndUpdateAsync(query, updateTwo);
 	});
-
 };
-
-DailyContestEntry.statics.updateEntryPnlStats = function(query, pnlStats, date) {
-	
-    let qDate;
-    let daily = pnlStats.daily ? true : false;
-
-    if (daily){
-		qDate = {...query, 'performance.daily.date':{$eq: date}};
-    } else {
-		qDate = {...query, 'performance.weekly.date':{$eq: date}};
-    }
-   
-    return this.findOne(qDate)
-    .then(found => {	
-		let updates;
-    	
-    	if (found) {
-    		
-    		updates = {
-		    	$set: daily ? {'performance.daily.$.pnlStats': pnlStats.daily} : 
-		    		{'performance.weekly.$.pnlStats': pnlStats.weekly}
-		 	};
-		 	
-		 	return this.findOneAndUpdate(qDate, updates);
-    	} else {
-
-    		updates = {$push: daily ? 
-				{'performance.daily': {date: date, pnlStats: pnlStats.daily}} : 
-				{'performance.weekly': {date: date, pnlStats: pnlStats.weekly}} 
-			};
-    		return this.findOneAndUpdate(query, updates);
-    	}
-    });
-};
-
 
 DailyContestEntry.statics.fetchEntry = function(query, options) {
 	var q = this.findOne(query);
@@ -178,22 +148,63 @@ DailyContestEntry.statics.fetchEntry = function(query, options) {
 	return q.execAsync();
 };
 
-
-DailyContestEntry.statics.fetchEntryPredictionsForDate = function(query, date) {
-	return this.findOne({...query, 'predictions.startDate': date}, {advisor: 1, 'predictions.$': 1, createdDate:1, updatedDate: 1});
+DailyContestEntry.statics.fetchEntryPredictions = function(query) {
+	return this.findOne(query);
 };
 
-DailyContestEntry.statics.fetchEntryPnlStatsForDate = function(query, date) {
-	return this.findOne({...query, 'performance.daily.date': date}, {advisor: 1, 'performance.daily.$': 1});
+DailyContestEntry.statics.fetchEntryPredictionsStartingOnDate = function(query, date) {
+	return this.findOne(query, {predictions:1})
+	.then(contestEntry => {
+		if (contestEntry) {
+			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
+			if (allPredictions.length > 0 ) {
+				return allPredictions.filter(item => {return moment(item.startDate).isSame(moment(date))});
+			} else {
+				return [];
+			}
+		} else {
+			return [];
+		}
+	});
 };
 
-DailyContestEntry.statics.fetchEntryPnlStatsForWeek = function(query, date) {
-	return this.findOne({...query, 'performance.weekly.date': date}, {advisor: 1, 'performance.weekly.$': 1});
+DailyContestEntry.statics.fetchEntryPredictionsEndingOnDate = function(query, date) {
+	return this.findOne(query, {predictions:1})
+	.then(contestEntry => {
+		if (contestEntry) {
+			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
+			if (allPredictions.length > 0 ) {
+				return allPredictions.filter(item => {return 
+					(moment(item.endDate).isSame(moment(date)) && !item.success.status) || 
+					(item.success.status && moment(item.success.date).isSame(moment(date)))
+				});
+			} else {
+				return [];
+			}
+		} else {
+			return [];
+		}
+	});						
 };
 
+DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, date) {
+	return this.findOne(query, {predictions: 1})
+	.then(contestEntry => {
+		if (contestEntry) {
+			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
+			if (allPredictions.length > 0 ) {
+				return allPredictions.filter(item => {
+					return !moment(item.endDate).isBefore(moment(date)) && !item.success.status 
+				});
+			} else {
+				return [];
+			}
+		} else {
+			return [];
+		}
+	});
+};
 
 const DailyContestEntryModel = mongoose.model('DailyContestEntry', DailyContestEntry);
 module.exports = DailyContestEntryModel;
-
-
 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-26 20:54:15
+* @Last Modified time: 2018-10-27 17:05:47
 */
 
 'use strict';
@@ -17,6 +17,7 @@ const WSHelper = require('./WSHelper');
 
 const UserModel = require('../../models/user');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
+const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 
 function _computePnlStats(portfolio) {
 	var totalPnl = 0.0;
@@ -277,12 +278,27 @@ function _updatePositionsForPrice(positions, date, type) {
 	}
 };
 
-module.exports.getEffectiveEntryDate = function(date) {
-	return moment(date).set({hour: DateHelper.getMarketCloseHour(), minute: DateHelper.getMarketCloseMinute(), second: 0, millisecond: 0}).local();
-};
-
-module.exports.IsMarketOpen = function(date) {
-
+function _computeUpdatedPredictions(predictions, date) {
+	
+	return predictions.length > 0 ? 	
+		Promise.map(predictions, function(prediction) {
+		return _updatePortfolioForAveragePrice([{positions: [prediction.position], positionType:'notional', startDate: prediction.startDate}])
+		.then(updatedAvgPricePredictionPortfolio => {
+			var _partialUpdatedPositions = updatedAvgPricePredictionPortfolio ? updatedAvgPricePredictionPortfolio.positions : [prediction.position];
+			return _updatePositionsForPrice(_partialUpdatedPositions, date);
+		})
+		.then(updatedPositions => {
+			if (updatedPositions) {
+				return Object.assign(prediction, {position: updatedPositions[0]});
+			} else {
+				return prediction;
+			}
+		});
+	})
+	// .then(updatedActivePredictions => {
+	// 	return inActivePredictions.concat(activePredictions);
+	// }) 
+	: predictions;
 };
 
 //portfolio.date is the start date of the portfolio
@@ -317,60 +333,6 @@ module.exports.getUpdatedPortfolioForAveragePrice = function(portfolio) {
 	});
 };
 
-function _computeUpdatedPredictions(predictions, date) {
-	return Promise.map(predictions, function(prediction) {
-		return _updatePortfolioForAveragePrice([{positions: [prediction.position], date: prediction.startDate, positionType:'notional', startDate: prediction.startDate}])
-		.then(updatedAvgPricePredictionPortfolio => {
-			var _partialUpdatedPositions = updatedAvgPricePredictionPortfolio ? updatedAvgPricePredictionPortfolio.positions : [prediction.position];
-			return _updatePositionsForPrice(_partialUpdatedPositions, date);
-		})
-		.then(updatedPositions => {
-			if (updatedPositions) {
-				return Object.assign(prediction, {position: updatedPositions[0]});
-			} else {
-				return prediction;
-			}
-		});
-	});	
-};
-
-function getUpdatedPredictionsForDate(entryId, date) {
-	return DailyContestEntryModel.fetchEntryPredictionsForDate({_id: entryId}, date)
-	.then(contestEntry => {
-		let _storedPredictions = null;
-		
-		if (_.get(contestEntry, 'predictions', null) && contestEntry.predictions.length > 0) {
-			_storedPredictions = contestEntry.toObject().predictions;
-		}
-
-		var inActivePredictions  = _storedPredictions ? _storedPredictions.filter(item => !item.active) : [];
-		var activePredictions  = _storedPredictions ? _storedPredictions.filter(item => item.active) : [];
-		return activePredictions.length > 0 ? 	
-			_computeUpdatedPredictions(activePredictions)
-			.then(updatedActivePredictions => {
-				return inActivePredictions.concat(activePredictions);
-			}) :
-			_storedPredictions;
-	})
-};
-	
-module.exports.getUpdatedContestEntryForDate = function(entryId, date, populatePnl=false) {
-	let updatedPredictions;
-	return getUpdatedPredictionsForDate(entryId, date)
-	.then(updatedPds => {
-		updatedPredictions = updatedPds;
-		return populatePnl ? exports.updateContestEntryPnlStats(entryId, date, updatedPredictions) : null		
-	})
-	.then(pnlStatsUpdated => {
-		return populatePnl ? exports.getContestEntryPnlStats(entryId, date) : null;
-	})
-	.then(pnlStats => {
-		return populatePnl && pnlStats && updatedPredictions ? 
-			Object.assign({pnlStats: pnlStats}, {predictions: updatedPredictions}) :
-			{predictions: updatedPredictions};
-	});
-};
-
 module.exports.updateContestEntryPnlStats = function(entryId, date, updatedPredictions = null) {
 	
 	let entryActive;
@@ -379,66 +341,162 @@ module.exports.updateContestEntryPnlStats = function(entryId, date, updatedPredi
 		if (updatedPredictions) {
 			return updatedPredictions;
 		} else {
-			return getUpdatedPredictionsForDate(entryId, date);
+			//This gives predictions today
+			//And not predictions ending today
+			return getPredictionsForDate(entryId, date);
 		}
 	})
 	.then(contestEntryPredictions => {
 		
 		var predictionPositions = contestEntryPredictions ? contestEntryPredictions.map(item => item.position) : [];
-		return predictionPositions.length > 0 ? _getPnlStats({positions: predictionPositions}) : null;
+		return Promise.all ([
+			predictionPositions.length > 0 ? _getPnlStats({positions: predictionPositions}) : null,
+			DailyContestEntryPerformanceModel.getTotalPnlStatsForLastDate({contestEntry: entryId}, date)
+		])
 	})
-	.then(pnlStatsForPredictions => {
-
+	.then(([pnlStatsForPredictions, pnlStatsTotalBefore]) => {
 		if (pnlStatsForPredictions) {
-			let pnlStats = {daily: pnlStatsForPredictions};
-			return DailyContestEntryModel.updateEntryPnlStats({_id: entryId}, pnlStats, date);
+			let pnlStats = {cumulative: {active: pnlStatsForPredictions}};
+			return DailyContestEntryPerformanceModel.updateEntryPnlStats({contestEntry: entryId}, pnlStats, date);
 		}
 	})
 	.then(() => {
-		return _getPnlStatsForWeek(entryId, date);
+		return Promise.all([
+			_getCumulativePnlStats(entryId, date),
+			_getCumulativePnlStats(entryId, date, true)
+		])
 	})
 	.then(pnlStatsForWeek => {
 		if (pnlStatsForWeek) {
-			let pnlStats = {weekly: pnlStatsForWeek};
+			let pnlStats = {cumulative: pnlStatsForWeek};
 			return DailyContestEntryModel.updateEntryPnlStats({_id: entryId}, pnlStats, date);
 		}
 	})
 };
 
-module.exports.getContestEntryPnlStats = function(entryId, date) {
-	return Promise.all([
-		exports.getContestEntryDailyPnlStats(entryId, date),
-		exports.getContestEntryWeeklyPnlStats(entryId, date)
-	])
-	.then(([pnlStatsForDay, pnlStatsForWeek]) => {
-		return {
-			weekly: _.get(pnlStatsForWeek,'pnlStats', null),
-		 	daily: _.get(pnlStatsForDay, 'pnlStats', null)
-	 	};
+module.exports.computeTotalPnlStatsForActivePredictions = function(entryId, date) {
+	return exports.getPredictionsForDate(entryId, date, "active")
+	.then(activePredictions => {
+		//Total Pnl
+		return _getPnlStats({positions: activePredictions.map(item => item.position)});
+	})
+};
+
+module.exports.getTotalPnlStatsForActivePredictions = function(entryId, date) {
+	return DailyContestEntryPerformanceModel.fetchTotalPnlStatsForDate({_id: entryId}, date)
+	.then(contestEntry => {
+		if (contestEntry && contestEntry.pnlStats) {
+			return contestEntry.pnlStats[0].total;
+		} else {
+			return exports.computeTotalPnlStatsForActivePredictions(entryId, date);
+		}
+	});	
+};
+
+module.exports.computeDailyPnlStatsForActivePredictions = function(entryId, date) {
+	return exports.getPredictionsForDate(entryId, date, "active", false)
+	.then(rawPredictions => {
+		//First change the startDate of all predictions before today to be yesterday
+		var yesterday = moment(date).subtract(1, 'days').toDate();
+		rawPredictions.map(item => {
+			if(moment(item.startDate).isBefore(moment(date))) {
+				item.startDate = yesterday;
+			}
+
+			return item;
+		});
+
+		return _computeUpdatedPredictions(rawPredictions, date);
+	})
+	.then(activePredictionsWithDailyChange => {
+		//Total Pnl
+		return _getPnlStats({positions: activePredictionsWithDailyChange.map(item => item.position)});
+	})	
+};
+
+module.exports.getDailyPnlStatsForActivePredictions = function(entryId, date) {
+	return DailyContestEntryPerformanceModel.fetchDailyPnlStatsForDate({_id: entryId}, date)
+	.then(contestEntry => {
+		if (contestEntry && contestEntry.pnlStats) {
+			return contestEntry.pnlStats[0].daily;
+		} else {
+			return exports.computeDailyPnlStatsForActivePredictions(entryId, date);
+		}
 	});
 };
 
-module.exports.getContestEntryDailyPnlStats = function(entryId, date) {
-	return DailyContestEntryModel.fetchEntryPnlStatsForDate({_id: entryId}, date)
+module.exports.getPnlStatsForAllPredictions = function(entryId, date) {
+	return DailyContestEntryPerformanceModel.fetchLatestPnlStats({_id: entryId})
 	.then(contestEntryDoc => {
 		let contestEntry = contestEntryDoc ? contestEntryDoc.toObject() : {};
-		if (_.get(contestEntry, 'performance.daily', null) && contestEntry.performance.daily.length > 0) {
-			return {advisor: contestEntry.advisor, pnlStats: contestEntry.performance.daily[0].pnlStats};
+		if (_.get(contestEntry, 'pnlStats', null) && contestEntry.pnlStats.length > 0) {
+			return contestEntry.pnlStats[0];
 		} else {
 			return null;
 		}
 	})
+	.then(latestPnlStats=> {
+		if (moment(latestPnlStats.date).isSame(moment(date))) {
+			return latestPnlStats.all;
+		} else {
+			return Promise.all([
+				latestPnlStats,
+				exports.getDailyPnlStatsForActivePredictions(entryId, date),
+				exports.getTotalPnlStatsForActivePredictions(entryId, date)
+			]);
+		}
+	})
+	.then(([latestPnlStats, dailyPnlStatsOfActivePredictions, totalPnlStatsOfActivePredictions]) => {
+		['total', 'long', 'short'].forEach(type => {
+			const {pnl = 0.0, pnlPct = 0.0, 
+			cost = 0.0, netValue = 0.0, profitFactor = 0.0, 
+			pnlPositive = 0.0, pnlNegative = 0.0} = _.get(dailyPnlStatsOfActivePredictions, type, {});
+
+			const {cash = 0.0, minPnl = null, 
+				maxPnl = null, pnlPositive = 0.0, pnlNegative = 0.0} = 
+					_.get(totalPnlStatsOfActivePredictions, type, {});
+
+			latestPnlStats[type].pnl += pnl;
+			latestPnlStats[type].cost += cost;
+			latestPnlStats[type].netValue += netValue;
+			latestPnlStats[type].minPnl = minPnl ? (latestPnlStats[type].minPnl &&   
+					latestPnlStats[type].minPnl > minPnl.value) ? minPnl : latestPnlStats[type].minPnl : pnlStatsForWeek[type].minPnl;
+
+			latestPnlStats[type].maxPnl = maxPnl ? (latestPnlStats[type].maxPnl &&   
+					latestPnlStats[type].maxPnl > maxPnl.value) ? maxPnl : latestPnlStats[type].maxPnl : pnlStatsForWeek[type].maxPnl;
+
+			latestPnlStats[type].pnlPositive += pnlPositive;
+			latestPnlStats[type].pnlNegative += pnlNegative;
+
+			latestPnlStats[type].pnlNegative += pnlNegative;
+
+			latestPnlStats[type].days += 1; 
+		})
+	});
 };
 
+module.exports.getPnlForDate = function(entryId, date, category="total") {
+	switch(category) {
+		case "daily": return exports.getDailyPnlStatsForActivePredictions(entryId, date); break;
+		case "total": return exports.getTotalPnlStatsForActivePredictions(entryId, date); break;
+	}
+};
 
-module.exports.getContestEntryWeeklyPnlStats = function(entryId, date) {
-	return DailyContestEntryModel.fetchEntryPnlStatsForWeek({_id: entryId}, date)
-	.then(contestEntryDoc => {
-		let contestEntry = contestEntryDoc ? contestEntryDoc.toObject() : {};
-		if (_.get(contestEntry, 'performance.weekly', null) && contestEntry.performance.weekly.length > 0) {
-			return {advisor: contestEntry.advisor, pnlStats: contestEntry.performance.weekly[0].pnlStats};
+module.exports.getPredictionsForDate = function(entryId, date, category='started', update=true) {
+	let updatedPredictions;
+	return Promise.resolve()
+	.then(() => {
+		switch(category) {
+			case "active": return DailyContestEntryModel.fetchEntryPredictionsActiveOnDate({_id: entryId}, date); break;
+			case "started": return DailyContestEntryModel.fetchEntryPredictionsStartingOnDate({_id: entryId}, date); break;
+			case "ended": return DailyContestEntryModel.fetchEntryPredictionsEndingOnDate({_id: entryId}, date); break;
+		}
+	})
+	.then(predictions => {
+		if (predictions && predictions.length > 0){
+			return update ? _computeUpdatedPredictions(predictions, date) : predictions;
 		} else {
-			return null;
+			return [];
 		}
 	})
 };
