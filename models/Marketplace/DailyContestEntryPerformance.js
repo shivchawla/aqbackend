@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-27 17:03:08
+* @Last Modified time: 2018-10-27 20:11:02
 */
 
 
@@ -22,8 +22,9 @@ const DailyContestEntryPerformance = new Schema({
 		date: Date,
 		daily: Schema.Types.Mixed,
 		total: {
-			active: Schema.Types.Mixed,
-			all: Schema.Types.Mixed
+			realized: Schema.Types.Mixed, //sum of pnl of ended predictions
+			unrealized: Schema.Types.Mixed, //sum of pnl of active predictions (and not ended)
+			all: Schema.Types.Mixed //sum of pnl of active predictions (included ended)
 		},
 	}],
 
@@ -54,17 +55,23 @@ DailyContestEntryPerformance.statics.updateEntryPnlStats = function(query, pnlSt
     	if (found) {
     		
     		updates = {
-		    	$set: daily ? {'pnlStats.$.daily': pnlStats.daily} : 
-		    		{'pnlStats.$.total': pnlStats.total}
+		    	$set: {'pnlStats.$.daily': pnlStats.daily,
+		 				'pnlStats.$.total': pnlStats.total}
 		 	};
 		 	
 		 	return this.findOneAndUpdate(qDate, updates);
     	} else {
 
-    		updates = {$push: daily ? 
-				{'pnlStats.daily': {date: date, pnlStats: pnlStats.daily}} : 
-				{'pnlStats.total': {date: date, pnlStats: pnlStats.total}} 
-			};
+    		updates = {
+				$push: {
+					pnlStats: {
+						date: date, 
+						daily: pnlStats.daily, 
+						total: pnlStats.total
+					}
+				}
+			};	 
+
     		return this.findOneAndUpdate(query, updates);
     	}
     });

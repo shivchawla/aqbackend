@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-27 17:06:29
+* @Last Modified time: 2018-10-27 20:04:03
 */
 
 
@@ -148,17 +148,21 @@ DailyContestEntry.statics.fetchEntry = function(query, options) {
 	return q.execAsync();
 };
 
-DailyContestEntry.statics.fetchEntryPredictions = function(query) {
-	return this.findOne(query);
+DailyContestEntry.statics.fetchEntries = function(query, options) {
+	return this.find(query, options);
 };
 
-DailyContestEntry.statics.fetchEntryPredictionsStartingOnDate = function(query, date) {
+DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, date) {
 	return this.findOne(query, {predictions:1})
 	.then(contestEntry => {
 		if (contestEntry) {
 			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
 			if (allPredictions.length > 0 ) {
-				return allPredictions.filter(item => {return moment(item.startDate).isSame(moment(date))});
+				//Convert the date to market-close date time 
+				//(relevant for date today because input is true time) 
+				return allPredictions.filter(item => {
+					return moment(item.startDate).isSame(moment(date))
+				});
 			} else {
 				return [];
 			}
@@ -168,13 +172,15 @@ DailyContestEntry.statics.fetchEntryPredictionsStartingOnDate = function(query, 
 	});
 };
 
-DailyContestEntry.statics.fetchEntryPredictionsEndingOnDate = function(query, date) {
+DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, date) {
 	return this.findOne(query, {predictions:1})
 	.then(contestEntry => {
 		if (contestEntry) {
 			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
 			if (allPredictions.length > 0 ) {
-				return allPredictions.filter(item => {return 
+				return allPredictions.filter(item => {return
+					//Convert the date to market-close date time 
+					//(relevant for date today because input is true time) 
 					(moment(item.endDate).isSame(moment(date)) && !item.success.status) || 
 					(item.success.status && moment(item.success.date).isSame(moment(date)))
 				});
@@ -192,9 +198,14 @@ DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, da
 	.then(contestEntry => {
 		if (contestEntry) {
 			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
+			
+			var isToday = DateHemper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(date)) == 0;
+
 			if (allPredictions.length > 0 ) {
 				return allPredictions.filter(item => {
-					return !moment(item.endDate).isBefore(moment(date)) && !item.success.status 
+					return moment(item.startDate).isBefore(moment(date)) && 
+							(moment(item.endDate).isAfter(moment(date)) || (isToday && moment(item.endDate).isAfter(moment())))
+							!item.success.status 
 				});
 			} else {
 				return [];

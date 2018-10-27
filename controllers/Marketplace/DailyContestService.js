@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-27 16:56:43
+* @Last Modified time: 2018-10-27 20:24:51
 */
 
 'use strict';
@@ -27,9 +27,10 @@ const DailyContestHelper = require('../helpers/DailyContest');
 * Get contest entry for a date
 */
 module.exports.getDailyContestPredictions = (args, res, next) => {
-	try{
 	const _d = _.get(args, 'date.value', '');
-	const date = DateHelper.getMarketCloseDateTime(_d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d));
+	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
+	
+	const date = DateHelper.getMarketCloseDateTime(_dd);
 
 	const category = _.get(args, 'category.value', 'all');
 	const userId = _.get(args, 'user._id', null);
@@ -64,10 +65,6 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 		//console.log(err);
 		return res.status(400).send(err.message);		
 	});
-
-	} catch(err) {
-		console.log(err);
-	}
 };
 
 /* 
@@ -76,7 +73,9 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 module.exports.getDailyContestPnl = (args, res, next) => {
 	try{
 	const _d = _.get(args, 'date.value', '');
-	const date = DateHelper.getMarketCloseDateTime(_d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d));
+	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
+	
+	const date = DateHelper.getMarketCloseDateTime(_dd);
 
 	const category = _.get(args, 'category.value', 'all');
 	const userId = _.get(args, 'user._id', null);
