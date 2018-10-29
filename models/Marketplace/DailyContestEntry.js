@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-29 12:31:22
+* @Last Modified time: 2018-10-29 20:44:26
 */
 
 
@@ -119,7 +119,32 @@ DailyContestEntry.statics.fetchEntry = function(query, options) {
 };
 
 DailyContestEntry.statics.fetchEntries = function(query, options) {
-	return this.find(query, options);
+	var q = this.find(query);
+
+	if(options.skip) {
+        q = q.skip(options.skip)    
+    }
+
+    if(options.limit) {
+        q = q.limit(options.limit)
+    }           
+    
+	if(options.fields) {
+        q = q.select(options.fields);
+	}
+
+    if(options.fields && options.fields.indexOf('advisor') != -1) {
+        q = q.select('advisor').populate({path:'advisor', select:'user _id',
+                                        populate:{path: 'user', 
+                                            select:'_id firstName lastName'}
+                                });
+    }
+	
+    if (options.orderParam && options.order) {
+        q = q.sort({[options.orderParam]: options.order});
+    }
+
+    return q.execAsync();
 };
 
 DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, date) {
@@ -148,10 +173,10 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 		if (contestEntry) {
 			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
 			if (allPredictions.length > 0 ) {
-				return allPredictions.filter(item => {return
+				return allPredictions.filter(item => {
 					//Convert the date to market-close date time 
 					//(relevant for date today because input is true time) 
-					(moment(item.endDate).isSame(moment(date)) && !item.success.status) || 
+					return (moment(item.endDate).isSame(moment(date)) && !item.success.status) || 
 					(item.success.status && moment(item.success.date).isSame(moment(date)))
 				});
 			} else {
@@ -169,7 +194,7 @@ DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, da
 		if (contestEntry) {
 			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
 			
-			var isToday = DateHemper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(date)) == 0;
+			var isToday = DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(date)) == 0;
 
 			if (allPredictions.length > 0 ) {
 				return allPredictions.filter(item => {
@@ -186,6 +211,23 @@ DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, da
 	});
 };
 
+
+//This is not good programming
+DailyContestEntry.statics.updatePredictionStatus = function(query, otherQueryParams) {
+	var q = {'predictions.position.security.ticker': otherQueryParams.ticker, 
+				'predictions.endDate': otherQueryParams.endDate
+			};
+	var updates = {
+		$set: {
+			'predictions.$.success': {
+				status: true, 
+				date: DateHelper.getMarketCloseDateTime(new Date())
+			}
+		}
+	};
+
+	return this.findOneAndUpdate({...query, ...q}, updates);
+};
+
 const DailyContestEntryModel = mongoose.model('DailyContestEntry', DailyContestEntry);
 module.exports = DailyContestEntryModel;
-

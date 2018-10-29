@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-29 15:22:07
+* @Last Modified time: 2018-10-29 20:50:49
 */
 
 'use strict';
@@ -155,99 +155,7 @@ function _getPnlStats(portfolio) {
 			return item;
 		});
 
-		var pnlStats = _computePnlStats(port);
 		resolve(_computePnlStats(port));
-
-		//resolve(Object.assign(port, {pnlStats: pnlStats}));
-	});
-}
-
-function _getPnlStatsForWeek(entryId, date) {
-	//Get week of date
-	var datesInWeek = DateHelper.getDatesInWeek(date);
-
-	return Promise.map(datesInWeek, function(d) {
-		//convert date to match the result time
-		var _d = DateHelper.getMarketClose(d);
-
-		return DailyContestEntryModel.fetchEntryPnlStatsForDate({_id: entryId}, _d)
-		.then(contestEntry => {
-			if (_.get(contestEntry, 'performance.daily', null) && contestEntry.performance.daily.length > 0) {
-				return contestEntry.performance.daily[0].pnlStats;
-			} else {
-				return null;
-			}
-		});
-	})
-	.then(pnlStatsAllDatesInWeek => {
-
-		let pnlStatsForWeek = {
-			total: {
-				pnl: 0.0, pnlPct: 0.0, 
-				cost: 0.0, netValue: 0.0, 
-				minPnl: null, maxPnl: null, 
-				profitFactor: 0.0, 
-				pnlPositive: 0.0, pnlNegative: 0.0,
-				days: 0
-			},
-
-			long: {
-				pnl: 0.0, pnlPct: 0.0, 
-				cost: 0.0, netValue: 0.0, 
-				minPnl: null, maxPnl: null, 
-				profitFactor: 0.0, 
-				pnlPositive: 0.0, pnlNegative: 0.0,
-				days: 0
-			},
-
-			short: {
-				pnl: 0.0, pnlPct: 0.0, 
-				cost: 0.0, netValue: 0.0, 
-				minPnl: null, maxPnl: null, 
-				profitFactor: 0.0, 
-				pnlPositive: 0.0, pnlNegative: 0.0,
-				days: 0
-			},
-		};
-		
-		pnlStatsAllDatesInWeek.forEach(pnlStatsForDay => {
-			if (pnlStatsForDay) {
-
-				['total', 'long', 'short'].forEach(type => {
-					const {pnl = 0.0, pnlPct = 0.0, 
-					cost = 0.0, netValue = 0.0, 
-					cash = 0.0, minPnl = null, 
-					maxPnl = null, profitFactor = 0.0, 
-					pnlPositive = 0.0, pnlNegative = 0.0} = _.get(pnlStatsForDay, type, {});
-	
-					pnlStatsForWeek[type].pnl += pnl;
-					pnlStatsForWeek[type].cost += cost;
-					pnlStatsForWeek[type].netValue += netValue;
-					pnlStatsForWeek[type].minPnl = minPnl ? (pnlStatsForWeek[type].minPnl &&   
-							pnlStatsForWeek[type].minPnl > minPnl.value) ? minPnl : pnlStatsForWeek[type].minPnl : pnlStatsForWeek[type].minPnl;
-
-					pnlStatsForWeek[type].maxPnl = maxPnl ? (pnlStatsForWeek[type].maxPnl &&   
-							pnlStatsForWeek[type].maxPnl > maxPnl.value) ? maxPnl : pnlStatsForWeek[type].maxPnl : pnlStatsForWeek[type].maxPnl;
-
-					pnlStatsForWeek[type].pnlPositive += pnlPositive;
-					pnlStatsForWeek[type].pnlNegative += pnlNegative;
-
-					pnlStatsForWeek[type].pnlNegative += pnlNegative;
-
-					pnlStatsForWeek[type].days += 1; 
-				}) 
-			}	    
-		});
-
-
-		['total', 'long', 'short'].forEach(type => {
-			if (pnlStatsForWeek[type].days > 0) {
-				pnlStatsForWeek[type].pnlPct = pnlStatsForWeek[type].cost > 0.0 ? pnlStatsForWeek[type].pnl/pnlStatsForWeek[type].cost : 0.0;
-				pnlStatsForWeek[type].profitFactor = pnlStatsForWeek[type].pnlNegative > 0.0 ? pnlStatsForWeek[type].pnlPositive/pnlStatsForWeek[type].pnlNegative : NaN;
-			}
-		});	
-
-		return pnlStatsForWeek;	
 
 	});
 }
@@ -300,7 +208,7 @@ function _computeUpdatedPredictions(predictions, date) {
 	: predictions;
 };
 
-module.exports.computeTotalPnlStats = function(entryId, date, category="active") {
+function _computeTotalPnlStats(entryId, date, category="active") {
 	
 	return Promise.resolve()
 	.then(() => {
@@ -308,7 +216,7 @@ module.exports.computeTotalPnlStats = function(entryId, date, category="active")
 
 			var isToday = DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(date)) == 0;
 			var useEndedPredictions = !isToday || (isToday && moment().isAfter(moment(DateHelper.getMarketCloseDateTime(date))));
-		
+			
 			return Promise.all([
 				useEndedPredictions ? exports.getPredictionsForDate(entryId, date, "ended") : [],
 				exports.getPredictionsForDate(entryId, date, "active") //A
@@ -322,32 +230,23 @@ module.exports.computeTotalPnlStats = function(entryId, date, category="active")
 		}
 	})
 	.then(activePredictions => {
+
 		//Total Pnl
-		return _getPnlStats({positions: activePredictions.map(item => item.position)});
+		return _getPnlStats({positions: activePredictions.map(item => {
+			if(item.success.status) {
+				item.position.lastPrice = item.position.avgPrice*(1+item.target/100);
+			}
+			return  item.position;
+		})}); //map ends
 	})
 };
 
-module.exports.getTotalPnlStats = function(entryId, date, category="active") {
-	return DailyContestEntryPerformanceModel.fetchTotalPnlStatsForDate({contestEntry: entryId}, date)
-	.then(contestEntry => {
-		if (contestEntry && contestEntry.pnlStats) {
-			switch(category) {
-				case "active" : return contestEntry.pnlStats[0].total.unrealized; break;
-				case "ended" : return contestEntry.pnlStats[0].total.realized; break;
-				case "all" : return contestEntry.pnlStats[0].total.all; break;
-			}
-		} else {
-			return exports.computeTotalPnlStats(entryId, date, category);
-		}
-	});	
-};
-
-module.exports.computeDailyPnlStats = function(entryId, date, category="all") {
+function _computeDailyPnlStats(entryId, date, category="all") {
 	return exports.getPredictionsForDate(entryId, date, category, false)
 	.then(rawPredictions => {
 		//First change the startDate of all predictions before today to be yesterday
 		var yesterday = moment(date).subtract(1, 'days').toDate();
-		rawPredictions.map(item => {
+		rawPredictions = rawPredictions.map(item => {
 			if(moment(item.startDate).isBefore(moment(date))) {
 				item.startDate = yesterday;
 			}
@@ -359,8 +258,30 @@ module.exports.computeDailyPnlStats = function(entryId, date, category="all") {
 	})
 	.then(activePredictionsWithDailyChange => {
 		//Total Pnl
-		return _getPnlStats({positions: activePredictionsWithDailyChange.map(item => item.position)});
-	})	
+		return _getPnlStats({positions: activePredictionsWithDailyChange.map(item => {
+			if(item.success.status) {
+				item.position.lastPrice = item.position.avgPrice*(1+item.target/100);
+			}
+
+			return  item.position;
+		})});
+	});	
+};
+
+
+module.exports.getTotalPnlStats = function(entryId, date, category="active") {
+	return DailyContestEntryPerformanceModel.fetchTotalPnlStatsForDate({contestEntry: entryId}, date)
+	.then(contestEntry => {
+		if (contestEntry && contestEntry.pnlStats) {
+			switch(category) {
+				case "active" : return contestEntry.pnlStats[0].total.unrealized; break;
+				case "ended" : return contestEntry.pnlStats[0].total.realized; break;
+				case "all" : return contestEntry.pnlStats[0].total.all; break;
+			}
+		} else {
+			return _computeTotalPnlStats(entryId, date, category);
+		}
+	});	
 };
 
 module.exports.getDailyPnlStats = function(entryId, date, category) {
@@ -369,7 +290,7 @@ module.exports.getDailyPnlStats = function(entryId, date, category) {
 		if (contestEntry && contestEntry.pnlStats) {
 			return contestEntry.pnlStats[0].daily;
 		} else {
-			return exports.computeDailyPnlStats(entryId, date, category);
+			return _computeDailyPnlStats(entryId, date, category);
 		}
 	});
 };
@@ -433,15 +354,15 @@ module.exports.getPredictionsForDate = function(entryId, date, category='started
 module.exports.updateAllEntriesPnlStats = function(date){
 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
 	.then(dailyContestEntries => {
-		Promise.mapSeries(dailyContestEntries, function(contestEntry) {
+		return Promise.mapSeries(dailyContestEntries, function(contestEntry) {
 			let contestEntryId = contestEntry._id;
-			const date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+			date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
 			return Promise.all([
-				computeTotalPnlStats(contestEntryId, date, "active"),
-				computeTotalPnlStats(contestEntryId, date, "ended"),
-				computeTotalPnlStats(contestEntryId, date, "all"),
-				computeDailyPnlStats(contestEntryId, date, "all")
+				_computeTotalPnlStats(contestEntryId, date, "active"),
+				_computeTotalPnlStats(contestEntryId, date, "ended"),
+				_computeTotalPnlStats(contestEntryId, date, "all"),
+				_computeDailyPnlStats(contestEntryId, date, "all")
 			])
 			.then(([activePredictionsPnl, endedPredictionsPnl, allPredictionsPnl, allPredictionsDailyPnl]) => {
 				const updates = {
@@ -458,6 +379,51 @@ module.exports.updateAllEntriesPnlStats = function(date){
 
 		});
 	});
+};
+
+module.exports.checkForPredictionTarget = function(date) {
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+
+	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
+	.then(dailyContestEntries => {
+		return Promise.mapSeries(dailyContestEntries, function(contestEntry) {
+			let contestEntryId = contestEntry._id;
+			return exports.getPredictionsForDate(contestEntryId, date, "active")
+			.then(updatedPredictions => {
+				return Promise.map(updatedPredictions, function(prediction) {
+					if (!prediction.success.status) {
+						return SecurityHelper.getStockLatestDetail(prediction.position.security, "RT")
+						.then(securityDetail => {
+							var investment = prediction.position.investment;
+							var target = prediction.target;
+							var lowPrice = securityDetail.latestDetail.low;
+							var highPrice = securityDetail.latestDetail.high;
+							var avgPrice = prediction.position.avgPrice;
+							var change = investment < 0 ? 
+								(lowPrice - avgPrice)*100/avgPrice : 
+								(highPrice - avgPrice)*100/avgPrice;
+
+							var endDate = prediction.endDate;
+							var ticker = prediction.position.security.ticker;
+
+							let success = false;
+
+							if (investment < 0 && change < target) {
+								success = true
+							} else if (investment > 0 && change > target) {
+								success = true; 
+							}
+
+							if (success) {
+								return DailyContestEntryModel.updatePredictionStatus({_id: contestEntryId}, {ticker: ticker, endDate: endDate});
+							}
+						});
+					}
+				})
+				
+			})
+		})
+	})
 };
 
 

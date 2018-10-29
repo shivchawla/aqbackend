@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-29 16:08:00
+* @Last Modified time: 2018-10-29 20:48:33
 */
 
 'use strict';
@@ -11,22 +11,24 @@ const Promise = require('bluebird');
 const moment = require('moment-timezone');
 
 const DateHelper = require('../../utils/Date');
+const DailyContestEntryHelper = require('./DailyContestEntry');
 
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
+
 
 function _computeContestWinners(date) {
 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id advisor'})
 	.then(allEntries => {
 		return Promise.mapSeries(allEntries, function(contestEntry) {
-			return exports.getTotalPnlStats(contestEntry._id, date, "ended")
+			return DailyContestEntryHelper.getTotalPnlStats(contestEntry._id, date, "ended")
 			.then(pnlStatsForAdvisor => {
-				return Object.assign({advisor: contestEntry.advisor}, pnlStatsForAdvisor);
+				return Object.assign({advisor: contestEntry.advisor._id}, {pnlStats: pnlStatsForAdvisor});
 			})
 		})
 		.then(pnlStatsForAllAdvisors => {
-			return pnlStatsForAdvisor
-			.sort((a,b) => {return a.total.pnlPct > b.total.pnlPct ? -1 : 1})
+			return pnlStatsForAllAdvisors
+			.sort((a,b) => {return a.pnlStats.total.pnlPct > b.pnlStats.total.pnlPct ? -1 : 1})
 			.slice(0, 5)
 			.map((item, index) => {item.rank = index+1; return item;});
 		})
@@ -74,7 +76,7 @@ function _computeContestPredictionMetrics(date) {
 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id advisor'})
 	.then(allEntries => {
 		return Promise.mapSeries(allEntries, function(contestEntry) {
-			return exports.getPredictionsForDate(contestEntry._id, date, "started")
+			return DailyContestEntryHelper.getPredictionsForDate(contestEntry._id, date, "started")
 		})
 		.then(predictionsByAdvisors => {
 			return Array.prototype.concat.apply([], predictionsByAdvisors);
@@ -85,9 +87,9 @@ function _computeContestPredictionMetrics(date) {
 		var predictionMetricsPerSecurity = {};
 		var predictionMetrics = null;
 
-		allPredictions.forEach(item => {
-			var security = item.security;
-			var endDate = item.endDate;
+		allPredictions.forEach(prediction => {
+			var security = prediction.security;
+			var endDate = prediction.endDate;
 
 			let dateStr = DateHelper.formatDate(endDate);
 			
@@ -120,15 +122,15 @@ function _computeContestPredictionMetrics(date) {
 }
 
 module.exports.updateContestStats = function(date) {
-	const date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
 	//Get al entries started on a date
 	return Promise.all([
 		_computeContestWinners(date),
 		_computeContestPredictionMetrics(date)
 	])
-	.then(([winners, preditionMetrics]) => {
-		var predictionMetricsBySecurity = predictionMetrics.predictionMetricsBySecurity;
+	.then(([winners, predictionMetrics]) => {
+		var predictionMetricsBySecurity = predictionMetrics.bySecurity;
 		var metricsArray = Object.keys(predictionMetricsBySecurity)
 						.map(item => {return {ticker: item, metrics: predictionMetricsBySecurity[item]}});
 		
@@ -140,14 +142,15 @@ module.exports.updateContestStats = function(date) {
 			return a.investment.total > b.investment.total ? -1 : 1
 		}).slice(0, 5);
 
-		var topStocks = {byUsers: topStocksUsers, byInvesment: topStocsInvestmnet};
+		var topStocks = {byUsers: topStocksUsers, byInvesment: topStocksInvestment};
 
 		return DailyContestStatsModel.updateContestStats(date, {winners, predictionMetrics, topStocks});
 	});
+
 };
 
 module.exports.updateContestTopStocks = function(date) {
-	const date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
 	//Get al entries started on a date
 	return _computeContestPredictionMetrics(date)

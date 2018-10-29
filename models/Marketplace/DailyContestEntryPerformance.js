@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-27 20:11:02
+* @Last Modified time: 2018-10-29 20:06:35
 */
 
 
@@ -16,7 +16,7 @@ const Schema = mongoose.Schema;
 const DailyContestEntry = require('./DailyContestEntry');
 
 const DailyContestEntryPerformance = new Schema({
-	contestEnry : {type: Schema.Types.ObjectId, ref: 'DailyContestEntry'},
+	contestEntry : {type: Schema.Types.ObjectId, ref: 'DailyContestEntry'},
 
 	pnlStats: [{
 		date: Date,
@@ -46,9 +46,9 @@ const DailyContestEntryPerformance = new Schema({
 
 DailyContestEntryPerformance.statics.updateEntryPnlStats = function(query, pnlStats, date) {
 	
-	let daily = pnlStats.daily ? true : false;
-
-    return this.findOne({...query, 'pnlStats.date':{$eq: date}})
+    let qDate = {...query, 'pnlStats.date':{$eq: date}};
+    
+    return this.findOne(qDate)
     .then(found => {	
 		let updates;
     	
@@ -72,7 +72,7 @@ DailyContestEntryPerformance.statics.updateEntryPnlStats = function(query, pnlSt
 				}
 			};	 
 
-    		return this.findOneAndUpdate(query, updates);
+    		return this.findOneAndUpdate(query, updates, {upsert: true});
     	}
     });
 };
