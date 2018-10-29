@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-27 20:04:03
+* @Last Modified time: 2018-10-29 12:31:22
 */
 
 
@@ -74,37 +74,7 @@ const DailyContestEntry = new Schema({
 	
 	updatedDate: Date,
 
-	predictions: [Prediction],
-		
-	// performance: {
-	// 	daily: [{
-	// 		date: Date,
-	// 		pnlStats: Schema.Types.Mixed
-	// 	}],
-
-	// 	cumulative: [{
-	// 		date: Date,
-	// 		pnlStats: {
-	// 			active: Schema.Types.Mixed
-	// 			all: Scehma.Types.Mixed
-	// 		}
-	// 	}],
-
-	// 	aggregate: {
-	// 		pnlStats: Schema.Types.Mixed
-	// 	}
-	// }, 
-
-	// winnings: {
-	// 	total: Number,
-	// 	rank: Number,
-	// 	daily: [{
-	// 		date: Date,
-	// 		total: Number,
-	// 		rank: Number
-	// 	}]
-	// }
-
+	predictions: [Prediction]
 });
 
 /*Rules

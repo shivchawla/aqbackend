@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-27 20:24:51
+* @Last Modified time: 2018-10-29 15:42:09
 */
 
 'use strict';
@@ -18,9 +18,11 @@ const APIError = require('../../utils/error');
 
 const UserModel = require('../../models/user');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
+const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryHelper = require('../helpers/DailyContestEntry');
 const DailyContestHelper = require('../helpers/DailyContest');
+const DailyContestStatsHelper = require('../helpers/DailyContestStats');
 
 
 /* 
@@ -148,6 +150,9 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		}
 	})
 	.then(contestEntry => {
+
+		//Change this to use PROMISE 
+		//And check redundancy of predictions
 		var adjustedPredictions = entryPredictions.map(item => {
 			
 			if (DateHelper.compareDates(item.endDate, item.startDate) == 1 && 
@@ -199,35 +204,41 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		return res.status(400).send(err.message);		
 	});
 };
+ 
+/*
+* Get daily contest winners
+*/
+module.exports.getDailyContestWinners = (args, res, next) => {
+	const _d = _.get(args, 'date.value', '');
+	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
+	
+	const date = DateHelper.getMarketCloseDateTime(_dd);
 
+	return DailyContestStatsModel.fetchContestStats(date, {fields:'winners'})
+	.then(statsForDate => {
+		return res.status(200).send(statsForDate);
+	})
+	.catch(err => {
+		return res.status(400).send({msg: err.msg});	
+	})
+};
 
-//THIS IS BETTER TIMING TO HANDLE
-//Start date - When submisison starts
-//End date - When submission ends
-//Result Date - When results are declared
 
 /*
-	Calendar date - 11th September 
-	Starts - 11th Market Open
-	Ends - 11th Market Close
-	Results declared - 12th Market Close
-	Show your choice of stocks
-	PnL Job - Runs for contest where resultDate is today
+* Get daily contest top stocks
 */
+module.exports.getDailyContestTopStocks = (args, res, next) => {
+	const _d = _.get(args, 'date.value', '');
+	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
+	
+	const date = DateHelper.getMarketCloseDateTime(_dd);
 
-/*
-	Calendar date - 12th September 
-	Starts - 12th Market Open
-	Ends -  12th Market Close
-	Show your choice of stocks
-	Results declared - on 13th or next business day 
-*/
+	return DailyContestStatsModel.fetchContestStats(date, {fields:'topStocks'})
+	.then(statsForDate => {
+		return res.status(200).send(statsForDate);
+	})
+	.catch(err => {
+		return res.status(400).send({msg: err.msg});	
+	})
+};
 
-/*
-	Calendar date - Now (9th Night)
-	Shows timer to upcoming contest tomorrow morning
-	Starts - 10th Market Open
-	Ends - 10th Market Close
-	Show your choice of stocks/Ability 
-	Results declared - on 11th 
-*/

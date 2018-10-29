@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-29 10:29:00
+* @Last Modified time: 2018-10-29 15:22:07
 */
 
 'use strict';
@@ -19,6 +19,7 @@ const SecurityHelper = require('./Security');
 const UserModel = require('../../models/user');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
+const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 
 function _computePnlStats(portfolio) {
 	var totalPnl = 0.0;
@@ -375,8 +376,8 @@ module.exports.getDailyPnlStats = function(entryId, date, category) {
 
 module.exports.getPnlForDate = function(entryId, date, category="total") {
 	switch(category) {
-		case "daily": return exports.getDailyPnlStatsForAllPredictions(entryId, date); break;
-		case "total": return exports.getTotalPnlStatsForAllPredictions(entryId, date); break;
+		case "daily": return exports.getDailyPnlStats(entryId, date, "all"); break;
+		case "total": return exports.getTotalPnlStats(entryId, date, "all"); break;
 	}
 };
 
@@ -429,12 +430,12 @@ module.exports.getPredictionsForDate = function(entryId, date, category='started
 	});
 };
 
-module.exports.updateAllEntriesPnlStats = function(){
-	DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
+module.exports.updateAllEntriesPnlStats = function(date){
+	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
 	.then(dailyContestEntries => {
 		Promise.mapSeries(dailyContestEntries, function(contestEntry) {
 			let contestEntryId = contestEntry._id;
-			const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
+			const date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
 			return Promise.all([
 				computeTotalPnlStats(contestEntryId, date, "active"),
@@ -452,9 +453,12 @@ module.exports.updateAllEntriesPnlStats = function(){
 					daily: allPredictionsDailyPnl
 				}
 
-				DailyContestEntryPerformanceModel.updateEntryPnlStats({contestEntry: contestEntryId}, updates, date);
+				return DailyContestEntryPerformanceModel.updateEntryPnlStats({contestEntry: contestEntryId}, updates, date);
 			})
 
 		});
 	});
 };
+
+
+
