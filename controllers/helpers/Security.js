@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-17 11:17:25
+* @Last Modified time: 2018-10-29 09:53:08
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -356,8 +356,6 @@ function _computeStockPerformance(security) {
 };
 
 module.exports.updateStockList = function() {
-
-	console.log("Shivaaa");
 
 	return exports.countSecurities()
 	.then(count => {
