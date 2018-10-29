@@ -169,7 +169,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		if (contestEntry) {
 
 			if (action == "update") {
-				var uniquePredictionDates = _.uniq(adjustedPredictions.map(item => item.startDate));
+				var uniquePredictionDates = _.uniq(adjustedPredictions.map(item => item.startDate.format('YYYY-MM-DD HH:mm:ss')));
 				if (uniquePredictionDates.length > 1) {
 					APIError.throwJsonError({msg: "Only predictions for single date can be updated"});
 				}
