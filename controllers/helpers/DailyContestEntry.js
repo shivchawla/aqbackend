@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-29 20:50:49
+* @Last Modified time: 2018-10-30 18:52:48
 */
 
 'use strict';
@@ -171,6 +171,25 @@ function _updatePortfolioForAveragePrice(portfolioHistory) {
 	});
 }
 
+function _updatePredictionForCallPrice(prediction) {
+	var startDate = prediction.startDate;
+	var marketOpen = DateHelper.getMarketOpenDateTime();
+	var diffMinutes = marketOpen.diff(marketOpen, 'minutes');
+
+	return SecurityHelper.getRealTimeStockHistoricalDetail(prediction.position.security, diffMinutes)
+	.then(securityDetail => {
+		if (securityDetail) {
+			var lastPrice = _.get(securityDetail, 'latestDetail.current', 0) ||
+				_.get(securityDetail, 'latestDetail.close', 0);
+
+			prediction.position.avgPrice = lastPrice;
+		} else {
+			console.log("Could not populate call price");
+			return prediction;
+		}
+	})
+}
+
 function _updatePositionsForPrice(positions, date, type) {
 	if (positions) {
 		return new Promise((resolve, reject) => {
@@ -192,9 +211,9 @@ function _computeUpdatedPredictions(predictions, date) {
 	
 	return predictions.length > 0 ? 	
 		Promise.map(predictions, function(prediction) {
-		return _updatePortfolioForAveragePrice([{positions: [prediction.position], positionType:'notional', startDate: prediction.startDate}])
-		.then(updatedAvgPricePredictionPortfolio => {
-			var _partialUpdatedPositions = updatedAvgPricePredictionPortfolio ? updatedAvgPricePredictionPortfolio.positions : [prediction.position];
+		return _updatePredictionForCallPrice(prediction)
+		.then(updatedCallPricePrediction => {
+			var _partialUpdatedPositions = updatedCallPricePrediction ? [updatedCallPricePrediction.position] : [prediction.position];
 			return _updatePositionsForPrice(_partialUpdatedPositions, date);
 		})
 		.then(updatedPositions => {
