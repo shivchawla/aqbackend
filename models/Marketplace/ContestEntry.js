@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-28 10:45:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-29 11:44:07
+* @Last Modified time: 2018-10-30 14:11:31
 */
 
 'use strict';
@@ -102,7 +102,7 @@ ContestEntry.statics.fetchEntries = function(query, options) {
     if(options.fields && options.fields.indexOf('advisor') != -1) {
         q = q.select('advisor').populate({path:'advisor', select:'user _id',
                                         populate:{path: 'user', 
-                                            select:'_id firstName lastName'}
+                                            select:'_id firstName lastName email'}
                                 });
     }
 	

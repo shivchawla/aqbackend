@@ -555,9 +555,42 @@ function get_stock_price_latest(security_dict::Dict{String,Any}, ptype::String="
         
     catch err
         println(err)
-
         rethrow(err)
     end 
+end
+
+function get_stock_realtime_price_historical(security_dict::Dict{String, Any}, fileNumber::Int, path::String)
+
+    try
+        output = Dict{String, Any}() 
+   
+        (realtimePrices, eodPrice) = get_realtime_prices("$path/$fileNumber.mkt", "mkt")
+
+        ticker = replace(security_dict["ticker"], r"[^a-zA-Z0-9]", "_")
+        tb_rt = get(realtimePrices, ticker, TradeBar())
+        tb_eod = get(eodPrices, ticker, TradeBar())
+        
+        output["date"] = Date(tb_rt.datetime)
+
+        #today's prices
+        output["current"] = tb_rt.close
+        output["low"] = tb_eod.low
+        output["high"] = tb_eod.high
+        output["open"] = tb_eod.open
+        output["volume"] = tb_eod.volume
+
+        #this is last day close            
+        output["close"] = tb_eod.close
+        
+        output["change"] = round(output["current"] - output["close"], 2)
+        output["changePct"] = round(output["close"] > 0 ? (output["current"] - output["close"])/output["close"] : 0.0, 4)
+
+        return output
+    catch err
+        println(err)
+        rethrow(err)
+    end  
+
 end
 
 ###

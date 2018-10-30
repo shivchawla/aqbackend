@@ -79,6 +79,15 @@ function update_realtime_prices(fname::String, ftype::String)
     end
 end
 
+
+function get_realtime_prices(fname::String, ftype::String)
+    if ftype == "mkt"
+        _get_realtime_mkt_prices(fname)
+    else ftype == "ind"
+        _get_realtime_ind_prices(fname)
+    end
+end
+
 ###
 # Function to download and update realtime prices (from 15 minutes delayed feed)
 function _update_realtime_mkt_prices(fname::String)
@@ -108,6 +117,40 @@ function _update_realtime_mkt_prices(fname::String)
         end
 
         return true
+    catch err
+        rethrow(err)
+    end   
+end
+
+function _get_realtime_mkt_prices(fname::String)
+    try
+       
+        mktPrices = readMktFile(fname)
+        realtimePrices = Dict{String, Any}()
+        eodPrices = Dict{String, Any}()
+
+        @sync begin
+        
+            @async for (k,v) in mktPrices["RT"]
+                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
+
+                if ticker != ""
+                    realtimePrices[ticker] = v
+                end
+                
+            end
+
+            @async for (k,v) in mktPrices["EOD"]
+                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
+
+                if ticker != ""
+                    eodPrices[ticker] = v
+                end
+
+            end
+        end
+            
+        return (realtimePrices, eodPrices)
     catch err
         rethrow(err)
     end   

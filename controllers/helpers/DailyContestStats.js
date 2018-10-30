@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-29 20:48:33
+* @Last Modified time: 2018-10-30 18:17:29
 */
 
 'use strict';
@@ -12,6 +12,7 @@ const moment = require('moment-timezone');
 
 const DateHelper = require('../../utils/Date');
 const DailyContestEntryHelper = require('./DailyContestEntry');
+const sendEmail = require('../../email');
 
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
@@ -96,7 +97,7 @@ function _computeContestPredictionMetrics(date) {
 			if (dateStr in predictionMetricsByDate) {
 				predictionMetricsByDate[dateStr] = _updateMetrics(predictionMetricsByDate[dateStr], prediction);
 			} else {
-				predcitionMerticsByDate[dateStr] = _initializeMetrics(prediction);
+				predcitionMetricsByDate[dateStr] = _initializeMetrics(prediction);
 			}
 
 			let ticker = security.ticker;
@@ -155,7 +156,7 @@ module.exports.updateContestTopStocks = function(date) {
 	//Get al entries started on a date
 	return _computeContestPredictionMetrics(date)
 	.then(preditionMetrics => {
-		var predictionMetricsBySecurity = predictionMetrics.predictionMetricsBySecurity;
+		var predictionMetricsBySecurity = predictionMetrics.bySecurity;
 		var metricsArray = Object.keys(predictionMetricsBySecurity)
 						.map(item => {return {ticker: item, metrics: predictionMetricsBySecurity[item]}});
 		
@@ -172,3 +173,125 @@ module.exports.updateContestTopStocks = function(date) {
 		return DailyContestStatsModel.updateContestStats(date, {predictionMetrics, topStocks});
 	});
 };
+
+function _computeWinnerDigest(winners) {
+	return Promise.mapSeries(winners, function(winner) {
+		const winnerAdvisorId = winner.advisor;
+
+		return AdvisorModel.fetchAdvisor({_id: winnerAdvisorId})
+		.then(advisor => {
+			return {winnerName: `${advisor.firstName} {advisor.lastName}`, pnlPct:winner.pnlStats.total.pnlPct}		
+		})
+	})
+	.then(winnerStats => {
+		let winnerDigest = {};
+
+		winnerStats.forEach((item, index) => {
+
+			var winnerKey = `winner${index}`;
+			var pnlKey = `pnlPct${index}`;
+			winnerDigest = Object.assign(winnerDigest, {
+				[winnerKey]: item.winnerName, 
+				[pnlKey]: item.pnlPct
+			});
+		});
+
+		return winnerDigest;
+	})
+}
+
+module.exports.sendSummaryDigest = function(date) {
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+	return Promise.all([
+		DailyContestEntryModel.fetchEntries({}, {fields: 'advisor'}),
+		DailyContestStatsModel.fetchContestStats({date: date}, {fields: 'topStocks winners'})
+	])
+	.then(([contestEntries, contestStats]) => {
+		if (contestStats && contestEntries) {
+			var winners = contestStats.winners.slice(0,2);
+			var topStocks = contestStats.topStocks.slice(0, 2);
+
+			var leaderboardUrl = `${config.get('hostname')}/dailycontest?tab=2&date=${date.format("YYYY-MM-DD")}`;
+			var topStocksUrl = `${config.get('hostname')}/dailycontest?tab=1&date=${date.format("YYYY-MM-DD")}`;
+
+			var summaryDigest = {leaderboardUrl, topStocksurl};		
+
+			return _computeWinnerDigest(winners)
+			.then(winnerDigest => {
+
+				let topStocksDigest = {};
+				topStocks.forEach((item, index) => {
+					var stocksKey = `stock${index}`;
+					var votesKey = `votes${index}`;
+					var investmentKey = `investment${index}`;
+				});
+
+				topStocksDigest = Object.assign(topStocksDigest, {
+					[stockKey]: item.winnerName, 
+					[votesKey]: item.numUser.total,
+					[investmentKey]: item.investment.gross
+				});
+
+				return Object.assign(summaryDigest, winnerDigest, topStocksDigest);
+			})
+			.then(fullDigest => {
+				return Promise.mapSeries(contestEntries, function(contestEntry) {
+					
+					return AdvisorModel.fetchAdvisor({_id: contestEntry.advisor})
+					.then(advisor => {
+	                    var user = _.get(advisor, 'user', null);
+	                    
+	                    if (process.env.NODE_ENV === 'production') {
+	                    
+	                    	return sendEmail.sendDailyContestSummaryDigest(fullDigest, user)
+	                	
+	                	} else if(process.env.NODE_ENV === 'development') {
+	                    
+	                        return sendEmail.sendDailyContestSummaryDigest(fullDigest, 
+	                            {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+                        }
+                    });
+                })
+			})
+
+		} else {
+			console.log(`Summary Digest Error! No contest stats found for ${date}`);
+		}
+	});
+};
+
+module.exports.sendWinnerDigest = function(date) {
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+	return DailyContestStatsModel.fetchContestStats({date: date}, {fields: 'topStocks winners'})
+	.then(contestStats => {
+		if (contestStats) {
+			var winners = contestStats.winners;
+			
+			var leaderboardUrl = `${config.get('hostname')}/dailycontest?tab=2&date=${date.format("YYYY-MM-DD")}`;
+
+			return Promise.mapSeries(winners, function(winner) {
+				let winnerDigest = {leaderboardUrl, pnlPct: winner.pnlStats.total.pnlpct, rank: winner.rank};
+				
+				return AdvisorModel.fetchAdvisor({_id: winner.advisor})
+				.then(advisor => {
+                    var user = _.get(advisor, 'user', null);
+                    
+                    if (process.env.NODE_ENV === 'production') {
+                    
+                    	return sendEmail.sendDailyContestSummaryDigest(winnerDigest, user)
+                	
+                	} else if(process.env.NODE_ENV === 'development') {
+                    
+                        return sendEmail.sendDailyContestSummaryDigest(winner, 
+                            {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+                    }
+                });
+            })
+			
+		} else {
+			console.log(`Winner Digest Error! No contest stats found for ${date}`)
+		}
+	});
+};
+
+

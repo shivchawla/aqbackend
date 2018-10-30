@@ -417,4 +417,40 @@ module.exports.sendContestWinnerEmail = function(winnerDetail, userDetails) {
         };
 
         return sgMail.send(msg);
+};
+
+module.exports.sendDailyContestSummaryDigest = function(summaryDigest, userDetails) {
+   const userFullName = userDetails.firstName+' '+userDetails.lastName;
+   const msg = {
+            to: [{
+                email: userDetails.email,
+                name: userFullName
+            }],
+            from: {name: "AdviceQube", email:"contest@adviceqube.com"},
+            templateId: config.get('daily_contest_summary_digest_template_id'),
+            substitutions: {
+                userFullName,
+                ...summaryDigest
+            },
+        };
+
+        return sgMail.send(msg);
+};
+
+module.exports.sendDailyContestWinnerEmail = function(winnerDetail, userDetails) {
+   const userFullName = userDetails.firstName+' '+userDetails.lastName;
+   const msg = {
+            to: [{
+                email: userDetails.email,
+                name: userFullName
+            }],
+            from: {name: "AdviceQube", email:"contest@adviceqube.com"},
+            templateId: config.get('daily_contest_winner_template_id'),
+            substitutions: {
+                userFullName,
+                ...winnerDetail
+            },
+        };
+
+        return sgMail.send(msg);
 }

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-29 15:42:09
+* @Last Modified time: 2018-10-30 18:15:43
 */
 
 'use strict';
@@ -23,7 +23,6 @@ const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryHelper = require('../helpers/DailyContestEntry');
 const DailyContestHelper = require('../helpers/DailyContest');
 const DailyContestStatsHelper = require('../helpers/DailyContestStats');
-
 
 /* 
 * Get contest entry for a date
@@ -158,7 +157,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			if (DateHelper.compareDates(item.endDate, item.startDate) == 1 && 
 					DateHelper.compareDates(item.startDate, DateHelper.getCurrentDate()) == 0) {
 				
-				item.startDate = DateHelper.getMarketCloseDateTime(item.startDate);
+				item.startDate = moment().add(1, 'minute').startOf('minute');
 				item.endDate = DateHelper.getMarketCloseDateTime(item.endDate);
 				item.active = true;
 				item.modified = 1;
@@ -223,7 +222,6 @@ module.exports.getDailyContestWinners = (args, res, next) => {
 	})
 };
 
-
 /*
 * Get daily contest top stocks
 */
@@ -241,4 +239,3 @@ module.exports.getDailyContestTopStocks = (args, res, next) => {
 		return res.status(400).send({msg: err.msg});	
 	})
 };
-

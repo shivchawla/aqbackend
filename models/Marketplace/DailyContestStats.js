@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 10:47:05
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-29 20:05:15
+* @Last Modified time: 2018-10-30 13:45:13
 */
 
 
@@ -52,7 +52,7 @@ const DailyContestStats = new Schema({
 	
 	topStocks: [{
         security: Security,
-        lastDetail: Schema.Types.Mixed,
+        investment: Schema.Types.Mixed,
         numUsers: Schema.Types.Mixed
 	}]
     
