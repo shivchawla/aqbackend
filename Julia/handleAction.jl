@@ -261,6 +261,10 @@ function handleRequest(parsemsg::Dict{String, Any})
             parsemsg["output"] = ""
             parsemsg["output"] = get_stock_price_latest(parsemsg["security"], parsemsg["ptype"])
         
+        elseif action == "compute_stock_price_realtime_historical"
+            parsemsg["output"] = ""
+            parsemsg["output"] = get_stock_realtime_price_historical(parsemsg["security"], parsemsg["fileNumber"], parsemsg["path"])    
+
         elseif action == "compute_stock_rolling_performance"
             parsemsg["output"] = ""
 
@@ -344,6 +348,7 @@ function handleRequest(parsemsg::Dict{String, Any})
             (updatedDate, updated_portfolio) = updatePortfolio_averageprice(portfolioHistory)
             parsemsg["output"] = convert_to_node_portfolio(updated_portfolio)
 
+
         elseif action == "compute_portfolio_transactions"
             newPortfolio = parsemsg["newPortfolio"]
             currentPortfolio = parsemsg["currentPortfolio"]
@@ -394,6 +399,7 @@ function handleRequest(parsemsg::Dict{String, Any})
 
         elseif action == "compute_attribution"
             #parsemsg["portfolio"] = updated_portfolio
+
         else
             parsemsg["error"] = "Invalid action"
             parsemsg["code"] = 403
