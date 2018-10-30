@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-30 17:17:44
+* @Last Modified time: 2018-10-30 18:57:32
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -261,7 +261,7 @@ module.exports.getRealTimeStockHistoricalDetail = function(security, minute) {
 		.then(([performanceDetail, securityDetail]) => {
 			security.detail = securityDetail;
 			resolve(Object.assign({}, security, {latestDetail: performanceDetail}));
-		});
+		})
 		.catch(err => {
 			console.log(err.message);
 			resolve(Object.assign({}, security, {latestDetail: {}}));
