@@ -274,9 +274,9 @@ module.exports.getTotalPnlStats = function(entryId, date, category="active") {
 	.then(contestEntry => {
 		if (contestEntry && contestEntry.pnlStats) {
 			switch(category) {
-				case "active" : return contestEntry.pnlStats[0].total.unrealized; break;
-				case "ended" : return contestEntry.pnlStats[0].total.realized; break;
-				case "all" : return contestEntry.pnlStats[0].total.all; break;
+				case "active" : return contestEntry.pnlStats[0].cumulative.unrealized; break;
+				case "ended" : return contestEntry.pnlStats[0].cumulative.realized; break;
+				case "all" : return contestEntry.pnlStats[0].cumulative.all; break;
 			}
 		} else {
 			return _computeTotalPnlStats(entryId, date, category);
@@ -366,14 +366,14 @@ module.exports.updateAllEntriesPnlStats = function(date){
 			])
 			.then(([activePredictionsPnl, endedPredictionsPnl, allPredictionsPnl, allPredictionsDailyPnl]) => {
 				const updates = {
-					total: {
+					cumulative: {
 						unrealized: activePredictionsPnl,
 						realized: endedPredictionsPnl,
 						all: allPredictionsPnl
 					},
 					daily: allPredictionsDailyPnl
 				}
-
+				
 				return DailyContestEntryPerformanceModel.updateEntryPnlStats({contestEntry: contestEntryId}, updates, date);
 			})
 

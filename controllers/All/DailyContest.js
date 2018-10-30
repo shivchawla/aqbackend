@@ -18,3 +18,11 @@ module.exports.updateDailyContestPredictions = (req, res, next) => {
 module.exports.getDailyContestPnl = (req, res, next) => {
     DailyContest.getDailyContestPnl(req.swagger.params, res, next);
 };
+
+module.exports.getDailyContestTopStocks = (req, res, next) => {
+    DailyContest.getDailyContestTopStocks(req.swagger.params, res, next);
+};
+
+module.exports.getDailyContestWinners = (req, res, next) => {
+    DailyContest.getDailyContestWinners(req.swagger.params, res, next);
+};

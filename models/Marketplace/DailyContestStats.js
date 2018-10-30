@@ -50,11 +50,7 @@ const DailyContestStats = new Schema({
 
     predictionMetrics: Schema.Types.Mixed,
 	
-	topStocks: [{
-        security: Security,
-        lastDetail: Schema.Types.Mixed,
-        numUsers: Schema.Types.Mixed
-	}]
+	topStocks: Schema.Types.Mixed
     
 });
 
@@ -68,7 +64,7 @@ DailyContestStats.statics.updateContestStats = function(date, stats) {
 };
 
 DailyContestStats.statics.fetchContestStats = function(date, options) {
-    let q = this.find({date: date});
+    let q = this.findOne({date: date});
     const populate = _.get(options, 'populate', '');
     if (options.skip) {
         q = q.skip(options.skip);
