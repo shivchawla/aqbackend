@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 10:47:05
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-31 11:06:51
+* @Last Modified time: 2018-10-31 16:35:16
 */
 
 'use strict';
@@ -73,7 +73,7 @@ DailyContestStats.statics.fetchContestStats = function(date, options) {
     if (options.fields) {
         q = q.select(options.fields);
     }
-    if (options.fields && options.fields.indexOf('winners') && populate.indexOf('advisor') !== -1) {
+    if (options.fields && options.fields.indexOf('winners') !== -1)  {
         q = q.select(options.fields).populate({
             path: 'advisor', 
             select: 'user',

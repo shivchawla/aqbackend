@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-31 12:37:36
+* @Last Modified time: 2018-10-31 16:44:59
 */
 
 'use strict';
@@ -23,7 +23,7 @@ const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryHelper = require('../helpers/DailyContestEntry');
 const DailyContestHelper = require('../helpers/DailyContest');
 const DailyContestStatsHelper = require('../helpers/DailyContestStats');
-
+const SecurityHelper = require('../helpers/Security');
 /* 
 * Get contest entry for a date
 */
@@ -233,7 +233,27 @@ module.exports.getDailyContestTopStocks = (args, res, next) => {
 
 	return DailyContestStatsModel.fetchContestStats(date, {fields:'topStocks'})
 	.then(statsForDate => {
-		return res.status(200).send(statsForDate);
+
+		var topStocksByUsers = _.get(statsForDate, 'topStocks.byUsers', []);
+		var topStocksByInvestment = _.get(statsForDate, 'topStocks.byInvestment', []);
+
+		return Promise.all([
+			Promise.map(topStocksByInvestment, function(topStock) {
+				return SecurityHelper.getStockLatestDetail(security)
+				.then(securityDetail => {
+					return {...topStocks, security: securityDetail};
+				})	
+			}),
+			Promise.map(topStocksByUsers, function(topStock) {
+				return SecurityHelper.getStockLatestDetail(security)
+				.then(securityDetail => {
+					return {...topStocks, security: securityDetail};
+				})	
+			})
+		]);
+	})
+	.then(([updatedTopStockByInvestment, updatedTopStockByUsers]) => {
+		return res.status(200).send({byUsers: updatedTopStockByUsers, byInvestment: updatedTopStockByInvestment});
 	})
 	.catch(err => {
 		return res.status(400).send({msg: err.msg});	

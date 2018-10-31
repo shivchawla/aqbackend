@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-31 14:21:33
+* @Last Modified time: 2018-10-31 16:32:16
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -221,11 +221,13 @@ module.exports.isHoliday = function(date) {
 };
 
 module.exports.getMarketCloseDateTime = function(date) {
-	return moment.tz(date, indiaTimeZone).tz(localTimeZone).set({hour: exports.getMarketCloseHour(), minute: exports.getMarketCloseMinute(), second: 0, millisecond: 0});
+	var d = moment.tz(date, indiaTimeZone).format("YYYY-MM-DD"); 
+	return moment.tz(d, localTimeZone).set({hour: exports.getMarketCloseHour(), minute: exports.getMarketCloseMinute(), second: 0, millisecond: 0});
 };
 
 module.exports.getMarketOpenDateTime = function(date) {
-	return moment.tz(date, indiaTimeZone).tz(localTimeZone).set({hour: exports.getMarketOpenHour(), minute: exports.getMarketOpenMinute(), second: 0, millisecond: 0});
+	var d = moment.tz(date, indiaTimeZone).format("YYYY-MM-DD"); 
+	return moment.tz(d, indiaTimeZone).tz(localTimeZone).set({hour: exports.getMarketOpenHour(), minute: exports.getMarketOpenMinute(), second: 0, millisecond: 0});
 };
 
 module.exports.isMarketTrading = function() {
