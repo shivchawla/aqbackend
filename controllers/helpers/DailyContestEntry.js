@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-31 12:28:43
+* @Last Modified time: 2018-10-31 13:33:21
 */
 
 'use strict';
@@ -235,13 +235,16 @@ function _computeUpdatedPredictions(predictions, date) {
 	return predictions.length > 0 ? 	
 		Promise.map(predictions, function(prediction) {
 			var callPrice = _.get(prediction, 'position.avgPrice', 0.0);
-			return callPrice == 0 ? _updatePredictionForCallPrice(prediction) : prediction
+			
+			return Promise.resolve(callPrice == 0 ? _updatePredictionForCallPrice(prediction) : prediction)
 			.then(updatedCallPricePrediction => {
 				var _partialUpdatedPositions = updatedCallPricePrediction ? [updatedCallPricePrediction.position] : [prediction.position];
 				
 				//Check whether the predcition needs any price update
 				//Based on success status
-				return _.get(prediction, 'success.status', false) ? _updatePositionsForPrice(_partialUpdatedPositions, date) : updatedCallPricePrediction;
+				return _.get(prediction, 'success.status', false) ? 
+					updatedCallPricePrediction :
+					_updatePositionsForPrice(_partialUpdatedPositions, date);
 			})
 			.then(updatedPositions => {
 				if (updatedPositions) {

@@ -2,10 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-30 16:23:01
+* @Last Modified time: 2018-10-31 14:21:33
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
+const localTimeZone = moment.tz.guess();
 
 const holidays = [
 	"2018-08-22",
@@ -29,12 +30,12 @@ function _isAfterMarketOpen() {
 
 module.exports.getMarketOpen = function() {
 	var cd = moment().tz(indiaTimeZone).format("YYYY-MM-DD");
-	return moment.tz(`${cd} 09:30:00`, indiaTimeZone).local();
+	return moment.tz(`${cd} 09:30:00`, indiaTimeZone).tz(localTimeZone);
 }
 
 module.exports.getMarketClose = function() {
 	var cd = moment().tz(indiaTimeZone).format("YYYY-MM-DD");
-	return moment.tz(`${cd} 23:30:00`, indiaTimeZone).local();
+	return moment.tz(`${cd} 23:30:00`, indiaTimeZone).tz(localTimeZone);
 }
 
 module.exports.getMarketOpenHour = function() {
@@ -220,11 +221,11 @@ module.exports.isHoliday = function(date) {
 };
 
 module.exports.getMarketCloseDateTime = function(date) {
-	return moment.tz(date, indiaTimeZone).set({hour: exports.getMarketCloseHour(), minute: exports.getMarketCloseMinute(), second: 0, millisecond: 0}).local();
+	return moment.tz(date, indiaTimeZone).tz(localTimeZone).set({hour: exports.getMarketCloseHour(), minute: exports.getMarketCloseMinute(), second: 0, millisecond: 0});
 };
 
 module.exports.getMarketOpenDateTime = function(date) {
-	return moment.tz(date, indiaTimeZone).set({hour: exports.getMarketOpenHour(), minute: exports.getMarketOpenMinute(), second: 0, millisecond: 0}).local();
+	return moment.tz(date, indiaTimeZone).tz(localTimeZone).set({hour: exports.getMarketOpenHour(), minute: exports.getMarketOpenMinute(), second: 0, millisecond: 0});
 };
 
 module.exports.isMarketTrading = function() {
