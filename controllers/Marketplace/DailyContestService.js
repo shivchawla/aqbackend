@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-30 18:15:43
+* @Last Modified time: 2018-10-31 12:37:36
 */
 
 'use strict';
@@ -52,14 +52,14 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 		if (contestEntry) {
 			return DailyContestEntryHelper.getPredictionsForDate(contestEntry._id, date, category);
 		} else {
-			APIError.throwJsonError({message: `No contest entry found for ${_d}`});
+			APIError.throwJsonError({message: `No contest entry found for ${date}`});
 		}
 	})
 	.then(updatedContestEntry => {
 		if (updatedContestEntry) {
 			return res.status(200).send(updatedContestEntry);
 		} else {
-			APIError.throwJsonError({message: `No contest entry found for ${_d}`});
+			APIError.throwJsonError({message: `No contest entry found for ${date}`});
 		}
 	})
 	.catch(err => {

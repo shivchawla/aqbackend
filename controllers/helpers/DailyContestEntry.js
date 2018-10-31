@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-31 10:52:55
+* @Last Modified time: 2018-10-31 12:28:43
 */
 
 'use strict';
@@ -385,7 +385,7 @@ module.exports.getPredictionsForDate = function(entryId, date, category='started
 		//Update security latest detail
 		if (update) {
 			return Promise.map(updatedPredictionsWithLatestPrice, function(prediction) {
-				return SecurityHelper.getStockLatestDetail(prediction.position.security)
+				return SecurityHelper.getStockLatestDetail(prediction.position.security, "RT")
 				.then(securityDetail => {
 					var updatedPosition = Object.assign(prediction.position, {security: securityDetail});
 					return Object.assign({position: updatedPosition}, prediction);

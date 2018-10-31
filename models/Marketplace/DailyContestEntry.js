@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-31 10:56:42
+* @Last Modified time: 2018-10-31 11:25:14
 */
 
 
@@ -158,7 +158,7 @@ DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, d
 				return allPredictions.filter(item => {
 					//Convert startdate(exact time) to EOD datetime for comparison purposes
 					
-					var startDate = DateHelpe.getMarketCloseDateTime(DateHelper.getDate(item.startDate));
+					var startDate = DateHelper.getMarketCloseDateTime(DateHelper.getDate(item.startDate));
 					return moment(startDate).isSame(moment(date))
 				});
 			} else {
@@ -203,7 +203,7 @@ DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, da
 				return allPredictions.filter(item => {
 
 					//Convert startdate(exact time) to EOD datetime for comparison purposes
-					var startDate = DateHelpe.getMarketCloseDateTime(DateHelper.getDate(item.startDate));
+					var startDate = DateHelper.getMarketCloseDateTime(DateHelper.getDate(item.startDate));
 					
 					return !moment(startDate).isAfter(moment(date)) && 
 							(moment(item.endDate).isAfter(moment(date)) || (isToday && moment(item.endDate).isAfter(moment())))

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 13:59:21
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-28 11:31:46
+* @Last Modified time: 2018-10-31 12:37:36
 */
 
 'use strict';
@@ -25,9 +25,15 @@ const Position = new Schema({
 		default: 0,
 	},
 
-	avgPrice: Number,
+	avgPrice: {
+		type: Number,
+		default: 0
+	},
 
-	lastPrice: Number,
+	lastPrice: {
+		type: Number,
+		default: 0
+	},
 
 	totalFees: Number,
 
