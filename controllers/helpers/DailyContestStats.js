@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-30 18:17:29
+* @Last Modified time: 2018-10-31 11:06:08
 */
 
 'use strict';
@@ -37,9 +37,9 @@ function _computeContestWinners(date) {
 }
 
 function _initializeMetrics(prediction) {
-	var investment = item.investment;
-	var security = item.security;
-	var endDate = item.endDate;
+	var investment = prediction.position.investment;
+	var security = prediction.security;
+	var endDate = prediction.endDate;
 	
 	return {
 		numUsers: {
@@ -49,28 +49,29 @@ function _initializeMetrics(prediction) {
 		},
 
 		investment: {
-			long: investment > 0 ? abs(investment) : 0,
-			short: investment < 0 ? abs(investment) : 0,
+			long: investment > 0 ? Math.abs(investment) : 0,
+			short: investment < 0 ? Math.abs(investment) : 0,
 			net: investment,
-			gross: abs(investment)
+			gross: Math.abs(investment)
 		}
 	}
 }
 
 function _updateMetrics (metrics, prediction) {
-	var investment = item.investment;
-	var security = item.security;
-	var endDate = item.endDate;
-
+	var investment = prediction.position.investment;
+	var security = prediction.security;
+	var endDate = prediction.endDate;
 	metrics.numUsers.long += investment > 0 ? 1 : 0 ;
-	metrics.investment.long += investment > 0 ? abs(investment) : 0 ;
+	metrics.investment.long += investment > 0 ? Math.abs(investment) : 0 ;
 	
-	metrics.numUsers.short += investment > 0 ? 1 : 0 ;
-	metrics.investment.short += investment > 0 ? abs(investment) : 0 ;
+	metrics.numUsers.short += investment < 0 ? 1 : 0 ;
+	metrics.investment.short += investment < 0 ? Math.abs(investment) : 0 ;
 	
 	metrics.numUsers.total++;
 	metrics.investment.net += investment;
-	metrics.investment.gross += abs(investment);
+	metrics.investment.gross += Math.abs(investment);
+
+	return metrics;
 }
 
 function _computeContestPredictionMetrics(date) {
@@ -87,17 +88,14 @@ function _computeContestPredictionMetrics(date) {
 		var predictionMetricsByDate = {};
 		var predictionMetricsPerSecurity = {};
 		var predictionMetrics = null;
-
 		allPredictions.forEach(prediction => {
-			var security = prediction.security;
+			var security = prediction.position.security;
 			var endDate = prediction.endDate;
-
 			let dateStr = DateHelper.formatDate(endDate);
-			
 			if (dateStr in predictionMetricsByDate) {
 				predictionMetricsByDate[dateStr] = _updateMetrics(predictionMetricsByDate[dateStr], prediction);
 			} else {
-				predcitionMetricsByDate[dateStr] = _initializeMetrics(prediction);
+				predictionMetricsByDate[dateStr] = _initializeMetrics(prediction);
 			}
 
 			let ticker = security.ticker;
@@ -133,7 +131,7 @@ module.exports.updateContestStats = function(date) {
 	.then(([winners, predictionMetrics]) => {
 		var predictionMetricsBySecurity = predictionMetrics.bySecurity;
 		var metricsArray = Object.keys(predictionMetricsBySecurity)
-						.map(item => {return {ticker: item, metrics: predictionMetricsBySecurity[item]}});
+						.map(item => {return {ticker: item, ...predictionMetricsBySecurity[item]}});
 		
 		var topStocksUsers = metricsArray.sort((a,b) => {
 			return a.numUsers.total > b.numUsers.total ? -1 : 1
@@ -155,10 +153,10 @@ module.exports.updateContestTopStocks = function(date) {
 
 	//Get al entries started on a date
 	return _computeContestPredictionMetrics(date)
-	.then(preditionMetrics => {
+	.then(predictionMetrics => {
 		var predictionMetricsBySecurity = predictionMetrics.bySecurity;
 		var metricsArray = Object.keys(predictionMetricsBySecurity)
-						.map(item => {return {ticker: item, metrics: predictionMetricsBySecurity[item]}});
+						.map(item => {return {ticker: item, ...predictionMetricsBySecurity[item]}});
 		
 		var topStocksUsers = metricsArray.sort((a,b) => {
 			return a.numUsers.total > b.numUsers.total ? -1 : 1
@@ -168,7 +166,7 @@ module.exports.updateContestTopStocks = function(date) {
 			return a.investment.total > b.investment.total ? -1 : 1
 		}).slice(0, 5);
 
-		var topStocks = {byUsers: topStocksUsers, byInvesment: topStocsInvestmnet};
+		var topStocks = {byUsers: topStocksUsers, byInvesment: topStocksInvestment};
 
 		return DailyContestStatsModel.updateContestStats(date, {predictionMetrics, topStocks});
 	});

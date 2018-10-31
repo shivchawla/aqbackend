@@ -21,11 +21,7 @@ const DailyContestEntryPerformance = new Schema({
 	pnlStats: [{
 		date: Date,
 		daily: Schema.Types.Mixed,
-		total: {
-			realized: Schema.Types.Mixed, //sum of pnl of ended predictions
-			unrealized: Schema.Types.Mixed, //sum of pnl of active predictions (and not ended)
-			all: Schema.Types.Mixed //sum of pnl of active predictions (included ended)
-		},
+		cumulative: Schema.Types.Mixed,
 	}],
 
 	winnings: [{
@@ -56,7 +52,7 @@ DailyContestEntryPerformance.statics.updateEntryPnlStats = function(query, pnlSt
     		
     		updates = {
 		    	$set: {'pnlStats.$.daily': pnlStats.daily,
-		 				'pnlStats.$.total': pnlStats.total}
+		 				'pnlStats.$.cumulative': pnlStats.cumulative}
 		 	};
 		 	
 		 	return this.findOneAndUpdate(qDate, updates);
@@ -67,7 +63,7 @@ DailyContestEntryPerformance.statics.updateEntryPnlStats = function(query, pnlSt
 					pnlStats: {
 						date: date, 
 						daily: pnlStats.daily, 
-						total: pnlStats.total
+						cumulative: pnlStats.cumulative,
 					}
 				}
 			};	 
