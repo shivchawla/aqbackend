@@ -45,6 +45,17 @@ const User = new Schema({
         weekly_performance_digest: {
             type: Boolean,
             default: true,
+        },
+        
+        daily_contest:{
+            winners_digest: {
+                type: Boolean,
+                default: true,
+            },
+            summary_digest: {
+                type: Boolean,
+                default: true,
+            }
         }
     },
 

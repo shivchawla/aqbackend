@@ -564,7 +564,7 @@ function get_stock_realtime_price_historical(security_dict::Dict{String, Any}, f
     try
         output = Dict{String, Any}() 
    
-        (realtimePrices, eodPrice) = get_realtime_prices("$path/$fileNumber.mkt", "mkt")
+        (realtimePrices, eodPrices) = get_realtime_prices("$path/$fileNumber.mkt", "mkt")
 
         ticker = replace(security_dict["ticker"], r"[^a-zA-Z0-9]", "_")
         tb_rt = get(realtimePrices, ticker, TradeBar())

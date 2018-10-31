@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-30 14:13:34
+* @Last Modified time: 2018-10-31 10:56:42
 */
 
 
@@ -133,7 +133,7 @@ DailyContestEntry.statics.fetchEntries = function(query, options) {
         q = q.select(options.fields);
 	}
 
-    if(options.fields && options.populate.indexOf('advisor') != -1) {
+    if(options.populate && options.populate.indexOf('advisor') != -1) {
         q = q.select('advisor').populate({path:'advisor', select:'user _id',
                                         populate:{path: 'user', 
                                             select:'_id firstName lastName'}
@@ -156,7 +156,10 @@ DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, d
 				//Convert the date to market-close date time 
 				//(relevant for date today because input is true time) 
 				return allPredictions.filter(item => {
-					return moment(item.startDate).isSame(moment(date))
+					//Convert startdate(exact time) to EOD datetime for comparison purposes
+					
+					var startDate = DateHelpe.getMarketCloseDateTime(DateHelper.getDate(item.startDate));
+					return moment(startDate).isSame(moment(date))
 				});
 			} else {
 				return [];
@@ -198,7 +201,11 @@ DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, da
 
 			if (allPredictions.length > 0 ) {
 				return allPredictions.filter(item => {
-					return moment(item.startDate).isBefore(moment(date)) && 
+
+					//Convert startdate(exact time) to EOD datetime for comparison purposes
+					var startDate = DateHelpe.getMarketCloseDateTime(DateHelper.getDate(item.startDate));
+					
+					return !moment(startDate).isAfter(moment(date)) && 
 							(moment(item.endDate).isAfter(moment(date)) || (isToday && moment(item.endDate).isAfter(moment())))
 							!item.success.status 
 				});
@@ -213,9 +220,10 @@ DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, da
 
 
 //This is not good programming
-DailyContestEntry.statics.updatePredictionStatus = function(query, otherQueryParams) {
-	var q = {'predictions.position.security.ticker': otherQueryParams.ticker, 
-				'predictions.endDate': otherQueryParams.endDate
+DailyContestEntry.statics.updatePredictionStatus = function(query, prediction) {
+	var q = {'predictions.position.security.ticker': prediction.position.security.ticker, 
+				'predictions.endDate': prediction.endDate,
+				'predictions.startDate': prediction.startDate
 			};
 	var updates = {
 		$set: {
@@ -223,6 +231,23 @@ DailyContestEntry.statics.updatePredictionStatus = function(query, otherQueryPar
 				status: true, 
 				date: DateHelper.getMarketCloseDateTime(new Date())
 			}
+		}
+	};
+
+	return this.findOneAndUpdate({...query, ...q}, updates);
+};
+
+
+//This is not good programming
+DailyContestEntry.statics.updatePredictionCallPrice = function(query, prediction, price) {
+	var q = {'predictions.position.security.ticker': prediction.position.security.ticker, 
+			'predictions.endDate': prediction.endDate,
+			'predictions.startDate': prediction.startDate
+		};
+
+	var updates = {
+		$set: {
+			'predictions.$.position.avgPrice': price
 		}
 	};
 

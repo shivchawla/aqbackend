@@ -2,15 +2,16 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-30 18:52:48
+* @Last Modified time: 2018-10-31 10:52:55
 */
 
 'use strict';
 const _ = require('lodash');
 const Promise = require('bluebird');
 const moment = require('moment-timezone');
-
+const schedule = require('node-schedule');
 const config = require('config');
+
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
 const WSHelper = require('./WSHelper');
@@ -171,23 +172,45 @@ function _updatePortfolioForAveragePrice(portfolioHistory) {
 	});
 }
 
+function _updatePredictionForTrueCallPrice(prediction) {
+	var startDate = prediction.startDate;
+	var marketOpen = DateHelper.getMarketOpenDateTime();
+	var diffMinutes = Math.min(400, marketOpen.diff(marketOpen, 'minutes'));
+
+	return SecurityHelper.getRealTimeStockHistoricalDetail(prediction.position.security, diffMinutes)		
+	.then(historicalSecurityDetail => {
+		
+		var trueLastPrice = _.get(historicalSecurityDetail, 'latestDetail.current', 0);
+		prediction.position.avgPrice = trueLastPrice;
+
+		return prediction;
+		
+	});
+}
+
 function _updatePredictionForCallPrice(prediction) {
 	var startDate = prediction.startDate;
 	var marketOpen = DateHelper.getMarketOpenDateTime();
-	var diffMinutes = marketOpen.diff(marketOpen, 'minutes');
+	var diffMinutes = Math.min(400, marketOpen.diff(marketOpen, 'minutes'));
 
-	return SecurityHelper.getRealTimeStockHistoricalDetail(prediction.position.security, diffMinutes)
-	.then(securityDetail => {
-		if (securityDetail) {
-			var lastPrice = _.get(securityDetail, 'latestDetail.current', 0) ||
-				_.get(securityDetail, 'latestDetail.close', 0);
+	return Promise.all([
+		SecurityHelper.getRealTimeStockHistoricalDetail(prediction.position.security, diffMinutes),
+		SecurityHelper.getStockLatestDetail(prediction.position.security, "RT")
+	])
+	.then(([historicalSecurityDetail, latestSecurityDetail]) => {
+		
+		var trueLastPrice = _.get(historicalSecurityDetail, 'latestDetail.current', 0);
 
-			prediction.position.avgPrice = lastPrice;
-		} else {
-			console.log("Could not populate call price");
-			return prediction;
-		}
-	})
+		var lastPrice = trueLastPrice ||
+			_.get(historicalSecurityDetail, 'latestDetail.close', 0) ||
+		    _.get(latestSecurityDetail, 'latestDetail.current', 0) ||
+		    _.get(latestSecurityDetail, 'latestDetail.close', 0); 
+
+		prediction.position.avgPrice = lastPrice;
+
+		return prediction;
+		
+	});
 }
 
 function _updatePositionsForPrice(positions, date, type) {
@@ -211,19 +234,23 @@ function _computeUpdatedPredictions(predictions, date) {
 	
 	return predictions.length > 0 ? 	
 		Promise.map(predictions, function(prediction) {
-		return _updatePredictionForCallPrice(prediction)
-		.then(updatedCallPricePrediction => {
-			var _partialUpdatedPositions = updatedCallPricePrediction ? [updatedCallPricePrediction.position] : [prediction.position];
-			return _updatePositionsForPrice(_partialUpdatedPositions, date);
+			var callPrice = _.get(prediction, 'position.avgPrice', 0.0);
+			return callPrice == 0 ? _updatePredictionForCallPrice(prediction) : prediction
+			.then(updatedCallPricePrediction => {
+				var _partialUpdatedPositions = updatedCallPricePrediction ? [updatedCallPricePrediction.position] : [prediction.position];
+				
+				//Check whether the predcition needs any price update
+				//Based on success status
+				return _.get(prediction, 'success.status', false) ? _updatePositionsForPrice(_partialUpdatedPositions, date) : updatedCallPricePrediction;
+			})
+			.then(updatedPositions => {
+				if (updatedPositions) {
+					return Object.assign(prediction, {position: updatedPositions[0]});
+				} else {
+					return prediction;
+				}
+			});
 		})
-		.then(updatedPositions => {
-			if (updatedPositions) {
-				return Object.assign(prediction, {position: updatedPositions[0]});
-			} else {
-				return prediction;
-			}
-		});
-	})
 	: predictions;
 };
 
@@ -286,7 +313,6 @@ function _computeDailyPnlStats(entryId, date, category="all") {
 		})});
 	});	
 };
-
 
 module.exports.getTotalPnlStats = function(entryId, date, category="active") {
 	return DailyContestEntryPerformanceModel.fetchTotalPnlStatsForDate({contestEntry: entryId}, date)
@@ -355,12 +381,13 @@ module.exports.getPredictionsForDate = function(entryId, date, category='started
 		}
 	})
 	.then(updatedPredictionsWithLatestPrice => {
+
 		//Update security latest detail
 		if (update) {
 			return Promise.map(updatedPredictionsWithLatestPrice, function(prediction) {
 				return SecurityHelper.getStockLatestDetail(prediction.position.security)
 				.then(securityDetail => {
-					var updatedPosition = Object.assign({security: securityDetail}, prediction.position);
+					var updatedPosition = Object.assign(prediction.position, {security: securityDetail});
 					return Object.assign({position: updatedPosition}, prediction);
 				})
 			});
@@ -434,7 +461,7 @@ module.exports.checkForPredictionTarget = function(date) {
 							}
 
 							if (success) {
-								return DailyContestEntryModel.updatePredictionStatus({_id: contestEntryId}, {ticker: ticker, endDate: endDate});
+								return DailyContestEntryModel.updatePredictionStatus({_id: contestEntryId}, prediction);
 							}
 						});
 					}
@@ -445,5 +472,39 @@ module.exports.checkForPredictionTarget = function(date) {
 	})
 };
 
+function _updateCallPriceJob() {
+	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
+	.then(contestEntries => {
+		return Promise.mapSeries(contestEntries, function(contestEntry) {
+			let contestEntryId = contestEntry._id;
+
+			const date = DateHelper.getMarketCloseDateTime();
+			return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({_id: contestEntryId}, date)
+			.then(predictions => {
+				if (predictions && predictions.length > 0) {
+					return Promise.mapSeries(predictions, function(prediction) {
+						var callPrice = _.get(prediction, 'position.avgPrice', 0.0);
+						if (callPrice == 0) {
+							return _updatePredictionForTrueCallPrice(prediction)
+							.then(updatedPrediction => {
+								var updatedCallPrice = _.get(updatedPrediction, 'position.avgPrice', 0.0);
+								if (updatedCallPrice != 0) {
+									return DailyContestEntryModel.updatePredictionCallPrice({_id: contestEntryId}, prediction, updatedCallPrice);
+								}
+							});
+						}
+					});	
+				}
+			});
+
+		});
+	})
+}
 
 
+const scheduleString = `*/5 * ${DateHelper.getMarketOpenHour() - 1}-${DateHelper.getMarketCloseHour() + 1} * 1-5`;
+
+//Run every 5th minute
+schedule.scheduleJob(scheduleString, function() { 
+    _updateCallPriceJob();
+});

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-30 18:57:32
+* @Last Modified time: 2018-10-31 10:15:06
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -15,6 +15,7 @@ const path = require('path');
 const fs = require('fs');
 const DateHelper = require('../../utils/Date');
 const WSHelper = require('./WSHelper');
+const homeDir = require('os').homedir();
 const _ = require('lodash');
 
 function _checkIfStockStaticPerformanceUpdateRequired(performance) {
@@ -357,52 +358,57 @@ function _computeStockLatestDetail(security, type) {
 };
 
 function _computeStockRealtimeHistoricalDetail(security, minute) {
-	var currentDate = DateHelper.getMarketCloseDateTime().toDate();
-	const monthNames = ["January", "February", "March", "April", "May", "June",
-	  "July", "August", "September", "October", "November", "December"
-	];
-
-	let found = false;
-	let maxAttempts = 3*400;
-	let type = "mkt"
-	let fileNumber = fNumber
-
-	let localUnzipFilePath;
-
-	while(!found && nAttempts++ < maxAttempts) {
-		
-		var month = currentDate.getMonth();
-		var date = currentDate.getDate();
-		date = date < 10 ? `0${date}` : date;
-		var year = currentDate.getFullYear();
-		var nseDateStr = `${monthNames[month]}${date}${year}`;
-
-		var localPath = path.resolve(path.join(homeDir, `/rtdata/${nseDateStr}`));
-		
-		var unzipFileName = `${fileNumber}.${type}`;
-		localUnzipFilePath = `${localPath}/${unzipFileName}`;
-
-		if (!fs.existsSync(localUnzipFilePath)) {
-			fileNumber--;
-			if (fileNumber == 0) {
-				fileNumber = 400
-				currentDate.setDate(currentDate.getDate() - 1);
-			}
-		} else {
-			activeDate = DateHelper.getDate(currentDate);
-			found = true;
-		}
-	}
-
 	return new Promise((resolve, reject) => {
 
-		var msg = JSON.stringify({action:"compute_stock_price_realtime_historical", 
-            						security: security,
-            						fileNumber: fileNumber,
-            						localPath: localPath});
+		var currentDate = DateHelper.getMarketCloseDateTime().toDate();
+		const monthNames = ["January", "February", "March", "April", "May", "June",
+		  "July", "August", "September", "October", "November", "December"
+		];
 
-		WSHelper.handleMktRequest(msg, resolve, reject);
+		let found = false;
+		let maxAttempts = 3*400;
+		let type = "mkt";
+		let fileNumber = minute;
+		let nAttempts = 0;
 
+		let localUnzipFilePath;
+
+		while(!found && nAttempts++ < maxAttempts) {
+			
+			var month = currentDate.getMonth();
+			var date = currentDate.getDate();
+			date = date < 10 ? `0${date}` : date;
+			var year = currentDate.getFullYear();
+			var nseDateStr = `${monthNames[month]}${date}${year}`;
+
+			var localPath = path.resolve(path.join(homeDir, `/rtdata/${nseDateStr}`));
+			
+			var unzipFileName = `${fileNumber}.${type}`;
+			localUnzipFilePath = `${localPath}/${unzipFileName}`;
+
+			if (!fs.existsSync(localUnzipFilePath)) {
+				fileNumber--;
+				if (fileNumber == 0) {
+					fileNumber = 400
+					currentDate.setDate(currentDate.getDate() - 1);
+				}
+			} else {
+				//activeDate = DateHelper.getDate(currentDate);
+				found = true;
+			}
+		}
+	
+		if (found) {
+			var msg = JSON.stringify({action:"compute_stock_price_realtime_historical", 
+	            						security: security,
+	            						fileNumber: fileNumber,
+	            						path: localPath});
+
+			WSHelper.handleMktRequest(msg, resolve, reject);
+		} else {
+			//Return empty object
+			resolve({});
+		}
     });
 };
 

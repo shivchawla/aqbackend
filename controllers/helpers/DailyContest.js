@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-23 17:03:35
+* @Last Modified time: 2018-10-31 10:59:28
 */
 
 'use strict';
@@ -524,11 +524,11 @@ module.exports.updateWeeklyContestWinners = function() {
 	});
 };
 
-schedule.scheduleJob(`* * * * 1-5`, function() {
-	var currentHour = moment().get('hour');
-	var currentMinute = moment().get('minute');
-	if (currentHour == getMarketCloseHour() && currentMinute == getMarketCloseMinute()+1) {
-    	exports.createNewContest();
-	}
-});
+// schedule.scheduleJob(`* * * * 1-5`, function() {
+// 	var currentHour = moment().get('hour');
+// 	var currentMinute = moment().get('minute');
+// 	if (currentHour == getMarketCloseHour() && currentMinute == getMarketCloseMinute()+1) {
+//     	exports.createNewContest();
+// 	}
+// });
 
