@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-31 13:33:21
+* @Last Modified time: 2018-10-31 21:32:18
 */
 
 'use strict';
@@ -400,6 +400,7 @@ module.exports.getPredictionsForDate = function(entryId, date, category='started
 	});
 };
 
+
 module.exports.updateAllEntriesPnlStats = function(date){
 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
 	.then(dailyContestEntries => {
@@ -430,6 +431,51 @@ module.exports.updateAllEntriesPnlStats = function(date){
 	});
 };
 
+
+function _isTargetAchieved(prediction, highPrice, lowPrice) {
+	var investment = prediction.position.investment;
+	var target = prediction.target;
+	var avgPrice = prediction.position.avgPrice;
+
+	let success = false;
+	
+	if (investment < 0 && lowPrice < target) {
+		success = true
+	} else if (investment > 0 && highPrice > target) {
+		success = true; 
+	}
+
+	return success;
+}
+
+
+//Logic works for all predictions except that started today
+//Why??
+//Because high/low prices are not time resolved
+//and if a prediction is created today, it can't be compared to 
+//today's high/low as it culd have happened before the creation time
+//How do we fix it?
+
+//Write a function to get the intraday price history for a stock
+//or write a function to get high/low wrt start time
+//Use it to resolve whether target is already achieved!!
+
+//OR 
+//Keep a track of target by prediction/entryId in a dictionary
+
+//Current TCS price --- 1900
+			//target          //entryId
+//TCS       1905				xx
+//TCS       1895 				xy
+//TCS       1935                re
+//TCS       1940				td   
+
+//OR 
+
+//Get all active predicitons, combine thenm get price per ticker and compare the price
+//and filter ot the successful ones
+
+//Handles only predictions ending today
 module.exports.checkForPredictionTarget = function(date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
@@ -437,45 +483,74 @@ module.exports.checkForPredictionTarget = function(date) {
 	.then(dailyContestEntries => {
 		return Promise.mapSeries(dailyContestEntries, function(contestEntry) {
 			let contestEntryId = contestEntry._id;
-			return exports.getPredictionsForDate(contestEntryId, date, "active")
-			.then(updatedPredictions => {
-				return Promise.map(updatedPredictions, function(prediction) {
-					if (!prediction.success.status) {
-						return SecurityHelper.getStockLatestDetail(prediction.position.security, "RT")
-						.then(securityDetail => {
-							var investment = prediction.position.investment;
-							var target = prediction.target;
-							var lowPrice = securityDetail.latestDetail.low;
-							var highPrice = securityDetail.latestDetail.high;
-							var avgPrice = prediction.position.avgPrice;
-							var change = investment < 0 ? 
-								(lowPrice - avgPrice)*100/avgPrice : 
-								(highPrice - avgPrice)*100/avgPrice;
 
-							var endDate = prediction.endDate;
-							var ticker = prediction.position.security.ticker;
+			return exports.getPredictionsForDate(contestEntryId, date, "active", false)
+			.then(predictions => {
 
-							let success = false;
+				//Filter out already successful (in case)
+				//And the ones with startDate today
+				var currentDate = DateHelper.getCurrentDate();
 
-							if (investment < 0 && change < target) {
-								success = true
-							} else if (investment > 0 && change > target) {
-								success = true; 
-							}
+				return predictions.filter(item => {
+					return DateHelper.compareDates(item.startDate, currentDate) == 0 ||
+					 	!item.success.status
+				 	}).map(item => {
+						return {...item, entryId: contestEntryId};
+				});
 
-							if (success) {
-								return DailyContestEntryModel.updatePredictionStatus({_id: contestEntryId}, prediction);
-							}
-						});
-					}
+			});
+
+		})
+		.then(allPredictionsByContestEntryIds => {
+			//this is an array of array of predicitons
+			//merge them
+			var allPredictions = Array.prototype.concat.apply([], allPredictionsByContestEntryIds);
+
+			var uniqueTickers = _.uniq(allPredictions.map(item => item.position.security.ticker));
+
+			return Promise.mapSeries(uniqueTickers, function(ticker) {
+				var allPredictionsByTicker = allPredictions.filter(item => {
+					return item.position.security.ticker === ticker;
+				});
+
+				return SecurityHelper.getStockLatestDetail({ticker: ticker}, "RT")
+				.then(securityDetail => {
+					var highPrice = securityDetail.latestDetail.highPrice;
+					var lowPrice = securityDetail.latestDetail.lowPrice;
+
+					return allPredictionsByTicker.filter(item => {
+						var investment = item.position.investment;
+						var target = item.position.target;
+
+						return (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
+					});
 				})
 				
 			})
-		})
+			.then(successfulPredictionByTickers => {
+				var allSuccessfulPredictions = Array.prototype.concat.apply([], successfulPredictionByTickers);
+
+				return Promise.mapSeries(allSuccessfulPredictions, function(prediction) {
+					return DailyContestEntryModel.updatePredictionStatus({_id: prediction.entryId}, prediction);
+				});
+			});
+		});
 	})
 };
 
-function _updateCallPriceJob() {
+module.exports.addPredictions = function(contestEntryId, predictions) {
+	return DailyContestEntryModel.addEntryPredictions({_id: contestEntryId}, predictions, {new:true, fields:'_id'})
+	// .then(() => {
+	// 	return Promise.mapSeries(predictions, function(prediction) {
+	// 		return _updatePredictionForCallPrice(prediction)
+	// 	})
+	// 	.then(updatedPredictions => {
+
+	// 	})
+	// })	
+};
+
+module.exports.updateCallPriceForPredictions = function() {
 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
 	.then(contestEntries => {
 		return Promise.mapSeries(contestEntries, function(contestEntry) {
@@ -485,17 +560,20 @@ function _updateCallPriceJob() {
 			return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({_id: contestEntryId}, date)
 			.then(predictions => {
 				if (predictions && predictions.length > 0) {
-					return Promise.mapSeries(predictions, function(prediction) {
-						var callPrice = _.get(prediction, 'position.avgPrice', 0.0);
-						if (callPrice == 0) {
-							return _updatePredictionForTrueCallPrice(prediction)
-							.then(updatedPrediction => {
-								var updatedCallPrice = _.get(updatedPrediction, 'position.avgPrice', 0.0);
-								if (updatedCallPrice != 0) {
-									return DailyContestEntryModel.updatePredictionCallPrice({_id: contestEntryId}, prediction, updatedCallPrice);
-								}
-							});
-						}
+					
+					var filteredPredictions = predictions.filter(item => {
+						var callPrice = _.get(item, 'position.avgPrice', 0.0);
+						return callPrice == 0;
+					});
+					
+					return Promise.mapSeries(filteredPredictions, function(prediction) {
+						return _updatePredictionForTrueCallPrice(prediction)
+						.then(updatedPrediction => {
+							var updatedCallPrice = _.get(updatedPrediction, 'position.avgPrice', 0.0);
+							if (updatedCallPrice != 0) {
+								return DailyContestEntryModel.updatePredictionCallPrice({_id: contestEntryId}, prediction, updatedCallPrice);
+							}
+						});
 					});	
 				}
 			});
@@ -504,10 +582,9 @@ function _updateCallPriceJob() {
 	})
 }
 
-
 const scheduleString = `*/5 * ${DateHelper.getMarketOpenHour() - 1}-${DateHelper.getMarketCloseHour() + 1} * 1-5`;
 
 //Run every 5th minute
 schedule.scheduleJob(scheduleString, function() { 
-    _updateCallPriceJob();
+    exports.updateCallPriceForPredictions();
 });

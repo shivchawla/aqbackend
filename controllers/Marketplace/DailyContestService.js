@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-31 16:44:59
+* @Last Modified time: 2018-10-31 20:10:11
 */
 
 'use strict';
@@ -181,9 +181,12 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				//How to compare the prediction supplied to existing predictions? 
 				//No need to compare..Just remove the old ones and add the new ones
 				
+				return;
+
 				return DailyContestEntryModel.updateEntryPredictions({_id: contestEntry._id}, adjustedPredictions, uniquePredictionDates[0], {new:true, fields:'_id'});
 			} else {
-				return DailyContestEntryModel.addEntryPredictions({_id: contestEntry._id}, adjustedPredictions, {new:true, fields:'_id'});	
+				return DailyContestEntryHelper.addPredictions(contestEntry._id, adjustedPredictions); 
+				
 			}
 			
 		} else {
