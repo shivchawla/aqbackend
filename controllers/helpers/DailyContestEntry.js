@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-01 13:39:49
+* @Last Modified time: 2018-11-01 15:52:14
 */
 
 'use strict';
@@ -166,7 +166,7 @@ function _trackIntradayHistory(security) {
 	return new Promise(function(resolve, reject) {
 
 		var msg = JSON.stringify({action:"track_stock_intraday_detail", 
-    								security: sedurity});
+    								security: security});
         								
 		WSHelper.handleMktRequest(msg, resolve, reject);
 
@@ -185,14 +185,18 @@ function _updatePortfolioForAveragePrice(portfolioHistory) {
 }
 
 function _updatePredictionForTrueCallPrice(prediction) {
-	var startDate = prediction.startDate;
-	var marketOpen = DateHelper.getMarketOpenDateTime();
-	var diffMinutes = Math.min(400, marketOpen.diff(marketOpen, 'minutes'));
+	var startDate = moment(prediction.startDate);
 
-	return SecurityHelper.getRealTimeStockHistoricalDetail(prediction.position.security, diffMinutes)		
-	.then(historicalSecurityDetail => {
+	return SecurityHelper.getStockIntradayHistory(prediction.position.security)		
+	.then(intradaySecurityDetail => {
 		
-		var trueLastPrice = _.get(historicalSecurityDetail, 'latestDetail.current', 0);
+		var relevantIntradayHistory = intradaySecurityDetail.history.map(item => {return !moment(item.datetime).isBefore(startDate)});
+
+		let trueLastPrice = 0.0;
+		if (relevantIntradayHistory.length > 0) {
+			trueLastPrice = relevantIntradayHistory[0].close;
+		}
+
 		prediction.position.avgPrice = trueLastPrice;
 
 		return prediction;
@@ -201,17 +205,20 @@ function _updatePredictionForTrueCallPrice(prediction) {
 }
 
 function _updatePredictionForCallPrice(prediction) {
-	var startDate = prediction.startDate;
-	var marketOpen = DateHelper.getMarketOpenDateTime();
-	var diffMinutes = Math.min(400, marketOpen.diff(marketOpen, 'minutes'));
-
+	var startDate = moment(prediction.startDate);
+	
 	return Promise.all([
-		SecurityHelper.getRealTimeStockHistoricalDetail(prediction.position.security, diffMinutes),
+		SecurityHelper.getStockIntradayHistory(prediction.position.security),
 		SecurityHelper.getStockLatestDetail(prediction.position.security, "RT")
 	])
-	.then(([historicalSecurityDetail, latestSecurityDetail]) => {
+	.then(([intradaySecurityDetail, latestSecurityDetail]) => {
 		
-		var trueLastPrice = _.get(historicalSecurityDetail, 'latestDetail.current', 0);
+		var relevantIntradayHistory = intradaySecurityDetail.history.map(item => {return !moment(item.datetime).isBefore(startDate)});
+
+		let trueLastPrice = 0.0;
+		if (relevantIntradayHistory.length > 0) {
+			trueLastPrice = relevantIntradayHistory[0].close;
+		}
 
 		var lastPrice = trueLastPrice ||
 			_.get(historicalSecurityDetail, 'latestDetail.close', 0) ||
@@ -460,7 +467,7 @@ function _isTargetAchieved(prediction, highPrice, lowPrice) {
 }
 
 function _getExtremePrices(history, startDate) {
-	var relevantHistory = history.map(item => {moment(item.datetime).isAfter(moment(startDate))});
+	var relevantHistory = history.map(item => {return moment(item.datetime).isAfter(moment(startDate))});
 
 	if (relevantHistory.length > 0) {
 		return {
