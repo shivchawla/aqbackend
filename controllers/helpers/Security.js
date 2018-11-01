@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-01 12:59:27
+* @Last Modified time: 2018-11-01 13:33:17
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -287,7 +287,7 @@ module.exports.getStockIntradayHistory = function(security) {
 		})
 		.catch(err => {
 			console.log(err.message);
-			resolve(Object.assign({}, security, {intradayHistory: []));
+			resolve(Object.assign({}, security, {intradayHistory: []}));
 		})
 	});
 };

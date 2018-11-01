@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-01 13:15:59
+* @Last Modified time: 2018-11-01 13:35:06
 */
 
 'use strict';
@@ -499,7 +499,7 @@ function _getExtremePrices(history, startDate) {
 //and filter ot the successful ones
 
 //Handles only predictions ending today
-module.exports.checkForPredictionTarget = function(date, category = "active") {
+module.exports.checkForPredictionTarget = function(category = "active") {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
@@ -514,11 +514,7 @@ module.exports.checkForPredictionTarget = function(date, category = "active") {
 				//And the ones with startDate today
 				var currentDate = DateHelper.getCurrentDate();
 
-				return predictions.filter(item => {
-					var isStartDateToday = DateHelper.compareDates(item.startDate, currentDate) == 0;
-					return (category == "active" ? !isStartDateToday : isStartDateToday)  ||
-					 	!item.success.status
-				 	}).map(item => {
+				return predictions.filter(item => !item.success.status).map(item => {
 						return {...item, entryId: contestEntryId};
 				});
 
@@ -555,34 +551,48 @@ module.exports.checkForPredictionTarget = function(date, category = "active") {
 
 						//SHORTCUT
 						//FIRST check which predictions are successful on daily high/low basis
+						
+						if (successfulPredictions.length > 0) {
 
-						if (category == "active") {
-							resolve(successfulPredictions);
-						} else if (category=="started" && successfulPredictions.length > 0) {
-
-							return SecurityHelper.getStockIntradayHistory({ticker: ticker})
-							.then(securityDetail => {
-
-								var successfulIntraday = successfulPrediction.filter(item => {
-									var investment = item.position.investment;
-									var target = item.position.target;
-
-									var startDate = item.startDate;
-									var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, startDate);
-
-									var highPrice = extremePricesSinceStartDate.high;
-									var lowPrice = extremePricesSinceStartDate.low;
-
-									return (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
-
-								});
-
-								resolve(successfulIntradayPredictions);
+							var successfulDayBasis = successfulPredictions.filter(item => {
+								var isStartDateToday = DateHelper.compareDates(item.startDate, currentDate) == 0;
+								return !isStartDateToday;	
 							});
+
+							var partiallySuccessfulIntraday =  successfulPredictions.filter(item => {
+								var isStartDateToday = DateHelper.compareDates(item.startDate, currentDate) == 0;
+								return isStartDateToday;	
+							});
+
+							let successfulIntraday;
+
+							if (partiallySuccessfulIntraday.length > 0) {
+								return SecurityHelper.getStockIntradayHistory({ticker: ticker})
+								.then(securityDetail => {
+
+									successfulIntraday = partiallySuccessfulIntraday.filter(item => {
+										var investment = item.position.investment;
+										var target = item.position.target;
+
+										var startDate = item.startDate;
+										var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, startDate);
+
+										var highPrice = extremePricesSinceStartDate.high;
+										var lowPrice = extremePricesSinceStartDate.low;
+
+										return (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
+
+									});
+
+									resolve(successfulDayBasis.concat(successfulIntraday));
+								});
+							} else {
+								resolve(successfulDayBasis)
+							}
 
 						}
 							
-					}
+					})
 				})
 				
 			})
