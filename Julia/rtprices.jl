@@ -91,7 +91,7 @@ function get_realtime_prices(fname::String, ftype::String)
 end
 
 function track_intraday_prices(ticker)
-    if !haskey(ticker, _intradayPriceHistory)
+    if !haskey(_intradayPriceHistory, ticker)
         _intradayPriceHistory[ticker] = get_intraday_prices(ticker)
     end
 
@@ -99,7 +99,7 @@ function track_intraday_prices(ticker)
 end
 
 function get_intraday_prices(ticker)
-    if haskey(ticker, _intradayPriceHistory)
+    if haskey(_intradayPriceHistory, ticker)
         return _intradayPriceHistory[ticker]
     else
        priceHistory = _get_intraday_prices(ticker)
@@ -145,7 +145,7 @@ function _update_realtime_mkt_prices(fname::String)
                     _realtimePrices[ticker] = v
                 end
 
-                if haskey(ticker, _intradayPriceHistory)
+                if haskey(_intradayPriceHistory, ticker)
                     push!(_intradayPriceHistory[ticker], v)
                 end
                 

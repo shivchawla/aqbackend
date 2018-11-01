@@ -223,7 +223,7 @@ function convert_to_node_portfolio(port)
     catch err
         rethrow(err)
     end
-
+end
 
 
 ###
@@ -272,7 +272,7 @@ function convert_to_node_transaction(transaction::OrderFill)
 end
 
 
-function convert_to_node_tradebars(tradebars::Vector{Tradebar})
+function convert_to_node_tradebars(tradebars::Vector{TradeBar})
     arr = []
     for tb in tradebars
         push!(arr, Dict{String, Any}(
@@ -286,7 +286,6 @@ function convert_to_node_tradebars(tradebars::Vector{Tradebar})
     
     return arr
 end
-
 
 
 function _isNotionalPortfolio(portfolio)

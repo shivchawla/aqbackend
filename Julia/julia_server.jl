@@ -5,11 +5,19 @@ using WebSockets
 using JSON
 using TimeSeries
 using BufferedStreams
+using TimeZones
 
-using Raftaar: Performance, Returns, Drawdown, Ratios, Deviation, PortfolioStats
+using Raftaar: Performance, Returns, Drawdown, Ratios, Deviation, PortfolioStats, TradeBar
 using Raftaar: serialize
 
 currentIndiaTime() = now(Dates.UTC) + Dates.Hour(5) + Dates.Minute(30)
+
+dt = DateTime("$(Date(now())) 09:30:00", "Y-m-d H:M:S")
+zdt = ZonedDateTime(dt, TimeZone("Asia/Kolkata"))
+marketOpenIndiaTime() = TimeZones.utc(zdt)
+
+minutesPassedSinceMarketOpen(dt::DateTime) = 
+    ceil(Dates.value(TimeZones.utc(ZonedDateTime(dt, localzone()) - marketOpenIndiaTime())/1000/60)
 
 include("readNSEFiles.jl")  
 include("portfolio.jl")
