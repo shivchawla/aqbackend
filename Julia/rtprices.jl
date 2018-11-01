@@ -3,7 +3,9 @@ const _realtimePrices = Dict{String, TradeBar}()
 const _lastDayPrices = Dict{String, TradeBar}()
 const _codeToTicker = readSecurities()
 const _codeToIndex = readIndices()
+const _intradayPriceHistory = Dict{String, Vector{TradeBar}}()
 
+const path = "/home/rtdata"
 
 function _updateportfolio_EODprice(port, date::DateTime)
     
@@ -88,6 +90,45 @@ function get_realtime_prices(fname::String, ftype::String)
     end
 end
 
+function track_intraday_prices(ticker)
+    if !haskey(ticker, _intradayPriceHistory)
+        _intradayPriceHistory[ticker] = get_intraday_prices(ticker)
+    end
+
+    return true
+end
+
+function get_intraday_prices(ticker)
+    if haskey(ticker, _intradayPriceHistory)
+        return _intradayPriceHistory[ticker]
+    else
+       priceHistory = _get_intraday_prices(ticker)
+       _intradayPriceHistory[ticker] = priceHistory
+       return priceHistory 
+    end
+end
+
+function _get_intraday_prices(ticker, date=currentIndiaTime())
+    
+    priceHistory = Vector{TradeBar}()
+    directory = "$path/$(Dates.format(date, "UddY"))"
+
+    for i in 1:400
+        file = "$directory/$i.mkt"
+        try
+            (realtimePrices, eodPrices) = _get_realtime_mkt_prices(file)
+
+            if (ticker in realtimePrices)
+                push!(priceHistory, realtimePrices[ticker])
+            end
+        catch err
+            break
+        end
+    end
+
+    return priceHistory
+end
+
 ###
 # Function to download and update realtime prices (from 15 minutes delayed feed)
 function _update_realtime_mkt_prices(fname::String)
@@ -102,6 +143,10 @@ function _update_realtime_mkt_prices(fname::String)
 
                 if ticker != ""
                     _realtimePrices[ticker] = v
+                end
+
+                if haskey(ticker, _intradayPriceHistory)
+                    push!(_intradayPriceHistory[ticker], v)
                 end
                 
             end

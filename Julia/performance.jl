@@ -590,8 +590,27 @@ function get_stock_realtime_price_historical(security_dict::Dict{String, Any}, f
         println(err)
         rethrow(err)
     end  
-
 end
+
+function get_stock_intraday_detail(security::Security)
+    #1. Read data from beginning to the current (if not available populate)
+    #3. Keep min/max of each interval since the beginning
+    #4. Return
+
+    intradayPrices = get_intraday_prices(security.ticker)
+
+    return Dict{String, Any}(
+        "security" => convert(Dict{String,Any}, security),
+        "history" => conver_to_node_tradebars(intradayPrices)
+    )
+end
+
+
+function track_stock_intraday_detail(security::Security)
+    
+    return track_intraday_prices(security.ticker)
+end
+
 
 ###
 # Function to fetch PRICE HISTORY (without strict priority policy)

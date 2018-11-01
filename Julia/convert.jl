@@ -223,7 +223,8 @@ function convert_to_node_portfolio(port)
     catch err
         rethrow(err)
     end
-end
+
+
 
 ###
 # Convert Julia portfolio to Node portfolio 
@@ -269,6 +270,23 @@ function convert_to_node_transaction(transaction::OrderFill)
         rethrow(err)
     end
 end
+
+
+function convert_to_node_tradebars(tradebars::Vector{Tradebar})
+    arr = []
+    for tb in tradebars
+        push!(arr, Dict{String, Any}(
+            "datetime" => tb.datetime,
+            "open"    => tb.open,
+            "high"    => tb.high,
+            "low"     => tb.low,
+            "close"   => tb.close,
+            "volume"  => tb.volume))
+    end
+    
+    return arr
+end
+
 
 
 function _isNotionalPortfolio(portfolio)

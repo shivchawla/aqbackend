@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-31 10:15:06
+* @Last Modified time: 2018-11-01 11:52:41
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -270,9 +270,29 @@ module.exports.getRealTimeStockHistoricalDetail = function(security, minute) {
 	});
 };
 
+module.exports.getStockIntradayDetail = function(security) {
+	return new Promise(resolve => {
+		var query = {'security.ticker': security.ticker,
+						'security.exchange': security.exchange ? security.exchange : "NSE",
+						'security.securityType': security.securityType ? security.securityType : "EQ",
+						'security.country': security.country ? security.country : "IN"};
+
+		return Promise.all([
+			_computeStockIntradayDetail(security),
+			_getSecurityDetail(security)
+		])
+		.then(([intradayDetail, securityDetail]) => {
+			security.detail = securityDetail;
+			resolve(Object.assign({}, security, {intradayDetail: intradayDetail.history}));
+		})
+		.catch(err => {
+			console.log(err.message);
+			resolve(Object.assign({}, security, {intradayDetail: {}}));
+		})
+	});
+};
 
 module.exports.countSecurities = function(hint) {
-	
 	return exports.findSecurities(hint, 0, "count");
 };
 
@@ -356,6 +376,17 @@ function _computeStockLatestDetail(security, type) {
 
     });
 };
+
+function _computeStockIntradayDetail(security) {
+	return new Promise((resolve, reject) => {
+
+		var msg = JSON.stringify({action:"compute_stock_intraday_detail", 
+            						security: security
+            					});
+
+		WSHelper.handleMktRequest(msg, resolve, reject);
+    });
+}
 
 function _computeStockRealtimeHistoricalDetail(security, minute) {
 	return new Promise((resolve, reject) => {
@@ -482,7 +513,6 @@ module.exports.updateRealtimePrices = function(fname, type) {
 		WSHelper.handleMktRequest(msg, resolve, reject);
     })
 };
-
 
 function _getRawStockList(fname) {
 	return new Promise(resolve => {

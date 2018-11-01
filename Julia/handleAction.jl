@@ -265,6 +265,16 @@ function handleRequest(parsemsg::Dict{String, Any})
             parsemsg["output"] = ""
             parsemsg["output"] = get_stock_realtime_price_historical(parsemsg["security"], parsemsg["fileNumber"], parsemsg["path"])    
 
+        elseif action == "compute_stock_intraday_detail"
+            parsemsg["output"] = ""
+            security = convert(Raftaar.Security, parsemsg["security"])
+            parsemsg["output"] = get_stock_intraday_detail(security)
+
+        elseif action == "track_stock_intraday_detail"
+            parsemsg["output"] = ""
+            security = convert(Raftaar.Security, parsemsg["security"])
+            parsemsg["output"] = track_stock_intraday_detail(security)
+
         elseif action == "compute_stock_rolling_performance"
             parsemsg["output"] = ""
 
