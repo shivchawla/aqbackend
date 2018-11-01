@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-01 13:35:06
+* @Last Modified time: 2018-11-01 13:39:49
 */
 
 'use strict';
@@ -651,13 +651,6 @@ module.exports.updateCallPriceForPredictions = function() {
 		});
 	})
 }
-
-const scheduleString = `*/5 * ${DateHelper.getMarketOpenHour() - 1}-${DateHelper.getMarketCloseHour() + 1} * 1-5`;
-
-//Run every 5th minute
-schedule.scheduleJob(scheduleString, function() { 
-    exports.updateCallPriceForPredictions();
-});
 
 
 //return SecurityHelper.getStockIntradayDetail({ticker: ticker})
