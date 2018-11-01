@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-01 15:52:14
+* @Last Modified time: 2018-11-01 15:55:32
 */
 
 'use strict';
@@ -507,7 +507,7 @@ function _getExtremePrices(history, startDate) {
 
 //Handles only predictions ending today
 module.exports.checkForPredictionTarget = function(category = "active") {
-	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 
 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
 	.then(dailyContestEntries => {
