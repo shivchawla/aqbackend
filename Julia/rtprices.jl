@@ -119,7 +119,12 @@ function _get_intraday_prices(ticker, date=currentIndiaTime())
             (realtimePrices, eodPrices) = _get_realtime_mkt_prices(file)
 
             if haskey(realtimePrices, ticker)
-                push!(priceHistory, realtimePrices[ticker])
+                tb = realtimePrices[ticker]
+
+                idx = findfirst(x -> x.datetime == tb.datetime, priceHistory)
+                if idx == 0
+                    push!(priceHistory, tb)
+                end
             end
         catch err
             continue

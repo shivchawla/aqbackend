@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-01 15:55:32
+* @Last Modified time: 2018-11-01 18:00:42
 */
 
 'use strict';
@@ -190,7 +190,7 @@ function _updatePredictionForTrueCallPrice(prediction) {
 	return SecurityHelper.getStockIntradayHistory(prediction.position.security)		
 	.then(intradaySecurityDetail => {
 		
-		var relevantIntradayHistory = intradaySecurityDetail.history.map(item => {return !moment(item.datetime).isBefore(startDate)});
+		var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {return !moment(item.datetime).isBefore(startDate)});
 
 		let trueLastPrice = 0.0;
 		if (relevantIntradayHistory.length > 0) {
@@ -213,7 +213,7 @@ function _updatePredictionForCallPrice(prediction) {
 	])
 	.then(([intradaySecurityDetail, latestSecurityDetail]) => {
 		
-		var relevantIntradayHistory = intradaySecurityDetail.history.map(item => {return !moment(item.datetime).isBefore(startDate)});
+		var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {return !moment(item.datetime).isBefore(startDate)});
 
 		let trueLastPrice = 0.0;
 		if (relevantIntradayHistory.length > 0) {
@@ -221,7 +221,6 @@ function _updatePredictionForCallPrice(prediction) {
 		}
 
 		var lastPrice = trueLastPrice ||
-			_.get(historicalSecurityDetail, 'latestDetail.close', 0) ||
 		    _.get(latestSecurityDetail, 'latestDetail.current', 0) ||
 		    _.get(latestSecurityDetail, 'latestDetail.close', 0); 
 
@@ -467,7 +466,7 @@ function _isTargetAchieved(prediction, highPrice, lowPrice) {
 }
 
 function _getExtremePrices(history, startDate) {
-	var relevantHistory = history.map(item => {return moment(item.datetime).isAfter(moment(startDate))});
+	var relevantHistory = history.filter(item => {return moment(item.datetime).isAfter(moment(startDate))});
 
 	if (relevantHistory.length > 0) {
 		return {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-31 20:10:11
+* @Last Modified time: 2018-11-01 18:00:13
 */
 
 'use strict';
@@ -157,7 +157,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			if (DateHelper.compareDates(item.endDate, item.startDate) == 1 && 
 					DateHelper.compareDates(item.startDate, DateHelper.getCurrentDate()) == 0) {
 				
-				item.startDate = moment().add(1, 'minute').startOf('minute');
+				item.startDate = moment().endOf('minute');
 				item.endDate = DateHelper.getMarketCloseDateTime(item.endDate);
 				item.active = true;
 				item.modified = 1;
