@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-31 21:32:18
+* @Last Modified time: 2018-11-01 13:15:59
 */
 
 'use strict';
@@ -157,6 +157,18 @@ function _getPnlStats(portfolio) {
 		});
 
 		resolve(_computePnlStats(port));
+
+	});
+}
+
+
+function _trackIntradayHistory(security) {
+	return new Promise(function(resolve, reject) {
+
+		var msg = JSON.stringify({action:"track_stock_intraday_detail", 
+    								security: sedurity});
+        								
+		WSHelper.handleMktRequest(msg, resolve, reject);
 
 	});
 }
@@ -431,7 +443,6 @@ module.exports.updateAllEntriesPnlStats = function(date){
 	});
 };
 
-
 function _isTargetAchieved(prediction, highPrice, lowPrice) {
 	var investment = prediction.position.investment;
 	var target = prediction.target;
@@ -448,6 +459,18 @@ function _isTargetAchieved(prediction, highPrice, lowPrice) {
 	return success;
 }
 
+function _getExtremePrices(history, startDate) {
+	var relevantHistory = history.map(item => {moment(item.datetime).isAfter(moment(startDate))});
+
+	if (relevantHistory.length > 0) {
+		return {
+			high: _.maxBy(relevantHistory, 'high'), 
+			low: _.minBy(relevantHistory, 'low')
+		};
+	} else {
+		return {high: -Infinity, low: Infinity};
+	}
+}
 
 //Logic works for all predictions except that started today
 //Why??
@@ -476,7 +499,7 @@ function _isTargetAchieved(prediction, highPrice, lowPrice) {
 //and filter ot the successful ones
 
 //Handles only predictions ending today
-module.exports.checkForPredictionTarget = function(date) {
+module.exports.checkForPredictionTarget = function(date, category = "active") {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
@@ -484,7 +507,7 @@ module.exports.checkForPredictionTarget = function(date) {
 		return Promise.mapSeries(dailyContestEntries, function(contestEntry) {
 			let contestEntryId = contestEntry._id;
 
-			return exports.getPredictionsForDate(contestEntryId, date, "active", false)
+			return exports.getPredictionsForDate(contestEntryId, date, category, false)
 			.then(predictions => {
 
 				//Filter out already successful (in case)
@@ -492,7 +515,8 @@ module.exports.checkForPredictionTarget = function(date) {
 				var currentDate = DateHelper.getCurrentDate();
 
 				return predictions.filter(item => {
-					return DateHelper.compareDates(item.startDate, currentDate) == 0 ||
+					var isStartDateToday = DateHelper.compareDates(item.startDate, currentDate) == 0;
+					return (category == "active" ? !isStartDateToday : isStartDateToday)  ||
 					 	!item.success.status
 				 	}).map(item => {
 						return {...item, entryId: contestEntryId};
@@ -513,17 +537,52 @@ module.exports.checkForPredictionTarget = function(date) {
 					return item.position.security.ticker === ticker;
 				});
 
-				return SecurityHelper.getStockLatestDetail({ticker: ticker}, "RT")
-				.then(securityDetail => {
-					var highPrice = securityDetail.latestDetail.highPrice;
-					var lowPrice = securityDetail.latestDetail.lowPrice;
 
-					return allPredictionsByTicker.filter(item => {
-						var investment = item.position.investment;
-						var target = item.position.target;
+				return new Promise(resolve => {
 
-						return (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
-					});
+					//check if prediction are successful on daily high/low basis
+					return SecurityHelper.getStockLatestDetail({ticker: ticker}, "RT")
+					.then(securityDetail => {
+						var highPrice = securityDetail.latestDetail.highPrice;
+						var lowPrice = securityDetail.latestDetail.lowPrice;
+
+						var successfulPredictions = allPredictionsByTicker.filter(item => {
+							var investment = item.position.investment;
+							var target = item.position.target;
+
+							return (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
+						});
+
+						//SHORTCUT
+						//FIRST check which predictions are successful on daily high/low basis
+
+						if (category == "active") {
+							resolve(successfulPredictions);
+						} else if (category=="started" && successfulPredictions.length > 0) {
+
+							return SecurityHelper.getStockIntradayHistory({ticker: ticker})
+							.then(securityDetail => {
+
+								var successfulIntraday = successfulPrediction.filter(item => {
+									var investment = item.position.investment;
+									var target = item.position.target;
+
+									var startDate = item.startDate;
+									var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, startDate);
+
+									var highPrice = extremePricesSinceStartDate.high;
+									var lowPrice = extremePricesSinceStartDate.low;
+
+									return (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
+
+								});
+
+								resolve(successfulIntradayPredictions);
+							});
+
+						}
+							
+					}
 				})
 				
 			})
@@ -540,14 +599,15 @@ module.exports.checkForPredictionTarget = function(date) {
 
 module.exports.addPredictions = function(contestEntryId, predictions) {
 	return DailyContestEntryModel.addEntryPredictions({_id: contestEntryId}, predictions, {new:true, fields:'_id'})
-	// .then(() => {
-	// 	return Promise.mapSeries(predictions, function(prediction) {
-	// 		return _updatePredictionForCallPrice(prediction)
-	// 	})
-	// 	.then(updatedPredictions => {
-
-	// 	})
-	// })	
+	.then(() => {
+		var currentDate = DateHelper.getCurrentDate();
+		return Promise.mapSeries(predictions, function(prediction) {
+			var isStartDateToday = DateHelper.compareDates(prediction.startDate, currentDate) == 0;
+			if (isStartDateToday) {
+				return _trackIntradayHistory(prediction.position.security);				
+			}
+		})
+	})	
 };
 
 module.exports.updateCallPriceForPredictions = function() {
@@ -588,3 +648,6 @@ const scheduleString = `*/5 * ${DateHelper.getMarketOpenHour() - 1}-${DateHelper
 schedule.scheduleJob(scheduleString, function() { 
     exports.updateCallPriceForPredictions();
 });
+
+
+//return SecurityHelper.getStockIntradayDetail({ticker: ticker})

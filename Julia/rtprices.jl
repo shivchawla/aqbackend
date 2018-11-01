@@ -5,7 +5,7 @@ const _codeToTicker = readSecurities()
 const _codeToIndex = readIndices()
 const _intradayPriceHistory = Dict{String, Vector{TradeBar}}()
 
-const path = "/home/rtdata"
+const path = "/home/admin/rtdata"
 
 function _updateportfolio_EODprice(port, date::DateTime)
     
@@ -118,11 +118,11 @@ function _get_intraday_prices(ticker, date=currentIndiaTime())
         try
             (realtimePrices, eodPrices) = _get_realtime_mkt_prices(file)
 
-            if (ticker in realtimePrices)
+            if haskey(realtimePrices, ticker)
                 push!(priceHistory, realtimePrices[ticker])
             end
         catch err
-            break
+            continue
         end
     end
 
