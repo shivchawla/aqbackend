@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-02 11:08:31
+* @Last Modified time: 2018-11-02 11:50:30
 */
 
 'use strict';
@@ -190,7 +190,7 @@ function _updatePredictionForTrueCallPrice(prediction) {
 	return SecurityHelper.getStockIntradayHistory(prediction.position.security)		
 	.then(intradaySecurityDetail => {
 		
-		var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {return !moment(item.datetime).isBefore(startDate)});
+		var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {return !moment(`${item.datetime}Z`).isBefore(startDate)});
 
 		let trueLastPrice = 0.0;
 		if (relevantIntradayHistory.length > 0) {
@@ -213,7 +213,10 @@ function _updatePredictionForCallPrice(prediction) {
 	])
 	.then(([intradaySecurityDetail, latestSecurityDetail]) => {
 		
-		var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {return !moment(item.datetime).isBefore(startDate)});
+		var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {
+			
+			return !moment(`${item.datetime}Z`).isBefore(startDate)
+		});
 
 		let trueLastPrice = 0.0;
 		if (relevantIntradayHistory.length > 0) {
@@ -375,7 +378,7 @@ module.exports.getPnlForDate = function(entryId, date, category="active") {
 	])
 	.then(([dailyPnl, totalPnl]) => {
 		return {daily: dailyPnl, total: totalPnl};
-	}
+	});
 };
 
 module.exports.getPredictionsForDate = function(entryId, date, category='started', update=true) {
@@ -476,7 +479,7 @@ function _isTargetAchieved(prediction, highPrice, lowPrice) {
 }
 
 function _getExtremePrices(history, startDate) {
-	var relevantHistory = history.filter(item => {return moment(item.datetime).isAfter(moment(startDate))});
+	var relevantHistory = history.filter(item => {return moment(`${item.datetime}Z`).isAfter(moment(startDate))});
 
 	if (relevantHistory.length > 0) {
 		return {
