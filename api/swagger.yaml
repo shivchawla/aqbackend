@@ -3667,13 +3667,8 @@ paths:
         in: query
         type: string
         description: status of prediction
-        default: "started"
+        default: "active"
         enum: ["started", "ended", "active"]
-        required: false
-      - name: populatePnl
-        in: query
-        type: boolean
-        description: flag to populate Pnl
         required: false
       responses:
         200:
@@ -3707,8 +3702,8 @@ paths:
         in: query
         type: string
         description: status of prediction
-        default: "total"
-        enum: ["daily", "total"]
+        default: "active"
+        enum: ["active", "ended", "started"]
         required: false
       responses:
         200:

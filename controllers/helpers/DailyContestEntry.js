@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-01 18:00:42
+* @Last Modified time: 2018-11-02 11:08:31
 */
 
 'use strict';
@@ -308,13 +308,19 @@ function _computeTotalPnlStats(entryId, date, category="active") {
 	})
 };
 
-function _computeDailyPnlStats(entryId, date, category="all") {
+function _computeDailyPnlStats(entryId, date, category="active") {
+	
 	return exports.getPredictionsForDate(entryId, date, category, false)
 	.then(rawPredictions => {
 		//First change the startDate of all predictions before today to be yesterday
 		var yesterday = moment(date).subtract(1, 'days').toDate();
 		rawPredictions = rawPredictions.map(item => {
-			if(moment(item.startDate).isBefore(moment(date))) {
+		
+			//What's the significance of dailyPnL for entries starting today - ?
+			//So don't update the startdate for those predictions		
+			var startDateRoundedEOD = DateHelper.getMarketCloseDateTime(item.startDate);
+			
+			if(startDateRoundedEOD.isBefore(moment(date))) {
 				item.startDate = yesterday;
 			}
 
@@ -361,10 +367,14 @@ module.exports.getDailyPnlStats = function(entryId, date, category) {
 	});
 };
 
-module.exports.getPnlForDate = function(entryId, date, category="total") {
-	switch(category) {
-		case "daily": return exports.getDailyPnlStats(entryId, date, "all"); break;
-		case "total": return exports.getTotalPnlStats(entryId, date, "all"); break;
+module.exports.getPnlForDate = function(entryId, date, category="active") {
+	
+	return Promise.all([
+		exports.getDailyPnlStats(entryId, date, category),
+		exports.getTotalPnlStats(entryId, date, category)
+	])
+	.then(([dailyPnl, totalPnl]) => {
+		return {daily: dailyPnl, total: totalPnl};
 	}
 };
 
