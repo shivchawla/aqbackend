@@ -4,7 +4,8 @@ const jwtUtil = require('../../utils/jwttoken');
 const redisUtils = require('../../utils/RedisUtils');
 const BacktestController = require('./btControl.js');
 const ForwardTestController = require('./ftControl.js');
-const MarketPlaceController = require('./mktControl.js');
+const MarketPlaceController = require('./mktPlaceControl.js');
+const PredictionController = require('./predictionControl.js');
 const UserModel = require('../../models/user');
 const APIError = require('../../utils/error');
 const Promise = require('bluebird');
@@ -89,5 +90,8 @@ exports.handleAction = function(req, res) {
     }
     else if(req.action === 'unsubscribe-mktplace') {
         return MarketPlaceController.handleMktPlaceUnsubscription(req, res);
+    }
+    else if(req.action === 'subscribe-prediction') {
+        return PredictionController.handlePredictionSubscription(req, res);
     }
 };

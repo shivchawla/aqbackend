@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-02 11:50:30
+* @Last Modified time: 2018-11-02 16:29:06
 */
 
 'use strict';
@@ -431,6 +431,17 @@ module.exports.getPredictionsForDate = function(entryId, date, category='started
 	});
 };
 
+
+module.exports.getContestEntryForUser = function(userId) {
+	return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
+	.then(advisor => {
+		if (advisor) {
+			return DailyContestEntryModel.fetchEntries({advisor:advisor._id}, {fields:'_id'})
+		} else {
+			APIError.throwJsonError({msg: "Advisor not found. WS request can't be completed"});
+		}
+	})
+};
 
 module.exports.updateAllEntriesPnlStats = function(date){
 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
