@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-03 11:40:26
+* @Last Modified time: 2018-11-03 13:08:13
 */
 
 'use strict';
@@ -311,6 +311,21 @@ function _computeTotalPnlStats(entryId, date, category="active") {
 	})
 };
 
+function _computeTotalPnlStatsForAll(entryId, date) {
+	return Promise.all([
+		_computeTotalPnlStats(contestEntryId, date, "started")
+		_computeTotalPnlStats(contestEntryId, date, "active")
+		_computeTotalPnlStats(contestEntryId, date, "ended")
+	]).
+	.then(([startedPredictionsTotalPnl, activePredictionsTotalPnl, endedPredictionsTotalPnl]) => {
+		return {
+			started: startedPredictionsTotalPnl,
+			active: activePredictionsTotalPnl,
+			ended: endedPredictionsTotalPnl
+		};
+	});
+}
+
 function _computeDailyPnlStats(entryId, date, category="active") {
 	
 	return exports.getPredictionsForDate(entryId, date, category, false)
@@ -344,14 +359,29 @@ function _computeDailyPnlStats(entryId, date, category="active") {
 	});	
 };
 
+function _computeDailyPnlStatsForAll(entryId, date) {
+	return Promise.all([
+		_computeDailyPnlStats(contestEntryId, date, "started")
+		_computeDailyPnlStats(contestEntryId, date, "active")
+		_computeDailyPnlStats(contestEntryId, date, "ended")
+	])
+	.then(([startedPredictionsDailyPnl, activePredictionsDailyPnl, endedPredictionsDailyPnl]) => {
+		return {
+			started: startedPredictionsDailyPnl,
+			active: activePredictionsDailyPnl,
+			ended: endedPredictionsDailyPnl
+		};
+	});
+}
+
 module.exports.getTotalPnlStats = function(entryId, date, category="active") {
 	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({contestEntry: entryId}, date)
 	.then(contestEntry => {
 		if (contestEntry && contestEntry.pnlStats) {
 			switch(category) {
-				case "active" : return contestEntry.pnlStats[0].cumulative.unrealized; break;
-				case "ended" : return contestEntry.pnlStats[0].cumulative.realized; break;
-				case "all" : return contestEntry.pnlStats[0].cumulative.all; break;
+				case "active" : return contestEntry.pnlStats[0].cumulative.active; break;
+				case "ended" : return contestEntry.pnlStats[0].cumulative.ended; break;
+				case "started" : return contestEntry.pnlStats[0].cumulative.started; break;
 			}
 		} else {
 			return _computeTotalPnlStats(entryId, date, category);
@@ -359,11 +389,15 @@ module.exports.getTotalPnlStats = function(entryId, date, category="active") {
 	});	
 };
 
-module.exports.getDailyPnlStats = function(entryId, date, category) {
+module.exports.getDailyPnlStats = function(entryId, date, category="active") {
 	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({contestEntry: entryId}, date)
 	.then(contestEntry => {
 		if (contestEntry && contestEntry.pnlStats) {
-			return contestEntry.pnlStats[0].daily;
+			switch(category) {
+				case "active" : return contestEntry.pnlStats[0].daily.active; break;
+				case "ended" : return contestEntry.pnlStats[0].daily.ended; break;
+				case "started" : return contestEntry.pnlStats[0].daily.started; break;
+			}
 		} else {
 			return _computeDailyPnlStats(entryId, date, category);
 		}
@@ -398,6 +432,8 @@ module.exports.getPredictionsForDate = function(entryId, date, category='started
 			case "active": return DailyContestEntryModel.fetchEntryPredictionsActiveOnDate({_id: entryId}, date); break;
 			case "started": return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({_id: entryId}, date); break;
 			case "ended": return DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({_id: entryId}, date); break;
+			
+			//not used 
 			case "all": return Promise.all([
 							useEndedPredictions ? DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({_id: entryId}, date) : [],
 							DailyContestEntryModel.fetchEntryPredictionsActiveOnDate({_id: entryId}, date) //A
@@ -451,19 +487,13 @@ module.exports.updateAllEntriesPnlStats = function(date){
 			date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
 			return Promise.all([
-				_computeTotalPnlStats(contestEntryId, date, "active"),
-				_computeTotalPnlStats(contestEntryId, date, "ended"),
-				_computeTotalPnlStats(contestEntryId, date, "all"),
-				_computeDailyPnlStats(contestEntryId, date, "all")
+				_computeTotalPnlStatsForAll(contestEntryId, date),
+				_computeDailyPnlStatsForAll(contestEntryId, date)
 			])
-			.then(([activePredictionsPnl, endedPredictionsPnl, allPredictionsPnl, allPredictionsDailyPnl]) => {
+			.then(([totalPnl, dailyPnl]) => {
 				const updates = {
-					cumulative: {
-						unrealized: activePredictionsPnl,
-						realized: endedPredictionsPnl,
-						all: allPredictionsPnl
-					},
-					daily: allPredictionsDailyPnl
+					cumulative: totalPnl,
+					daily: dailyPnl
 				}
 				
 				return DailyContestEntryPerformanceModel.updateEntryPnlStats({contestEntry: contestEntryId}, updates, date);
