@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-02 16:29:06
+* @Last Modified time: 2018-11-03 11:40:26
 */
 
 'use strict';
@@ -345,7 +345,7 @@ function _computeDailyPnlStats(entryId, date, category="active") {
 };
 
 module.exports.getTotalPnlStats = function(entryId, date, category="active") {
-	return DailyContestEntryPerformanceModel.fetchTotalPnlStatsForDate({contestEntry: entryId}, date)
+	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({contestEntry: entryId}, date)
 	.then(contestEntry => {
 		if (contestEntry && contestEntry.pnlStats) {
 			switch(category) {
@@ -360,7 +360,7 @@ module.exports.getTotalPnlStats = function(entryId, date, category="active") {
 };
 
 module.exports.getDailyPnlStats = function(entryId, date, category) {
-	return DailyContestEntryPerformanceModel.fetchDailyPnlStatsForDate({contestEntry: entryId}, date)
+	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({contestEntry: entryId}, date)
 	.then(contestEntry => {
 		if (contestEntry && contestEntry.pnlStats) {
 			return contestEntry.pnlStats[0].daily;

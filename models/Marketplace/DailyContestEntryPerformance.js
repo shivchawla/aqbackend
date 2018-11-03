@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-29 20:06:35
+* @Last Modified time: 2018-11-03 11:49:15
 */
 
 
@@ -55,7 +55,8 @@ DailyContestEntryPerformance.statics.updateEntryPnlStats = function(query, pnlSt
 		 				'pnlStats.$.cumulative': pnlStats.cumulative}
 		 	};
 		 	
-		 	return this.findOneAndUpdate(qDate, updates);
+		 	return this.update(qDate, updates);
+
     	} else {
 
     		updates = {
@@ -68,21 +69,17 @@ DailyContestEntryPerformance.statics.updateEntryPnlStats = function(query, pnlSt
 				}
 			};	 
 
-    		return this.findOneAndUpdate(query, updates, {upsert: true});
+    		return this.findOneAndUpdate(query, updates, {upsert: true})
     	}
     });
 };
 
 DailyContestEntryPerformance.statics.fetchLatestPnlStats = function(query) {
-	return this.findOneAndUpdate(query, {pnlStats: {$slice: -1}})
+	return this.findOne(query, {pnlStats: {$slice: -1}})
 };
 
-DailyContestEntryPerformance.statics.fetchTotalPnlStatsForDate = function(query, date) {
-	return this.findOneAndUpdate({...query, 'pnlStats.date': date}, {'pnlStats.$.total': 1});
-};
-
-DailyContestEntryPerformance.statics.fetchDailyPnlStatsForDate = function(query, date) {
-	return this.findOneAndUpdate({...query, 'pnlStats.date': date}, {'pnlStats.$.daily': 1});
+DailyContestEntryPerformance.statics.fetchPnlStatsForDate = function(query, date) {
+	return this.findOne({...query, 'pnlStats.date': date}, {'pnlStats.$': 1});
 };
 
 const DailyContestEntryPerformanceModel = mongoose.model('DailyContestEntryPerformance', DailyContestEntryPerformance);
