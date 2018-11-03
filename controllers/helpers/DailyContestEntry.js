@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-03 13:17:07
+* @Last Modified time: 2018-11-03 19:01:25
 */
 
 'use strict';
@@ -209,7 +209,7 @@ function _updatePredictionForCallPrice(prediction) {
 	
 	return Promise.all([
 		SecurityHelper.getStockIntradayHistory(prediction.position.security),
-		SecurityHelper.getStockLatestDetail(prediction.position.security, "RT")
+		SecurityHelper.getStockLatestDetailByType(prediction.position.security, "RT")
 	])
 	.then(([intradaySecurityDetail, latestSecurityDetail]) => {
 		
@@ -304,7 +304,7 @@ function _computeTotalPnlStats(entryId, date, category="active") {
 		//Total Pnl
 		return _getPnlStats({positions: activePredictions.map(item => {
 			if(item.success.status) {
-				item.position.lastPrice = item.position.avgPrice*(1+item.target/100);
+				item.position.lastPrice = item.target;
 			}
 			return  item.position;
 		})}); //map ends
@@ -313,9 +313,9 @@ function _computeTotalPnlStats(entryId, date, category="active") {
 
 function _computeTotalPnlStatsForAll(entryId, date) {
 	return Promise.all([
-		_computeTotalPnlStats(contestEntryId, date, "started"),
-		_computeTotalPnlStats(contestEntryId, date, "active"),
-		_computeTotalPnlStats(contestEntryId, date, "ended")
+		_computeTotalPnlStats(entryId, date, "started"),
+		_computeTotalPnlStats(entryId, date, "active"),
+		_computeTotalPnlStats(entryId, date, "ended")
 	])
 	.then(([startedPredictionsTotalPnl, activePredictionsTotalPnl, endedPredictionsTotalPnl]) => {
 		return {
@@ -351,7 +351,7 @@ function _computeDailyPnlStats(entryId, date, category="active") {
 		//Total Pnl
 		return _getPnlStats({positions: activePredictionsWithDailyChange.map(item => {
 			if(item.success.status) {
-				item.position.lastPrice = item.position.avgPrice*(1+item.target/100);
+				item.position.lastPrice = item.target;
 			}
 
 			return  item.position;
@@ -361,9 +361,9 @@ function _computeDailyPnlStats(entryId, date, category="active") {
 
 function _computeDailyPnlStatsForAll(entryId, date) {
 	return Promise.all([
-		_computeDailyPnlStats(contestEntryId, date, "started"),
-		_computeDailyPnlStats(contestEntryId, date, "active"),
-		_computeDailyPnlStats(contestEntryId, date, "ended")
+		_computeDailyPnlStats(entryId, date, "started"),
+		_computeDailyPnlStats(entryId, date, "active"),
+		_computeDailyPnlStats(entryId, date, "ended")
 	])
 	.then(([startedPredictionsDailyPnl, activePredictionsDailyPnl, endedPredictionsDailyPnl]) => {
 		return {
@@ -411,7 +411,7 @@ module.exports.getPnlForDate = function(entryId, date, category="active") {
 		exports.getTotalPnlStats(entryId, date, category)
 	])
 	.then(([dailyPnl, totalPnl]) => {
-		return {daily: dailyPnl, total: totalPnl};
+		return {daily: dailyPnl, cumulative: totalPnl};
 	});
 };
 
@@ -455,7 +455,7 @@ module.exports.getPredictionsForDate = function(entryId, date, category='started
 		//Update security latest detail
 		if (update) {
 			return Promise.map(updatedPredictionsWithLatestPrice, function(prediction) {
-				return SecurityHelper.getStockLatestDetail(prediction.position.security, "RT")
+				return SecurityHelper.getStockLatestDetail(prediction.position.security)
 				.then(securityDetail => {
 					var updatedPosition = Object.assign(prediction.position, {security: securityDetail});
 					return Object.assign({position: updatedPosition}, prediction);
@@ -597,7 +597,7 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 				return new Promise(resolve => {
 
 					//check if prediction are successful on daily high/low basis
-					return SecurityHelper.getStockLatestDetail({ticker: ticker}, "RT")
+					return SecurityHelper.getStockLatestDetailByType({ticker: ticker}, "RT")
 					.then(securityDetail => {
 						var highPrice = securityDetail.latestDetail.highPrice;
 						var lowPrice = securityDetail.latestDetail.lowPrice;

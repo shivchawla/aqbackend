@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-30 10:26:52
+* @Last Modified time: 2018-11-03 18:46:38
 */
 
 'use strict';
@@ -80,8 +80,8 @@ function _getEffectiveAdviceStartDate(selectedStartDate) {
 	}*/
 	
 	return Promise.all([
-		SecurityHelper.getStockLatestDetail({ticker: "NIFTY_50"}, "EOD"),
-		SecurityHelper.getStockLatestDetail({ticker: "NIFTY_50"}, "RT")
+		SecurityHelper.getStockLatestDetailByType({ticker: "NIFTY_50"}, "EOD"),
+		SecurityHelper.getStockLatestDetailByType({ticker: "NIFTY_50"}, "RT")
 	])
 	.then(([eodLatestDetail, rtLatestDetail]) => {
 

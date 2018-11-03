@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 15:47:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-31 10:59:28
+* @Last Modified time: 2018-11-03 18:46:38
 */
 
 'use strict';
@@ -250,7 +250,7 @@ module.exports.updateDailyTopPicks = function() {
 			let totalPositions = contest.totalPositions.toObject();
 			
 			return Promise.mapSeries(totalPositions, function(position) {
-				return SecurityHelper.getStockLatestDetail(position.security)
+				return SecurityHelper.getStockLatestDetailByType(position.security)
 				.then(securityDetail => {
 					position.security.detail = securityDetail.detail;
 					position.lastDetail = securityDetail.latestDetail
@@ -418,7 +418,7 @@ module.exports.updateWeeklyTopPicks = function() {
 
 							
 							return Promise.mapSeries(totalPositions, function(position) {
-								return SecurityHelper.getStockLatestDetail(position.security)
+								return SecurityHelper.getStockLatestDetailByType(position.security)
 								.then(securityDetail => {
 									position.security.detail = securityDetail.detail;
 									position.lastDetail = securityDetail.latestDetail

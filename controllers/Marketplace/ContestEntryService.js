@@ -44,8 +44,8 @@ function _getEffectiveContestEntryStartDate(selectedStartDate) {
 	}*/
 	
 	return Promise.all([
-		SecurityHelper.getStockLatestDetail({ticker: "NIFTY_50"}, "EOD"),
-		SecurityHelper.getStockLatestDetail({ticker: "NIFTY_50"}, "RT")
+		SecurityHelper.getStockLatestDetailByType({ticker: "NIFTY_50"}, "EOD"),
+		SecurityHelper.getStockLatestDetailByType({ticker: "NIFTY_50"}, "RT")
 	])
 	.then(([eodLatestDetail, rtLatestDetail]) => {
 

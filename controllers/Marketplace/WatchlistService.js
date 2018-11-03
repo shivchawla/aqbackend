@@ -11,8 +11,8 @@ function _checkIfValidSecurity(security) {
 function _populateWatchlistDetail(watchlist) {
 	return Promise.map(watchlist.securities, function(security) {
 		return Promise.all([
-			SecurityHelper.getStockLatestDetail(security, "RT"),
-			SecurityHelper.getStockLatestDetail(security, "EOD")
+			SecurityHelper.getStockLatestDetailByType(security, "RT"),
+			SecurityHelper.getStockLatestDetailByType(security, "EOD")
 		])
 		.then(([detailRT, detailEOD]) => {
 

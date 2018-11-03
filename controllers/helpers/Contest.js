@@ -443,7 +443,7 @@ module.exports.sendContestEntryDailyDigest = function() {
                     ContestEntryHelper.getContestEntryPortfolio(entryId, {populateAvg: true})
                     .then(portfolio => {
                         return Promise.map(portfolio.detail.positions, function(item) {
-                            return SecurityHelper.getStockLatestDetail({ticker: item.security.ticker}, "RT")
+                            return SecurityHelper.getStockLatestDetailByType({ticker: item.security.ticker}, "RT")
                             .then(latestPrice => {
                                 return Object.assign(latestPrice, item);
                             });

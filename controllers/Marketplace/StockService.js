@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-17 12:03:30
+* @Last Modified time: 2018-11-03 18:49:57
 */
 
 'use strict';
@@ -23,18 +23,6 @@ function updateStockWeight(query) {
 			return {};
 			//APIError.throwJSONError({message: "Security not found. Can't update weight"});
 		}
-	})
-}
-
-function _getStockLatestDetail(security) {
-	return Promise.all([
-		SecurityHelper.getStockLatestDetail(security, "EOD"),
-		SecurityHelper.getStockLatestDetail(security, "RT")
-	])
-	.then(([detailEOD, detailRT]) => {
-
-		var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
-		return Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
 	})
 }
 
@@ -83,7 +71,7 @@ module.exports.getStockDetail = function(args, res, next) {
 		} else if (field == "rollingPerformance") {
 			return SecurityHelper.getStockRollingPerformance(security);
 		} else if (field == "latestDetail") {
-			return _getStockLatestDetail(security);	
+			return SecurityHelper.getStockLatestDetail(security);	
 		} 
 	})
 	.then(output => {
@@ -109,7 +97,7 @@ module.exports.getStocks = function(args, res, next) {
 	.then(securities => {
 		return Promise.map(securities, function(security) {
 			return populate ? 
-				_getStockLatestDetail(security).then(detail => {return Object.assign(security, detail)}) : 
+				SecurityHelper.getStockLatestDetail(security).then(detail => {return Object.assign(security, detail)}) : 
 				security;
 		});
 	})
