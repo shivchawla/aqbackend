@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-03 11:49:15
+* @Last Modified time: 2018-11-03 13:15:53
 */
 
 
@@ -21,8 +21,12 @@ const DailyContestEntryPerformance = new Schema({
 	pnlStats: [{
 		date: Date,
 		daily: Schema.Types.Mixed,
-		cumulative: Schema.Types.Mixed,
+		cumulative: Schema.Types.Mixed,    
 	}],
+
+	//{active: {"unre:b" rea:0 all:b} 
+	//ended: {unrea: 0, real:z, "all: z"} 
+	//started: {unreal: x, realized: y, "all: x+y"}}
 
 	winnings: [{
 		date: Date,

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-03 13:08:13
+* @Last Modified time: 2018-11-03 13:17:07
 */
 
 'use strict';
@@ -313,10 +313,10 @@ function _computeTotalPnlStats(entryId, date, category="active") {
 
 function _computeTotalPnlStatsForAll(entryId, date) {
 	return Promise.all([
-		_computeTotalPnlStats(contestEntryId, date, "started")
-		_computeTotalPnlStats(contestEntryId, date, "active")
+		_computeTotalPnlStats(contestEntryId, date, "started"),
+		_computeTotalPnlStats(contestEntryId, date, "active"),
 		_computeTotalPnlStats(contestEntryId, date, "ended")
-	]).
+	])
 	.then(([startedPredictionsTotalPnl, activePredictionsTotalPnl, endedPredictionsTotalPnl]) => {
 		return {
 			started: startedPredictionsTotalPnl,
@@ -361,8 +361,8 @@ function _computeDailyPnlStats(entryId, date, category="active") {
 
 function _computeDailyPnlStatsForAll(entryId, date) {
 	return Promise.all([
-		_computeDailyPnlStats(contestEntryId, date, "started")
-		_computeDailyPnlStats(contestEntryId, date, "active")
+		_computeDailyPnlStats(contestEntryId, date, "started"),
+		_computeDailyPnlStats(contestEntryId, date, "active"),
 		_computeDailyPnlStats(contestEntryId, date, "ended")
 	])
 	.then(([startedPredictionsDailyPnl, activePredictionsDailyPnl, endedPredictionsDailyPnl]) => {

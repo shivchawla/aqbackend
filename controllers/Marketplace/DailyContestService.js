@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-02 11:25:09
+* @Last Modified time: 2018-11-03 13:15:53
 */
 
 'use strict';
@@ -72,7 +72,6 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 * Get contest entry for a date
 */
 module.exports.getDailyContestPnl = (args, res, next) => {
-	try{
 	const _d = _.get(args, 'date.value', '');
 	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
 	
@@ -112,9 +111,6 @@ module.exports.getDailyContestPnl = (args, res, next) => {
 		return res.status(400).send(err.message);		
 	});
 
-	} catch(err) {
-		console.log(err);
-	}
 };
 
 /*
