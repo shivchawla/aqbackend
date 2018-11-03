@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-03 18:47:39
+* @Last Modified time: 2018-11-03 19:37:19
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -229,7 +229,8 @@ module.exports.getStockLatestDetailByType = function(security, type) {
 					if (type == "EOD") {
 						return SecurityPerformanceModel.updateLatestDetail(query, performanceDetail)
 						.then(performance => {
-							resolve(performance.toObject());
+							var performanceObj =performance.toObject();
+							resolve(Object.assign(performanceObj.security, {latestDetail: performanceObj.latestDetail.values}));
 						});
 					} else {
 						security.detail = securityDetail;
@@ -238,7 +239,8 @@ module.exports.getStockLatestDetailByType = function(security, type) {
 					
 				});
 			} else {
-				resolve(securityPerformance.toObject());
+				var performanceObj = securityPerformance.toObject();
+				resolve(Object.assign(performanceObj.security, {latestDetail: performanceObj.latestDetail.values}));
 			}
 		})
 		.catch(err => {
@@ -256,7 +258,9 @@ module.exports.getStockLatestDetail = function(security) {
 	])
 	.then(([detailEOD, detailRT]) => {
 		var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
-		return Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
+		var x = Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
+
+		return x;
 	});
 };
 
