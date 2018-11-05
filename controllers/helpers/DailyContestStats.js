@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 20:13:32
+* @Last Modified time: 2018-11-05 20:57:18
 */
 
 'use strict';
@@ -189,11 +189,11 @@ function _computeWinnerDigest(winners) {
 
 		winnerStats.forEach((item, index) => {
 
-			var winnerKey = `winner${index}`;
-			var pnlKey = `pnlPct${index}`;
+			var winnerKey = `winner${index+1}`;
+			var pnlKey = `pnlPct${index+1}`;
 			winnerDigest = Object.assign(winnerDigest, {
 				[winnerKey]: item.winnerName, 
-				[pnlKey]: item.pnlPct
+				[pnlKey]: `${item.pnlPct*100).toFixed(2)}%`
 			});
 		});
 
@@ -210,28 +210,28 @@ module.exports.sendSummaryDigest = function(date) {
 	])
 	.then(([contestEntries, contestStats]) => {
 		if (contestStats && contestEntries) {
-			var winners = contestStats.winners.slice(0,2);
-			var topStocks = contestStats.topStocks.slice(0, 2);
+			var winners = _.get(contestStats, 'winners', []).slice(0,2);
+			var topStocks = _.get(contestStats,'topStocks.byUsers', []).slice(0, 2);
 
 			var leaderboardUrl = `${config.get('hostname')}/dailycontest?tab=2&date=${moment(date).format("YYYY-MM-DD")}`;
 			var topStocksUrl = `${config.get('hostname')}/dailycontest?tab=1&date=${moment(date).format("YYYY-MM-DD")}`;
 
-			var summaryDigest = {leaderboardUrl, topStocksurl};		
+			var summaryDigest = {leaderboardUrl, topStocksUrl, dailyContestDate: moment(date).format("Do MMM'YYYY")};		
 
 			return _computeWinnerDigest(winners)
 			.then(winnerDigest => {
 
 				let topStocksDigest = {};
 				topStocks.forEach((item, index) => {
-					var stocksKey = `stock${index}`;
-					var votesKey = `votes${index}`;
-					var investmentKey = `investment${index}`;
-				});
+					var stockKey = `stock${index+1}`;
+					var votesKey = `votes${index+1}`;
+					var investmentKey = `investment${index+1}`;
 
-				topStocksDigest = Object.assign(topStocksDigest, {
-					[stockKey]: item.winnerName, 
-					[votesKey]: item.numUser.total,
-					[investmentKey]: item.investment.gross
+					topStocksDigest = Object.assign(topStocksDigest, {
+						[stockKey]: item.security.ticker, 
+						[votesKey]: item.numUsers.total,
+						[investmentKey]: `${item.investment.gross}K`
+					});
 				});
 
 				return Object.assign(summaryDigest, winnerDigest, topStocksDigest);
@@ -276,7 +276,10 @@ module.exports.sendWinnerDigest = function(date) {
 			var leaderboardUrl = `${config.get('hostname')}/dailycontest?tab=2&date=${moment(date).format("YYYY-MM-DD")}`;
 
 			return Promise.mapSeries(winners, function(winner) {
-				let winnerDigest = {leaderboardUrl, pnlPct: winner.pnlStats.total.pnlpct, rank: winner.rank};
+				let winnerDigest = {leaderboardUrl, 
+					pnlPct: (_.get(winner,'pnlStats.total.pnlPct')*100).toFixed(2), 
+					rank: winner.rank,
+					dailyContestDate: moment(date).format("Do MMM'YYYY")};
 				
 				return AdvisorModel.fetchAdvisor({_id: winner.advisor}, {fields: 'users'})
 				.then(advisor => {
@@ -284,10 +287,10 @@ module.exports.sendWinnerDigest = function(date) {
                     .then(user => {
                     
 	                    if (process.env.NODE_ENV === 'production') {
-	                    	return sendEmail.sendDailyContestSummaryDigest(winnerDigest, user);
+	                    	return sendEmail.sendDailyContestWinnerEmail(winnerDigest, user);
 	                	
 	                	} else if(process.env.NODE_ENV === 'development') {
-	                        return sendEmail.sendDailyContestSummaryDigest(winner, 
+	                        return sendEmail.sendDailyContestWinnerEmail(winnerDigest, 
 	                            {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
 	                    }
                     });

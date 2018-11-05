@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 18:58:19
+* @Last Modified time: 2018-11-05 20:47:50
 */
 
 'use strict';
@@ -398,7 +398,7 @@ module.exports.sendEmailToDailyContestParticipants = function(args, res, next) {
         }
     })
     .then(emailSent => {
-        return res.status(200).send("Winner email sent");
+        return res.status(200).send("Contest summary/digest sent");
     })
     .catch(error => { 
         return res.status(400).send(error.message)
