@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 13:54:34
+* @Last Modified time: 2018-11-05 18:45:48
 */
 
 'use strict';
@@ -176,9 +176,9 @@ function _computeWinnerDigest(winners) {
 	return Promise.mapSeries(winners, function(winner) {
 		const winnerAdvisorId = winner.advisor;
 
-		return AdvisorModel.fetchAdvisor({_id: winnerAdvisorId})
+		return AdvisorModel.fetchAdvisor({_id: winnerAdvisorId}, {fields: 'user'})
 		.then(advisor => {
-			return {winnerName: `${advisor.firstName} {advisor.lastName}`, pnlPct:winner.pnlStats.total.pnlPct}		
+			return {winnerName: `${advisor.user.firstName} ${advisor.user.lastName}`, pnlPct:winner.pnlStats.total.pnlPct}		
 		})
 	})
 	.then(winnerStats => {
@@ -235,19 +235,22 @@ module.exports.sendSummaryDigest = function(date) {
 			.then(fullDigest => {
 				return Promise.mapSeries(contestEntries, function(contestEntry) {
 					
-					return AdvisorModel.fetchAdvisor({_id: contestEntry.advisor})
+					return AdvisorModel.fetchAdvisor({_id: contestEntry.advisor}, {fields: 'user'})
 					.then(advisor => {
-	                    var user = _.get(advisor, 'user', null);
 	                    
-	                    if (process.env.NODE_ENV === 'production') {
+	                    return UserModel.fetchUser({_id: advisor.user._id}, {fields:'firstName lastName email'})
+	                    .then(user => {
 	                    
-	                    	return sendEmail.sendDailyContestSummaryDigest(fullDigest, user)
-	                	
-	                	} else if(process.env.NODE_ENV === 'development') {
-	                    
-	                        return sendEmail.sendDailyContestSummaryDigest(fullDigest, 
-	                            {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
-                        }
+		                    if (process.env.NODE_ENV === 'production') {
+		                    
+		                    	return sendEmail.sendDailyContestSummaryDigest(fullDigest, user)
+		                	
+		                	} else if(process.env.NODE_ENV === 'development') {
+		                    
+		                        return sendEmail.sendDailyContestSummaryDigest(fullDigest, 
+		                            {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+	                        }
+                        })
                     });
                 })
 			})

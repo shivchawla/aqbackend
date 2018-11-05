@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 18:00:55
+* @Last Modified time: 2018-11-05 18:36:09
 */
 
 'use strict';
@@ -264,9 +264,9 @@ module.exports.getDailyContestWinners = (args, res, next) => {
 	return DailyContestStatsModel.fetchContestStats(date, {fields:'winners'})
 	.then(statsForDate => {
 		return Promise.map(statsForDate.winners, function(winner) {
-			return AdvisorModel.fetchAdvisor({advisor: winner.advisor})
+			return AdvisorModel.fetchAdvisor({_id: winner.advisor}, {fields: 'user'})
 			.then(populatedAdvisor => {
-				return {...winner, advisor: populatedAdvisor};
+				return {...winner.toObject(), advisor: populatedAdvisor.toObject()};
 			})
 		})
 	})

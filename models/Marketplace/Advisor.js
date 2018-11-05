@@ -2,12 +2,13 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-11 15:55:07
+* @Last Modified time: 2018-11-05 18:32:14
 */
 'use strict';
 
 const mongoose = require('../index');
 const Schema = mongoose.Schema;
+const _ = require('lodash');
 
 const Performance = require('./Performance');
 const Investor = require('./Investor');
@@ -183,13 +184,16 @@ Advisor.statics.fetchAdvisors = function(query, options) {
 
 Advisor.statics.fetchAdvisor = function(query, options) {
 	//FETCH creates a new document with default if insert is TRUE
-	var q = this.findOneAndUpdate(query, {}, {upsert: options.insert, new: options.insert, setDefaultsOnInsert: options.insert})
-			.populate('user', 'firstName lastName email');
+	var q = this.findOneAndUpdate(query, {}, {upsert: _.get(options, 'insert', true), new: _.get(options, 'insert', true), setDefaultsOnInsert: _.get(options, 'insert', true)});
 
 	if(options.fields) {
 		//options.fields = options.fields.replace(',',' ');
 		q = q.select(options.fields);
 	}
+
+    if(options.fields && options.fields.indexOf('user') !==-1) {
+        q = q.populate('user', 'firstName lastName');
+    }
 
 	if((options.fields && options.fields.indexOf('advices')) || !options.fields) {
 		q = q.populate('advices._id', null, { _id: { $ne: null }})

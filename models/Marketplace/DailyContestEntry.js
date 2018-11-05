@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 10:40:58
+* @Last Modified time: 2018-11-05 18:10:30
 */
 
 
@@ -133,7 +133,7 @@ DailyContestEntry.statics.fetchEntries = function(query, options) {
         q = q.select(options.fields);
 	}
 
-    if(options.populate && options.populate.indexOf('advisor') != -1) {
+    if(options.fields && options.fields.indexOf('advisor') != -1) {
         q = q.select('advisor').populate({path:'advisor', select:'user _id',
                                         populate:{path: 'user', 
                                             select:'_id firstName lastName'}
