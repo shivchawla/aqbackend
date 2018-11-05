@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 21:01:07
+* @Last Modified time: 2018-11-05 21:05:12
 */
 
 'use strict';
@@ -193,7 +193,7 @@ function _computeWinnerDigest(winners) {
 			var pnlKey = `pnlPct${index+1}`;
 			winnerDigest = Object.assign(winnerDigest, {
 				[winnerKey]: item.winnerName, 
-				[pnlKey]: `${item.pnlPct*100).toFixed(2)}%`
+				[pnlKey]: `${(item.pnlPct*100).toFixed(2)}%`
 			});
 		});
 
