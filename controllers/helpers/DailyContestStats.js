@@ -2,18 +2,21 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 19:05:20
+* @Last Modified time: 2018-11-05 20:13:32
 */
 
 'use strict';
 const _ = require('lodash');
 const Promise = require('bluebird');
 const moment = require('moment-timezone');
+const config = require('config');
 
 const DateHelper = require('../../utils/Date');
 const DailyContestEntryHelper = require('./DailyContestEntry');
 const sendEmail = require('../../email');
 
+const UserModel = require('../../models/user');
+const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 
@@ -199,18 +202,19 @@ function _computeWinnerDigest(winners) {
 }
 
 module.exports.sendSummaryDigest = function(date) {
-	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date).toDate();
+
 	return Promise.all([
 		DailyContestEntryModel.fetchEntries({}, {fields: 'advisor'}),
-		DailyContestStatsModel.fetchContestStats({date: date}, {fields: 'topStocks winners'})
+		DailyContestStatsModel.fetchContestStats(date, {fields: 'topStocks winners'})
 	])
 	.then(([contestEntries, contestStats]) => {
 		if (contestStats && contestEntries) {
 			var winners = contestStats.winners.slice(0,2);
 			var topStocks = contestStats.topStocks.slice(0, 2);
 
-			var leaderboardUrl = `${config.get('hostname')}/dailycontest?tab=2&date=${date.format("YYYY-MM-DD")}`;
-			var topStocksUrl = `${config.get('hostname')}/dailycontest?tab=1&date=${date.format("YYYY-MM-DD")}`;
+			var leaderboardUrl = `${config.get('hostname')}/dailycontest?tab=2&date=${moment(date).format("YYYY-MM-DD")}`;
+			var topStocksUrl = `${config.get('hostname')}/dailycontest?tab=1&date=${moment(date).format("YYYY-MM-DD")}`;
 
 			var summaryDigest = {leaderboardUrl, topStocksurl};		
 
@@ -262,18 +266,19 @@ module.exports.sendSummaryDigest = function(date) {
 };
 
 module.exports.sendWinnerDigest = function(date) {
-	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
-	return DailyContestStatsModel.fetchContestStats({date: date}, {fields: 'topStocks winners'})
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date).toDate();
+
+	return DailyContestStatsModel.fetchContestStats(date, {fields: 'topStocks winners'})
 	.then(contestStats => {
 		if (contestStats) {
 			var winners = contestStats.winners;
 			
-			var leaderboardUrl = `${config.get('hostname')}/dailycontest?tab=2&date=${date.format("YYYY-MM-DD")}`;
+			var leaderboardUrl = `${config.get('hostname')}/dailycontest?tab=2&date=${moment(date).format("YYYY-MM-DD")}`;
 
 			return Promise.mapSeries(winners, function(winner) {
 				let winnerDigest = {leaderboardUrl, pnlPct: winner.pnlStats.total.pnlpct, rank: winner.rank};
 				
-				return AdvisorModel.fetchAdvisor({_id: winner.advisor})
+				return AdvisorModel.fetchAdvisor({_id: winner.advisor}, {fields: 'users'})
 				.then(advisor => {
                      return UserModel.fetchUser({_id: advisor.user._id}, {fields:'firstName lastName email'})
                     .then(user => {

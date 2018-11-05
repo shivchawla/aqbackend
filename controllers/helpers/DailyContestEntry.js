@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-03 19:01:25
+* @Last Modified time: 2018-11-05 20:16:01
 */
 
 'use strict';
@@ -10,14 +10,13 @@ const _ = require('lodash');
 const Promise = require('bluebird');
 const moment = require('moment-timezone');
 const schedule = require('node-schedule');
-const config = require('config');
 
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
 const WSHelper = require('./WSHelper');
 const SecurityHelper = require('./Security');
 
-const UserModel = require('../../models/user');
+const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
@@ -406,6 +405,8 @@ module.exports.getDailyPnlStats = function(entryId, date, category="active") {
 
 module.exports.getPnlForDate = function(entryId, date, category="active") {
 	
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+
 	return Promise.all([
 		exports.getDailyPnlStats(entryId, date, category),
 		exports.getTotalPnlStats(entryId, date, category)
@@ -417,6 +418,8 @@ module.exports.getPnlForDate = function(entryId, date, category="active") {
 
 module.exports.getPredictionsForDate = function(entryId, date, category='started', update=true) {
 	
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+
 	let updatedPredictions;
 	return Promise.resolve()
 	.then(() => {
@@ -467,12 +470,11 @@ module.exports.getPredictionsForDate = function(entryId, date, category='started
 	});
 };
 
-
 module.exports.getContestEntryForUser = function(userId) {
 	return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
 	.then(advisor => {
 		if (advisor) {
-			return DailyContestEntryModel.fetchEntries({advisor:advisor._id}, {fields:'_id'})
+			return DailyContestEntryModel.fetchEntry({advisor:advisor._id}, {fields:'_id'})
 		} else {
 			APIError.throwJsonError({msg: "Advisor not found. WS request can't be completed"});
 		}

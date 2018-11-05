@@ -78,8 +78,14 @@ User.statics.saveUser = function(userDetails) {
     return user.save();
 };
 
-User.statics.fetchUser = function(query) {
-    return this.findOne(query).execAsync();
+User.statics.fetchUser = function(query, options = {}) {
+    var q = this.findOne(query);
+
+    if(options.fields) {
+        q = q.select(options.fields);
+    }
+
+    return q.execAsync();
 };
 
 User.statics.fetchUsers = function(query, projections) {

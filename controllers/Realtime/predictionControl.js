@@ -2,13 +2,15 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 11:01:33
+* @Last Modified time: 2018-11-05 20:18:11
 */
 'use strict';
 const config = require('config');
 const schedule = require('node-schedule');
 const Promise = require('bluebird');
 const WebSocket = require('ws');
+
+const APIError = require('../../utils/error');
 
 const DateHelper = require('../../utils/Date');
 const DailyContestEntryHelper = require('../helpers/DailyContestEntry')
@@ -36,7 +38,9 @@ function _sendPredictionUpdates(subscription) {
 	.then(() => {
 		category = subscription.category;
 		entryId = subscription.entryId;
-	
+		
+		var date = DateHelper.getCurrentDate();
+
 		if (entryId) {
 			return Promise.all([
 				DailyContestEntryHelper.getPredictionsForDate(entryId, date, category),
@@ -49,7 +53,7 @@ function _sendPredictionUpdates(subscription) {
 		
 	})
 	.then(([predictions, pnl]) => {
-		return _sendWSResponse(subscription.res, {entryId, category, predictions, pnl});
+		return _sendWSResponse(subscription.response, {entryId, category, predictions, pnl});
 	})
 }
 
