@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 14:02:53
+* @Last Modified time: 2018-11-05 15:41:04
 */
 
 'use strict';
@@ -167,7 +167,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		}
 	})
 	.then(contestEntry => {
-		if (contesEntry) {
+		if (contestEntry) {
 			return DailyContestEntryHelper.getPredictionsForDate(contestEntry._id, DateHelper.getMarketCloseDateTime(), "started", false)
 			.then(predictionsToday => {
 				if (predictionsToday.length + entryPredictions.length > 10) {
@@ -176,7 +176,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 					return Promise.map(entryPredictions, function(prediction) {
 						var ticker = prediction.position.security.ticker;
-						var existingPredictionsInTicker = predictionsToday.filter(item => {return prediction.position.security.ticker == ticker;});
+						var existingPredictionsInTicker = predictionsToday.filter(item => {return item.position.security.ticker == ticker;});
 						var newPredictioninTicker = entryPredictions.filter(item => {return item.position.security.ticker == ticker;});
 
 						if (existingPredictionsInTicker.length + newPredictioninTicker.length > 3) {
