@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 20:57:18
+* @Last Modified time: 2018-11-05 21:01:07
 */
 
 'use strict';
@@ -228,7 +228,7 @@ module.exports.sendSummaryDigest = function(date) {
 					var investmentKey = `investment${index+1}`;
 
 					topStocksDigest = Object.assign(topStocksDigest, {
-						[stockKey]: item.security.ticker, 
+						[stockKey]: item.ticker, 
 						[votesKey]: item.numUsers.total,
 						[investmentKey]: `${item.investment.gross}K`
 					});
