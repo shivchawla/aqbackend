@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 16:45:01
+* @Last Modified time: 2018-11-05 18:00:55
 */
 
 'use strict';
@@ -302,7 +302,7 @@ module.exports.getDailyContestTopStocks = (args, res, next) => {
 				})	
 			}),
 			Promise.map(topStocksByUsers, function(topStock) {
-				return SecurityHelper.getStockLatestDetail({ticker: topStock.security})
+				return SecurityHelper.getStockLatestDetail({ticker: topStock.ticker})
 				.then(securityDetail => {
 					delete topStock.ticker;
 					return {...topStock, security: securityDetail};
