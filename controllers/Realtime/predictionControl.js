@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-02 16:28:53
+* @Last Modified time: 2018-11-05 11:01:33
 */
 'use strict';
 const config = require('config');
@@ -38,15 +38,18 @@ function _sendPredictionUpdates(subscription) {
 		entryId = subscription.entryId;
 	
 		if (entryId) {
-			return DailyContestEntryHelper.getPredictionsForDate(entryId, date, category)
+			return Promise.all([
+				DailyContestEntryHelper.getPredictionsForDate(entryId, date, category),
+				DailyContestEntryHelper.getPnlForDate(entryId, date, category)
+			]);
 		} else {
 			console.log("Contest Entry Invalid");
 			return; 
 		}	
 		
 	})
-	.then(updatedPredictions => {
-		return _sendWSResponse(subscription.res, {entryId, category, entryupdatedPredictions});
+	.then(([predictions, pnl]) => {
+		return _sendWSResponse(subscription.res, {entryId, category, predictions, pnl});
 	})
 }
 

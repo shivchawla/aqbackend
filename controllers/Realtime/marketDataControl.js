@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 13:05:39
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 10:51:40
+* @Last Modified time: 2018-11-05 11:02:50
 */
 'use strict';
 const config = require('config');
@@ -168,8 +168,10 @@ function _getLatestFile(type) {
 }
 
 function _sendAllUpdates() {
-	MktPlaceController.sendAllUpdates();
-	PredictionController.sendAllUpdates();
+	return Promise.all([
+		MktPlaceController.sendAllUpdates(),
+		PredictionController.sendAllUpdates()
+	]);
 }
 
 /*
