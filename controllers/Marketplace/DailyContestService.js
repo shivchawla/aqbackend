@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-03 18:46:37
+* @Last Modified time: 2018-11-05 12:56:11
 */
 
 'use strict';
@@ -133,6 +133,28 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		}
 	})
 	.then(() => {
+		return Promise.map(entryPredictions, function(prediction) {
+			return SecurityHelper.getStockLatestDetail(prediction.position.security)
+			.then(securityDetail => {
+				var latestPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
+				if (latestPrice != 0) {
+					const investment = prediction.position.investment;
+					const target = prediction.target;
+
+					if (investment > 0 && target < 1.02*latestPrice) {
+						APIError.throwJsonError({msg:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 2% higher than call price`});
+					} else if (investment < 0 && target > 1.02*latestPrice) {
+						APIError.throwJsonError({msg:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 2% lower than call price`});
+					}
+					return;
+				} else {
+					console.log("Create Prediction: Price not found");
+					return; 
+				}
+			})
+		})
+	})
+	.then(() => {
 		return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
 	})
 	.then(advisor => {
@@ -142,6 +164,32 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
+		}
+	})
+	.then(contestEntry => {
+		if (contesEntry) {
+			return DailyContestEntryHelper.getPredictionsForDate(contestEntry._id, DateHelper.getMarketCloseDateTime(), "started", false)
+			.then(predictionsToday => {
+				if (predictionsToday.length + entryPredictions.length > 10) {
+					APIError.throwJsonError({msg: "Limit exceeded: Cannot add more than 10 predictions per day"})
+				} else {
+
+					return Promise.map(entryPredictions, function(prediction) {
+						var ticker = prediction.position.security.ticker;
+						var existingPredictionsInTicker = predictionsToday.filter(item => {return prediction.position.security.ticker == ticker;});
+						var newPredictioninTicker = entryPredictions.filter(item => {return item.position.security.ticker == ticker;});
+
+						if (existingPredictionsInTicker.length + newPredictioninTicker.length > 3) {
+							APIError.throwJsonError({msg: `Limit exceeded: Can't add more than 3 prediction for one stock (${ticker})`});
+						} else {
+							return contestEntry;		
+						}
+					})
+					
+				}
+			})
+		} else {
+			return contestEntry;
 		}
 	})
 	.then(contestEntry => {
@@ -181,6 +229,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 				return DailyContestEntryModel.updateEntryPredictions({_id: contestEntry._id}, adjustedPredictions, uniquePredictionDates[0], {new:true, fields:'_id'});
 			} else {
+
 				return DailyContestEntryHelper.addPredictions(contestEntry._id, adjustedPredictions); 
 				
 			}
