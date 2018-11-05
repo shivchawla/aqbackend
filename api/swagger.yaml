@@ -3813,7 +3813,7 @@ paths:
   /dailycontest/winneremail:
     get:
       tags:
-      - contest
+      - dailycontest
       summary: send email to winners
       description: send email to winners
       operationId: sendEmailToDailyContestWinners
@@ -3835,7 +3835,7 @@ paths:
   /dailycontest/summaryemail:
     get:
       tags:
-      - contest
+      - dailycontest
       summary: send email to winners
       description: send email to winners
       operationId: sendEmailToDailyContestParticipants

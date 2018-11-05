@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-03 18:49:57
+* @Last Modified time: 2018-11-05 19:18:40
 */
 
 'use strict';
@@ -21,7 +21,7 @@ function updateStockWeight(query) {
 			return SecurityPerformanceModel.updateSecurityPerformance(query, {weight: nWeight});
 		} else{
 			return {};
-			//APIError.throwJSONError({message: "Security not found. Can't update weight"});
+			//APIError.throwJsonError({message: "Security not found. Can't update weight"});
 		}
 	})
 }
@@ -56,7 +56,7 @@ module.exports.getStockDetail = function(args, res, next) {
 				if (valid) {
 					return SecurityPerformanceModel.saveSecurityPerformance({security: security});
 				} else {
-					APIError.throwJSONError({message: "Invalid Security"});
+					APIError.throwJsonError({message: "Invalid Security"});
 				}
 			});
 		} else {

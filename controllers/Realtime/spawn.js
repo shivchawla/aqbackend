@@ -27,7 +27,7 @@ ws.on('connection', function connection(res) {
         Promise.resolve()
         .then(x => {
             if (!req || !req['aimsquant-token']) {
-                APIError.throwJSONError({message: "Token missing"});
+                APIError.throwJsonError({message: "Token missing"});
             }
         
             req = JSON.parse(message);
@@ -38,7 +38,7 @@ ws.on('connection', function connection(res) {
         })
         .then(decoded => {
             if (decoded.exp*1000 <= Date.now()) {
-                APIError.throwJSONError({message: "Token expired"});
+                APIError.throwJsonError({message: "Token expired"});
             } else {
                 return UserModel.fetchUser({_id: decoded._id});
             }
@@ -57,7 +57,7 @@ ws.on('connection', function connection(res) {
                 req.userId = user._id;
                 return exports.handleAction(req, res);
             } else {
-                APIError.throwJSONError({message: "User is not Authorized"});
+                APIError.throwJsonError({message: "User is not Authorized"});
             }
         })
         .catch(err => {
