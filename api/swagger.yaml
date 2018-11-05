@@ -3810,6 +3810,50 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
+  /dailycontest/winneremail:
+    get:
+      tags:
+      - contest
+      summary: send email to winners
+      description: send email to winners
+      operationId: sendEmailToDailyContestWinners
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: Invalid Input
+      x-swagger-router-controller: "DailyContest"
+
+  /dailycontest/summaryemail:
+    get:
+      tags:
+      - contest
+      summary: send email to winners
+      description: send email to winners
+      operationId: sendEmailToDailyContestParticipants
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: Invalid Input
+      x-swagger-router-controller: "DailyContest"
+
 
 securityDefinitions:
   api_key:

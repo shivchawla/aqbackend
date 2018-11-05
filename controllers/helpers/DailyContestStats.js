@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 18:45:48
+* @Last Modified time: 2018-11-05 19:05:20
 */
 
 'use strict';
@@ -275,17 +275,17 @@ module.exports.sendWinnerDigest = function(date) {
 				
 				return AdvisorModel.fetchAdvisor({_id: winner.advisor})
 				.then(advisor => {
-                    var user = _.get(advisor, 'user', null);
+                     return UserModel.fetchUser({_id: advisor.user._id}, {fields:'firstName lastName email'})
+                    .then(user => {
                     
-                    if (process.env.NODE_ENV === 'production') {
-                    
-                    	return sendEmail.sendDailyContestSummaryDigest(winnerDigest, user)
-                	
-                	} else if(process.env.NODE_ENV === 'development') {
-                    
-                        return sendEmail.sendDailyContestSummaryDigest(winner, 
-                            {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
-                    }
+	                    if (process.env.NODE_ENV === 'production') {
+	                    	return sendEmail.sendDailyContestSummaryDigest(winnerDigest, user);
+	                	
+	                	} else if(process.env.NODE_ENV === 'development') {
+	                        return sendEmail.sendDailyContestSummaryDigest(winner, 
+	                            {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+	                    }
+                    });
                 });
             })
 			
