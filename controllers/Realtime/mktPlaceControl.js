@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-03 18:46:37
+* @Last Modified time: 2018-11-05 10:50:16
 */
 
 'use strict';
@@ -20,8 +20,6 @@ const WatchlistModel = require("../../models/Marketplace/Watchlist");
 const APIError = require('../../utils/error');
 
 var isBusy = {};
-
-let activeDate;
 
 // Subscription of test result
 var subscribers = {portfolio: {}, 
@@ -363,7 +361,7 @@ function _sendWSResponse(res, data, category, typeId) {
 				ticker: category == "stock" ? typeId : category == "watchlist" ? data.ticker : null,
 				watchlistId: category == "watchlist" ? typeId : null,
 				output: data,
-				date: activeDate});
+				date: null});
 
 		return res.send(msg);
 	} else {

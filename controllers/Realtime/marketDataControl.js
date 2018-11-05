@@ -2,36 +2,35 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 13:05:39
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-02 16:14:34
+* @Last Modified time: 2018-11-05 10:51:40
 */
 'use strict';
 const config = require('config');
 const schedule = require('node-schedule');
 const Promise = require('bluebird');
-const homeDir = require('os').homedir();
 var fs = require('fs');
 var path = require("path");
 const homeDir = require('os').homedir();
 
 const APIError = require('../../utils/error');
 const DateHelper = require('../../utils/Date');
+const SecurityHelper = require('../helpers/Security');
 
-//const MktPlaceController = require('./mktPlaceControl.js');
-//const PredictionController = require('./predictionControl.js');
+const MktPlaceController = require('./mktPlaceControl.js');
+const PredictionController = require('./predictionControl.js');
 
 //Reload data as soon as (2s delay) server starts
 setTimeout(function(){reloadData();}, 2000);
 
 //Run when seconds = 10
-schedule.scheduleJob(`${config.get('nse_delayinseconds')+10} * 6-13 * * 1-5`, function() {
+schedule.scheduleJob(`${config.get('nse_delayinseconds')+10} * 5-13 * * 1-5`, function() {
     processLatestFiles();
 });
 
 //Reload data before ranking calculation
-schedule.scheduleJob(`*/49 6-13 * * 1-5`, function() {
+schedule.scheduleJob(`*/49 5-13 * * 1-5`, function() {
     reloadData();
 });
-
 
 /*
 * HELPER: Request the Julia process to update the RT data
@@ -85,13 +84,14 @@ function _getLastValidFile(type) {
 				currentDate.setDate(currentDate.getDate() - 1);
 			}
 		} else {
-			activeDate = DateHelper.getDate(currentDate);
+			//activeDate = DateHelper.getDate(currentDate);
 			found = true;
 		}
 	}
 
 	return localUnzipFilePath;
 }
+
 
 /*
 * Get latest RT file based on the current time
@@ -101,9 +101,11 @@ function _getLatestFile(type) {
 	return new Promise((resolve, reject) => {
 		let fileNumber;
 		var currentDate = new Date();
-		var isWeekend = currentDate.getDay() == 0 || currentDate.getDay() == 6;
+		var isHoliday = DateHelper.isHoliday(currentDate);
 
-		if (!isWeekend) {
+		let localUnzipFilePath = "";
+
+		if (!isHoliday) {
 
 			if (type == "mkt") {
 				var dateNine15 = new Date();
@@ -215,7 +217,7 @@ function reloadData() {
 					currentDate.setDate(currentDate.getDate() - 1);
 				}
 			} else {
-				activeDate = DateHelper.getDate(currentDate);
+				//activeDate = DateHelper.getDate(currentDate);
 				found = true;
 			}
 		}
@@ -225,7 +227,7 @@ function reloadData() {
 			//Run a loop (from first(-5) to last file) to update the data
 			var fileIndexIteratorArray = Array.from(Array(lastFileNumber + 1).keys()).slice(Math.max(foundFileNumber - 5, 1));
 			return new Promise.mapSeries(fileIndexIteratorArray, function(fileNumber) {
-				var filePath = `/home/admin/rtdata/October292018/${fileNumber}.${type}`;
+				var filePath = `${localPath}/${fileNumber}.${type}`;
 				return _updateData(filePath, type)
 				.then(() => { 
 					//Waiting for completion of the promise
@@ -266,4 +268,3 @@ function processLatestFiles() {
 		console.log(err);
 	});
 }
-

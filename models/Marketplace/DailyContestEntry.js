@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-03 12:56:57
+* @Last Modified time: 2018-11-05 10:40:58
 */
 
 
@@ -206,7 +206,7 @@ DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, da
 					var startDate = DateHelper.getMarketCloseDateTime(DateHelper.getDate(item.startDate));
 					
 					return !moment(startDate).isAfter(moment(date)) && 
-							(moment(item.endDate).isAfter(moment(date))) //|| (isToday && moment(item.endDate).isAfter(moment())))
+							!moment(item.endDate).isBefore(moment(date)) && //|| (isToday && moment(item.endDate).isAfter(moment())))
 							!item.success.status 
 				});
 			} else {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-10-31 16:32:16
+* @Last Modified time: 2018-11-05 10:52:55
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -35,7 +35,7 @@ module.exports.getMarketOpen = function() {
 
 module.exports.getMarketClose = function() {
 	var cd = moment().tz(indiaTimeZone).format("YYYY-MM-DD");
-	return moment.tz(`${cd} 23:30:00`, indiaTimeZone).tz(localTimeZone);
+	return moment.tz(`${cd} 15:30:00`, indiaTimeZone).tz(localTimeZone);
 }
 
 module.exports.getMarketOpenHour = function() {

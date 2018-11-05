@@ -4,8 +4,11 @@ const jwtUtil = require('../../utils/jwttoken');
 const redisUtils = require('../../utils/RedisUtils');
 const BacktestController = require('./btControl.js');
 const ForwardTestController = require('./ftControl.js');
+
+const MarketDataController = require('./marketDataControl.js');
 const MarketPlaceController = require('./mktPlaceControl.js');
 const PredictionController = require('./predictionControl.js');
+
 const UserModel = require('../../models/user');
 const APIError = require('../../utils/error');
 const Promise = require('bluebird');
