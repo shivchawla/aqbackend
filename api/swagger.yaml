@@ -3712,6 +3712,27 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
+    post:
+      tags:
+      - dailycontest
+      summary: update daily contest pnl-stats (run job)
+      description: update daily contest pnl-stats (run job)
+      operationId: updateDailyContestPnl
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: Invalid Input
+      x-swagger-router-controller: "DailyContest"
+
   /dailycontest/topstocks:
     get:
       tags: 
@@ -3738,6 +3759,27 @@ paths:
           description: OK
         400:
           description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
+    post:
+      tags:
+      - dailycontest
+      summary: update daily contest top stocks (run job)
+      description: update daily contest tops stocks (run job)
+      operationId: updateDailyContestTopStocks
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: Invalid Input
       x-swagger-router-controller: "DailyContest"
 
   /dailycontest/leaderboard:

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 16:09:07
+* @Last Modified time: 2018-11-05 16:45:01
 */
 
 'use strict';
@@ -316,4 +316,50 @@ module.exports.getDailyContestTopStocks = (args, res, next) => {
 	.catch(err => {
 		return res.status(400).send({msg: err.msg});	
 	})
+};
+
+
+module.exports.updateDailyContestTopStocks = (args, res, next) => {
+	const _d = _.get(args, 'date.value', '');
+	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
+	
+	const date = DateHelper.getMarketCloseDateTime(_dd);
+
+	const admins = config.get('admin_user');
+    Promise.resolve(true)
+    .then(() => {
+    	const userEmail = _.get(args.user, 'email', null);
+
+        if (admins.indexOf(userEmail) !== -1){ // user is admin and can send email
+            return DailyContestStatsHelper.updateContestTopStocks(date);
+        } else {
+            APIError.throwJsonError({message: "User not authorized to update top-stocks"});
+        }
+    })
+    .then(() => {
+    	return res.status(200).send({msg: "Top stocks updated"});
+    })
+
+};
+
+module.exports.updateDailyContestPnl = (args, res, next) => {
+	const _d = _.get(args, 'date.value', '');
+	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
+	
+	const date = DateHelper.getMarketCloseDateTime(_dd);
+
+	const admins = config.get('admin_user');
+    Promise.resolve(true)
+    .then(() => {
+    	const userEmail = _.get(args.user, 'email', null);
+        if (admins.indexOf(userEmail) !== -1){ // user is admin and can send email
+            return DailyContestStatsHelper.updateContestStats(date);
+        } else {
+            APIError.throwJsonError({message: "User not authorized to update pnl stats"});
+        }
+    })
+    .then(() => {
+    	return res.status(200).send({msg: "Pnl Stats Updated"});
+    })
+
 };
