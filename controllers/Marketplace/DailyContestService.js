@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 13:28:04
+* @Last Modified time: 2018-11-05 14:02:53
 */
 
 'use strict';
@@ -181,11 +181,11 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 						if (existingPredictionsInTicker.length + newPredictioninTicker.length > 3) {
 							APIError.throwJsonError({msg: `Limit exceeded: Can't add more than 3 prediction for one stock (${ticker})`});
-						} else {
-							return contestEntry;		
-						}
+						} 
 					})
-					
+					.then(() => {
+						return contestEntry;
+					})
 				}
 			})
 		} else {
@@ -287,14 +287,14 @@ module.exports.getDailyContestTopStocks = (args, res, next) => {
 
 		return Promise.all([
 			Promise.map(topStocksByInvestment, function(topStock) {
-				return SecurityHelper.getStockLatestDetailByType({ticker: topStock.ticker})
+				return SecurityHelper.getStockLatestDetail({ticker: topStock.ticker})
 				.then(securityDetail => {
 					delete topStock.ticker;
 					return {...topStock, security: securityDetail};
 				})	
 			}),
 			Promise.map(topStocksByUsers, function(topStock) {
-				return SecurityHelper.getStockLatestDetailByType({ticker: topStock.security})
+				return SecurityHelper.getStockLatestDetail({ticker: topStock.security})
 				.then(securityDetail => {
 					delete topStock.ticker;
 					return {...topStock, security: securityDetail};
