@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 12:56:11
+* @Last Modified time: 2018-11-05 13:25:48
 */
 
 'use strict';
@@ -287,15 +287,17 @@ module.exports.getDailyContestTopStocks = (args, res, next) => {
 
 		return Promise.all([
 			Promise.map(topStocksByInvestment, function(topStock) {
-				return SecurityHelper.getStockLatestDetailByType(security)
+				return SecurityHelper.getStockLatestDetailByType({ticker: topStock.ticker})
 				.then(securityDetail => {
-					return {...topStocks, security: securityDetail};
+					delete topStock.ticker;
+					return {...topStock, security: securityDetail};
 				})	
 			}),
 			Promise.map(topStocksByUsers, function(topStock) {
-				return SecurityHelper.getStockLatestDetailByType(security)
+				return SecurityHelper.getStockLatestDetailByType(ticker: topStock.security)
 				.then(securityDetail => {
-					return {...topStocks, security: securityDetail};
+					delete topStock.ticker;
+					return {...topStock, security: securityDetail};
 				})	
 			})
 		]);
