@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 20:18:11
+* @Last Modified time: 2018-11-06 09:35:57
 */
 'use strict';
 const config = require('config');
@@ -98,6 +98,13 @@ function _handlePredictionSubscription(req, res) {
 	});
 }
 
+function _handlePredictionUnSubscription(req, res) {
+	const userId = req.userId;
+	const category = req.category;
+
+	delete predictionSubscribers[userId];	
+}
+
 
 module.exports.sendAllUpdates = function() {
 	return _sendAllPredictionUpdates();
@@ -105,12 +112,14 @@ module.exports.sendAllUpdates = function() {
 
 //Function to subscribe WS data from backend to UI
 module.exports.handlePredictionSubscription = function(req, res) {
-    //1. Resolve the req for type of request. Get the portfolio Id/stock ticker/adviceId etc
-    //2. Keep a track of response variable(res) by usedId
-    //3. Keep a track of subscription status for portfolioId
-    //4. Create a timer function that updates portfolio for latest price (interval driven function)
-    //5. Relays portfolio data if still subscibed
 
 	return _handlePredictionSubscription(req, res);
+    
+};
+
+
+//Function to un-subscribe WS data from backend to UI
+module.exports.handlePredictionUnSubscription = function(req, res) {
+	return _handlePredictionUnSubscription(req, res);
     
 };

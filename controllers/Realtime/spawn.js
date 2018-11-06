@@ -97,4 +97,7 @@ exports.handleAction = function(req, res) {
     else if(req.action === 'subscribe-prediction') {
         return PredictionController.handlePredictionSubscription(req, res);
     }
+    else if(req.action === 'unsubscribe-prediction') {
+        return PredictionController.handlePredictionUnSubscription(req, res);
+    }
 };

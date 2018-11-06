@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 13:05:39
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 11:02:50
+* @Last Modified time: 2018-11-06 09:53:21
 */
 'use strict';
 const config = require('config');
@@ -23,8 +23,11 @@ const PredictionController = require('./predictionControl.js');
 setTimeout(function(){reloadData();}, 2000);
 
 //Run when seconds = 10
-schedule.scheduleJob(`${config.get('nse_delayinseconds')+10} * 5-13 * * 1-5`, function() {
-    processLatestFiles();
+const marketOpenDateTimeHour = DateHelper.getMarketOpenDateTime().get('hour');
+const scheduleDownloadRTData = `${config.get('nse_delayinseconds')+10} * ${marketOpenDateTimeHour-1}-${marketOpenDateTimeHour+1} * * 1-5`;
+
+schedule.scheduleJob(scheduleDownloadRTData, function() {
+	processLatestFiles();
 });
 
 //Reload data before ranking calculation
