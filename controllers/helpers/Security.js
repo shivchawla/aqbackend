@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-06 16:32:25
+* @Last Modified time: 2018-11-06 18:04:46
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -618,7 +618,7 @@ module.exports.getStockList = function(search, options) {
 				_getRawStockList(fname_shortable)
 			]);
 		} else {
-			return [];
+			return [[], []];
 		}
 	})
 	.then(([universeList, sUniverseList]) => {

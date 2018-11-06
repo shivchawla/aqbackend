@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-06 11:12:19
+* @Last Modified time: 2018-11-06 19:03:34
 */
 
 'use strict';
@@ -271,7 +271,7 @@ module.exports.getDailyContestWinners = (args, res, next) => {
 		})
 	})
 	.then(populatedWinners => {
-		return res.status(200).send(populatedWinners);
+		return res.status(200).send({winners: populatedWinners});
 	})
 	.catch(err => {
 		return res.status(400).send({msg: err.msg});	
