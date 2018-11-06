@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 13:05:39
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-06 09:53:21
+* @Last Modified time: 2018-11-06 11:48:52
 */
 'use strict';
 const config = require('config');
@@ -24,7 +24,8 @@ setTimeout(function(){reloadData();}, 2000);
 
 //Run when seconds = 10
 const marketOpenDateTimeHour = DateHelper.getMarketOpenDateTime().get('hour');
-const scheduleDownloadRTData = `${config.get('nse_delayinseconds')+10} * ${marketOpenDateTimeHour-1}-${marketOpenDateTimeHour+1} * * 1-5`;
+const marketCloseDateTimeHour = DateHelper.getMarketCloseDateTime().get('hour');
+const scheduleDownloadRTData = `${config.get('nse_delayinseconds')+10} * ${marketOpenDateTimeHour-1}-${marketCloseDateTimeHour+1} * * 1-5`;
 
 schedule.scheduleJob(scheduleDownloadRTData, function() {
 	processLatestFiles();

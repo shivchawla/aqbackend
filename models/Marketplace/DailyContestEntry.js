@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 18:10:30
+* @Last Modified time: 2018-11-06 15:21:06
 */
 
 
@@ -253,6 +253,24 @@ DailyContestEntry.statics.updatePredictionCallPrice = function(query, prediction
 
 	return this.findOneAndUpdate({...query, ...q}, updates);
 };
+
+
+DailyContestEntry.statics.updatePrediction = function(query, updatedPrediction) {
+	var q = {'predictions.position.security.ticker': updatedPrediction.position.security.ticker, 
+			'predictions.endDate': updatedPrediction.endDate,
+			'predictions.startDate': updatedPrediction.startDate
+		};
+
+	var updates = {
+		$set: {
+			'predictions.$': updatedPrediction
+		}
+	};
+
+	return this.findOneAndUpdate({...query, ...q}, updates);
+};
+
+
 
 const DailyContestEntryModel = mongoose.model('DailyContestEntry', DailyContestEntry);
 module.exports = DailyContestEntryModel;

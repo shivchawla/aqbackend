@@ -256,6 +256,12 @@ function handleRequest(parsemsg::Dict{String, Any})
             
             parsemsg["output"] = ""
             parsemsg["output"] = get_stock_price_history(parsemsg["security"])
+
+        elseif action == "compute_stock_price_historical"
+            
+            parsemsg["output"] = ""
+            date = DateTime(parsemsg["date"], jsdateformat)
+            parsemsg["output"] = get_stock_price_historical(parsemsg["security"], date)
             
         elseif action == "compute_stock_price_latest"
             parsemsg["output"] = ""

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-03 19:37:19
+* @Last Modified time: 2018-11-06 16:12:59
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -250,11 +250,48 @@ module.exports.getStockLatestDetailByType = function(security, type) {
 	});
 };
 
+module.exports.getStockDetailEOD = function(security, date) {
+	return new Promise(resolve => {
+		var query = {'security.ticker': security.ticker,
+						'security.exchange': security.exchange ? security.exchange : "NSE",
+						'security.securityType': security.securityType ? security.securityType : "EQ",
+						'security.country': security.country ? security.country : "IN"};
+		
+		return Promise.all([
+			_computeStockEODDetail(security, date),
+			_getSecurityDetail(security)
+		])
+		.then(([performanceDetail, securityDetail]) => {
+			security.detail = securityDetail;
+			resolve(Object.assign({}, security, {latestDetail: performanceDetail}));
+		})
+		.catch(err => {
+			console.log(err.message);
+			resolve(Object.assign({}, security, {latestDetail: {}}));
+		})
+	});
+};
 
 module.exports.getStockLatestDetail = function(security) {
 	return Promise.all([
 		exports.getStockLatestDetailByType(security, "EOD"),
 		exports.getStockLatestDetailByType(security, "RT")
+	])
+	.then(([detailEOD, detailRT]) => {
+		var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
+		var x = Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
+
+		return x;
+	});
+};
+
+
+module.exports.getStockDetail = function(security, date) {
+	var isToday = Date.compareDates(date, DateHelper.getCurrentDate()) == 0;
+	
+	return Promise.all([
+		isToday ? exports.getStockLatestDetailByType(security, "EOD") : exports.getStockDetailEOD(security, date),  
+		isToday ? exports.getStockLatestDetailByType(security, "RT") : null
 	])
 	.then(([detailEOD, detailRT]) => {
 		var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
@@ -387,6 +424,18 @@ function _computeStockLatestDetail(security, type) {
 		var msg = JSON.stringify({action:"compute_stock_price_latest", 
             						security: security,
             						ptype: type ? type : "EOD"});
+
+		WSHelper.handleMktRequest(msg, resolve, reject);
+
+    });
+};
+
+function _computeStockEODDetail(security, date) {
+	return new Promise((resolve, reject) => {
+
+		var msg = JSON.stringify({action:"compute_stock_price_historical", 
+            						security: security,
+            						date: date});
 
 		WSHelper.handleMktRequest(msg, resolve, reject);
 

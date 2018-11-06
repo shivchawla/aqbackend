@@ -24,11 +24,11 @@ function _updateportfolio_EODprice(port, date::DateTime)
             merged_prices = stock_value_52w
 
             latest_values = merged_prices[end]
-            latest_dt = DateTime(latest_values.timestamp[end])
+            latest_dt = DateTime(latest_values.timestamp[end])31
 
             tradebars = Dict{SecuritySymbol, Vector{TradeBar}}()
             for (sym, pos) in port.positions
-                tradebars[sym] = haskey(_lastDayPrices, sym.ticker) ? 
+                tradebars[sym] = haskey(_lastDayPrices, sym.ticker) && _lastDayPrices[sym.ticker].datetime == date ? 
                     [_lastDayPrices[sym.ticker]] :  
                     [Raftaar.TradeBar(latest_dt, 0.0, 0.0, 0.0, latest_values[sym.ticker].values[1])]
             end

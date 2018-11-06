@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 20:16:01
+* @Last Modified time: 2018-11-06 15:41:12
 */
 
 'use strict';
@@ -159,7 +159,6 @@ function _getPnlStats(portfolio) {
 
 	});
 }
-
 
 function _trackIntradayHistory(security) {
 	return new Promise(function(resolve, reject) {
@@ -453,19 +452,19 @@ module.exports.getPredictionsForDate = function(entryId, date, category='started
 			return [];
 		}
 	})
-	.then(updatedPredictionsWithLatestPrice => {
+	.then(updatedPredictionsWithLastPrice => {
 
 		//Update security latest detail
 		if (update) {
-			return Promise.map(updatedPredictionsWithLatestPrice, function(prediction) {
-				return SecurityHelper.getStockLatestDetail(prediction.position.security)
+			return Promise.map(updatedPredictionsWithLastPrice, function(prediction) {
+				return SecurityHelper.getStockDetail(prediction.position.security, date)
 				.then(securityDetail => {
 					var updatedPosition = Object.assign(prediction.position, {security: securityDetail});
 					return Object.assign({position: updatedPosition}, prediction);
 				})
 			});
 		} else {
-			return updatedPredictionsWithLatestPrice;
+			return updatedPredictionsWithLastPrice;
 		}
 	});
 };
@@ -712,7 +711,23 @@ module.exports.updateCallPriceForPredictions = function() {
 
 		});
 	})
-}
+};
+
+//Saves prediction snapshot as-of date
+// module.exports.saveUpdatedEntries = function() {
+// 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
+// 	.then(contestEntries => {
+// 		return Promise.mapSeries(contestEntries, function(contestEntry) {
+// 			let contestEntryId = contestEntry._id;
+// 			const date = DateHelper.getMarketCloseDateTime();
+
+// 			return exports.getPredictionsForDate(contestEntryId, date, "active")
+// 			.then(updatedPrediction => {
+// 				return DailyContestEntryModel.updatePrediction({_id: contestEntryId}, updatedPrediction);
+// 			})
+// 		});
+// 	});
+// };
 
 
 //return SecurityHelper.getStockIntradayDetail({ticker: ticker})

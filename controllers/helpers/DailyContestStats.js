@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 21:05:12
+* @Last Modified time: 2018-11-06 11:37:15
 */
 
 'use strict';
@@ -213,8 +213,8 @@ module.exports.sendSummaryDigest = function(date) {
 			var winners = _.get(contestStats, 'winners', []).slice(0,2);
 			var topStocks = _.get(contestStats,'topStocks.byUsers', []).slice(0, 2);
 
-			var leaderboardUrl = `${config.get('hostname')}/dailycontest?tab=2&date=${moment(date).format("YYYY-MM-DD")}`;
-			var topStocksUrl = `${config.get('hostname')}/dailycontest?tab=1&date=${moment(date).format("YYYY-MM-DD")}`;
+			var leaderboardUrl = `${config.get('hostname')}/dailycontest/leaderboard?date=${moment(date).format("YYYY-MM-DD")}`;
+			var topStocksUrl = `${config.get('hostname')}/dailycontest/topstocks?date=${moment(date).format("YYYY-MM-DD")}`;
 
 			var summaryDigest = {leaderboardUrl, topStocksUrl, dailyContestDate: moment(date).format("Do MMM'YYYY")};		
 
@@ -273,7 +273,7 @@ module.exports.sendWinnerDigest = function(date) {
 		if (contestStats) {
 			var winners = contestStats.winners;
 			
-			var leaderboardUrl = `${config.get('hostname')}/dailycontest?tab=2&date=${moment(date).format("YYYY-MM-DD")}`;
+			var leaderboardUrl = `${config.get('hostname')}/dailycontest/leaderboard?date=${moment(date).format("YYYY-MM-DD")}`;
 
 			return Promise.mapSeries(winners, function(winner) {
 				let winnerDigest = {leaderboardUrl, 

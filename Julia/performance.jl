@@ -477,6 +477,65 @@ function get_stock_price_history(security_dict::Dict{String,Any})
 end
 
 ###
+# Function to fetch historical snapshot for date
+###
+function get_stock_price_historical(security_dict::Dict{String,Any}, date:: DateTime)
+    
+    try
+        (valid, security) = _validate_security(security_dict)
+        
+        if valid
+            start_date = date - Dates.Day(10)
+            end_date = date
+
+            stock_prices = nothing
+            
+            ticker = security.symbol.ticker
+            try
+                stock_prices = _getPricehistory([ticker], start_date, end_date, adjustment = true)
+            catch err
+                println("Error in fetching adjusted prices fot $(security.symbol.ticker)")
+            end
+
+            if stock_prices == nothing
+                println("Fetching un-adjusted prices for $(ticker)")
+                stock_prices = _getPricehistory([ticker], start_date, end_date, strict=false)
+            end
+
+            benchmark_prices = _getPricehistory(["NIFTY_50"], start_date, end_date, strict=false)
+            
+            if stock_prices != nothing && benchmark_prices != nothing
+                stock_prices = tail(dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any), 2)
+
+                nDays = length(stock_prices)
+
+                lastPrice = values(stock_prices[ticker])[1]
+                closePrice = values(stock_prices[ticker])[end]
+
+                change = 0
+                changePct = 0
+
+                if (nDays > 1) 
+                    change = values(TimeSeries.diff(stock_prices[ticker]))[end]
+                    changePct = lastPrice > 0 ? change/lastPrice : 0;
+                end
+
+                return Dict{String, Any}(
+                    "Close" => closePrice,
+                    "Change" => change,
+                    "ChangePct" => changePct
+                )
+
+            else
+                error("Stock data for $(security.symbol.ticker) is not present")
+            end
+        end
+    catch err
+        rethrow(err)
+    end    
+end
+
+###
 # Function to fetch LATEST AVAIALBLE PRICE (and metrics) of a security
 ###
 function get_stock_price_latest(security_dict::Dict{String,Any}, ptype::String="EOD")
