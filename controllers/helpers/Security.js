@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-06 16:12:59
+* @Last Modified time: 2018-11-06 16:32:25
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -287,7 +287,7 @@ module.exports.getStockLatestDetail = function(security) {
 
 
 module.exports.getStockDetail = function(security, date) {
-	var isToday = Date.compareDates(date, DateHelper.getCurrentDate()) == 0;
+	var isToday = DateHelper.compareDates(date, DateHelper.getCurrentDate()) == 0;
 	
 	return Promise.all([
 		isToday ? exports.getStockLatestDetailByType(security, "EOD") : exports.getStockDetailEOD(security, date),  

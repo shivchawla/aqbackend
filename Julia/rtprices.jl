@@ -24,7 +24,7 @@ function _updateportfolio_EODprice(port, date::DateTime)
             merged_prices = stock_value_52w
 
             latest_values = merged_prices[end]
-            latest_dt = DateTime(latest_values.timestamp[end])31
+            latest_dt = DateTime(latest_values.timestamp[end])
 
             tradebars = Dict{SecuritySymbol, Vector{TradeBar}}()
             for (sym, pos) in port.positions
