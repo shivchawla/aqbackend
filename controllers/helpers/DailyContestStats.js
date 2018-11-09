@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-06 11:37:15
+* @Last Modified time: 2018-11-09 19:41:33
 */
 
 'use strict';
@@ -32,6 +32,7 @@ function _computeContestWinners(date) {
 		})
 		.then(pnlStatsForAllAdvisors => {
 			return pnlStatsForAllAdvisors
+			.filter(item => {return item.pnlStats.total.pnlPct > 0})			
 			.sort((a,b) => {return a.pnlStats.total.pnlPct > b.pnlStats.total.pnlPct ? -1 : 1})
 			.slice(0, 5)
 			.map((item, index) => {item.rank = index+1; return item;});
