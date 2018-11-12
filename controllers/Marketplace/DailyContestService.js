@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-06 19:03:34
+* @Last Modified time: 2018-11-12 15:09:00
 */
 
 'use strict';
@@ -125,7 +125,6 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	let advisorId;
 	return Promise.resolve()
 	.then(() => {
-		return true;
 		if (DateHelper.isMarketTrading()) {
 			return true;
 		} else {
