@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-09 19:41:33
+* @Last Modified time: 2018-11-12 15:06:40
 */
 
 'use strict';
@@ -142,7 +142,7 @@ module.exports.updateContestStats = function(date) {
 		}).slice(0, 5).map((item, index) => {item.rank = index+1; return item;});
 
 		var topStocksInvestment = metricsArray.sort((a,b) => {
-			return a.investment.total > b.investment.total ? -1 : 1
+			return a.investment.gross > b.investment.gross ? -1 : 1
 		}).slice(0, 5).map((item, index) => {item.rank = index+1; return item;});
 
 		var topStocks = {byUsers: topStocksUsers, byInvestment: topStocksInvestment};
@@ -167,7 +167,7 @@ module.exports.updateContestTopStocks = function(date) {
 		}).slice(0, 5).map((item, index) => {item.rank = index+1; return item;});
 
 		var topStocksInvestment = metricsArray.sort((a,b) => {
-			return a.investment.total > b.investment.total ? -1 : 1
+			return a.investment.gross > b.investment.gross ? -1 : 1
 		}).slice(0, 5).map((item, index) => {item.rank = index+1; return item;});
 
 		var topStocks = {byUsers: topStocksUsers, byInvestment: topStocksInvestment};
