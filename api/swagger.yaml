@@ -2690,6 +2690,10 @@ paths:
         in: query
         type: string
         required: false
+      - name: exclude
+        in: query
+        type: string
+        required: false
       - name: populate
         in: query
         type: boolean
@@ -3731,6 +3735,28 @@ paths:
           description: OK
         400:
           description: Invalid Input
+      x-swagger-router-controller: "DailyContest"
+
+  /dailycontest/nextstock:
+    get:
+      tags: 
+      - dailycontest
+      summary: get nextstock for possible prediction
+      description: get nextstock for possible prediction
+      operationId: getDailyContestNextStock
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
   /dailycontest/topstocks:

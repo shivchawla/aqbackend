@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-12 15:09:00
+* @Last Modified time: 2018-11-15 11:15:48
 */
 
 'use strict';
@@ -110,7 +110,48 @@ module.exports.getDailyContestPnl = (args, res, next) => {
 		//console.log(err);
 		return res.status(400).send(err.message);		
 	});
+};
 
+
+/*
+* Next availble stock without prediction
+*/
+module.exports.getDailyContestNextStock = function(args, res, next) {
+	
+	const _dd = DateHelper.getCurrentDate();
+	const date = DateHelper.getMarketCloseDateTime(_dd);
+	const userId = _.get(args, 'user._id', null);
+
+	return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
+	.then(advisor => {
+		if (advisor) {
+			const advisorId = advisor._id.toString()
+
+			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
+		} else if(!advisor) {
+			APIError.throwJsonError({message: "Not a valid user"});
+		} else {
+			APIError.throwJsonError({message: `No Contest found for ${date}`});
+		}
+	})
+	.then(contestEntry => {
+		if (contestEntry) {
+			return DailyContestEntryHelper.getPredictionsForDate(contestEntry._id, date, "active", false);
+		} else {
+			APIError.throwJsonError({message: `No contest entry found for ${date}`});
+		}
+	})
+	.then(activePredictions => {
+		var activeTickers = (activePredictions || []).filer(item => _.get(item, 'position.security.ticker', ""));
+		
+		return SecurityHelper.getStockList("", {universe: "NIFTY_500", exclude: activeTickers, limit:1})
+	})
+	.then(possibleTickers => {
+		return res.status(200).send(possibleTickers);
+	})
+	.catch(err => {
+		return res.status(400).send({msg: err.msg});	
+	})
 };
 
 /*

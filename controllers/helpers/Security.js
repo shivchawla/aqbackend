@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-06 18:04:46
+* @Last Modified time: 2018-11-15 11:22:01
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -604,7 +604,9 @@ module.exports.getStockList = function(search, options) {
 	const sector = options.sector;
 	const industry = options.industry;
 	const skip = _.get(options, 'skip', 0);
-	const limit = _.get(options, 'limit', 0);
+	const limit = _.get(options, 'limit', 10);
+
+	const exclude = _.get(options, 'exclude', []);
 
 	let shortableUniverseList;
 	return Promise.resolve()
@@ -670,14 +672,20 @@ module.exports.getStockList = function(search, options) {
 			qUniverse = {'security.ticker' : {$in: universeList}}
 		}		
 
+		let qExclude = {};
+
+		if (exclude.length > 0) {
+			qExclude = {'security.ticker' : {$nin: exclude}}
+		}
+
 	    var containsNIFTY = "^NIFTY.*$";
 	    var q10 = {'security.ticker': {$regex: containsNIFTY}}; 
 	    
 	    var onlyStockQueries = universe || sector || industry;
 
-	    var query_1 =  {$and: [q1, q3, q4, q5, q6, q7, q8, q9, qSector, qIndustry, qUniverse]}; 
-	    var query_21 = {$and: [q21, q3, q4, q5, q6, q7, q8, q9, qSector, qIndustry, qUniverse]};
-	    var query_22 = {$and: [q22, q3, q4, q5, q6, q7, q8, q9, qSector, qIndustry, qUniverse]};
+	    var query_1 =  {$and: [q1, q3, q4, q5, q6, q7, q8, q9, qSector, qIndustry, qUniverse, qExclude]}; 
+	    var query_21 = {$and: [q21, q3, q4, q5, q6, q7, q8, q9, qSector, qIndustry, qUniverse, qExclude]};
+	    var query_22 = {$and: [q22, q3, q4, q5, q6, q7, q8, q9, qSector, qIndustry, qUniverse, qExclude]};
 	    var query_3 = {$and: [q1, q3, q4, q5, q6, q7, q8, q10]};
 	    var query_4 = {$and: [q21, q3, q4, q5, q6, q7, q8, q10]};
 

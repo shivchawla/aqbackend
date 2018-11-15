@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 19:18:40
+* @Last Modified time: 2018-11-15 11:16:38
 */
 
 'use strict';
@@ -89,11 +89,12 @@ module.exports.getStocks = function(args, res, next) {
 	const universe = _.get(args, 'universe.value', null);
 	//Get the fields to be populated, default is NONE
 	const populate = _.get(args, 'populate.value', false);
+	const exclude = _.get(Args, 'exclude.value', "").split(",");
 	
 	const skip = _.get(args, 'skip.value', 0);
 	const limit = _.get(args, 'limit.value', 5); 
 
-	return SecurityHelper.getStockList(search, {universe: universe, sector: sector, industry: industry, skip: skip, limit: limit})
+	return SecurityHelper.getStockList(search, {universe, sector, industry, exclude, skip, limit})
 	.then(securities => {
 		return Promise.map(securities, function(security) {
 			return populate ? 
