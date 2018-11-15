@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-15 11:49:16
+* @Last Modified time: 2018-11-15 11:52:41
 */
 
 'use strict';
@@ -120,7 +120,7 @@ module.exports.getDailyContestNextStock = function(args, res, next) {
 	
 	const _dd = DateHelper.getCurrentDate();
 	const date = DateHelper.getMarketCloseDateTime(_dd);
-	const exclude = _.get(args, 'exclude.value', "").split(",");
+	const exclude = _.get(args, 'exclude.value', "").split(",").map(item => item.trim());
 	const populate = _.get(args, 'populate.value', false);
 
 	const userId = _.get(args, 'user._id', null);
