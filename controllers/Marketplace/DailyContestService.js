@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-15 11:34:08
+* @Last Modified time: 2018-11-15 11:40:49
 */
 
 'use strict';
@@ -120,6 +120,8 @@ module.exports.getDailyContestNextStock = function(args, res, next) {
 	
 	const _dd = DateHelper.getCurrentDate();
 	const date = DateHelper.getMarketCloseDateTime(_dd);
+	const exclude = _.get(args, 'exclude.value', "").split(",");
+
 	const userId = _.get(args, 'user._id', null);
 
 	return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
@@ -144,7 +146,7 @@ module.exports.getDailyContestNextStock = function(args, res, next) {
 	.then(activePredictions => {
 		var activeTickers = (activePredictions || []).map(item => _.get(item, 'position.security.ticker', ""));
 		
-		return SecurityHelper.getStockList("", {universe: "NIFTY_500", exclude: activeTickers, limit:1})
+		return SecurityHelper.getStockList("", {universe: "NIFTY_500", exclude: activeTickers.concat(exclude), limit:1})
 	})
 	.then(possibleTickers => {
 		return res.status(200).send(possibleTickers);

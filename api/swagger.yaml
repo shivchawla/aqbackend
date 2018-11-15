@@ -3752,6 +3752,11 @@ paths:
         description: "auth token"
         type: "string"
         required: true
+      - name: exclude
+        in: query
+        description: exlcude tickers
+        type: string
+        required: false
       responses:
         200:
           description: OK
