@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-15 11:33:26
+* @Last Modified time: 2018-11-15 11:50:12
 */
 
 'use strict';
@@ -89,7 +89,7 @@ module.exports.getStocks = function(args, res, next) {
 	const universe = _.get(args, 'universe.value', null);
 	//Get the fields to be populated, default is NONE
 	const populate = _.get(args, 'populate.value', false);
-	const exclude = _.get(args, 'exclude.value', "").split(",");
+	const exclude = _.get(args, 'exclude.value', "").split(",").map(item => item.trim());
 	
 	const skip = _.get(args, 'skip.value', 0);
 	const limit = _.get(args, 'limit.value', 5); 

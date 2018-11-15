@@ -3757,6 +3757,11 @@ paths:
         description: exlcude tickers
         type: string
         required: false
+      - name: populate
+        in: query
+        description: populate detail
+        type: boolean
+        required: false  
       responses:
         200:
           description: OK
