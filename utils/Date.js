@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-16 09:41:03
+* @Last Modified time: 2018-11-16 10:03:21
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -224,7 +224,7 @@ module.exports.getNextNonHolidayWeekday = function(date, offset = 1) {
 		let isHoliday = exports.isHoliday(nextWeekday);	
 		nextWeekday = isHoliday ? exports.getNextNonHolidayWeekday(nextWeekday) : nextWeekday;
 		offset--;
-	} while(offset > 0) {
+	} while(offset > 0)
 
 	return nextWeekday;
 };
