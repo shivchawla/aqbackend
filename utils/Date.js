@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-16 10:31:29
+* @Last Modified time: 2018-11-16 14:15:53
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -225,7 +225,7 @@ module.exports.getPreviousNonHolidayWeekday = function(date, offset=1) {
 	
 	do {
 		let isHoliday = module.exports.isHoliday(prevWeekday);
-		prevWeekday = isHoliday ? module.exports.getPreviousNonHolidayWeekday(prevWeekday) : prevWeekday;
+		prevWeekday = isHoliday || offset > 1 ? module.exports.getPreviousNonHolidayWeekday(prevWeekday) : prevWeekday;
 		offset--;
 	} while (offset > 0) 
 
@@ -237,7 +237,7 @@ module.exports.getNextNonHolidayWeekday = function(date, offset = 1) {
 	
 	do {
 		let isHoliday = exports.isHoliday(nextWeekday);	
-		nextWeekday = isHoliday ? exports.getNextNonHolidayWeekday(nextWeekday) : nextWeekday;
+		nextWeekday = isHoliday || offset > 1 ? exports.getNextNonHolidayWeekday(nextWeekday) : nextWeekday;
 		offset--;
 	} while(offset > 0)
 
