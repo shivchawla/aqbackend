@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-15 11:22:01
+* @Last Modified time: 2018-11-16 14:49:05
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -613,7 +613,7 @@ module.exports.getStockList = function(search, options) {
 	.then(() => {	
 		if (universe) {
 			const fname = path.resolve(path.join(__dirname, `../../documents/universe/ind_${universe.replace(new RegExp("_",'g'),"").toLowerCase()}list.csv`));
-			const fname_shortable = path.resolve(path.join(__dirname, `../../documents/universe/ind_${universe.replace(new RegExp("_",'g'),"").toLowerCase()}list_shortable.csv`));
+			const fname_shortable = path.resolve(path.join(__dirname, `../../documents/universe/ind_nifty500list_shortable.csv`));
 			
 			return Promise.all([
 				_getRawStockList(fname),
