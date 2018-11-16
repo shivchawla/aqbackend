@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-15 20:46:50
+* @Last Modified time: 2018-11-16 10:39:19
 */
 
 'use strict';
@@ -359,13 +359,18 @@ function _computeDailyPnlStats(entryId, date, category="active") {
 			let startDate = date;
 			var startDateRoundedEOD = DateHelper.getMarketCloseDateTime(prediction.startDate);
 
-			return startDateRoundedEOD.isBefore(moment(date)) ? 
-				SecurityHelper.getStockDetail(prediction.position.security, yesterday) :
-				{}
+			return Promise.resolve()
+			.then(() => {
+				return startDateRoundedEOD.isBefore(moment(date)) ? 
+					SecurityHelper.getStockDetail(prediction.position.security, yesterday) :
+					{}
+			})
 			.then(securityDetail => {
 				prediction.position.avgPrice = _.get(securityDetail, 'latestDetailRT.close', 0)  ||
 					_.get(securityDetail, 'latestDetail.Close', 0) || 
 					prediction.position.avgPrice;
+
+				return prediction;
 			})
 		})
 		.then(updatedPredictionWithYesterdayCallPrice => {

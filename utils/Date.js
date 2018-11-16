@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-16 10:03:21
+* @Last Modified time: 2018-11-16 10:31:29
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -63,7 +63,7 @@ module.exports.compareDates = function(date1, date2) {
 
 module.exports.getLocalDatetime  = function(datetime) {
 	
-	moment.tz(new Date(), "Asia/Kolkata").format();
+	var _d = moment.tz(new Date(), "Asia/Kolkata").format();
 
 	//Get datetime in IST time zone
 	var _dtLocalStr = _d.toLocaleString("en-US", {timeZone: "Asia/Kolkata"})
@@ -182,6 +182,21 @@ module.exports.getNextWeekday = function(date) {
 	return exports.getDate(date);
 };
 
+module.exports.getPreviousWeekday = function(date) {
+	date = !date ? exports.getCurrentDate() : exports.getDate(date);
+	var day = date.getDay();
+
+	if (day == 1) { //Monday
+		date.setDate(date.getDate() - 3);
+	} else if (day == 0) { //Sunday
+		date.setDate(date.getDate() - 2);
+	} else {
+		date.setDate(date.getDate() - 1);
+	}
+
+	return exports.getDate(date);
+};
+
 module.exports.formatDate = function(date) {
 	date = !date ? exports.getCurrentDate() : exports.getDate(date); 
 	
@@ -205,12 +220,12 @@ module.exports.getDatesInWeek = function(date, offset=0) {
 	return dates;
 };
 
-module.exports.previousNonHolidayWeekday = function(date, offset=1) {
+module.exports.getPreviousNonHolidayWeekday = function(date, offset=1) {
 	var prevWeekday = offset == 0  ? module.exports.getDate(date) : module.exports.getPreviousWeekday(date);
 	
 	do {
 		let isHoliday = module.exports.isHoliday(prevWeekday);
-		prevWeekday = isHoliday ? module.exports.previousNonHolidayWeekday(prevWeekday) : prevWeekday;
+		prevWeekday = isHoliday ? module.exports.getPreviousNonHolidayWeekday(prevWeekday) : prevWeekday;
 		offset--;
 	} while (offset > 0) 
 
@@ -218,7 +233,7 @@ module.exports.previousNonHolidayWeekday = function(date, offset=1) {
 };
 
 module.exports.getNextNonHolidayWeekday = function(date, offset = 1) {
-	var nextWeekday = offset == 0  ? module.exports.getDate(date) : module.exports.getNextNonHolidayWeekday(date);
+	var nextWeekday = offset == 0  ? module.exports.getDate(date) : module.exports.getNextWeekday(date);
 	
 	do {
 		let isHoliday = exports.isHoliday(nextWeekday);	
