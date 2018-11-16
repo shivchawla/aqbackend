@@ -3752,6 +3752,23 @@ paths:
         description: "auth token"
         type: "string"
         required: true
+      - name: search
+        in: query
+        type: string
+        required: false
+        default: ""
+      - name: universe
+        in: query
+        type: string
+        required: false
+      - name: sector
+        in: query
+        type: string
+        required: false
+      - name: industry
+        in: query
+        type: string
+        required: false
       - name: exclude
         in: query
         description: exlcude tickers
