@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-06 15:41:12
+* @Last Modified time: 2018-11-15 20:46:50
 */
 
 'use strict';
@@ -326,34 +326,58 @@ function _computeTotalPnlStatsForAll(entryId, date) {
 
 function _computeDailyPnlStats(entryId, date, category="active") {
 	
-	return exports.getPredictionsForDate(entryId, date, category, false)
-	.then(rawPredictions => {
-		//First change the startDate of all predictions before today to be yesterday
-		var yesterday = moment(date).subtract(1, 'days').toDate();
-		rawPredictions = rawPredictions.map(item => {
+	let yesterday = moment(date).subtract(1, 'days').toDate();
+
+	return exports.getPredictionsForDate(entryId, date, category)
+	// .then(rawPredictions => {
+	// 	//First change the startDate of all predictions before today to be yesterday
 		
+	// 	//THIS IS IRRELEVANT NOW --- as
+	// 	// rawPredictions = rawPredictions.map(item => {
+		
+	// 	// 	//What's the significance of dailyPnL for entries starting today - ?
+	// 	// 	//So don't update the startdate for those predictions		
+	// 	// 	var startDateRoundedEOD = DateHelper.getMarketCloseDateTime(item.startDate);
+			
+	// 	// 	if(startDateRoundedEOD.isBefore(moment(date))) {
+	// 	// 		item.startDate = yesterday;
+	// 	// 	}
+
+	// 	// 	return item;
+	// 	// });
+
+	// 	return _computeUpdatedPredictions(rawPredictions, date);
+	// })
+	.then(updatedPredictions => {
+			
+		//BUT THE updated predictions have Call price as of beginning of predicton
+		//For Daily change, we need daily changes
+		return Promise.map(updatedPredictions, function(prediction) {
+			
 			//What's the significance of dailyPnL for entries starting today - ?
 			//So don't update the startdate for those predictions		
-			var startDateRoundedEOD = DateHelper.getMarketCloseDateTime(item.startDate);
-			
-			if(startDateRoundedEOD.isBefore(moment(date))) {
-				item.startDate = yesterday;
-			}
+			let startDate = date;
+			var startDateRoundedEOD = DateHelper.getMarketCloseDateTime(prediction.startDate);
 
-			return item;
+			return startDateRoundedEOD.isBefore(moment(date)) ? 
+				SecurityHelper.getStockDetail(prediction.position.security, yesterday) :
+				{}
+			.then(securityDetail => {
+				prediction.position.avgPrice = _.get(securityDetail, 'latestDetailRT.close', 0)  ||
+					_.get(securityDetail, 'latestDetail.Close', 0) || 
+					prediction.position.avgPrice;
+			})
+		})
+		.then(updatedPredictionWithYesterdayCallPrice => {
+
+			return _getPnlStats({positions: updatedPredictionWithYesterdayCallPrice.map(item => {
+				if(item.success.status) {
+					item.position.lastPrice = item.target;
+				}
+
+				return  item.position;
+			})});
 		});
-
-		return _computeUpdatedPredictions(rawPredictions, date);
-	})
-	.then(activePredictionsWithDailyChange => {
-		//Total Pnl
-		return _getPnlStats({positions: activePredictionsWithDailyChange.map(item => {
-			if(item.success.status) {
-				item.position.lastPrice = item.target;
-			}
-
-			return  item.position;
-		})});
 	});	
 };
 

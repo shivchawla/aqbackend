@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-15 11:52:41
+* @Last Modified time: 2018-11-15 19:52:45
 */
 
 'use strict';
@@ -191,10 +191,10 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 					const investment = prediction.position.investment;
 					const target = prediction.target;
 
-					if (investment > 0 && target < 1.02*latestPrice) {
-						APIError.throwJsonError({msg:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 2% higher than call price`});
-					} else if (investment < 0 && target > 1.02*latestPrice) {
-						APIError.throwJsonError({msg:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 2% lower than call price`});
+					if (investment > 0 && target < 1.015*latestPrice) {
+						APIError.throwJsonError({msg:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% higher than call price`});
+					} else if (investment < 0 && target > 1.015*latestPrice) {
+						APIError.throwJsonError({msg:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% lower than call price`});
 					}
 					return;
 				} else {
@@ -220,7 +220,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		if (contestEntry) {
 			return DailyContestEntryHelper.getPredictionsForDate(contestEntry._id, DateHelper.getMarketCloseDateTime(), "started", false)
 			.then(predictionsToday => {
-				if (predictionsToday.length + entryPredictions.length > 10) {
+				if (predictionsToday.length + entryPredictions.length > 10000000000) {
 					APIError.throwJsonError({msg: "Limit exceeded: Cannot add more than 10 predictions per day"})
 				} else {
 

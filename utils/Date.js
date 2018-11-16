@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 10:52:55
+* @Last Modified time: 2018-11-16 09:41:03
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -205,10 +205,28 @@ module.exports.getDatesInWeek = function(date, offset=0) {
 	return dates;
 };
 
-module.exports.getNextNonHolidayWeekday = function(date) {
-	var nextWeekday = exports.getNextWeekday(date);
-	let isHoliday = exports.isHoliday(nextWeekday);
-	return isHoliday ? exports.getNextNonHolidayWeekday(nextWeekday) : nextWeekday;
+module.exports.previousNonHolidayWeekday = function(date, offset=1) {
+	var prevWeekday = offset == 0  ? module.exports.getDate(date) : module.exports.getPreviousWeekday(date);
+	
+	do {
+		let isHoliday = module.exports.isHoliday(prevWeekday);
+		prevWeekday = isHoliday ? module.exports.previousNonHolidayWeekday(prevWeekday) : prevWeekday;
+		offset--;
+	} while (offset > 0) 
+
+	return prevWeekday;
+};
+
+module.exports.getNextNonHolidayWeekday = function(date, offset = 1) {
+	var nextWeekday = offset == 0  ? module.exports.getDate(date) : module.exports.getNextNonHolidayWeekday(date);
+	
+	do {
+		let isHoliday = exports.isHoliday(nextWeekday);	
+		nextWeekday = isHoliday ? exports.getNextNonHolidayWeekday(nextWeekday) : nextWeekday;
+		offset--;
+	} while(offset > 0) {
+
+	return nextWeekday;
 };
 
 module.exports.getCurrentIndiaDateTime = function() {
