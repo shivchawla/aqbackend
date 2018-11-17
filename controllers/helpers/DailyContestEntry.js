@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-17 17:27:33
+* @Last Modified time: 2018-11-17 17:40:43
 */
 
 'use strict';
@@ -524,10 +524,16 @@ function _computeTotalPnlStats(entryId, date, category="active") {
 		});
 
 		//Total Pnl
-		return {
-			all: _getPnlStats({positions: updatedPositions}),
-			byTickers: _getPnlStats({positions: updatedPositions}, true)
-		}; 
+		return Promise.all([
+			_getPnlStats({positions: updatedPositions}),
+			_getPnlStats({positions: updatedPositions}, true)
+		])
+		.then(([pnlStatsAll, pnlStatsByTicker]) => {
+			return {
+				all: pnlStatsAll,
+				byTickers: pnlStatsByTicker
+			};
+		});
 	})
 };
 
@@ -651,7 +657,7 @@ function _computeNetPnlStats(entryId) {
 					realized: {all: realizedPnlStatsPnl, byTickers: realizedPnlStatsByTicker},
 					unrealized: activePnlStats,
 					total: {
-						all: pnlStatsTotalAll 
+						all: pnlStatsTotalAll, 
 						byTickers: pnlStatsTotalByTicker
 					}
 				};
