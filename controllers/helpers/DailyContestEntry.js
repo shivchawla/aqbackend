@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-17 19:22:26
+* @Last Modified time: 2018-11-17 19:52:22
 */
 
 'use strict';
@@ -36,7 +36,7 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		var netValue_long = 0.0;
 		var netValue_short = 0.0;
 		var grossValue = 0.0;
-		var cash = _.get(portfolio, 'cash', 0.0);
+		var cash = 0.0
 		var pnlPositive = 0;
 		var pnlNegative = 0;
 		var pnlPositive_long = 0;
@@ -173,8 +173,8 @@ function _aggregatePnlStatsByTickers(pnlStatsByTickersArray) {
 		
 		var allTickers = [];	
 		//?? How to filter the ticker for object
-		pnlStatsByTickersArray.forEach(item => {
-			var allTickers = allTickers.concat(Object.keys(item));
+		pnlStatsByTickersArray.filter(item => item).forEach(item => {
+			allTickers = allTickers.concat(Object.keys(item));
 		});
 
 		var uniqueTickers = _.uniq(allTickers);
@@ -664,8 +664,8 @@ function _computeNetPnlStats(entryId, date) {
 
 	//Net Pnl = Sum of Realized pnl daily + latest unrealized pnl 
 	return Promise.all([
-		DailyContestEntryPerformanceModel.fetchLatestPnlStats({_id: contestEntryId}),
-		DailyContestEntryPerformanceModel.fetchLatestPnlStats({_id: contestEntryId, 'pnlStats.date':{$lt: date}}),
+		DailyContestEntryPerformanceModel.fetchLatestPnlStats({_id: entryId}),
+		DailyContestEntryPerformanceModel.fetchLatestPnlStats({_id: entryId, 'pnlStats.date':{$lt: date}}),
 	])
 	.then(([latestPnlStats, yesterdayPnlStats]) => {
 		var latestActivePnlStats = _.get(latestPnlStats, 'detail.cumulative.active', {});
@@ -694,8 +694,9 @@ function _computeNetPnlStats(entryId, date) {
 module.exports.getTotalPnlStats = function(entryId, date, category="active") {
 	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({contestEntry: entryId}, date)
 	.then(contestEntry => {
-		if (contestEntry && contestEntry.pnlStats) {
+		if (contestEntry && contestEntry.pnlStats && contest.pnlStats.length > 0 && contest.pnlStats[0].cumulative) {
 			switch(category) {
+				//HOW TO ADD CHECK FOR KEYS
 				case "active" : return contestEntry.pnlStats[0].cumulative.active; break;
 				case "ended" : return contestEntry.pnlStats[0].cumulative.ended; break;
 				case "started" : return contestEntry.pnlStats[0].cumulative.started; break;
@@ -709,7 +710,7 @@ module.exports.getTotalPnlStats = function(entryId, date, category="active") {
 module.exports.getDailyPnlStats = function(entryId, date, category="active") {
 	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({contestEntry: entryId}, date)
 	.then(contestEntry => {
-		if (contestEntry && contestEntry.pnlStats) {
+		if (contestEntry && contestEntry.pnlStats && contestEntry.pnlStats.length > 0 && contestEntry.pnlStats[0].daily) {
 			switch(category) {
 				case "active" : return contestEntry.pnlStats[0].daily.active; break;
 				case "ended" : return contestEntry.pnlStats[0].daily.ended; break;
@@ -831,7 +832,7 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 			date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 			return _computeNetPnlStats(contestEntryId, date)
 			.then(netPnlStats => {
-				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({_id: contestEntryId}, netPnlStats, date, "net");
+				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({contestEntry: contestEntryId}, netPnlStats, date, "net");
 			})
 		});
 	});
