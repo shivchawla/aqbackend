@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-17 16:21:40
+* @Last Modified time: 2018-11-17 17:27:33
 */
 
 'use strict';
@@ -22,277 +22,285 @@ const DailyContestEntryPerformanceModel = require('../../models/Marketplace/Dail
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 
 function _aggregatePnlStats(pnlStatsHistory) {	
-	var totalPnl = 0.0;
-	var totalPnlPct = 0.0;
-	var totalPnl_long = 0.0;
-	var totalPnlPct_long = 0.0;
-	var totalPnl_short = 0.0;
-	var totalPnlPct_short = 0.0;
-	var cost = 0.0;
-	var cost_long = 0.0;
-	var cost_short = 0.0;
-	var netValue = 0.0;
-	var netValue_long = 0.0;
-	var netValue_short = 0.0;
-	var grossValue = 0.0;
-	var cash = _.get(portfolio, 'cash', 0.0);
-	var pnlPositive = 0;
-	var pnlNegative = 0;
-	var pnlPositive_long = 0;
-	var pnlNegative_long = 0;
-	var pnlPositive_short = 0;
-	var pnlNegative_short = 0;
+	return new Promise(resolve => {
+		var totalPnl = 0.0;
+		var totalPnlPct = 0.0;
+		var totalPnl_long = 0.0;
+		var totalPnlPct_long = 0.0;
+		var totalPnl_short = 0.0;
+		var totalPnlPct_short = 0.0;
+		var cost = 0.0;
+		var cost_long = 0.0;
+		var cost_short = 0.0;
+		var netValue = 0.0;
+		var netValue_long = 0.0;
+		var netValue_short = 0.0;
+		var grossValue = 0.0;
+		var cash = _.get(portfolio, 'cash', 0.0);
+		var pnlPositive = 0;
+		var pnlNegative = 0;
+		var pnlPositive_long = 0;
+		var pnlNegative_long = 0;
+		var pnlPositive_short = 0;
+		var pnlNegative_short = 0;
 
-	var count = 0;
-	var count_short = 0;
-	var count_long = 0;
-	
-	var countPositive = 0;
-	var countPositive_long = 0;
-	var countPositive_short = 0;
+		var count = 0;
+		var count_short = 0;
+		var count_long = 0;
+		
+		var countPositive = 0;
+		var countPositive_long = 0;
+		var countPositive_short = 0;
 
-	var countNegative = 0;
-	var countNegative_long = 0;
-	var countNegative_short = 0;
+		var countNegative = 0;
+		var countNegative_long = 0;
+		var countNegative_short = 0;
 
-	var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
+		var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
 
-	pnlStatsHistory.forEach(item => {
-		totalPnl += _.get(item, 'totalPnl', 0);
-		cost += _.get(item, 'cost', 0);
-		totalPnl_long += _.get(item, 'totalPnl_long', 0);
-		totalPnl_short += _.get(item, 'totalPnl_short', 0)
-		cost += _.get(item, 'cost', 0);
-		cost_long += _.get(item, 'cost_long', 0);
-		cost_short += _.get(item, 'cost_short', 0);
-		netValue += _.get(item, 'netValue', 0);
-		netValue_long += _.get(item, 'netValue_long', 0);
-		netValue_short += _.get(item, 'netValue_short', 0);
-		grossValue += _.get(item, 'grossValue', 0);
-		cash += _.get(item, 'cash', 0);
-		pnlPositive += _.get(item, 'pnlPositive', 0);
-		pnlNegative += _.get(item, 'pnlNegative', 0);
-		pnlPositive_long += _.get(item, 'pnlPositive_long', 0);
-		pnlNegative_long += _.get(item, 'pnlNegative_long', 0);
-		pnlPositive_short += _.get(item, 'pnlPositive_short', 0);
-		pnlNegative_short += _.get(item, 'pnlNegative_short', 0);
+		pnlStatsHistory.forEach(item => {
+			totalPnl += _.get(item, 'totalPnl', 0);
+			cost += _.get(item, 'cost', 0);
+			totalPnl_long += _.get(item, 'totalPnl_long', 0);
+			totalPnl_short += _.get(item, 'totalPnl_short', 0)
+			cost += _.get(item, 'cost', 0);
+			cost_long += _.get(item, 'cost_long', 0);
+			cost_short += _.get(item, 'cost_short', 0);
+			netValue += _.get(item, 'netValue', 0);
+			netValue_long += _.get(item, 'netValue_long', 0);
+			netValue_short += _.get(item, 'netValue_short', 0);
+			grossValue += _.get(item, 'grossValue', 0);
+			cash += _.get(item, 'cash', 0);
+			pnlPositive += _.get(item, 'pnlPositive', 0);
+			pnlNegative += _.get(item, 'pnlNegative', 0);
+			pnlPositive_long += _.get(item, 'pnlPositive_long', 0);
+			pnlNegative_long += _.get(item, 'pnlNegative_long', 0);
+			pnlPositive_short += _.get(item, 'pnlPositive_short', 0);
+			pnlNegative_short += _.get(item, 'pnlNegative_short', 0);
 
-		count += _.get(item, 'count', 0);
-		count_long += _.get(item, 'count_long', 0);
-		count_short += _.get(item, 'count_short', 0);
-		countPositive += _.get(item, 'countPositive', 0);
-		countNegative += _.get(item, 'countNegative', 0);
-		countPositive_long += _.get(item, 'countPositive_long', 0);
-		countNegative_long += _.get(item, 'countNegative_long', 0);
-		countPositive_short += _.get(item, 'countPositive_short', 0);
-		countNegative_short += _.get(item, 'countNegative_short', 0);
+			count += _.get(item, 'count', 0);
+			count_long += _.get(item, 'count_long', 0);
+			count_short += _.get(item, 'count_short', 0);
+			countPositive += _.get(item, 'countPositive', 0);
+			countNegative += _.get(item, 'countNegative', 0);
+			countPositive_long += _.get(item, 'countPositive_long', 0);
+			countNegative_long += _.get(item, 'countNegative_long', 0);
+			countPositive_short += _.get(item, 'countPositive_short', 0);
+			countNegative_short += _.get(item, 'countNegative_short', 0);
 
-		if (!minPnl) {
-			minPnl = item.minPnl;
-		} else {
-			minPnl = minPnl.value < item.minPnl.value ? minPnl : item.minPnl;
-		}
+			if (!minPnl) {
+				minPnl = item.minPnl;
+			} else {
+				minPnl = minPnl.value < item.minPnl.value ? minPnl : item.minPnl;
+			}
 
-		if (!maxPnl) {
-			maxPnl = item.maxPnl;
-		} else {
-			maxPnl = maxPnl.value > item.maxPnl.value ? maxPnl : item.maxPnl;
-		}
+			if (!maxPnl) {
+				maxPnl = item.maxPnl;
+			} else {
+				maxPnl = maxPnl.value > item.maxPnl.value ? maxPnl : item.maxPnl;
+			}
 
-		if (!minPnl_long) {
-			minPnl_long = item.minPnl_long;
-		} else {
-			minPnl_long = minPnl_long.value < item.minPnl_long.value ? minPnl_long : item.minPnl_long;
-		}
+			if (!minPnl_long) {
+				minPnl_long = item.minPnl_long;
+			} else {
+				minPnl_long = minPnl_long.value < item.minPnl_long.value ? minPnl_long : item.minPnl_long;
+			}
 
-		if (!minPnl_short) {
-			minPnl_short = item.minPnl_short;
-		} else {
-			minPnl_short = minPnl_short.value < item.minPnl_short.value ? minPnl_short : item.minPnl_short;
-		}
+			if (!minPnl_short) {
+				minPnl_short = item.minPnl_short;
+			} else {
+				minPnl_short = minPnl_short.value < item.minPnl_short.value ? minPnl_short : item.minPnl_short;
+			}
 
-		if (!maxPnl_long) {
-			maxPnl_long = item.maxPnl_long;
-		} else {
-			maxPnl_long = maxPnl_long.value > item.maxPnl_long.value ? maxPnl_long : item.maxPnl_long;
-		}
+			if (!maxPnl_long) {
+				maxPnl_long = item.maxPnl_long;
+			} else {
+				maxPnl_long = maxPnl_long.value > item.maxPnl_long.value ? maxPnl_long : item.maxPnl_long;
+			}
 
-		if (!maxPnl_short) {
-			maxPnl_short = item.maxPnl_short;
-		} else {
-			maxPnl_short = maxPnl_short.value > item.maxPnl_short.value ? maxPnl_short : item.maxPnl_short;
-		}
+			if (!maxPnl_short) {
+				maxPnl_short = item.maxPnl_short;
+			} else {
+				maxPnl_short = maxPnl_short.value > item.maxPnl_short.value ? maxPnl_short : item.maxPnl_short;
+			}
+		});
+
+		totalPnlPct = cost > 0 ? totalPnl/cost : 0
+		totalPnlPct_long = cost_long > 0 ? totalPnl_long/cost_long : 0;
+		totalPnlPct_short = cost_short > 0 ? totalPnl_short/cost_short : 0;
+
+		var profitFactor = pnlNegative > 0.0 ? pnlPositive/pnlNegative : NaN;
+		var profitFactor_long = pnlNegative_long > 0.0 ? pnlPositive_long/pnlNegative_long : NaN;
+		var profitFactor_short = pnlNegative_short > 0.0 ? pnlPositive_short/pnlNegative_short : NaN;
+
+		var winRatio = countNegative > 0 ? countPositive/countNegative : 0;
+		var winRatio_long = countNegative_long > 0 ? countPositive_long/countNegative_long : 0;
+		var winRatio_short = countNegative_short > 0 ? countPositive_short/countNegative_short : 0; 
+
+		netValue += cash;
+		grossValue += cash;
+
+		var pnlStats = {
+			total: {pnl: totalPnl, pnlPct: totalPnlPct, 
+				cost, netValue, grossValue,
+				cash, minPnl, maxPnl, profitFactor, 
+				pnlPositive, pnlNegative, winRatio,
+				count, countPositive, countNegative},
+			long: {pnl: totalPnl_long, pnlPct: totalPnlPct_long, 
+				cost: cost_long, netValue: netValue_long, 
+				cash: cash, minPnl: minPnl_long, 
+				maxPnl: maxPnl_long, profitFactor: profitFactor_long, 
+				pnlPositive: pnlPositive_long, pnlNegative: pnlNegative_long, 
+				winRatio: winRatio_long, 
+				count: count_long, countPositive: countPositive_long, countNegative: countNegative_long},
+			short: {pnl: totalPnl_short, pnlPct: totalPnlPct_short, 
+				cost: cost_short, netValue: netValue_short, 
+				cash: cash, minPnl: minPnl_short, 
+				maxPnl: maxPnl_short, profitFactor: profitFactor_short, 
+				pnlPositive: pnlPositive_short, pnlNegative: pnlNegative_short, winRatio: winRatio_short,
+				count: count_short, countPositive: countPositive_short, countNegative: countNegative_short}
+			};
+
+		resolve(pnlStats);
 	});
-
-	totalPnlPct = cost > 0 ? totalPnl/cost : 0
-	totalPnlPct_long = cost_long > 0 ? totalPnl_long/cost_long : 0;
-	totalPnlPct_short = cost_short > 0 ? totalPnl_short/cost_short : 0;
-
-	var profitFactor = pnlNegative > 0.0 ? pnlPositive/pnlNegative : NaN;
-	var profitFactor_long = pnlNegative_long > 0.0 ? pnlPositive_long/pnlNegative_long : NaN;
-	var profitFactor_short = pnlNegative_short > 0.0 ? pnlPositive_short/pnlNegative_short : NaN;
-
-	var winRatio = countNegative > 0 ? countPositive/countNegative : 0;
-	var winRatio_long = countNegative_long > 0 ? countPositive_long/countNegative_long : 0;
-	var winRatio_short = countNegative_short > 0 ? countPositive_short/countNegative_short : 0; 
-
-	netValue += cash;
-	grossValue += cash;
-
-	return {
-		total: {pnl: totalPnl, pnlPct: totalPnlPct, 
-			cost, netValue, grossValue,
-			cash, minPnl, maxPnl, profitFactor, 
-			pnlPositive, pnlNegative, winRatio,
-			count, countPositive, countNegative},
-		long: {pnl: totalPnl_long, pnlPct: totalPnlPct_long, 
-			cost: cost_long, netValue: netValue_long, 
-			cash: cash, minPnl: minPnl_long, 
-			maxPnl: maxPnl_long, profitFactor: profitFactor_long, 
-			pnlPositive: pnlPositive_long, pnlNegative: pnlNegative_long, 
-			winRatio: winRatio_long, 
-			count: count_long, countPositive: countPositive_long, countNegative: countNegative_long},
-		short: {pnl: totalPnl_short, pnlPct: totalPnlPct_short, 
-			cost: cost_short, netValue: netValue_short, 
-			cash: cash, minPnl: minPnl_short, 
-			maxPnl: maxPnl_short, profitFactor: profitFactor_short, 
-			pnlPositive: pnlPositive_short, pnlNegative: pnlNegative_short, winRatio: winRatio_short,
-			count: count_short, countPositive: countPositive_short, countNegative: countNegative_short}
-		};
 }
 
 function _computePnlStats(portfolio, ticker) {
-	var totalPnl = 0.0;
-	var totalPnlPct = 0.0;
-	var totalPnl_long = 0.0;
-	var totalPnlPct_long = 0.0;
-	var totalPnl_short = 0.0;
-	var totalPnlPct_short = 0.0;
-	var cost = 0.0;
-	var cost_long = 0.0;
-	var cost_short = 0.0;
-	var netValue = 0.0;
-	var netValue_long = 0.0;
-	var netValue_short = 0.0;
-	var grossValue = 0.0;
-	var cash = _.get(portfolio, 'cash', 0.0);
-	var pnlPositive = 0;
-	var pnlNegative = 0;
-	var pnlPositive_long = 0;
-	var pnlNegative_long = 0;
-	var pnlPositive_short = 0;
-	var pnlNegative_short = 0;
-	var count = 0;
-	var count_short = 0;
-	var count_long = 0;
-	
-	var countPositive = 0;
-	var countPositive_long = 0;
-	var countPositive_short = 0;
-
-	var countNegative = 0;
-	var countNegative_long = 0;
-	var countNegative_short = 0;
-
-	var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
-
-	portfolio.positions.filter(item => {return ticker ? item.security.ticker == ticker : true}).forEach(item => {
-		cost += Math.abs(item.investment);
-		cost_long += item.investment > 0.0 ? Math.abs(item.investment) : 0.0;
-		cost_short += item.investment < 0.0 ? Math.abs(item.investment) : 0.0;
-
-		count += 1;
-		count_long += item.investment > 0 ? 1 : 0;
-		count_short += item.investment < 0 ? 1 : 0;
-
-		var _cv = item.avgPrice > 0.0 ? item.investment * (item.lastPrice/item.avgPrice) : item.investment
-		var currentValue = _cv + _.get(item, 'dividendCash', 0.0);
+	return new Promise(resolve => {
+		var totalPnl = 0.0;
+		var totalPnlPct = 0.0;
+		var totalPnl_long = 0.0;
+		var totalPnlPct_long = 0.0;
+		var totalPnl_short = 0.0;
+		var totalPnlPct_short = 0.0;
+		var cost = 0.0;
+		var cost_long = 0.0;
+		var cost_short = 0.0;
+		var netValue = 0.0;
+		var netValue_long = 0.0;
+		var netValue_short = 0.0;
+		var grossValue = 0.0;
+		var cash = _.get(portfolio, 'cash', 0.0);
+		var pnlPositive = 0;
+		var pnlNegative = 0;
+		var pnlPositive_long = 0;
+		var pnlNegative_long = 0;
+		var pnlPositive_short = 0;
+		var pnlNegative_short = 0;
+		var count = 0;
+		var count_short = 0;
+		var count_long = 0;
 		
-		var pnl = (currentValue - item.investment)
-		totalPnl += pnl;
-		totalPnl_long += item.investment > 0 ? pnl : 0.0;
-		totalPnl_short += item.investment < 0 ? pnl : 0.0;
-		
-		pnlPositive += pnl > 0 ? pnl : 0.0;
-		pnlPositive_long += item.investment > 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
-		pnlPositive_short += item.investment < 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
-		pnlNegative += pnl < 0 ? Math.abs(pnl) : 0.0;
-		pnlNegative_long += item.investment > 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
-		pnlNegative_short += item.investment < 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
+		var countPositive = 0;
+		var countPositive_long = 0;
+		var countPositive_short = 0;
 
-		countPositive += pnl > 0 ? 1 : 0.0;
-		countPositive_long += item.investment > 0 ? (pnl > 0 ? 1 : 0.0) : 0.0;
-		countPositive_short += item.investment < 0 ? (pnl > 0 ? 1 : 0.0) : 0.0;
-		countNegative += pnl < 0 ? 1 : 0.0;
-		countNegative_long += item.investment > 0 ? (pnl < 0 ? 1 : 0.0) : 0.0;
-		countNegative_short += item.investment < 0 ? (pnl < 0 ? 1 : 0.0) : 0.0;
+		var countNegative = 0;
+		var countNegative_long = 0;
+		var countNegative_short = 0;
 
-		netValue += currentValue;
-		grossValue += Math.abs(currentValue);
-		netValue_long += item.investment > 0 ? Math.abs(currentValue) : 0.0;
-		netValue_short += item.investment < 0 ? Math.abs(currentValue) : 0.0; 
+		var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
 
-		minPnl = minPnl ? 
-					pnl < minPnl.value ? {security: item.security, value: pnl} : minPnl : 
+		portfolio.positions.filter(item => {return ticker ? item.security.ticker == ticker : true}).forEach(item => {
+			cost += Math.abs(item.investment);
+			cost_long += item.investment > 0.0 ? Math.abs(item.investment) : 0.0;
+			cost_short += item.investment < 0.0 ? Math.abs(item.investment) : 0.0;
+
+			count += 1;
+			count_long += item.investment > 0 ? 1 : 0;
+			count_short += item.investment < 0 ? 1 : 0;
+
+			var _cv = item.avgPrice > 0.0 ? item.investment * (item.lastPrice/item.avgPrice) : item.investment
+			var currentValue = _cv + _.get(item, 'dividendCash', 0.0);
+			
+			var pnl = (currentValue - item.investment)
+			totalPnl += pnl;
+			totalPnl_long += item.investment > 0 ? pnl : 0.0;
+			totalPnl_short += item.investment < 0 ? pnl : 0.0;
+			
+			pnlPositive += pnl > 0 ? pnl : 0.0;
+			pnlPositive_long += item.investment > 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
+			pnlPositive_short += item.investment < 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
+			pnlNegative += pnl < 0 ? Math.abs(pnl) : 0.0;
+			pnlNegative_long += item.investment > 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
+			pnlNegative_short += item.investment < 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
+
+			countPositive += pnl > 0 ? 1 : 0.0;
+			countPositive_long += item.investment > 0 ? (pnl > 0 ? 1 : 0.0) : 0.0;
+			countPositive_short += item.investment < 0 ? (pnl > 0 ? 1 : 0.0) : 0.0;
+			countNegative += pnl < 0 ? 1 : 0.0;
+			countNegative_long += item.investment > 0 ? (pnl < 0 ? 1 : 0.0) : 0.0;
+			countNegative_short += item.investment < 0 ? (pnl < 0 ? 1 : 0.0) : 0.0;
+
+			netValue += currentValue;
+			grossValue += Math.abs(currentValue);
+			netValue_long += item.investment > 0 ? Math.abs(currentValue) : 0.0;
+			netValue_short += item.investment < 0 ? Math.abs(currentValue) : 0.0; 
+
+			minPnl = minPnl ? 
+						pnl < minPnl.value ? {security: item.security, value: pnl} : minPnl : 
+					    {security: item.security, value: pnl};
+			maxPnl = maxPnl ? 
+						pnl > maxPnl.value ? {security: item.security, value: pnl} : maxPnl : 
+						{security: item.security, value: pnl};
+
+
+			if (item.investment < 0.0) {			
+				minPnl_short = minPnl_short ? 
+					pnl < minPnl_short.value ? {security: item.security, value: pnl} : minPnl_short : 
 				    {security: item.security, value: pnl};
-		maxPnl = maxPnl ? 
-					pnl > maxPnl.value ? {security: item.security, value: pnl} : maxPnl : 
+		    	maxPnl_short = maxPnl_short ? 
+					pnl > maxPnl_short.value ? {security: item.security, value: pnl} : maxPnl_short : 
 					{security: item.security, value: pnl};
 
+		    } else {
+				minPnl_long = minPnl_long ? 
+					pnl < minPnl_long.value ? {security: item.security, value: pnl} : minPnl_long : 
+				    {security: item.security, value: pnl};
+		    	maxPnl_long = maxPnl_long ? 
+					pnl > maxPnl_long.value ? {security: item.security, value: pnl} : maxPnl_long : 
+					{security: item.security, value: pnl};
+			}
+		});
 
-		if (item.investment < 0.0) {			
-			minPnl_short = minPnl_short ? 
-				pnl < minPnl_short.value ? {security: item.security, value: pnl} : minPnl_short : 
-			    {security: item.security, value: pnl};
-	    	maxPnl_short = maxPnl_short ? 
-				pnl > maxPnl_short.value ? {security: item.security, value: pnl} : maxPnl_short : 
-				{security: item.security, value: pnl};
+		netValue += cash;
+		grossValue += cash;
 
-	    } else {
-			minPnl_long = minPnl_long ? 
-				pnl < minPnl_long.value ? {security: item.security, value: pnl} : minPnl_long : 
-			    {security: item.security, value: pnl};
-	    	maxPnl_long = maxPnl_long ? 
-				pnl > maxPnl_long.value ? {security: item.security, value: pnl} : maxPnl_long : 
-				{security: item.security, value: pnl};
-		}
+		var profitFactor = pnlNegative > 0.0 ? pnlPositive/pnlNegative : NaN;
+		var profitFactor_long = pnlNegative_long > 0.0 ? pnlPositive_long/pnlNegative_long : NaN;
+		var profitFactor_short = pnlNegative_short > 0.0 ? pnlPositive_short/pnlNegative_short : NaN;
+
+		var winRatio = countNegative > 0 ? countPositive/countNegative : NaN;
+		var winRatio_long = countNegative_long > 0 ? countPositive_long/countNegative_long : NaN;
+		var winRatio_short = countNegative_short > 0 ? countPositive_short/countNegative_short : NaN; 
+
+		totalPnlPct = cost > 0.0 ? totalPnl/cost : 0.0;
+		totalPnlPct_long = cost_long > 0.0 ? totalPnl_long/cost_long : 0.0;
+		totalPnlPct_short = cost_short > 0.0 ? totalPnl_short/cost_short : 0.0;
+
+		var pnlStats = {
+			total: {pnl: totalPnl, pnlPct: totalPnlPct, 
+				cost, netValue, grossValue,
+				cash, minPnl, maxPnl, profitFactor, 
+				pnlPositive, pnlNegative, winRatio,
+				count, countPositive, countNegative},
+			long: {pnl: totalPnl_long, pnlPct: totalPnlPct_long, 
+				cost: cost_long, netValue: netValue_long, 
+				cash: cash, minPnl: minPnl_long, 
+				maxPnl: maxPnl_long, profitFactor: profitFactor_long, 
+				pnlPositive: pnlPositive_long, pnlNegative: pnlNegative_long, 
+				winRatio: winRatio_long, 
+				count: count_long, countPositive: countPositive_long, countNegative: countNegative_long},
+			short: {pnl: totalPnl_short, pnlPct: totalPnlPct_short, 
+				cost: cost_short, netValue: netValue_short, 
+				cash: cash, minPnl: minPnl_short, 
+				maxPnl: maxPnl_short, profitFactor: profitFactor_short, 
+				pnlPositive: pnlPositive_short, pnlNegative: pnlNegative_short, winRatio: winRatio_short,
+				count: count_short, countPositive: countPositive_short, countNegative: countNegative_short}
+			};
+
+		resolve(pnlStats);
 	});
-
-	netValue += cash;
-	grossValue += cash;
-
-	var profitFactor = pnlNegative > 0.0 ? pnlPositive/pnlNegative : NaN;
-	var profitFactor_long = pnlNegative_long > 0.0 ? pnlPositive_long/pnlNegative_long : NaN;
-	var profitFactor_short = pnlNegative_short > 0.0 ? pnlPositive_short/pnlNegative_short : NaN;
-
-	var winRatio = countNegative > 0 ? countPositive/countNegative : NaN;
-	var winRatio_long = countNegative_long > 0 ? countPositive_long/countNegative_long : NaN;
-	var winRatio_short = countNegative_short > 0 ? countPositive_short/countNegative_short : NaN; 
-
-	totalPnlPct = cost > 0.0 ? totalPnl/cost : 0.0;
-	totalPnlPct_long = cost_long > 0.0 ? totalPnl_long/cost_long : 0.0;
-	totalPnlPct_short = cost_short > 0.0 ? totalPnl_short/cost_short : 0.0;
-
-	return {
-		total: {pnl: totalPnl, pnlPct: totalPnlPct, 
-			cost, netValue, grossValue,
-			cash, minPnl, maxPnl, profitFactor, 
-			pnlPositive, pnlNegative, winRatio,
-			count, countPositive, countNegative},
-		long: {pnl: totalPnl_long, pnlPct: totalPnlPct_long, 
-			cost: cost_long, netValue: netValue_long, 
-			cash: cash, minPnl: minPnl_long, 
-			maxPnl: maxPnl_long, profitFactor: profitFactor_long, 
-			pnlPositive: pnlPositive_long, pnlNegative: pnlNegative_long, 
-			winRatio: winRatio_long, 
-			count: count_long, countPositive: countPositive_long, countNegative: countNegative_long},
-		short: {pnl: totalPnl_short, pnlPct: totalPnlPct_short, 
-			cost: cost_short, netValue: netValue_short, 
-			cash: cash, minPnl: minPnl_short, 
-			maxPnl: maxPnl_short, profitFactor: profitFactor_short, 
-			pnlPositive: pnlPositive_short, pnlNegative: pnlNegative_short, winRatio: winRatio_short,
-			count: count_short, countPositive: countPositive_short, countNegative: countNegative_short}
-		};
 }
 
 /*
@@ -326,7 +334,10 @@ function _getPnlStats(portfolio, byTicker=false) {
 			var uniqueTickers = _.uniq(positions.map(item => item.security.ticker));
 
 			return Promise.map(uniqueTickers, function(ticker) {
-				return {[ticker]: _computePnlStats(port, ticker)};
+				return _computePnlStats(port, ticker)
+				.then(pnlStats => {
+					return {[ticker]: pnlStats};
+				})
 			})
 			.then(pnlStatsByTicker => {
 				resolve(Object.assign(...pnlStatsByTicker));
@@ -619,7 +630,6 @@ function _computeDailyPnlStatsForAll(entryId, date) {
 function _computeNetPnlStats(entryId) {
 
 	//Net Pnl = Sum of Realized pnl daily + latest unrealized pnl 
-
 	return Promise.all([
 		DailyContestEntryPerformanceModel.getPnlLatestStats({_id: contestEntryId}),
 		DailyContestEntryPerformanceModel.getPnlStatsHistory({_id: contestEntryId}),
@@ -628,18 +638,24 @@ function _computeNetPnlStats(entryId) {
 		var activePnlStats = _.get(latestPnlStats, 'detail.cumulative.active', {});
 		
 		return Promise.map([
-			Promise.resolve(_aggregatePnlStats(pnlStatsHistory.map(item => _.get(item, 'detail.cumulative.ended', {})))),
-			Promise.resolve(_aggregatePnlStats(pnlStatsHistory.map(item => _.get(item, 'detail.cumulative.ended', {})), ticker))
+			_aggregatePnlStats(pnlStatsHistory.map(item => _.get(item, 'detail.cumulative.ended', {}))),
+			_aggregatePnlStats(pnlStatsHistory.map(item => _.get(item, 'detail.cumulative.ended', {})), ticker)
 		])
 		.then(([realizedPnlStatsAll, realizedPnlStatsByTicker]) => {
-			return {
-				realized: {all: realizedPnlStatsPnl, byTickers: realizedPnlStatsByTicker},
-				unrealized: activePnlStats,
-				total: {
-					all: _aggregatePnlStats([activePnlStats, realizedPnlStats]), 
-					byTickers: _aggregatePnlStats([activePnlStats, realizedPnlStats], true)
-				}
-			};
+			return Promise.all([
+				_aggregatePnlStats([activePnlStats, realizedPnlStats]),
+			    _aggregatePnlStats([activePnlStats, realizedPnlStats], true)
+			])
+			.then(([pnlStatsTotalAll, pnlStatsTotalByTicker]) => {
+				return {
+					realized: {all: realizedPnlStatsPnl, byTickers: realizedPnlStatsByTicker},
+					unrealized: activePnlStats,
+					total: {
+						all: pnlStatsTotalAll 
+						byTickers: pnlStatsTotalByTicker
+					}
+				};
+			});
 		})
 	})
 }
@@ -973,12 +989,18 @@ module.exports.updateCallPriceForPredictions = function() {
 /*
 * Get aggregated general stats for predictions (all/bySymbol/byHorizon)
 */
-module.exports.getDailyContestEntryGeneralStats = function(symbol, horizon) {
+module.exports.getDailyContestEntryPnlStats = function(entrId, symbol, horizon) {
 	return Promise.resolve()
 	.then(() => {
 		if (!symbol && !horizon) {
-			//Stats for all predictions
-
+			return DailyContestEntryPerformanceModel.fetchLatestPnlStats({_id: entryId})
 		}
-	});
+	})
+	.then(latestPnlStats => {
+		if (latestPnlStats) {
+			return _.get(latestPnlStats, 'net.all', {});
+		} else {
+			APIError.throwJsonError({msg: "No Pnl Stats"})
+		}
+	})
 };

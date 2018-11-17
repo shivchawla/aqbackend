@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-17 15:46:01
+* @Last Modified time: 2018-11-17 17:29:37
 */
 
 
@@ -45,8 +45,8 @@ const DailyContestEntryPerformance = new Schema({
 
 DailyContestEntryPerformance.statics.updatePnlStatsForDate = function(query, pnlStats, date, category="detail") {
 	
-	var key = `${type}Stats.date`;
-	var updateFieldInArray = `${type}Stats.$.${category}`;
+	var key = `pnlStats.date`;
+	var updateFieldInArray = `$pnlStats.$.${category}`;
 
     let qDate = {...query, 'pnlStats.date':{$eq: date}};
     
