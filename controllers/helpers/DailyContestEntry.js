@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-17 17:40:43
+* @Last Modified time: 2018-11-17 18:06:16
 */
 
 'use strict';
@@ -307,7 +307,6 @@ function _computePnlStats(portfolio, ticker) {
 * Populate pnl stats, netvalue, unrealized Pnl for the portfolio (and individual positions)
 */
 function _getPnlStats(portfolio, byTicker=false) {
-
 	return new Promise(resolve => {
 		var port = Object.assign({}, portfolio);
 		
@@ -334,18 +333,21 @@ function _getPnlStats(portfolio, byTicker=false) {
 			var uniqueTickers = _.uniq(positions.map(item => item.security.ticker));
 
 			return Promise.map(uniqueTickers, function(ticker) {
+
 				return _computePnlStats(port, ticker)
 				.then(pnlStats => {
 					return {[ticker]: pnlStats};
 				})
 			})
 			.then(pnlStatsByTicker => {
-				resolve(Object.assign(...pnlStatsByTicker));
+				resolve(pnlStatsByTicker.length > 0 ? Object.assign(...pnlStatsByTicker) : {});
 			});
 		} else {
-			resolve(_computePnlStats(port));
+			return _computePnlStats(port)
+			.then(pnlStats => {
+				resolve(pnlStats);
+			});
 		}
-
 	});
 }
 
@@ -610,10 +612,17 @@ function _computeDailyPnlStats(entryId, date, category="active") {
 				return  item.position;
 			});
 
-			return {
-				all: _getPnlStats({positions: updatedPositions}),
-				byTickers: _getPnlStats({positions: updatedPositions}, true)
-			};
+			//Total Pnl
+			return Promise.all([
+				_getPnlStats({positions: updatedPositions}),
+				_getPnlStats({positions: updatedPositions}, true)
+			])
+			.then(([pnlStatsAll, pnlStatsByTicker]) => {
+				return {
+					all: pnlStatsAll,
+					byTickers: pnlStatsByTicker
+				};
+			});
 		});
 	});	
 };
