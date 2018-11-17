@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-17 18:06:16
+* @Last Modified time: 2018-11-17 19:22:26
 */
 
 'use strict';
@@ -21,7 +21,7 @@ const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEnt
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 
-function _aggregatePnlStats(pnlStatsHistory) {	
+function _aggregatePnlStats(pnlStatsAllArray) {	
 	return new Promise(resolve => {
 		var totalPnl = 0.0;
 		var totalPnlPct = 0.0;
@@ -58,7 +58,7 @@ function _aggregatePnlStats(pnlStatsHistory) {
 
 		var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
 
-		pnlStatsHistory.forEach(item => {
+		pnlStatsAllArray.filter(item => item).forEach(item => {
 			totalPnl += _.get(item, 'totalPnl', 0);
 			cost += _.get(item, 'cost', 0);
 			totalPnl_long += _.get(item, 'totalPnl_long', 0);
@@ -162,6 +162,34 @@ function _aggregatePnlStats(pnlStatsHistory) {
 			};
 
 		resolve(pnlStats);
+	});
+}
+
+function _aggregatePnlStatsByTickers(pnlStatsByTickersArray) {	
+	return new Promise(resolve => {
+
+		let aggregatedStatsByTickers = {};
+			//[{TCS:x}, {TCS:y}, {TCS: z}]
+		
+		var allTickers = [];	
+		//?? How to filter the ticker for object
+		pnlStatsByTickersArray.forEach(item => {
+			var allTickers = allTickers.concat(Object.keys(item));
+		});
+
+		var uniqueTickers = _.uniq(allTickers);
+
+		uniqueTickers.forEach(ticker => {
+			var allPnlStatsForTicker = pnlStatsByTickersArray.map(item => {
+				return item[ticker]
+			}).filter(item => item);
+
+			aggregatedStatsByTickers[ticker] = allPnlStatsForTicker.length > 1 ?  
+				_aggregatePnlStats(allPnlStatsForTicker) :
+				allPnlStatsForTicker.length > 0 ? allPnlStatsForTicker[0] : {};
+		});
+		
+		resolve(aggregatedStatsByTickers);
 	});
 }
 
@@ -333,7 +361,6 @@ function _getPnlStats(portfolio, byTicker=false) {
 			var uniqueTickers = _.uniq(positions.map(item => item.security.ticker));
 
 			return Promise.map(uniqueTickers, function(ticker) {
-
 				return _computePnlStats(port, ticker)
 				.then(pnlStats => {
 					return {[ticker]: pnlStats};
@@ -613,16 +640,7 @@ function _computeDailyPnlStats(entryId, date, category="active") {
 			});
 
 			//Total Pnl
-			return Promise.all([
-				_getPnlStats({positions: updatedPositions}),
-				_getPnlStats({positions: updatedPositions}, true)
-			])
-			.then(([pnlStatsAll, pnlStatsByTicker]) => {
-				return {
-					all: pnlStatsAll,
-					byTickers: pnlStatsByTicker
-				};
-			});
+			return _getPnlStats({positions: updatedPositions});
 		});
 	});	
 };
@@ -642,37 +660,35 @@ function _computeDailyPnlStatsForAll(entryId, date) {
 	});
 }
 
-function _computeNetPnlStats(entryId) {
+function _computeNetPnlStats(entryId, date) {
 
 	//Net Pnl = Sum of Realized pnl daily + latest unrealized pnl 
 	return Promise.all([
-		DailyContestEntryPerformanceModel.getPnlLatestStats({_id: contestEntryId}),
-		DailyContestEntryPerformanceModel.getPnlStatsHistory({_id: contestEntryId}),
+		DailyContestEntryPerformanceModel.fetchLatestPnlStats({_id: contestEntryId}),
+		DailyContestEntryPerformanceModel.fetchLatestPnlStats({_id: contestEntryId, 'pnlStats.date':{$lt: date}}),
 	])
-	.then(([latestPnlStats, pnlStatsHistory]) => {
-		var activePnlStats = _.get(latestPnlStats, 'detail.cumulative.active', {});
+	.then(([latestPnlStats, yesterdayPnlStats]) => {
+		var latestActivePnlStats = _.get(latestPnlStats, 'detail.cumulative.active', {});
+		var latestRealizedPnlStats = _.get(latestPnlStats, 'detail.cumulative.ended', {});
+		var lastRealizedPnlStats = _.get(yesterdayPnlStats, 'net', {});
 		
-		return Promise.map([
-			_aggregatePnlStats(pnlStatsHistory.map(item => _.get(item, 'detail.cumulative.ended', {}))),
-			_aggregatePnlStats(pnlStatsHistory.map(item => _.get(item, 'detail.cumulative.ended', {})), ticker)
+		return Promise.all([
+			_aggregatePnlStats([lastRealizedPnlStats.all, latestActivePnlStats.all, latestRealizedPnlStats.all]),
+		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestActivePnlStats.byTickers, latestRealizedPnlStats.byTickers]),
+		    _aggregatePnlStats([lastRealizedPnlStats.all, latestRealizedPnlStats.all]),
+		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestRealizedPnlStats.byTickers])
 		])
-		.then(([realizedPnlStatsAll, realizedPnlStatsByTicker]) => {
-			return Promise.all([
-				_aggregatePnlStats([activePnlStats, realizedPnlStats]),
-			    _aggregatePnlStats([activePnlStats, realizedPnlStats], true)
-			])
-			.then(([pnlStatsTotalAll, pnlStatsTotalByTicker]) => {
-				return {
-					realized: {all: realizedPnlStatsPnl, byTickers: realizedPnlStatsByTicker},
-					unrealized: activePnlStats,
-					total: {
-						all: pnlStatsTotalAll, 
-						byTickers: pnlStatsTotalByTicker
-					}
-				};
-			});
-		})
-	})
+		.then(([pnlStatsTotalAll, pnlStatsTotalByTicker, pnlStatsRealizedAll, pnlStatsRealizedByTicker]) => {
+			return {
+				realized: {all: pnlStatsRealizedAll, byTickers: pnlStatsRealizedByTicker},
+				unrealized: latestActivePnlStats,
+				total: {
+					all: pnlStatsTotalAll, 
+					byTickers: pnlStatsTotalByTicker
+				}
+			};
+		});
+	});
 }
 
 module.exports.getTotalPnlStats = function(entryId, date, category="active") {
@@ -813,7 +829,7 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 		return Promise.mapSeries(dailyContestEntries, function(contestEntry) {
 			let contestEntryId = contestEntry._id;
 			date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
-			return _computeNetPnlStats(contestEntryId)
+			return _computeNetPnlStats(contestEntryId, date)
 			.then(netPnlStats => {
 				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({_id: contestEntryId}, netPnlStats, date, "net");
 			})
