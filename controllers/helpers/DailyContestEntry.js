@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-16 10:39:19
+* @Last Modified time: 2018-11-17 16:21:40
 */
 
 'use strict';
@@ -21,7 +21,7 @@ const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEnt
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 
-function _computePnlStats(portfolio) {
+function _aggregatePnlStats(pnlStatsHistory) {	
 	var totalPnl = 0.0;
 	var totalPnlPct = 0.0;
 	var totalPnl_long = 0.0;
@@ -42,13 +42,168 @@ function _computePnlStats(portfolio) {
 	var pnlNegative_long = 0;
 	var pnlPositive_short = 0;
 	var pnlNegative_short = 0;
+
+	var count = 0;
+	var count_short = 0;
+	var count_long = 0;
 	
+	var countPositive = 0;
+	var countPositive_long = 0;
+	var countPositive_short = 0;
+
+	var countNegative = 0;
+	var countNegative_long = 0;
+	var countNegative_short = 0;
+
 	var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
 
-	portfolio.positions.forEach(item => {
+	pnlStatsHistory.forEach(item => {
+		totalPnl += _.get(item, 'totalPnl', 0);
+		cost += _.get(item, 'cost', 0);
+		totalPnl_long += _.get(item, 'totalPnl_long', 0);
+		totalPnl_short += _.get(item, 'totalPnl_short', 0)
+		cost += _.get(item, 'cost', 0);
+		cost_long += _.get(item, 'cost_long', 0);
+		cost_short += _.get(item, 'cost_short', 0);
+		netValue += _.get(item, 'netValue', 0);
+		netValue_long += _.get(item, 'netValue_long', 0);
+		netValue_short += _.get(item, 'netValue_short', 0);
+		grossValue += _.get(item, 'grossValue', 0);
+		cash += _.get(item, 'cash', 0);
+		pnlPositive += _.get(item, 'pnlPositive', 0);
+		pnlNegative += _.get(item, 'pnlNegative', 0);
+		pnlPositive_long += _.get(item, 'pnlPositive_long', 0);
+		pnlNegative_long += _.get(item, 'pnlNegative_long', 0);
+		pnlPositive_short += _.get(item, 'pnlPositive_short', 0);
+		pnlNegative_short += _.get(item, 'pnlNegative_short', 0);
+
+		count += _.get(item, 'count', 0);
+		count_long += _.get(item, 'count_long', 0);
+		count_short += _.get(item, 'count_short', 0);
+		countPositive += _.get(item, 'countPositive', 0);
+		countNegative += _.get(item, 'countNegative', 0);
+		countPositive_long += _.get(item, 'countPositive_long', 0);
+		countNegative_long += _.get(item, 'countNegative_long', 0);
+		countPositive_short += _.get(item, 'countPositive_short', 0);
+		countNegative_short += _.get(item, 'countNegative_short', 0);
+
+		if (!minPnl) {
+			minPnl = item.minPnl;
+		} else {
+			minPnl = minPnl.value < item.minPnl.value ? minPnl : item.minPnl;
+		}
+
+		if (!maxPnl) {
+			maxPnl = item.maxPnl;
+		} else {
+			maxPnl = maxPnl.value > item.maxPnl.value ? maxPnl : item.maxPnl;
+		}
+
+		if (!minPnl_long) {
+			minPnl_long = item.minPnl_long;
+		} else {
+			minPnl_long = minPnl_long.value < item.minPnl_long.value ? minPnl_long : item.minPnl_long;
+		}
+
+		if (!minPnl_short) {
+			minPnl_short = item.minPnl_short;
+		} else {
+			minPnl_short = minPnl_short.value < item.minPnl_short.value ? minPnl_short : item.minPnl_short;
+		}
+
+		if (!maxPnl_long) {
+			maxPnl_long = item.maxPnl_long;
+		} else {
+			maxPnl_long = maxPnl_long.value > item.maxPnl_long.value ? maxPnl_long : item.maxPnl_long;
+		}
+
+		if (!maxPnl_short) {
+			maxPnl_short = item.maxPnl_short;
+		} else {
+			maxPnl_short = maxPnl_short.value > item.maxPnl_short.value ? maxPnl_short : item.maxPnl_short;
+		}
+	});
+
+	totalPnlPct = cost > 0 ? totalPnl/cost : 0
+	totalPnlPct_long = cost_long > 0 ? totalPnl_long/cost_long : 0;
+	totalPnlPct_short = cost_short > 0 ? totalPnl_short/cost_short : 0;
+
+	var profitFactor = pnlNegative > 0.0 ? pnlPositive/pnlNegative : NaN;
+	var profitFactor_long = pnlNegative_long > 0.0 ? pnlPositive_long/pnlNegative_long : NaN;
+	var profitFactor_short = pnlNegative_short > 0.0 ? pnlPositive_short/pnlNegative_short : NaN;
+
+	var winRatio = countNegative > 0 ? countPositive/countNegative : 0;
+	var winRatio_long = countNegative_long > 0 ? countPositive_long/countNegative_long : 0;
+	var winRatio_short = countNegative_short > 0 ? countPositive_short/countNegative_short : 0; 
+
+	netValue += cash;
+	grossValue += cash;
+
+	return {
+		total: {pnl: totalPnl, pnlPct: totalPnlPct, 
+			cost, netValue, grossValue,
+			cash, minPnl, maxPnl, profitFactor, 
+			pnlPositive, pnlNegative, winRatio,
+			count, countPositive, countNegative},
+		long: {pnl: totalPnl_long, pnlPct: totalPnlPct_long, 
+			cost: cost_long, netValue: netValue_long, 
+			cash: cash, minPnl: minPnl_long, 
+			maxPnl: maxPnl_long, profitFactor: profitFactor_long, 
+			pnlPositive: pnlPositive_long, pnlNegative: pnlNegative_long, 
+			winRatio: winRatio_long, 
+			count: count_long, countPositive: countPositive_long, countNegative: countNegative_long},
+		short: {pnl: totalPnl_short, pnlPct: totalPnlPct_short, 
+			cost: cost_short, netValue: netValue_short, 
+			cash: cash, minPnl: minPnl_short, 
+			maxPnl: maxPnl_short, profitFactor: profitFactor_short, 
+			pnlPositive: pnlPositive_short, pnlNegative: pnlNegative_short, winRatio: winRatio_short,
+			count: count_short, countPositive: countPositive_short, countNegative: countNegative_short}
+		};
+}
+
+function _computePnlStats(portfolio, ticker) {
+	var totalPnl = 0.0;
+	var totalPnlPct = 0.0;
+	var totalPnl_long = 0.0;
+	var totalPnlPct_long = 0.0;
+	var totalPnl_short = 0.0;
+	var totalPnlPct_short = 0.0;
+	var cost = 0.0;
+	var cost_long = 0.0;
+	var cost_short = 0.0;
+	var netValue = 0.0;
+	var netValue_long = 0.0;
+	var netValue_short = 0.0;
+	var grossValue = 0.0;
+	var cash = _.get(portfolio, 'cash', 0.0);
+	var pnlPositive = 0;
+	var pnlNegative = 0;
+	var pnlPositive_long = 0;
+	var pnlNegative_long = 0;
+	var pnlPositive_short = 0;
+	var pnlNegative_short = 0;
+	var count = 0;
+	var count_short = 0;
+	var count_long = 0;
+	
+	var countPositive = 0;
+	var countPositive_long = 0;
+	var countPositive_short = 0;
+
+	var countNegative = 0;
+	var countNegative_long = 0;
+	var countNegative_short = 0;
+
+	var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
+
+	portfolio.positions.filter(item => {return ticker ? item.security.ticker == ticker : true}).forEach(item => {
 		cost += Math.abs(item.investment);
 		cost_long += item.investment > 0.0 ? Math.abs(item.investment) : 0.0;
 		cost_short += item.investment < 0.0 ? Math.abs(item.investment) : 0.0;
+
+		count += 1;
+		count_long += item.investment > 0 ? 1 : 0;
+		count_short += item.investment < 0 ? 1 : 0;
 
 		var _cv = item.avgPrice > 0.0 ? item.investment * (item.lastPrice/item.avgPrice) : item.investment
 		var currentValue = _cv + _.get(item, 'dividendCash', 0.0);
@@ -64,6 +219,13 @@ function _computePnlStats(portfolio) {
 		pnlNegative += pnl < 0 ? Math.abs(pnl) : 0.0;
 		pnlNegative_long += item.investment > 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
 		pnlNegative_short += item.investment < 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
+
+		countPositive += pnl > 0 ? 1 : 0.0;
+		countPositive_long += item.investment > 0 ? (pnl > 0 ? 1 : 0.0) : 0.0;
+		countPositive_short += item.investment < 0 ? (pnl > 0 ? 1 : 0.0) : 0.0;
+		countNegative += pnl < 0 ? 1 : 0.0;
+		countNegative_long += item.investment > 0 ? (pnl < 0 ? 1 : 0.0) : 0.0;
+		countNegative_short += item.investment < 0 ? (pnl < 0 ? 1 : 0.0) : 0.0;
 
 		netValue += currentValue;
 		grossValue += Math.abs(currentValue);
@@ -94,8 +256,6 @@ function _computePnlStats(portfolio) {
 				pnl > maxPnl_long.value ? {security: item.security, value: pnl} : maxPnl_long : 
 				{security: item.security, value: pnl};
 		}
-
-
 	});
 
 	netValue += cash;
@@ -105,33 +265,40 @@ function _computePnlStats(portfolio) {
 	var profitFactor_long = pnlNegative_long > 0.0 ? pnlPositive_long/pnlNegative_long : NaN;
 	var profitFactor_short = pnlNegative_short > 0.0 ? pnlPositive_short/pnlNegative_short : NaN;
 
+	var winRatio = countNegative > 0 ? countPositive/countNegative : NaN;
+	var winRatio_long = countNegative_long > 0 ? countPositive_long/countNegative_long : NaN;
+	var winRatio_short = countNegative_short > 0 ? countPositive_short/countNegative_short : NaN; 
+
 	totalPnlPct = cost > 0.0 ? totalPnl/cost : 0.0;
 	totalPnlPct_long = cost_long > 0.0 ? totalPnl_long/cost_long : 0.0;
 	totalPnlPct_short = cost_short > 0.0 ? totalPnl_short/cost_short : 0.0;
 
 	return {
 		total: {pnl: totalPnl, pnlPct: totalPnlPct, 
-			cost: cost, netValue: netValue, grossValue: grossValue,
-			cash: cash, minPnl: minPnl, 
-			maxPnl: maxPnl, profitFactor: profitFactor, 
-			pnlPositive: pnlPositive, pnlNegative: pnlNegative},
+			cost, netValue, grossValue,
+			cash, minPnl, maxPnl, profitFactor, 
+			pnlPositive, pnlNegative, winRatio,
+			count, countPositive, countNegative},
 		long: {pnl: totalPnl_long, pnlPct: totalPnlPct_long, 
 			cost: cost_long, netValue: netValue_long, 
 			cash: cash, minPnl: minPnl_long, 
 			maxPnl: maxPnl_long, profitFactor: profitFactor_long, 
-			pnlPositive: pnlPositive_long, pnlNegative: pnlNegative_long},
+			pnlPositive: pnlPositive_long, pnlNegative: pnlNegative_long, 
+			winRatio: winRatio_long, 
+			count: count_long, countPositive: countPositive_long, countNegative: countNegative_long},
 		short: {pnl: totalPnl_short, pnlPct: totalPnlPct_short, 
 			cost: cost_short, netValue: netValue_short, 
 			cash: cash, minPnl: minPnl_short, 
 			maxPnl: maxPnl_short, profitFactor: profitFactor_short, 
-			pnlPositive: pnlPositive_short, pnlNegative: pnlNegative_short}
+			pnlPositive: pnlPositive_short, pnlNegative: pnlNegative_short, winRatio: winRatio_short,
+			count: count_short, countPositive: countPositive_short, countNegative: countNegative_short}
 		};
 }
 
 /*
 * Populate pnl stats, netvalue, unrealized Pnl for the portfolio (and individual positions)
 */
-function _getPnlStats(portfolio) {
+function _getPnlStats(portfolio, byTicker=false) {
 
 	return new Promise(resolve => {
 		var port = Object.assign({}, portfolio);
@@ -155,9 +322,49 @@ function _getPnlStats(portfolio) {
 			return item;
 		});
 
-		resolve(_computePnlStats(port));
+		if (byTicker) {
+			var uniqueTickers = _.uniq(positions.map(item => item.security.ticker));
+
+			return Promise.map(uniqueTickers, function(ticker) {
+				return {[ticker]: _computePnlStats(port, ticker)};
+			})
+			.then(pnlStatsByTicker => {
+				resolve(Object.assign(...pnlStatsByTicker));
+			});
+		} else {
+			resolve(_computePnlStats(port));
+		}
 
 	});
+}
+
+function _isTargetAchieved(prediction, highPrice, lowPrice) {
+	var investment = prediction.position.investment;
+	var target = prediction.target;
+	var avgPrice = prediction.position.avgPrice;
+
+	let success = false;
+	
+	if (investment < 0 && lowPrice < target) {
+		success = true
+	} else if (investment > 0 && highPrice > target) {
+		success = true; 
+	}
+
+	return success;
+}
+
+function _getExtremePrices(history, startDate) {
+	var relevantHistory = history.filter(item => {return moment(`${item.datetime}Z`).isAfter(moment(startDate))});
+
+	if (relevantHistory.length > 0) {
+		return {
+			high: _.maxBy(relevantHistory, 'high'), 
+			low: _.minBy(relevantHistory, 'low')
+		};
+	} else {
+		return {high: -Infinity, low: Infinity};
+	}
 }
 
 function _trackIntradayHistory(security) {
@@ -184,7 +391,6 @@ function _updatePortfolioForAveragePrice(portfolioHistory) {
 
 function _updatePredictionForTrueCallPrice(prediction) {
 	var startDate = moment(prediction.startDate);
-
 	return SecurityHelper.getStockIntradayHistory(prediction.position.security)		
 	.then(intradaySecurityDetail => {
 		
@@ -299,13 +505,18 @@ function _computeTotalPnlStats(entryId, date, category="active") {
 	})
 	.then(activePredictions => {
 
-		//Total Pnl
-		return _getPnlStats({positions: activePredictions.map(item => {
+		var updatedPositions = activePredictions.map(item => {
 			if(item.success.status) {
 				item.position.lastPrice = item.target;
 			}
 			return  item.position;
-		})}); //map ends
+		});
+
+		//Total Pnl
+		return {
+			all: _getPnlStats({positions: updatedPositions}),
+			byTickers: _getPnlStats({positions: updatedPositions}, true)
+		}; 
 	})
 };
 
@@ -375,13 +586,17 @@ function _computeDailyPnlStats(entryId, date, category="active") {
 		})
 		.then(updatedPredictionWithYesterdayCallPrice => {
 
-			return _getPnlStats({positions: updatedPredictionWithYesterdayCallPrice.map(item => {
+			var updatedPositions = updatedPredictionWithYesterdayCallPrice.map(item => {
 				if(item.success.status) {
 					item.position.lastPrice = item.target;
 				}
-
 				return  item.position;
-			})});
+			});
+
+			return {
+				all: _getPnlStats({positions: updatedPositions}),
+				byTickers: _getPnlStats({positions: updatedPositions}, true)
+			};
 		});
 	});	
 };
@@ -399,6 +614,34 @@ function _computeDailyPnlStatsForAll(entryId, date) {
 			ended: endedPredictionsDailyPnl
 		};
 	});
+}
+
+function _computeNetPnlStats(entryId) {
+
+	//Net Pnl = Sum of Realized pnl daily + latest unrealized pnl 
+
+	return Promise.all([
+		DailyContestEntryPerformanceModel.getPnlLatestStats({_id: contestEntryId}),
+		DailyContestEntryPerformanceModel.getPnlStatsHistory({_id: contestEntryId}),
+	])
+	.then(([latestPnlStats, pnlStatsHistory]) => {
+		var activePnlStats = _.get(latestPnlStats, 'detail.cumulative.active', {});
+		
+		return Promise.map([
+			Promise.resolve(_aggregatePnlStats(pnlStatsHistory.map(item => _.get(item, 'detail.cumulative.ended', {})))),
+			Promise.resolve(_aggregatePnlStats(pnlStatsHistory.map(item => _.get(item, 'detail.cumulative.ended', {})), ticker))
+		])
+		.then(([realizedPnlStatsAll, realizedPnlStatsByTicker]) => {
+			return {
+				realized: {all: realizedPnlStatsPnl, byTickers: realizedPnlStatsByTicker},
+				unrealized: activePnlStats,
+				total: {
+					all: _aggregatePnlStats([activePnlStats, realizedPnlStats]), 
+					byTickers: _aggregatePnlStats([activePnlStats, realizedPnlStats], true)
+				}
+			};
+		})
+	})
 }
 
 module.exports.getTotalPnlStats = function(entryId, date, category="active") {
@@ -509,7 +752,7 @@ module.exports.getContestEntryForUser = function(userId) {
 	})
 };
 
-module.exports.updateAllEntriesPnlStats = function(date){
+module.exports.updateAllEntriesLatestPnlStats = function(date){
 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
 	.then(dailyContestEntries => {
 		return Promise.mapSeries(dailyContestEntries, function(contestEntry) {
@@ -526,41 +769,26 @@ module.exports.updateAllEntriesPnlStats = function(date){
 					daily: dailyPnl
 				}
 				
-				return DailyContestEntryPerformanceModel.updateEntryPnlStats({contestEntry: contestEntryId}, updates, date);
+				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({contestEntry: contestEntryId}, updates, date, "detail");
 			})
 
 		});
 	});
 };
 
-function _isTargetAchieved(prediction, highPrice, lowPrice) {
-	var investment = prediction.position.investment;
-	var target = prediction.target;
-	var avgPrice = prediction.position.avgPrice;
-
-	let success = false;
-	
-	if (investment < 0 && lowPrice < target) {
-		success = true
-	} else if (investment > 0 && highPrice > target) {
-		success = true; 
-	}
-
-	return success;
-}
-
-function _getExtremePrices(history, startDate) {
-	var relevantHistory = history.filter(item => {return moment(`${item.datetime}Z`).isAfter(moment(startDate))});
-
-	if (relevantHistory.length > 0) {
-		return {
-			high: _.maxBy(relevantHistory, 'high'), 
-			low: _.minBy(relevantHistory, 'low')
-		};
-	} else {
-		return {high: -Infinity, low: Infinity};
-	}
-}
+module.exports.updateAllEntriesNetPnlStats = function(date) {
+	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
+	.then(dailyContestEntries => {
+		return Promise.mapSeries(dailyContestEntries, function(contestEntry) {
+			let contestEntryId = contestEntry._id;
+			date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+			return _computeNetPnlStats(contestEntryId)
+			.then(netPnlStats => {
+				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({_id: contestEntryId}, netPnlStats, date, "net");
+			})
+		});
+	});
+};
 
 //Logic works for all predictions except that started today
 //Why??
@@ -742,21 +970,15 @@ module.exports.updateCallPriceForPredictions = function() {
 	})
 };
 
-//Saves prediction snapshot as-of date
-// module.exports.saveUpdatedEntries = function() {
-// 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
-// 	.then(contestEntries => {
-// 		return Promise.mapSeries(contestEntries, function(contestEntry) {
-// 			let contestEntryId = contestEntry._id;
-// 			const date = DateHelper.getMarketCloseDateTime();
+/*
+* Get aggregated general stats for predictions (all/bySymbol/byHorizon)
+*/
+module.exports.getDailyContestEntryGeneralStats = function(symbol, horizon) {
+	return Promise.resolve()
+	.then(() => {
+		if (!symbol && !horizon) {
+			//Stats for all predictions
 
-// 			return exports.getPredictionsForDate(contestEntryId, date, "active")
-// 			.then(updatedPrediction => {
-// 				return DailyContestEntryModel.updatePrediction({_id: contestEntryId}, updatedPrediction);
-// 			})
-// 		});
-// 	});
-// };
-
-
-//return SecurityHelper.getStockIntradayDetail({ticker: ticker})
+		}
+	});
+};

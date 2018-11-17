@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-16 11:58:56
+* @Last Modified time: 2018-11-17 17:00:52
 */
 
 'use strict';
@@ -71,7 +71,7 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 /* 
 * Get contest entry for a date
 */
-module.exports.getDailyContestPnl = (args, res, next) => {
+module.exports.getDailyContestPnlForDate = (args, res, next) => {
 	const _d = _.get(args, 'date.value', '');
 	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
 	
@@ -121,7 +121,7 @@ module.exports.getDailyContestNextStock = function(args, res, next) {
 	const _dd = DateHelper.getCurrentDate();
 	const date = DateHelper.getMarketCloseDateTime(_dd);
 	
-	const search = _.get(args, 'search.value', "")
+	const search = _.get(args, 'search.value', null)
 	const sector = _.get(args, 'sector.value', null);
 	const industry = _.get(args, 'industry.value', null);
 	const universe = _.get(args, 'universe.value', "NIFTY_500");
@@ -137,11 +137,9 @@ module.exports.getDailyContestNextStock = function(args, res, next) {
 			const advisorId = advisor._id.toString()
 
 			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
-		} else if(!advisor) {
-			APIError.throwJsonError({message: "Not a valid user"});
 		} else {
-			APIError.throwJsonError({message: `No Contest found for ${date}`});
-		}
+			APIError.throwJsonError({message: "Not a valid user"});
+		} 
 	})
 	.then(contestEntry => {
 		if (contestEntry) {
@@ -375,6 +373,54 @@ module.exports.getDailyContestTopStocks = (args, res, next) => {
 };
 
 
+/*
+* Get contest (dashboard stats) for user
+*/
+
+module.exports.getDailyContestStats = (args, res, next) => {
+	const category = _.get(args, 'category.value', "general");
+	const symbol = _.get(args, 'symbol.value', null);
+	const horizon = _.get(args, 'horizon.value', null);
+
+	const userId = _.get(args, 'user._id', null);
+
+	return Promise.resolve()
+	.then(() => {
+		if (symbol && horizon) {
+			APIError.throwJsonError({msg: "Only one of symbol/horizon parameter is allowed"})
+		} else {
+			return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})		
+		}
+	})
+	.then(advisor => {
+		if (advisor) {
+			const advisorId = advisor._id.toString()
+
+			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
+		} else {
+			APIError.throwJsonError({message: "Not a valid user"});
+		} 
+	})	
+	.then(contestEntry => {
+		if (contestEntry) {
+			let contestEntryId = contestEntry._id;
+			switch(category) {
+				case "general" : return DailyContestEntryHelper.getDailyContestEntryPnlStats(contestEntryId, symbol, horizon); break;
+				case "prediction" : return DailyContestEntryHelper.getDailyContestEntryPnlStats(contestEntryId, symbol, horizon); break;
+				case "pnl" : return DailyContestEnteryHelper.getDailyContestEntryPnlStats(contestEntryId, horizon); break;
+			}
+		} else {
+			APIError.throwJsonError({msg: "No contest entry found for user"});
+		}
+	})
+	.then(stats => {
+		return res.status(200).send(stats);
+	})
+	.catch(err => {
+		return res.status(400).send(err.msg);
+	});
+};
+
 module.exports.updateDailyContestTopStocks = (args, res, next) => {
 	const _d = _.get(args, 'date.value', '');
 	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
@@ -395,10 +441,9 @@ module.exports.updateDailyContestTopStocks = (args, res, next) => {
     .then(() => {
     	return res.status(200).send({msg: "Top stocks updated"});
     })
-
 };
 
-module.exports.updateDailyContestPnl = (args, res, next) => {
+module.exports.updateDailyContestPnlForDate = (args, res, next) => {
 	const _d = _.get(args, 'date.value', '');
 	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
 	
@@ -417,7 +462,6 @@ module.exports.updateDailyContestPnl = (args, res, next) => {
     .then(() => {
     	return res.status(200).send({msg: "Pnl Stats Updated"});
     })
-
 };
 
 module.exports.sendEmailToDailyContestWinners = function(args, res, next) {
