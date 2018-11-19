@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-06 15:21:06
+* @Last Modified time: 2018-11-19 20:08:14
 */
 
 
@@ -221,10 +221,11 @@ DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, da
 
 //This is not good programming
 DailyContestEntry.statics.updatePredictionStatus = function(query, prediction) {
-	var q = {'predictions.position.security.ticker': prediction.position.security.ticker, 
-				'predictions.endDate': prediction.endDate,
-				'predictions.startDate': prediction.startDate
-			};
+   var q = {predictions:{$elemMatch:{'position.security.ticker': prediction.position.security.ticker, 
+                endDate: prediction.endDate,
+                startDate: prediction.startDate
+            }}};
+
 	var updates = {
 		$set: {
 			'predictions.$.success': {
@@ -234,16 +235,16 @@ DailyContestEntry.statics.updatePredictionStatus = function(query, prediction) {
 		}
 	};
 
-	return this.findOneAndUpdate({...query, ...q}, updates);
+	return this.updateOne({...query, ...q}, updates);
 };
 
 
 //This is not good programming
 DailyContestEntry.statics.updatePredictionCallPrice = function(query, prediction, price) {
-	var q = {'predictions.position.security.ticker': prediction.position.security.ticker, 
-			'predictions.endDate': prediction.endDate,
-			'predictions.startDate': prediction.startDate
-		};
+   	var q = {predictions:{$elemMatch:{'position.security.ticker': prediction.position.security.ticker, 
+            	endDate: prediction.endDate,
+                startDate: prediction.startDate
+            }}};
 
 	var updates = {
 		$set: {
@@ -251,15 +252,20 @@ DailyContestEntry.statics.updatePredictionCallPrice = function(query, prediction
 		}
 	};
 
-	return this.findOneAndUpdate({...query, ...q}, updates);
+	return this.updateOne({...query, ...q}, updates);	
 };
 
 
+
+db.dailycontestentries.update({"advisor" : ObjectId("5b03a07f3e758a46af88ddaf")}, 
+	{$set:{'predictions.$[element].avgPrice': 2.0}}, {arrayFilters:[{"element": {'security.ticker':'NATIONALUM'}}]})
+
+
 DailyContestEntry.statics.updatePrediction = function(query, updatedPrediction) {
-	var q = {'predictions.position.security.ticker': updatedPrediction.position.security.ticker, 
-			'predictions.endDate': updatedPrediction.endDate,
-			'predictions.startDate': updatedPrediction.startDate
-		};
+	var q = {predictions:{$elemMatch:{'position.security.ticker': prediction.position.security.ticker, 
+            	endDate: prediction.endDate,
+                startDate: prediction.startDate
+            }}};
 
 	var updates = {
 		$set: {
@@ -267,7 +273,8 @@ DailyContestEntry.statics.updatePrediction = function(query, updatedPrediction) 
 		}
 	};
 
-	return this.findOneAndUpdate({...query, ...q}, updates);
+	return this.updateOne({...query, ...q}, updates);
+	
 };
 
 
