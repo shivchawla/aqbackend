@@ -40,7 +40,7 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 	.then(advisor => {
 		if (advisor) {
 			const advisorId = advisor._id.toString()
-			APIError.throwJsonError({message: "Not a valid user"});
+			return APIError.throwJsonError({message: "Not a valid user"});
 			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
