@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-19 20:06:42
+* @Last Modified time: 2018-11-19 22:04:47
 */
 
 'use strict';
@@ -261,9 +261,13 @@ function _computeUpdatedPredictions(predictions, date) {
 				
 				//Check whether the predcition needs any price update
 				//Based on success status
-				return _.get(prediction, 'success.status', false) ? 
-					updatedCallPricePrediction :
-					_updatePositionsForPrice(_partialUpdatedPositions, date);
+				var success = _.get(prediction, 'success.status', false);
+				if (success) {
+					updatedCallPricePrediction.position.lastPrice = updatedCallPricePrediction.target;
+					return [updatedCallPricePrediction.position];
+				} else {
+					return _updatePositionsForPrice(_partialUpdatedPositions, date);
+				}
 			})
 			.then(updatedPositions => {
 				if (updatedPositions) {
