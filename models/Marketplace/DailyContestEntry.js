@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-19 20:08:14
+* @Last Modified time: 2018-11-19 21:09:41
 */
 
 
@@ -254,11 +254,6 @@ DailyContestEntry.statics.updatePredictionCallPrice = function(query, prediction
 
 	return this.updateOne({...query, ...q}, updates);	
 };
-
-
-
-db.dailycontestentries.update({"advisor" : ObjectId("5b03a07f3e758a46af88ddaf")}, 
-	{$set:{'predictions.$[element].avgPrice': 2.0}}, {arrayFilters:[{"element": {'security.ticker':'NATIONALUM'}}]})
 
 
 DailyContestEntry.statics.updatePrediction = function(query, updatedPrediction) {
