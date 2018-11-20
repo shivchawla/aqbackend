@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-20 16:05:35
+* @Last Modified time: 2018-11-20 16:27:18
 */
 
 'use strict';
@@ -247,28 +247,32 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		//Change this to use PROMISE 
 		//And check redundancy of predictions
 		var adjustedPredictions = entryPredictions.map(item => {
-			var latest
 			if (DateHelper.compareDates(item.endDate, item.startDate) == 1) {
 		
-				//after market close - get close of that day
-				//before market open - get close of last day
+				//While trading
 				if (DateHelper.isMarketTrading()) {
-					item.startDate = 
-				}	
-				if (DateHelper.isHoliday(item.startDate)) {
+	                item.startDate = moment().startOf('minute');
+				} //On market holiday - get close of last day
+				//12PM Sunday
+				else if (DateHelper.isHoliday(item.startDate)) {
 					item.startDate = latestTradingDateExcludingToday;
-				} else if (moment(item.startDate).isAfter(DateHelper.getMarketCloseDateTime()) {
-					item.startDate = 
-				} else if (DateHelper.isMarketOpen){
-
+				} //After market close - get close of that day 
+				//5:30 PM Friday
+				else if (moment(item.startDate).isAfter(DateHelper.getMarketCloseDateTime())) {
+					item.startDate = latestTradingDateIncludingToday;
+				} //Before market open - get close of last day 
+				//5:30AM Friday
+				else if (moment(item.startDate).isBefore(DateHelper.getMarketOpenDateTime())) {
+					item.startDate = latestTradingDateExcludingToday;
+				} else {
+					console.log("Start Date can be erroneous!!")
+					item.startDate = latestTradingDateExcludingToday;
 				}
-
-				item.startDate = DateHelper.isHolida
-					moment(item.startDate).isAfter(latestTradingDateIncludingToday) ? 
-					DateHelper.compareDates(item.startDate, latestTradingDateExl latestTradingDateIncludingToday : moment().startOf('minute');
-				item.endDate = DateHelper.getMarketCloseDateTime(item.endDate);
+				
+				item.endDate = DateHelper.getMarketCloseDateTime(DateHelper.getNextNonHolidayWeekday(item.endDate, 0));
 				item.active = true;
 				item.modified = 1;
+				item.nonMarketHoursFlag = !DateHelper.isMarketTrading();
 
 				return item;
 
