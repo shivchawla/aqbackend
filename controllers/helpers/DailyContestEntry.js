@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-20 18:33:03
+* @Last Modified time: 2018-11-20 18:59:36
 */
 
 'use strict';
@@ -219,25 +219,33 @@ function _updatePredictionForCallPrice(prediction) {
 	
 	return Promise.all([
 		SecurityHelper.getStockIntradayHistory(prediction.position.security),
-		SecurityHelper.getStockLatestDetailByType(prediction.position.security, "RT")
+		SecurityHelper.getStockDetail(prediction.position.security, prediction.startDate)
 	])
-	.then(([intradaySecurityDetail, latestSecurityDetail]) => {
+	.then(([intradaySecurityDetail, eodSecurityDetail]) => {
 		
-		var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {
-			
-			return !moment(`${item.datetime}Z`).isBefore(startDate)
-		});
+		if (_.get(prediction,'nonMarketHoursFlag', false)) {
+			var lastPrice = _.get(eodSecurityDetail, 'latestDetailRT.current', 0) ||
+			    _.get(eodSecurityDetail, 'latestDetailRT.close', 0) ||  
+			    _.get(eodSecurityDetail, 'latestDetail.Close', 0);
 
-		let trueLastPrice = 0.0;
-		if (relevantIntradayHistory.length > 0) {
-			trueLastPrice = relevantIntradayHistory[0].close;
+			prediction.position.avgPrice = lastPrice;
+		} else {
+			var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {
+				
+				return !moment(`${item.datetime}Z`).isBefore(startDate)
+			});
+
+			let trueLastPrice = 0.0;
+			if (relevantIntradayHistory.length > 0) {
+				trueLastPrice = relevantIntradayHistory[0].close;
+			}
+
+			var lastPrice = trueLastPrice ||
+			    _.get(eodSecurityDetail, 'latestDetailRT.current', 0) ||
+			    _.get(eodSecurityDetail, 'latestDetailRT.close', 0); 
+
+			prediction.position.avgPrice = lastPrice;
 		}
-
-		var lastPrice = trueLastPrice ||
-		    _.get(latestSecurityDetail, 'latestDetail.current', 0) ||
-		    _.get(latestSecurityDetail, 'latestDetail.close', 0); 
-
-		prediction.position.avgPrice = lastPrice;
 
 		return prediction;
 		
