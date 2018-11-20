@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-19 22:04:47
+* @Last Modified time: 2018-11-20 18:33:03
 */
 
 'use strict';
@@ -184,22 +184,34 @@ function _updatePortfolioForAveragePrice(portfolioHistory) {
 
 function _updatePredictionForTrueCallPrice(prediction) {
 	var startDate = moment(prediction.startDate);
+	var isAfterMarket = _.get(prediction, 'nonMarketHoursFlag', false);
 
-	return SecurityHelper.getStockIntradayHistory(prediction.position.security)		
-	.then(intradaySecurityDetail => {
+	return Promise.all([
+		SecurityHelper.getStockIntradayHistory(prediction.position.security),
+		SecurityHelper.getStockDetail(prediction.position.Security, prediction.startDate)
+	])		
+	.then(([intradaySecurityDetail, eodSecurityDetail]) => {
 		
-		var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {return !moment(`${item.datetime}Z`).isBefore(startDate)});
+		if (isAfterMarket) {
+			prediction.position.avgPrice = _.get(eodSecurityDetail, 'latestDetailRT.current', 0) || 			
+											_.get(eodSecurityDetail, 'latestDetail.Close', 0);
+		} else {
 
-		let trueLastPrice = 0.0;
-		if (relevantIntradayHistory.length > 0) {
-			trueLastPrice = relevantIntradayHistory[0].close;
+			var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {return !moment(`${item.datetime}Z`).isBefore(startDate)});
+
+			let trueLastPrice = 0.0;
+			if (relevantIntradayHistory.length > 0) {
+				trueLastPrice = relevantIntradayHistory[0].close;
+			}
+
+			prediction.position.avgPrice = trueLastPrice;
 		}
-
-		prediction.position.avgPrice = trueLastPrice;
 
 		return prediction;
 		
 	});
+
+	
 }
 
 function _updatePredictionForCallPrice(prediction) {
