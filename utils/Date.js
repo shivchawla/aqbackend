@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-20 16:18:44
+* @Last Modified time: 2018-11-20 17:20:39
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -102,9 +102,9 @@ module.exports.getLocalDate = function(dateTime, offset) {
 	return _od;
 };
 
-//Return dateTime formatted to Current Date and Time as 00:00:00 IST
+//Return dateTime formatted to Current Date and Time as 12:00:00 IST
 module.exports.getDate = function(dateTime) {
-	return (dateTime ? moment(dateTime) : moment()).tz(indiaTimeZone).set({hour:0, minute:0, second:0, millisecond:0}).toDate();
+	return (dateTime ? moment(dateTime) : moment()).tz(indiaTimeZone).set({hour:5, minute:30, second:0, millisecond:0}).toDate();
 	//return exports.getLocalDate(dateTime, 0);
 };
 
@@ -249,7 +249,7 @@ module.exports.getCurrentIndiaDateTime = function() {
 };
 
 module.exports.isHoliday = function(date) {
-	date = !date ? module.exports.getCurrentDate() : date;
+	date = !date ? module.exports.getCurrentDate() : module.exports.getDate(date);
 	return date.getDay() == 0 || date.getDay() == 6 || holidays.findIndex(item => {return item.isSame(moment(date));}) !== -1;
 };
 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-20 16:27:18
+* @Last Modified time: 2018-11-20 17:19:25
 */
 
 'use strict';
@@ -258,11 +258,11 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 					item.startDate = latestTradingDateExcludingToday;
 				} //After market close - get close of that day 
 				//5:30 PM Friday
-				else if (moment(item.startDate).isAfter(DateHelper.getMarketCloseDateTime())) {
+				else if (moment().isAfter(DateHelper.getMarketCloseDateTime())) {
 					item.startDate = latestTradingDateIncludingToday;
 				} //Before market open - get close of last day 
 				//5:30AM Friday
-				else if (moment(item.startDate).isBefore(DateHelper.getMarketOpenDateTime())) {
+				else if (moment().isBefore(DateHelper.getMarketOpenDateTime())) {
 					item.startDate = latestTradingDateExcludingToday;
 				} else {
 					console.log("Start Date can be erroneous!!")
