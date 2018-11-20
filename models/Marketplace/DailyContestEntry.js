@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-06 15:21:06
+* @Last Modified time: 2018-11-20 16:19:08
 */
 
 
@@ -64,7 +64,12 @@ const Prediction = new Schema({
 		status: {type: Boolean, default: false},
 		date: Date
 	},
-	modified: {type:Number, default: 0}
+	modified: {type:Number, default: 0},
+	
+	nonMarketHoursFlag: {
+		type: Boolean,
+		default: false
+	}
 });
 
 const DailyContestEntry = new Schema({  

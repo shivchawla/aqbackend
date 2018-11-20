@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-16 11:58:56
+* @Last Modified time: 2018-11-20 16:05:35
 */
 
 'use strict';
@@ -147,7 +147,7 @@ module.exports.getDailyContestNextStock = function(args, res, next) {
 		if (contestEntry) {
 			return DailyContestEntryHelper.getPredictionsForDate(contestEntry._id, date, "active", false);
 		} else {
-			APIError.throwJsonError({message: `No contest entry found for ${date}`});
+			return [];
 		}
 	})
 	.then(activePredictions => {
@@ -180,34 +180,27 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	const action = args.operation.value;
 	
 	let advisorId;
-	return Promise.resolve()
-	.then(() => {
-		if (DateHelper.isMarketTrading()) {
-			return true;
-		} else {
-			APIError.throwJsonError({msg: "Market is currently closed"});
-		}
-	})
-	.then(() => {
-		return Promise.map(entryPredictions, function(prediction) {
-			return SecurityHelper.getStockLatestDetail(prediction.position.security)
-			.then(securityDetail => {
-				var latestPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
-				if (latestPrice != 0) {
-					const investment = prediction.position.investment;
-					const target = prediction.target;
+	let latestTradingDateIncludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0)); 
+	let latestTradingDateExcludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 1)); 
+	
+	return Promise.map(entryPredictions, function(prediction) {
+		return SecurityHelper.getStockLatestDetail(prediction.position.security)
+		.then(securityDetail => {
+			var latestPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
+			if (latestPrice != 0) {
+				const investment = prediction.position.investment;
+				const target = prediction.target;
 
-					if (investment > 0 && target < 1.015*latestPrice) {
-						APIError.throwJsonError({msg:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% higher than call price`});
-					} else if (investment < 0 && target > 1.015*latestPrice) {
-						APIError.throwJsonError({msg:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% lower than call price`});
-					}
-					return;
-				} else {
-					console.log("Create Prediction: Price not found");
-					return; 
+				if (investment > 0 && target < 1.015*latestPrice) {
+					APIError.throwJsonError({msg:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% higher than call price`});
+				} else if (investment < 0 && target > 1.015*latestPrice) {
+					APIError.throwJsonError({msg:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% lower than call price`});
 				}
-			})
+				return;
+			} else {
+				console.log("Create Prediction: Price not found");
+				return; 
+			}
 		})
 	})
 	.then(() => {
@@ -224,7 +217,8 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	})
 	.then(contestEntry => {
 		if (contestEntry) {
-			return DailyContestEntryHelper.getPredictionsForDate(contestEntry._id, DateHelper.getMarketCloseDateTime(), "started", false)
+			
+			return DailyContestEntryHelper.getPredictionsForDate(contestEntry._id, latestTradingDateIncludingToday, "started", false)
 			.then(predictionsToday => {
 				if (predictionsToday.length + entryPredictions.length > 10000000000) {
 					APIError.throwJsonError({msg: "Limit exceeded: Cannot add more than 10 predictions per day"})
@@ -253,11 +247,25 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		//Change this to use PROMISE 
 		//And check redundancy of predictions
 		var adjustedPredictions = entryPredictions.map(item => {
-			
-			if (DateHelper.compareDates(item.endDate, item.startDate) == 1 && 
-					DateHelper.compareDates(item.startDate, DateHelper.getCurrentDate()) == 0) {
-				
-				item.startDate = moment().startOf('minute');
+			var latest
+			if (DateHelper.compareDates(item.endDate, item.startDate) == 1) {
+		
+				//after market close - get close of that day
+				//before market open - get close of last day
+				if (DateHelper.isMarketTrading()) {
+					item.startDate = 
+				}	
+				if (DateHelper.isHoliday(item.startDate)) {
+					item.startDate = latestTradingDateExcludingToday;
+				} else if (moment(item.startDate).isAfter(DateHelper.getMarketCloseDateTime()) {
+					item.startDate = 
+				} else if (DateHelper.isMarketOpen){
+
+				}
+
+				item.startDate = DateHelper.isHolida
+					moment(item.startDate).isAfter(latestTradingDateIncludingToday) ? 
+					DateHelper.compareDates(item.startDate, latestTradingDateExl latestTradingDateIncludingToday : moment().startOf('minute');
 				item.endDate = DateHelper.getMarketCloseDateTime(item.endDate);
 				item.active = true;
 				item.modified = 1;
