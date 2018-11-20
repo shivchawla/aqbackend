@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-16 10:39:19
+* @Last Modified time: 2018-11-19 22:04:47
 */
 
 'use strict';
@@ -261,9 +261,13 @@ function _computeUpdatedPredictions(predictions, date) {
 				
 				//Check whether the predcition needs any price update
 				//Based on success status
-				return _.get(prediction, 'success.status', false) ? 
-					updatedCallPricePrediction :
-					_updatePositionsForPrice(_partialUpdatedPositions, date);
+				var success = _.get(prediction, 'success.status', false);
+				if (success) {
+					updatedCallPricePrediction.position.lastPrice = updatedCallPricePrediction.target;
+					return [updatedCallPricePrediction.position];
+				} else {
+					return _updatePositionsForPrice(_partialUpdatedPositions, date);
+				}
 			})
 			.then(updatedPositions => {
 				if (updatedPositions) {
@@ -590,14 +594,14 @@ function _getExtremePrices(history, startDate) {
 
 //Handles only predictions ending today
 module.exports.checkForPredictionTarget = function(category = "active") {
-	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
+	const currentDate = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 
 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
 	.then(dailyContestEntries => {
 		return Promise.mapSeries(dailyContestEntries, function(contestEntry) {
 			let contestEntryId = contestEntry._id;
 
-			return exports.getPredictionsForDate(contestEntryId, date, category, false)
+			return exports.getPredictionsForDate(contestEntryId, currentDate, category, false)
 			.then(predictions => {
 
 				//Filter out already successful (in case)
@@ -629,12 +633,12 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 					//check if prediction are successful on daily high/low basis
 					return SecurityHelper.getStockLatestDetailByType({ticker: ticker}, "RT")
 					.then(securityDetail => {
-						var highPrice = securityDetail.latestDetail.highPrice;
-						var lowPrice = securityDetail.latestDetail.lowPrice;
+						var highPrice = securityDetail.latestDetail.high;
+						var lowPrice = securityDetail.latestDetail.low;
 
 						var successfulPredictions = allPredictionsByTicker.filter(item => {
 							var investment = item.position.investment;
-							var target = item.position.target;
+							var target = item.target;
 
 							return (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
 						});
@@ -662,13 +666,13 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 
 									successfulIntraday = partiallySuccessfulIntraday.filter(item => {
 										var investment = item.position.investment;
-										var target = item.position.target;
+										var target = item.target;
 
 										var startDate = item.startDate;
 										var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, startDate);
 
-										var highPrice = extremePricesSinceStartDate.high;
-										var lowPrice = extremePricesSinceStartDate.low;
+										var highPrice = extremePricesSinceStartDate.high.high;
+										var lowPrice = extremePricesSinceStartDate.low.high;
 
 										return (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
 
@@ -677,12 +681,15 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 									resolve(successfulDayBasis.concat(successfulIntraday));
 								});
 							} else {
-								resolve(successfulDayBasis)
+								resolve(successfulDayBasis);
 							}
 
+						} else {
+							resolve([]);
 						}
 							
 					})
+				
 				})
 				
 			})

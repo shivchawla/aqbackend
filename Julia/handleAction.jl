@@ -281,6 +281,10 @@ function handleRequest(parsemsg::Dict{String, Any})
             security = convert(Raftaar.Security, parsemsg["security"])
             parsemsg["output"] = track_stock_intraday_detail(security)
 
+        elseif action == "untrack_stock_intraday_detail"
+            parsemsg["output"] = ""
+            parsemsg["output"] = untrack_stock_intraday_detail()
+
         elseif action == "compute_stock_rolling_performance"
             parsemsg["output"] = ""
 
