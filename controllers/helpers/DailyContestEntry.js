@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-16 10:39:19
+* @Last Modified time: 2018-11-21 10:14:11
 */
 
 'use strict';
@@ -184,22 +184,34 @@ function _updatePortfolioForAveragePrice(portfolioHistory) {
 
 function _updatePredictionForTrueCallPrice(prediction) {
 	var startDate = moment(prediction.startDate);
+	var isAfterMarket = _.get(prediction, 'nonMarketHoursFlag', false);
 
-	return SecurityHelper.getStockIntradayHistory(prediction.position.security)		
-	.then(intradaySecurityDetail => {
+	return Promise.all([
+		SecurityHelper.getStockIntradayHistory(prediction.position.security),
+		SecurityHelper.getStockDetail(prediction.position.security, prediction.startDate)
+	])		
+	.then(([intradaySecurityDetail, eodSecurityDetail]) => {
 		
-		var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {return !moment(`${item.datetime}Z`).isBefore(startDate)});
+		if (isAfterMarket) {
+			prediction.position.avgPrice = _.get(eodSecurityDetail, 'latestDetailRT.current', 0) || 			
+											_.get(eodSecurityDetail, 'latestDetail.Close', 0);
+		} else {
 
-		let trueLastPrice = 0.0;
-		if (relevantIntradayHistory.length > 0) {
-			trueLastPrice = relevantIntradayHistory[0].close;
+			var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {return !moment(`${item.datetime}Z`).isBefore(startDate)});
+
+			let trueLastPrice = 0.0;
+			if (relevantIntradayHistory.length > 0) {
+				trueLastPrice = relevantIntradayHistory[0].close;
+			}
+
+			prediction.position.avgPrice = trueLastPrice;
 		}
-
-		prediction.position.avgPrice = trueLastPrice;
 
 		return prediction;
 		
 	});
+
+	
 }
 
 function _updatePredictionForCallPrice(prediction) {
@@ -207,25 +219,33 @@ function _updatePredictionForCallPrice(prediction) {
 	
 	return Promise.all([
 		SecurityHelper.getStockIntradayHistory(prediction.position.security),
-		SecurityHelper.getStockLatestDetailByType(prediction.position.security, "RT")
+		SecurityHelper.getStockDetail(prediction.position.security, prediction.startDate)
 	])
-	.then(([intradaySecurityDetail, latestSecurityDetail]) => {
+	.then(([intradaySecurityDetail, eodSecurityDetail]) => {
 		
-		var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {
-			
-			return !moment(`${item.datetime}Z`).isBefore(startDate)
-		});
+		if (_.get(prediction,'nonMarketHoursFlag', false)) {
+			var lastPrice = _.get(eodSecurityDetail, 'latestDetailRT.current', 0) ||
+			    _.get(eodSecurityDetail, 'latestDetailRT.close', 0) ||  
+			    _.get(eodSecurityDetail, 'latestDetail.Close', 0);
 
-		let trueLastPrice = 0.0;
-		if (relevantIntradayHistory.length > 0) {
-			trueLastPrice = relevantIntradayHistory[0].close;
+			prediction.position.avgPrice = lastPrice;
+		} else {
+			var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {
+				
+				return !moment(`${item.datetime}Z`).isBefore(startDate)
+			});
+
+			let trueLastPrice = 0.0;
+			if (relevantIntradayHistory.length > 0) {
+				trueLastPrice = relevantIntradayHistory[0].close;
+			}
+
+			var lastPrice = trueLastPrice ||
+			    _.get(eodSecurityDetail, 'latestDetailRT.current', 0) ||
+			    _.get(eodSecurityDetail, 'latestDetailRT.close', 0); 
+
+			prediction.position.avgPrice = lastPrice;
 		}
-
-		var lastPrice = trueLastPrice ||
-		    _.get(latestSecurityDetail, 'latestDetail.current', 0) ||
-		    _.get(latestSecurityDetail, 'latestDetail.close', 0); 
-
-		prediction.position.avgPrice = lastPrice;
 
 		return prediction;
 		
@@ -261,9 +281,13 @@ function _computeUpdatedPredictions(predictions, date) {
 				
 				//Check whether the predcition needs any price update
 				//Based on success status
-				return _.get(prediction, 'success.status', false) ? 
-					updatedCallPricePrediction :
-					_updatePositionsForPrice(_partialUpdatedPositions, date);
+				var success = _.get(prediction, 'success.status', false);
+				if (success) {
+					updatedCallPricePrediction.position.lastPrice = updatedCallPricePrediction.target;
+					return [updatedCallPricePrediction.position];
+				} else {
+					return _updatePositionsForPrice(_partialUpdatedPositions, date);
+				}
 			})
 			.then(updatedPositions => {
 				if (updatedPositions) {
@@ -590,14 +614,14 @@ function _getExtremePrices(history, startDate) {
 
 //Handles only predictions ending today
 module.exports.checkForPredictionTarget = function(category = "active") {
-	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
+	const currentDate = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 
 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
 	.then(dailyContestEntries => {
 		return Promise.mapSeries(dailyContestEntries, function(contestEntry) {
 			let contestEntryId = contestEntry._id;
 
-			return exports.getPredictionsForDate(contestEntryId, date, category, false)
+			return exports.getPredictionsForDate(contestEntryId, currentDate, category, false)
 			.then(predictions => {
 
 				//Filter out already successful (in case)
@@ -629,12 +653,12 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 					//check if prediction are successful on daily high/low basis
 					return SecurityHelper.getStockLatestDetailByType({ticker: ticker}, "RT")
 					.then(securityDetail => {
-						var highPrice = securityDetail.latestDetail.highPrice;
-						var lowPrice = securityDetail.latestDetail.lowPrice;
+						var highPrice = securityDetail.latestDetail.high;
+						var lowPrice = securityDetail.latestDetail.low;
 
 						var successfulPredictions = allPredictionsByTicker.filter(item => {
 							var investment = item.position.investment;
-							var target = item.position.target;
+							var target = item.target;
 
 							return (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
 						});
@@ -662,13 +686,13 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 
 									successfulIntraday = partiallySuccessfulIntraday.filter(item => {
 										var investment = item.position.investment;
-										var target = item.position.target;
+										var target = item.target;
 
 										var startDate = item.startDate;
 										var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, startDate);
 
-										var highPrice = extremePricesSinceStartDate.high;
-										var lowPrice = extremePricesSinceStartDate.low;
+										var highPrice = extremePricesSinceStartDate.high.high;
+										var lowPrice = extremePricesSinceStartDate.low.high;
 
 										return (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
 
@@ -677,12 +701,15 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 									resolve(successfulDayBasis.concat(successfulIntraday));
 								});
 							} else {
-								resolve(successfulDayBasis)
+								resolve(successfulDayBasis);
 							}
 
+						} else {
+							resolve([]);
 						}
 							
 					})
+				
 				})
 				
 			})
