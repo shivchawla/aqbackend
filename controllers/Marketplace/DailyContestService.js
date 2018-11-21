@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-21 10:27:10
+* @Last Modified time: 2018-11-21 10:32:31
 */
 
 'use strict';
@@ -40,6 +40,7 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 	.then(advisor => {
 		if (advisor) {
 			const advisorId = advisor._id.toString()
+
 			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
