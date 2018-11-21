@@ -670,6 +670,12 @@ function track_stock_intraday_detail(security::Security)
 end
 
 
+function untrack_stock_intraday_detail()
+    
+    return untrack_intraday_prices()
+end
+
+
 ###
 # Function to fetch PRICE HISTORY (without strict priority policy)
 ###

@@ -98,6 +98,10 @@ function track_intraday_prices(ticker)
     return true
 end
 
+function untrack_intraday_prices()
+    _intradayPriceHistory = Dict{String, Vector{TradeBar}}()
+end
+
 function get_intraday_prices(ticker)
     if haskey(_intradayPriceHistory, ticker)
         return _intradayPriceHistory[ticker]

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-12 15:06:40
+* @Last Modified time: 2018-11-20 00:22:42
 */
 
 'use strict';
@@ -124,6 +124,17 @@ function _computeContestPredictionMetrics(date) {
 	})
 }
 
+function _unTrackIntradayHistory() {
+	return new Promise(function(resolve, reject) {
+
+		var msg = JSON.stringify({action:"untrack_stock_intraday_detail"});
+        								
+		WSHelper.handleMktRequest(msg, resolve, reject);
+
+	});
+}
+
+
 module.exports.updateContestStats = function(date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
@@ -148,7 +159,10 @@ module.exports.updateContestStats = function(date) {
 		var topStocks = {byUsers: topStocksUsers, byInvestment: topStocksInvestment};
 
 		return DailyContestStatsModel.updateContestStats(date, {winners, predictionMetrics, topStocks});
-	});
+	})
+	.then(() => {
+		return _unTrackIntradayHistory()
+	})
 
 };
 
