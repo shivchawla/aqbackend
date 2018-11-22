@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-20 00:22:42
+* @Last Modified time: 2018-11-22 19:56:44
 */
 
 'use strict';
@@ -13,6 +13,7 @@ const config = require('config');
 
 const DateHelper = require('../../utils/Date');
 const DailyContestEntryHelper = require('./DailyContestEntry');
+const WSHelper = require('./WSHelper');
 const sendEmail = require('../../email');
 
 const UserModel = require('../../models/user');
@@ -25,9 +26,21 @@ function _computeContestWinners(date) {
 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id advisor'})
 	.then(allEntries => {
 		return Promise.mapSeries(allEntries, function(contestEntry) {
-			return DailyContestEntryHelper.getTotalPnlStats(contestEntry._id, date, "ended")
-			.then(pnlStatsForAdvisor => {
-				return Object.assign({advisor: contestEntry.advisor._id}, {pnlStats: pnlStatsForAdvisor});
+			return Promise.all([
+				DailyContestEntryHelper.getTotalPnlStats(contestEntry._id, date, "ended"),
+				DailyContestEntryHelper.getTotalPnlStats(contestEntry._id, date, "active")
+			])
+			.then(([pnlStatsEndedPredictionsForAdvisor, pnlStatsActivePredictionsForAdvisor]) => {
+				var realizedPnl =  pnlStatsEndedPredictionsForAdvisor.total.pnl;
+				var endedInvestment = pnlStatsEndedPredictionsForAdvisor.total.cost;
+				var activeInvestment = pnlStatsActivePredictionsForAdvisor.total.cost;
+				var totalInvestment = endedInvestment + activeInvestment;
+				
+				var pnlPct = totalInvestment > 0 ? realizedPnl/totalInvestment : 0;
+
+				var profitFactor = pnlStatsEndedPredictionsForAdvisor.total.profitFactor;
+
+				return Object.assign({advisor: contestEntry.advisor._id}, {pnlStats: {total: {pnlPct, pnl: realizedPnl, profitFactor, cost: totalInvestment}}});
 			})
 		})
 		.then(pnlStatsForAllAdvisors => {
@@ -36,7 +49,7 @@ function _computeContestWinners(date) {
 			.sort((a,b) => {return a.pnlStats.total.pnlPct > b.pnlStats.total.pnlPct ? -1 : 1})
 			.slice(0, 5)
 			.map((item, index) => {item.rank = index+1; return item;});
-		})
+		});
 	})
 }
 
