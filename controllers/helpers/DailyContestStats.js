@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-22 19:40:12
+* @Last Modified time: 2018-11-22 19:56:44
 */
 
 'use strict';
@@ -13,6 +13,7 @@ const config = require('config');
 
 const DateHelper = require('../../utils/Date');
 const DailyContestEntryHelper = require('./DailyContestEntry');
+const WSHelper = require('./WSHelper');
 const sendEmail = require('../../email');
 
 const UserModel = require('../../models/user');
