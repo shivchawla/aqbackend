@@ -348,6 +348,7 @@ module.exports.getDailyContestWinners = (args, res, next) => {
 * Get daily contest top stocks
 */
 module.exports.getDailyContestTopStocks = (args, res, next) => {
+	try{
 	const _d = _.get(args, 'date.value', '');
 	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
 	
@@ -355,9 +356,8 @@ module.exports.getDailyContestTopStocks = (args, res, next) => {
 
 	return DailyContestStatsModel.fetchContestStats(date, {fields:'topStocks'})
 	.then(statsForDate => {
-
 		var topStocksByUsers = _.get(statsForDate, 'topStocks.byUsers', []);
-		var topStocksByInvestment = _.get(statsForDate, 'topStocks.byInvestment', []);
+		var topStocksByInvestment = _.get(statsForDate, 'topStocks.byInvesment', []);
 
 		return Promise.all([
 			Promise.map(topStocksByInvestment, function(topStock) {
@@ -380,8 +380,9 @@ module.exports.getDailyContestTopStocks = (args, res, next) => {
 		return res.status(200).send({byUsers: updatedTopStockByUsers, byInvestment: updatedTopStockByInvestment});
 	})
 	.catch(err => {
+		console.log(err);
 		return res.status(400).send({msg: err.msg});	
-	})
+	})} catch(err){console.log(err);}
 };
 
 

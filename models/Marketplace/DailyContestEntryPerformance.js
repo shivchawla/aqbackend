@@ -43,22 +43,26 @@ const DailyContestEntryPerformance = new Schema({
 	}]
 });
 
+DailyContestEntryPerformance.statics.fetch  = function() {
+	return this.find({},{contestEntry:1});
+}
+
 DailyContestEntryPerformance.statics.updatePnlStatsForDate = function(query, pnlStats, date, category="detail") {
 	
 	var key = `pnlStats.date`;
-	var updateFieldInArray = `$pnlStats.$.${category}`;
+	var updateFieldInArray = `pnlStats.$.${category}`;
 
-    let qDate = {...query, 'pnlStats.date':{$eq: date}};
+	let qDate = {...query, 'pnlStats.date':{$eq: date}};
     
     return this.findOne(qDate)
-    .then(found => {	
+    .then(found => {
 		let updates;
     	
     	if (found) {
     		
     		updates = {
 		    	$set: {[updateFieldInArray]: pnlStats}
-		 	};
+			 };
 		 	
 		 	return this.update(qDate, updates);
 
@@ -80,14 +84,22 @@ DailyContestEntryPerformance.statics.updatePnlStatsForDate = function(query, pnl
 
 DailyContestEntryPerformance.statics.fetchLatestPnlStats = function(query) {
 	var projectionField = `pnlStats`;
-	return this.findOne(query, {[projectionField]: {$slice: -1}})
+	return this.findOne(query, {projectionField: 1})
+	.then(doc => {
+		return doc.pnlStats ? doc.pnlStats.length > 0 ? 
+			doc.pnlStats.sort((a,b) => moment(a.date).isBefore(moment(b.date)) ? -1 : 1).slice(-1) : null : null;
+	})
 };
 
 DailyContestEntryPerformance.statics.fetchPnlStatsForDate = function(query, date) {
 	var projectionField = `pnlStats.$`;
 	var key = `pnlStats.date`;
-
-	return this.findOne({...query, [key]: date}, {[projectionField]: 1});
+	// console.log({...query, [key]: date});
+	return this.findOne({...query, [key]: date}, {[projectionField]: 1})
+	.then(doc => {
+		const pnlStats = _.get(doc, 'pnlStats', null);
+		return pnlStats ? pnlStats[0] : null;
+	})
 };
 
 DailyContestEntryPerformance.statics.fetchPnlStatsHistory = function(query) {
