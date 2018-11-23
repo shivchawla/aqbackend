@@ -3687,7 +3687,7 @@ paths:
       - dailycontest
       summary: get the pnl of contest entry
       description: get the pnl of contest entry
-      operationId: getDailyContestPnl
+      operationId: getDailyContestPnlForDate
       security: 
       - api_key: []
       parameters:
@@ -3721,7 +3721,7 @@ paths:
       - dailycontest
       summary: update daily contest pnl-stats (run job)
       description: update daily contest pnl-stats (run job)
-      operationId: updateDailyContestPnl
+      operationId: updateDailyContestPnlForDate
       security:
       - api_key: []
       parameters:
@@ -3855,6 +3855,44 @@ paths:
         type: string
         format: date
         description: date of contest
+        required: false
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
+  /dailycontest/stats:
+    get:
+      tags: 
+      - dailycontest
+      summary: get stats for users
+      description: get stats for users
+      operationId: getDailyContestStats
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: category
+        in: query
+        required: false
+        type: string
+        default: "general"
+        enum: ["general", "pnl", "prediction"]
+      - name: symbol
+        in: query
+        type: string
+        description: symbol for stats
+        required: false
+      - name: horizon
+        in: query
+        type: number
+        description: horizon for stats
         required: false
       responses:
         200:
