@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-21 10:52:47
+* @Last Modified time: 2018-11-24 15:26:59
 */
 
 'use strict';
@@ -727,9 +727,6 @@ function _computeNetPnlStats(entryId, date) {
 	});
 }
 
-
-
-
 // let baseDate = '2018-11-12';
 // const dates = [];
 // for (var i=0; i <= 10; i++ ) {
@@ -743,9 +740,6 @@ function _computeNetPnlStats(entryId, date) {
 // 	// })
 	
 // });
-
-
-
 
 module.exports.getTotalPnlStats = function(entryId, date, category="active") {
 	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({contestEntry: entryId}, date)
@@ -1060,8 +1054,40 @@ module.exports.updateCallPriceForPredictions = function() {
 		return Promise.mapSeries(contestEntries, function(contestEntry) {
 			let contestEntryId = contestEntry._id;
 
-			const date = DateHelper.getMarketCloseDateTime();
-			return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({_id: contestEntryId}, date)
+			//LOGIC TO FIRST GET THE LATEST START DATE 
+			//FOR WHICH TO UPDATE CALLPRICE
+			//BECAUSE OF WEEKENDS AND HOLIDAYS,
+			//START DATE IS NOT SAME AS CURRENT DATE
+			//AND LOGIC BELOW WILL GIVE THE LATEST START DATE
+			let latestStartDate;
+
+			let latestTradingDateIncludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0)); 
+			let latestTradingDateExcludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 1)); 
+	
+			//On market holiday - get close of last day
+			//12PM Sunday
+			if (DateHelper.isHoliday()) {
+				latestStartDate = latestTradingDateExcludingToday;
+			}
+			//While trading
+			else if (DateHelper.isMarketTrading()) {
+                latestStartDate = moment().startOf('minute');
+			}  
+			//After market close - get close of that day 
+			//5:30 PM Friday
+			else if (moment().isAfter(DateHelper.getMarketCloseDateTime())) {
+				latestStartDate = latestTradingDateIncludingToday;
+			} 
+			//Before market open - get close of last day 
+			//5:30AM Friday
+			else if (moment().isBefore(DateHelper.getMarketOpenDateTime())) {
+				latestStartDate = latestTradingDateExcludingToday;
+			} else {
+				console.log("Start Date can be erroneous!!")
+				latestStartDate = latestTradingDateExcludingToday;
+			}
+
+			return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({_id: contestEntryId}, latestStartDate)
 			.then(predictions => {
 				if (predictions && predictions.length > 0) {
 					
@@ -1101,7 +1127,7 @@ module.exports.getDailyContestEntryPnlStats = function(entryId, symbol, horizon)
 	.then(latestPnlStats => {
 		if (latestPnlStats) {
 			var netPnlStats =_.get(latestPnlStats, '[0].net', {});
-			var keys = ["realized","unrealized", "total"];
+			var keys = ["realized", "unrealized", "total"];
 			const output = {};
 			
 			keys.forEach(key => {
@@ -1114,4 +1140,3 @@ module.exports.getDailyContestEntryPnlStats = function(entryId, symbol, horizon)
 		}
 	})
 };
-

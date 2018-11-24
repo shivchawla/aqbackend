@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-20 17:22:57
+* @Last Modified time: 2018-11-24 12:04:03
 */
 
 
@@ -52,6 +52,10 @@ const Prediction = new Schema({
 		type: Number,
 		required: true
 	},
+	createdDate: {
+		type: Date,
+		required: true
+	},
 	endDate: {
 		type: Date,
 		required: true
@@ -74,11 +78,6 @@ const Prediction = new Schema({
 
 const DailyContestEntry = new Schema({  
 	advisor: {type: Schema.Types.ObjectId, ref: 'Advisor'},
-	
-	createdDate: Date,
-	
-	updatedDate: Date,
-
 	predictions: [Prediction]
 });
 
