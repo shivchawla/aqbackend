@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-24 12:42:23
+* @Last Modified time: 2018-11-24 13:56:14
 */
 
 'use strict';
@@ -188,7 +188,7 @@ function _updatePredictionForTrueCallPrice(prediction) {
 
 	return Promise.all([
 		SecurityHelper.getStockIntradayHistory(prediction.position.security),
-		SecurityHelper.getStockDetail(prediction.position.Security, prediction.startDate)
+		SecurityHelper.getStockDetail(prediction.position.security, prediction.startDate)
 	])		
 	.then(([intradaySecurityDetail, eodSecurityDetail]) => {
 		
