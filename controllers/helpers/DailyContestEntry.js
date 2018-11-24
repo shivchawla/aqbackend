@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-24 15:26:59
+* @Last Modified time: 2018-11-24 17:42:46
 */
 
 'use strict';
@@ -26,22 +26,28 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		var totalPnl = 0.0;
 		var totalPnlPct = 0.0;
 		var totalPnl_long = 0.0;
+		
 		var totalPnlPct_long = 0.0;
 		var totalPnl_short = 0.0;
 		var totalPnlPct_short = 0.0;
+		
 		var cost = 0.0;
 		var cost_long = 0.0;
 		var cost_short = 0.0;
+		
 		var netValue = 0.0;
 		var netValue_long = 0.0;
 		var netValue_short = 0.0;
+		
 		var grossValue = 0.0;
 		var cash = 0.0
+		
 		var pnlPositive = 0;
-		var pnlNegative = 0;
 		var pnlPositive_long = 0;
-		var pnlNegative_long = 0;
 		var pnlPositive_short = 0;
+
+		var pnlNegative = 0;
+		var pnlNegative_long = 0;
 		var pnlNegative_short = 0;
 
 		var count = 0;
@@ -58,18 +64,40 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 
 		var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
 
+		var avgPnl, avgPnl_long, avgPnl_short, 
+			avgPnlPositive, avgPnlPositive_long, avgPnlPositive_short,
+			avgPnlPct, avgPnlPct_long, avgPnlPct_short,
+			avgPnlPctPositive, avgPnlPctPositive_long, avgPnlPctPositive_short,
+			avgPnlPctNegative, avgPnlPctNegative_long, avgPnlPctNegative_short
+			costPositive, costPositive_long, costPositive_short,
+			costNegative, costNegative_long, costNegative_short,
+			pnlPctPositive, pnlPctPositive_long, pnlPctPositive_short,
+			pnlPctNegative, pnlPctNegative_long, pnlPctNegative_short;
+
 		pnlStatsAllArray.filter(item => item).forEach(item => {
 			totalPnl += _.get(item, 'net.pnl', 0);
 			totalPnl_long += _.get(item, 'long.pnl', 0);
 			totalPnl_short += _.get(item, 'short.pnl', 0)
+			
 			cost += _.get(item, 'net.cost', 0);
 			cost_long += _.get(item, 'long.cost', 0);
 			cost_short += _.get(item, 'short.cost', 0);
+
+			costPositive += _.get(item, 'net.costPositive', 0);
+			costPositive_long += _.get(item, 'long.costPositive', 0);
+			costPositive_short += _.get(item, 'short.costPositive', 0);	
+
+			costNegative += _.get(item, 'net.costNegative', 0);
+			costNegative_long += _.get(item, 'long.costNegative', 0);
+			costNegative_short += _.get(item, 'short.costNegative', 0);			
+			
 			netValue += _.get(item, 'net.netValue', 0);
 			netValue_long += _.get(item, 'long.netValue', 0);
 			netValue_short += _.get(item, 'short.netValue', 0);
+			
 			grossValue += _.get(item, 'net.grossValue', 0);
 			cash += _.get(item, 'net.cash', 0);
+			
 			pnlPositive += _.get(item, 'net.pnlPositive', 0);
 			pnlNegative += _.get(item, 'net.pnlNegative', 0);
 			pnlPositive_long += _.get(item, 'long.pnlPositive', 0);
@@ -80,13 +108,16 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 			count += _.get(item, 'net.count', 0);
 			count_long += _.get(item, 'long.count', 0);
 			count_short += _.get(item, 'short.count', 0);
+			
 			countPositive += _.get(item, 'net.countPositive', 0);
-			countNegative += _.get(item, 'net.countNegative', 0);
 			countPositive_long += _.get(item, 'long.countPositive', 0);
-			countNegative_long += _.get(item, 'long.countNegative', 0);
 			countPositive_short += _.get(item, 'short.countPositive', 0);
+
+			countNegative += _.get(item, 'net.countNegative', 0);
+			countNegative_long += _.get(item, 'long.countNegative', 0);
 			countNegative_short += _.get(item, 'short.countNegative', 0);
 
+		
 			if (!minPnl) {
 				minPnl = item.net.minPnl;
 			} else {
@@ -139,6 +170,43 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		netValue += cash;
 		grossValue += cash;
 
+		var pnlPctPositive = costPositive > 0 ? pnlPositive/costPositive : 0;
+		var pnlPctPositive_long = costPositive_long > 0 ? pnlPositive_long/costPositive_long : 0;
+		var pnlPctPositive_short = costPositive_short > 0 ? pnlPositive_short/costPositive_short : 0;
+
+		var pnlPctNegative = costNegative > 0 ? pnlNegative/costNegative : 0;
+		var pnlPctNegative_long = costNegative_long > 0 ? pnlNegative_long/costNegative_long : 0;
+		var pnlPctNegative_short = costNegative_short > 0 ? pnlNegative_short/costNegative_short : 0;
+		
+		var avgPnlPctNegative = countNegative > 0 ? pnlPctNegative/count : 0;
+		var avgPnlPctNegative_long = countNegative_long > 0 ? pnlPctNegative_long/countNegative_long : 0;
+		var avgPnlPctNegative_short = countNegtive_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
+
+		var avgPnl = count > 0 ? totalPnl/count : 0;
+		var avgPnl_long = count_long > 0 ? totalPnl_long/count_long : 0;
+		var avgPnl_short = count_short > 0 ? totalPnl_short/count_short : 0;
+
+		var avgPnlPositive = countPositive > 0 ? pnlPositive/count : 0;
+		var avgPnlPositive_long = countPositive_long > 0 ? pnlPositive_long/countPositive_long : 0;
+		var avgPnlPositive_short = countPositive_short > 0 ? pnlPositive_short/countPositive_short : 0;
+
+		var avgPnlNegative = countNegative > 0 ? pnlNegative/count : 0;
+		var avgPnlNegative_long = countNegative_long > 0 ? pnlNegative_long/countNegative_long : 0;
+		var avgPnlNegative_short = countNegtive_short > 0 ? pnlNegative_short/countNegative_short : 0;
+
+		var avgPnlPct = count > 0 ? totalPnlPct/count : 0;
+		var avgPnlPct_long = count_long > 0 ? totalPnlPct_long/count_long : 0;
+		var avgPnlPct_short = count_short > 0 ? totalPnlPct_short/count_short : 0;
+
+		var avgPnlPctPositive = countPositive > 0 ? pnlPctPositive/countPositive_long : 0;
+		var avgPnlPctPositive_long = countPositive_long > 0 ? pnlPctPositive_long/countPositive_long : 0;
+		var avgPnlPctPositive_short = countPositive_short > 0 ? pnlPctPositive_short/countPositive_short : 0;
+
+		var avgPnlPctNegative = countNegative > 0 ? pnlPctNegative/countNegative : 0;
+		var avgPnlPctNegative_long = countNegative_long > 0 ? pnlPctNegative_long/countNegative_long : 0;
+		var avgPnlPctNegative_short = countNegtive_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
+
+		
 		var pnlStats = {
 			net: {pnl: totalPnl, pnlPct: totalPnlPct, 
 				cost, netValue, grossValue,
@@ -203,17 +271,30 @@ function _computePnlStats(portfolio, ticker) {
 		var cost = 0.0;
 		var cost_long = 0.0;
 		var cost_short = 0.0;
+		
+		var costPositive = 0;
+		var costPositive_long = 0
+		var costPositive_short = 0
+
+		var costNegative = 0;
+		var costNegative_long = 0
+		var costNegative_short = 0
+
 		var netValue = 0.0;
 		var netValue_long = 0.0;
 		var netValue_short = 0.0;
+		
 		var grossValue = 0.0;
 		var cash = _.get(portfolio, 'cash', 0.0);
+		
 		var pnlPositive = 0;
-		var pnlNegative = 0;
 		var pnlPositive_long = 0;
-		var pnlNegative_long = 0;
 		var pnlPositive_short = 0;
+
+		var pnlNegative = 0;
+		var pnlNegative_long = 0;
 		var pnlNegative_short = 0;
+
 		var count = 0;
 		var count_short = 0;
 		var count_long = 0;
@@ -229,28 +310,31 @@ function _computePnlStats(portfolio, ticker) {
 		var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
 
 		portfolio.positions.filter(item => {return ticker ? item.security.ticker == ticker : true}).forEach(item => {
-			cost += Math.abs(item.investment);
-			cost_long += item.investment > 0.0 ? Math.abs(item.investment) : 0.0;
-			cost_short += item.investment < 0.0 ? Math.abs(item.investment) : 0.0;
-
-			count += 1;
-			count_long += item.investment > 0 ? 1 : 0;
-			count_short += item.investment < 0 ? 1 : 0;
 
 			var _cv = item.avgPrice > 0.0 ? item.investment * (item.lastPrice/item.avgPrice) : item.investment
 			var currentValue = _cv + _.get(item, 'dividendCash', 0.0);
 			
 			var pnl = (currentValue - item.investment)
+			var absCost = Math.abs(item.investment);
+
+			cost += absCost;
+			cost_long += item.investment > 0.0 ? absCost : 0.0;
+			cost_short += item.investment < 0.0 ? absCost : 0.0;
+
+			count += 1;
+			count_long += item.investment > 0 ? 1 : 0;
+			count_short += item.investment < 0 ? 1 : 0;
+
 			totalPnl += pnl;
 			totalPnl_long += item.investment > 0 ? pnl : 0.0;
 			totalPnl_short += item.investment < 0 ? pnl : 0.0;
 			
-			pnlPositive += pnl > 0 ? pnl : 0.0;
-			pnlPositive_long += item.investment > 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
-			pnlPositive_short += item.investment < 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
-			pnlNegative += pnl < 0 ? Math.abs(pnl) : 0.0;
-			pnlNegative_long += item.investment > 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
-			pnlNegative_short += item.investment < 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
+			costPositive += pnl > 0 ? absCost : 0.0;
+			costPositive_long += item.investment > 0 ? (pnl > 0 ? absCost : 0.0) : 0.0;
+			costPositive_short += item.investment < 0 ? (pnl > 0 ? absCost : 0.0) : 0.0;
+			costNegative += pnl < 0 ? absCost : 0.0;
+			costNegative_long += item.investment > 0 ? (pnl < 0 ? absCost : 0.0) : 0.0;
+			costNegative_short += item.investment < 0 ? (pnl < 0 ? absCost : 0.0) : 0.0;
 
 			countPositive += pnl > 0 ? 1 : 0.0;
 			countPositive_long += item.investment > 0 ? (pnl > 0 ? 1 : 0.0) : 0.0;
@@ -258,6 +342,13 @@ function _computePnlStats(portfolio, ticker) {
 			countNegative += pnl < 0 ? 1 : 0.0;
 			countNegative_long += item.investment > 0 ? (pnl < 0 ? 1 : 0.0) : 0.0;
 			countNegative_short += item.investment < 0 ? (pnl < 0 ? 1 : 0.0) : 0.0;
+
+			pnlPositive += pnl > 0 ? pnl : 0.0;
+			pnlPositive_long += item.investment > 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
+			pnlPositive_short += item.investment < 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
+			pnlNegative += pnl < 0 ? Math.abs(pnl) : 0.0;
+			pnlNegative_long += item.investment > 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
+			pnlNegative_short += item.investment < 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
 
 			netValue += currentValue;
 			grossValue += Math.abs(currentValue);
@@ -305,25 +396,75 @@ function _computePnlStats(portfolio, ticker) {
 		totalPnlPct_long = cost_long > 0.0 ? totalPnl_long/cost_long : 0.0;
 		totalPnlPct_short = cost_short > 0.0 ? totalPnl_short/cost_short : 0.0;
 
+		var pnlPctPositive = costPositive > 0 ? pnlPositive/costPositive : 0;
+		var pnlPctPositive_long = costPositive_long > 0 ? pnlPositive_long/costPositive_long : 0;
+		var pnlPctPositive_short = costPositive_short > 0 ? pnlPositive_short/costPositive_short : 0;
+
+		var pnlPctNegative = costNegative > 0 ? pnlNegative/costNegative : 0;
+		var pnlPctNegative_long = costNegative_long > 0 ? pnlNegative_long/costNegative_long : 0;
+		var pnlPctNegative_short = costNegative_short > 0 ? pnlNegative_short/costNegative_short : 0;
+		
+		var avgPnlPctNegative = countNegative > 0 ? pnlPctNegative/count : 0;
+		var avgPnlPctNegative_long = countNegative_long > 0 ? pnlPctNegative_long/countNegative_long : 0;
+		var avgPnlPctNegative_short = countNegtive_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
+
+		var avgPnl = count > 0 ? totalPnl/count : 0;
+		var avgPnl_long = count_long > 0 ? totalPnl_long/count_long : 0;
+		var avgPnl_short = count_short > 0 ? totalPnl_short/count_short : 0;
+
+		var avgPnlPositive = countPositive > 0 ? pnlPositive/count : 0;
+		var avgPnlPositive_long = countPositive_long > 0 ? pnlPositive_long/countPositive_long : 0;
+		var avgPnlPositive_short = countPositive_short > 0 ? pnlPositive_short/countPositive_short : 0;
+
+		var avgPnlNegative = countNegative > 0 ? pnlNegative/count : 0;
+		var avgPnlNegative_long = countNegative_long > 0 ? pnlNegative_long/countNegative_long : 0;
+		var avgPnlNegative_short = countNegtive_short > 0 ? pnlNegative_short/countNegative_short : 0;
+
+		var avgPnlPct = count > 0 ? totalPnlPct/count : 0;
+		var avgPnlPct_long = count_long > 0 ? totalPnlPct_long/count_long : 0;
+		var avgPnlPct_short = count_short > 0 ? totalPnlPct_short/count_short : 0;
+
+		var avgPnlPctPositive = countPositive > 0 ? pnlPctPositive/count : 0;
+		var avgPnlPctPositive_long = countPositive_long > 0 ? pnlPctPositive_long/countPositive_long : 0;
+		var avgPnlPctPositive_short = countPositive_short > 0 ? pnlPctPositive_short/countPositive_short : 0;
+
+		var avgPnlPctNegative = countNegative > 0 ? pnlPctNegative/count : 0;
+		var avgPnlPctNegative_long = countNegative_long > 0 ? pnlPctNegative_long/countNegative_long : 0;
+		var avgPnlPctNegative_short = countNegtive_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
+
 		var pnlStats = {
 			net: {pnl: totalPnl, pnlPct: totalPnlPct, 
-				cost, netValue, grossValue,
-				cash, minPnl, maxPnl, profitFactor, 
+				cost, costPositive, costNegative, 
+				cash, netValue, grossValue,
+			 	minPnl, maxPnl, profitFactor, 
 				pnlPositive, pnlNegative, winRatio,
-				count, countPositive, countNegative},
+				count, countPositive, countNegative,
+				avgPnl, avgPnlPositive, avgPnlNegative,
+				avgPnlPct, avgPnlPctPositive, avgPnlPctNegative,
+				pnlPctPositive, pnlPctNegative},
 			long: {pnl: totalPnl_long, pnlPct: totalPnlPct_long, 
-				cost: cost_long, netValue: netValue_long, 
+				cost: cost_long, costPositive: costPositive_long,
+				costNegative: costNegative_long,
+				netValue: netValue_long, 
 				cash: cash, minPnl: minPnl_long, 
 				maxPnl: maxPnl_long, profitFactor: profitFactor_long, 
 				pnlPositive: pnlPositive_long, pnlNegative: pnlNegative_long, 
 				winRatio: winRatio_long, 
-				count: count_long, countPositive: countPositive_long, countNegative: countNegative_long},
+				count: count_long, countPositive: countPositive_long, countNegative: countNegative_long,
+				avgPnl: avgPct_long, avgPnlPositive: avgPnlPositive_long, avgPnlNegative: avgPnlNegative_long,
+				avgPnlPct: avgPnlPct_long, avgPnlPctPositive: avgPnlPctPositive_long, avgPnlPctNegative: avgPnlPctNegative_long,
+				pnlPctPositive: pnlPctPositive_long, pnlPctNegative: pnlPctNegative_long},
 			short: {pnl: totalPnl_short, pnlPct: totalPnlPct_short, 
-				cost: cost_short, netValue: netValue_short, 
+				cost: cost_short, costPositive: costPositive_short,
+				costNegative: costNegative_short, 
+				netValue: netValue_short, 
 				cash: cash, minPnl: minPnl_short, 
 				maxPnl: maxPnl_short, profitFactor: profitFactor_short, 
 				pnlPositive: pnlPositive_short, pnlNegative: pnlNegative_short, winRatio: winRatio_short,
-				count: count_short, countPositive: countPositive_short, countNegative: countNegative_short}
+				count: count_short, countPositive: countPositive_short, countNegative: countNegative_short,
+				avgPnl: avgPnl_short, avgPnlPositive: avgPnlPositive_short, avgPnlNegative: avgPnlNegative_short,
+				avgPnlPct: avgPnlPct_short, avgPnlPctPositive: avgPnlPctPositive_short, avgPnlPctNegative: avgPnlPctNegative_short,
+				pnlPctPositive: pnlPctPositive_short, pnlPctNegative: pnlPctNegative_short}
 			};
 
 		resolve(pnlStats);
@@ -695,18 +836,19 @@ function _computeNetPnlStats(entryId, date) {
 		DailyContestEntryPerformanceModel.fetchLatestPnlStats({contestEntry: entryId, 'pnlStats.date':{$lt: date}}),
 	])
 	.then(([latestPnlStats, yesterdayPnlStats]) => {
-		// console.log("EntryId", entryId);
-		// console.log(date);
-
 		var latestActivePnlStats = _.get(latestPnlStats, 'detail.cumulative.active', {});
 		var latestRealizedPnlStats = _.get(latestPnlStats, 'detail.cumulative.ended', {});
 		var lastRealizedPnlStats = _.get(yesterdayPnlStats, 'net', {});
-		// console.log(latestPnlStats);
-		// console.log("latest", _.get(latestPnlStats, 'detail.cumulative', {}));
+		
+		console.log("EntryId", entryId);
+		console.log(date);
 
-		// console.log("latestActivePnlStats",latestActivePnlStats.all);
-		// console.log("latestRealizedPnlStats", latestRealizedPnlStats.all);
-		// console.log("lastRealizedPnlStats",lastRealizedPnlStats.all);
+		console.log(latestPnlStats);
+		console.log("latest", _.get(latestPnlStats, 'detail.cumulative', {}));
+
+		console.log("latestActivePnlStats",latestActivePnlStats.all);
+		console.log("latestRealizedPnlStats", latestRealizedPnlStats.all);
+		console.log("lastRealizedPnlStats",lastRealizedPnlStats.all);
 
 		return Promise.all([
 			_aggregatePnlStats([lastRealizedPnlStats.all, latestActivePnlStats.all, latestRealizedPnlStats.all]),
