@@ -84,10 +84,11 @@ DailyContestEntryPerformance.statics.updatePnlStatsForDate = function(query, pnl
 
 DailyContestEntryPerformance.statics.fetchLatestPnlStats = function(query) {
 	var projectionField = `pnlStats`;
-	return this.findOne(query, {projectionField: 1})
+	return this.findOne(query, {[projectionField]: 1})
 	.then(doc => {
-		return doc.pnlStats ? doc.pnlStats.length > 0 ? 
-			doc.pnlStats.sort((a,b) => moment(a.date).isBefore(moment(b.date)) ? -1 : 1).slice(-1) : null : null;
+		return _.get(doc, 'pnlStats', []).sort((a,b) => moment(a.date).isBefore(moment(b.date)) ? -1 : 1).slice(-1)
+		// return doc && doc.pnlStats ? doc.pnlStats.length > 0 ? 
+		// 	doc.pnlStats.sort((a,b) => moment(a.date).isBefore(moment(b.date)) ? -1 : 1).slice(-1) : null : null;
 	})
 };
 
