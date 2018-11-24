@@ -59,44 +59,44 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
 
 		pnlStatsAllArray.filter(item => item).forEach(item => {
-			totalPnl += _.get(item, 'total.pnl', 0);
+			totalPnl += _.get(item, 'net.pnl', 0);
 			totalPnl_long += _.get(item, 'long.pnl', 0);
 			totalPnl_short += _.get(item, 'short.pnl', 0)
-			cost += _.get(item, 'total.cost', 0);
+			cost += _.get(item, 'net.cost', 0);
 			cost_long += _.get(item, 'long.cost', 0);
 			cost_short += _.get(item, 'short.cost', 0);
-			netValue += _.get(item, 'total.netValue', 0);
+			netValue += _.get(item, 'net.netValue', 0);
 			netValue_long += _.get(item, 'long.netValue', 0);
 			netValue_short += _.get(item, 'short.netValue', 0);
-			grossValue += _.get(item, 'total.grossValue', 0);
-			cash += _.get(item, 'total.cash', 0);
-			pnlPositive += _.get(item, 'total.pnlPositive', 0);
-			pnlNegative += _.get(item, 'total.pnlNegative', 0);
+			grossValue += _.get(item, 'net.grossValue', 0);
+			cash += _.get(item, 'net.cash', 0);
+			pnlPositive += _.get(item, 'net.pnlPositive', 0);
+			pnlNegative += _.get(item, 'net.pnlNegative', 0);
 			pnlPositive_long += _.get(item, 'long.pnlPositive', 0);
 			pnlNegative_long += _.get(item, 'long.pnlNegative', 0);
 			pnlPositive_short += _.get(item, 'short.pnlPositive', 0);
 			pnlNegative_short += _.get(item, 'short.pnlNegative', 0);
 
-			count += _.get(item, 'total.count', 0);
+			count += _.get(item, 'net.count', 0);
 			count_long += _.get(item, 'long.count', 0);
 			count_short += _.get(item, 'short.count', 0);
-			countPositive += _.get(item, 'total.countPositive', 0);
-			countNegative += _.get(item, 'total.countNegative', 0);
+			countPositive += _.get(item, 'net.countPositive', 0);
+			countNegative += _.get(item, 'net.countNegative', 0);
 			countPositive_long += _.get(item, 'long.countPositive', 0);
 			countNegative_long += _.get(item, 'long.countNegative', 0);
 			countPositive_short += _.get(item, 'short.countPositive', 0);
 			countNegative_short += _.get(item, 'short.countNegative', 0);
 
 			if (!minPnl) {
-				minPnl = item.total.minPnl;
+				minPnl = item.net.minPnl;
 			} else {
-				minPnl = minPnl.value < _.get(item,'total.minPnl.value', 0) ? minPnl : _.get(item, 'total.minPnl', {});
+				minPnl = minPnl.value < _.get(item,'net.minPnl.value', 0) ? minPnl : _.get(item, 'net.minPnl', {});
 			}
 
 			if (!maxPnl) {
-				maxPnl = item.total.maxPnl;
+				maxPnl = item.net.maxPnl;
 			} else {
-				maxPnl = maxPnl.value > _.get(item, 'total.maxPnl.value', 0) ? maxPnl : _.get(item, 'total.maxPnl', {});
+				maxPnl = maxPnl.value > _.get(item, 'net.maxPnl.value', 0) ? maxPnl : _.get(item, 'net.maxPnl', {});
 			}
 
 			if (!minPnl_long) {
@@ -140,7 +140,7 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		grossValue += cash;
 
 		var pnlStats = {
-			total: {pnl: totalPnl, pnlPct: totalPnlPct, 
+			net: {pnl: totalPnl, pnlPct: totalPnlPct, 
 				cost, netValue, grossValue,
 				cash, minPnl, maxPnl, profitFactor, 
 				pnlPositive, pnlNegative, winRatio,
@@ -306,7 +306,7 @@ function _computePnlStats(portfolio, ticker) {
 		totalPnlPct_short = cost_short > 0.0 ? totalPnl_short/cost_short : 0.0;
 
 		var pnlStats = {
-			total: {pnl: totalPnl, pnlPct: totalPnlPct, 
+			net: {pnl: totalPnl, pnlPct: totalPnlPct, 
 				cost, netValue, grossValue,
 				cash, minPnl, maxPnl, profitFactor, 
 				pnlPositive, pnlNegative, winRatio,
@@ -745,6 +745,8 @@ function _computeNetPnlStats(entryId, date) {
 // });
 
 
+
+
 module.exports.getTotalPnlStats = function(entryId, date, category="active") {
 	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({contestEntry: entryId}, date)
 	.then(contestEntry => {
@@ -878,6 +880,9 @@ module.exports.updateAllEntriesLatestPnlStats = function(date){
 	});
 };
 
+/**
+ * Needs to be changed
+ */
 module.exports.updateAllEntriesNetPnlStats = function(date) {
 	return DailyContestEntryPerformanceModel.fetch()
 	.then(dailyContestEntries => {
@@ -896,20 +901,6 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 		console.log('Error', err);
 	})
 };
-
-// DailyContestEntryPerformanceModel.find({_id: '5bf7e370b286f0378e2e77fc'});
-// let baseDate = '2018-10-30';
-// const dates = [];
-// for (var i=0; i < 23; i++ ) {
-// 	const date = moment(baseDate).add(i, 'days').format('YYYY-MM-DD');
-// 	dates.push(date);
-// }
-// Promise.mapSeries(dates, date => {
-// 	// exports.updateAllEntriesLatestPnlStats(date)
-// 	// .then(() => {
-// 		exports.updateAllEntriesNetPnlStats(date);
-// 	// })
-// });
 
 
 //Logic works for all predictions except that started today
@@ -1098,18 +1089,29 @@ module.exports.updateCallPriceForPredictions = function() {
 /*
 * Get aggregated general stats for predictions (all/bySymbol/byHorizon)
 */
-module.exports.getDailyContestEntryPnlStats = function(entrId, symbol, horizon) {
+module.exports.getDailyContestEntryPnlStats = function(entryId, symbol, horizon) {
 	return Promise.resolve()
 	.then(() => {
 		if (!symbol && !horizon) {
-			return DailyContestEntryPerformanceModel.fetchLatestPnlStats({_id: entryId})
+			return DailyContestEntryPerformanceModel.fetchLatestPnlStats({contestEntry: entryId})
+		} else{
+			APIError.throwJsonError({msg:"oops"});
 		}
 	})
 	.then(latestPnlStats => {
 		if (latestPnlStats) {
-			return _.get(latestPnlStats, 'net.all', {});
+			var netPnlStats =_.get(latestPnlStats, '[0].net', {});
+			var keys = ["realized","unrealized", "total"];
+			const output = {};
+			
+			keys.forEach(key => {
+				output[key] = _.get(netPnlStats, `${key}.all`, {});
+			});
+
+			return output;
 		} else {
-			APIError.throwJsonError({msg: "No Pnl Stats"})
+			APIError.throwJsonError({msg: "No Pnl Stats"});
 		}
 	})
 };
+

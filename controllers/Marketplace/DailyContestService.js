@@ -400,6 +400,7 @@ module.exports.getDailyContestStats = (args, res, next) => {
 	return Promise.resolve()
 	.then(() => {
 		if (symbol && horizon) {
+
 			APIError.throwJsonError({msg: "Only one of symbol/horizon parameter is allowed"})
 		} else {
 			return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})		
@@ -408,7 +409,6 @@ module.exports.getDailyContestStats = (args, res, next) => {
 	.then(advisor => {
 		if (advisor) {
 			const advisorId = advisor._id.toString()
-
 			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
@@ -418,7 +418,7 @@ module.exports.getDailyContestStats = (args, res, next) => {
 		if (contestEntry) {
 			let contestEntryId = contestEntry._id;
 			switch(category) {
-				case "general" : return DailyContestEntryHelper.getDailyContestEntryPnlStats(contestEntryId, symbol, horizon); break;
+				case "general" : return DailyContestEntryHelper.getDailyContestEntryPnlStats(contestEntryId, symbol, horizon); 
 				case "prediction" : return DailyContestEntryHelper.getDailyContestEntryPnlStats(contestEntryId, symbol, horizon); break;
 				case "pnl" : return DailyContestEnteryHelper.getDailyContestEntryPnlStats(contestEntryId, horizon); break;
 			}
@@ -430,7 +430,7 @@ module.exports.getDailyContestStats = (args, res, next) => {
 		return res.status(200).send(stats);
 	})
 	.catch(err => {
-		return res.status(400).send(err.msg);
+		return res.status(400).send(err.message);
 	});
 };
 
