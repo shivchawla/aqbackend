@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-20 17:19:25
+* @Last Modified time: 2018-11-24 12:49:28
 */
 
 'use strict';
@@ -117,9 +117,33 @@ module.exports.getDailyContestPnl = (args, res, next) => {
 * Next availble stock without prediction
 */
 module.exports.getDailyContestNextStock = function(args, res, next) {
+
+	let date;
+	let latestTradingDateIncludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0)); 
+	let latestTradingDateExcludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 1)); 
 	
-	const _dd = DateHelper.getCurrentDate();
-	const date = DateHelper.getMarketCloseDateTime(_dd);
+	//On market holiday - get close of last day
+	//12PM Sunday
+	if (DateHelper.isHoliday()) {
+		date = latestTradingDateExcludingToday;
+	}
+	//While trading
+	else if (DateHelper.isMarketTrading()) {
+        date = moment().startOf('minute');
+	}  
+	//After market close - get close of that day 
+	//5:30 PM Friday
+	else if (moment().isAfter(DateHelper.getMarketCloseDateTime())) {
+		date = latestTradingDateIncludingToday;
+	} 
+	//Before market open - get close of last day 
+	//5:30AM Friday
+	else if (moment().isBefore(DateHelper.getMarketOpenDateTime())) {
+		date = latestTradingDateExcludingToday;
+	} else {
+		console.log("Start Date can be erroneous!!")
+		date = latestTradingDateExcludingToday;
+	}
 	
 	const search = _.get(args, 'search.value', "")
 	const sector = _.get(args, 'sector.value', null);
@@ -248,19 +272,22 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		//And check redundancy of predictions
 		var adjustedPredictions = entryPredictions.map(item => {
 			if (DateHelper.compareDates(item.endDate, item.startDate) == 1) {
-		
-				//While trading
-				if (DateHelper.isMarketTrading()) {
-	                item.startDate = moment().startOf('minute');
-				} //On market holiday - get close of last day
+				
+				//On market holiday - get close of last day
 				//12PM Sunday
-				else if (DateHelper.isHoliday(item.startDate)) {
+				if (DateHelper.isHoliday(item.startDate)) {
 					item.startDate = latestTradingDateExcludingToday;
-				} //After market close - get close of that day 
+				}
+				//While trading
+				else if (DateHelper.isMarketTrading()) {
+	                item.startDate = moment().startOf('minute');
+				}  
+				//After market close - get close of that day 
 				//5:30 PM Friday
 				else if (moment().isAfter(DateHelper.getMarketCloseDateTime())) {
 					item.startDate = latestTradingDateIncludingToday;
-				} //Before market open - get close of last day 
+				} 
+				//Before market open - get close of last day 
 				//5:30AM Friday
 				else if (moment().isBefore(DateHelper.getMarketOpenDateTime())) {
 					item.startDate = latestTradingDateExcludingToday;
@@ -273,6 +300,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				item.active = true;
 				item.modified = 1;
 				item.nonMarketHoursFlag = !DateHelper.isMarketTrading();
+				item.createdDate = new Date();
 
 				return item;
 
@@ -293,7 +321,8 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				//How to compare the prediction supplied to existing predictions? 
 				//No need to compare..Just remove the old ones and add the new ones
 				
-				return;
+				return; /*****/
+				/**** SHOULD RETURN HERER*****/
 
 				return DailyContestEntryModel.updateEntryPredictions({_id: contestEntry._id}, adjustedPredictions, uniquePredictionDates[0], {new:true, fields:'_id'});
 			} else {
@@ -305,8 +334,6 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		} else {
 			return DailyContestEntryModel.createEntry({
 				advisor: advisorId, 
-				createdDate: new Date(),
-				updatedDate: new Date(),
 				predictions: adjustedPredictions
 			});
 		}
@@ -451,7 +478,6 @@ module.exports.sendEmailToDailyContestWinners = function(args, res, next) {
         return res.status(400).send(error.message)
     });
 };
-
 
 module.exports.sendEmailToDailyContestParticipants = function(args, res, next) {
     const userId = args.user._id;
