@@ -2,23 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-20 17:22:39
+* @Last Modified time: 2018-11-24 13:48:20
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
 const localTimeZone = moment.tz.guess();
-
-const holidays = [
-	"2018-08-22",
-	"2018-09-13",
-	"2018-09-20",
-	"2018-10-02",
-	"2018-10-18",
-	"2018-11-07",
-	"2018-11-08",
-	"2018-11-23",
-	"2018-12-25"
-].map(item => moment.tz(item, indiaTimeZone));
 
 function _isBeforeMarketClose() {
 	return moment().isBefore(exports.getMarketClose());
@@ -250,7 +238,7 @@ module.exports.getCurrentIndiaDateTime = function() {
 
 module.exports.isHoliday = function(date) {
 	date = !date ? module.exports.getCurrentDate() : module.exports.getDate(date);
-	return date.getDay() == 0 || date.getDay() == 6 || holidays.findIndex(item => {return item.isSame(moment(date));}) !== -1;
+	return date.getDay() == 0 || date.getDay() == 6 || holidays.findIndex(item => {return moment(item).isSame(moment(date));}) !== -1;
 };
 
 module.exports.getMarketCloseDateTime = function(date) {
@@ -280,3 +268,17 @@ module.exports.isMarketClose = function() {
 		return _isBeforeMarketClose();
 	}
 };
+
+
+const holidays = [
+	"2018-08-22",
+	"2018-09-13",
+	"2018-09-20",
+	"2018-10-02",
+	"2018-10-18",
+	"2018-11-07",
+	"2018-11-08",
+	"2018-11-23",
+	"2018-12-25"
+].map(item => exports.getDate(item));
+
