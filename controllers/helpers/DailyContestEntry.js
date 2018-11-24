@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-20 18:59:36
+* @Last Modified time: 2018-11-24 12:42:23
 */
 
 'use strict';
@@ -743,8 +743,40 @@ module.exports.updateCallPriceForPredictions = function() {
 		return Promise.mapSeries(contestEntries, function(contestEntry) {
 			let contestEntryId = contestEntry._id;
 
-			const date = DateHelper.getMarketCloseDateTime();
-			return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({_id: contestEntryId}, date)
+			//LOGIC TO FIRST GET THE LATEST START DATE 
+			//FOR WHICH TO UPDATE CALLPRICE
+			//BECAUSE OF WEEKENDS AND HOLIDAYS,
+			//START DATE IS NOT SAME AS CURRENT DATE
+			//AND LOGIC BELOW WILL GIVE THE LATEST START DATE
+			let latestStartDate;
+
+			let latestTradingDateIncludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0)); 
+			let latestTradingDateExcludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 1)); 
+	
+			//On market holiday - get close of last day
+			//12PM Sunday
+			if (DateHelper.isHoliday()) {
+				latestStartDate = latestTradingDateExcludingToday;
+			}
+			//While trading
+			else if (DateHelper.isMarketTrading()) {
+                latestStartDate = moment().startOf('minute');
+			}  
+			//After market close - get close of that day 
+			//5:30 PM Friday
+			else if (moment().isAfter(DateHelper.getMarketCloseDateTime())) {
+				latestStartDate = latestTradingDateIncludingToday;
+			} 
+			//Before market open - get close of last day 
+			//5:30AM Friday
+			else if (moment().isBefore(DateHelper.getMarketOpenDateTime())) {
+				latestStartDate = latestTradingDateExcludingToday;
+			} else {
+				console.log("Start Date can be erroneous!!")
+				latestStartDate = latestTradingDateExcludingToday;
+			}
+
+			return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({_id: contestEntryId}, latestStartDate)
 			.then(predictions => {
 				if (predictions && predictions.length > 0) {
 					
@@ -768,22 +800,3 @@ module.exports.updateCallPriceForPredictions = function() {
 		});
 	})
 };
-
-//Saves prediction snapshot as-of date
-// module.exports.saveUpdatedEntries = function() {
-// 	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
-// 	.then(contestEntries => {
-// 		return Promise.mapSeries(contestEntries, function(contestEntry) {
-// 			let contestEntryId = contestEntry._id;
-// 			const date = DateHelper.getMarketCloseDateTime();
-
-// 			return exports.getPredictionsForDate(contestEntryId, date, "active")
-// 			.then(updatedPrediction => {
-// 				return DailyContestEntryModel.updatePrediction({_id: contestEntryId}, updatedPrediction);
-// 			})
-// 		});
-// 	});
-// };
-
-
-//return SecurityHelper.getStockIntradayDetail({ticker: ticker})
