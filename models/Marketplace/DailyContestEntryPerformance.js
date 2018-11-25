@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-25 12:32:17
+* @Last Modified time: 2018-11-25 14:20:07
 */
 
 
@@ -13,10 +13,10 @@ const Promise = require('bluebird');
 const moment = require('moment');
 const Schema = mongoose.Schema;
 
-const DailyContestEntry = require('./DailyContestEntry');
+const Advisor = require('./Advisor');
 
 const DailyContestEntryPerformance = new Schema({
-	contestEntry : {type: Schema.Types.ObjectId, ref: 'DailyContestEntry'},
+	advisor : {type: Schema.Types.ObjectId, ref: 'Advisor'},
 	
 	date: Date,
 	
@@ -29,7 +29,7 @@ const DailyContestEntryPerformance = new Schema({
 });
 
 DailyContestEntryPerformance.statics.fetch  = function() {
-	return this.find({},{contestEntry:1});
+	return this.find({},{advisor:1});
 }
 
 DailyContestEntryPerformance.statics.updatePnlStatsForDate = function(query, pnlStats, date, category="detail") {

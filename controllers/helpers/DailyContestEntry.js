@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-25 12:39:08
+* @Last Modified time: 2018-11-25 14:17:19
 */
 
 'use strict';
@@ -688,7 +688,7 @@ function _computeUpdatedPredictions(predictions, date) {
 	: predictions;
 };
 
-function _computeTotalPnlStats(entryId, date, category="active") {
+function _computeTotalPnlStats(advisorId, date, category="active") {
 	
 	return Promise.resolve()
 	.then(() => {
@@ -698,15 +698,15 @@ function _computeTotalPnlStats(entryId, date, category="active") {
 			var useEndedPredictions = !isToday || (isToday && moment().isAfter(moment(DateHelper.getMarketCloseDateTime(date))));
 			
 			return Promise.all([
-				useEndedPredictions ? exports.getPredictionsForDate(entryId, date, "ended") : [],
-				exports.getPredictionsForDate(entryId, date, "active") //A
+				useEndedPredictions ? exports.getPredictionsForDate(advisorId, date, "ended") : [],
+				exports.getPredictionsForDate(advisorId, date, "active") //A
 			])
 			.then(([endedPredictions, activePredictions]) => {
 				var allPredictions = endedPredictions.concat(activePredictions);
 				return allPredictions;
 			})
 		} else {
-			return exports.getPredictionsForDate(entryId, date, category)
+			return exports.getPredictionsForDate(advisorId, date, category)
 		}
 	})
 	.then(activePredictions => {
@@ -733,11 +733,11 @@ function _computeTotalPnlStats(entryId, date, category="active") {
 	})
 };
 
-function _computeTotalPnlStatsForAll(entryId, date) {
+function _computeTotalPnlStatsForAll(advisorId, date) {
 	return Promise.all([
-		_computeTotalPnlStats(entryId, date, "started"),
-		_computeTotalPnlStats(entryId, date, "active"),
-		_computeTotalPnlStats(entryId, date, "ended")
+		_computeTotalPnlStats(advisorId, date, "started"),
+		_computeTotalPnlStats(advisorId, date, "active"),
+		_computeTotalPnlStats(advisorId, date, "ended")
 	])
 	.then(([startedPredictionsTotalPnl, activePredictionsTotalPnl, endedPredictionsTotalPnl]) => {
 		// console.log(startedPredictionsTotalPnl);
@@ -750,11 +750,11 @@ function _computeTotalPnlStatsForAll(entryId, date) {
 	});
 }
 
-function _computeDailyPnlStats(entryId, date, category="active") {
+function _computeDailyPnlStats(advisorId, date, category="active") {
 	
 	let yesterday = moment(date).subtract(1, 'days').toDate();
 
-	return exports.getPredictionsForDate(entryId, date, category)
+	return exports.getPredictionsForDate(advisorId, date, category)
 	// .then(rawPredictions => {
 	// 	//First change the startDate of all predictions before today to be yesterday
 		
@@ -814,11 +814,11 @@ function _computeDailyPnlStats(entryId, date, category="active") {
 	});	
 };
 
-function _computeDailyPnlStatsForAll(entryId, date) {
+function _computeDailyPnlStatsForAll(advisorId, date) {
 	return Promise.all([
-		_computeDailyPnlStats(entryId, date, "started"),
-		_computeDailyPnlStats(entryId, date, "active"),
-		_computeDailyPnlStats(entryId, date, "ended")
+		_computeDailyPnlStats(advisorId, date, "started"),
+		_computeDailyPnlStats(advisorId, date, "active"),
+		_computeDailyPnlStats(advisorId, date, "ended")
 	])
 	.then(([startedPredictionsDailyPnl, activePredictionsDailyPnl, endedPredictionsDailyPnl]) => {
 		return {
@@ -829,19 +829,19 @@ function _computeDailyPnlStatsForAll(entryId, date) {
 	});
 }
 
-function _computeNetPnlStats(entryId, date) {
+function _computeNetPnlStats(advisorId, date) {
 	
 	//Net Pnl = Sum of Realized pnl daily + latest unrealized pnl 
 	return Promise.all([
-		DailyContestEntryPerformanceModel.fetchPnlStatsForDate({contestEntry: entryId}, date),
-		DailyContestEntryPerformanceModel.fetchLatestPnlStats({contestEntry: entryId}, date),
+		DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date),
+		DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId}, date),
 	])
 	.then(([latestPnlStats, yesterdayPnlStats]) => {
 		var latestActivePnlStats = _.get(latestPnlStats, 'detail.cumulative.active', {});
 		var latestRealizedPnlStats = _.get(latestPnlStats, 'detail.cumulative.ended', {});
 		var lastRealizedPnlStats = _.get(yesterdayPnlStats, 'net.realized', {});
 		
-		console.log("EntryId", entryId);
+		console.log("AdvisorId", advisorId);
 		console.log(date);
 
 		console.log(latestPnlStats);
@@ -860,7 +860,6 @@ function _computeNetPnlStats(entryId, date) {
 		.then(([pnlStatsTotalAll, pnlStatsTotalByTicker, pnlStatsRealizedAll, pnlStatsRealizedByTicker]) => {
 			return {
 				realized: {all: pnlStatsRealizedAll, byTickers: pnlStatsRealizedByTicker},
-				//unrealized: latestActivePnlStats,
 				total: {
 					all: pnlStatsTotalAll, 
 					byTickers: pnlStatsTotalByTicker
@@ -916,51 +915,51 @@ module.exports.getValidStartDate = function(date) {
 	return validStartDate;
 };
 
-module.exports.getTotalPnlStats = function(entryId, date, category="active") {
-	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({contestEntry: entryId}, date)
-	.then(contestEntry => {
-		if (contestEntry && contestEntry.pnlStats && contest.pnlStats.length > 0 && contest.pnlStats[0].cumulative) {
+module.exports.getTotalPnlStats = function(advisorId, date, category="active") {
+	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
+	.then(pnlStats => {
+		if (pnlStats) {
 			switch(category) {
 				//HOW TO ADD CHECK FOR KEYS
-				case "active" : return contestEntry.pnlStats[0].cumulative.active; break;
-				case "ended" : return contestEntry.pnlStats[0].cumulative.ended; break;
-				case "started" : return contestEntry.pnlStats[0].cumulative.started; break;
+				case "active" : return pnlStats.cumulative.active; break;
+				case "ended" : return pnlStats.cumulative.ended; break;
+				case "started" : return pnlStats.cumulative.started; break;
 			}
 		} else {
-			return _computeTotalPnlStats(entryId, date, category);
+			return _computeTotalPnlStats(advisorId, date, category);
 		}
 	});	
 };
 
-module.exports.getDailyPnlStats = function(entryId, date, category="active") {
-	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({contestEntry: entryId}, date)
-	.then(contestEntry => {
-		if (contestEntry && contestEntry.pnlStats && contestEntry.pnlStats.length > 0 && contestEntry.pnlStats[0].daily) {
+module.exports.getDailyPnlStats = function(advisorId, date, category="active") {
+	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
+	.then(pnlStats => {
+		if (pnlStats) {
 			switch(category) {
-				case "active" : return contestEntry.pnlStats[0].daily.active; break;
-				case "ended" : return contestEntry.pnlStats[0].daily.ended; break;
-				case "started" : return contestEntry.pnlStats[0].daily.started; break;
+				case "active" : return pnlStats.daily.active; break;
+				case "ended" : return pnlStats.daily.ended; break;
+				case "started" : return pnlStats.daily.started; break;
 			}
 		} else {
-			return _computeDailyPnlStats(entryId, date, category);
+			return _computeDailyPnlStats(advisorId, date, category);
 		}
 	});
 };
 
-module.exports.getPnlForDate = function(entryId, date, category="active") {
+module.exports.getPnlForDate = function(advisorId, date, category="active") {
 	
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
 	return Promise.all([
-		exports.getDailyPnlStats(entryId, date, category),
-		exports.getTotalPnlStats(entryId, date, category)
+		exports.getDailyPnlStats(advisorId, date, category),
+		exports.getTotalPnlStats(advisorId, date, category)
 	])
 	.then(([dailyPnl, totalPnl]) => {
 		return {daily: dailyPnl, cumulative: totalPnl};
 	});
 };
 
-module.exports.getPredictionsForDate = function(entryId, date, category='started', update=true) {
+module.exports.getPredictionsForDate = function(advisorId, date, category='started', update=true) {
 	
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
@@ -976,14 +975,14 @@ module.exports.getPredictionsForDate = function(entryId, date, category='started
 		var useEndedPredictions = !isToday || (isToday && moment().isAfter(moment(DateHelper.getMarketCloseDateTime(date))));
 
 		switch(category) {
-			case "active": return DailyContestEntryModel.fetchEntryPredictionsActiveOnDate({_id: entryId}, date); break;
-			case "started": return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({_id: entryId}, date); break;
-			case "ended": return DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({_id: entryId}, date); break;
+			case "active": return DailyContestEntryModel.fetchEntryPredictionsActiveOnDate({advisor: advisorId}, date); break;
+			case "started": return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, date); break;
+			case "ended": return DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({advisor: advisorId}, date); break;
 			
 			//not used 
 			case "all": return Promise.all([
-							useEndedPredictions ? DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({_id: entryId}, date) : [],
-							DailyContestEntryModel.fetchEntryPredictionsActiveOnDate({_id: entryId}, date) //A
+							useEndedPredictions ? DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({advisor: advisorId}, date) : [],
+							DailyContestEntryModel.fetchEntryPredictionsActiveOnDate({advisor: advisorId}, date) //A
 						])
 						.then(([endedPredictions, activePredictions]) => {
 							return endedPredictions.concat(activePredictions);
@@ -1026,15 +1025,15 @@ module.exports.getContestEntryForUser = function(userId) {
 };
 
 module.exports.updateAllEntriesLatestPnlStats = function(date){
-	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
-	.then(dailyContestEntries => {
-		return Promise.mapSeries(dailyContestEntries, function(contestEntry) {
-			let contestEntryId = contestEntry._id;
+	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
+	.then(advisors => {
+		return Promise.mapSeries(advisors, function(advisor) {
+			let advisorId = advisor._id;
 			date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 			// console.log("Date", date);
 			return Promise.all([
-				_computeTotalPnlStatsForAll(contestEntryId, date),
-				_computeDailyPnlStatsForAll(contestEntryId, date)
+				_computeTotalPnlStatsForAll(advisorId, date),
+				_computeDailyPnlStatsForAll(advisorId, date)
 			])
 			.then(([totalPnl, dailyPnl]) => {
 				const updates = {
@@ -1042,7 +1041,7 @@ module.exports.updateAllEntriesLatestPnlStats = function(date){
 					daily: dailyPnl
 				}
 				
-				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({contestEntry: contestEntryId}, updates, date, "detail");
+				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, updates, date, "detail");
 			})
 
 		});
@@ -1053,16 +1052,15 @@ module.exports.updateAllEntriesLatestPnlStats = function(date){
  * Needs to be changed
  */
 module.exports.updateAllEntriesNetPnlStats = function(date) {
-	return DailyContestEntryPerformanceModel.fetch()
-	.then(dailyContestEntries => {
-		// console.log('dailyContestEntries', dailyContestEntries)
-		return Promise.mapSeries(dailyContestEntries, function(contestEntry) {
-			let contestEntryId = contestEntry.contestEntry;
+	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
+	.then(advisors => {
+		return Promise.mapSeries(advisors, function(advisor) {
+			let advisorId = advisor._id
 			date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
-			return _computeNetPnlStats(contestEntryId, date)
+			return _computeNetPnlStats(advisorId, date)
 			.then(netPnlStats => {
 				// console.log('netPnlStats', netPnlStats);
-				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({contestEntry: contestEntryId}, netPnlStats, date, "net");
+				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, netPnlStats, date, "net");
 			})
 		});
 	})
@@ -1070,6 +1068,17 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 		console.log('Error', err);
 	})
 };
+
+/*var dates = ["2018-11-12","2018-11-13","2018-11-14","2018-11-15","2018-11-16",
+"2018-11-19","2018-11-20","2018-11-21","2018-11-22"];
+
+Promise.mapSeries(dates, function(date) {
+        return exports.updateAllEntriesLatestPnlStats(date);
+});*/
+
+/*Promise.mapSeries(dates, function(date) {
+        return exports.updateAllEntriesNetPnlStats(date);
+});*/
 
 
 //Logic works for all predictions except that started today
@@ -1102,12 +1111,12 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 module.exports.checkForPredictionTarget = function(category = "active") {
 	const currentDate = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 
-	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
-	.then(dailyContestEntries => {
-		return Promise.mapSeries(dailyContestEntries, function(contestEntry) {
-			let contestEntryId = contestEntry._id;
+	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
+	.then(advisors => {
+		return Promise.mapSeries(advisors, function(advisor) {
+			let advisorId = advisor._id;
 
-			return exports.getPredictionsForDate(contestEntryId, currentDate, category, false)
+			return exports.getPredictionsForDate(advisorId, currentDate, category, false)
 			.then(predictions => {
 
 				//Filter out already successful (in case)
@@ -1115,16 +1124,16 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 				var currentDate = DateHelper.getCurrentDate();
 
 				return predictions.filter(item => !item.success.status).map(item => {
-						return {...item, entryId: contestEntryId};
+						return {...item, advisorId: advisorId};
 				});
 
 			});
 
 		})
-		.then(allPredictionsByContestEntryIds => {
+		.then(allPredictionsByAdvisorIds => {
 			//this is an array of array of predicitons
 			//merge them
-			var allPredictions = Array.prototype.concat.apply([], allPredictionsByContestEntryIds);
+			var allPredictions = Array.prototype.concat.apply([], allPredictionsByAdvisorIds);
 
 			var uniqueTickers = _.uniq(allPredictions.map(item => item.position.security.ticker));
 
@@ -1203,15 +1212,15 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 				var allSuccessfulPredictions = Array.prototype.concat.apply([], successfulPredictionByTickers);
 
 				return Promise.mapSeries(allSuccessfulPredictions, function(prediction) {
-					return DailyContestEntryModel.updatePredictionStatus({_id: prediction.entryId}, prediction);
+					return DailyContestEntryModel.updatePredictionStatus({advisor: prediction.advisorId}, prediction);
 				});
 			});
 		});
 	})
 };
 
-module.exports.addPredictions = function(contestEntryId, predictions, date) {
-	return DailyContestEntryModel.addEntryPredictions({_id: contestEntryId, date: date}, predictions, {new:true, fields:'_id'})
+module.exports.addPredictions = function(advisorId, predictions, date) {
+	return DailyContestEntryModel.addEntryPredictions({advisor: advisorId, date: date}, predictions, {new:true, fields:'_id'})
 	.then(() => {
 		var currentDate = DateHelper.getCurrentDate();
 		return Promise.mapSeries(predictions, function(prediction) {
@@ -1224,10 +1233,10 @@ module.exports.addPredictions = function(contestEntryId, predictions, date) {
 };
 
 module.exports.updateCallPriceForPredictions = function() {
-	return DailyContestEntryModel.fetchEntries({}, {fields: '_id'})
-	.then(contestEntries => {
-		return Promise.mapSeries(contestEntries, function(contestEntry) {
-			let contestEntryId = contestEntry._id;
+	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
+	.then(advisors => {
+		return Promise.mapSeries(advisors, function(advisor) {
+			let advisorId = advisor._id;
 
 			//LOGIC TO FIRST GET THE LATEST START DATE 
 			//FOR WHICH TO UPDATE CALLPRICE
@@ -1236,7 +1245,7 @@ module.exports.updateCallPriceForPredictions = function() {
 			//AND LOGIC BELOW WILL GIVE THE LATEST START DATE
 			let latestStartDate = exports.getValidStartDate();
 
-			return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({_id: contestEntryId}, latestStartDate)
+			return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, latestStartDate)
 			.then(predictions => {
 				if (predictions && predictions.length > 0) {
 					
@@ -1250,7 +1259,7 @@ module.exports.updateCallPriceForPredictions = function() {
 						.then(updatedPrediction => {
 							var updatedCallPrice = _.get(updatedPrediction, 'position.avgPrice', 0.0);
 							if (updatedCallPrice != 0) {
-								return DailyContestEntryModel.updatePredictionCallPrice({_id: contestEntryId}, prediction, updatedCallPrice);
+								return DailyContestEntryModel.updatePredictionCallPrice({advisor: advisorId}, prediction, updatedCallPrice);
 							}
 						});
 					});	
@@ -1264,11 +1273,11 @@ module.exports.updateCallPriceForPredictions = function() {
 /*
 * Get aggregated general stats for predictions (all/bySymbol/byHorizon)
 */
-module.exports.getDailyContestEntryPnlStats = function(entryId, symbol, horizon) {
+module.exports.getDailyContestEntryPnlStats = function(advisorId, symbol, horizon) {
 	return Promise.resolve()
 	.then(() => {
 		if (!symbol && !horizon) {
-			return DailyContestEntryPerformanceModel.fetchLatestPnlStats({contestEntry: entryId})
+			return DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId})
 		} else{
 			APIError.throwJsonError({msg:"oops"});
 		}

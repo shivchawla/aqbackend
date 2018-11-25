@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-25 13:29:22
+* @Last Modified time: 2018-11-25 14:21:07
 */
 
 
@@ -86,11 +86,6 @@ const DailyContestEntry = new Schema({
 1. Entry Item can be added any day
 2. EntryItem = Stock/Target/Direction/StartDate/EndDate
 */
-
-DailyContestEntry.statics.createEntry = function(contestEntry) {
-    const dailyContestEntry = new this(contestEntry);
-    return dailyContestEntry.saveAsync();
-}
 
 DailyContestEntry.statics.addEntryPredictions = function(query, predictions, options) {
 	return this.findOneAndUpdate(query, {$push: {predictions: {$each: predictions}}}, options)

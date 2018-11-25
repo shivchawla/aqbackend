@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-25 11:56:23
+* @Last Modified time: 2018-11-25 14:19:16
 */
 
 'use strict';
@@ -40,24 +40,18 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 	.then(advisor => {
 		if (advisor) {
 			const advisorId = advisor._id.toString()
-
-			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
+			
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, category);
+			//return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} else {
 			APIError.throwJsonError({message: `No Contest found for ${date}`});
 		}
 	})
-	.then(contestEntry => {
-		if (contestEntry) {
-			return DailyContestEntryHelper.getPredictionsForDate(contestEntry._id, date, category);
-		} else {
-			APIError.throwJsonError({message: `No contest entry found for ${date}`});
-		}
-	})
-	.then(updatedContestEntry => {
-		if (updatedContestEntry) {
-			return res.status(200).send(updatedContestEntry);
+	.then(updatedPredictions => {
+		if (updatedPredictions) {
+			return res.status(200).send(updatedPredictions);
 		} else {
 			APIError.throwJsonError({message: `No contest entry found for ${date}`});
 		}
@@ -85,18 +79,11 @@ module.exports.getDailyContestPnlForDate = (args, res, next) => {
 		if (advisor) {
 			const advisorId = advisor._id.toString()
 
-			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
+			return DailyContestEntryHelper.getPnlForDate(advisorId, date, category);
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} else {
 			APIError.throwJsonError({message: `No Contest found for ${date}`});
-		}
-	})
-	.then(contestEntry => {
-		if (contestEntry) {
-			return DailyContestEntryHelper.getPnlForDate(contestEntry._id, date, category);
-		} else {
-			APIError.throwJsonError({message: `No contest entry found for ${_d}`});
 		}
 	})
 	.then(updatedContestEntryPnl => {
@@ -160,17 +147,11 @@ module.exports.getDailyContestNextStock = function(args, res, next) {
 		if (advisor) {
 			const advisorId = advisor._id.toString()
 
-			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, "active", false);
+			//return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} 
-	})
-	.then(contestEntry => {
-		if (contestEntry) {
-			return DailyContestEntryHelper.getPredictionsForDate(contestEntry._id, date, "active", false);
-		} else {
-			return [];
-		}
 	})
 	.then(activePredictions => {
 		var activeTickers = (activePredictions || []).map(item => _.get(item, 'position.security.ticker', ""));
@@ -230,40 +211,31 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		if (advisor) {
 			advisorId = advisor._id.toString();
 			
-			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, latestTradingDateIncludingToday, "started", false);
+			//return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}
 	})
-	.then(contestEntry => {
-		if (contestEntry) {
-			
-			return DailyContestEntryHelper.getPredictionsForDate(contestEntry._id, latestTradingDateIncludingToday, "started", false)
-			.then(predictionsToday => {
-				if (predictionsToday.length + entryPredictions.length > 10000000000) {
-					APIError.throwJsonError({msg: "Limit exceeded: Cannot add more than 10 predictions per day"})
-				} else {
-
-					return Promise.map(entryPredictions, function(prediction) {
-						var ticker = prediction.position.security.ticker;
-						var existingPredictionsInTicker = predictionsToday.filter(item => {return item.position.security.ticker == ticker;});
-						var newPredictioninTicker = entryPredictions.filter(item => {return item.position.security.ticker == ticker;});
-
-						if (existingPredictionsInTicker.length + newPredictioninTicker.length > 3) {
-							APIError.throwJsonError({msg: `Limit exceeded: Can't add more than 3 prediction for one stock (${ticker})`});
-						} 
-					})
-					.then(() => {
-						return contestEntry;
-					})
-				}
-			})
+	.then(predictionsToday => {
+		if (predictionsToday.length + entryPredictions.length > 10000000000) {
+			APIError.throwJsonError({msg: "Limit exceeded: Cannot add more than 10 predictions per day"})
 		} else {
-			return contestEntry;
+
+			return Promise.map(entryPredictions, function(prediction) {
+				var ticker = prediction.position.security.ticker;
+				var existingPredictionsInTicker = predictionsToday.filter(item => {return item.position.security.ticker == ticker;});
+				var newPredictioninTicker = entryPredictions.filter(item => {return item.position.security.ticker == ticker;});
+
+				if (existingPredictionsInTicker.length + newPredictioninTicker.length > 3) {
+					APIError.throwJsonError({msg: `Limit exceeded: Can't add more than 3 prediction for one stock (${ticker})`});
+				}
+
+				return; 
+			})
 		}
 	})
-	.then(contestEntry => {
-
+	.then(() => {
 		let validStartDate = DailyContestEntryHelper.getValidStartDate();
 		//Change this to use PROMISE 
 		//And check redundancy of predictions
@@ -285,32 +257,15 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			}
 		}).filter(item => item);
 
-		if (contestEntry) {
-
-			if (action == "update") {
-				var uniquePredictionDates = _.uniq(adjustedPredictions.map(item => item.startDate.format('YYYY-MM-DD HH:mm:ss')));
-				if (uniquePredictionDates.length > 1) {
-					APIError.throwJsonError({msg: "Only predictions for single date can be updated"});
-				}
-
-				//How to compare the prediction supplied to existing predictions? 
-				//No need to compare..Just remove the old ones and add the new ones
-				
-				return; /*****/
-				/**** SHOULD RETURN HERER*****/
-
-				return DailyContestEntryModel.updateEntryPredictions({_id: contestEntry._id}, adjustedPredictions, uniquePredictionDates[0], {new:true, fields:'_id'});
-			} else {
-				return DailyContestEntryHelper.addPredictions(contestEntry._id, adjustedPredictions, validStartDate); 
-			}
+			return DailyContestEntryHelper.addPredictions(advisorId, adjustedPredictions, validStartDate); 
 			
-		} else {
-			return DailyContestEntryModel.createEntry({
-				advisor: advisorId, 
-				predictions: adjustedPredictions,
-				date: validStartDate
-			});
-		}
+		// } else {
+		// 	return DailyContestEntryModel.createEntry({
+		// 		advisor: advisorId, 
+		// 		predictions: adjustedPredictions,
+		// 		date: validStartDate
+		// 	});
+		// }
 	})
 	.then(final => {
 		return res.status(200).send("Predictions updated successfully");
@@ -412,23 +367,15 @@ module.exports.getDailyContestStats = (args, res, next) => {
 	.then(advisor => {
 		if (advisor) {
 			const advisorId = advisor._id.toString()
-			return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
+			switch(category) {
+				case "general" : return DailyContestEntryHelper.getDailyContestEntryPnlStats(advisorId, symbol, horizon); 
+				case "prediction" : return DailyContestEntryHelper.getDailyContestEntryPnlStats(advisorId, symbol, horizon); break;
+				case "pnl" : return DailyContestEnteryHelper.getDailyContestEntryPnlStats(advisorId, horizon); break;
+			}
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} 
 	})	
-	.then(contestEntry => {
-		if (contestEntry) {
-			let contestEntryId = contestEntry._id;
-			switch(category) {
-				case "general" : return DailyContestEntryHelper.getDailyContestEntryPnlStats(contestEntryId, symbol, horizon); 
-				case "prediction" : return DailyContestEntryHelper.getDailyContestEntryPnlStats(contestEntryId, symbol, horizon); break;
-				case "pnl" : return DailyContestEnteryHelper.getDailyContestEntryPnlStats(contestEntryId, horizon); break;
-			}
-		} else {
-			APIError.throwJsonError({msg: "No contest entry found for user"});
-		}
-	})
 	.then(stats => {
 		return res.status(200).send(stats);
 	})
