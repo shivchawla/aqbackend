@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-25 14:21:07
+* @Last Modified time: 2018-11-25 16:17:30
 */
 
 
@@ -171,9 +171,9 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 };
 
 DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, date) {
-	return this.find({...query, date: {$gte: date}, 
-			'predictions.endDate': {$lte: date}}, {predictions: 1})
-	.then(contestEnties => {
+	return this.find({...query, date: {$lte: date}, 
+			'predictions.endDate': {$gte: date}}, {predictions: 1})
+	.then(contestEntries => {
 		if (contestEntries) {
 			var allPredictions = Array.prototype.concat(...contestEntries.map(item => item.predictions ? item.predictions.toObject() : []));
 			

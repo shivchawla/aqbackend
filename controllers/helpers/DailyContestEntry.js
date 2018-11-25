@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-25 14:17:19
+* @Last Modified time: 2018-11-25 17:50:49
 */
 
 'use strict';
@@ -120,37 +120,37 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 
 		
 			if (!minPnl) {
-				minPnl = item.net.minPnl;
+				minPnl = _.get(item, 'net.minPnl', {});
 			} else {
 				minPnl = minPnl.value < _.get(item,'net.minPnl.value', 0) ? minPnl : _.get(item, 'net.minPnl', {});
 			}
 
 			if (!maxPnl) {
-				maxPnl = item.net.maxPnl;
+				maxPnl = _.get(item, 'net.maxPnl', {});
 			} else {
 				maxPnl = maxPnl.value > _.get(item, 'net.maxPnl.value', 0) ? maxPnl : _.get(item, 'net.maxPnl', {});
 			}
 
 			if (!minPnl_long) {
-				minPnl_long = item.long.minPnl;
+				minPnl_long = _.get(item, 'long.minPnl', {});
 			} else {
 				minPnl_long = minPnl_long.value < _.get(item, 'long.minPnl.value', 0) ? minPnl_long : _.get(item, 'long.minPnl', {});
 			}
 
 			if (!minPnl_short) {
-				minPnl_short = item.short.minPnl;
+				minPnl_short = _.get(item, 'short.minPnl', {});
 			} else {
 				minPnl_short = minPnl_short.value < _.get(item, 'short.minPnl.value', 0) ? minPnl_short : _.get(item, 'short.minPnl', {});
 			}
 
 			if (!maxPnl_long) {
-				maxPnl_long = item.long.maxPnl;
+				maxPnl_long = _.get(item, 'long.maxPnl', {});
 			} else {
 				maxPnl_long = maxPnl_long.value > _.get(item, 'long.maxPnl.value', 0) ? maxPnl_long : _.get(item, 'long.maxPnl', {});
 			}
 
 			if (!maxPnl_short) {
-				maxPnl_short = item.short.maxPnl;
+				maxPnl_short = _.get(item, 'short.maxPnl', {});
 			} else {
 				maxPnl_short = maxPnl_short.value > _.get(item, 'short.maxPnl.value', 0) ? maxPnl_short : _.get(item, 'short.maxPnl', {});
 			}
@@ -249,7 +249,7 @@ function _aggregatePnlStatsByTickers(pnlStatsByTickersArray) {
 
 		uniqueTickers.forEach(ticker => {
 			var allPnlStatsForTicker = pnlStatsByTickersArray.map(item => {
-				return item[ticker]
+				return _.get(item, `${ticker}`, null);
 			}).filter(item => item);
 
 			aggregatedStatsByTickers[ticker] = allPnlStatsForTicker.length > 1 ?  
@@ -724,7 +724,6 @@ function _computeTotalPnlStats(advisorId, date, category="active") {
 			_getPnlStats({positions: updatedPositions}, true)
 		])
 		.then(([pnlStatsAll, pnlStatsByTicker]) => {
-			// console.log("Here-Total");
 			return {
 				all: pnlStatsAll,
 				byTickers: pnlStatsByTicker
@@ -740,8 +739,6 @@ function _computeTotalPnlStatsForAll(advisorId, date) {
 		_computeTotalPnlStats(advisorId, date, "ended")
 	])
 	.then(([startedPredictionsTotalPnl, activePredictionsTotalPnl, endedPredictionsTotalPnl]) => {
-		// console.log(startedPredictionsTotalPnl);
-		// console.log("WTF");
 		return {
 			started: startedPredictionsTotalPnl,
 			active: activePredictionsTotalPnl,
@@ -841,16 +838,6 @@ function _computeNetPnlStats(advisorId, date) {
 		var latestRealizedPnlStats = _.get(latestPnlStats, 'detail.cumulative.ended', {});
 		var lastRealizedPnlStats = _.get(yesterdayPnlStats, 'net.realized', {});
 		
-		console.log("AdvisorId", advisorId);
-		console.log(date);
-
-		console.log(latestPnlStats);
-		console.log("latest", _.get(latestPnlStats, 'detail.cumulative', {}));
-
-		console.log("latestActivePnlStats",latestActivePnlStats.all);
-		console.log("latestRealizedPnlStats", latestRealizedPnlStats.all);
-		console.log("lastRealizedPnlStats",lastRealizedPnlStats.all);
-
 		return Promise.all([
 			_aggregatePnlStats([lastRealizedPnlStats.all, latestActivePnlStats.all]),
 		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestActivePnlStats.byTickers]),
@@ -1030,7 +1017,6 @@ module.exports.updateAllEntriesLatestPnlStats = function(date){
 		return Promise.mapSeries(advisors, function(advisor) {
 			let advisorId = advisor._id;
 			date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
-			// console.log("Date", date);
 			return Promise.all([
 				_computeTotalPnlStatsForAll(advisorId, date),
 				_computeDailyPnlStatsForAll(advisorId, date)
@@ -1059,7 +1045,6 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 			date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 			return _computeNetPnlStats(advisorId, date)
 			.then(netPnlStats => {
-				// console.log('netPnlStats', netPnlStats);
 				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, netPnlStats, date, "net");
 			})
 		});
@@ -1141,7 +1126,6 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 				var allPredictionsByTicker = allPredictions.filter(item => {
 					return item.position.security.ticker === ticker;
 				});
-
 
 				return new Promise(resolve => {
 

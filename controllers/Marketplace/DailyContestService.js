@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-25 14:19:16
+* @Last Modified time: 2018-11-25 17:52:33
 */
 
 'use strict';
@@ -42,7 +42,6 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 			const advisorId = advisor._id.toString()
 			
 			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, category);
-			//return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} else {
@@ -57,7 +56,6 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 		}
 	})
 	.catch(err => {
-		//console.log(err);
 		return res.status(400).send(err.message);		
 	});
 };
@@ -94,7 +92,6 @@ module.exports.getDailyContestPnlForDate = (args, res, next) => {
 		}
 	})
 	.catch(err => {
-		//console.log(err);
 		return res.status(400).send(err.message);		
 	});
 };
@@ -105,32 +102,7 @@ module.exports.getDailyContestPnlForDate = (args, res, next) => {
 */
 module.exports.getDailyContestNextStock = function(args, res, next) {
 
-	let date;
-	let latestTradingDateIncludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0)); 
-	let latestTradingDateExcludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 1)); 
-	
-	//On market holiday - get close of last day
-	//12PM Sunday
-	if (DateHelper.isHoliday()) {
-		date = latestTradingDateExcludingToday;
-	}
-	//While trading
-	else if (DateHelper.isMarketTrading()) {
-        date = moment().startOf('minute');
-	}  
-	//After market close - get close of that day 
-	//5:30 PM Friday
-	else if (moment().isAfter(DateHelper.getMarketCloseDateTime())) {
-		date = latestTradingDateIncludingToday;
-	} 
-	//Before market open - get close of last day 
-	//5:30AM Friday
-	else if (moment().isBefore(DateHelper.getMarketOpenDateTime())) {
-		date = latestTradingDateExcludingToday;
-	} else {
-		console.log("Start Date can be erroneous!!")
-		date = latestTradingDateExcludingToday;
-	}
+	let date = DailyContestEntryHelper.getValidStartDate();
 	
 	const search = _.get(args, 'search.value', null)
 	const sector = _.get(args, 'sector.value', null);
@@ -148,7 +120,6 @@ module.exports.getDailyContestNextStock = function(args, res, next) {
 			const advisorId = advisor._id.toString()
 
 			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, "active", false);
-			//return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} 
@@ -212,7 +183,6 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			advisorId = advisor._id.toString();
 			
 			return DailyContestEntryHelper.getPredictionsForDate(advisorId, latestTradingDateIncludingToday, "started", false);
-			//return DailyContestEntryModel.fetchEntry({advisor: advisorId}, {fields: '_id'})
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}
@@ -257,21 +227,13 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			}
 		}).filter(item => item);
 
-			return DailyContestEntryHelper.addPredictions(advisorId, adjustedPredictions, validStartDate); 
-			
-		// } else {
-		// 	return DailyContestEntryModel.createEntry({
-		// 		advisor: advisorId, 
-		// 		predictions: adjustedPredictions,
-		// 		date: validStartDate
-		// 	});
-		// }
+		return DailyContestEntryHelper.addPredictions(advisorId, adjustedPredictions, validStartDate); 
+		
 	})
 	.then(final => {
 		return res.status(200).send("Predictions updated successfully");
 	})
 	.catch(err => {
-		//console.log(err);
 		return res.status(400).send(err.message);		
 	});
 };
