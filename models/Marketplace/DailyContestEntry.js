@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-24 12:04:03
+* @Last Modified time: 2018-11-25 13:29:22
 */
 
 
@@ -78,6 +78,7 @@ const Prediction = new Schema({
 
 const DailyContestEntry = new Schema({  
 	advisor: {type: Schema.Types.ObjectId, ref: 'Advisor'},
+	date: Date, //This corresponds to startDate (mapped to end of market close)
 	predictions: [Prediction]
 });
 
@@ -93,24 +94,6 @@ DailyContestEntry.statics.createEntry = function(contestEntry) {
 
 DailyContestEntry.statics.addEntryPredictions = function(query, predictions, options) {
 	return this.findOneAndUpdate(query, {$push: {predictions: {$each: predictions}}}, options)
-};
-
-DailyContestEntry.statics.updateEntryPredictions = function(query, predictions, date, options) {
-	
-	let updateOne = {
-		updatedDate: new Date(),
-		$pull: {predictions:{startDate: date}}
-	};
-
-	let updateTwo = {
-		updatedDate: new Date(),
-	 	$push: {predictions: {$each: predictions}}
-	};
-
-	return this.findOneAndUpdateAsync(query, updateOne)
-	.then(() => {
-		return this.findOneAndUpdateAsync(query, updateTwo);
-	});
 };
 
 DailyContestEntry.statics.fetchEntry = function(query, options) {
@@ -152,22 +135,11 @@ DailyContestEntry.statics.fetchEntries = function(query, options) {
 };
 
 DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, date) {
-	return this.findOne(query, {predictions:1})
+	return this.findOne({...query, date: date}, {predictions:1})
 	.then(contestEntry => {
 		if (contestEntry) {
 			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
-			if (allPredictions.length > 0 ) {
-				//Convert the date to market-close date time 
-				//(relevant for date today because input is true time) 
-				return allPredictions.filter(item => {
-					//Convert startdate(exact time) to EOD datetime for comparison purposes
-					
-					var startDate = DateHelper.getMarketCloseDateTime(DateHelper.getDate(item.startDate));
-					return moment(startDate).isSame(moment(date))
-				});
-			} else {
-				return [];
-			}
+			return allPredictions;
 		} else {
 			return [];
 		}
@@ -175,10 +147,18 @@ DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, d
 };
 
 DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, date) {
-	return this.findOne(query, {predictions:1})
-	.then(contestEntry => {
-		if (contestEntry) {
-			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
+	return this.find({
+				...query, 
+				$or: [
+					{'predictions.endDate': date}, 
+					{'predictions.success.date': date}
+				]
+			}, 
+			{predictions:1})
+	.then(contestEntries => { //[{predictions: []}, {predictions: []}]
+		if (contestEntries) {
+			var allPredictions = Array.prototype.concat(...contestEntries.map(item => item.predictions ? item.predictions.toObject() : []));
+			
 			if (allPredictions.length > 0 ) {
 				return allPredictions.filter(item => {
 					//Convert the date to market-close date time 
@@ -196,10 +176,11 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 };
 
 DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, date) {
-	return this.findOne(query, {predictions: 1})
-	.then(contestEntry => {
-		if (contestEntry) {
-			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
+	return this.find({...query, date: {$gte: date}, 
+			'predictions.endDate': {$lte: date}}, {predictions: 1})
+	.then(contestEnties => {
+		if (contestEntries) {
+			var allPredictions = Array.prototype.concat(...contestEntries.map(item => item.predictions ? item.predictions.toObject() : []));
 			
 			var isToday = DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(date)) == 0;
 
@@ -209,8 +190,8 @@ DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, da
 					//Convert startdate(exact time) to EOD datetime for comparison purposes
 					var startDate = DateHelper.getMarketCloseDateTime(DateHelper.getDate(item.startDate));
 					
-					return !moment(startDate).isAfter(moment(date)) && 
-							!moment(item.endDate).isBefore(moment(date)) && //|| (isToday && moment(item.endDate).isAfter(moment())))
+					return !moment(startDate).isAfter(moment(date)) &&  //start is same or before
+							!moment(item.endDate).isBefore(moment(date)) && //end is same or after
 							!item.success.status 
 				});
 			} else {
@@ -222,13 +203,12 @@ DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, da
 	});
 };
 
-
 //This is not good programming
 DailyContestEntry.statics.updatePredictionStatus = function(query, prediction) {
    var q = {predictions:{$elemMatch:{'position.security.ticker': prediction.position.security.ticker, 
                 endDate: prediction.endDate,
                 startDate: prediction.startDate
-            }}};
+            }}, date: DateHelper.getMarketCloseDateTime(prediction.startDate)};
 
 	var updates = {
 		$set: {
@@ -242,13 +222,12 @@ DailyContestEntry.statics.updatePredictionStatus = function(query, prediction) {
 	return this.updateOne({...query, ...q}, updates);
 };
 
-
 //This is not good programming
 DailyContestEntry.statics.updatePredictionCallPrice = function(query, prediction, price) {
    	var q = {predictions:{$elemMatch:{'position.security.ticker': prediction.position.security.ticker, 
             	endDate: prediction.endDate,
                 startDate: prediction.startDate
-            }}};
+            }}, date: DateHelper.getMarketCloseDateTime(prediction.startDate)};
 
 	var updates = {
 		$set: {
@@ -264,7 +243,7 @@ DailyContestEntry.statics.updatePrediction = function(query, updatedPrediction) 
 	var q = {predictions:{$elemMatch:{'position.security.ticker': prediction.position.security.ticker, 
             	endDate: prediction.endDate,
                 startDate: prediction.startDate
-            }}};
+            }}, date: DateHelper.getMarketCloseDateTime(prediction.startDate)};
 
 	var updates = {
 		$set: {
@@ -275,8 +254,6 @@ DailyContestEntry.statics.updatePrediction = function(query, updatedPrediction) 
 	return this.updateOne({...query, ...q}, updates);
 	
 };
-
-
 
 const DailyContestEntryModel = mongoose.model('DailyContestEntry', DailyContestEntry);
 module.exports = DailyContestEntryModel;

@@ -2,11 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-<<<<<<< HEAD
-* @Last Modified time: 2018-11-21 10:52:12
-=======
-* @Last Modified time: 2018-11-24 12:49:28
->>>>>>> release
+* @Last Modified time: 2018-11-25 11:56:23
 */
 
 'use strict';
@@ -206,8 +202,6 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	const action = args.operation.value;
 	
 	let advisorId;
-	let latestTradingDateIncludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0)); 
-	let latestTradingDateExcludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 1)); 
 	
 	return Promise.map(entryPredictions, function(prediction) {
 		return SecurityHelper.getStockLatestDetail(prediction.position.security)
@@ -270,38 +264,17 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	})
 	.then(contestEntry => {
 
+		let validStartDate = DailyContestEntryHelper.getValidStartDate();
 		//Change this to use PROMISE 
 		//And check redundancy of predictions
 		var adjustedPredictions = entryPredictions.map(item => {
 			if (DateHelper.compareDates(item.endDate, item.startDate) == 1) {
 				
-				//On market holiday - get close of last day
-				//12PM Sunday
-				if (DateHelper.isHoliday(item.startDate)) {
-					item.startDate = latestTradingDateExcludingToday;
-				}
-				//While trading
-				else if (DateHelper.isMarketTrading()) {
-	                item.startDate = moment().startOf('minute');
-				}  
-				//After market close - get close of that day 
-				//5:30 PM Friday
-				else if (moment().isAfter(DateHelper.getMarketCloseDateTime())) {
-					item.startDate = latestTradingDateIncludingToday;
-				} 
-				//Before market open - get close of last day 
-				//5:30AM Friday
-				else if (moment().isBefore(DateHelper.getMarketOpenDateTime())) {
-					item.startDate = latestTradingDateExcludingToday;
-				} else {
-					console.log("Start Date can be erroneous!!")
-					item.startDate = latestTradingDateExcludingToday;
-				}
-				
+				item.startDate = DailyContestEntryHelper.getValidStartDate(item.startDate);
 				item.endDate = DateHelper.getMarketCloseDateTime(DateHelper.getNextNonHolidayWeekday(item.endDate, 0));
 				item.active = true;
 				item.modified = 1;
-				item.nonMarketHoursFlag = !DateHelper.isMarketTrading();
+				item.nonMarketHoursFlag = DateHelper.isHoliday || !DateHelper.isMarketTrading();
 				item.createdDate = new Date();
 
 				return item;
@@ -328,15 +301,14 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 				return DailyContestEntryModel.updateEntryPredictions({_id: contestEntry._id}, adjustedPredictions, uniquePredictionDates[0], {new:true, fields:'_id'});
 			} else {
-
-				return DailyContestEntryHelper.addPredictions(contestEntry._id, adjustedPredictions); 
-				
+				return DailyContestEntryHelper.addPredictions(contestEntry._id, adjustedPredictions, validStartDate); 
 			}
 			
 		} else {
 			return DailyContestEntryModel.createEntry({
 				advisor: advisorId, 
-				predictions: adjustedPredictions
+				predictions: adjustedPredictions,
+				date: validStartDate
 			});
 		}
 	})

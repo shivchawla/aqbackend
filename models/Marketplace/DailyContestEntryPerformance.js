@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-17 18:38:28
+* @Last Modified time: 2018-11-25 12:32:17
 */
 
 
@@ -17,30 +17,15 @@ const DailyContestEntry = require('./DailyContestEntry');
 
 const DailyContestEntryPerformance = new Schema({
 	contestEntry : {type: Schema.Types.ObjectId, ref: 'DailyContestEntry'},
-
-	// pnlStats: [{
-	// 	date: Date,
-	// 	daily: Schema.Types.Mixed,
-	// 	cumulative: Schema.Types.Mixed,    
-	// }],
-
-	pnlStats: [{
-		date: Date,
-		detail: Schema.Types.Mixed, // {cumulative: , daily: } for prediction that date
+	
+	date: Date,
+	
+	pnlStats: {
+		detail: Schema.Types.Mixed, 
 		net: Schema.Types.Mixed,
-	}],
+	},
 
-	earningStats: [{
-		date: Date,
-		cumulative: {
-			total: Number,
-			rank: Number,
-		},
-		daily: {
-			total: Number,
-			rank: Number
-		}
-	}]
+	earningStats: Schema.Types.Mixed
 });
 
 DailyContestEntryPerformance.statics.fetch  = function() {
@@ -50,62 +35,36 @@ DailyContestEntryPerformance.statics.fetch  = function() {
 DailyContestEntryPerformance.statics.updatePnlStatsForDate = function(query, pnlStats, date, category="detail") {
 	
 	var key = `pnlStats.date`;
-	var updateFieldInArray = `pnlStats.$.${category}`;
+	var updateFieldInArray = `pnlStats.${category}`;
 
-	let qDate = {...query, 'pnlStats.date':{$eq: date}};
-    
-    return this.findOne(qDate)
-    .then(found => {
-		let updates;
-    	
-    	if (found) {
-    		
-    		updates = {
-		    	$set: {[updateFieldInArray]: pnlStats}
-			 };
+	let qDate = {...query, date: date};
+    const updates = {
+    	$set: {[updateFieldInArray]: pnlStats}
+ 	};
 		 	
-		 	return this.update(qDate, updates);
+    return this.findOneAndUpdate(qDate, updates, {upsert: true});
 
-    	} else {
-
-    		updates = {
-				$push: {
-					pnlStats: {
-						date: date, 
-						[category]: pnlStats,
-					}
-				}
-			};	 
-
-    		return this.findOneAndUpdate(query, updates, {upsert: true})
-    	}
-    });
 };
 
-DailyContestEntryPerformance.statics.fetchLatestPnlStats = function(query) {
-	var projectionField = `pnlStats`;
-	return this.findOne(query, {[projectionField]: 1})
-	.then(doc => {
-		return _.get(doc, 'pnlStats', []).sort((a,b) => moment(a.date).isBefore(moment(b.date)) ? -1 : 1).slice(-1)
-		// return doc && doc.pnlStats ? doc.pnlStats.length > 0 ? 
-		// 	doc.pnlStats.sort((a,b) => moment(a.date).isBefore(moment(b.date)) ? -1 : 1).slice(-1) : null : null;
-	})
-};
-
-DailyContestEntryPerformance.statics.fetchPnlStatsForDate = function(query, date) {
-	var projectionField = `pnlStats.$`;
-	var key = `pnlStats.date`;
-	// console.log({...query, [key]: date});
-	return this.findOne({...query, [key]: date}, {[projectionField]: 1})
-	.then(doc => {
-		const pnlStats = _.get(doc, 'pnlStats', null);
+DailyContestEntryPerformance.statics.fetchLatestPnlStats = function(query, date) {
+	return this.find({...query, date:{$lt: date}}, {pnlStats:1}).sort({date: -1}).limit(1)
+	.then(latestDoc => {
+		const pnlStats = _.get(latestDoc, 'pnlStats', [])
 		return pnlStats ? pnlStats[0] : null;
 	})
 };
 
-DailyContestEntryPerformance.statics.fetchPnlStatsHistory = function(query) {
+DailyContestEntryPerformance.statics.fetchPnlStatsForDate = function(query, date) {
 	var projectionField = `pnlStats`;
-	return this.findOne(query, {[projectionField]: 1});
+	var key = `pnlStats.date`;
+	return this.findOne({...query, date: date}, {[projectionField]: 1})
+	.then(doc => {
+		return _.get(doc, 'pnlStats', null);
+	})
+};
+
+DailyContestEntryPerformance.statics.fetchPnlStatsHistory = function(query) {
+	return this.find(query, {pnlStats: 1});
 };
 
 const DailyContestEntryPerformanceModel = mongoose.model('DailyContestEntryPerformance', DailyContestEntryPerformance);

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-24 17:42:46
+* @Last Modified time: 2018-11-25 12:39:08
 */
 
 'use strict';
@@ -34,6 +34,9 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		var cost = 0.0;
 		var cost_long = 0.0;
 		var cost_short = 0.0;
+
+		var costPositive = 0, costPositive_long = 0, costPositive_short = 0,
+			costNegative = 0, costNegative_long = 0, costNegative_short = 0;
 		
 		var netValue = 0.0;
 		var netValue_long = 0.0;
@@ -69,8 +72,6 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 			avgPnlPct, avgPnlPct_long, avgPnlPct_short,
 			avgPnlPctPositive, avgPnlPctPositive_long, avgPnlPctPositive_short,
 			avgPnlPctNegative, avgPnlPctNegative_long, avgPnlPctNegative_short
-			costPositive, costPositive_long, costPositive_short,
-			costNegative, costNegative_long, costNegative_short,
 			pnlPctPositive, pnlPctPositive_long, pnlPctPositive_short,
 			pnlPctNegative, pnlPctNegative_long, pnlPctNegative_short;
 
@@ -180,7 +181,7 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		
 		var avgPnlPctNegative = countNegative > 0 ? pnlPctNegative/count : 0;
 		var avgPnlPctNegative_long = countNegative_long > 0 ? pnlPctNegative_long/countNegative_long : 0;
-		var avgPnlPctNegative_short = countNegtive_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
+		var avgPnlPctNegative_short = countNegative_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
 
 		var avgPnl = count > 0 ? totalPnl/count : 0;
 		var avgPnl_long = count_long > 0 ? totalPnl_long/count_long : 0;
@@ -192,7 +193,7 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 
 		var avgPnlNegative = countNegative > 0 ? pnlNegative/count : 0;
 		var avgPnlNegative_long = countNegative_long > 0 ? pnlNegative_long/countNegative_long : 0;
-		var avgPnlNegative_short = countNegtive_short > 0 ? pnlNegative_short/countNegative_short : 0;
+		var avgPnlNegative_short = countNegative_short > 0 ? pnlNegative_short/countNegative_short : 0;
 
 		var avgPnlPct = count > 0 ? totalPnlPct/count : 0;
 		var avgPnlPct_long = count_long > 0 ? totalPnlPct_long/count_long : 0;
@@ -204,7 +205,7 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 
 		var avgPnlPctNegative = countNegative > 0 ? pnlPctNegative/countNegative : 0;
 		var avgPnlPctNegative_long = countNegative_long > 0 ? pnlPctNegative_long/countNegative_long : 0;
-		var avgPnlPctNegative_short = countNegtive_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
+		var avgPnlPctNegative_short = countNegative_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
 
 		
 		var pnlStats = {
@@ -406,7 +407,7 @@ function _computePnlStats(portfolio, ticker) {
 		
 		var avgPnlPctNegative = countNegative > 0 ? pnlPctNegative/count : 0;
 		var avgPnlPctNegative_long = countNegative_long > 0 ? pnlPctNegative_long/countNegative_long : 0;
-		var avgPnlPctNegative_short = countNegtive_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
+		var avgPnlPctNegative_short = countNegative_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
 
 		var avgPnl = count > 0 ? totalPnl/count : 0;
 		var avgPnl_long = count_long > 0 ? totalPnl_long/count_long : 0;
@@ -418,7 +419,7 @@ function _computePnlStats(portfolio, ticker) {
 
 		var avgPnlNegative = countNegative > 0 ? pnlNegative/count : 0;
 		var avgPnlNegative_long = countNegative_long > 0 ? pnlNegative_long/countNegative_long : 0;
-		var avgPnlNegative_short = countNegtive_short > 0 ? pnlNegative_short/countNegative_short : 0;
+		var avgPnlNegative_short = countNegative_short > 0 ? pnlNegative_short/countNegative_short : 0;
 
 		var avgPnlPct = count > 0 ? totalPnlPct/count : 0;
 		var avgPnlPct_long = count_long > 0 ? totalPnlPct_long/count_long : 0;
@@ -430,7 +431,7 @@ function _computePnlStats(portfolio, ticker) {
 
 		var avgPnlPctNegative = countNegative > 0 ? pnlPctNegative/count : 0;
 		var avgPnlPctNegative_long = countNegative_long > 0 ? pnlPctNegative_long/countNegative_long : 0;
-		var avgPnlPctNegative_short = countNegtive_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
+		var avgPnlPctNegative_short = countNegative_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
 
 		var pnlStats = {
 			net: {pnl: totalPnl, pnlPct: totalPnlPct, 
@@ -451,7 +452,7 @@ function _computePnlStats(portfolio, ticker) {
 				pnlPositive: pnlPositive_long, pnlNegative: pnlNegative_long, 
 				winRatio: winRatio_long, 
 				count: count_long, countPositive: countPositive_long, countNegative: countNegative_long,
-				avgPnl: avgPct_long, avgPnlPositive: avgPnlPositive_long, avgPnlNegative: avgPnlNegative_long,
+				avgPnl: avgPnl_long, avgPnlPositive: avgPnlPositive_long, avgPnlNegative: avgPnlNegative_long,
 				avgPnlPct: avgPnlPct_long, avgPnlPctPositive: avgPnlPctPositive_long, avgPnlPctNegative: avgPnlPctNegative_long,
 				pnlPctPositive: pnlPctPositive_long, pnlPctNegative: pnlPctNegative_long},
 			short: {pnl: totalPnl_short, pnlPct: totalPnlPct_short, 
@@ -833,12 +834,12 @@ function _computeNetPnlStats(entryId, date) {
 	//Net Pnl = Sum of Realized pnl daily + latest unrealized pnl 
 	return Promise.all([
 		DailyContestEntryPerformanceModel.fetchPnlStatsForDate({contestEntry: entryId}, date),
-		DailyContestEntryPerformanceModel.fetchLatestPnlStats({contestEntry: entryId, 'pnlStats.date':{$lt: date}}),
+		DailyContestEntryPerformanceModel.fetchLatestPnlStats({contestEntry: entryId}, date),
 	])
 	.then(([latestPnlStats, yesterdayPnlStats]) => {
 		var latestActivePnlStats = _.get(latestPnlStats, 'detail.cumulative.active', {});
 		var latestRealizedPnlStats = _.get(latestPnlStats, 'detail.cumulative.ended', {});
-		var lastRealizedPnlStats = _.get(yesterdayPnlStats, 'net', {});
+		var lastRealizedPnlStats = _.get(yesterdayPnlStats, 'net.realized', {});
 		
 		console.log("EntryId", entryId);
 		console.log(date);
@@ -851,15 +852,15 @@ function _computeNetPnlStats(entryId, date) {
 		console.log("lastRealizedPnlStats",lastRealizedPnlStats.all);
 
 		return Promise.all([
-			_aggregatePnlStats([lastRealizedPnlStats.all, latestActivePnlStats.all, latestRealizedPnlStats.all]),
-		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestActivePnlStats.byTickers, latestRealizedPnlStats.byTickers]),
+			_aggregatePnlStats([lastRealizedPnlStats.all, latestActivePnlStats.all]),
+		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestActivePnlStats.byTickers]),
 		    _aggregatePnlStats([lastRealizedPnlStats.all, latestRealizedPnlStats.all]),
 		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestRealizedPnlStats.byTickers])
 		])
 		.then(([pnlStatsTotalAll, pnlStatsTotalByTicker, pnlStatsRealizedAll, pnlStatsRealizedByTicker]) => {
 			return {
 				realized: {all: pnlStatsRealizedAll, byTickers: pnlStatsRealizedByTicker},
-				unrealized: latestActivePnlStats,
+				//unrealized: latestActivePnlStats,
 				total: {
 					all: pnlStatsTotalAll, 
 					byTickers: pnlStatsTotalByTicker
@@ -882,6 +883,38 @@ function _computeNetPnlStats(entryId, date) {
 // 	// })
 	
 // });
+
+module.exports.getValidStartDate = function(date) {
+	
+	let latestTradingDateIncludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0)); 
+	let latestTradingDateExcludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 1)); 
+	
+	let validStartDate;
+	//On market holiday - get close of last day
+	//12PM Sunday
+	if (DateHelper.isHoliday(date)) {
+		validStartDate = latestTradingDateExcludingToday;
+	}
+	//While trading
+	else if (DateHelper.isMarketTrading()) {
+        validStartDate = moment().startOf('minute');
+	}  
+	//After market close - get close of that day 
+	//5:30 PM Friday
+	else if (moment().isAfter(DateHelper.getMarketCloseDateTime())) {
+		validStartDate = latestTradingDateIncludingToday;
+	} 
+	//Before market open - get close of last day 
+	//5:30AM Friday
+	else if (moment().isBefore(DateHelper.getMarketOpenDateTime())) {
+		validStartDate = latestTradingDateExcludingToday;
+	} else {
+		console.log("Start Date can be erroneous!!")
+		validStartDate = latestTradingDateExcludingToday;
+	}
+
+	return validStartDate;
+};
 
 module.exports.getTotalPnlStats = function(entryId, date, category="active") {
 	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({contestEntry: entryId}, date)
@@ -1177,13 +1210,13 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 	})
 };
 
-module.exports.addPredictions = function(contestEntryId, predictions) {
-	return DailyContestEntryModel.addEntryPredictions({_id: contestEntryId}, predictions, {new:true, fields:'_id'})
+module.exports.addPredictions = function(contestEntryId, predictions, date) {
+	return DailyContestEntryModel.addEntryPredictions({_id: contestEntryId, date: date}, predictions, {new:true, fields:'_id'})
 	.then(() => {
 		var currentDate = DateHelper.getCurrentDate();
 		return Promise.mapSeries(predictions, function(prediction) {
 			var isStartDateToday = DateHelper.compareDates(prediction.startDate, currentDate) == 0;
-			if (isStartDateToday) {
+			if (isStartDateToday && DateHelper.isMarketTrading()) {
 				return _trackIntradayHistory(prediction.position.security);				
 			}
 		})
@@ -1201,33 +1234,7 @@ module.exports.updateCallPriceForPredictions = function() {
 			//BECAUSE OF WEEKENDS AND HOLIDAYS,
 			//START DATE IS NOT SAME AS CURRENT DATE
 			//AND LOGIC BELOW WILL GIVE THE LATEST START DATE
-			let latestStartDate;
-
-			let latestTradingDateIncludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0)); 
-			let latestTradingDateExcludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 1)); 
-	
-			//On market holiday - get close of last day
-			//12PM Sunday
-			if (DateHelper.isHoliday()) {
-				latestStartDate = latestTradingDateExcludingToday;
-			}
-			//While trading
-			else if (DateHelper.isMarketTrading()) {
-                latestStartDate = moment().startOf('minute');
-			}  
-			//After market close - get close of that day 
-			//5:30 PM Friday
-			else if (moment().isAfter(DateHelper.getMarketCloseDateTime())) {
-				latestStartDate = latestTradingDateIncludingToday;
-			} 
-			//Before market open - get close of last day 
-			//5:30AM Friday
-			else if (moment().isBefore(DateHelper.getMarketOpenDateTime())) {
-				latestStartDate = latestTradingDateExcludingToday;
-			} else {
-				console.log("Start Date can be erroneous!!")
-				latestStartDate = latestTradingDateExcludingToday;
-			}
+			let latestStartDate = exports.getValidStartDate();
 
 			return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({_id: contestEntryId}, latestStartDate)
 			.then(predictions => {
