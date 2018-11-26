@@ -2,11 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-25 12:39:47
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-25 17:54:09
+* @Last Modified time: 2018-11-26 09:31:10
 */
 
-db.dailycontestentryperformances.renameCollection("dailycontestentryperformances_old");
-db.dailycontestentries.renameCollection("dailycontestentries_old");
+db.dailycontestentryperformances.renameCollection("dailycontestentryperformances_original");
+db.dailycontestentries.renameCollection("dailycontestentries_original");
 
 db.dailycontestentries_original.find({}).map(entry => {
 	var advisorId = entry.advisor;
