@@ -12,7 +12,7 @@ const mongoose = require('mongoose');
 const Promise = require('bluebird');
 const moment = require('moment');
 const Schema = mongoose.Schema;
-
+const DateHelper = require('../../utils/Date');
 const Advisor = require('./Advisor');
 
 const DailyContestEntryPerformance = new Schema({
@@ -47,9 +47,12 @@ DailyContestEntryPerformance.statics.updatePnlStatsForDate = function(query, pnl
 };
 
 DailyContestEntryPerformance.statics.fetchLatestPnlStats = function(query, date) {
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
 	return this.find({...query, date:{$lt: date}}, {pnlStats:1}).sort({date: -1}).limit(1)
 	.then(latestDoc => {
-		return  latestDoc && latestDoc.length > 0 ? _.get(latestDoc[0], 'pnlStats', null) : null;
+		const x = latestDoc && latestDoc.length > 0 ? _.get(latestDoc[0], 'pnlStats', null) : null;
+		console.log(x);
+		return x;
 	});
 };
 

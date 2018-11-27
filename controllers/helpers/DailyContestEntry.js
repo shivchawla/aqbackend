@@ -210,23 +210,37 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		
 		var pnlStats = {
 			net: {pnl: totalPnl, pnlPct: totalPnlPct, 
-				cost, netValue, grossValue,
-				cash, minPnl, maxPnl, profitFactor, 
+				cost, costPositive, costNegative, 
+				cash, netValue, grossValue,
+			 	minPnl, maxPnl, profitFactor, 
 				pnlPositive, pnlNegative, winRatio,
-				count, countPositive, countNegative},
+				count, countPositive, countNegative,
+				avgPnl, avgPnlPositive, avgPnlNegative,
+				avgPnlPct, avgPnlPctPositive, avgPnlPctNegative,
+				pnlPctPositive, pnlPctNegative},
 			long: {pnl: totalPnl_long, pnlPct: totalPnlPct_long, 
-				cost: cost_long, netValue: netValue_long, 
+				cost: cost_long, costPositive: costPositive_long,
+				costNegative: costNegative_long,
+				netValue: netValue_long, 
 				cash: cash, minPnl: minPnl_long, 
 				maxPnl: maxPnl_long, profitFactor: profitFactor_long, 
 				pnlPositive: pnlPositive_long, pnlNegative: pnlNegative_long, 
 				winRatio: winRatio_long, 
-				count: count_long, countPositive: countPositive_long, countNegative: countNegative_long},
+				count: count_long, countPositive: countPositive_long, countNegative: countNegative_long,
+				avgPnl: avgPnl_long, avgPnlPositive: avgPnlPositive_long, avgPnlNegative: avgPnlNegative_long,
+				avgPnlPct: avgPnlPct_long, avgPnlPctPositive: avgPnlPctPositive_long, avgPnlPctNegative: avgPnlPctNegative_long,
+				pnlPctPositive: pnlPctPositive_long, pnlPctNegative: pnlPctNegative_long},
 			short: {pnl: totalPnl_short, pnlPct: totalPnlPct_short, 
-				cost: cost_short, netValue: netValue_short, 
+				cost: cost_short, costPositive: costPositive_short,
+				costNegative: costNegative_short, 
+				netValue: netValue_short, 
 				cash: cash, minPnl: minPnl_short, 
 				maxPnl: maxPnl_short, profitFactor: profitFactor_short, 
 				pnlPositive: pnlPositive_short, pnlNegative: pnlNegative_short, winRatio: winRatio_short,
-				count: count_short, countPositive: countPositive_short, countNegative: countNegative_short}
+				count: count_short, countPositive: countPositive_short, countNegative: countNegative_short,
+				avgPnl: avgPnl_short, avgPnlPositive: avgPnlPositive_short, avgPnlNegative: avgPnlNegative_short,
+				avgPnlPct: avgPnlPct_short, avgPnlPctPositive: avgPnlPctPositive_short, avgPnlPctNegative: avgPnlPctNegative_short,
+				pnlPctPositive: pnlPctPositive_short, pnlPctNegative: pnlPctNegative_short}
 			};
 
 		resolve(pnlStats);
@@ -717,13 +731,14 @@ function _computeTotalPnlStats(advisorId, date, category="active") {
 			}
 			return  item.position;
 		});
-
+		console.log(date);
 		//Total Pnl
 		return Promise.all([
 			_getPnlStats({positions: updatedPositions}),
 			_getPnlStats({positions: updatedPositions}, true)
 		])
 		.then(([pnlStatsAll, pnlStatsByTicker]) => {
+			console.log(pnlStatsAll);
 			return {
 				all: pnlStatsAll,
 				byTickers: pnlStatsByTicker
@@ -1014,7 +1029,7 @@ module.exports.getContestEntryForUser = function(userId) {
 module.exports.updateAllEntriesLatestPnlStats = function(date){
 	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
 	.then(advisors => {
-		return Promise.mapSeries(advisors, function(advisor) {
+		return Promise.mapSeries(advisors.filter(item => item._id.toString() === '5b0656413e758a46af54c877'), function(advisor) {
 			let advisorId = advisor._id;
 			date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 			return Promise.all([
@@ -1034,13 +1049,16 @@ module.exports.updateAllEntriesLatestPnlStats = function(date){
 	});
 };
 
+
+
+
 /**
  * Needs to be changed
  */
 module.exports.updateAllEntriesNetPnlStats = function(date) {
 	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
 	.then(advisors => {
-		return Promise.mapSeries(advisors, function(advisor) {
+		return Promise.mapSeries(advisors.filter(item => item._id.toString() === '5b0656413e758a46af54c877'), function(advisor) {
 			let advisorId = advisor._id
 			date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 			return _computeNetPnlStats(advisorId, date)
@@ -1054,16 +1072,16 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 	})
 };
 
-/*var dates = ["2018-11-12","2018-11-13","2018-11-14","2018-11-15","2018-11-16",
-"2018-11-19","2018-11-20","2018-11-21","2018-11-22"];
 
-Promise.mapSeries(dates, function(date) {
-        return exports.updateAllEntriesLatestPnlStats(date);
-});*/
+var dates = ["2018-11-12","2018-11-13","2018-11-14","2018-11-15","2018-11-16","2018-11-19","2018-11-20","2018-11-21","2018-11-22"];
 
-/*Promise.mapSeries(dates, function(date) {
-        return exports.updateAllEntriesNetPnlStats(date);
-});*/
+// Promise.mapSeries(dates, function(date) {
+//         return exports.updateAllEntriesLatestPnlStats(date);
+// });
+
+// Promise.mapSeries(dates, function(date) {
+//         return exports.updateAllEntriesNetPnlStats(date);
+// });
 
 
 //Logic works for all predictions except that started today
@@ -1268,7 +1286,7 @@ module.exports.getDailyContestEntryPnlStats = function(advisorId, symbol, horizo
 	})
 	.then(latestPnlStats => {
 		if (latestPnlStats) {
-			var netPnlStats =_.get(latestPnlStats, '[0].net', {});
+			var netPnlStats =_.get(latestPnlStats, 'net', {});
 			var keys = ["realized", "unrealized", "total"];
 			const output = {};
 			

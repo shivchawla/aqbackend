@@ -316,7 +316,7 @@ module.exports.getDailyContestStats = (args, res, next) => {
 	const category = _.get(args, 'category.value', "general");
 	const symbol = _.get(args, 'symbol.value', null);
 	const horizon = _.get(args, 'horizon.value', null);
-
+	const advisor = _.get(args, 'advisor.value', null);
 	const userId = _.get(args, 'user._id', null);
 
 	return Promise.resolve()
@@ -325,7 +325,11 @@ module.exports.getDailyContestStats = (args, res, next) => {
 
 			APIError.throwJsonError({msg: "Only one of symbol/horizon parameter is allowed"})
 		} else {
-			return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})		
+			let selection = {user: userId};
+			if (advisor !== null || advisor.trim().length > 0) {
+				selection = {_id: advisor.trim()};
+			}
+			return AdvisorModel.fetchAdvisor({...selection}, {fields: '_id'})		
 		}
 	})
 	.then(advisor => {

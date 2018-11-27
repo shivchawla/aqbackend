@@ -49,7 +49,7 @@ tags:
     url: "http://www.aimsquant.com"
 
 schemes:
-- "https"
+- "http"
 produces:
 - "application/json"
 paths:
@@ -3878,6 +3878,11 @@ paths:
         description: "auth token"
         type: "string"
         required: true
+      - name: advisor
+        in: query
+        required: false
+        type: string
+        description: advisor id of the user for whom stats required
       - name: category
         in: query
         required: false
