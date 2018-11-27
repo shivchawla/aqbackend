@@ -326,7 +326,8 @@ module.exports.getDailyContestStats = (args, res, next) => {
 			APIError.throwJsonError({msg: "Only one of symbol/horizon parameter is allowed"})
 		} else {
 			let selection = {user: userId};
-			if (advisor !== null || advisor.trim().length > 0) {
+			advisor
+			if (advisor !== null || (advisor || '').trim().length > 0) {
 				selection = {_id: advisor.trim()};
 			}
 			return AdvisorModel.fetchAdvisor({...selection}, {fields: '_id'})		
