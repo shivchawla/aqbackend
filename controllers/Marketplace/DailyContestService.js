@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-25 17:52:33
+* @Last Modified time: 2018-11-27 20:20:37
 */
 
 'use strict';
@@ -154,7 +154,9 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	const action = args.operation.value;
 	
 	let advisorId;
-	
+
+	let validStartDate = DailyContestEntryHelper.getValidStartDate();
+
 	return Promise.map(entryPredictions, function(prediction) {
 		return SecurityHelper.getStockLatestDetail(prediction.position.security)
 		.then(securityDetail => {
@@ -182,7 +184,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		if (advisor) {
 			advisorId = advisor._id.toString();
 			
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, latestTradingDateIncludingToday, "started", false);
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, "started", false);
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}
@@ -206,7 +208,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		}
 	})
 	.then(() => {
-		let validStartDate = DailyContestEntryHelper.getValidStartDate();
+		
 		//Change this to use PROMISE 
 		//And check redundancy of predictions
 		var adjustedPredictions = entryPredictions.map(item => {
