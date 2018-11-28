@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 07:10:56
+* @Last Modified time: 2018-11-28 20:02:04
 */
 
 
@@ -46,7 +46,15 @@ DailyContestEntryPerformance.statics.updatePnlStatsForDate = function(query, pnl
 
 };
 
-DailyContestEntryPerformance.statics.fetchLatestPnlStats = function(query, date) {
+DailyContestEntryPerformance.statics.fetchLatestPnlStats = function(query) {
+	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate()); 
+	return this.find({...query, date:{$lte: date}}, {pnlStats:1}).sort({date: -1}).limit(1)
+	.then(latestDoc => {
+		return latestDoc && latestDoc.length > 0 ? _.get(latestDoc[0], 'pnlStats', null) : null;
+	});
+};
+
+DailyContestEntryPerformance.statics.fetchLastPnlStats = function(query, date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
 	return this.find({...query, date:{$lt: date}}, {pnlStats:1}).sort({date: -1}).limit(1)
 	.then(latestDoc => {
