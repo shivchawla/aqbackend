@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 11:57:15
+* @Last Modified time: 2018-11-28 12:14:30
 */
 'use strict';
 const config = require('config');
@@ -10,6 +10,7 @@ const schedule = require('node-schedule');
 const Promise = require('bluebird');
 const WebSocket = require('ws');
 
+const AdvisorModel = require('../../models/Marketplace/Advisor');
 const APIError = require('../../utils/error');
 
 const DateHelper = require('../../utils/Date');
