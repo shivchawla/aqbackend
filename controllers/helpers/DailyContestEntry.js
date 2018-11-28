@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 07:51:19
+* @Last Modified time: 2018-11-28 11:14:42
 */
 
 'use strict';
@@ -1063,7 +1063,7 @@ module.exports.updateAllEntriesLatestPnlStats = function(date){
 module.exports.updateAllEntriesNetPnlStats = function(date) {
 	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
 	.then(advisors => {
-		return Promise.mapSeries(advisors.filter(item => item._id.toString() === '5b0656413e758a46af54c877'), function(advisor) {
+		return Promise.mapSeries(advisors, function(advisor) {
 			let advisorId = advisor._id
 			return DailyContestEntryModel.countEntries({advisor: advisorId})
 			.then(countEntries => {
@@ -1233,7 +1233,7 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 };
 
 module.exports.addPredictions = function(advisorId, predictions, date) {
-	return DailyContestEntryModel.addEntryPredictions({advisor: advisorId, date: date}, predictions, {new:true, fields:'_id'})
+	return DailyContestEntryModel.addEntryPredictions({advisor: advisorId, date: date}, predictions, {new:true, upsert: true, fields:'_id'})
 	.then(() => {
 		var currentDate = DateHelper.getCurrentDate();
 		return Promise.mapSeries(predictions, function(prediction) {

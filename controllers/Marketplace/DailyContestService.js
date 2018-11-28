@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-27 20:20:37
+* @Last Modified time: 2018-11-28 11:21:03
 */
 
 'use strict';
@@ -229,7 +229,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			}
 		}).filter(item => item);
 
-		return DailyContestEntryHelper.addPredictions(advisorId, adjustedPredictions, validStartDate); 
+		return DailyContestEntryHelper.addPredictions(advisorId, adjustedPredictions, DateHelper.getMarketCloseDateTime(validStartDate)); 
 		
 	})
 	.then(final => {
@@ -326,8 +326,8 @@ module.exports.getDailyContestStats = (args, res, next) => {
 			APIError.throwJsonError({msg: "Only one of symbol/horizon parameter is allowed"})
 		} else {
 			let selection = {user: userId};
-			advisor
-			if (advisor !== null || (advisor || '').trim().length > 0) {
+			
+			if (advisor !== null && (advisor || '').trim().length > 0) {
 				selection = {_id: advisor.trim()};
 			}
 			return AdvisorModel.fetchAdvisor({...selection}, {fields: '_id'})		
