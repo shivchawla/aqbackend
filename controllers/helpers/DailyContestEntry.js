@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 17:14:03
+* @Last Modified time: 2018-11-28 17:28:58
 */
 
 'use strict';
@@ -989,7 +989,7 @@ module.exports.getDailyPnlStats = function(advisorId, date, category="active") {
 		if (pnlStats) {
 			switch(category) {
 				case "active" : return _.get(pnlStats, 'detail.daily.active', null); break;
-				case "ended" : return _.get(pnlStats, 'detaildaily.ended', null); break;
+				case "ended" : return _.get(pnlStats, 'detail.daily.ended', null); break;
 				case "started" : return _.get(pnlStats, 'detail.daily.started', null); break;
 			}
 		} else {
