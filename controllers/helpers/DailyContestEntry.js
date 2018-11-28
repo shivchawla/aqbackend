@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 17:28:58
+* @Last Modified time: 2018-11-28 19:49:43
 */
 
 'use strict';
@@ -183,13 +183,13 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		totalPnlPct_long = cost_long > 0 ? totalPnl_long/cost_long : 0;
 		totalPnlPct_short = cost_short > 0 ? totalPnl_short/cost_short : 0;
 
-		var profitFactor = pnlNegative > 0.0 ? pnlPositive/pnlNegative : NaN;
-		var profitFactor_long = pnlNegative_long > 0.0 ? pnlPositive_long/pnlNegative_long : NaN;
-		var profitFactor_short = pnlNegative_short > 0.0 ? pnlPositive_short/pnlNegative_short : NaN;
+		var profitFactor = pnlNegative > 0.0 ? pnlPositive/pnlNegative : pnlPositive > 0 ? NaN : 0;
+		var profitFactor_long = pnlNegative_long > 0.0 ? pnlPositive_long/pnlNegative_long : pnlPositive_long > 0 ? NaN : 0;
+		var profitFactor_short = pnlNegative_short > 0.0 ? pnlPositive_short/pnlNegative_short : pnlPositive_short > 0 ? NaN : 0;
 
-		var winRatio = countNegative > 0 ? countPositive/countNegative : 0;
-		var winRatio_long = countNegative_long > 0 ? countPositive_long/countNegative_long : 0;
-		var winRatio_short = countNegative_short > 0 ? countPositive_short/countNegative_short : 0; 
+		var winRatio = countNegative > 0 ? countPositive/countNegative : countPositive > 0 ? NaN : 0;
+		var winRatio_long = countNegative_long > 0 ? countPositive_long/countNegative_long : countPositive_long > 0 ? NaN : 0;
+		var winRatio_short = countNegative_short > 0 ? countPositive_short/countNegative_short : countPositive_short > 0 ? NaN : 0; 
 
 		netValue += cash;
 		grossValue += cash;
@@ -462,13 +462,13 @@ function _computePnlStats(portfolio, ticker) {
 		netValue += cash;
 		grossValue += cash;
 
-		var profitFactor = pnlNegative > 0.0 ? pnlPositive/pnlNegative : NaN;
-		var profitFactor_long = pnlNegative_long > 0.0 ? pnlPositive_long/pnlNegative_long : NaN;
-		var profitFactor_short = pnlNegative_short > 0.0 ? pnlPositive_short/pnlNegative_short : NaN;
+		var profitFactor = pnlNegative > 0.0 ? pnlPositive/pnlNegative : pnlPositive > 0 ? NaN : 0;
+		var profitFactor_long = pnlNegative_long > 0.0 ? pnlPositive_long/pnlNegative_long : pnlPositive_long > 0 ? NaN : 0;
+		var profitFactor_short = pnlNegative_short > 0.0 ? pnlPositive_short/pnlNegative_short : pnlPositive_short > 0 ? NaN : 0;
 
-		var winRatio = countNegative > 0 ? countPositive/countNegative : NaN;
-		var winRatio_long = countNegative_long > 0 ? countPositive_long/countNegative_long : NaN;
-		var winRatio_short = countNegative_short > 0 ? countPositive_short/countNegative_short : NaN; 
+		var winRatio = countNegative > 0 ? countPositive/countNegative : countPositive > 0 ? NaN : 0;
+		var winRatio_long = countNegative_long > 0 ? countPositive_long/countNegative_long : countPositive_long ? NaN : 0;
+		var winRatio_short = countNegative_short > 0 ? countPositive_short/countNegative_short : countPositive_short ? NaN : 0; 
 
 		totalPnlPct = cost > 0.0 ? totalPnl/cost : 0.0;
 		totalPnlPct_long = cost_long > 0.0 ? totalPnl_long/cost_long : 0.0;
@@ -903,7 +903,7 @@ function _computeNetPnlStats(advisorId, date) {
 	//Net Pnl = Sum of Realized pnl daily + latest unrealized pnl 
 	return Promise.all([
 		DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date),
-		DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId}, date),
+		DailyContestEntryPerformanceModel.fetchLastPnlStats({advisor: advisorId}, date),
 	])
 	.then(([latestPnlStats, yesterdayPnlStats]) => {
 		var latestActivePnlStats = _.get(latestPnlStats, 'detail.cumulative.active', {});
