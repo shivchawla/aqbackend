@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 19:49:43
+* @Last Modified time: 2018-11-28 20:23:58
 */
 
 'use strict';
@@ -1142,18 +1142,6 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 		console.log('Error', err);
 	})
 };
-
-
-var dates = ["2018-11-12","2018-11-13","2018-11-14","2018-11-15","2018-11-16","2018-11-19","2018-11-20","2018-11-21","2018-11-22", "2018-11-26", "2018-11-27"];
-
-// Promise.mapSeries(dates, function(date) {
-//         return exports.updateAllEntriesLatestPnlStats(date);
-// });
-
-// Promise.mapSeries(dates, function(date) {
-//     return exports.updateAllEntriesNetPnlStats(date);
-// });
-
 
 //Logic works for all predictions except that started today
 //Why??
