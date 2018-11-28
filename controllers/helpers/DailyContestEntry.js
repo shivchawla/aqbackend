@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 11:14:42
+* @Last Modified time: 2018-11-28 12:48:58
 */
 
 'use strict';
@@ -65,6 +65,18 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		var countNegative_long = 0;
 		var countNegative_short = 0;
 
+		var sumPnlPct = 0;
+		var sumPnlPct_long = 0;
+		var sumPnlPct_short = 0;
+
+		var sumPnlPctPositive = 0;
+		var sumPnlPctPositive_long = 0;
+		var sumPnlPctPositive_short = 0;
+
+		var sumPnlPctNegative = 0;
+		var sumPnlPctNegative_long = 0;
+		var sumPnlPctNegative_short = 0;
+
 		var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
 
 		var avgPnl, avgPnl_long, avgPnl_short, 
@@ -118,6 +130,17 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 			countNegative_long += _.get(item, 'long.countNegative', 0);
 			countNegative_short += _.get(item, 'short.countNegative', 0);
 
+			sumPnlPct += _.get(item, 'net.avgPnlPct', 0) * _.get(item, 'net.count', 0);
+			sumPnlPct_long += _.get(item, 'long.avgPnlPct', 0) * _.get(item, 'long.count', 0);
+			sumPnlPct_short += _.get(item, 'short.avgPnlPct', 0) * _.get(item, 'short.count', 0);
+
+			sumPnlPctPositive += _.get(item, 'net.avgPnlPctPositive', 0) * _.get(item, 'net.countPositive', 0);;
+			sumPnlPctPositive_long += _.get(item, 'long.avgPnlPctPositive', 0) * _.get(item, 'long.countPositive', 0);;
+			sumPnlPctPositive_short += _.get(item, 'short.avgPnlPctPositive', 0) * _.get(item, 'short.countPositive', 0);;
+
+			sumPnlPctNegative += _.get(item, 'net.avgPnlPctNegative', 0) * _.get(item, 'net.countNegative', 0);;
+			sumPnlPctNegative_long += _.get(item, 'long.avgPnlPctNegative', 0) * _.get(item, 'long.countNegative', 0);;
+			sumPnlPctNegative_short += _.get(item, 'short.avgPnlPctNegative', 0) * _.get(item, 'short.countNegative', 0);;
 		
 			if (!minPnl) {
 				minPnl = _.get(item, 'net.minPnl', {});
@@ -179,10 +202,6 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		var pnlPctNegative_long = costNegative_long > 0 ? pnlNegative_long/costNegative_long : 0;
 		var pnlPctNegative_short = costNegative_short > 0 ? pnlNegative_short/costNegative_short : 0;
 		
-		var avgPnlPctNegative = countNegative > 0 ? pnlPctNegative/count : 0;
-		var avgPnlPctNegative_long = countNegative_long > 0 ? pnlPctNegative_long/countNegative_long : 0;
-		var avgPnlPctNegative_short = countNegative_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
-
 		var avgPnl = count > 0 ? totalPnl/count : 0;
 		var avgPnl_long = count_long > 0 ? totalPnl_long/count_long : 0;
 		var avgPnl_short = count_short > 0 ? totalPnl_short/count_short : 0;
@@ -195,19 +214,18 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		var avgPnlNegative_long = countNegative_long > 0 ? pnlNegative_long/countNegative_long : 0;
 		var avgPnlNegative_short = countNegative_short > 0 ? pnlNegative_short/countNegative_short : 0;
 
-		var avgPnlPct = count > 0 ? totalPnlPct/count : 0;
-		var avgPnlPct_long = count_long > 0 ? totalPnlPct_long/count_long : 0;
-		var avgPnlPct_short = count_short > 0 ? totalPnlPct_short/count_short : 0;
+		var avgPnlPct = count > 0 ? sumPnlPct/count : 0;
+		var avgPnlPct_long = count_long > 0 ? sumPnlPct_long/count_long : 0;
+		var avgPnlPct_short = count_short > 0 ? sumPnlPct_short/count_short : 0;
 
-		var avgPnlPctPositive = countPositive > 0 ? pnlPctPositive/countPositive_long : 0;
-		var avgPnlPctPositive_long = countPositive_long > 0 ? pnlPctPositive_long/countPositive_long : 0;
-		var avgPnlPctPositive_short = countPositive_short > 0 ? pnlPctPositive_short/countPositive_short : 0;
+		var avgPnlPctPositive = countPositive > 0 ? sumPnlPctPositive/countPositive : 0;
+		var avgPnlPctPositive_long = countPositive_long > 0 ? sumPnlPctPositive_long/countPositive_long : 0;
+		var avgPnlPctPositive_short = countPositive_short > 0 ? sumPnlPctPositive_short/countPositive_short : 0;
 
-		var avgPnlPctNegative = countNegative > 0 ? pnlPctNegative/countNegative : 0;
-		var avgPnlPctNegative_long = countNegative_long > 0 ? pnlPctNegative_long/countNegative_long : 0;
-		var avgPnlPctNegative_short = countNegative_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
+		var avgPnlPctNegative = countNegative > 0 ? pnlPctNegative/count : 0;
+		var avgPnlPctNegative_long = countNegative_long > 0 ? sumPnlPctNegative_long/countNegative_long : 0;
+		var avgPnlPctNegative_short = countNegative_short > 0 ? sumPnlPctNegative_short/countNegative_short : 0;
 
-		
 		var pnlStats = {
 			net: {pnl: totalPnl, pnlPct: totalPnlPct, 
 				cost, costPositive, costNegative, 
@@ -322,6 +340,18 @@ function _computePnlStats(portfolio, ticker) {
 		var countNegative_long = 0;
 		var countNegative_short = 0;
 
+		var sumPnlPct = 0;
+		var sumPnlPct_long = 0;
+		var sumPnlPct_short = 0;
+
+		var sumPnlPctPositive = 0;
+		var sumPnlPctPositive_long = 0;
+		var sumPnlPctPositive_short = 0;
+
+		var sumPnlPctNegative = 0;
+		var sumPnlPctNegative_long = 0;
+		var sumPnlPctNegative_short = 0;
+
 		var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
 
 		portfolio.positions.filter(item => {return ticker ? item.security.ticker == ticker : true}).forEach(item => {
@@ -331,6 +361,18 @@ function _computePnlStats(portfolio, ticker) {
 			
 			var pnl = (currentValue - item.investment)
 			var absCost = Math.abs(item.investment);
+
+			var pnlPct = absCost > 0 ? pnl/absCost : 0;
+			var pnlPct_long = cost > 0 ? pnl/absCost : 0 
+			var pnlPct_short = cost < 0 ? pnl/absCost : 0;
+
+			var pnlPctPositive = absCost > 0 ? (pnl > 0 ? pnl/absCost : 0) : 0;
+			var pnlPctPositive_long = cost > 0 ? (pnl > 0 ? pnl/absCost : 0) : 0;
+			var pnlPctPositive_short = cost < 0 ? (pnl > 0 ? pnl/absCost : 0) : 0;
+	
+			var pnlPctNegative = absCost > 0 ? (pnl < 0 ? Math.abs(pnl)/absCost : 0) : 0;
+			var pnlPctNegative_long = cost > 0 ? (pnl < 0 ? Math.abs(pnl)/absCost : 0) : 0;
+			var pnlPctNegative_short = cost < 0 ? (pnl < 0 ? Math.abs(pnl)/absCost : 0) : 0;
 
 			cost += absCost;
 			cost_long += item.investment > 0.0 ? absCost : 0.0;
@@ -343,6 +385,18 @@ function _computePnlStats(portfolio, ticker) {
 			totalPnl += pnl;
 			totalPnl_long += item.investment > 0 ? pnl : 0.0;
 			totalPnl_short += item.investment < 0 ? pnl : 0.0;
+
+			sumPnlPct += pnlPct;
+			sumPnlPct_long += pnlPct_long;
+			sumPnlPct_short += pnlPct_short;
+
+			sumPnlPctPositive += pnlPctPositive;
+			sumPnlPctPositive_long += pnlPctPositive_long;
+			sumPnlPctPositive_short += pnlPctPositive_short;
+			
+			sumPnlPctNegative += pnlPctNegative;
+			sumPnlPctNegative_long += pnlPctNegative_long;
+			sumPnlPctNegative_short += pnlPctNegative_short;
 			
 			costPositive += pnl > 0 ? absCost : 0.0;
 			costPositive_long += item.investment > 0 ? (pnl > 0 ? absCost : 0.0) : 0.0;
@@ -419,10 +473,6 @@ function _computePnlStats(portfolio, ticker) {
 		var pnlPctNegative_long = costNegative_long > 0 ? pnlNegative_long/costNegative_long : 0;
 		var pnlPctNegative_short = costNegative_short > 0 ? pnlNegative_short/costNegative_short : 0;
 		
-		var avgPnlPctNegative = countNegative > 0 ? pnlPctNegative/count : 0;
-		var avgPnlPctNegative_long = countNegative_long > 0 ? pnlPctNegative_long/countNegative_long : 0;
-		var avgPnlPctNegative_short = countNegative_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
-
 		var avgPnl = count > 0 ? totalPnl/count : 0;
 		var avgPnl_long = count_long > 0 ? totalPnl_long/count_long : 0;
 		var avgPnl_short = count_short > 0 ? totalPnl_short/count_short : 0;
@@ -435,17 +485,17 @@ function _computePnlStats(portfolio, ticker) {
 		var avgPnlNegative_long = countNegative_long > 0 ? pnlNegative_long/countNegative_long : 0;
 		var avgPnlNegative_short = countNegative_short > 0 ? pnlNegative_short/countNegative_short : 0;
 
-		var avgPnlPct = count > 0 ? totalPnlPct/count : 0;
-		var avgPnlPct_long = count_long > 0 ? totalPnlPct_long/count_long : 0;
-		var avgPnlPct_short = count_short > 0 ? totalPnlPct_short/count_short : 0;
+		var avgPnlPct = count > 0 ? sumPnlPct/count : 0;
+		var avgPnlPct_long = count_long > 0 ? sumPnlPct_long/count_long : 0;
+		var avgPnlPct_short = count_short > 0 ? sumPnlPct_short/count_short : 0;
 
-		var avgPnlPctPositive = countPositive > 0 ? pnlPctPositive/count : 0;
-		var avgPnlPctPositive_long = countPositive_long > 0 ? pnlPctPositive_long/countPositive_long : 0;
-		var avgPnlPctPositive_short = countPositive_short > 0 ? pnlPctPositive_short/countPositive_short : 0;
+		var avgPnlPctPositive = countPositive > 0 ? sumPnlPctPositive/countPositive : 0;
+		var avgPnlPctPositive_long = countPositive_long > 0 ? sumPnlPctPositive_long/countPositive_long : 0;
+		var avgPnlPctPositive_short = countPositive_short > 0 ? sumPnlPctPositive_short/countPositive_short : 0;
 
 		var avgPnlPctNegative = countNegative > 0 ? pnlPctNegative/count : 0;
-		var avgPnlPctNegative_long = countNegative_long > 0 ? pnlPctNegative_long/countNegative_long : 0;
-		var avgPnlPctNegative_short = countNegative_short > 0 ? pnlPctNegative_short/countNegative_short : 0;
+		var avgPnlPctNegative_long = countNegative_long > 0 ? sumPnlPctNegative_long/countNegative_long : 0;
+		var avgPnlPctNegative_short = countNegative_short > 0 ? sumPnlPctNegative_short/countNegative_short : 0;
 
 		var pnlStats = {
 			net: {pnl: totalPnl, pnlPct: totalPnlPct, 
