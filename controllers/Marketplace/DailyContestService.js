@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 11:44:32
+* @Last Modified time: 2018-11-28 14:30:44
 */
 
 'use strict';
@@ -218,7 +218,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				item.endDate = DateHelper.getMarketCloseDateTime(DateHelper.getNextNonHolidayWeekday(item.endDate, 0));
 				item.active = true;
 				item.modified = 1;
-				item.nonMarketHoursFlag = DateHelper.isHoliday || !DateHelper.isMarketTrading();
+				item.nonMarketHoursFlag = DateHelper.isHoliday() || !DateHelper.isMarketTrading();
 				item.createdDate = new Date();
 
 				return item;

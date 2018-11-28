@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 12:48:58
+* @Last Modified time: 2018-11-28 14:19:59
 */
 
 'use strict';
@@ -1306,9 +1306,9 @@ module.exports.updateCallPriceForPredictions = function() {
 			//BECAUSE OF WEEKENDS AND HOLIDAYS,
 			//START DATE IS NOT SAME AS CURRENT DATE
 			//AND LOGIC BELOW WILL GIVE THE LATEST START DATE
-			let latestStartDate = exports.getValidStartDate();
+			let latestDate = DateHelper.getMarketCloseDateTime(exports.getValidStartDate());
 
-			return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, latestStartDate)
+			return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, latestDate)
 			.then(predictions => {
 				if (predictions && predictions.length > 0) {
 					
