@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-25 16:17:30
+* @Last Modified time: 2018-11-28 07:48:58
 */
 
 
@@ -98,6 +98,10 @@ DailyContestEntry.statics.fetchEntry = function(query, options) {
 	}
 
 	return q.execAsync();
+};
+
+DailyContestEntry.statics.countEntries = function(query) {
+	return this.count(query);
 };
 
 DailyContestEntry.statics.fetchEntries = function(query, options) {

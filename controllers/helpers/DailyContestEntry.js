@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 07:08:58
+* @Last Modified time: 2018-11-28 07:51:19
 */
 
 'use strict';
@@ -1029,18 +1029,25 @@ module.exports.updateAllEntriesLatestPnlStats = function(date){
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisor) {
 			let advisorId = advisor._id;
-			date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
-			return Promise.all([
-				_computeTotalPnlStatsForAll(advisorId, date),
-				_computeDailyPnlStatsForAll(advisorId, date)
-			])
-			.then(([totalPnl, dailyPnl]) => {
-				const updates = {
-					cumulative: totalPnl,
-					daily: dailyPnl
+			return DailyContestEntryModel.countEntries({advisor: advisorId})
+			.then(countEntries => {
+				if (countEntries > 0) {
+					date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+					return Promise.all([
+						_computeTotalPnlStatsForAll(advisorId, date),
+						_computeDailyPnlStatsForAll(advisorId, date)
+					])
+					.then(([totalPnl, dailyPnl]) => {
+						const updates = {
+							cumulative: totalPnl,
+							daily: dailyPnl
+						}
+						
+						return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, updates, date, "detail");
+					})
+				} else {
+					return;
 				}
-				
-				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, updates, date, "detail");
 			})
 
 		});
@@ -1058,10 +1065,17 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 	.then(advisors => {
 		return Promise.mapSeries(advisors.filter(item => item._id.toString() === '5b0656413e758a46af54c877'), function(advisor) {
 			let advisorId = advisor._id
-			date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
-			return _computeNetPnlStats(advisorId, date)
-			.then(netPnlStats => {
-				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, netPnlStats, date, "net");
+			return DailyContestEntryModel.countEntries({advisor: advisorId})
+			.then(countEntries => {
+				if (countEntries > 0){
+					date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+					return _computeNetPnlStats(advisorId, date)
+					.then(netPnlStats => {
+						return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, netPnlStats, date, "net");
+					})
+				} else {
+					return;
+				}
 			})
 		});
 	})
@@ -1116,7 +1130,6 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisor) {
 			let advisorId = advisor._id;
-
 			return exports.getPredictionsForDate(advisorId, currentDate, category, false)
 			.then(predictions => {
 
