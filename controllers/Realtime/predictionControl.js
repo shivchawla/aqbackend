@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-06 09:35:57
+* @Last Modified time: 2018-11-28 11:57:15
 */
 'use strict';
 const config = require('config');
@@ -31,29 +31,29 @@ function _sendWSResponse(res, data) {
 
 function _sendPredictionUpdates(subscription) {
 	
-	let entryId;
+	let advisorId;
 	let category;
 
 	return Promise.resolve()
 	.then(() => {
 		category = subscription.category;
-		entryId = subscription.entryId;
+		advisorId = subscription.advisorId;
 		
 		var date = DateHelper.getCurrentDate();
 
-		if (entryId) {
+		if (advisorId) {
 			return Promise.all([
-				DailyContestEntryHelper.getPredictionsForDate(entryId, date, category),
-				DailyContestEntryHelper.getPnlForDate(entryId, date, category)
+				DailyContestEntryHelper.getPredictionsForDate(advisorId, date, category),
+				DailyContestEntryHelper.getPnlForDate(advisorId, date, category)
 			]);
 		} else {
-			console.log("Contest Entry Invalid");
+			console.log("WS: Advisor Invalid");
 			return; 
 		}	
 		
 	})
 	.then(([predictions, pnl]) => {
-		return _sendWSResponse(subscription.response, {entryId, category, predictions, pnl});
+		return _sendWSResponse(subscription.response, {advisorId, category, predictions, pnl});
 	})
 }
 
@@ -71,26 +71,26 @@ function _handlePredictionSubscription(req, res) {
 		const userId = req.userId;
 		const category = req.category;
 
-		return DailyContestEntryHelper.getContestEntryForUser(userId)
-		.then(contestEntry => {
-			if (contestEntry) {
+		return AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id'})
+		.then(advisor => {
+			if (advisor) {
 
 				var subscription = predictionSubscribers[userId];
-				let contestEntryId = contestEntry._id;
+				let advisorId = advisor._id;
 
 				if (subscription) {
 					predictionSubscribers[userId].response = res;
 					predictionSubscribers[userId].category = category;
-					predictionSubscribers[userId].entryId = contestEntryId;
+					predictionSubscribers[userId].advisorId = advisorId;
 				} else {
-					predictionSubscribers[userId] = {response: res, category, entryId: contestEntryId};
+					predictionSubscribers[userId] = {response: res, category, advisorId: advisorId};
 				}
 
 				//Send immediate response back to subscriber
 				resolve(_sendPredictionUpdates(predictionSubscribers[userId]));
 			
 			} else {
-				APIError.throwJsonError({msg: "No contest entry found. WS request can't be completed"});
+				APIError.throwJsonError({msg: "No advisor found. WS request can't be completed"});
 			}
 
 		});
