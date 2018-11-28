@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 14:19:59
+* @Last Modified time: 2018-11-28 17:28:58
 */
 
 'use strict';
@@ -222,7 +222,7 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		var avgPnlPctPositive_long = countPositive_long > 0 ? sumPnlPctPositive_long/countPositive_long : 0;
 		var avgPnlPctPositive_short = countPositive_short > 0 ? sumPnlPctPositive_short/countPositive_short : 0;
 
-		var avgPnlPctNegative = countNegative > 0 ? pnlPctNegative/count : 0;
+		var avgPnlPctNegative = countNegative > 0 ? sumPnlPctNegative/countNegative : 0;
 		var avgPnlPctNegative_long = countNegative_long > 0 ? sumPnlPctNegative_long/countNegative_long : 0;
 		var avgPnlPctNegative_short = countNegative_short > 0 ? sumPnlPctNegative_short/countNegative_short : 0;
 
@@ -363,35 +363,37 @@ function _computePnlStats(portfolio, ticker) {
 
 		portfolio.positions.filter(item => {return ticker ? item.security.ticker == ticker : true}).forEach(item => {
 
-			var _cv = item.avgPrice > 0.0 ? item.investment * (item.lastPrice/item.avgPrice) : item.investment
+			var trueCost = item.investment;
+
+			var _cv = item.avgPrice > 0.0 ? trueCost * (item.lastPrice/item.avgPrice) : trueCost;
 			var currentValue = _cv + _.get(item, 'dividendCash', 0.0);
 			
-			var pnl = (currentValue - item.investment)
-			var absCost = Math.abs(item.investment);
+			var pnl = (currentValue - trueCost);
+			var absCost = Math.abs(trueCost);
 
 			var pnlPct = absCost > 0 ? pnl/absCost : 0;
-			var pnlPct_long = cost > 0 ? pnl/absCost : 0 
-			var pnlPct_short = cost < 0 ? pnl/absCost : 0;
+			var pnlPct_long = trueCost > 0 ? pnl/absCost : 0 
+			var pnlPct_short = trueCost < 0 ? pnl/absCost : 0;
 
 			var pnlPctPositive = absCost > 0 ? (pnl > 0 ? pnl/absCost : 0) : 0;
-			var pnlPctPositive_long = cost > 0 ? (pnl > 0 ? pnl/absCost : 0) : 0;
-			var pnlPctPositive_short = cost < 0 ? (pnl > 0 ? pnl/absCost : 0) : 0;
+			var pnlPctPositive_long = trueCost > 0 ? (pnl > 0 ? pnl/absCost : 0) : 0;
+			var pnlPctPositive_short = trueCost < 0 ? (pnl > 0 ? pnl/absCost : 0) : 0;
 	
 			var pnlPctNegative = absCost > 0 ? (pnl < 0 ? Math.abs(pnl)/absCost : 0) : 0;
-			var pnlPctNegative_long = cost > 0 ? (pnl < 0 ? Math.abs(pnl)/absCost : 0) : 0;
-			var pnlPctNegative_short = cost < 0 ? (pnl < 0 ? Math.abs(pnl)/absCost : 0) : 0;
+			var pnlPctNegative_long = trueCost > 0 ? (pnl < 0 ? Math.abs(pnl)/absCost : 0) : 0;
+			var pnlPctNegative_short = trueCost < 0 ? (pnl < 0 ? Math.abs(pnl)/absCost : 0) : 0;
 
 			cost += absCost;
-			cost_long += item.investment > 0.0 ? absCost : 0.0;
-			cost_short += item.investment < 0.0 ? absCost : 0.0;
+			cost_long += trueCost > 0.0 ? absCost : 0.0;
+			cost_short += trueCost < 0.0 ? absCost : 0.0;
 
 			count += 1;
-			count_long += item.investment > 0 ? 1 : 0;
-			count_short += item.investment < 0 ? 1 : 0;
+			count_long += trueCost > 0 ? 1 : 0;
+			count_short += trueCost < 0 ? 1 : 0;
 
 			totalPnl += pnl;
-			totalPnl_long += item.investment > 0 ? pnl : 0.0;
-			totalPnl_short += item.investment < 0 ? pnl : 0.0;
+			totalPnl_long += trueCost > 0 ? pnl : 0.0;
+			totalPnl_short += trueCost < 0 ? pnl : 0.0;
 
 			sumPnlPct += pnlPct;
 			sumPnlPct_long += pnlPct_long;
@@ -406,30 +408,30 @@ function _computePnlStats(portfolio, ticker) {
 			sumPnlPctNegative_short += pnlPctNegative_short;
 			
 			costPositive += pnl > 0 ? absCost : 0.0;
-			costPositive_long += item.investment > 0 ? (pnl > 0 ? absCost : 0.0) : 0.0;
-			costPositive_short += item.investment < 0 ? (pnl > 0 ? absCost : 0.0) : 0.0;
+			costPositive_long += trueCost > 0 ? (pnl > 0 ? absCost : 0.0) : 0.0;
+			costPositive_short += trueCost < 0 ? (pnl > 0 ? absCost : 0.0) : 0.0;
 			costNegative += pnl < 0 ? absCost : 0.0;
-			costNegative_long += item.investment > 0 ? (pnl < 0 ? absCost : 0.0) : 0.0;
-			costNegative_short += item.investment < 0 ? (pnl < 0 ? absCost : 0.0) : 0.0;
+			costNegative_long += trueCost > 0 ? (pnl < 0 ? absCost : 0.0) : 0.0;
+			costNegative_short += trueCost < 0 ? (pnl < 0 ? absCost : 0.0) : 0.0;
 
 			countPositive += pnl > 0 ? 1 : 0.0;
-			countPositive_long += item.investment > 0 ? (pnl > 0 ? 1 : 0.0) : 0.0;
-			countPositive_short += item.investment < 0 ? (pnl > 0 ? 1 : 0.0) : 0.0;
+			countPositive_long += trueCost > 0 ? (pnl > 0 ? 1 : 0.0) : 0.0;
+			countPositive_short += trueCost < 0 ? (pnl > 0 ? 1 : 0.0) : 0.0;
 			countNegative += pnl < 0 ? 1 : 0.0;
-			countNegative_long += item.investment > 0 ? (pnl < 0 ? 1 : 0.0) : 0.0;
-			countNegative_short += item.investment < 0 ? (pnl < 0 ? 1 : 0.0) : 0.0;
+			countNegative_long += trueCost > 0 ? (pnl < 0 ? 1 : 0.0) : 0.0;
+			countNegative_short += trueCost < 0 ? (pnl < 0 ? 1 : 0.0) : 0.0;
 
 			pnlPositive += pnl > 0 ? pnl : 0.0;
-			pnlPositive_long += item.investment > 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
-			pnlPositive_short += item.investment < 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
+			pnlPositive_long += trueCost > 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
+			pnlPositive_short += trueCost < 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
 			pnlNegative += pnl < 0 ? Math.abs(pnl) : 0.0;
-			pnlNegative_long += item.investment > 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
-			pnlNegative_short += item.investment < 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
+			pnlNegative_long += trueCost > 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
+			pnlNegative_short += trueCost < 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
 
 			netValue += currentValue;
 			grossValue += Math.abs(currentValue);
-			netValue_long += item.investment > 0 ? Math.abs(currentValue) : 0.0;
-			netValue_short += item.investment < 0 ? Math.abs(currentValue) : 0.0; 
+			netValue_long += trueCost > 0 ? Math.abs(currentValue) : 0.0;
+			netValue_short += trueCost < 0 ? Math.abs(currentValue) : 0.0; 
 
 			minPnl = minPnl ? 
 						pnl < minPnl.value ? {security: item.security, value: pnl} : minPnl : 
@@ -439,7 +441,7 @@ function _computePnlStats(portfolio, ticker) {
 						{security: item.security, value: pnl};
 
 
-			if (item.investment < 0.0) {			
+			if (trueCost < 0.0) {			
 				minPnl_short = minPnl_short ? 
 					pnl < minPnl_short.value ? {security: item.security, value: pnl} : minPnl_short : 
 				    {security: item.security, value: pnl};
@@ -500,7 +502,7 @@ function _computePnlStats(portfolio, ticker) {
 		var avgPnlPctPositive_long = countPositive_long > 0 ? sumPnlPctPositive_long/countPositive_long : 0;
 		var avgPnlPctPositive_short = countPositive_short > 0 ? sumPnlPctPositive_short/countPositive_short : 0;
 
-		var avgPnlPctNegative = countNegative > 0 ? pnlPctNegative/count : 0;
+		var avgPnlPctNegative = countNegative > 0 ? sumPnlPctNegative/countNegative : 0;
 		var avgPnlPctNegative_long = countNegative_long > 0 ? sumPnlPctNegative_long/countNegative_long : 0;
 		var avgPnlPctNegative_short = countNegative_short > 0 ? sumPnlPctNegative_short/countNegative_short : 0;
 
@@ -978,9 +980,9 @@ module.exports.getTotalPnlStats = function(advisorId, date, category="active") {
 		if (pnlStats) {
 			switch(category) {
 				//HOW TO ADD CHECK FOR KEYS
-				case "active" : return pnlStats.cumulative.active; break;
-				case "ended" : return pnlStats.cumulative.ended; break;
-				case "started" : return pnlStats.cumulative.started; break;
+				case "active" : return _.get(pnlStats,'detail.cumulative.active', null); break;
+				case "ended" : return _.get(pnlStats, 'detail.cumulative.ended', null); break;
+				case "started" : return _.get(pnlStats, 'detail.cumulative.started', null); break;
 			}
 		} else {
 			return _computeTotalPnlStats(advisorId, date, category);
@@ -993,9 +995,9 @@ module.exports.getDailyPnlStats = function(advisorId, date, category="active") {
 	.then(pnlStats => {
 		if (pnlStats) {
 			switch(category) {
-				case "active" : return pnlStats.daily.active; break;
-				case "ended" : return pnlStats.daily.ended; break;
-				case "started" : return pnlStats.daily.started; break;
+				case "active" : return _.get(pnlStats, 'detail.daily.active', null); break;
+				case "ended" : return _.get(pnlStats, 'detail.daily.ended', null); break;
+				case "started" : return _.get(pnlStats, 'detail.daily.started', null); break;
 			}
 		} else {
 			return _computeDailyPnlStats(advisorId, date, category);

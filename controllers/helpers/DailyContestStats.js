@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-22 19:56:44
+* @Last Modified time: 2018-11-28 18:35:13
 */
 
 'use strict';
@@ -23,24 +23,25 @@ const DailyContestStatsModel = require('../../models/Marketplace/DailyContestSta
 
 
 function _computeContestWinners(date) {
-	return DailyContestEntryModel.fetchEntries({}, {fields: '_id advisor'})
-	.then(allEntries => {
-		return Promise.mapSeries(allEntries, function(contestEntry) {
+	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
+	.then(allAdvisors => {
+		return Promise.mapSeries(allAdvisors, function(advisor) {
+			let advisorId = advisor._id;
 			return Promise.all([
-				DailyContestEntryHelper.getTotalPnlStats(contestEntry._id, date, "ended"),
-				DailyContestEntryHelper.getTotalPnlStats(contestEntry._id, date, "active")
+				DailyContestEntryHelper.getTotalPnlStats(advisorId, date, "ended"),
+				DailyContestEntryHelper.getTotalPnlStats(advisorId, date, "active")
 			])
 			.then(([pnlStatsEndedPredictionsForAdvisor, pnlStatsActivePredictionsForAdvisor]) => {
-				var realizedPnl =  pnlStatsEndedPredictionsForAdvisor.total.pnl;
-				var endedInvestment = pnlStatsEndedPredictionsForAdvisor.total.cost;
-				var activeInvestment = pnlStatsActivePredictionsForAdvisor.total.cost;
+				var realizedPnl =  pnlStatsEndedPredictionsForAdvisor.all.net.pnl;
+				var endedInvestment = pnlStatsEndedPredictionsForAdvisor.all.net.cost;
+				var activeInvestment = pnlStatsActivePredictionsForAdvisor.all.net.cost;
 				var totalInvestment = endedInvestment + activeInvestment;
 				
 				var pnlPct = totalInvestment > 0 ? realizedPnl/totalInvestment : 0;
 
-				var profitFactor = pnlStatsEndedPredictionsForAdvisor.total.profitFactor;
+				var profitFactor = pnlStatsEndedPredictionsForAdvisor.all.net.profitFactor;
 
-				return Object.assign({advisor: contestEntry.advisor._id}, {pnlStats: {total: {pnlPct, pnl: realizedPnl, profitFactor, cost: totalInvestment}}});
+				return Object.assign({advisor: advisorId}, {pnlStats: {total: {pnlPct, pnl: realizedPnl, profitFactor, cost: totalInvestment}}});
 			})
 		})
 		.then(pnlStatsForAllAdvisors => {
@@ -92,10 +93,12 @@ function _updateMetrics (metrics, prediction) {
 }
 
 function _computeContestPredictionMetrics(date) {
-	return DailyContestEntryModel.fetchEntries({}, {fields: '_id advisor'})
-	.then(allEntries => {
-		return Promise.mapSeries(allEntries, function(contestEntry) {
-			return DailyContestEntryHelper.getPredictionsForDate(contestEntry._id, date, "started")
+	return AdvisorModel.fetchAdvisors({}, {fields:'_id'})
+	.then(allAdvisors => {
+		
+		return Promise.mapSeries(allAdvisors, function(advisor) {
+			var advisorId = advisor._id;
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, "started")
 		})
 		.then(predictionsByAdvisors => {
 			return Array.prototype.concat.apply([], predictionsByAdvisors);
@@ -209,7 +212,7 @@ function _computeWinnerDigest(winners) {
 
 		return AdvisorModel.fetchAdvisor({_id: winnerAdvisorId}, {fields: 'user'})
 		.then(advisor => {
-			return {winnerName: `${advisor.user.firstName} ${advisor.user.lastName}`, pnlPct:winner.pnlStats.total.pnlPct}		
+			return {winnerName: `${advisor.user.firstName} ${advisor.user.lastName}`, pnlPct:winner.pnlStats.net.pnlPct}		
 		})
 	})
 	.then(winnerStats => {
@@ -305,7 +308,7 @@ module.exports.sendWinnerDigest = function(date) {
 
 			return Promise.mapSeries(winners, function(winner) {
 				let winnerDigest = {leaderboardUrl, 
-					pnlPct: (_.get(winner,'pnlStats.total.pnlPct')*100).toFixed(2), 
+					pnlPct: (_.get(winner,'pnlStats.net.pnlPct')*100).toFixed(2), 
 					rank: winner.rank,
 					dailyContestDate: moment(date).format("Do MMM'YYYY")};
 				
