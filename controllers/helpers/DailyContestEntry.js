@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-25 17:50:49
+* @Last Modified time: 2018-11-28 07:08:58
 */
 
 'use strict';
@@ -731,14 +731,12 @@ function _computeTotalPnlStats(advisorId, date, category="active") {
 			}
 			return  item.position;
 		});
-		console.log(date);
 		//Total Pnl
 		return Promise.all([
 			_getPnlStats({positions: updatedPositions}),
 			_getPnlStats({positions: updatedPositions}, true)
 		])
 		.then(([pnlStatsAll, pnlStatsByTicker]) => {
-			console.log(pnlStatsAll);
 			return {
 				all: pnlStatsAll,
 				byTickers: pnlStatsByTicker
@@ -1029,7 +1027,7 @@ module.exports.getContestEntryForUser = function(userId) {
 module.exports.updateAllEntriesLatestPnlStats = function(date){
 	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
 	.then(advisors => {
-		return Promise.mapSeries(advisors.filter(item => item._id.toString() === '5b0656413e758a46af54c877'), function(advisor) {
+		return Promise.mapSeries(advisors, function(advisor) {
 			let advisorId = advisor._id;
 			date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 			return Promise.all([
