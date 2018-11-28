@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-22 19:56:44
+* @Last Modified time: 2018-11-28 16:45:36
 */
 
 'use strict';
@@ -23,12 +23,13 @@ const DailyContestStatsModel = require('../../models/Marketplace/DailyContestSta
 
 
 function _computeContestWinners(date) {
-	return DailyContestEntryModel.fetchEntries({}, {fields: '_id advisor'})
-	.then(allEntries => {
-		return Promise.mapSeries(allEntries, function(contestEntry) {
+	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
+	.then(allAdvisors => {
+		return Promise.mapSeries(allAdvisors, function(advisor) {
+			let advisorId = advisor._id;
 			return Promise.all([
-				DailyContestEntryHelper.getTotalPnlStats(contestEntry._id, date, "ended"),
-				DailyContestEntryHelper.getTotalPnlStats(contestEntry._id, date, "active")
+				DailyContestEntryHelper.getTotalPnlStats(advisorId, date, "ended"),
+				DailyContestEntryHelper.getTotalPnlStats(advisorId, date, "active")
 			])
 			.then(([pnlStatsEndedPredictionsForAdvisor, pnlStatsActivePredictionsForAdvisor]) => {
 				var realizedPnl =  pnlStatsEndedPredictionsForAdvisor.total.pnl;
@@ -40,7 +41,7 @@ function _computeContestWinners(date) {
 
 				var profitFactor = pnlStatsEndedPredictionsForAdvisor.total.profitFactor;
 
-				return Object.assign({advisor: contestEntry.advisor._id}, {pnlStats: {total: {pnlPct, pnl: realizedPnl, profitFactor, cost: totalInvestment}}});
+				return Object.assign({advisor: advisorId}, {pnlStats: {total: {pnlPct, pnl: realizedPnl, profitFactor, cost: totalInvestment}}});
 			})
 		})
 		.then(pnlStatsForAllAdvisors => {
@@ -92,10 +93,12 @@ function _updateMetrics (metrics, prediction) {
 }
 
 function _computeContestPredictionMetrics(date) {
-	return DailyContestEntryModel.fetchEntries({}, {fields: '_id advisor'})
-	.then(allEntries => {
-		return Promise.mapSeries(allEntries, function(contestEntry) {
-			return DailyContestEntryHelper.getPredictionsForDate(contestEntry._id, date, "started")
+	return AdvisorModel.fetchAdvisors({}, {fields:'_id'})
+	.then(allAdvisors => {
+		
+		return Promise.mapSeries(allAdvisors, function(advisor) {
+			var advisorId = advisor._id;
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, "started")
 		})
 		.then(predictionsByAdvisors => {
 			return Array.prototype.concat.apply([], predictionsByAdvisors);
