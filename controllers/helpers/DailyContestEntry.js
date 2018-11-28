@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 14:19:59
+* @Last Modified time: 2018-11-28 16:01:43
 */
 
 'use strict';
@@ -359,7 +359,7 @@ function _computePnlStats(portfolio, ticker) {
 			var _cv = item.avgPrice > 0.0 ? item.investment * (item.lastPrice/item.avgPrice) : item.investment
 			var currentValue = _cv + _.get(item, 'dividendCash', 0.0);
 			
-			var pnl = (currentValue - item.investment)
+			var pnl = item.investment > 0 ? (currentValue - item.investment) : (item.investment - currentValue);
 			var absCost = Math.abs(item.investment);
 
 			var pnlPct = absCost > 0 ? pnl/absCost : 0;
