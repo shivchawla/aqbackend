@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 16:45:36
+* @Last Modified time: 2018-11-28 17:36:51
 */
 
 'use strict';
@@ -32,22 +32,22 @@ function _computeContestWinners(date) {
 				DailyContestEntryHelper.getTotalPnlStats(advisorId, date, "active")
 			])
 			.then(([pnlStatsEndedPredictionsForAdvisor, pnlStatsActivePredictionsForAdvisor]) => {
-				var realizedPnl =  pnlStatsEndedPredictionsForAdvisor.total.pnl;
-				var endedInvestment = pnlStatsEndedPredictionsForAdvisor.total.cost;
-				var activeInvestment = pnlStatsActivePredictionsForAdvisor.total.cost;
+				var realizedPnl =  pnlStatsEndedPredictionsForAdvisor.net.pnl;
+				var endedInvestment = pnlStatsEndedPredictionsForAdvisor.net.cost;
+				var activeInvestment = pnlStatsActivePredictionsForAdvisor.net.cost;
 				var totalInvestment = endedInvestment + activeInvestment;
 				
 				var pnlPct = totalInvestment > 0 ? realizedPnl/totalInvestment : 0;
 
-				var profitFactor = pnlStatsEndedPredictionsForAdvisor.total.profitFactor;
+				var profitFactor = pnlStatsEndedPredictionsForAdvisor.net.profitFactor;
 
 				return Object.assign({advisor: advisorId}, {pnlStats: {total: {pnlPct, pnl: realizedPnl, profitFactor, cost: totalInvestment}}});
 			})
 		})
 		.then(pnlStatsForAllAdvisors => {
 			return pnlStatsForAllAdvisors
-			.filter(item => {return item.pnlStats.total.pnlPct > 0})			
-			.sort((a,b) => {return a.pnlStats.total.pnlPct > b.pnlStats.total.pnlPct ? -1 : 1})
+			.filter(item => {return item.pnlStats.net.pnlPct > 0})			
+			.sort((a,b) => {return a.pnlStats.net.pnlPct > b.pnlStats.net.pnlPct ? -1 : 1})
 			.slice(0, 5)
 			.map((item, index) => {item.rank = index+1; return item;});
 		});
@@ -212,7 +212,7 @@ function _computeWinnerDigest(winners) {
 
 		return AdvisorModel.fetchAdvisor({_id: winnerAdvisorId}, {fields: 'user'})
 		.then(advisor => {
-			return {winnerName: `${advisor.user.firstName} ${advisor.user.lastName}`, pnlPct:winner.pnlStats.total.pnlPct}		
+			return {winnerName: `${advisor.user.firstName} ${advisor.user.lastName}`, pnlPct:winner.pnlStats.net.pnlPct}		
 		})
 	})
 	.then(winnerStats => {
@@ -308,7 +308,7 @@ module.exports.sendWinnerDigest = function(date) {
 
 			return Promise.mapSeries(winners, function(winner) {
 				let winnerDigest = {leaderboardUrl, 
-					pnlPct: (_.get(winner,'pnlStats.total.pnlPct')*100).toFixed(2), 
+					pnlPct: (_.get(winner,'pnlStats.net.pnlPct')*100).toFixed(2), 
 					rank: winner.rank,
 					dailyContestDate: moment(date).format("Do MMM'YYYY")};
 				
