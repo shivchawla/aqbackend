@@ -261,15 +261,22 @@ function _aggregatePnlStatsByTickers(pnlStatsByTickersArray) {
 
 		var uniqueTickers = _.uniq(allTickers);
 
-		uniqueTickers.forEach(ticker => {
+		Promise.map(uniqueTickers, ticker => {
 			var allPnlStatsForTicker = pnlStatsByTickersArray.map(item => {
 				return _.get(item, `${ticker}`, null);
 			}).filter(item => item);
-
-			aggregatedStatsByTickers[ticker] = allPnlStatsForTicker.length > 1 ?  
-				_aggregatePnlStats(allPnlStatsForTicker) :
-				allPnlStatsForTicker.length > 0 ? allPnlStatsForTicker[0] : {};
-		});
+			
+			if (allPnlStatsForTicker.length > 1) {
+				_aggregatePnlStats(allPnlStatsForTicker)
+				.then(data => {
+					aggregatedStatsByTickers[ticker] = data;
+				});
+			} else {
+				aggregatedStatsByTickers[ticker] = allPnlStatsForTicker.length > 0 
+					? allPnlStatsForTicker[0] 
+					: {};
+			}
+		})
 		
 		resolve(aggregatedStatsByTickers);
 	});
@@ -1085,14 +1092,14 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 };
 
 
-var dates = ["2018-11-12","2018-11-13","2018-11-14","2018-11-15","2018-11-16","2018-11-19","2018-11-20","2018-11-21","2018-11-22"];
+var dates = ["2018-11-12","2018-11-13","2018-11-14","2018-11-15","2018-11-16","2018-11-19","2018-11-20","2018-11-21","2018-11-22", "2018-11-26", "2018-11-27"];
 
 // Promise.mapSeries(dates, function(date) {
 //         return exports.updateAllEntriesLatestPnlStats(date);
 // });
 
 // Promise.mapSeries(dates, function(date) {
-//         return exports.updateAllEntriesNetPnlStats(date);
+//     return exports.updateAllEntriesNetPnlStats(date);
 // });
 
 
@@ -1290,22 +1297,28 @@ module.exports.getDailyContestEntryPnlStats = function(advisorId, symbol, horizo
 	return Promise.resolve()
 	.then(() => {
 		if (!symbol && !horizon) {
-			return DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId})
-		} else{
+			return DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId});
+		} else if (symbol !== null){
+			return DailyContestEntryPerformanceModel.fetchLatestPnlStatsForSymbol({advisor: advisorId}, symbol);
+		} else {
 			APIError.throwJsonError({msg:"oops"});
 		}
 	})
 	.then(latestPnlStats => {
 		if (latestPnlStats) {
-			var netPnlStats =_.get(latestPnlStats, 'net', {});
-			var keys = ["realized", "unrealized", "total"];
-			const output = {};
-			
-			keys.forEach(key => {
-				output[key] = _.get(netPnlStats, `${key}.all`, {});
-			});
+			if (symbol !== null) {
+				return latestPnlStats;
+			} else {
+				var netPnlStats =_.get(latestPnlStats, 'net', {});
+				var keys = ["realized", "unrealized", "total"];
+				const output = {};
+				
+				keys.forEach(key => {
+					output[key] = _.get(netPnlStats, `${key}.all`, {});
+				});
 
-			return output;
+				return output;
+			}
 		} else {
 			APIError.throwJsonError({msg: "No Pnl Stats"});
 		}
