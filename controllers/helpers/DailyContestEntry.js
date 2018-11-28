@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 16:32:46
+* @Last Modified time: 2018-11-28 17:14:03
 */
 
 'use strict';
@@ -973,9 +973,9 @@ module.exports.getTotalPnlStats = function(advisorId, date, category="active") {
 		if (pnlStats) {
 			switch(category) {
 				//HOW TO ADD CHECK FOR KEYS
-				case "active" : return pnlStats.cumulative.active; break;
-				case "ended" : return pnlStats.cumulative.ended; break;
-				case "started" : return pnlStats.cumulative.started; break;
+				case "active" : return _.get(pnlStats,'detail.cumulative.active', null); break;
+				case "ended" : return _.get(pnlStats, 'detail.cumulative.ended', null); break;
+				case "started" : return _.get(pnlStats, 'detail.cumulative.started', null); break;
 			}
 		} else {
 			return _computeTotalPnlStats(advisorId, date, category);
@@ -988,9 +988,9 @@ module.exports.getDailyPnlStats = function(advisorId, date, category="active") {
 	.then(pnlStats => {
 		if (pnlStats) {
 			switch(category) {
-				case "active" : return pnlStats.daily.active; break;
-				case "ended" : return pnlStats.daily.ended; break;
-				case "started" : return pnlStats.daily.started; break;
+				case "active" : return _.get(pnlStats, 'detail.daily.active', null); break;
+				case "ended" : return _.get(pnlStats, 'detaildaily.ended', null); break;
+				case "started" : return _.get(pnlStats, 'detail.daily.started', null); break;
 			}
 		} else {
 			return _computeDailyPnlStats(advisorId, date, category);
