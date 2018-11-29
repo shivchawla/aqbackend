@@ -3921,6 +3921,12 @@ paths:
         description: "auth token"
         type: "string"
         required: true
+      - name: date
+        in: query
+        description: date
+        type: string
+        format: date 
+        required: false
       responses:
         200:
           description: OK
@@ -3943,6 +3949,12 @@ paths:
         description: "auth token"
         type: "string"
         required: true
+      - name: date
+        in: query
+        description: date
+        type: string
+        format: date 
+        required: false
       responses:
         200:
           description: OK
