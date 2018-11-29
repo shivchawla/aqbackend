@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 20:02:04
+* @Last Modified time: 2018-11-28 20:45:17
 */
 
 
@@ -27,6 +27,9 @@ const DailyContestEntryPerformance = new Schema({
 
 	earningStats: Schema.Types.Mixed
 });
+
+DailyContestEntryPerformance.index({advisor: 1, date:1}, {unique: true});
+DailyContestEntryPerformance.index({advisor: 1}, {unique: false});
 
 DailyContestEntryPerformance.statics.fetch  = function() {
 	return this.find({},{advisor:1});

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 19:50:08
+* @Last Modified time: 2018-11-29 09:39:06
 */
 
 
@@ -81,6 +81,10 @@ const DailyContestEntry = new Schema({
 	date: Date, //This corresponds to startDate (mapped to end of market close)
 	predictions: [Prediction]
 });
+
+
+DailyContestEntry.index({advisor: 1, date:1}, {unique: true});
+DailyContestEntry.index({advisor: 1}, {unique: false});
 
 /*Rules
 1. Entry Item can be added any day
