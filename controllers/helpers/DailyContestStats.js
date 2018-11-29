@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-29 21:38:09
+* @Last Modified time: 2018-11-29 21:51:31
 */
 
 'use strict';
@@ -253,7 +253,7 @@ function _getContestDigest(date) {
 			var topStocksUrl = `${config.get('hostname')}/dailycontest/toppicks?date=${moment(date).format("YYYY-MM-DD")}`;
 			var submitPredictionUrl = `${config.get('hostname')}/dailycontest/stockpredictions`;
 
-			var summaryDigest = {leaderboardUrl, topStocksUrl, dailyContestDate: moment(date).format("Do MMM YYYY")};		
+			var summaryDigest = {leaderboardUrl, topStocksUrl, submitPredictionUrl, dailyContestDate: moment(date).format("Do MMM YYYY")};		
 
 			return _computeWinnerDigest(winners)
 			.then(winnerDigest => {
@@ -338,7 +338,7 @@ module.exports.sendWinnerDigest = function(date) {
 			var submitPredictionUrl = `${config.get('hostname')}/dailycontest/stockpredictions`;
 
 			return Promise.mapSeries(winners, function(winner) {
-				let winnerDigest = {leaderboardUrl, 
+				let winnerDigest = {leaderboardUrl, submitPredictionUrl,
 					pnlPct: `${(_.get(winner,'pnlStats.total.pnlPct')*100).toFixed(2)}%`, 
 					rank: winner.rank,
 					dailyContestDate: moment(date).format("Do MMM'YYYY")};
