@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 12:14:30
+* @Last Modified time: 2018-11-29 11:07:35
 */
 'use strict';
 const config = require('config');
@@ -26,7 +26,7 @@ function _sendWSResponse(res, data) {
 		var msg = JSON.stringify(data)
 		return res.send(msg);
 	} else {
-		APIError.throwJsonError({message: "Websocket is not OPEN"});
+		throw new Error("Websocket is not OPEN");
 	}
 }
 
@@ -56,6 +56,10 @@ function _sendPredictionUpdates(subscription) {
 	.then(([predictions, pnl]) => {
 		return _sendWSResponse(subscription.response, {advisorId, category, predictions, pnl});
 	})
+	.catch(err => {
+		subscription.errorCount += 1;	
+		console.log(err.message);
+	})
 }
 
 function _sendAllPredictionUpdates() {
@@ -63,7 +67,13 @@ function _sendAllPredictionUpdates() {
 	
 	return Promise.mapSeries(subscribers, function(subscriberId) {
 		var subscription = predictionSubscribers[subscriberId];
-		return _sendPredictionUpdates(subscription);
+		if (subscription.errorCount > 5) {
+			console.log("Deleting subscriber from list. WS connection is invalid for 5th attmept")
+			delete predictionSubscribers.subscriberId;
+			return;
+		} else {
+			return _sendPredictionUpdates(subscription);
+		}
 	});
 }
 
@@ -83,8 +93,9 @@ function _handlePredictionSubscription(req, res) {
 					predictionSubscribers[userId].response = res;
 					predictionSubscribers[userId].category = category;
 					predictionSubscribers[userId].advisorId = advisorId;
+					predictionSubscribers[userId].errorCount = 0;
 				} else {
-					predictionSubscribers[userId] = {response: res, category, advisorId: advisorId};
+					predictionSubscribers[userId] = {response: res, category, advisorId: advisorId; errorCount: 0};
 				}
 
 				//Send immediate response back to subscriber
