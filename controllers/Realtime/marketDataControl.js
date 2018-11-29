@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 13:05:39
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-06 11:48:52
+* @Last Modified time: 2018-11-29 11:27:14
 */
 'use strict';
 const config = require('config');
@@ -143,10 +143,7 @@ function _getLatestFile(type) {
 			date = date < 10 ? `0${date}` : date;
 			var year = currentDate.getFullYear();
 			var nseDateStr = `${monthNames[month]}${date}${year}`;
-			var zipFileName = `${fileNumber}.${type}.gz`;
 			
-			var nseFilePath =`/CM30/DATA/${nseDateStr}/${zipFileName}`;
-
 			var localPath = path.resolve(path.join(homeDir, `/rtdata/${nseDateStr}`));
 			if (!fs.existsSync(localPath)) {
 			    fs.mkdirSync(localPath);	
@@ -271,6 +268,6 @@ function processLatestFiles() {
 	})
 	.catch(err => {
 		console.log("Error downloading Realtime Data")
-		console.log(err);
+		console.log(err.message);
 	});
 }

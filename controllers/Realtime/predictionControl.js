@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-29 11:07:35
+* @Last Modified time: 2018-11-29 11:10:57
 */
 'use strict';
 const config = require('config');
@@ -95,7 +95,7 @@ function _handlePredictionSubscription(req, res) {
 					predictionSubscribers[userId].advisorId = advisorId;
 					predictionSubscribers[userId].errorCount = 0;
 				} else {
-					predictionSubscribers[userId] = {response: res, category, advisorId: advisorId; errorCount: 0};
+					predictionSubscribers[userId] = {response: res, category, advisorId: advisorId, errorCount: 0};
 				}
 
 				//Send immediate response back to subscriber
