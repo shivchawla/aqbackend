@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 20:23:58
+* @Last Modified time: 2018-11-29 10:02:02
 */
 
 'use strict';
@@ -1208,8 +1208,8 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 					//check if prediction are successful on daily high/low basis
 					return SecurityHelper.getStockLatestDetailByType({ticker: ticker}, "RT")
 					.then(securityDetail => {
-						var highPrice = securityDetail.latestDetail.high;
-						var lowPrice = securityDetail.latestDetail.low;
+						var highPrice = _.get(securityDetail,'latestDetail.high', -Infinity);
+						var lowPrice = _.get(securityDetail, 'latestDetail.low', Infinity);
 
 						var successfulPredictions = allPredictionsByTicker.filter(item => {
 							var investment = item.position.investment;
@@ -1246,8 +1246,8 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 										var startDate = item.startDate;
 										var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, startDate);
 
-										var highPrice = extremePricesSinceStartDate.high.high;
-										var lowPrice = extremePricesSinceStartDate.low.high;
+										var highPrice = _.get(extremePricesSinceStartDate, 'high.high', -Infinity);
+										var lowPrice = _.get(extremePricesSinceStartDate, 'low.low', Infinity);
 
 										return (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
 
