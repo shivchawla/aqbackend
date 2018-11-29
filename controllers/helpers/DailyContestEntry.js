@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-29 10:45:49
+* @Last Modified time: 2018-11-29 15:27:11
 */
 
 'use strict';
@@ -613,8 +613,8 @@ function _getExtremePrices(history, startDate) {
 
 	if (relevantHistory.length > 0) {
 		return {
-			high: _.maxBy(relevantHistory, 'high'), 
-			low: _.minBy(relevantHistory, 'low')
+			high: _.get(_.maxBy(relevantHistory, 'high'), 'high', -Infinity), 
+			low: _.get(_.minBy(relevantHistory, 'low'), 'low', Infinity)
 		};
 	} else {
 		return {high: -Infinity, low: Infinity};
@@ -1210,8 +1210,15 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 					.then(securityDetail => {
 						var highPrice = _.get(securityDetail,'latestDetail.high', -Infinity);
 						var lowPrice = _.get(securityDetail, 'latestDetail.low', Infinity);
+						var rtPriceDate = DateHelper.getDate(_.get(securityDetail, 'latestDetail.date', null));
+						
+						//At the beginning of the day, the latest RT may not be available
+						//And above call may return yesterday's RT data.
+						//Therefore, before making target check, make sure that the
+						//price belongs to the current date
+						var isPriceDataForToday = DateHelper.compareDates(DateHelper.getCurrentDate(), rtPriceDate) == 0;
 
-						var successfulPredictions = allPredictionsByTicker.filter(item => {
+						var successfulPredictions = isPriceDataForToday ? allPredictionsByTicker.filter(item => {
 							var investment = item.position.investment;
 							var target = item.target;
 
@@ -1226,7 +1233,7 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 
 						 	return success;
 
-						});
+						}) : [];
 
 						//SHORTCUT
 						//FIRST check which predictions are successful on daily high/low basis
@@ -1256,8 +1263,8 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 										var startDate = item.startDate;
 										var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, startDate);
 
-										var highPrice = _.get(extremePricesSinceStartDate, 'high.high', -Infinity);
-										var lowPrice = _.get(extremePricesSinceStartDate, 'low.low', Infinity);
+										var highPrice = _.get(extremePricesSinceStartDate, 'high', -Infinity);
+										var lowPrice = _.get(extremePricesSinceStartDate, 'low', Infinity);
 
 										var success = (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
 
