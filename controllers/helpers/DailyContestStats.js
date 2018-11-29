@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-29 21:30:48
+* @Last Modified time: 2018-11-29 21:38:09
 */
 
 'use strict';
@@ -21,6 +21,7 @@ const UserModel = require('../../models/user');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
+const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 
 function _computeContestWinners(date) {
 	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
