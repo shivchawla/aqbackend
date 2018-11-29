@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-29 09:39:06
+* @Last Modified time: 2018-11-29 10:47:19
 */
 
 
@@ -66,8 +66,11 @@ const Prediction = new Schema({
 	},
 	success: {
 		status: {type: Boolean, default: false},
-		date: Date
+		date: Date,
+		trueDate: Date,
+		price: Number
 	},
+
 	modified: {type:Number, default: 0},
 	
 	nonMarketHoursFlag: {
@@ -207,6 +210,7 @@ DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, da
 };
 
 //This is not good programming
+//NOT IN USE
 DailyContestEntry.statics.updatePredictionStatus = function(query, prediction) {
    var q = {predictions:{$elemMatch:{'position.security.ticker': prediction.position.security.ticker, 
                 endDate: prediction.endDate,
@@ -242,6 +246,8 @@ DailyContestEntry.statics.updatePredictionCallPrice = function(query, prediction
 };
 
 
+
+//THIS IS IN USE
 DailyContestEntry.statics.updatePrediction = function(query, updatedPrediction) {
 	var q = {predictions:{$elemMatch:{'position.security.ticker': prediction.position.security.ticker, 
             	endDate: prediction.endDate,

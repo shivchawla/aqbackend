@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-29 10:02:02
+* @Last Modified time: 2018-11-29 10:45:49
 */
 
 'use strict';
@@ -1215,7 +1215,17 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 							var investment = item.position.investment;
 							var target = item.target;
 
-							return (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
+							var success = (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
+							
+							if (success) {
+						 		item.success.price = investment > 0 ? highPrice : lowPrice;
+						 		item.success.status = true;
+						 		item.success.date = DateHelper.getMarketCloseDateTime(new Date());
+						 		item.success.trueDate = new Date();
+						 	}	
+
+						 	return success;
+
 						});
 
 						//SHORTCUT
@@ -1225,7 +1235,7 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 
 							var successfulDayBasis = successfulPredictions.filter(item => {
 								var isStartDateToday = DateHelper.compareDates(item.startDate, currentDate) == 0;
-								return !isStartDateToday;	
+								return !isStartDateToday;
 							});
 
 							var partiallySuccessfulIntraday =  successfulPredictions.filter(item => {
@@ -1249,7 +1259,16 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 										var highPrice = _.get(extremePricesSinceStartDate, 'high.high', -Infinity);
 										var lowPrice = _.get(extremePricesSinceStartDate, 'low.low', Infinity);
 
-										return (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
+										var success = (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
+
+									 	if (success) {
+									 		item.success.price = investment > 0 ? highPrice : lowPrice;
+									 		item.success.status = true;
+									 		item.success.date = DateHelper.getMarketCloseDateTime(new Date());
+									 		item.success.trueDate = new Date();
+									 	}
+
+									 	return success;
 
 									});
 
@@ -1272,7 +1291,7 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 				var allSuccessfulPredictions = Array.prototype.concat.apply([], successfulPredictionByTickers);
 
 				return Promise.mapSeries(allSuccessfulPredictions, function(prediction) {
-					return DailyContestEntryModel.updatePredictionStatus({advisor: prediction.advisorId}, prediction);
+					return DailyContestEntryModel.updatePrediction({advisor: prediction.advisorId}, prediction);
 				});
 			});
 		});
