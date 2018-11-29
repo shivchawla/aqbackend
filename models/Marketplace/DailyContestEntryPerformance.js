@@ -61,7 +61,28 @@ DailyContestEntryPerformance.statics.fetchLastPnlStats = function(query, date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
 	return this.find({...query, date:{$lt: date}}, {pnlStats:1}).sort({date: -1}).limit(1)
 	.then(latestDoc => {
-		return latestDoc && latestDoc.length > 0 ? _.get(latestDoc[0], 'pnlStats', null) : null;
+		return _.get(latestDoc, '[0].pnlStats', null);
+	});
+};
+
+DailyContestEntryPerformance.statics.fetchLatestPnlStatsForSymbol = function(query, symbol, date) {
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
+	return this.find({...query, date:{$lt: date}}, {pnlStats:1}).sort({date: -1}).limit(1)
+	.then(latestDoc => {
+		const total = {
+			..._.get(latestDoc, `[0].pnlStats.net.total.byTickers[${symbol}]`, null),
+			tickers: Object.keys(_.get(latestDoc, `[0].pnlStats.net.total.byTickers`, {}))
+		};
+		const realized = {
+			..._.get(latestDoc, `[0].pnlStats.net.realized.byTickers[${symbol}]`, null),
+			tickers: Object.keys(_.get(latestDoc, `[0].pnlStats.net.realized.byTickers`, {}))
+		};
+		
+		if (total === null && realized === null) {
+			return null;
+		} else {
+			return {total, realized};
+		}
 	});
 };
 

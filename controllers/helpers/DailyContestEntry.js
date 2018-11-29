@@ -1365,7 +1365,8 @@ module.exports.getDailyContestEntryPnlStats = function(advisorId, symbol, horizo
 		if (!symbol && !horizon) {
 			return DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId});
 		} else if (symbol !== null){
-			return DailyContestEntryPerformanceModel.fetchLatestPnlStatsForSymbol({advisor: advisorId}, symbol);
+			const nSymbol = symbol.toUpperCase();
+			return DailyContestEntryPerformanceModel.fetchLatestPnlStatsForSymbol({advisor: advisorId}, nSymbol);
 		} else {
 			APIError.throwJsonError({msg:"oops"});
 		}
@@ -1380,7 +1381,10 @@ module.exports.getDailyContestEntryPnlStats = function(advisorId, symbol, horizo
 				const output = {};
 				
 				keys.forEach(key => {
-					output[key] = _.get(netPnlStats, `${key}.all`, {});
+					output[key] = {
+						..._.get(netPnlStats, `${key}.all`, {}),
+						tickers: Object.keys(_.get(netPnlStats, `${key}.byTickers`, {}))
+					};
 				});
 
 				return output;
