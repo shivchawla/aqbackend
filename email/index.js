@@ -43,7 +43,8 @@ module.exports.sendActivationEmail = function(res, userDetails, source) {
     var activationTemplateId = config.get(`activation_email_template_id.${src}`);
 
     var senderDetails = config.get(`sender_details.${src}`);
-    var userFullName = userDetails.firstName + ' '+userDetails.lastName;
+    var userFullName = _.startCase(_.toLower(userDetails.firstName + ' '+userDetails.lastName));
+
     var code = userDetails.code;
 
     const msg = {
@@ -68,7 +69,7 @@ module.exports.resetSuccessEmail = function(res, userDetails, source) {
     var resetPasswordTemplateId = config.get(`reset_password_template_id.${src}`);
 
     var senderDetails = config.get(`sender_details.${src}`);
-    var userFullName = userDetails.firstName + ' '+userDetails.lastName;
+    var userFullName = _.startCase(_.toLower(userDetails.firstName + ' '+userDetails.lastName));
     const msg = {
         to: [{
             email: userDetails.email,
@@ -91,7 +92,7 @@ module.exports.sendForgotEmail = function(res, userDetails, source) {
     var resetPasswordTemplateId = config.get(`forgot_password_template_id.${src}`);
 
     var senderDetails = config.get(`sender_details.${src}`);
-    var userFullName = userDetails.firstName + ' ' + userDetails.lastName;
+    var userFullName = _.startCase(_.toLower(userDetails.firstName + ' '+userDetails.lastName));
     var code = userDetails.code;
 
     const msg = {
@@ -118,7 +119,7 @@ module.exports.welcomeEmail = function(res, userDetails, source, redirect = true
     var WelcomeEmailTemplateId = config.get(`welcome_template_id.${src}`);
 
     var senderDetails = config.get(`sender_details.${src}`);
-    var userFullName = userDetails.firstName + ' '+userDetails.lastName;
+    var userFullName = _.startCase(_.toLower(userDetails.firstName + ' '+userDetails.lastName));
     const msg = {
         to: [{
             email: userDetails.email,
@@ -284,8 +285,7 @@ module.exports.sendTemplateEmail = function(templateId, receivers, sender) {
     var senderDetails = config.get(`sender_details.${sender}`);
     
     return Promise.map(receivers, function(receiver) {
-        var userFullName = receiver.firstName + ' ' + receiver.lastName;
-
+        var userFullName = _.startCase(_.toLower(receiver.firstName + ' ' + receiver.lastName));
         const msg = {
             to: [{
                 email: receiver.email,
@@ -310,9 +310,9 @@ module.exports.sendTemplateEmail = function(templateId, receivers, sender) {
 * Email to notify advice status
 */
 module.exports.sendAdviceStatusEmail = function(adviceDetails, userDetails) {    
-    
+    receiver.firstName + ' ' + receiver.lastName;
     var senderDetails = config.get(`sender_details.adviceqube`);
-    var userFullName = userDetails.firstName + ' ' + userDetails.lastName;
+    var userFullName = _.startCase(_.toLower(userDetails.firstName + ' '+userDetails.lastName));
     var adviceName = adviceDetails.name;
     var adviceUrl = `${config.get('hostname')}/advice/${adviceDetails.adviceId}`;
 
@@ -349,7 +349,7 @@ module.exports.sendAdviceStatusEmail = function(adviceDetails, userDetails) {
 module.exports.sendContestStatusEmail = function(contestEntryDetails, userDetails) {    
     
     var senderDetails = config.get(`sender_details.adviceqube`);
-    var userFullName = userDetails.firstName + ' ' + userDetails.lastName;
+    var userFullName = _.startCase(_.toLower(userDetails.firstName + ' '+userDetails.lastName));
     var {contestName, contestEntryUrl, updateContestEntryUrl, leaderboardUrl, type} = contestEntryDetails;
     
     let contestEntryStatusTemplateId; 
@@ -402,7 +402,7 @@ module.exports.sendPerformanceDigest = function(performanceDetail, userDetails) 
 };
 
 module.exports.sendContestWinnerEmail = function(winnerDetail, userDetails) {
-   const userFullName = userDetails.firstName+' '+userDetails.lastName;
+   const userFullName = _.startCase(_.toLower(userDetails.firstName + ' '+userDetails.lastName));
    const msg = {
             to: [{
                 email: userDetails.email,
@@ -420,7 +420,7 @@ module.exports.sendContestWinnerEmail = function(winnerDetail, userDetails) {
 };
 
 module.exports.sendDailyContestSummaryDigest = function(summaryDigest, userDetails) {
-   const userFullName = userDetails.firstName+' '+userDetails.lastName;
+   const userFullName = _.startCase(_.toLower(userDetails.firstName + ' '+userDetails.lastName));
    const msg = {
             to: [{
                 email: userDetails.email,
@@ -438,7 +438,7 @@ module.exports.sendDailyContestSummaryDigest = function(summaryDigest, userDetai
 };
 
 module.exports.sendDailyContestWinnerEmail = function(winnerDetail, userDetails) {
-   const userFullName = userDetails.firstName+' '+userDetails.lastName;
+   const userFullName = _.startCase(_.toLower(userDetails.firstName + ' '+userDetails.lastName));
    const msg = {
             to: [{
                 email: userDetails.email,

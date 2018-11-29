@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-29 19:38:13
+* @Last Modified time: 2018-11-29 21:30:48
 */
 
 'use strict';
@@ -212,7 +212,7 @@ function _computeWinnerDigest(winners) {
 
 		return AdvisorModel.fetchAdvisor({_id: winnerAdvisorId}, {fields: 'user'})
 		.then(advisor => {
-			return {winnerName: `${advisor.user.firstName} ${advisor.user.lastName}`, pnlPct:winner.pnlStats.net.pnlPct}		
+          return {winnerName: `${advisor.user.firstName} ${advisor.user.lastName}`, pnlPct:_.get(winner,'pnlStats.total.pnlPct',0)};               
 		})
 	})
 	.then(winnerStats => {
@@ -249,9 +249,10 @@ function _getContestDigest(date) {
 			var topStocks = _.get(contestStats,'topStocks.byUsers', []).slice(0, 2);
 
 			var leaderboardUrl = `${config.get('hostname')}/dailycontest/leaderboard?date=${moment(date).format("YYYY-MM-DD")}`;
-			var topStocksUrl = `${config.get('hostname')}/dailycontest/topstocks?date=${moment(date).format("YYYY-MM-DD")}`;
+			var topStocksUrl = `${config.get('hostname')}/dailycontest/toppicks?date=${moment(date).format("YYYY-MM-DD")}`;
+			var submitPredictionUrl = `${config.get('hostname')}/dailycontest/stockpredictions`;
 
-			var summaryDigest = {leaderboardUrl, topStocksUrl, dailyContestDate: moment(date).format("Do MMM'YYYY")};		
+			var summaryDigest = {leaderboardUrl, topStocksUrl, dailyContestDate: moment(date).format("Do MMM YYYY")};		
 
 			return _computeWinnerDigest(winners)
 			.then(winnerDigest => {
@@ -269,7 +270,11 @@ function _getContestDigest(date) {
 					});
 				});
 
-				return Object.assign(summaryDigest, winnerDigest, topStocksDigest);
+			  	return {...summaryDigest, ...winnerDigest, ...topStocksDigest, 
+	               	hiddenTopstocks: topStocks.length == 0 ? "hidden" : "",
+					hiddenStock2: topStocks.length==1 ? "hidden" : "",
+                    hiddenWinners: winners.length == 0 ? "hidden" : "",
+                    hiddenWinner2: winners.length == 1 ? "hidden" : ""}
 			})
 		} else {
 			throw new Error(`Summary Digest Error! No contest stats found for ${date}`);
@@ -285,9 +290,9 @@ function _getAdvisorPerformanceDigest(advisorId, date) {
 	])
 	.then(([pnlStats, advisorDetail]) => {
         const advisorDigest = {
-        	activePredictions: _.get(pnlStats, 'cumulative.active.all.net.count', 0),
-        	dailyPnl: `${(_.get(pnlStats, 'daily.active.all.net.pnlPct', 0)*100).toFixed(2)}%`,
-        	totalPnl: `${(_.get(pnlStats, 'cumulative.active.all.net.pnlPct', 0)*100).toFixed(2)}%`
+        	activePredictions: _.get(pnlStats, 'detail.cumulative.active.all.net.count', 0),
+        	dailyPnl: `${(_.get(pnlStats, 'detail.daily.active.net.pnlPct', 0)*100).toFixed(2)}%`,
+        	totalPnl: `${(_.get(pnlStats, 'detail.cumulative.active.all.net.pnlPct', 0)*100).toFixed(2)}%`
     	}
 
     	return advisorDigest;
@@ -329,10 +334,11 @@ module.exports.sendWinnerDigest = function(date) {
 			var winners = contestStats.winners;
 			
 			var leaderboardUrl = `${config.get('hostname')}/dailycontest/leaderboard?date=${moment(date).format("YYYY-MM-DD")}`;
+			var submitPredictionUrl = `${config.get('hostname')}/dailycontest/stockpredictions`;
 
 			return Promise.mapSeries(winners, function(winner) {
 				let winnerDigest = {leaderboardUrl, 
-					pnlPct: (_.get(winner,'pnlStats.net.pnlPct')*100).toFixed(2), 
+					pnlPct: `${(_.get(winner,'pnlStats.total.pnlPct')*100).toFixed(2)}%`, 
 					rank: winner.rank,
 					dailyContestDate: moment(date).format("Do MMM'YYYY")};
 				
