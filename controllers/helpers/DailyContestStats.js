@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-28 18:35:13
+* @Last Modified time: 2018-11-29 19:38:13
 */
 
 'use strict';
@@ -15,12 +15,12 @@ const DateHelper = require('../../utils/Date');
 const DailyContestEntryHelper = require('./DailyContestEntry');
 const WSHelper = require('./WSHelper');
 const sendEmail = require('../../email');
+const APIError = require('../../utils/error');
 
 const UserModel = require('../../models/user');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
-
 
 function _computeContestWinners(date) {
 	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
@@ -232,15 +232,19 @@ function _computeWinnerDigest(winners) {
 	})
 }
 
-module.exports.sendSummaryDigest = function(date) {
-	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date).toDate();
 
-	return Promise.all([
-		DailyContestEntryModel.fetchEntries({}, {fields: 'advisor'}),
-		DailyContestStatsModel.fetchContestStats(date, {fields: 'topStocks winners'})
-	])
-	.then(([contestEntries, contestStats]) => {
-		if (contestStats && contestEntries) {
+function _getUserDetail(advisorId) {
+	return AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'user'})
+	.then(advisor => {
+		return UserModel.fetchUser({_id: advisor.user._id}, {fields:'firstName lastName email'})
+	});
+}
+
+function _getContestDigest(date) {
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date).toDate();
+	return DailyContestStatsModel.fetchContestStats(date, {fields: 'topStocks winners'})
+	.then(contestStats => {
+		if (contestStats) {
 			var winners = _.get(contestStats, 'winners', []).slice(0,2);
 			var topStocks = _.get(contestStats,'topStocks.byUsers', []).slice(0, 2);
 
@@ -256,44 +260,64 @@ module.exports.sendSummaryDigest = function(date) {
 				topStocks.forEach((item, index) => {
 					var stockKey = `stock${index+1}`;
 					var votesKey = `votes${index+1}`;
-					var investmentKey = `investment${index+1}`;
+					//var investmentKey = `investment${index+1}`;
 
 					topStocksDigest = Object.assign(topStocksDigest, {
 						[stockKey]: item.ticker, 
 						[votesKey]: item.numUsers.total,
-						[investmentKey]: `${item.investment.gross}K`
+						//[investmentKey]: `${item.investment.gross}K`
 					});
 				});
 
 				return Object.assign(summaryDigest, winnerDigest, topStocksDigest);
 			})
-			.then(fullDigest => {
-				return Promise.mapSeries(contestEntries, function(contestEntry) {
-					
-					return AdvisorModel.fetchAdvisor({_id: contestEntry.advisor}, {fields: 'user'})
-					.then(advisor => {
-	                    
-	                    return UserModel.fetchUser({_id: advisor.user._id}, {fields:'firstName lastName email'})
-	                    .then(user => {
-	                    
-		                    if (process.env.NODE_ENV === 'production') {
-		                    
-		                    	return sendEmail.sendDailyContestSummaryDigest(fullDigest, user)
-		                	
-		                	} else if(process.env.NODE_ENV === 'development') {
-		                    
-		                        return sendEmail.sendDailyContestSummaryDigest(fullDigest, 
-		                            {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
-	                        }
-                        })
-                    });
-                })
-			})
-
 		} else {
-			console.log(`Summary Digest Error! No contest stats found for ${date}`);
+			throw new Error(`Summary Digest Error! No contest stats found for ${date}`);
 		}
+	})
+}
+
+function _getAdvisorPerformanceDigest(advisorId, date) {
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date).toDate();
+	return Promise.all([
+		DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date),
+		
+	])
+	.then(([pnlStats, advisorDetail]) => {
+        const advisorDigest = {
+        	activePredictions: _.get(pnlStats, 'cumulative.active.all.net.count', 0),
+        	dailyPnl: `${(_.get(pnlStats, 'daily.active.all.net.pnlPct', 0)*100).toFixed(2)}%`,
+        	totalPnl: `${(_.get(pnlStats, 'cumulative.active.all.net.pnlPct', 0)*100).toFixed(2)}%`
+    	}
+
+    	return advisorDigest;
 	});
+}
+
+module.exports.sendSummaryDigest = function(date) {	
+	return DailyContestEntryModel.fetchDistinctAdvisors({})
+	.then(distinctAdvisors => {
+		return Promise.mapSeries(distinctAdvisors, function(advisorId) {
+
+			return Promise.all([
+				_getAdvisorPerformanceDigest(advisorId, date),
+				_getContestDigest(date),
+				_getUserDetail(advisorId)
+			])
+			.then(([advisorDigest, contestDigest, userDetail]) => {
+
+				const fullDigest = {...advisorDigest, ...contestDigest};
+
+	            if (process.env.NODE_ENV === 'production') {	
+	            	return sendEmail.sendDailyContestSummaryDigest(fullDigest, userDetail);
+	        	
+	        	} else if(process.env.NODE_ENV === 'development') {
+	                return sendEmail.sendDailyContestSummaryDigest(fullDigest, 
+	                    {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+	            }
+            })
+        })
+    })
 };
 
 module.exports.sendWinnerDigest = function(date) {
@@ -312,24 +336,21 @@ module.exports.sendWinnerDigest = function(date) {
 					rank: winner.rank,
 					dailyContestDate: moment(date).format("Do MMM'YYYY")};
 				
-				return AdvisorModel.fetchAdvisor({_id: winner.advisor}, {fields: 'users'})
-				.then(advisor => {
-                     return UserModel.fetchUser({_id: advisor.user._id}, {fields:'firstName lastName email'})
-                    .then(user => {
-                    
-	                    if (process.env.NODE_ENV === 'production') {
-	                    	return sendEmail.sendDailyContestWinnerEmail(winnerDigest, user);
-	                	
-	                	} else if(process.env.NODE_ENV === 'development') {
-	                        return sendEmail.sendDailyContestWinnerEmail(winnerDigest, 
-	                            {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
-	                    }
-                    });
+				return _getUserDetail(winner.advisor)
+                .then(user => {
+                
+                    if (process.env.NODE_ENV === 'production') {
+                    	return sendEmail.sendDailyContestWinnerEmail(winnerDigest, user);
+                	
+                	} else if(process.env.NODE_ENV === 'development') {
+                        return sendEmail.sendDailyContestWinnerEmail(winnerDigest, 
+                            {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+                    }
                 });
             })
 			
 		} else {
-			console.log(`Winner Digest Error! No contest stats found for ${date}`)
+			APIError.throwJsonError({msg: `Winner Digest Error! No contest stats found for ${date}`});
 		}
 	});
 };

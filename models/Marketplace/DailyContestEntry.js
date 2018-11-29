@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-29 10:47:19
+* @Last Modified time: 2018-11-29 18:44:44
 */
 
 
@@ -105,6 +105,10 @@ DailyContestEntry.statics.fetchEntry = function(query, options) {
 	}
 
 	return q.execAsync();
+};
+
+DailyContestEntry.statics.fetchDistinctAdvisors= function(query) {
+	return this.distinct('advisor', query);
 };
 
 DailyContestEntry.statics.countEntries = function(query) {
@@ -249,10 +253,10 @@ DailyContestEntry.statics.updatePredictionCallPrice = function(query, prediction
 
 //THIS IS IN USE
 DailyContestEntry.statics.updatePrediction = function(query, updatedPrediction) {
-	var q = {predictions:{$elemMatch:{'position.security.ticker': prediction.position.security.ticker, 
-            	endDate: prediction.endDate,
-                startDate: prediction.startDate
-            }}, date: DateHelper.getMarketCloseDateTime(prediction.startDate)};
+	var q = {predictions:{$elemMatch:{'position.security.ticker': updatedPrediction.position.security.ticker, 
+            	endDate: updatedPrediction.endDate,
+                startDate: updatedPrediction.startDate
+            }}, date: DateHelper.getMarketCloseDateTime(updatedPrediction.startDate)};
 
 	var updates = {
 		$set: {
