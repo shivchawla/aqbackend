@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-29 21:55:29
+* @Last Modified time: 2018-11-30 09:55:18
 */
 
 'use strict';
@@ -302,7 +302,7 @@ function _getAdvisorPerformanceDigest(advisorId, date) {
 
 module.exports.sendSummaryDigest = function(date) {	
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date).toDate();
-	
+
 	return DailyContestEntryModel.fetchDistinctAdvisors({})
 	.then(distinctAdvisors => {
 		return Promise.mapSeries(distinctAdvisors, function(advisorId) {
@@ -343,7 +343,7 @@ module.exports.sendWinnerDigest = function(date) {
 				let winnerDigest = {leaderboardUrl, submitPredictionUrl,
 					pnlPct: `${(_.get(winner,'pnlStats.total.pnlPct')*100).toFixed(2)}%`, 
 					rank: winner.rank,
-					dailyContestDate: moment(date).format("Do MMM'YYYY")};
+					dailyContestDate: moment(date).format("Do MMM YYYY")};
 				
 				return _getUserDetail(winner.advisor)
                 .then(user => {
