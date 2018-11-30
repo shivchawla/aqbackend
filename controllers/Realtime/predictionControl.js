@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-29 11:10:57
+* @Last Modified time: 2018-11-30 12:48:57
 */
 'use strict';
 const config = require('config');
@@ -69,7 +69,7 @@ function _sendAllPredictionUpdates() {
 		var subscription = predictionSubscribers[subscriberId];
 		if (subscription.errorCount > 5) {
 			console.log("Deleting subscriber from list. WS connection is invalid for 5th attmept")
-			delete predictionSubscribers.subscriberId;
+			delete predictionSubscribers[subscriberId];
 			return;
 		} else {
 			return _sendPredictionUpdates(subscription);

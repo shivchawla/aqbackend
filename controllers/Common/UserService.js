@@ -270,6 +270,7 @@ exports.sendInfoEmail = function (args, res, next) {
     .then(users => {
         var details = args.body.value;
         details.receivers = users;
+
         sendEmail.sendInfoEmail(details);
         return res.status(200).send("Emails sent successfully");    
      })
@@ -294,13 +295,28 @@ exports.sendTemplateEmail = function (args, res, next) {
     })
     .then(admins => {
         if (userId && admins && admins.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
-            return UserModel.fetchUsers({}, {firstName:1, lastName:1 , email:1}) 
+            return UserModel.fetchUsers({}, {firstName:1, lastName:1 , email:1, code:1, emailpreference: 1}) 
         } else {
             throw new Error("Not Authorized");
         }
     })
     .then(allUsers => {
-        return sendEmail.sendTemplateEmail(templateId, allUsers, sender);
+        return Promise.mapSeries(allUsers, function(user) {
+            
+            const code = user.code;
+            const type = "marketing_digest";
+            const email = user.email;
+            const sendDigest = _.get(user, `emailpreference.${type}`, true);        
+            const unsubscribeUrl = eval('`'+config.get('request_unsubscribe_url') +'`');
+
+            const substitutions = {unsubscribeUrl};
+
+            if (sendDigest) {
+                return sendEmail.sendTemplateEmail(templateId, substitutions, user, sender);
+            } else {
+                return;
+            }
+        })
     })
     .then(sent => {
         return res.status(200).send("Emails sent successfully");
@@ -329,6 +345,7 @@ module.exports.unsubscribeEmail = function(args, res, next) {
              switch(type) {
                 case "daily_performance_digest": return UserModel.updateEmailPreference({_id: user._id}, {daily_performance_digest: false}); break;
                 case "weekly_performance_digest": return UserModel.updateEmailPreference({_id: user._id}, {weekly_performance_digest: false}); break;
+                case "marketing_digest": return UserModel.updateEmailPreference({_id: user._id}, {marketing_digest: false}); break;
                 case "default": APIError.throwJsonError({message: "Invalid request type"});
              }
         } else {

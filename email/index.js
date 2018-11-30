@@ -234,7 +234,6 @@ module.exports.sendInfoEmail = function(details) {
     var homeLink = config.get('hostname');
     template = template.replace(/homeLink/g, homeLink);
  
-    
     receivers.forEach(receiver => {
         var receiverFullName = receiver.firstName.trim() + ' ' + receiver.lastName.trim();
         var _t = template.replace('receiverFullName', receiverFullName);
@@ -281,28 +280,25 @@ module.exports.sendInfoEmail = function(details) {
 /*
 * Send information email based on template
 */
-module.exports.sendTemplateEmail = function(templateId, receivers, sender) {
+module.exports.sendTemplateEmail = function(templateId, substitutions, receiver, sender) {
     var senderDetails = config.get(`sender_details.${sender}`);
     
-    return Promise.map(receivers, function(receiver) {
-        var userFullName = _.startCase(_.toLower(receiver.firstName + ' ' + receiver.lastName));
-        const msg = {
-            to: [{
-                email: receiver.email,
-                name: userFullName
-            }],
-            from: senderDetails,
-            templateId: templateId,
-            substitutions: {
-                userFullName: userFullName,
-            },
-        };
+    var userFullName = _.startCase(_.toLower(receiver.firstName + ' ' + receiver.lastName));
+    const msg = {
+        to: [{
+            email: receiver.email,
+            name: userFullName
+        }],
+        from: senderDetails,
+        templateId: templateId,
+        substitutions: {
+            userFullName,
+            ...substitutions
+        },
+    };
 
-        return sgMail.send(msg);
-    })
-    .then(allEmailsSent => {
-        return true;
-    });
+    return sgMail.send(msg);
+    
 };
 
 

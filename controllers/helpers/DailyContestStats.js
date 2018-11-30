@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-30 09:55:18
+* @Last Modified time: 2018-11-30 15:35:42
 */
 
 'use strict';
@@ -237,7 +237,15 @@ function _computeWinnerDigest(winners) {
 function _getUserDetail(advisorId) {
 	return AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'user'})
 	.then(advisor => {
-		return UserModel.fetchUser({_id: advisor.user._id}, {fields:'firstName lastName email'})
+		return UserModel.fetchUser({_id: advisor.user._id}, {fields:'firstName lastName email code emailpreference'})
+	})
+	.then(user => {
+		const code = user.code;
+        const type = "daily_performance_digest";
+        const email = user.email;
+        const sendDigest = _.get(user, 'emailpreference.daily_performance_digest', true);        
+        const unsubscribeUrl = eval('`'+config.get('request_unsubscribe_url') +'`');
+        return {...user, unsubscribeUrl};
 	});
 }
 
@@ -314,7 +322,7 @@ module.exports.sendSummaryDigest = function(date) {
 			])
 			.then(([advisorDigest, contestDigest, userDetail]) => {
 
-				const fullDigest = {...advisorDigest, ...contestDigest};
+				const fullDigest = {...advisorDigest, ...contestDigest, unsubscribeUrl: _.get(userDetail, 'unsubscribeUrl', '')};
 
 	            if (process.env.NODE_ENV === 'production') {	
 	            	return sendEmail.sendDailyContestSummaryDigest(fullDigest, userDetail);

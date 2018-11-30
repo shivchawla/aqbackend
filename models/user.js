@@ -47,15 +47,9 @@ const User = new Schema({
             default: true,
         },
         
-        daily_contest:{
-            winners_digest: {
-                type: Boolean,
-                default: true,
-            },
-            summary_digest: {
-                type: Boolean,
-                default: true,
-            }
+        marketing_digest: {
+            type: Boolean,
+            default: true,
         }
     },
 
