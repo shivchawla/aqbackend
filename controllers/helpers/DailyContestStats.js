@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-30 15:35:42
+* @Last Modified time: 2018-12-04 12:33:19
 */
 
 'use strict';
@@ -293,11 +293,9 @@ function _getContestDigest(date) {
 
 function _getAdvisorPerformanceDigest(advisorId, date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date).toDate();
-	return Promise.all([
-		DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date),
-		
-	])
-	.then(([pnlStats, advisorDetail]) => {
+
+	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
+	.then(pnlStats => {
         const advisorDigest = {
         	activePredictions: _.get(pnlStats, 'detail.cumulative.active.all.net.count', 0),
         	dailyPnl: `${(_.get(pnlStats, 'detail.daily.active.net.pnlPct', 0)*100).toFixed(2)}%`,
@@ -307,6 +305,38 @@ function _getAdvisorPerformanceDigest(advisorId, date) {
     	return advisorDigest;
 	});
 }
+
+function _getAdvisorLatestPerformance(advisorId) {
+	return DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId})
+	.then(pnlStats => {
+        const latestAdvisorPnlStats = {
+        	totalPredictions: _.get(pnlStats, 'net.all.net.count', 0),
+        	winRatio: _.get(pnlStats, 'net.all.net.winRatio', 0),
+    	}
+
+    	return latestAdvisorPnlStats;
+	});
+}
+
+
+module.exports.sendEmailToParticipants = function(templateId) {	
+	
+	return DailyContestEntryModel.fetchDistinctAdvisors({})
+	.then(distinctAdvisors => {
+		return Promise.mapSeries(distinctAdvisors, function(advisorId) {
+
+			const motivationDigest = {requiredPredictions: 30, requiredProfitability: 70};
+
+            if (process.env.NODE_ENV === 'production') {	
+            	return sendEmail.sendTemplateEmail(motivationDigest, userDetail);
+        	
+        	} else if(process.env.NODE_ENV === 'development') {
+                return sendEmail.sendTemplateEmail(motivationDigest, 
+                    {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+            }
+        })
+    })
+};
 
 module.exports.sendSummaryDigest = function(date) {	
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date).toDate();

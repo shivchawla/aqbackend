@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-29 21:55:45
+* @Last Modified time: 2018-12-04 12:14:08
 */
 
 'use strict';
@@ -418,7 +418,7 @@ module.exports.sendEmailToDailyContestWinners = function(args, res, next) {
     });
 };
 
-module.exports.sendEmailToDailyContestParticipants = function(args, res, next) {
+module.exports.sendSummaryDigestToDailyContestParticipants = function(args, res, next) {
     const userId = args.user._id;
     const userEmail = _.get(args.user, 'email', null);
     const date = _.get(args, 'date.value', null);
@@ -434,6 +434,33 @@ module.exports.sendEmailToDailyContestParticipants = function(args, res, next) {
     })
     .then(emailSent => {
         return res.status(200).send("Contest summary/digest sent");
+    })
+    .catch(error => { 
+        return res.status(400).send(error.message)
+    });
+};
+
+
+module.exports.sendTemplateEmailToParticipants = function(args, res, next) {
+    const userId = args.user._id;
+    const userEmail = _.get(args.user, 'email', null);
+    const templateId = _.get(args, 'templateId.value', null);
+
+    const admins = config.get('admin_user');
+    Promise.resolve(true)
+    .then(() => {
+    	if (!templateId || templateId == "") {
+    		APIError.throwJsonError({message: "Invalid template"});
+    	}
+
+        if (admins.indexOf(userEmail) !== -1){ // user is admin and can send email
+            return DailyContestStatsHelper.sendTemplateToParticipants(templateId);
+        } else {
+            APIError.throwJsonError({message: "User not authorized to send email"});
+        }
+    })
+    .then(emailSent => {
+        return res.status(200).send("Contest Participants template sent");
     })
     .catch(error => { 
         return res.status(400).send(error.message)

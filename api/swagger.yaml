@@ -3962,6 +3962,32 @@ paths:
           description: Invalid Input
       x-swagger-router-controller: "DailyContest"
 
+  /dailycontest/templateemail:
+     get:
+      tags:
+      - dailycontest
+      summary: send tempate email to contest participants
+      description: send tempate email to contest participants
+      operationId: sendTemplateEmailToParticipants
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: templateId
+        in: query
+        description: sendgrid templateId
+        required: true
+        type: string
+      responses:
+        200:
+          description: OK
+        400:
+          description: Invalid Input
+      x-swagger-router-controller: "DailyContest"
 
 securityDefinitions:
   api_key:
