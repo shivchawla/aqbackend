@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-04 12:58:52
+* @Last Modified time: 2018-12-04 13:05:26
 */
 
 'use strict';
@@ -327,14 +327,17 @@ module.exports.sendTemplateEmailToParticipants = function(templateId) {
 
 			var submitPredictionUrl = `${config.get('hostname')}/dailycontest/stockpredictions`;
 			const motivationDigest = {requiredPredictions: 30, requiredProfitability: 70, submitPredictionUrl};
-
-            if (process.env.NODE_ENV === 'production') {	
-            	return sendEmail.sendTemplateEmail(templateId, motivationDigest, userDetail, "contest");
-        	
-        	} else if(process.env.NODE_ENV === 'development') {
-                return sendEmail.sendTemplateEmail(templateId, motivationDigest, 
-                    {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"}, "contest");
-            }
+			
+			return _getUserDetail(advisorId)
+			.then(userDetail => {
+	            if (process.env.NODE_ENV === 'production') {	
+	            	return sendEmail.sendTemplateEmail(templateId, motivationDigest, userDetail, "contest");
+	        	
+	        	} else if(process.env.NODE_ENV === 'development') {
+	                return sendEmail.sendTemplateEmail(templateId, motivationDigest, 
+	                    {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"}, "contest");
+	            }
+            });
         })
     })
 };
