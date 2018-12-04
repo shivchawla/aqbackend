@@ -102,17 +102,22 @@ function untrack_intraday_prices()
     _intradayPriceHistory = Dict{String, Vector{TradeBar}}()
 end
 
-function get_intraday_prices(ticker)
-    if haskey(_intradayPriceHistory, ticker)
-        return _intradayPriceHistory[ticker]
+function get_intraday_prices(ticker, date)
+
+    if date == currentIndiaDate()
+        if haskey(_intradayPriceHistory, ticker)
+            return _intradayPriceHistory[ticker]
+        else
+            priceHistory = _get_intraday_prices(ticker)
+            _intradayPriceHistory[ticker] = priceHistory
+            return priceHistory 
+        end
     else
-       priceHistory = _get_intraday_prices(ticker)
-       _intradayPriceHistory[ticker] = priceHistory
-       return priceHistory 
+        return _get_intraday_prices(ticker, date)
     end
 end
 
-function _get_intraday_prices(ticker, date=currentIndiaTime())
+function _get_intraday_prices(ticker, date=currentIndiaDate())
     
     priceHistory = Vector{TradeBar}()
     directory = "$path/$(Dates.format(date, "UddY"))"

@@ -10,6 +10,7 @@ using Raftaar: Performance, Returns, Drawdown, Ratios, Deviation, PortfolioStats
 using Raftaar: serialize
 
 currentIndiaTime() = now(Dates.UTC) + Dates.Hour(5) + Dates.Minute(30)
+currentIndiaDate() = Date(currentIndiaTime())
 
 include("readNSEFiles.jl")  
 include("portfolio.jl")

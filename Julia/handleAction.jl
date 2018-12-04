@@ -255,7 +255,9 @@ function handleRequest(parsemsg::Dict{String, Any})
         elseif action == "compute_stock_price_history"
             
             parsemsg["output"] = ""
-            parsemsg["output"] = get_stock_price_history(parsemsg["security"])
+            field = parsemsg["field"];
+            field = field == "" || field == nothing ? "Close" : field;
+            parsemsg["output"] = get_stock_price_history(parsemsg["security"], field)
 
         elseif action == "compute_stock_price_historical"
             
@@ -274,7 +276,9 @@ function handleRequest(parsemsg::Dict{String, Any})
         elseif action == "compute_stock_intraday_history"
             parsemsg["output"] = ""
             security = convert(Raftaar.Security, parsemsg["security"])
-            parsemsg["output"] = get_stock_intraday_history(security)
+            date = parsemsg["date"]
+            date = date == "" ? currentIndiaDate() : Date(DateTime(date, jsdateformat))
+            parsemsg["output"] = get_stock_intraday_history(security, date)
 
         elseif action == "track_stock_intraday_detail"
             parsemsg["output"] = ""

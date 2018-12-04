@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-16 14:49:05
+* @Last Modified time: 2018-12-04 19:20:40
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -137,7 +137,7 @@ function _getSecurityDetail(security) {
     })
 };
 
-module.exports.getStockPriceHistory = function(security, startDate, endDate) {
+module.exports.getStockPriceHistory = function(security, startDate, endDate, field="Close") {
 	var query = {'security.ticker': security.ticker,
 					'security.exchange': security.exchange,
 					'security.securityType': security.securityType,
@@ -147,7 +147,7 @@ module.exports.getStockPriceHistory = function(security, startDate, endDate) {
 	.then(securityPerformance => {
 		var update = securityPerformance ? _checkIfStockPriceHistoryUpdateRequired(securityPerformance.priceHistory) : true;
 		if(update) {
-			return _computeStockPriceHistory(security).then(ph => {return SecurityPerformanceModel.updatePriceHistory(query, ph);});
+			return _computeStockPriceHistory(security, field).then(ph => {return SecurityPerformanceModel.updatePriceHistory(query, ph);});
 		} else {
 			return securityPerformance;
 		}
@@ -323,7 +323,7 @@ module.exports.getRealTimeStockHistoricalDetail = function(security, minute) {
 	});
 };
 
-module.exports.getStockIntradayHistory = function(security) {
+module.exports.getStockIntradayHistory = function(security, date) {
 	return new Promise(resolve => {
 		var query = {'security.ticker': security.ticker,
 						'security.exchange': security.exchange ? security.exchange : "NSE",
@@ -331,7 +331,7 @@ module.exports.getStockIntradayHistory = function(security) {
 						'security.country': security.country ? security.country : "IN"};
 
 		return Promise.all([
-			_computeStockIntradayHistory(security),
+			_computeStockIntradayHistory(security, date),
 			_getSecurityDetail(security)
 		])
 		.then(([intradayDetail, securityDetail]) => {
@@ -342,6 +342,46 @@ module.exports.getStockIntradayHistory = function(security) {
 			console.log(err.message);
 			resolve(Object.assign({}, security, {intradayHistory: []}));
 		})
+	});
+};
+
+module.exports.getStockIntervalDetail = function(security, startDateTime, endDateTime) {
+	var startDateEODTime = DateHelper.getMarketCloseDateTime();
+	var isStartDateTimeAfterMarketClose = moment(startDateTime).isBefore(startDateEODTime);
+	var startDate = isStartDateTimeAfterMarketClose ? 
+		DateHelper.getNextNonHolidayWeekday(startDateEODTime) :
+		DateHelper.getDate(startDate);
+
+	var endDate = DateHelper.getDate(endDateTime);
+
+	return Promise.all([
+		!isStartDateTimeAfterMarketClose ? exports.getStockIntradayHistory(security, startDate) : null,
+		exports.getStockPriceHistory(security, startDate, endDate, "High"),
+		exports.getStockPriceHistory(security, startDate, endDate, "Low"),
+		exports.getStockIntradayHistory(security, endDate),
+		_getSecurityDetail()
+	])
+	.then(([startDateIntradayDetail, eodHighHistory, eodLowHistory, endDateIntradayDetail, securityDetail]) => {
+		
+		security.detail = securityDetail;
+		var startDateHistory = _.get(startDateIntradayDetail, 'history', []).filter(item => {return moment(`${item.datetime}Z`).isAfter(moment(startDateTime))});
+		var endDateHistory = _.get(endDateIntradayDetail, 'history', []).filter(item => {return moment(`${item.datetime}Z`).isBefore(moment(endDateTime))});
+		var lowPriceHistory =  eodHighHistory;
+		var highPriceHistory = eodLowHistory;
+
+		var intervalLowPrice = Math.min(...[
+			_.get(_.minBy(startDateHistory, 'low'), 'low', -Infinity),
+			_.get(_.minBy(endDateHistory, 'low'), 'low', -Infinity),
+			_.get(_.minBy(lowPriceHistory, 'price'), 'price', -Infinity)]);
+
+		var intervalHighPrice = Math.min(...[
+			_.get(_.maxBy(startDateHistory, 'high'), 'high', Infinity),
+			_.get(_.maxBy(endDateHistory, 'high'), 'high', Infinity),
+			_.get(_.maxBy(lowPriceHistory, 'price'), 'price', Infinity)]);
+
+		
+		return {...security, intervalDetail: {high: intervalHighPrice, low: intervalLowPrice}};
+
 	});
 };
 
@@ -407,11 +447,12 @@ function _computeStockRollingPerformanceDetail(security) {
     });
 };
 
-function _computeStockPriceHistory(security) {
+function _computeStockPriceHistory(security, field) {
 	return new Promise((resolve, reject) => {
 
 		var msg = JSON.stringify({action:"compute_stock_price_history", 
-            						security: security});
+            						security: security,
+            						field: !field ? "Close" : field});
          	
      	WSHelper.handleMktRequest(msg, resolve, reject);
 
@@ -442,11 +483,12 @@ function _computeStockEODDetail(security, date) {
     });
 };
 
-function _computeStockIntradayHistory(security) {
+function _computeStockIntradayHistory(security, date) {
 	return new Promise((resolve, reject) => {
 
 		var msg = JSON.stringify({action:"compute_stock_intraday_history", 
-            						security: security
+            						security: security,
+            						date: DateHelper.getDate(date)
             					});
 
 		WSHelper.handleMktRequest(msg, resolve, reject);

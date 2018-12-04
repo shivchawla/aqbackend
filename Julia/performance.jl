@@ -432,7 +432,7 @@ end
 ###
 # Function to fetch PRICE HISTORY of a security
 ###
-function get_stock_price_history(security_dict::Dict{String,Any})
+function get_stock_price_history(security_dict::Dict{String,Any}, field="Close")
     
     try
         (valid, security) = _validate_security(security_dict)
@@ -444,17 +444,17 @@ function get_stock_price_history(security_dict::Dict{String,Any})
             stock_prices = nothing
             
             try
-                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, adjustment = true)
+                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, adjustment = true, field=field)
             catch err
                 println("Error in fetching adjusted prices fot $(security.symbol.ticker)")
             end
 
             if stock_prices == nothing
                 println("Fetching un-adjusted prices for $(security.symbol.ticker)")
-                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, strict=false)
+                stock_prices = _getPricehistory([security.symbol.ticker], start_date, end_date, strict=false, field=field)
             end
 
-            benchmark_prices = _getPricehistory(["NIFTY_50"], start_date, end_date, strict=false)
+            benchmark_prices = _getPricehistory(["NIFTY_50"], start_date, end_date, strict=false, field=field)
             
             if stock_prices != nothing && benchmark_prices != nothing
                 stock_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), benchmark_prices.timestamp[end]), :any)
