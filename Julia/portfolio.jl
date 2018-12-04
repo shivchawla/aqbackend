@@ -22,7 +22,7 @@ function filternan(ta::TimeArray, col = "")
     ta[.!isnan.(ta[lastname].values)]
 end 
 
-function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate::DateTime; adjustment::Bool = false, strict::Bool = true, appendRealtime::Bool = false) 
+function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate::DateTime; adjustment::Bool = false, strict::Bool = true, appendRealtime::Bool = false; field="Close") 
     currentDate = Date(now())
     eod_prices = nothing
 
@@ -32,9 +32,9 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
         ###Also, get data from ...
         ##....startdate - 10 days in case startdate data is NaN (forwarfilling won't work)
         if (adjustment && strict) 
-            eod_prices = YRead.history(tickers, "Close", :Day, startdate - Dates.Day(10), enddate, displaylogs=false, forwardfill=true)
+            eod_prices = YRead.history(tickers, field, :Day, startdate - Dates.Day(10), enddate, displaylogs=false, forwardfill=true)
         else
-            eod_prices = YRead.history_unadj(tickers, "Close", :Day, startdate - Dates.Day(10), enddate, displaylogs=false, strict = strict, forwardfill=true)
+            eod_prices = YRead.history_unadj(tickers, field, :Day, startdate - Dates.Day(10), enddate, displaylogs=false, strict = strict, forwardfill=true)
         end
 
         eod_prices = eod_prices != nothing ? TimeSeries.from(eod_prices, Date(startdate)) : nothing
@@ -58,7 +58,7 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
                 rtPriceArray = Vector{Float64}()
                 rtTimeStamp = nothing
 
-                backstopData = TimeSeries.tail(YRead.history(tickers, "Close", :Day, currentIndiaTime() - Dates.Day(10), currentIndiaTime(), displaylogs=false, forwardfill=true), 1)
+                backstopData = TimeSeries.tail(YRead.history(tickers, field, :Day, currentIndiaTime() - Dates.Day(10), currentIndiaTime(), displaylogs=false, forwardfill=true), 1)
                 
                 for ticker in  tickers
                     priceForTicker = backstopData != nothing ? values(backstopData[ticker])[end] : NaN
