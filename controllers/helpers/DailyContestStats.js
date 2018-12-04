@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-04 12:54:19
+* @Last Modified time: 2018-12-04 12:58:52
 */
 
 'use strict';
@@ -245,7 +245,7 @@ function _getUserDetail(advisorId) {
         const email = user.email;
         const sendDigest = _.get(user, 'emailpreference.daily_performance_digest', true);        
         const unsubscribeUrl = eval('`'+config.get('request_unsubscribe_url') +'`');
-        return {...user, unsubscribeUrl};
+        return {...user.toObject(), unsubscribeUrl};
 	});
 }
 
