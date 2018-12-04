@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-04 12:14:08
+* @Last Modified time: 2018-12-04 12:47:10
 */
 
 'use strict';
@@ -447,6 +447,7 @@ module.exports.sendTemplateEmailToParticipants = function(args, res, next) {
     const templateId = _.get(args, 'templateId.value', null);
 
     const admins = config.get('admin_user');
+    
     Promise.resolve(true)
     .then(() => {
     	if (!templateId || templateId == "") {
@@ -454,7 +455,7 @@ module.exports.sendTemplateEmailToParticipants = function(args, res, next) {
     	}
 
         if (admins.indexOf(userEmail) !== -1){ // user is admin and can send email
-            return DailyContestStatsHelper.sendTemplateToParticipants(templateId);
+            return DailyContestStatsHelper.sendTemplateEmailToParticipants(templateId);
         } else {
             APIError.throwJsonError({message: "User not authorized to send email"});
         }
