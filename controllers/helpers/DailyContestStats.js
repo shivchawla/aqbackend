@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-05 20:49:27
+* @Last Modified time: 2018-12-05 20:59:39
 */
 
 'use strict';
@@ -240,7 +240,7 @@ function _getUserDetail(advisorId) {
 		return UserModel.fetchUser({_id: advisor.user._id}, {fields:'firstName lastName email code emailpreference'})
 	})
 	.then(user => {
-        return {...user.toObject(), unsubscribeUrl};
+        return user.toObject();
 	});
 }
 
