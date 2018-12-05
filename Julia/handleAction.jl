@@ -253,7 +253,6 @@ function handleRequest(parsemsg::Dict{String, Any})
           end
         
         elseif action == "compute_stock_price_history"
-            
             parsemsg["output"] = ""
             field = parsemsg["field"];
             field = field == "" || field == nothing ? "Close" : field;

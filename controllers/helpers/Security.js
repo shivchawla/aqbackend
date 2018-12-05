@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-04 19:20:40
+* @Last Modified time: 2018-12-04 21:05:27
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -17,6 +17,7 @@ const DateHelper = require('../../utils/Date');
 const WSHelper = require('./WSHelper');
 const homeDir = require('os').homedir();
 const _ = require('lodash');
+const moment = require('moment');
 
 function _checkIfStockStaticPerformanceUpdateRequired(performance) {
 	if (!performance) {
@@ -146,7 +147,7 @@ module.exports.getStockPriceHistory = function(security, startDate, endDate, fie
 	return SecurityPerformanceModel.fetchPriceHistory(query)
 	.then(securityPerformance => {
 		var update = securityPerformance ? _checkIfStockPriceHistoryUpdateRequired(securityPerformance.priceHistory) : true;
-		if(update) {
+		if(update || field != "Close") {
 			return _computeStockPriceHistory(security, field).then(ph => {return SecurityPerformanceModel.updatePriceHistory(query, ph);});
 		} else {
 			return securityPerformance;
@@ -162,7 +163,7 @@ module.exports.getStockPriceHistory = function(security, startDate, endDate, fie
 		if (endDate) {
 			var idx = ph.map(item => item.date).findIndex(item => {return new Date(item).getTime() >= new Date(endDate).getTime()});
 
-			idx =  new Date(ph[idx].date).getTime() == new Date(endDate).getTime() ? idx : idx > 0 ? idx - 1 : idx;
+			idx =  idx !=-1 ? new Date(ph[idx].date).getTime() == new Date(endDate).getTime() ? idx : idx > 0 ? idx - 1 : idx : idx;
 			ph = idx != -1 ? ph.slice(0, idx+1) : ph;
 		}
 
@@ -346,38 +347,38 @@ module.exports.getStockIntradayHistory = function(security, date) {
 };
 
 module.exports.getStockIntervalDetail = function(security, startDateTime, endDateTime) {
-	var startDateEODTime = DateHelper.getMarketCloseDateTime();
-	var isStartDateTimeAfterMarketClose = moment(startDateTime).isBefore(startDateEODTime);
-	var startDate = isStartDateTimeAfterMarketClose ? 
+	var startDateEODTime = DateHelper.getMarketCloseDateTime(startDateTime);
+	var isStartDateTimeBeforeMarketClose = moment(startDateTime).isBefore(startDateEODTime);
+	var startDate = !isStartDateTimeBeforeMarketClose ? 
 		DateHelper.getNextNonHolidayWeekday(startDateEODTime) :
-		DateHelper.getDate(startDate);
+		DateHelper.getDate(startDateTime);
 
 	var endDate = DateHelper.getDate(endDateTime);
 
 	return Promise.all([
-		!isStartDateTimeAfterMarketClose ? exports.getStockIntradayHistory(security, startDate) : null,
+		isStartDateTimeBeforeMarketClose ? exports.getStockIntradayHistory(security, startDate) : null,
 		exports.getStockPriceHistory(security, startDate, endDate, "High"),
 		exports.getStockPriceHistory(security, startDate, endDate, "Low"),
 		exports.getStockIntradayHistory(security, endDate),
-		_getSecurityDetail()
+		_getSecurityDetail(security)
 	])
 	.then(([startDateIntradayDetail, eodHighHistory, eodLowHistory, endDateIntradayDetail, securityDetail]) => {
 		
 		security.detail = securityDetail;
-		var startDateHistory = _.get(startDateIntradayDetail, 'history', []).filter(item => {return moment(`${item.datetime}Z`).isAfter(moment(startDateTime))});
-		var endDateHistory = _.get(endDateIntradayDetail, 'history', []).filter(item => {return moment(`${item.datetime}Z`).isBefore(moment(endDateTime))});
-		var lowPriceHistory =  eodHighHistory;
-		var highPriceHistory = eodLowHistory;
+		var startDateHistory = _.get(startDateIntradayDetail, 'intradayHistory', []).filter(item => {return moment(`${item.datetime}Z`).isAfter(moment(startDateTime))});
+		var endDateHistory = _.get(endDateIntradayDetail, 'intradayhistory', []).filter(item => {return moment(`${item.datetime}Z`).isBefore(moment(endDateTime))});
+		var lowPriceHistory =  _.get(eodLowHistory, 'priceHistory', []);
+		var highPriceHistory = _.get(eodHighHistory, 'priceHistory', []);
 
 		var intervalLowPrice = Math.min(...[
-			_.get(_.minBy(startDateHistory, 'low'), 'low', -Infinity),
-			_.get(_.minBy(endDateHistory, 'low'), 'low', -Infinity),
-			_.get(_.minBy(lowPriceHistory, 'price'), 'price', -Infinity)]);
+			_.get(_.minBy(startDateHistory, 'low'), 'low', 0),
+			_.get(_.minBy(endDateHistory, 'low'), 'low', 0),
+			_.get(_.minBy(lowPriceHistory, 'price'), 'price', 0)]);
 
-		var intervalHighPrice = Math.min(...[
-			_.get(_.maxBy(startDateHistory, 'high'), 'high', Infinity),
-			_.get(_.maxBy(endDateHistory, 'high'), 'high', Infinity),
-			_.get(_.maxBy(lowPriceHistory, 'price'), 'price', Infinity)]);
+		var intervalHighPrice = Math.max(...[
+			_.get(_.maxBy(startDateHistory, 'high'), 'high', 0),
+			_.get(_.maxBy(endDateHistory, 'high'), 'high', 0),
+			_.get(_.maxBy(highPriceHistory, 'price'), 'price', 0)]);
 
 		
 		return {...security, intervalDetail: {high: intervalHighPrice, low: intervalLowPrice}};
