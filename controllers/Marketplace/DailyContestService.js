@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-04 12:47:10
+* @Last Modified time: 2018-12-05 19:34:36
 */
 
 'use strict';
@@ -311,7 +311,6 @@ module.exports.getDailyContestTopStocks = (args, res, next) => {
 /*
 * Get contest (dashboard stats) for user
 */
-
 module.exports.getDailyContestStats = (args, res, next) => {
 	const category = _.get(args, 'category.value', "general");
 	const symbol = _.get(args, 'symbol.value', null);
@@ -418,7 +417,7 @@ module.exports.sendEmailToDailyContestWinners = function(args, res, next) {
     });
 };
 
-module.exports.sendSummaryDigestToDailyContestParticipants = function(args, res, next) {
+module.exports.sendSummaryEmailToParticipants = function(args, res, next) {
     const userId = args.user._id;
     const userEmail = _.get(args.user, 'email', null);
     const date = _.get(args, 'date.value', null);
@@ -444,7 +443,7 @@ module.exports.sendSummaryDigestToDailyContestParticipants = function(args, res,
 module.exports.sendTemplateEmailToParticipants = function(args, res, next) {
     const userId = args.user._id;
     const userEmail = _.get(args.user, 'email', null);
-    const templateId = _.get(args, 'templateId.value', null);
+    const emailType = _.get(args, 'emailType.value', "all");
 
     const admins = config.get('admin_user');
     
@@ -455,7 +454,7 @@ module.exports.sendTemplateEmailToParticipants = function(args, res, next) {
     	}
 
         if (admins.indexOf(userEmail) !== -1){ // user is admin and can send email
-            return DailyContestStatsHelper.sendTemplateEmailToParticipants(templateId);
+            return DailyContestStatsHelper.sendTemplateEmailToParticipants(emailType);
         } else {
             APIError.throwJsonError({message: "User not authorized to send email"});
         }

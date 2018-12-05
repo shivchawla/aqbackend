@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-04 13:05:26
+* @Last Modified time: 2018-12-05 18:53:29
 */
 
 'use strict';
@@ -318,15 +318,88 @@ function _getAdvisorLatestPerformance(advisorId) {
 	});
 }
 
-
-module.exports.sendTemplateEmailToParticipants = function(templateId) {	
-	
+function _getContestAdvisors(options) {
 	return DailyContestEntryModel.fetchDistinctAdvisors({})
 	.then(distinctAdvisors => {
-		return Promise.mapSeries(distinctAdvisors, function(advisorId) {
+		var successRateMin = _.get(options, 'winRatioMin', 0);
+		var successRateMax = _.get(options, 'winRatioMax', 1.0);
+		var activePredictionsMin = _.get(options, 'activePredictionsMin', 0);
+		var activePredictionsMax = _.get(options, 'activePredictionsMax', Infinity);
+
+		return Promise.map(distinctAdvisors, function(advisorId) {
+			return DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId})
+			.then(pnlStats => {
+				if (pnlStats) {
+					const winRatio = _.get(pnlStats, 'net.all.net.winRatio', 0) || 0;
+					const successRate = winRatio > 0 ? winRatio/(1+winRatio) : 1.0;
+
+					const activePredictions = _.get(pnlStats, 'detail.cumulative.active.net.count', 0);
+					const totalPredictions = _.get(pnlStats, 'net.all.net.count', 0);
+
+					if (successRate >= successRateMin && successRate <= successRateMax &&
+							activePredictions >= activePredictionsMin && activePredictions <= activePredictionsMax) {
+						return {successRate, activePredictions, totalPredictions, advisorId};
+					} else {
+						return null;
+					}
+
+				} else {
+					return null;
+				}
+			})
+		})
+		.then(filteredAdvisors => {
+			return filteredAdvisors.filter(item => item);
+		});		
+	});
+}
+
+
+module.exports.sendTemplateEmailToParticipants = function(emailType) {	
+	
+	let templateId;
+
+	Promise.resolve()
+	.then(() => {
+		switch(emailType) {
+			case "all": 
+				templateId = config.get('dailycontest_all_advisors_template'); 
+				return _getContestAdvisors(); 
+				break;
+
+			case "zeroPredictions": 
+				templateId = config.get('dailycontest_zero_predictions_advisors_template'); 
+				return _getContestAdvisors({activePredictionsMax: 0});
+				break;
+
+			case "lowProfitabilityLowPredictions": 
+				templateId = config.get('dailycontest_low_profitability_low_predictions_advisors_template'); 
+				return _getContestAdvisors({activePredictionsMin: 1, activePredictionsMax: 5, successRateMax: 0.5});
+				break;	
+
+			case "highProfitabilityLowPredictions": 
+				templateId = config.get('dailycontest_high_profitability_low_predictions_advisors_template'); 
+				return _getContestAdvisors({activePredictionsMin: 1, activePredictionsMax: 5, successRateMin: 0.5});
+				break;
+
+			case "lowProfitabilityHighPredictions": 
+				templateId = config.get('dailycontest_low_profitability_high_predictions_advisors_template'); 
+				return _getContestAdvisors({activePredictionsMin: 5, successRateMax: 0.5});
+				break;
+
+			case "highProfitabilityHighPredictions": 
+				templateId = config.get('dailycontest_high_profitability_high_predictions_advisors_template'); 
+				return _getContestAdvisors({activePredictionsMin: 5, successRateMin: 0.5});
+				break;
+
+			default: templateId = config.get('dailycontest_all_advisors_template'); return distinctAdvisors; break;
+		}
+	})
+	.then(filteredAdvisors => {
+		return Promise.mapSeries(filteredAdvisors, function(advisorId) {
 
 			var submitPredictionUrl = `${config.get('hostname')}/dailycontest/stockpredictions`;
-			const motivationDigest = {requiredPredictions: 30, requiredProfitability: 70, submitPredictionUrl};
+			const motivationDigest = {requiredPredictions: 30, requiredProfitability: 60, requiredAvgReturn:1.5, submitPredictionUrl};
 			
 			return _getUserDetail(advisorId)
 			.then(userDetail => {

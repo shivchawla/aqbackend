@@ -3940,7 +3940,7 @@ paths:
       - dailycontest
       summary: send email to winners
       description: send email to winners
-      operationId: sendEmailToDailyContestParticipants
+      operationId: sendSummaryEmailToParticipants
       security:
       - api_key: []
       parameters:
@@ -3977,11 +3977,13 @@ paths:
         description: "auth token"
         type: "string"
         required: true
-      - name: templateId
+      - name: emailType
         in: query
+        type: string
+        default: "all",
+        enum: ["all", "zeroPredictions", "lowProfitabilityLowPredictions", "highProfitabilityLowPredictions", "lowProfitabilityHighPredictions", "highProfitabilityHighPredictions"]
         description: sendgrid templateId
         required: true
-        type: string
       responses:
         200:
           description: OK

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:54:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-04 12:45:05
+* @Last Modified time: 2018-12-05 17:37:57
 */
 
 const DailyContest = require('../Marketplace/DailyContestService');
@@ -43,8 +43,8 @@ module.exports.sendEmailToDailyContestWinners = (req, res, next) => {
     DailyContest.sendEmailToDailyContestWinners(req.swagger.params, res, next);
 };
 
-module.exports.sendEmailToDailyContestParticipants = (req, res, next) => {
-    DailyContest.sendEmailToDailyContestParticipants(req.swagger.params, res, next);
+module.exports.sendSummaryEmailToParticipants = (req, res, next) => {
+    DailyContest.sendSummaryEmailToParticipants(req.swagger.params, res, next);
 };
 
 module.exports.sendTemplateEmailToParticipants = (req, res, next) => {
