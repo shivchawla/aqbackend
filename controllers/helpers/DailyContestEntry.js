@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-04 19:07:50
+* @Last Modified time: 2018-12-05 17:35:15
 */
 
 'use strict';
@@ -1119,10 +1119,10 @@ module.exports.getPredictionsForDate = function(advisorId, date, category='start
 			return Promise.map(updatedPredictionsWithLastPrice, function(prediction) {
 				return Promise.map([
 					SecurityHelper.getStockDetail(prediction.position.security, date),
-					SecurityHelper.getStockIntervalDetail(prediction.position.security, prediction.startDate, prediction.success.date || prediction.endDate)
+					null //SecurityHelper.getStockIntervalDetail(prediction.position.security, prediction.startDate, prediction.success.date || prediction.endDate)
 				])
 				.then(([securityLatestDetail, securityIntervalDetail]) => {
-					var updatedPosition = Object.assign(prediction.position, {security: {...securityDetail, ...securityIntervalDetail}});
+					var updatedPosition = Object.assign(prediction.position, {security: securityDetail}); //{...securityDetail, ...securityIntervalDetail}});
 					return Object.assign(prediction, {position: updatedPosition});
 				})
 			});
