@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-05 18:53:29
+* @Last Modified time: 2018-12-05 20:49:27
 */
 
 'use strict';
@@ -240,11 +240,6 @@ function _getUserDetail(advisorId) {
 		return UserModel.fetchUser({_id: advisor.user._id}, {fields:'firstName lastName email code emailpreference'})
 	})
 	.then(user => {
-		const code = user.code;
-        const type = "daily_performance_digest";
-        const email = user.email;
-        const sendDigest = _.get(user, 'emailpreference.daily_performance_digest', true);        
-        const unsubscribeUrl = eval('`'+config.get('request_unsubscribe_url') +'`');
         return {...user.toObject(), unsubscribeUrl};
 	});
 }
@@ -395,16 +390,24 @@ module.exports.sendTemplateEmailToParticipants = function(emailType) {
 			default: templateId = config.get('dailycontest_all_advisors_template'); return distinctAdvisors; break;
 		}
 	})
-	.then(filteredAdvisors => {
-		return Promise.mapSeries(filteredAdvisors, function(advisorId) {
-
+	.then(filteredAdvisorsWithDetail => {
+		return Promise.mapSeries(filteredAdvisorsWithDetail, function(item) {
+			let advisorId = item.advisorId;
+			
 			var submitPredictionUrl = `${config.get('hostname')}/dailycontest/stockpredictions`;
-			const motivationDigest = {requiredPredictions: 30, requiredProfitability: 60, requiredAvgReturn:1.5, submitPredictionUrl};
+			const motivationDigest = {requiredPredictions: 30, requiredProfitability: 60, requiredAvgReturn:1.5, ...item, submitPredictionUrl};
 			
 			return _getUserDetail(advisorId)
 			.then(userDetail => {
+
+				const code = userDetail.code;
+        		const type = "marketing_digest";
+        		const email = userDetail.email;
+        		const sendDigest = _.get(userDetail, `emailpreference.${type}`, true);        
+        		const unsubscribeUrl = eval('`'+config.get('request_unsubscribe_url') +'`');
+
 	            if (process.env.NODE_ENV === 'production') {	
-	            	return sendEmail.sendTemplateEmail(templateId, motivationDigest, userDetail, "contest");
+	            	return sendEmail.sendTemplateEmail(templateId, {...motivationDigest, unsubscribeUrl}, userDetail, "contest");
 	        	
 	        	} else if(process.env.NODE_ENV === 'development') {
 	                return sendEmail.sendTemplateEmail(templateId, motivationDigest, 
@@ -425,11 +428,17 @@ module.exports.sendSummaryDigest = function(date) {
 			return Promise.all([
 				_getAdvisorPerformanceDigest(advisorId, date),
 				_getContestDigest(date),
-				_getUserDetail(advisorId)
+				_getUserDetail(advisorId, "daily_performance_digest")
 			])
 			.then(([advisorDigest, contestDigest, userDetail]) => {
 
-				const fullDigest = {...advisorDigest, ...contestDigest, unsubscribeUrl: _.get(userDetail, 'unsubscribeUrl', '')};
+				const code = userDetail.code;
+        		const type = "daily_performance_digest";
+        		const email = userDetail.email;
+        		const sendDigest = _.get(userDetail, 'emailpreference.daily_performance_digest', true);        
+        		const unsubscribeUrl = eval('`'+config.get('request_unsubscribe_url') +'`');
+
+				const fullDigest = {...advisorDigest, ...contestDigest, unsubscribeUrl};
 
 	            if (process.env.NODE_ENV === 'production') {	
 	            	return sendEmail.sendDailyContestSummaryDigest(fullDigest, userDetail);

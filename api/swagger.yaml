@@ -3980,7 +3980,7 @@ paths:
       - name: emailType
         in: query
         type: string
-        default: "all",
+        default: "all"
         enum: ["all", "zeroPredictions", "lowProfitabilityLowPredictions", "highProfitabilityLowPredictions", "lowProfitabilityHighPredictions", "highProfitabilityHighPredictions"]
         description: sendgrid templateId
         required: true

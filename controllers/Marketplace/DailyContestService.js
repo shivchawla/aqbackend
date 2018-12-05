@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-05 19:34:36
+* @Last Modified time: 2018-12-05 20:50:16
 */
 
 'use strict';
@@ -449,10 +449,6 @@ module.exports.sendTemplateEmailToParticipants = function(args, res, next) {
     
     Promise.resolve(true)
     .then(() => {
-    	if (!templateId || templateId == "") {
-    		APIError.throwJsonError({message: "Invalid template"});
-    	}
-
         if (admins.indexOf(userEmail) !== -1){ // user is admin and can send email
             return DailyContestStatsHelper.sendTemplateEmailToParticipants(emailType);
         } else {
