@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-06 11:01:06
+* @Last Modified time: 2018-12-06 20:18:11
 */
 
 'use strict';
@@ -65,6 +65,30 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		var countNegative_long = 0;
 		var countNegative_short = 0;
 
+		var countMaxLoss = 0;
+		var countMaxLoss_short = 0;
+		var countMaxLoss_long = 0;
+		
+		var countMaxLossPositive = 0;
+		var countMaxLossPositive_long = 0;
+		var countMaxLossPositive_short = 0;
+
+		var countMaxLossNegative = 0;
+		var countMaxLossNegative_long = 0;
+		var countMaxLossNegative_short = 0;
+
+		var countMaxGain = 0;
+		var countMaxGain_short = 0;
+		var countMaxGain_long = 0;
+		
+		var countMaxGainPositive = 0;
+		var countMaxGainPositive_long = 0;
+		var countMaxGainPositive_short = 0;
+
+		var countMaxGainNegative = 0;
+		var countMaxGainNegative_long = 0;
+		var countMaxGainNegative_short = 0;
+
 		var sumPnlPct = 0;
 		var sumPnlPct_long = 0;
 		var sumPnlPct_short = 0;
@@ -76,6 +100,45 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		var sumPnlPctNegative = 0;
 		var sumPnlPctNegative_long = 0;
 		var sumPnlPctNegative_short = 0;
+
+		////
+		var sumMinLossPct = 0;
+		var sumMinLossPct_long = 0;
+		var sumMinLossPct_short = 0;
+
+		var sumMinLossPctPositive = 0;
+		var sumMinLossPctPositive_long = 0;
+		var sumMinLossPctPositive_short = 0;
+
+		var sumMinLossPctNegative = 0;
+		var sumMinLossPctNegative_long = 0;
+		var sumMinLossPctNegative_short = 0;
+
+		////
+		var sumMaxGainPct = 0;
+		var sumMaxGainPct_long = 0;
+		var sumMaxGainPct_short = 0;
+
+		var sumMaxGainPctPositive = 0;
+		var sumMaxGainPctPositive_long = 0;
+		var sumMaxGainPctPositive_short = 0;
+
+		var sumMaxGainPctNegative = 0;
+		var sumMaxGainPctNegative_long = 0;
+		var sumMaxGainPctNegative_short = 0;
+
+		///
+		var sumHoldingPeriod = 0;
+		var sumHoldingPeriod_long = 0;
+		var sumHoldingPeriod_short = 0;
+
+		var sumHoldingPeriodPositive = 0;
+		var sumHoldingPeriodPositive_long = 0;
+		var sumHoldingPeriodPositive_short = 0;
+
+		var sumHoldingPeriodNegative = 0;
+		var sumHoldingPeriodNegative_long = 0;
+		var sumHoldingPeriodNegative_short = 0;
 
 		var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
 
@@ -130,18 +193,82 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 			countNegative_long += _.get(item, 'long.countNegative', 0);
 			countNegative_short += _.get(item, 'short.countNegative', 0);
 
+			countMaxLoss += _.get(item, 'net.countMaxLoss', 0);
+			countMaxLoss_long += _.get(item, 'long.countMaxLoss', 0);
+			countMaxLoss_short += _.get(item, 'short.countMaxLoss', 0);
+			
+			countMaxLossPositive += _.get(item, 'net.countMaxLossPositive', 0);
+			countMaxLossPositive_long += _.get(item, 'long.countMaxLossPositive', 0);
+			countMaxLossPositive_short += _.get(item, 'short.countMaxLossPositive', 0);
+
+			countMaxLossNegative += _.get(item, 'net.countMaxLossNegative', 0);
+			countMaxLossNegative_long += _.get(item, 'long.countMaxLossNegative', 0);
+			countMaxLossNegative_short += _.get(item, 'short.countMaxLossNegative', 0);
+
+			countMaxGain += _.get(item, 'net.countMaxGain', 0);
+			countMaxGain_long += _.get(item, 'long.countMaxGain', 0);
+			countMaxGain_short += _.get(item, 'short.countMaxGain', 0);
+			
+			countMaxGainPositive += _.get(item, 'net.countMaxGainPositive', 0);
+			countMaxGainPositive_long += _.get(item, 'long.countMaxGainPositive', 0);
+			countMaxGainPositive_short += _.get(item, 'short.countMaxGainPositive', 0);
+
+			countMaxGainNegative += _.get(item, 'net.countMaxGainNegative', 0);
+			countMaxGainNegative_long += _.get(item, 'long.countMaxGainNegative', 0);
+			countMaxGainNegative_short += _.get(item, 'short.countMaxGainNegative', 0);
+
+
 			sumPnlPct += _.get(item, 'net.avgPnlPct', 0) * _.get(item, 'net.count', 0);
 			sumPnlPct_long += _.get(item, 'long.avgPnlPct', 0) * _.get(item, 'long.count', 0);
 			sumPnlPct_short += _.get(item, 'short.avgPnlPct', 0) * _.get(item, 'short.count', 0);
 
-			sumPnlPctPositive += _.get(item, 'net.avgPnlPctPositive', 0) * _.get(item, 'net.countPositive', 0);;
-			sumPnlPctPositive_long += _.get(item, 'long.avgPnlPctPositive', 0) * _.get(item, 'long.countPositive', 0);;
-			sumPnlPctPositive_short += _.get(item, 'short.avgPnlPctPositive', 0) * _.get(item, 'short.countPositive', 0);;
+			sumPnlPctPositive += _.get(item, 'net.avgPnlPctPositive', 0) * _.get(item, 'net.countPositive', 0);
+			sumPnlPctPositive_long += _.get(item, 'long.avgPnlPctPositive', 0) * _.get(item, 'long.countPositive', 0);
+			sumPnlPctPositive_short += _.get(item, 'short.avgPnlPctPositive', 0) * _.get(item, 'short.countPositive', 0);
 
-			sumPnlPctNegative += _.get(item, 'net.avgPnlPctNegative', 0) * _.get(item, 'net.countNegative', 0);;
-			sumPnlPctNegative_long += _.get(item, 'long.avgPnlPctNegative', 0) * _.get(item, 'long.countNegative', 0);;
-			sumPnlPctNegative_short += _.get(item, 'short.avgPnlPctNegative', 0) * _.get(item, 'short.countNegative', 0);;
-		
+			sumPnlPctNegative += _.get(item, 'net.avgPnlPctNegative', 0) * _.get(item, 'net.countNegative', 0);
+			sumPnlPctNegative_long += _.get(item, 'long.avgPnlPctNegative', 0) * _.get(item, 'long.countNegative', 0);
+			sumPnlPctNegative_short += _.get(item, 'short.avgPnlPctNegative', 0) * _.get(item, 'short.countNegative', 0);
+
+			//Sum of max loss
+			sumMaxLossPct += _.get(item, 'net.avgMaxLossPct', 0) * _.get(item, 'net.countMaxLoss', 0);
+			sumMaxLossPct_long += _.get(item, 'long.avgMaxLossPct', 0) * _.get(item, 'longcountMaxLoss', 0);
+			sumMaxLossPct_short += _.get(item, 'short.avgMaxLossPct', 0) * _.get(item, 'short.countMaxLoss', 0);
+
+			sumMaxLossPctPositive += _.get(item, 'net.avgMaxLossPctPositive', 0) * _.get(item, 'net.countMaxLossPositive', 0);
+			sumMaxLossPctPositive_long += _.get(item, 'long.avgMaxLossPctPositive', 0) * _.get(item, 'longcountMaxLossPositive', 0);
+			sumMaxLossPctPositive_short += _.get(item, 'short.avgMaxLossPctPositive', 0) * _.get(item, 'short.countMaxLossPositive', 0);
+
+			sumMaxLossPctNegative += _.get(item, 'net.avgMaxLossPctNegative', 0) * _.get(item, 'net.countMaxLossNegative', 0);
+			sumMaxLossPctNegative_long += _.get(item, 'long.avgMaxLossPctNegative', 0) * _.get(item, 'longcountMaxLossNegative', 0);
+			sumMaxLossPctNegative_short += _.get(item, 'short.avgMaxLossPctNegative', 0) * _.get(item, 'short.countMaxLossNegative', 0);
+
+			//Sum of max gain
+			sumMaxGainPct += _.get(item, 'net.avgMaxGainPct', 0) * _.get(item, 'net.countMaxGain', 0);
+			sumMaxGainPct_long += _.get(item, 'long.avgMaxGainPct', 0) * _.get(item, 'longcountMaxGain', 0);
+			sumMaxGainPct_short += _.get(item, 'short.avgMaxGainPct', 0) * _.get(item, 'short.countMaxGain', 0);
+
+			sumMaxGainPctPositive += _.get(item, 'net.avgMaxGainPctPositive', 0) * _.get(item, 'net.countMaxGainPositive', 0);
+			sumMaxGainPctPositive_long += _.get(item, 'long.avgMaxGainPctPositive', 0) * _.get(item, 'longcountMaxGainPositive', 0);
+			sumMaxGainPctPositive_short += _.get(item, 'short.avgMaxGainPctPositive', 0) * _.get(item, 'short.countMaxGainPositive', 0);
+
+			sumMaxGainPctNegative += _.get(item, 'net.avgMaxGainPctNegative', 0) * _.get(item, 'net.countMaxGainNegative', 0);
+			sumMaxGainPctNegative_long += _.get(item, 'long.avgMaxGainPctNegative', 0) * _.get(item, 'longcountMaxGainNegative', 0);
+			sumMaxGainPctNegative_short += _.get(item, 'short.avgMaxGainPctNegative', 0) * _.get(item, 'short.countMaxGainNegative', 0);
+
+			//Sum of Holding period
+			sumHoldingPeriod += _.get(item, 'net.avgHoldingPeriod', 0) * _.get(item, 'net.count', 0);
+			sumHoldingPeriod_long += _.get(item, 'net.avgHoldingPeriod_long', 0) * _.get(item, 'net.count_long', 0);
+			sumHoldingPeriod_short += _.get(item, 'net.avgHoldingPeriod_short', 0) * _.get(item, 'net.count_short', 0);
+
+			sumHoldingPeriodPositive += _.get(item, 'net.avgHoldingPeriodPositive', 0) * _.get(item, 'net.countPositive', 0);
+			sumHoldingPeriodPositive_long += _.get(item, 'net.avgHoldingPeriodPositive_long', 0) * _.get(item, 'net.countPositive_long', 0);
+			sumHoldingPeriodPositive_short += _.get(item, 'net.avgHoldingPeriodPositive_short', 0) * _.get(item, 'net.countPositive_short', 0);
+
+			sumHoldingPeriodNegative += _.get(item, 'net.avgHoldingPeriodNegative', 0) * _.get(item, 'net.countNegative', 0);
+			sumHoldingPeriodNegative_long += _.get(item, 'net.avgHoldingPeriodNegative_long', 0) * _.get(item, 'net.countNegative_long', 0);
+			sumHoldingPeriodNegative_short += _.get(item, 'net.avgHoldingPeriodNegative_short', 0) * _.get(item, 'net.countNegative_short', 0);
+
 			if (!minPnl) {
 				minPnl = _.get(item, 'net.minPnl', {});
 			} else {
@@ -226,17 +353,69 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 		var avgPnlPctNegative_long = countNegative_long > 0 ? sumPnlPctNegative_long/countNegative_long : 0;
 		var avgPnlPctNegative_short = countNegative_short > 0 ? sumPnlPctNegative_short/countNegative_short : 0;
 
+		var avgHoldingPeriod = count > 0 ? sumHoldingPeriod/count : 0;
+		var avgHoldingPeriod_long = count_long > 0 ? sumHoldingPeriod_long/count_long : 0;
+		var avgHoldingPeriod_short = count_short > 0 ? sumHoldingPeriod_short/count_short : 0;
+
+		var avgHoldingPeriodPositive = countPositive > 0 ? sumHoldingPeriodPositive/countPositive : 0;
+		var avgHoldingPeriodPositive_long = countPositive_long > 0 ? sumHoldingPeriodPositive_long/countPositive_long : 0;
+		var avgHoldingPeriodPositive_short = countPositive_short > 0 ? sumHoldingPeriodPositive_short/countPositive_short : 0;
+
+		var avgHoldingPeriodNegative = countNegative > 0 ? sumHoldingPeriodNegative/countNegative : 0;
+		var avgHoldingPeriodNegative_long = countNegative_long > 0 ? sumHoldingPeriodNegative_long/countNegative_long : 0;
+		var avgHoldingPeriodNegative_short = countNegative_short > 0 ? sumHoldingPeriodNegative_short/countNegative_short : 0;
+
+		var avgMaxLossPct, avgMaxLossPct_long, avgMaxLossPct_short, 
+			avgMaxLossPctPositive, avgMaxLossPctPositive_long, avgMaxLossPctPositive_short, 
+			avgMaxLossPctNegative, avgMaxLossPctNegative_long, avgMaxLossPctNegative_short,
+			avgMaxGainPct, avgMaxGainPct_long, avgMaxGainPct_short, 
+			avgMaxGainPctPositive, avgMaxGainPctPositive_long, avgMaxGainPctPositive_short, 
+			avgMaxGainPctNegative, avgMaxGainPctNegative_long, avgMaxGainPctNegative_short;
+			
+		//Compute averages of max gain
+		avgMaxGainPct = countMaxGain > 0 ? sumMaxGainPct/countMaxGain : 0;
+		avgMaxGainPct_long = countMaxGain_short > 0 ? sumMaxGainPct_long/countMaxGain_long : 0;
+		avgMaxGainPct_short = countMaxGain_short > 0 ? sumMaxGainPct_long/countMaxGain_long : 0;
+
+		avgMaxGainPctPositive = countMaxGainPositive > 0 ? sumMaxGainPctPositive/countMaxGainPositive : 0;
+		avgMaxGainPctPositive_long = countMaxGainPositive_short > 0 ? sumMaxGainPctPositive_long/countMaxGainPositive_long : 0;
+		avgMaxGainPctPositive_short = countMaxGainPositive_short > 0 ? sumMaxGainPctPositive_long/countMaxGainPositive_long : 0;
+
+		avgMaxGainPctNegative = countMaxGainNegative > 0 ? sumMaxGainPctNegative/countMaxGainNegative : 0;
+		avgMaxGainPctNegative_long = countMaxGainNegative_short > 0 ? sumMaxGainPctNegative_long/countMaxGainNegative_long : 0;
+		avgMaxGainPctNegative_short = countMaxGainNegative_short > 0 ? sumMaxGainPctNegative_long/countMaxGainNegative_long : 0;
+		
+		//Compute averages of max loss
+		avgMaxLossPct = countMaxLoss > 0 ? sumMaxLossPct/countMaxLoss : 0;
+		avgMaxLossPct_long = countMaxLoss_short > 0 ? sumMaxLossPct_long/countMaxLoss_long : 0;
+		avgMaxLossPct_short = countMaxLoss_short > 0 ? sumMaxLossPct_long/countMaxLoss_long : 0;
+
+		avgMaxLossPctPositive = countMaxLossPositive > 0 ? sumMaxLossPctPositive/countMaxLossPositive : 0;
+		avgMaxLossPctPositive_long = countMaxLossPositive_short > 0 ? sumMaxLossPctPositive_long/countMaxLossPositive_long : 0;
+		avgMaxLossPctPositive_short = countMaxLossPositive_short > 0 ? sumMaxLossPctPositive_long/countMaxLossPositive_long : 0;
+
+		avgMaxLossPctNegative = countMaxLossNegative > 0 ? sumMaxLossPctNegative/countMaxLossNegative : 0;
+		avgMaxLossPctNegative_long = countMaxLossNegative_short > 0 ? sumMaxLossPctNegative_long/countMaxLossNegative_long : 0;
+		avgMaxLossPctNegative_short = countMaxLossNegative_short > 0 ? sumMaxLossPctNegative_long/countMaxLossNegative_long : 0;
+
 		var pnlStats = {
 			net: {pnl: totalPnl, pnlPct: totalPnlPct, 
+				pnlPctPositive, pnlPctNegative,
 				cost, costPositive, costNegative, 
 				cash, netValue, grossValue,
 			 	minPnl, maxPnl, profitFactor, 
 				pnlPositive, pnlNegative, winRatio,
 				count, countPositive, countNegative,
 				avgPnl, avgPnlPositive, avgPnlNegative,
+				
 				avgPnlPct, avgPnlPctPositive, avgPnlPctNegative,
-				pnlPctPositive, pnlPctNegative},
-			long: {pnl: totalPnl_long, pnlPct: totalPnlPct_long, 
+				
+				avgPnlPctMaxLoss, avgPnlPctMaxLossPositive, avgPnlPctMaxLossNegative,
+				avgPnlPctMaxGain, avgPnlPctMaxGainPositive, avgPnlPctMaxGainNegative,
+
+				avgHoldingPeriod, avgHoldingPeriodPositive, avgHoldingPeriodNegative},
+			long: {pnl: totalPnl_long, pnlPct: totalPnlPct_long,
+				pnlPctPositive: pnlPctPositive_long, pnlPctNegative: pnlPctNegative_long, 
 				cost: cost_long, costPositive: costPositive_long,
 				costNegative: costNegative_long,
 				netValue: netValue_long, 
@@ -246,9 +425,15 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 				winRatio: winRatio_long, 
 				count: count_long, countPositive: countPositive_long, countNegative: countNegative_long,
 				avgPnl: avgPnl_long, avgPnlPositive: avgPnlPositive_long, avgPnlNegative: avgPnlNegative_long,
+				
 				avgPnlPct: avgPnlPct_long, avgPnlPctPositive: avgPnlPctPositive_long, avgPnlPctNegative: avgPnlPctNegative_long,
-				pnlPctPositive: pnlPctPositive_long, pnlPctNegative: pnlPctNegative_long},
-			short: {pnl: totalPnl_short, pnlPct: totalPnlPct_short, 
+				
+				avgPnlPctMaxLoss: avgPnlPctMaxLoss_long, avgPnlPctMaxLossPositive: avgPnlPctMaxLossPositive_long, avgPnlPctMaxLossNegative: avgPnlPctMaxLossNegative_long,
+				avgPnlPctMaxGain: avgPnlPctMaxGain_long, avgPnlPctMaxGainPositive: avgPnlPctMaxGainPositive_long, avgPnlPctMaxGainNegative: avgPnlPctMaxGainNegative_long,
+				
+				avgHoldingPeriod: avgHoldingPeriod_long , avgHoldingPeriodPositive: avgHoldingPeriodPositive_long, avgHoldingPeriodNegative: avgHoldingPeriodNegative_long},
+			short: {pnl: totalPnl_short, pnlPct: totalPnlPct_short,
+				pnlPctPositive: pnlPctPositive_short, pnlPctNegative: pnlPctNegative_short, 
 				cost: cost_short, costPositive: costPositive_short,
 				costNegative: costNegative_short, 
 				netValue: netValue_short, 
@@ -257,8 +442,13 @@ function _aggregatePnlStats(pnlStatsAllArray) {
 				pnlPositive: pnlPositive_short, pnlNegative: pnlNegative_short, winRatio: winRatio_short,
 				count: count_short, countPositive: countPositive_short, countNegative: countNegative_short,
 				avgPnl: avgPnl_short, avgPnlPositive: avgPnlPositive_short, avgPnlNegative: avgPnlNegative_short,
+				
 				avgPnlPct: avgPnlPct_short, avgPnlPctPositive: avgPnlPctPositive_short, avgPnlPctNegative: avgPnlPctNegative_short,
-				pnlPctPositive: pnlPctPositive_short, pnlPctNegative: pnlPctNegative_short}
+				
+				avgPnlPctMaxLoss: avgPnlPctMaxLoss_short, avgPnlPctMaxLossPositive: avgPnlPctMaxLossPositive_short, avgPnlPctMaxLossNegative: avgPnlPctMaxLossNegative_short,
+				avgPnlPctMaxGain: avgPnlPctMaxGain_short, avgPnlPctMaxGainPositive: avgPnlPctMaxGainPositive_short, avgPnlPctMaxGainNegative: avgPnlPctMaxGainNegative_short,
+				
+				avgHoldingPeriod: avgHoldingPeriod_short , avgHoldingPeriodPositive: avgHoldingPeriodPositive_short, avgHoldingPeriodNegative: avgHoldingPeriodNegative_short}
 			};
 
 		resolve(pnlStats);
@@ -300,7 +490,40 @@ function _aggregatePnlStatsByTickers(pnlStatsByTickersArray) {
 	});
 }
 
-function _computePnlStats(predictions, ticker) {
+//NOT IN USE
+//BUT MUST BE USED
+//BREAK DOWN THE PnlStats 
+function _getPredictionMetrics(prediction) {
+	var pos = prediction.position;
+
+	var startDate = item.startDate;
+	var endDate = item.success.date || item.endDate;
+	var holdingPeriod = DateHelper.getTradingDays(startDate, endDate);
+
+	var trueCost = pos.investment;
+
+	var _cv = pos.avgPrice > 0.0 ? trueCost * (pos.lastPrice/pos.avgPrice) : trueCost;
+	var currentValue = _cv + _.get(pos, 'dividendCash', 0.0);
+	
+	var pnl = (currentValue - trueCost);
+	var absCost = Math.abs(trueCost);
+
+	var intervalHigh = _.get(pos, 'security.intervalDetail.high', -Infinity);
+	var intervalLow = _.get(pos, 'security.intervalDetail.high', Infinity);
+
+	var minValue = var _cv = pos.avgPrice > 0.0 ? 
+		trueCost * ((trueCost > 0 ? intervalLow : intervalHigh)/pos.avgPrice) : trueCost;
+
+	var maxValue = var _cv = pos.avgPrice > 0.0 ? 
+		trueCost * ((trueCost > 0 ? intervalHigh : intervalLow)/pos.avgPrice) : trueCost;
+
+	var pnlMin = (minValue - trueCost);
+	var pnlMax = (maxValue - trueCost);
+
+	return {trueCost, absCost, pnl, minValue, maxValue, pnlMin, pnlMax};
+}
+
+function _computePnlStats(predictions, ticker=null) {
 	return new Promise(resolve => {
 		var totalPnl = 0.0;
 		var totalPnlPct = 0.0;
@@ -347,6 +570,32 @@ function _computePnlStats(predictions, ticker) {
 		var countNegative_long = 0;
 		var countNegative_short = 0;
 
+		//Count of trades with max loss > 0 (taking absolute of loss)
+		var countMaxLoss = 0;
+		var countMaxLoss_short = 0;
+		var countMaxLoss_long = 0;
+		
+		var countMaxLossPositive = 0;
+		var countMaxLossPositive_long = 0;
+		var countMaxLossPositive_short = 0;
+
+		var countMaxLossNegative = 0;
+		var countMaxLossNegative_long = 0;
+		var countMaxLossNegative_short = 0;
+
+		//Count of trades with max gain > 0 (taking absolute of gain)
+		var countMaxGain = 0;
+		var countMaxGain_short = 0;
+		var countMaxGain_long = 0;
+		
+		var countMaxGainPositive = 0;
+		var countMaxGainPositive_long = 0;
+		var countMaxGainPositive_short = 0;
+
+		var countMaxGainNegative = 0;
+		var countMaxGainNegative_long = 0;
+		var countMaxGainNegative_short = 0;
+
 		var sumPnlPct = 0;
 		var sumPnlPct_long = 0;
 		var sumPnlPct_short = 0;
@@ -358,18 +607,45 @@ function _computePnlStats(predictions, ticker) {
 		var sumPnlPctNegative = 0;
 		var sumPnlPctNegative_long = 0;
 		var sumPnlPctNegative_short = 0;
+		
+		////
+		var sumMaxLossPct = 0;
+		var sumMaxLossPct_long = 0;
+		var sumMinLossPct_short = 0;
 
-		var sumHldngPeriod = 0;
-		var sumHldngPeriod_long = 0;
-		var sumHldngPeriod_short = 0;
+		var sumMaxLossPctPositive = 0;
+		var sumMaxLossPctPositive_long = 0;
+		var sumMaxLossPctPositive_short = 0;
 
-		var sumHldngPeriodPositive = 0;
-		var sumHldngPeriodPositive_long = 0;
-		var sumHldngPeriodPositive_short = 0;
+		var sumMaxLossPctNegative = 0;
+		var sumMaxLossPctNegative_long = 0;
+		var sumMaxLossPctNegative_short = 0;
 
-		var sumHldngPeriodNegative = 0;
-		var sumHldngPeriodNegative_long = 0;
-		var sumHldngPeriodNegative_short = 0;
+		////
+		var sumMaxGainPct = 0;
+		var sumMaxGainPct_long = 0;
+		var sumMaxGainPct_short = 0;
+
+		var sumMaxGainPctPositive = 0;
+		var sumMaxGainPctPositive_long = 0;
+		var sumMaxGainPctPositive_short = 0;
+
+		var sumMaxGainPctNegative = 0;
+		var sumMaxGainPctNegative_long = 0;
+		var sumMaxGainPctNegative_short = 0;
+
+		////
+		var sumHoldingPeriod = 0;
+		var sumHoldingPeriod_long = 0;
+		var sumHoldingPeriod_short = 0;
+
+		var sumHoldingPeriodPositive = 0;
+		var sumHoldingPeriodPositive_long = 0;
+		var sumHoldingPeriodPositive_short = 0;
+
+		var sumHoldingPeriodNegative = 0;
+		var sumHoldingPeriodNegative_long = 0;
+		var sumHoldingPeriodNegative_short = 0;
 
 		var minPnl, maxPnl, minPnl_short, maxPnl_short, minPnl_long, maxPnl_long;
 
@@ -389,6 +665,22 @@ function _computePnlStats(predictions, ticker) {
 			var pnl = (currentValue - trueCost);
 			var absCost = Math.abs(trueCost);
 
+			var intervalHigh = _.get(pos, 'security.intervalDetail.high', -Infinity);
+			var intervalLow = _.get(pos, 'security.intervalDetail.high', Infinity);
+
+			var minValue = var _cv = pos.avgPrice > 0.0 ? 
+				trueCost * ((trueCost > 0 ? intervalLow : intervalHigh)/pos.avgPrice) : trueCost;
+
+			var maxValue = var _cv = pos.avgPrice > 0.0 ? 
+				trueCost * ((trueCost > 0 ? intervalHigh : intervalLow)/pos.avgPrice) : trueCost;
+
+			//Maximum gain/loss based on interval pricing
+			var maxLoss = Math.abs(Math.min(0, minValue - trueCost));
+			var maxGain = Math.max(0, maxValue - trueCost);
+
+			var maxGainPct = maxGain/absCost;
+			var maxLossPct = maxLoss/absCost;
+
 			var pnlPct = absCost > 0 ? pnl/absCost : 0;
 			var pnlPct_long = trueCost > 0 ? pnl/absCost : 0 
 			var pnlPct_short = trueCost < 0 ? pnl/absCost : 0;
@@ -401,6 +693,33 @@ function _computePnlStats(predictions, ticker) {
 			var pnlPctNegative_long = trueCost > 0 ? (pnl < 0 ? Math.abs(pnl)/absCost : 0) : 0;
 			var pnlPctNegative_short = trueCost < 0 ? (pnl < 0 ? Math.abs(pnl)/absCost : 0) : 0;
 
+			//Min Pnl Percetage
+			var pnlPctMin = absCost > 0 ? pnlMin/absCost : 0;
+			var pnlPctMin_long = trueCost > 0 ? pnlMin/absCost : 0 
+			var pnlPctMin_short = trueCost < 0 ? pnlMin/absCost : 0;
+
+			var pnlPctMinPositive = absCost > 0 ? (pnl > 0 ? pnlMin/absCost : 0) : 0;
+			var pnlPctMinPositive_long = trueCost > 0 ? (pnl > 0 ? pnlMin/absCost : 0) : 0;
+			var pnlPctMinPositive_short = trueCost < 0 ? (pnl > 0 ? pnlMin/absCost : 0) : 0;
+	
+			var pnlPctMinNegative = absCost > 0 ? (pnl < 0 ? Math.abs(pnlMin)/absCost : 0) : 0;
+			var pnlPctMinNegative_long = trueCost > 0 ? (pnl < 0 ? Math.abs(pnlMin)/absCost : 0) : 0;
+			var pnlPctMinNegative_short = trueCost < 0 ? (pnl < 0 ? Math.abs(pnlMin)/absCost : 0) : 0;
+
+			//Max Pnl Percetage
+			var pnlPctMax = absCost > 0 ? pnlMax/absCost : 0;
+			var pnlPctMax_long = trueCost > 0 ? pnlMax/absCost : 0 
+			var pnlPctMax_short = trueCost < 0 ? pnlMax/absCost : 0;
+
+			var pnlPctMaxPositive = absCost > 0 ? (pnl > 0 ? pnlMax/absCost : 0) : 0;
+			var pnlPctMaxPositive_long = trueCost > 0 ? (pnl > 0 ? pnlMax/absCost : 0) : 0;
+			var pnlPctMaxPositive_short = trueCost < 0 ? (pnl > 0 ? pnlMax/absCost : 0) : 0;
+	
+			var pnlPctMaxNegative = absCost > 0 ? (pnl < 0 ? Math.abs(pnlMax)/absCost : 0) : 0;
+			var pnlPctMaxNegative_long = trueCost > 0 ? (pnl < 0 ? Math.abs(pnlMax)/absCost : 0) : 0;
+			var pnlPctMaxNegative_short = trueCost < 0 ? (pnl < 0 ? Math.abs(pnlMax)/absCost : 0) : 0;
+
+			//HoldingPeriod
 			var holdingPeriod_long = trueCost > 0 ? holdingPeriod : 0;
 			var holdingPeriod_short = trueCost < 0 ? holdingPeriod : 0;
 
@@ -420,6 +739,14 @@ function _computePnlStats(predictions, ticker) {
 			count_long += trueCost > 0 ? 1 : 0;
 			count_short += trueCost < 0 ? 1 : 0;
 
+			countMaxLoss += maxLoss > 0;
+			countMaxLoss_long += trueCost > 0 ? maxLoss > 0 : 0;
+			countMaxLoss_short += trueCost < 0 ? maxLoss > 0 : 0;
+
+			countMaxGain += maxGain > 0;
+			countMaxGain_long += trueCost > 0 ? maxGain > 0; : 0;
+			countMaxGain_short += trueCost < 0 ? maxGain > 0; : 0;
+
 			totalPnl += pnl;
 			totalPnl_long += trueCost > 0 ? pnl : 0.0;
 			totalPnl_short += trueCost < 0 ? pnl : 0.0;
@@ -436,18 +763,44 @@ function _computePnlStats(predictions, ticker) {
 			sumPnlPctNegative_long += pnlPctNegative_long;
 			sumPnlPctNegative_short += pnlPctNegative_short;
 
+			//Sum of Minimum pnlPct
+			sumPnlPctMin += pnlPctMin;
+			sumPnlPctMin_long += pnlPctMin_long;
+			sumPnlPctMin_short += pnlPctMin_short;
 
-			sumHldngPeriod += holdingPeriod;
-			sumHldngPeriod_long += holdingPeriod_long;
-			sumHldngPeriod_short += holdingPeriod_short;
+			sumPnlPctMinPositive += pnlPctMinPositive;
+			sumPnlPctMinPositive_long += pnlPctMinPositive_long;
+			sumPnlPctMinPositive_short += pnlPctMinPositive_short;
+			
+			sumPnlPctMinNegative += pnlPctMinNegative;
+			sumPnlPctMinNegative_long += pnlPctMinNegative_long;
+			sumPnlPctMinNegative_short += pnlPctMinNegative_short;
 
-			sumHldngPeriodPositive += holdingPeriodPositive;
-			sumHldngPeriodPositive_long += holdingPeriodNegative_long;
-			sumHldngPeriodPositive_short += holdingPeriodPositive_short;
+			//Sum of maximum pnlPct
+			sumPnlPctMax += pnlPctMax;
+			sumPnlPctMax_long += pnlPctMax_long;
+			sumPnlPctMax_short += pnlPctMax_short;
 
-			sumHldngPeriodNegative += holdingPeriodNegative;
-			sumHldngPeriodNegative_long += holdingPeriodNegative_long;
-			sumHldngPeriodNegative_short += holdingPeriodNegative_short;
+			sumPnlPctMaxPositive += pnlPctMaxPositive;
+			sumPnlPctMaxPositive_long += pnlPctMaxPositive_long;
+			sumPnlPctMaxPositive_short += pnlPctMaxPositive_short;
+			
+			sumPnlPctMaxNegative += pnlPctMaxNegative;
+			sumPnlPctMaxNegative_long += pnlPctMaxNegative_long;
+			sumPnlPctMaxNegative_short += pnlPctMaxNegative_short;
+
+			//Sum of holding periods
+			sumHoldingPeriod += holdingPeriod;
+			sumHoldingPeriod_long += holdingPeriod_long;
+			sumHoldingPeriod_short += holdingPeriod_short;
+
+			sumHoldingPeriodPositive += holdingPeriodPositive;
+			sumHoldingPeriodPositive_long += holdingPeriodNegative_long;
+			sumHoldingPeriodPositive_short += holdingPeriodPositive_short;
+
+			sumHoldingPeriodNegative += holdingPeriodNegative;
+			sumHoldingPeriodNegative_long += holdingPeriodNegative_long;
+			sumHoldingPeriodNegative_short += holdingPeriodNegative_short;
 			
 			costPositive += pnl > 0 ? absCost : 0.0;
 			costPositive_long += trueCost > 0 ? (pnl > 0 ? absCost : 0.0) : 0.0;
@@ -463,12 +816,55 @@ function _computePnlStats(predictions, ticker) {
 			countNegative_long += trueCost > 0 ? (pnl < 0 ? 1 : 0.0) : 0.0;
 			countNegative_short += trueCost < 0 ? (pnl < 0 ? 1 : 0.0) : 0.0;
 
+			//Count of trades where maxloss and max gain are relevant
+			countMaxLossPositive += pnl > 0 ? maxLoss > 0 : 0.0;
+			countMaxLossPositive_long += trueCost > 0 ? (pnl > 0 ?  maxLoss > 0 : 0.0) : 0.0;
+			countMaxLossPositive_short += trueCost < 0 ? (pnl > 0 ?  maxLoss > 0 : 0.0) : 0.0;
+			countMaxLossNegative += pnl < 0 ?  maxLoss > 0 : 0.0;
+			countMaxLossNegative_long += trueCost > 0 ? (pnl < 0 ?  maxLoss > 0 : 0.0) : 0.0;
+			countMaxLossNegative_short += trueCost < 0 ? (pnl < 0 ?  maxLoss > 0 : 0.0) : 0.0;
+
+			countMaxGainPositive += pnl > 0 ?  maxGain > 0 : 0.0;
+			countMaxGainPositive_long += trueCost > 0 ? (pnl > 0 ?  maxGain > 0 : 0.0) : 0.0;
+			countMaxGainPositive_short += trueCost < 0 ? (pnl > 0 ?  maxGain > 0 : 0.0) : 0.0;
+			countMaxGainNegative += pnl < 0 ? maxGain > 0 : 0.0;
+			countMaxGainNegative_long += trueCost > 0 ? (pnl < 0 ?  maxGain > 0 : 0.0) : 0.0;
+			countMaxGainNegative_short += trueCost < 0 ? (pnl < 0 ? maxGain > 0 : 0.0) : 0.0;
+
+			//Sum of max loss/max gain
+			sumMaxGainPct += maxGainPct
+			sumMaxGainPct_long += trueCost > 0 ? maxGainPct : 0;
+			sumMaxGainPct_short += trueCost < 0 ? maxGainPct : 0;
+
+			sumMaxGainPctPositive += pnl > 0 ? maxGainPct : 0;
+			sumMaxGainPctPositive_long += trueCost > 0 ? (pnl > 0 ? maxGainPct : 0) : 0;
+			sumMaxGainPctPositive_short += trueCost < 0 ? (pnl > 0 ? maxGainPct : 0) : 0;
+
+			sumMaxGainPctNegative += pnl < 0 ? maxGainPct : 0;
+			sumMaxGainPctNegative_long += trueCost > 0 ? (pnl < 0 ? maxGainPct : 0) : 0;
+			sumMaxGainPctNegative_short += trueCost > 0 ? (pnl < 0 ? maxGainPct : 0) : 0;
+
+			sumMaxLossPct += maxLossPct
+			sumMaxLossPct_long += trueCost > 0 ? maxLossPct : 0;
+			sumMaxLossPct_short += trueCost < 0 ? maxLossPct : 0;
+
+			sumMaxLossPctPositive += pnl > 0 ? maxLossPct : 0;
+			sumMaxLossPctPositive_long += trueCost > 0 ? (pnl > 0 ? maxLossPct : 0) : 0;
+			sumMaxLossPctPositive_short += trueCost < 0 ? (pnl > 0 ? maxLossPct : 0) : 0;
+
+			sumMaxLossPctNegative += pnl < 0 ? maxLossPct : 0;
+			sumMaxLossPctNegative_long += trueCost > 0 ? (pnl < 0 ? maxLossPct : 0) : 0;
+			sumMaxLossPctNegative_short += trueCost > 0 ? (pnl < 0 ? maxLossPct : 0) : 0;
+
+			/////
 			pnlPositive += pnl > 0 ? pnl : 0.0;
 			pnlPositive_long += trueCost > 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
 			pnlPositive_short += trueCost < 0 ? (pnl > 0 ? pnl : 0.0) : 0.0;
 			pnlNegative += pnl < 0 ? Math.abs(pnl) : 0.0;
 			pnlNegative_long += trueCost > 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
 			pnlNegative_short += trueCost < 0 ? (pnl < 0 ? Math.abs(pnl) : 0.0) : 0.0;
+
+			ratioNegative = _.get();
 
 			netValue += currentValue;
 			grossValue += Math.abs(currentValue);
@@ -536,6 +932,7 @@ function _computePnlStats(predictions, ticker) {
 		var avgPnlNegative_long = countNegative_long > 0 ? pnlNegative_long/countNegative_long : 0;
 		var avgPnlNegative_short = countNegative_short > 0 ? pnlNegative_short/countNegative_short : 0;
 
+		//Average PnlPct
 		var avgPnlPct = count > 0 ? sumPnlPct/count : 0;
 		var avgPnlPct_long = count_long > 0 ? sumPnlPct_long/count_long : 0;
 		var avgPnlPct_short = count_short > 0 ? sumPnlPct_short/count_short : 0;
@@ -548,30 +945,69 @@ function _computePnlStats(predictions, ticker) {
 		var avgPnlPctNegative_long = countNegative_long > 0 ? sumPnlPctNegative_long/countNegative_long : 0;
 		var avgPnlPctNegative_short = countNegative_short > 0 ? sumPnlPctNegative_short/countNegative_short : 0;
 
-		var avgHoldingPeriod = count > 0 ? sumHldngPeriod/count : 0
-		var avgHoldingPeriod_long = count_long > 0 ? sumHldngPeriod_long/count_long : 0;
-		var avgHoldingPeriod_short = count_short > 0 ? sumHldngPeriod_short/count_short : 0;
+		var avgMaxLossPct, avgMaxLossPct_long, avgMaxLossPct_short, 
+			avgMaxLossPctPositive, avgMaxLossPctPositive_long, avgMaxLossPctPositive_short, 
+			avgMaxLossPctNegative, avgMaxLossPctNegative_long, avgMaxLossPctNegative_short,
+			avgMaxGainPct, avgMaxGainPct_long, avgMaxGainPct_short, 
+			avgMaxGainPctPositive, avgMaxGainPctPositive_long, avgMaxGainPctPositive_short, 
+			avgMaxGainPctNegative, avgMaxGainPctNegative_long, avgMaxGainPctNegative_short;
+			
+		//Compute averages of max gain
+		avgMaxGainPct = countMaxGain > 0 ? sumMaxGainPct/countMaxGain : 0;
+		avgMaxGainPct_long = countMaxGain_short > 0 ? sumMaxGainPct_long/countMaxGain_long : 0;
+		avgMaxGainPct_short = countMaxGain_short > 0 ? sumMaxGainPct_long/countMaxGain_long : 0;
 
-		var avgHoldingPeriodPositive = countPositive > 0 ? sumHldngPeriodPositive/countPositive : 0;
-		var avgHoldingPeriodPositive_long = countPositive_long > 0 ? sumHldngPeriodPositive_long/countPositive_long : 0;
-		var avgHoldingPeriodPositive_short = countPositive_short > 0 ? sumHldngPeriodPositive_short/countPositive_short : 0;
+		avgMaxGainPctPositive = countMaxGainPositive > 0 ? sumMaxGainPctPositive/countMaxGainPositive : 0;
+		avgMaxGainPctPositive_long = countMaxGainPositive_short > 0 ? sumMaxGainPctPositive_long/countMaxGainPositive_long : 0;
+		avgMaxGainPctPositive_short = countMaxGainPositive_short > 0 ? sumMaxGainPctPositive_long/countMaxGainPositive_long : 0;
 
-		var avgHoldingPeriodNegative = countNegative > 0 ? sumHldngPeriodNegative/countNegative : 0;
-		var avgHoldingPeriodNegative_long = countNegative_long > 0 ? sumHldngPeriodNegative_long/countNegative_long : 0;
-		var avgHoldingPeriodNegative_short = countNegative_short > 0 ? sumHldngPeriodNegative_short/countNegative_short : 0;
+		avgMaxGainPctNegative = countMaxGainNegative > 0 ? sumMaxGainPctNegative/countMaxGainNegative : 0;
+		avgMaxGainPctNegative_long = countMaxGainNegative_short > 0 ? sumMaxGainPctNegative_long/countMaxGainNegative_long : 0;
+		avgMaxGainPctNegative_short = countMaxGainNegative_short > 0 ? sumMaxGainPctNegative_long/countMaxGainNegative_long : 0;
+		
+		//Compute averages of max loss
+		avgMaxLossPct = countMaxLoss > 0 ? sumMaxLossPct/countMaxLoss : 0;
+		avgMaxLossPct_long = countMaxLoss_short > 0 ? sumMaxLossPct_long/countMaxLoss_long : 0;
+		avgMaxLossPct_short = countMaxLoss_short > 0 ? sumMaxLossPct_long/countMaxLoss_long : 0;
+
+		avgMaxLossPctPositive = countMaxLossPositive > 0 ? sumMaxLossPctPositive/countMaxLossPositive : 0;
+		avgMaxLossPctPositive_long = countMaxLossPositive_short > 0 ? sumMaxLossPctPositive_long/countMaxLossPositive_long : 0;
+		avgMaxLossPctPositive_short = countMaxLossPositive_short > 0 ? sumMaxLossPctPositive_long/countMaxLossPositive_long : 0;
+
+		avgMaxLossPctNegative = countMaxLossNegative > 0 ? sumMaxLossPctNegative/countMaxLossNegative : 0;
+		avgMaxLossPctNegative_long = countMaxLossNegative_short > 0 ? sumMaxLossPctNegative_long/countMaxLossNegative_long : 0;
+		avgMaxLossPctNegative_short = countMaxLossNegative_short > 0 ? sumMaxLossPctNegative_long/countMaxLossNegative_long : 0;
+
+		var avgHoldingPeriod = count > 0 ? sumHoldingPeriod/count : 0
+		var avgHoldingPeriod_long = count_long > 0 ? sumHoldingPeriod_long/count_long : 0;
+		var avgHoldingPeriod_short = count_short > 0 ? sumHoldingPeriod_short/count_short : 0;
+
+		var avgHoldingPeriodPositive = countPositive > 0 ? sumHoldingPeriodPositive/countPositive : 0;
+		var avgHoldingPeriodPositive_long = countPositive_long > 0 ? sumHoldingPeriodPositive_long/countPositive_long : 0;
+		var avgHoldingPeriodPositive_short = countPositive_short > 0 ? sumHoldingPeriodPositive_short/countPositive_short : 0;
+
+		var avgHoldingPeriodNegative = countNegative > 0 ? sumHoldingPeriodNegative/countNegative : 0;
+		var avgHoldingPeriodNegative_long = countNegative_long > 0 ? sumHoldingPeriodNegative_long/countNegative_long : 0;
+		var avgHoldingPeriodNegative_short = countNegative_short > 0 ? sumHoldingPeriodNegative_short/countNegative_short : 0;
 
 		var pnlStats = {
 			net: {pnl: totalPnl, pnlPct: totalPnlPct, 
+				pnlPctPositive, pnlPctNegative, 
 				cost, costPositive, costNegative, 
 				cash, netValue, grossValue,
 			 	minPnl, maxPnl, profitFactor, 
 				pnlPositive, pnlNegative, winRatio,
 				count, countPositive, countNegative,
 				avgPnl, avgPnlPositive, avgPnlNegative,
+
 				avgPnlPct, avgPnlPctPositive, avgPnlPctNegative,
-				pnlPctPositive, pnlPctNegative, 
+
+				avgMaxLossPct, avgMaxLossPctMinPositive, avgMaxLossPctMinNegative,
+				avgMaxGainPct, avgMaxGainPctMinPositive, avgMaxGainPctMinNegative,
+
 				avgHoldingPeriod, avgHoldingPeriodPositive, avgHoldingPeriodNegative},
-			long: {pnl: totalPnl_long, pnlPct: totalPnlPct_long, 
+			long: {pnl: totalPnl_long, pnlPct: totalPnlPct_long,
+				pnlPctPositive: pnlPctPositive_long, pnlPctNegative: pnlPctNegative_long, 
 				cost: cost_long, costPositive: costPositive_long,
 				costNegative: costNegative_long,
 				netValue: netValue_long, 
@@ -581,10 +1017,15 @@ function _computePnlStats(predictions, ticker) {
 				winRatio: winRatio_long, 
 				count: count_long, countPositive: countPositive_long, countNegative: countNegative_long,
 				avgPnl: avgPnl_long, avgPnlPositive: avgPnlPositive_long, avgPnlNegative: avgPnlNegative_long,
+				
 				avgPnlPct: avgPnlPct_long, avgPnlPctPositive: avgPnlPctPositive_long, avgPnlPctNegative: avgPnlPctNegative_long,
-				pnlPctPositive: pnlPctPositive_long, pnlPctNegative: pnlPctNegative_long,
+				
+				avgMaxLossPct: avgMaxLossPct_long, avgMaxLossPctMinPositive: avgMaxLossPctMinPositive_long, avgMaxLossPctMinNegative: avgMaxLossPctMinNegative_long,
+				avgMaxGainPct: avgMaxGainPct_long, avgMaxGainPctMinPositive: avgMaxGainPctMinPositive_long, avgMaxGainPctMinNegative: avgMaxGainPctMinNegative_long,
+
 				avgHoldingPeriod: avgHoldingPeriod_long , avgHoldingPeriodPositive: avgHoldingPeriodPositive_long, avgHoldingPeriodNegative: avgHoldingPeriodNegative_long},
-			short: {pnl: totalPnl_short, pnlPct: totalPnlPct_short, 
+			short: {pnl: totalPnl_short, pnlPct: totalPnlPct_short,
+				pnlPctPositive: pnlPctPositive_short, pnlPctNegative: pnlPctNegative_short, 
 				cost: cost_short, costPositive: costPositive_short,
 				costNegative: costNegative_short, 
 				netValue: netValue_short, 
@@ -593,8 +1034,12 @@ function _computePnlStats(predictions, ticker) {
 				pnlPositive: pnlPositive_short, pnlNegative: pnlNegative_short, winRatio: winRatio_short,
 				count: count_short, countPositive: countPositive_short, countNegative: countNegative_short,
 				avgPnl: avgPnl_short, avgPnlPositive: avgPnlPositive_short, avgPnlNegative: avgPnlNegative_short,
+				
 				avgPnlPct: avgPnlPct_short, avgPnlPctPositive: avgPnlPctPositive_short, avgPnlPctNegative: avgPnlPctNegative_short,
-				pnlPctPositive: pnlPctPositive_short, pnlPctNegative: pnlPctNegative_short,
+				
+				avgMaxLossPct: avgMaxLossPct_short, avgMaxLossPctMinPositive: avgMaxLossPctMinPositive_short, avgMaxLossPctMinNegative: avgMaxLossPctMinNegative_short,
+				avgMaxGainPct: avgMaxGainPct_short, avgMaxGainPctMinPositive: avgMaxGainPctMinPositive_short, avgMaxGainPctMinNegative: avgMaxGainPctMinNegative_short,
+				
 				avgHoldingPeriod: avgHoldingPeriod_short , avgHoldingPeriodPositive: avgHoldingPeriodPositive_short, avgHoldingPeriodNegative: avgHoldingPeriodNegative_short}
 			};
 
@@ -605,12 +1050,13 @@ function _computePnlStats(predictions, ticker) {
 /*
 * Populate pnl stats, netvalue, unrealized Pnl for the portfolio (and individual positions)
 */
-function _getPnlStats(predictions, byTicker=false) {
+function _getPnlStats(predictions, byTickers = false) {
+	
 	return new Promise(resolve => {
 		
 		var positions = predictions.map(item => item.position).filter(item => item);
 
-		if (byTicker) {
+		if (byTickers) {
 			var uniqueTickers = _.uniq(positions.map(item => item.security.ticker));
 
 			return Promise.map(uniqueTickers, function(ticker) {
@@ -623,7 +1069,7 @@ function _getPnlStats(predictions, byTicker=false) {
 				resolve(pnlStatsByTicker.length > 0 ? Object.assign(...pnlStatsByTicker) : {});
 			});
 		} else {
-			return _computePnlStats(predictions)
+			return _computePnlStats(predictions, null)
 			.then(pnlStats => {
 				resolve(pnlStats);
 			});
@@ -800,8 +1246,10 @@ function _computeUpdatedPredictions(predictions, date) {
 	: predictions;
 };
 
-function _computeTotalPnlStats(advisorId, date, category="active") {
-	
+function _computeTotalPnlStats(advisorId, date, options) {
+	const category = _.get(options, 'category', "active");
+	const fullUpdate = _.get(options, 'fullUpdate', false);
+
 	return Promise.resolve()
 	.then(() => {
 		if (category == "all") { //All =  active + ending on date (doesn't include starting)	 
@@ -810,15 +1258,15 @@ function _computeTotalPnlStats(advisorId, date, category="active") {
 			var useEndedPredictions = !isToday || (isToday && moment().isAfter(moment(DateHelper.getMarketCloseDateTime(date))));
 			
 			return Promise.all([
-				useEndedPredictions ? exports.getPredictionsForDate(advisorId, date, "ended") : [],
-				exports.getPredictionsForDate(advisorId, date, "active") //A
+				useEndedPredictions ? exports.getPredictionsForDate(advisorId, date, {category: "ended", intervalUpdate: fullUpdate}) : [],
+				exports.getPredictionsForDate(advisorId, date, {category: "active", intervalUpdate: fullUpdate}) //A
 			])
 			.then(([endedPredictions, activePredictions]) => {
 				var allPredictions = endedPredictions.concat(activePredictions);
 				return allPredictions;
 			})
 		} else {
-			return exports.getPredictionsForDate(advisorId, date, category)
+			return exports.getPredictionsForDate(advisorId, date, {category, intervalUpdate: fullUpdate})
 		}
 	})
 	.then(activePredictions => {
@@ -843,11 +1291,11 @@ function _computeTotalPnlStats(advisorId, date, category="active") {
 	})
 };
 
-function _computeTotalPnlStatsForAll(advisorId, date) {
+function _computeTotalPnlStatsForAll(advisorId, date, options) {
 	return Promise.all([
-		_computeTotalPnlStats(advisorId, date, "started"),
-		_computeTotalPnlStats(advisorId, date, "active"),
-		_computeTotalPnlStats(advisorId, date, "ended")
+		_computeTotalPnlStats(advisorId, date, {...options, category: "started"}),
+		_computeTotalPnlStats(advisorId, date, {...options, category: "active"}),
+		_computeTotalPnlStats(advisorId, date, {...options, category: "ended"})
 	])
 	.then(([startedPredictionsTotalPnl, activePredictionsTotalPnl, endedPredictionsTotalPnl]) => {
 		return {
@@ -858,11 +1306,13 @@ function _computeTotalPnlStatsForAll(advisorId, date) {
 	});
 }
 
-function _computeDailyPnlStats(advisorId, date, category="active") {
+function _computeDailyPnlStats(advisorId, date, options) {
+
+	const category = _.get(options, 'category', "active");
 	
 	let yesterday = moment(date).subtract(1, 'days').toDate();
 
-	return exports.getPredictionsForDate(advisorId, date, category)
+	return exports.getPredictionsForDate(advisorId, date, {category})
 	// .then(rawPredictions => {
 	// 	//First change the startDate of all predictions before today to be yesterday
 		
@@ -924,9 +1374,9 @@ function _computeDailyPnlStats(advisorId, date, category="active") {
 
 function _computeDailyPnlStatsForAll(advisorId, date) {
 	return Promise.all([
-		_computeDailyPnlStats(advisorId, date, "started"),
-		_computeDailyPnlStats(advisorId, date, "active"),
-		_computeDailyPnlStats(advisorId, date, "ended")
+		_computeDailyPnlStats(advisorId, date, {category: "started"}),
+		_computeDailyPnlStats(advisorId, date, {category: "active"}),
+		_computeDailyPnlStats(advisorId, date, {category: "ended"})
 	])
 	.then(([startedPredictionsDailyPnl, activePredictionsDailyPnl, endedPredictionsDailyPnl]) => {
 		return {
@@ -937,7 +1387,7 @@ function _computeDailyPnlStatsForAll(advisorId, date) {
 	});
 }
 
-function _computeNetPnlStats(advisorId, date) {
+function _computeNetPnlStats(advisorId, date, options) {
 	
 	//Net Pnl = Sum of Realized pnl daily + latest unrealized pnl 
 	return Promise.all([
@@ -950,10 +1400,10 @@ function _computeNetPnlStats(advisorId, date) {
 		var lastRealizedPnlStats = _.get(yesterdayPnlStats, 'net.realized', {});
 		
 		return Promise.all([
-			_aggregatePnlStats([lastRealizedPnlStats.all, latestActivePnlStats.all]),
-		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestActivePnlStats.byTickers]),
-		    _aggregatePnlStats([lastRealizedPnlStats.all, latestRealizedPnlStats.all]),
-		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestRealizedPnlStats.byTickers])
+			_aggregatePnlStats([lastRealizedPnlStats.all, latestActivePnlStats.all], options),
+		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestActivePnlStats.byTickers], options),
+		    _aggregatePnlStats([lastRealizedPnlStats.all, latestRealizedPnlStats.all], options),
+		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestRealizedPnlStats.byTickers], options)
 		])
 		.then(([pnlStatsTotalAll, pnlStatsTotalByTicker, pnlStatsRealizedAll, pnlStatsRealizedByTicker]) => {
 			return {
@@ -1057,7 +1507,7 @@ module.exports.getPnlForDate = function(advisorId, date, category="active") {
 	});
 };
 
-module.exports.getPredictionsForDate = function(advisorId, date, category='started', update=true) {
+module.exports.getPredictionsForDate = function(advisorId, date, options) {
 	
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
@@ -1071,6 +1521,10 @@ module.exports.getPredictionsForDate = function(advisorId, date, category='start
 		//**** IF used before market close *****
 		var isToday = DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(date)) == 0;
 		var useEndedPredictions = !isToday || (isToday && moment().isAfter(moment(DateHelper.getMarketCloseDateTime(date))));
+		
+		const category = _.get(options, 'category', "started");
+		const priceUpdate = __.get(options, 'priceUpdate', true);
+		const intervalUpdate = __.get(options, 'intervalUpdate', false);
 
 		switch(category) {
 			case "active": return DailyContestEntryModel.fetchEntryPredictionsActiveOnDate({advisor: advisorId}, date); break;
@@ -1089,7 +1543,7 @@ module.exports.getPredictionsForDate = function(advisorId, date, category='start
 	})
 	.then(predictions => {
 		if (predictions && predictions.length > 0){
-			return update ? _computeUpdatedPredictions(predictions, date) : predictions;
+			return priceUpdate ? _computeUpdatedPredictions(predictions, date) : predictions;
 		} else {
 			return [];
 		}
@@ -1097,14 +1551,14 @@ module.exports.getPredictionsForDate = function(advisorId, date, category='start
 	.then(updatedPredictionsWithLastPrice => {
 
 		//Update security latest detail
-		if (update) {
+		if (priceUpdate) {
 			return Promise.map(updatedPredictionsWithLastPrice, function(prediction) {
 				return Promise.all([
 					SecurityHelper.getStockDetail(prediction.position.security, date),
-					null //SecurityHelper.getStockIntervalDetail(prediction.position.security, prediction.startDate, prediction.success.date || prediction.endDate)
+					intervalUpdate ? SecurityHelper.getStockIntervalDetail(prediction.position.security, prediction.startDate, prediction.success.date || prediction.endDate) : null
 				])
 				.then(([securityLatestDetail, securityIntervalDetail]) => {
-					var updatedPosition = Object.assign(prediction.position, {security: securityLatestDetail}); //{...securityDetail, ...securityIntervalDetail}});
+					var updatedPosition = Object.assign(prediction.position, {security: {...securityLatestDetail, ...securityIntervalDetail}});
 					return Object.assign(prediction, {position: updatedPosition});
 				})
 			});
@@ -1125,7 +1579,7 @@ module.exports.getContestEntryForUser = function(userId) {
 	})
 };
 
-module.exports.updateAllEntriesLatestPnlStats = function(date){
+module.exports.updateAllEntriesLatestPnlStats = function(date, options){
 	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisor) {
@@ -1135,8 +1589,8 @@ module.exports.updateAllEntriesLatestPnlStats = function(date){
 				if (countEntries > 0) {
 					date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 					return Promise.all([
-						_computeTotalPnlStatsForAll(advisorId, date),
-						_computeDailyPnlStatsForAll(advisorId, date)
+						_computeTotalPnlStatsForAll(advisorId, date, options),
+						_computeDailyPnlStatsForAll(advisorId, date, options)
 					])
 					.then(([totalPnl, dailyPnl]) => {
 						const updates = {
@@ -1161,7 +1615,9 @@ module.exports.updateAllEntriesLatestPnlStats = function(date){
 /**
  * Needs to be changed
  */
-module.exports.updateAllEntriesNetPnlStats = function(date) {
+module.exports.updateAllEntriesNetPnlStats = function(date, options) {
+	const fullUpdate = _.get(options, 'fullUpdate', false);
+
 	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisor) {
@@ -1170,7 +1626,7 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 			.then(countEntries => {
 				if (countEntries > 0){
 					date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
-					return _computeNetPnlStats(advisorId, date)
+					return _computeNetPnlStats(advisorId, date, {fullUpdate})
 					.then(netPnlStats => {
 						return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, netPnlStats, date, "net");
 					})
@@ -1219,7 +1675,7 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisor) {
 			let advisorId = advisor._id;
-			return exports.getPredictionsForDate(advisorId, currentDate, category, false)
+			return exports.getPredictionsForDate(advisorId, currentDate, {category, priceUpdate:false})
 			.then(predictions => {
 
 				//Filter out already successful (in case)

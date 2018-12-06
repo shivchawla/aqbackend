@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-05 20:59:39
+* @Last Modified time: 2018-12-06 20:24:36
 */
 
 'use strict';
@@ -180,7 +180,6 @@ module.exports.updateContestStats = function(date) {
 	.then(() => {
 		return _unTrackIntradayHistory()
 	})
-
 };
 
 module.exports.updateContestTopStocks = function(date) {
@@ -328,7 +327,7 @@ function _getContestAdvisors(options) {
 					const winRatio = _.get(pnlStats, 'net.all.net.winRatio', 0) || 0;
 					const successRate = winRatio > 0 ? winRatio/(1+winRatio) : 1.0;
 
-					const activePredictions = _.get(pnlStats, 'detail.cumulative.active.net.count', 0);
+					const activePredictions = _.get(pnlStats, 'detail.cumulative.active.all.net.count', 0);
 					const totalPredictions = _.get(pnlStats, 'net.all.net.count', 0);
 
 					if (successRate >= successRateMin && successRate <= successRateMax &&

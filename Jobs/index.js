@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-29 09:33:05
+* @Last Modified time: 2018-12-06 20:33:54
 */
 
 'use strict';
@@ -49,9 +49,9 @@ if (config.get('jobsPort') === serverPort) {
 	const scheduleUpdatedEODStats = `${marketCloseDateTimeOffset.get('minute')} ${marketCloseDateTimeOffset.get('hour')} * * 1-5`;
 	
 	schedule.scheduleJob(scheduleUpdatedEODStats, function() { 
-        DailyContestEntryHelper.updateAllEntriesLatestPnlStats()
+        DailyContestEntryHelper.updateAllEntriesLatestPnlStats(null, {fullUpdate: true})
         .then(() => {
-        	DailyContestEntryHelper.updateAllEntriesNetPnlStats()
+        	DailyContestEntryHelper.updateAllEntriesNetPnlStats(null, {fullUpdate: true})
     	})
         .then(() => {
         	DailyContestStatsHelper.updateContestStats();
