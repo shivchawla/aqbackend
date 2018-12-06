@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-05 17:35:15
+* @Last Modified time: 2018-12-06 11:01:06
 */
 
 'use strict';
@@ -325,7 +325,7 @@ function _computePnlStats(predictions, ticker) {
 		var netValue_short = 0.0;
 		
 		var grossValue = 0.0;
-		var cash = _.get(portfolio, 'cash', 0.0);
+		var cash = 0; 
 		
 		var pnlPositive = 0;
 		var pnlPositive_long = 0;
@@ -570,7 +570,7 @@ function _computePnlStats(predictions, ticker) {
 				avgPnl, avgPnlPositive, avgPnlNegative,
 				avgPnlPct, avgPnlPctPositive, avgPnlPctNegative,
 				pnlPctPositive, pnlPctNegative, 
-				avgHoldingPeriod, avgHldngPeriodPositive, avgHoldingPeriodNegative},
+				avgHoldingPeriod, avgHoldingPeriodPositive, avgHoldingPeriodNegative},
 			long: {pnl: totalPnl_long, pnlPct: totalPnlPct_long, 
 				cost: cost_long, costPositive: costPositive_long,
 				costNegative: costNegative_long,
@@ -583,7 +583,7 @@ function _computePnlStats(predictions, ticker) {
 				avgPnl: avgPnl_long, avgPnlPositive: avgPnlPositive_long, avgPnlNegative: avgPnlNegative_long,
 				avgPnlPct: avgPnlPct_long, avgPnlPctPositive: avgPnlPctPositive_long, avgPnlPctNegative: avgPnlPctNegative_long,
 				pnlPctPositive: pnlPctPositive_long, pnlPctNegative: pnlPctNegative_long,
-				avgHoldingPeriod: avgHoldingPeriod_long , avgHldngPeriodPositive: avgHoldingPeriodPositive_long, avgHoldingPeriodNegative: avgHoldingPeriodNegative_long},
+				avgHoldingPeriod: avgHoldingPeriod_long , avgHoldingPeriodPositive: avgHoldingPeriodPositive_long, avgHoldingPeriodNegative: avgHoldingPeriodNegative_long},
 			short: {pnl: totalPnl_short, pnlPct: totalPnlPct_short, 
 				cost: cost_short, costPositive: costPositive_short,
 				costNegative: costNegative_short, 
@@ -595,7 +595,7 @@ function _computePnlStats(predictions, ticker) {
 				avgPnl: avgPnl_short, avgPnlPositive: avgPnlPositive_short, avgPnlNegative: avgPnlNegative_short,
 				avgPnlPct: avgPnlPct_short, avgPnlPctPositive: avgPnlPctPositive_short, avgPnlPctNegative: avgPnlPctNegative_short,
 				pnlPctPositive: pnlPctPositive_short, pnlPctNegative: pnlPctNegative_short,
-				avgHoldingPeriod: avgHoldingPeriod_short , avgHldngPeriodPositive: avgHoldingPeriodPositive_short, avgHoldingPeriodNegative: avgHoldingPeriodNegative_short}
+				avgHoldingPeriod: avgHoldingPeriod_short , avgHoldingPeriodPositive: avgHoldingPeriodPositive_short, avgHoldingPeriodNegative: avgHoldingPeriodNegative_short}
 			};
 
 		resolve(pnlStats);
@@ -608,25 +608,7 @@ function _computePnlStats(predictions, ticker) {
 function _getPnlStats(predictions, byTicker=false) {
 	return new Promise(resolve => {
 		
-		
-		//Added logic to exclude the cash from advice composition
-		var totalVal = _.get(port, 'cash', 0);
 		var positions = predictions.map(item => item.position).filter(item => item);
-
-		positions.forEach(item => {
-		 	totalVal += Math.abs(item.avgPrice > 0.0 ? (item.investment/item.avgPrice)*item.lastPrice : item.investment);
-		});
-
-		positions.map(item => {
-			var value = item.avgPrice > 0.0 ? (item.investment/item.avgPrice)*item.lastPrice : item.investment; 
-			var weight = totalVal > 0.0 ? value/totalVal : 0.0;
-			item.weightInPortfolio = weight;
-			//Added unrealized PnL (and %).
-			item.unrealizedPnl = value - item.investment;
-			item.unrealizedPnlPct = Math.abs(item.investment) > 0 ? (value - item.investment)/Math.abs(item.investment) : 0.0;
-			
-			return item;
-		});
 
 		if (byTicker) {
 			var uniqueTickers = _.uniq(positions.map(item => item.security.ticker));
@@ -641,7 +623,7 @@ function _getPnlStats(predictions, byTicker=false) {
 				resolve(pnlStatsByTicker.length > 0 ? Object.assign(...pnlStatsByTicker) : {});
 			});
 		} else {
-			return _computePnlStats(port)
+			return _computePnlStats(predictions)
 			.then(pnlStats => {
 				resolve(pnlStats);
 			});
@@ -1117,12 +1099,12 @@ module.exports.getPredictionsForDate = function(advisorId, date, category='start
 		//Update security latest detail
 		if (update) {
 			return Promise.map(updatedPredictionsWithLastPrice, function(prediction) {
-				return Promise.map([
+				return Promise.all([
 					SecurityHelper.getStockDetail(prediction.position.security, date),
 					null //SecurityHelper.getStockIntervalDetail(prediction.position.security, prediction.startDate, prediction.success.date || prediction.endDate)
 				])
 				.then(([securityLatestDetail, securityIntervalDetail]) => {
-					var updatedPosition = Object.assign(prediction.position, {security: securityDetail}); //{...securityDetail, ...securityIntervalDetail}});
+					var updatedPosition = Object.assign(prediction.position, {security: securityLatestDetail}); //{...securityDetail, ...securityIntervalDetail}});
 					return Object.assign(prediction, {position: updatedPosition});
 				})
 			});
