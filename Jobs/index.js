@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-06 20:33:54
+* @Last Modified time: 2018-12-06 20:41:06
 */
 
 'use strict';
@@ -51,7 +51,7 @@ if (config.get('jobsPort') === serverPort) {
 	schedule.scheduleJob(scheduleUpdatedEODStats, function() { 
         DailyContestEntryHelper.updateAllEntriesLatestPnlStats(null, {fullUpdate: true})
         .then(() => {
-        	DailyContestEntryHelper.updateAllEntriesNetPnlStats(null, {fullUpdate: true})
+        	DailyContestEntryHelper.updateAllEntriesNetPnlStats()
     	})
         .then(() => {
         	DailyContestStatsHelper.updateContestStats();
