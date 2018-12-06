@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-06 21:08:17
+* @Last Modified time: 2018-12-07 00:22:29
 */
 
 'use strict';
@@ -1444,7 +1444,6 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 	const category = _.get(options, 'category', "started");
 	const priceUpdate = _.get(options, 'priceUpdate', true);
-	const intervalUpdate = _.get(options, 'intervalUpdate', false);
 
 	let updatedPredictions;
 	return Promise.resolve()
@@ -1484,12 +1483,9 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 		//Update security latest detail
 		if (priceUpdate) {
 			return Promise.map(updatedPredictionsWithLastPrice, function(prediction) {
-				return Promise.all([
-					SecurityHelper.getStockDetail(prediction.position.security, date),
-					intervalUpdate ? SecurityHelper.getStockIntervalDetail(prediction.position.security, prediction.startDate, prediction.success.date || prediction.endDate) : null
-				])
-				.then(([securityLatestDetail, securityIntervalDetail]) => {
-					var updatedPosition = Object.assign(prediction.position, {security: {...securityLatestDetail, ...securityIntervalDetail}});
+				return SecurityHelper.getStockDetail(prediction.position.security, date)
+				.then(securityDetail => {
+					var updatedPosition = Object.assign(prediction.position, {security: securityDetail});
 					return Object.assign(prediction, {position: updatedPosition});
 				})
 			});
@@ -1593,7 +1589,7 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 
 //OR 
 
-//Get all active predicitons, combine thenm get price per ticker and compare the price
+//Get all active predicitions, combine thenm get price per ticker and compare the price
 //and filter ot the successful ones
 
 //Handles only predictions ending today
@@ -1619,7 +1615,7 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 
 		})
 		.then(allPredictionsByAdvisorIds => {
-			//this is an array of array of predicitons
+			//this is an array of array of predicitions
 			//merge them
 			var allPredictions = Array.prototype.concat.apply([], allPredictionsByAdvisorIds);
 
@@ -1821,3 +1817,57 @@ module.exports.getDailyContestEntryPnlStats = function(advisorId, symbol, horizo
 		}
 	})
 };
+
+
+//function to update the interval prices
+module.exports.updatePredictionsForIntervalPrice = function(date) {
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+	
+	return DailyContestEntryModel.fetchDistinctAdvisors({}, {date: date})
+	.then(distinctAdvisors => {
+		return Promise.mapSeries(distinctAdvisors, function(advisorId){
+			return exports.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false})
+			.then(predictions => {
+				return Promise.mapSeries(predictions, function(prediction){
+					var ticker = _.get(prediction, 'position.security.ticker', "");
+					var currentHighPrice = _.get(prediction, 'priceInterval.highPrice', -Infinity);
+					var currentHighPrice = _.get(prediction, 'priceInterval.lowPrice', Infinity);
+
+					console.log("Date", date);
+					console.log("Ticker", ticker);
+					console.log("Current High Price", currentHighPrice);
+					console.log("Current Low Price", currentLowPrice);
+
+					return SecurityHelper.getStockIntradayHistory({ticker: ticker}, date)
+					.then(history => {
+						
+						var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, startDate);
+						var highPrice = _.get(extremePricesSinceStartDate, 'high', -Infinity);
+						var lowPrice = _.get(extremePricesSinceStartDate, 'low', Infinity);
+						
+						console.log("New High Price", highPrice)
+						console.log("New Low Price", lowPrice)
+						
+						prediction.priceInterval = {lowPrice: Math.min(lowPrice, currentLowPrice), highPrice: Math.max(highPrice, currentHighPrice)};
+						
+						return DailyContestEntryModel.updatePrediction({advisor: advisordId}, prediction);
+					});
+
+				});
+
+			})	
+		});
+	});
+}
+
+
+function job() {
+	const dates = ["2018-11-12"];
+	return Promise.mapSeries(dates, function(date) {
+		retun exports.updatePredictionsForIntervalPrice(date);
+	});
+}
+
+
+
+
