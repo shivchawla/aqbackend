@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-07 00:55:13
+* @Last Modified time: 2018-12-07 12:59:56
 */
 
 'use strict';
@@ -490,39 +490,6 @@ function _aggregatePnlStatsByTickers(pnlStatsByTickersArray) {
 	});
 }
 
-//NOT IN USE
-//BUT MUST BE USED
-//BREAK DOWN THE PnlStats 
-function _getPredictionMetrics(prediction) {
-	var pos = prediction.position;
-
-	var startDate = item.startDate;
-	var endDate = item.success.date || item.endDate;
-	var holdingPeriod = DateHelper.getTradingDays(startDate, endDate);
-
-	var trueCost = pos.investment;
-
-	var _cv = pos.avgPrice > 0.0 ? trueCost * (pos.lastPrice/pos.avgPrice) : trueCost;
-	var currentValue = _cv + _.get(pos, 'dividendCash', 0.0);
-	
-	var pnl = (currentValue - trueCost);
-	var absCost = Math.abs(trueCost);
-
-	var intervalHigh = _.get(pos, 'security.intervalDetail.high', -Infinity);
-	var intervalLow = _.get(pos, 'security.intervalDetail.high', Infinity);
-
-	var minValue = pos.avgPrice > 0.0 ? 
-		trueCost * ((trueCost > 0 ? intervalLow : intervalHigh)/pos.avgPrice) : trueCost;
-
-	var maxValue = pos.avgPrice > 0.0 ? 
-		trueCost * ((trueCost > 0 ? intervalHigh : intervalLow)/pos.avgPrice) : trueCost;
-
-	var pnlMin = (minValue - trueCost);
-	var pnlMax = (maxValue - trueCost);
-
-	return {trueCost, absCost, pnl, minValue, maxValue, pnlMin, pnlMax};
-}
-
 function _computePnlStats(predictions, ticker=null) {
 	return new Promise(resolve => {
 		var totalPnl = 0.0;
@@ -665,8 +632,8 @@ function _computePnlStats(predictions, ticker=null) {
 			var pnl = (currentValue - trueCost);
 			var absCost = Math.abs(trueCost);
 
-			var intervalHigh = _.get(pos, 'security.intervalDetail.high', -Infinity);
-			var intervalLow = _.get(pos, 'security.intervalDetail.high', Infinity);
+			var intervalHigh = _.get(item, 'priceInterval.highPrice', -Infinity);
+			var intervalLow = _.get(item, 'priceInterval.lowPrice', Infinity);
 
 			var minValue = pos.avgPrice > 0.0 ? 
 				trueCost * ((trueCost > 0 ? intervalLow : intervalHigh)/pos.avgPrice) : trueCost;
@@ -680,6 +647,9 @@ function _computePnlStats(predictions, ticker=null) {
 
 			var maxGainPct = maxGain/absCost;
 			var maxLossPct = maxLoss/absCost;
+
+			console.log("Max Gain", maxGainPct);
+			console.log("Max Loss", maxLossPct);
 
 			var pnlPct = absCost > 0 ? pnl/absCost : 0;
 			var pnlPct_long = trueCost > 0 ? pnl/absCost : 0 
@@ -1039,8 +1009,8 @@ function _isTargetAchieved(prediction, highPrice, lowPrice) {
 	return success;
 }
 
-function _getExtremePrices(history, startDate) {
-	var relevantHistory = history.filter(item => {return moment(`${item.datetime}Z`).isAfter(moment(startDate))});
+function _getExtremePrices(history, startDate, endDate) {
+	var relevantHistory = history.filter(item => {var dt =`${item.datetime}Z`; return moment(dt).isAfter(moment(startDate)) && !moment(dt).isAfter(moment(endDate))});
 
 	if (relevantHistory.length > 0) {
 		return {
@@ -1798,46 +1768,89 @@ module.exports.getDailyContestEntryPnlStats = function(advisorId, symbol, horizo
 	})
 };
 
-
-//function to update the interval prices
-module.exports.updatePredictionsForIntervalPrice = function(date) {
+function _getDistinctPredictionTickersForAdvisors(date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+	
+	var advisorsByTicker = {};
 	
 	return DailyContestEntryModel.fetchDistinctAdvisors({}, {date: date})
 	.then(distinctAdvisors => {
 		return Promise.mapSeries(distinctAdvisors, function(advisorId){
 			return exports.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false})
 			.then(predictions => {
-				return Promise.mapSeries(predictions, function(prediction){
-					var ticker = _.get(prediction, 'position.security.ticker', "");
-					var currentHighPrice = _.get(prediction, 'priceInterval.highPrice', -Infinity);
-					var currentLowPrice = _.get(prediction, 'priceInterval.lowPrice', Infinity);
+				var predictionTickers = _.get(predictions, 'pos.security.ticker', null) || [];
+				return Promise.map(predictionTickers, function(ticker) {
+					advisorsByTickers = ticker in advisorsByTickers ? 
+						advisorsByTickers[ticker].push(advisorId) :
+						advisorsByTickers[ticker] = [advisorId];
+					return;
+				})
+			})
+		})
+	})
+	.then(() => {
+		return advisorsByTicker;
+	});	
+}
 
-					console.log("Date", date);
-					console.log("Ticker", ticker);
-					console.log("Current High Price", currentHighPrice);
-					console.log("Current Low Price", currentLowPrice);
 
-					return SecurityHelper.getStockIntradayHistory({ticker: ticker}, date)
-					.then(securityDetail => {
-						
-						var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, prediction.startDate);
-						var highPrice = _.get(extremePricesSinceStartDate, 'high', -Infinity);
-						var lowPrice = _.get(extremePricesSinceStartDate, 'low', Infinity);
-						
-						console.log("New High Price", highPrice)
-						console.log("New Low Price", lowPrice)
-						
-						prediction.priceInterval = {lowPrice: Math.min(lowPrice, currentLowPrice), highPrice: Math.max(highPrice, currentHighPrice)};
-						
-						return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
-					});
+//function to update the interval prices
+module.exports.updatePredictionsForIntervalPrice = function(date) {
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+	
+	//can be simplified to tickers * (advisor-predictons)
+	return _getDistinctPredictionTickersForAdvisors(date)
+	.then(allAdvisorsByTickers => {
+		var allTickers = Object.keys(allAdvisorsByTickers);
 
-				});
+		return Promise.mapSeries(allTickers, function(ticker) {
+			return SecurityHelper.getStockIntradayHistory({ticker: ticker}, date)
+			.then(securityDetail => {
+				var advisorsForThisTicker = allAdvisorsByTickers[ticker];
 
-			})	
-		});
-	});
+				return Promise.mapSeries(advisorsForThisTicker, function(advisorId){
+					return exports.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false})
+					.then(predictions => {
+						return Promise.mapSeries(predictions, function(prediction){
+							var pTicker = _.get(prediction, 'position.security.ticker', "");
+							if (pTicker == ticker) {
+								var currentHighPrice = _.get(prediction, 'priceInterval.highPrice', -Infinity);
+								var currentLowPrice = _.get(prediction, 'priceInterval.lowPrice', Infinity);
+
+								console.log("Date", date);
+								console.log("Ticker", ticker);
+								console.log("StartDate", prediction.startDate);
+								console.log("EndDate", prediction.success.trueDate || prediction.success.date || prediction.endDate);
+								console.log("Current High Price", currentHighPrice);
+								console.log("Current Low Price", currentLowPrice);
+
+								var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, prediction.startDate, prediction.success.trueDate || prediction.success.date || prediction.endDate);
+								var highPrice = _.get(extremePricesSinceStartDate, 'high', -Infinity);
+								var lowPrice = _.get(extremePricesSinceStartDate, 'low', Infinity);
+								
+								console.log("Incoming High Price", highPrice)
+								console.log("Incoming Low Price", lowPrice)
+
+								lowPrice = Math.min(lowPrice, currentLowPrice);
+								highPrice = Math.max(highPrice, currentHighPrice);
+
+								console.log("New High Price", highPrice)
+								console.log("New Low Price", lowPrice)
+								
+								prediction.priceInterval = {lowPrice, highPrice};
+								
+								return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
+								
+							} else {
+								return;
+							}
+						})
+					})
+				})
+			})
+		
+		})
+	})
 }
 
 
