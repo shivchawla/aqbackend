@@ -166,7 +166,6 @@ module.exports.getStockPriceHistory = function(security, startDate, endDate, fie
 			idx =  idx !=-1 ? new Date(ph[idx].date).getTime() == new Date(endDate).getTime() ? idx : idx > 0 ? idx - 1 : idx : idx;
 			ph = idx != -1 ? ph.slice(0, idx+1) : ph;
 		}
-
 		return {security: securityPerformance.security, priceHistory: ph};
 	});
 };
@@ -332,12 +331,17 @@ module.exports.getStockIntradayHistory = function(security, date) {
 						'security.country': security.country ? security.country : "IN"};
 
 		return Promise.all([
+
 			_computeStockIntradayHistory(security, date),
 			_getSecurityDetail(security)
 		])
 		.then(([intradayDetail, securityDetail]) => {
 			security.detail = securityDetail;
-			resolve(Object.assign({}, security, {intradayHistory: intradayDetail.history}));
+			const history = _.get(intradayDetail, 'history', []).map(item => ({
+				datetime: moment(_.get(item, 'datetime', undefined)).utc(),
+				price: _.get(item, 'close', undefined)
+			}));
+			resolve(Object.assign({}, security, {intradayHistory: history}));
 		})
 		.catch(err => {
 			console.log(err.message);
@@ -490,8 +494,8 @@ function _computeStockIntradayHistory(security, date) {
 		var msg = JSON.stringify({action:"compute_stock_intraday_history", 
             						security: security,
             						date: DateHelper.getDate(date)
-            					});
-
+								});
+								
 		WSHelper.handleMktRequest(msg, resolve, reject);
     });
 }

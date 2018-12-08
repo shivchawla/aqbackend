@@ -66,6 +66,8 @@ module.exports.getStockDetail = function(args, res, next) {
 	.then(securityPerformance => {
 		if(field == "priceHistory") {
 			return SecurityHelper.getStockPriceHistory(security, startDate, endDate);
+		} else if (field == "intraDay") {
+			return SecurityHelper.getStockIntradayHistory(security, startDate)
 		} else if (field == "staticPerformance") {
 			return SecurityHelper.getStockStaticPerformance(security);
 		} else if (field == "rollingPerformance") {
