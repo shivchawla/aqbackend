@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-08 10:31:51
+* @Last Modified time: 2018-12-08 13:32:51
 */
 
 'use strict';
@@ -1066,7 +1066,7 @@ function _computeUpdatedPredictions(predictions, date) {
 				
 				//Check whether the predcition needs any price update
 				//Based on success status
-				var success = _.get(prediction, 'success.status', false) && moment(date).isSame(moment(prediction.succes.date));
+				var success = _.get(prediction, 'success.status', false) && moment(date).isSame(moment(prediction.success.date));
 				if (success) {
 					updatedCallPricePrediction.position.lastPrice = updatedCallPricePrediction.target;
 					return [updatedCallPricePrediction.position];
@@ -1110,7 +1110,7 @@ function _computeTotalPnlStats(advisorId, date, options) {
 	.then(activePredictions => {
 
 		var updatedPredictions = activePredictions.map(item => {
-			if(item.success.status && moment(date).isEqual(moment(item.success.date))) {
+			if(item.success.status && moment(date).isSame(moment(item.success.date))) {
 				item.position.lastPrice = item.target;
 			}
 			return  item;
@@ -1238,11 +1238,6 @@ function _computeNetPnlStats(advisorId, date) {
 		var latestRealizedPnlStats = _.get(latestPnlStats, 'detail.cumulative.ended', {});
 		var lastRealizedPnlStats = _.get(yesterdayPnlStats, 'net.realized', {});
 		
-
-		console.log("Ohh SNAP");
-		console.log(lastRealizedPnlStats)
-		console.log("OOOHHHH")
-
 		return Promise.all([
 			_aggregatePnlStats([lastRealizedPnlStats.all, latestActivePnlStats.all]),
 		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestActivePnlStats.byTickers]),
@@ -1806,6 +1801,7 @@ function job() {
     }) 
     .then(() => {
          return Promise.mapSeries(dates, function(date) {
+         	console.log(date);
             return exports.updatePredictionsForIntervalPrice(date) 
             .then(() => {
                 return exports.updateAllEntriesLatestPnlStats(date);
