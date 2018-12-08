@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-05 20:50:16
+* @Last Modified time: 2018-12-08 10:07:12
 */
 
 'use strict';
@@ -41,7 +41,7 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 		if (advisor) {
 			const advisorId = advisor._id.toString()
 			
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, category);
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category});
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} else {
@@ -119,7 +119,7 @@ module.exports.getDailyContestNextStock = function(args, res, next) {
 		if (advisor) {
 			const advisorId = advisor._id.toString()
 
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, "active", false);
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate:false});
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} 
@@ -184,7 +184,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		if (advisor) {
 			advisorId = advisor._id.toString();
 			
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, "started", false);
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "started", priceUpdate: false});
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}
