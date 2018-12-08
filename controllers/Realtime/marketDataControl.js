@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 13:05:39
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-29 11:27:14
+* @Last Modified time: 2018-12-08 15:59:34
 */
 'use strict';
 const config = require('config');
@@ -175,6 +175,20 @@ function _sendAllUpdates() {
 	]);
 }
 
+function _get_intraday_snapshot(fileNumber, fileType) {
+	return SecurityHelper.getIntradaySnapshot(fileNumber, fileType);
+}
+
+function _updateIntradayHistory(fileNumber, fileType) {
+	return _get_intraday_snapshot(fileNumber, fileType)
+	.then(snapShot => {
+		 var tickers = Object.keys(snapShot);
+		 return Promise.map(tickers, function(ticker) {
+		 	return SecurityHelper.updateIntradayHistory(ticker, snapShot[ticker])
+		 })
+	})
+}
+
 /*
 Reloads the realtime data to Julia in case of backend failure/restart
 */
@@ -253,6 +267,11 @@ function processLatestFiles() {
 		_getLatestFile("ind")
 	])
 	.then(([mktFile, indFile]) => {
+
+		//Run this Asynchronously
+		_updateIntradayHistory(mktFile, "mkt");
+		_updateIntradayHistory(indFile, "ind");
+
 		return Promise.all([
 			_updateData(mktFile, "mkt"),
 			_updateData(indFile, "ind")

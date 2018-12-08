@@ -651,6 +651,18 @@ function get_stock_realtime_price_historical(security_dict::Dict{String, Any}, f
     end  
 end
 
+function get_intraday_snapshot(fileNumber::Int, fileType::String)
+    try
+        output = Dict{String, Any}() 
+        (realtimePrices, eodPrices) = get_realtime_prices("$path/$fileNumber.fileType", fileType)
+        return Dict{String, Any}("realTime" => serialize(realtimePrices), "eodPrices" => serialize(eodPrices))
+    catch err
+        println(err)
+        rethrow(err)
+    end  
+end
+end
+
 function get_stock_intraday_history(security::Security, date::Date)
     #1. Read data from beginning to the current (if not available populate)
     #3. Keep min/max of each interval since the beginning
@@ -668,7 +680,6 @@ function track_stock_intraday_detail(security::Security)
     
     return track_intraday_prices(security.symbol.ticker)
 end
-
 
 function untrack_stock_intraday_detail()
     
@@ -699,4 +710,17 @@ end
 function empty_pnl()
     return Dict{String, Any}("pnl" => 0.0, "pnl_pct" => 0.0)
 end
+
+#Serialize tradebar based dictionary
+function serialize(intradayPrices::Dict{String, TradeBar})
+    output = Dict{String, Any}()
+    
+    for (k,v) in intradayPrices
+        output[k] = Raftaar.serialize(v)
+    end
+
+    return output
+
+end
+
 

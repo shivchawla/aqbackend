@@ -279,6 +279,10 @@ function handleRequest(parsemsg::Dict{String, Any})
             date = date == "" ? currentIndiaDate() : Date(DateTime(date, jsdateformat))
             parsemsg["output"] = get_stock_intraday_history(security, date)
 
+        elseif action == "compute_intraday_snapshot"
+            parsemsg["output"] = ""
+            parsemsg["output"] = get_intraday_snapshot(parsemsg["fileNumber"], parsemsg["fileType"])
+
         elseif action == "track_stock_intraday_detail"
             parsemsg["output"] = ""
             security = convert(Raftaar.Security, parsemsg["security"])
@@ -370,7 +374,6 @@ function handleRequest(parsemsg::Dict{String, Any})
             portfolioHistory = convert(Vector{Dict{String, Any}}, parsemsg["portfolioHistory"])
             (updatedDate, updated_portfolio) = updatePortfolio_averageprice(portfolioHistory)
             parsemsg["output"] = convert_to_node_portfolio(updated_portfolio)
-
 
         elseif action == "compute_portfolio_transactions"
             newPortfolio = parsemsg["newPortfolio"]

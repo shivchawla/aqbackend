@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-04 21:05:27
+* @Last Modified time: 2018-12-08 16:04:04
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -19,416 +19,25 @@ const homeDir = require('os').homedir();
 const _ = require('lodash');
 const moment = require('moment');
 
-function _checkIfStockStaticPerformanceUpdateRequired(performance) {
-	if (!performance) {
-		return true;
-	}
-
-	if(performance && performance.updatedDate) {
-		var months = Object.keys(performance.detail.monthly).sort();
-		var years = Object.keys(performance.detail.yearly).sort();
-
-		var d = new Date();
-		var currentMonth = d.getYear().toString()+"_"+(d.getMonth()+1).toString();
-		var currentYear = d.getYear().toString();
-
-		if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(performance.updatedDate)) == 1) {
-			return true;
-		}
-
-        if(months.indexOf(currentMonth) == -1 || years.indexOf(currentYear) == -1) {
-        	return true; //TEMPORARILY
-        	return true;
-        }
-    } else {
-    	return true;
-    }
-
-    return false;
-}
-
-function _checkIfStockRollingPerformanceUpdateRequired(performance) {
-	if (!performance) {
-		return true;
-	}
-
-	if(performance && performance.updatedDate) {
-		if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(performance.updatedDate)) == 1) {
-			return true;
-		}
-
-    } else {
-    	return true;
-    }
-
-    if(performance.detail && performance.detail.date) {
-    	var performanceDetailDate = DateHelper.getDate(performance.detail.date);
-		performanceDetailDate.setDate(performanceDetailDate.getDate() + 1);
-		var currentDate = DateHelper.getCurrentDate();
-		if(DateHelper.compareDates(currentDate, performanceDetailDate) == 1 && currentDate.getDay() !=0) {
-			return true;
-		}
-
-    } else {
-    	return true;
-    }
-
-    return false;
-}
-
-function _checkIfStockPriceHistoryUpdateRequired(history) {
-	if (!history) {
-		return true;
-	}
-
-	if (history.values && history.values.length == 0) {
-		return true;
-	}
-
-	if(history && history.updatedDate) {
-		
-        if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(history.updatedDate)) == 1) {
-        	return true;
-        }
-
-        var historyLastDate = DateHelper.getDate(history.values.slice(-1)[0].date);
-		historyLastDate.setDate(historyLastDate.getDate() + 1);
-		var currentDate = DateHelper.getCurrentDate();
-        if(DateHelper.compareDates(currentDate, historyLastDate) == 1 && currentDate.getDay() !=0) {
-        	return true;
-        }
-    } else {
-    	return true;
-    }
-
-    return false;
-}
-
-function _checkIfStockLatestDetailUpdateRequired(detail) {
-	if (!detail) {
-		return true;
-	}
-
-	if(detail && detail.updatedDate) {
-        if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(detail.updatedDate)) == 1) {
-        	return true;
-        }
-
-        var detailLastDate = DateHelper.getDate(detail.values.Date);
-		detailLastDate.setDate(detailLastDate.getDate() + 1);
-		var currentDate = DateHelper.getCurrentDate()
-        if(DateHelper.compareDates(currentDate, detailLastDate) == 1 && currentDate.getDay() !=0) {
-        	return true;
-        }
-    } else {
-    	return true;
-    }
-
-    return false;
-}
-
-function _getSecurityDetail(security) {
-	return new Promise((resolve, reject) => {
-
-		var msg = JSON.stringify({action:"get_security_detail", 
-            							security: security});
-
-		WSHelper.handleMktRequest(msg, resolve, reject);
-
-    })
-};
-
-module.exports.getStockPriceHistory = function(security, startDate, endDate, field="Close") {
-	var query = {'security.ticker': security.ticker,
-					'security.exchange': security.exchange,
-					'security.securityType': security.securityType,
-					'security.country': security.country};
-
-	return SecurityPerformanceModel.fetchPriceHistory(query)
-	.then(securityPerformance => {
-		var update = securityPerformance ? _checkIfStockPriceHistoryUpdateRequired(securityPerformance.priceHistory) : true;
-		if(update || field != "Close") {
-			return _computeStockPriceHistory(security, field).then(ph => {return SecurityPerformanceModel.updatePriceHistory(query, ph);});
+function _getRawStockList(fname) {
+	return new Promise(resolve => {
+		let universeList = [];
+		if (fs.existsSync(fname)){
+			csv.fromPath(fname, {headers:true})
+		    .on("data", function(data){
+		        universeList.push(data.Symbol);
+		    })
+		    .on("end", function(){
+		        resolve(universeList);
+		    })
+		    .on("error" , function(err) {
+		    	resolve([]);
+		    });
 		} else {
-			return securityPerformance;
+			resolve([]);
 		}
-	})
-	.then(securityPerformance => {
-		var ph = securityPerformance.priceHistory.values;
-		if (startDate) {
-			var idx = ph.map(item => item.date).findIndex(item => {return new Date(item).getTime() >= new Date(startDate).getTime();});
-			ph = idx != -1 ? ph.slice(idx, ph.length) : ph;
-		}
-
-		if (endDate) {
-			var idx = ph.map(item => item.date).findIndex(item => {return new Date(item).getTime() >= new Date(endDate).getTime()});
-
-			idx =  idx !=-1 ? new Date(ph[idx].date).getTime() == new Date(endDate).getTime() ? idx : idx > 0 ? idx - 1 : idx : idx;
-			ph = idx != -1 ? ph.slice(0, idx+1) : ph;
-		}
-		return {security: securityPerformance.security, priceHistory: ph};
-	});
-};
-
-module.exports.getStockRollingPerformance = function(security) {
-
-	var query = {'security.ticker': security.ticker,
-					'security.exchange': security.exchange,
-					'security.securityType': security.securityType,
-					'security.country': security.country
-				};
-
-	return SecurityPerformanceModel.fetchRollingPerformance(query)
-	.then(securityPerformance => {
-		var update = securityPerformance ? _checkIfStockRollingPerformanceUpdateRequired(securityPerformance.rollingPerformance) : true;
-		if(update) {
-			return _computeStockRollingPerformanceDetail(security).then(rp => {return SecurityPerformanceModel.updateRollingPerformance(query, rp);});;
-		} else {
-			return securityPerformance.toObject();
-		}
-	})
-}
-
-module.exports.getStockStaticPerformance = function(security) {
-
-	var query = {'security.ticker': security.ticker,
-					'security.exchange': security.exchange,
-					'security.securityType': security.securityType,
-					'security.country': security.country};
-
-	return SecurityPerformanceModel.fetchStaticPerformance(query)
-	.then(securityPerformance => {
-		var update = securityPerformance ? _checkIfStockStaticPerformanceUpdateRequired(securityPerformance.staticPerformance) : true;
-		if(update) {
-			return _computeStockStaticPerformanceDetail(security).then(sp => {return SecurityPerformanceModel.updateStaticPerformance(query, sp);});
-		} else {
-			return securityPerformance.toObject();
-		}
-	});
-};
-
-module.exports.getStockLatestDetailByType = function(security, type) {
-	return new Promise(resolve => {
-		var query = {'security.ticker': security.ticker,
-						'security.exchange': security.exchange ? security.exchange : "NSE",
-						'security.securityType': security.securityType ? security.securityType : "EQ",
-						'security.country': security.country ? security.country : "IN"};
-
-		Promise.resolve() 
-		.then(() => {
-			return type == "EOD" ? SecurityPerformanceModel.fetchLatestDetail(query) : null;
-		})
-		.then(securityPerformance => {
-			var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
-			if(update) {
-				return Promise.all([
-					_computeStockLatestDetail(security, type),
-					_getSecurityDetail(security)
-				])
-				.then(([performanceDetail, securityDetail]) => {
-					if (type == "EOD") {
-						return SecurityPerformanceModel.updateLatestDetail(query, performanceDetail)
-						.then(performance => {
-							var performanceObj =performance.toObject();
-							resolve(Object.assign(performanceObj.security, {latestDetail: performanceObj.latestDetail.values}));
-						});
-					} else {
-						security.detail = securityDetail;
-						resolve(Object.assign({}, security, {latestDetail: performanceDetail}));
-					}
-					
-				});
-			} else {
-				var performanceObj = securityPerformance.toObject();
-				resolve(Object.assign(performanceObj.security, {latestDetail: performanceObj.latestDetail.values}));
-			}
-		})
-		.catch(err => {
-			console.log(err.message);
-			resolve(Object.assign({}, security, {latestDetail: {}}));
-		})
-	});
-};
-
-module.exports.getStockDetailEOD = function(security, date) {
-	return new Promise(resolve => {
-		var query = {'security.ticker': security.ticker,
-						'security.exchange': security.exchange ? security.exchange : "NSE",
-						'security.securityType': security.securityType ? security.securityType : "EQ",
-						'security.country': security.country ? security.country : "IN"};
-		
-		return Promise.all([
-			_computeStockEODDetail(security, date),
-			_getSecurityDetail(security)
-		])
-		.then(([performanceDetail, securityDetail]) => {
-			security.detail = securityDetail;
-			resolve(Object.assign({}, security, {latestDetail: performanceDetail}));
-		})
-		.catch(err => {
-			console.log(err.message);
-			resolve(Object.assign({}, security, {latestDetail: {}}));
-		})
-	});
-};
-
-module.exports.getStockLatestDetail = function(security) {
-	return Promise.all([
-		exports.getStockLatestDetailByType(security, "EOD"),
-		exports.getStockLatestDetailByType(security, "RT")
-	])
-	.then(([detailEOD, detailRT]) => {
-		var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
-		var x = Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
-
-		return x;
-	});
-};
-
-
-module.exports.getStockDetail = function(security, date) {
-	var isToday = DateHelper.compareDates(date, DateHelper.getCurrentDate()) == 0;
-	
-	return Promise.all([
-		isToday ? exports.getStockLatestDetailByType(security, "EOD") : exports.getStockDetailEOD(security, date),  
-		isToday ? exports.getStockLatestDetailByType(security, "RT") : null
-	])
-	.then(([detailEOD, detailRT]) => {
-		var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
-		var x = Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
-
-		return x;
-	});
-};
-
-module.exports.getRealTimeStockHistoricalDetail = function(security, minute) {
-	return new Promise(resolve => {
-		var query = {'security.ticker': security.ticker,
-						'security.exchange': security.exchange ? security.exchange : "NSE",
-						'security.securityType': security.securityType ? security.securityType : "EQ",
-						'security.country': security.country ? security.country : "IN"};
-
-		return Promise.all([
-			_computeStockRealtimeHistoricalDetail(security, minute),
-			_getSecurityDetail(security)
-		])
-		.then(([performanceDetail, securityDetail]) => {
-			security.detail = securityDetail;
-			resolve(Object.assign({}, security, {latestDetail: performanceDetail}));
-		})
-		.catch(err => {
-			console.log(err.message);
-			resolve(Object.assign({}, security, {latestDetail: {}}));
-		})
-	});
-};
-
-module.exports.getStockIntradayHistory = function(security, date) {
-	return new Promise(resolve => {
-		var query = {'security.ticker': security.ticker,
-						'security.exchange': security.exchange ? security.exchange : "NSE",
-						'security.securityType': security.securityType ? security.securityType : "EQ",
-						'security.country': security.country ? security.country : "IN"};
-
-		return Promise.all([
-
-			_computeStockIntradayHistory(security, date),
-			_getSecurityDetail(security)
-		])
-		.then(([intradayDetail, securityDetail]) => {
-			security.detail = securityDetail;
-			const history = _.get(intradayDetail, 'history', []).map(item => ({
-				datetime: `${_.get(item, 'datetime', undefined)}Z`,
-				price: _.get(item, 'close', undefined)
-			}));
-			resolve(Object.assign({}, security, {intradayHistory: history}));
-		})
-		.catch(err => {
-			console.log(err.message);
-			resolve(Object.assign({}, security, {intradayHistory: []}));
-		})
-	});
-};
-
-module.exports.getStockIntervalDetail = function(security, startDateTime, endDateTime) {
-	var startDateEODTime = DateHelper.getMarketCloseDateTime(startDateTime);
-	var isStartDateTimeBeforeMarketClose = moment(startDateTime).isBefore(startDateEODTime);
-	var startDate = !isStartDateTimeBeforeMarketClose ? 
-		DateHelper.getNextNonHolidayWeekday(startDateEODTime) :
-		DateHelper.getDate(startDateTime);
-
-	var endDate = DateHelper.getDate(endDateTime);
-
-	return Promise.all([
-		isStartDateTimeBeforeMarketClose ? exports.getStockIntradayHistory(security, startDate) : null,
-		exports.getStockPriceHistory(security, startDate, endDate, "High"),
-		exports.getStockPriceHistory(security, startDate, endDate, "Low"),
-		exports.getStockIntradayHistory(security, endDate),
-		_getSecurityDetail(security)
-	])
-	.then(([startDateIntradayDetail, eodHighHistory, eodLowHistory, endDateIntradayDetail, securityDetail]) => {
-		
-		security.detail = securityDetail;
-		var startDateHistory = _.get(startDateIntradayDetail, 'intradayHistory', []).filter(item => {return moment(`${item.datetime}Z`).isAfter(moment(startDateTime))});
-		var endDateHistory = _.get(endDateIntradayDetail, 'intradayhistory', []).filter(item => {return moment(`${item.datetime}Z`).isBefore(moment(endDateTime))});
-		var lowPriceHistory =  _.get(eodLowHistory, 'priceHistory', []);
-		var highPriceHistory = _.get(eodHighHistory, 'priceHistory', []);
-
-		var intervalLowPrice = Math.min(...[
-			_.get(_.minBy(startDateHistory, 'low'), 'low', 0),
-			_.get(_.minBy(endDateHistory, 'low'), 'low', 0),
-			_.get(_.minBy(lowPriceHistory, 'price'), 'price', 0)]);
-
-		var intervalHighPrice = Math.max(...[
-			_.get(_.maxBy(startDateHistory, 'high'), 'high', 0),
-			_.get(_.maxBy(endDateHistory, 'high'), 'high', 0),
-			_.get(_.maxBy(highPriceHistory, 'price'), 'price', 0)]);
-
-		
-		return {...security, intervalDetail: {high: intervalHighPrice, low: intervalLowPrice}};
-
-	});
-};
-
-module.exports.countSecurities = function(hint) {
-	return exports.findSecurities(hint, 0, "count");
-};
-
-module.exports.findSecurities = function(hint, limit, outputType) {
-	return new Promise(function(resolve, reject) {
-
-		var msg = JSON.stringify({action:"find_securities", 
-	        			hint: hint ? hint : "", 
-	        			limit: limit ? limit : 0, 
-	        			outputType: outputType ? outputType : ""});
-
-		WSHelper.handleMktRequest(msg, resolve, reject);
-
-	});
-};
-
-module.exports.compareSecurity = function(oldSecurity, newSecurity) {
-	return new Promise(function(resolve, reject) {
-		
-		var msg = JSON.stringify({action:"compare_security", 
-	        				oldSecurity: oldSecurity,
-	        				newSecurity: newSecurity});
-
-		WSHelper.handleMktRequest(msg, resolve, reject);
-
 	});
 }
-
-module.exports.validateSecurity = function(security) {
-	return new Promise((resolve, reject) => {
-
-		var msg = JSON.stringify({action:"validate_security", 
-            						security: security});
-
-		WSHelper.handleMktRequest(msg, resolve, reject);
-
-    });
-};
 
 function _computeStockStaticPerformanceDetail(security) {
 	return new Promise((resolve, reject) => {
@@ -577,74 +186,431 @@ function _computeStockPerformance(security) {
 	});
 };
 
-module.exports.updateStockList = function() {
+function _checkIfStockStaticPerformanceUpdateRequired(performance) {
+	if (!performance) {
+		return true;
+	}
 
-	return exports.countSecurities()
-	.then(count => {
-		return exports.findSecurities("", 0);	
-	})
-	.then(securities => {
-		return Promise.map(securities, function(security) {
-			if (security.ticker != "") {
-				const query = {'security.ticker': security.ticker,
-						'security.exchange': security.exchange,
-						'security.securityType': security.securityType,
-						'security.country': security.country
-					};
+	if(performance && performance.updatedDate) {
+		var months = Object.keys(performance.detail.monthly).sort();
+		var years = Object.keys(performance.detail.yearly).sort();
 
-				const sec = {ticker: security.ticker,
-						exchange: security.exchange,
-						securityType: security.securityType,
-						country: security.country
-					};		
-				return _computeStockPerformance(sec)
-				.then(pf => {
-					console.log(security);
-					
-					//return;
-					return SecurityPerformanceModel.updateSecurityPerformance(query, pf);
-				});
-			} else {
-				return;
-			}	
-			//ADDING CONCURRENCY TO LIMIT SIMULTAENOUS EXECUTION LIMIT to 4
-		}, {concurrency: 4});
-	})
-	.catch(err => {
-		console.log(err);
-	})
-};
+		var d = new Date();
+		var currentMonth = d.getYear().toString()+"_"+(d.getMonth()+1).toString();
+		var currentYear = d.getYear().toString();
 
-module.exports.updateRealtimePrices = function(fname, type) {
+		if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(performance.updatedDate)) == 1) {
+			return true;
+		}
+
+        if(months.indexOf(currentMonth) == -1 || years.indexOf(currentYear) == -1) {
+        	return true; //TEMPORARILY
+        	return true;
+        }
+    } else {
+    	return true;
+    }
+
+    return false;
+}
+
+function _checkIfStockRollingPerformanceUpdateRequired(performance) {
+	if (!performance) {
+		return true;
+	}
+
+	if(performance && performance.updatedDate) {
+		if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(performance.updatedDate)) == 1) {
+			return true;
+		}
+
+    } else {
+    	return true;
+    }
+
+    if(performance.detail && performance.detail.date) {
+    	var performanceDetailDate = DateHelper.getDate(performance.detail.date);
+		performanceDetailDate.setDate(performanceDetailDate.getDate() + 1);
+		var currentDate = DateHelper.getCurrentDate();
+		if(DateHelper.compareDates(currentDate, performanceDetailDate) == 1 && currentDate.getDay() !=0) {
+			return true;
+		}
+
+    } else {
+    	return true;
+    }
+
+    return false;
+}
+
+function _checkIfStockPriceHistoryUpdateRequired(history) {
+	if (!history) {
+		return true;
+	}
+
+	if (history.values && history.values.length == 0) {
+		return true;
+	}
+
+	if(history && history.updatedDate) {
+		
+        if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(history.updatedDate)) == 1) {
+        	return true;
+        }
+
+        var historyLastDate = DateHelper.getDate(history.values.slice(-1)[0].date);
+		historyLastDate.setDate(historyLastDate.getDate() + 1);
+		var currentDate = DateHelper.getCurrentDate();
+        if(DateHelper.compareDates(currentDate, historyLastDate) == 1 && currentDate.getDay() !=0) {
+        	return true;
+        }
+    } else {
+    	return true;
+    }
+
+    return false;
+}
+
+function _checkIfStockLatestDetailUpdateRequired(detail) {
+	if (!detail) {
+		return true;
+	}
+
+	if(detail && detail.updatedDate) {
+        if(DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(detail.updatedDate)) == 1) {
+        	return true;
+        }
+
+        var detailLastDate = DateHelper.getDate(detail.values.Date);
+		detailLastDate.setDate(detailLastDate.getDate() + 1);
+		var currentDate = DateHelper.getCurrentDate()
+        if(DateHelper.compareDates(currentDate, detailLastDate) == 1 && currentDate.getDay() !=0) {
+        	return true;
+        }
+    } else {
+    	return true;
+    }
+
+    return false;
+}
+
+function _getSecurityDetail(security) {
 	return new Promise((resolve, reject) => {
 
-		var msg = JSON.stringify({action:"update_realtime_prices", 
-    					filename: fname,
-    					type: type});
+		var msg = JSON.stringify({action:"get_security_detail", 
+            							security: security});
 
 		WSHelper.handleMktRequest(msg, resolve, reject);
+
     })
 };
 
-function _getRawStockList(fname) {
-	return new Promise(resolve => {
-		let universeList = [];
-		if (fs.existsSync(fname)){
-			csv.fromPath(fname, {headers:true})
-		    .on("data", function(data){
-		        universeList.push(data.Symbol);
-		    })
-		    .on("end", function(){
-		        resolve(universeList);
-		    })
-		    .on("error" , function(err) {
-		    	resolve([]);
-		    });
+function _getIntradayHistory(security, date) {
+	var query = {security, date: DateHelper.getMarketCloseDateTime(date)};
+	return SecurityIntradayHistory.fetchHistory(query)
+	.then(dbHistory => {
+		if (dbHistory) {
+			return dbHistory;
 		} else {
-			resolve([]);
+			return _computeStockIntradayHistory(security, date)
+			.then(securityDetail => {
+				securityDetail.history = _.get(securityDetail, 'intradayHistory', []).map(item => {
+					item.datetime = `${_.get(item, 'datetime', undefined)}Z`;
+					return item;
+				});
+
+				//This can go on async
+				SecurityIntradayHistory.updateHistory(query, securityDetail.history);
+
+				return securityDetail;
+			})
+		}
+	});	
+}
+
+module.exports.getStockPriceHistory = function(security, startDate, endDate, field="Close") {
+	var query = {'security.ticker': security.ticker,
+					'security.exchange': security.exchange,
+					'security.securityType': security.securityType,
+					'security.country': security.country};
+
+	return SecurityPerformanceModel.fetchPriceHistory(query)
+	.then(securityPerformance => {
+		var update = securityPerformance ? _checkIfStockPriceHistoryUpdateRequired(securityPerformance.priceHistory) : true;
+		if(update || field != "Close") {
+			return _computeStockPriceHistory(security, field).then(ph => {return SecurityPerformanceModel.updatePriceHistory(query, ph);});
+		} else {
+			return securityPerformance;
+		}
+	})
+	.then(securityPerformance => {
+		var ph = securityPerformance.priceHistory.values;
+		if (startDate) {
+			var idx = ph.map(item => item.date).findIndex(item => {return new Date(item).getTime() >= new Date(startDate).getTime();});
+			ph = idx != -1 ? ph.slice(idx, ph.length) : ph;
+		}
+
+		if (endDate) {
+			var idx = ph.map(item => item.date).findIndex(item => {return new Date(item).getTime() >= new Date(endDate).getTime()});
+
+			idx =  idx !=-1 ? new Date(ph[idx].date).getTime() == new Date(endDate).getTime() ? idx : idx > 0 ? idx - 1 : idx : idx;
+			ph = idx != -1 ? ph.slice(0, idx+1) : ph;
+		}
+		return {security: securityPerformance.security, priceHistory: ph};
+	});
+};
+
+module.exports.getStockRollingPerformance = function(security) {
+
+	var query = {'security.ticker': security.ticker,
+					'security.exchange': security.exchange,
+					'security.securityType': security.securityType,
+					'security.country': security.country
+				};
+
+	return SecurityPerformanceModel.fetchRollingPerformance(query)
+	.then(securityPerformance => {
+		var update = securityPerformance ? _checkIfStockRollingPerformanceUpdateRequired(securityPerformance.rollingPerformance) : true;
+		if(update) {
+			return _computeStockRollingPerformanceDetail(security).then(rp => {return SecurityPerformanceModel.updateRollingPerformance(query, rp);});;
+		} else {
+			return securityPerformance.toObject();
+		}
+	})
+}
+
+module.exports.getStockStaticPerformance = function(security) {
+
+	var query = {'security.ticker': security.ticker,
+					'security.exchange': security.exchange,
+					'security.securityType': security.securityType,
+					'security.country': security.country};
+
+	return SecurityPerformanceModel.fetchStaticPerformance(query)
+	.then(securityPerformance => {
+		var update = securityPerformance ? _checkIfStockStaticPerformanceUpdateRequired(securityPerformance.staticPerformance) : true;
+		if(update) {
+			return _computeStockStaticPerformanceDetail(security).then(sp => {return SecurityPerformanceModel.updateStaticPerformance(query, sp);});
+		} else {
+			return securityPerformance.toObject();
 		}
 	});
+};
+
+module.exports.getStockLatestDetailByType = function(security, type) {
+	return new Promise(resolve => {
+		var query = {'security.ticker': security.ticker,
+						'security.exchange': security.exchange ? security.exchange : "NSE",
+						'security.securityType': security.securityType ? security.securityType : "EQ",
+						'security.country': security.country ? security.country : "IN"};
+
+		Promise.resolve() 
+		.then(() => {
+			return type == "EOD" ? SecurityPerformanceModel.fetchLatestDetail(query) : null;
+		})
+		.then(securityPerformance => {
+			var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
+			if(update) {
+				return Promise.all([
+					_computeStockLatestDetail(security, type),
+					_getSecurityDetail(security)
+				])
+				.then(([performanceDetail, securityDetail]) => {
+					if (type == "EOD") {
+						return SecurityPerformanceModel.updateLatestDetail(query, performanceDetail)
+						.then(performance => {
+							var performanceObj =performance.toObject();
+							resolve(Object.assign(performanceObj.security, {latestDetail: performanceObj.latestDetail.values}));
+						});
+					} else {
+						security.detail = securityDetail;
+						resolve(Object.assign({}, security, {latestDetail: performanceDetail}));
+					}
+					
+				});
+			} else {
+				var performanceObj = securityPerformance.toObject();
+				resolve(Object.assign(performanceObj.security, {latestDetail: performanceObj.latestDetail.values}));
+			}
+		})
+		.catch(err => {
+			console.log(err.message);
+			resolve(Object.assign({}, security, {latestDetail: {}}));
+		})
+	});
+};
+
+module.exports.getStockDetailEOD = function(security, date) {
+	return new Promise(resolve => {
+		var query = {'security.ticker': security.ticker,
+						'security.exchange': security.exchange ? security.exchange : "NSE",
+						'security.securityType': security.securityType ? security.securityType : "EQ",
+						'security.country': security.country ? security.country : "IN"};
+		
+		return Promise.all([
+			_computeStockEODDetail(security, date),
+			_getSecurityDetail(security)
+		])
+		.then(([performanceDetail, securityDetail]) => {
+			security.detail = securityDetail;
+			resolve(Object.assign({}, security, {latestDetail: performanceDetail}));
+		})
+		.catch(err => {
+			console.log(err.message);
+			resolve(Object.assign({}, security, {latestDetail: {}}));
+		})
+	});
+};
+
+module.exports.getStockLatestDetail = function(security) {
+	return Promise.all([
+		exports.getStockLatestDetailByType(security, "EOD"),
+		exports.getStockLatestDetailByType(security, "RT")
+	])
+	.then(([detailEOD, detailRT]) => {
+		var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
+		var x = Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
+
+		return x;
+	});
+};
+
+module.exports.getStockDetail = function(security, date) {
+	var isToday = DateHelper.compareDates(date, DateHelper.getCurrentDate()) == 0;
+	
+	return Promise.all([
+		isToday ? exports.getStockLatestDetailByType(security, "EOD") : exports.getStockDetailEOD(security, date),  
+		isToday ? exports.getStockLatestDetailByType(security, "RT") : null
+	])
+	.then(([detailEOD, detailRT]) => {
+		var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
+		return Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
+	});
+};
+
+module.exports.getRealTimeStockHistoricalDetail = function(security, minute) {
+	return new Promise(resolve => {
+		var query = {'security.ticker': security.ticker,
+						'security.exchange': security.exchange ? security.exchange : "NSE",
+						'security.securityType': security.securityType ? security.securityType : "EQ",
+						'security.country': security.country ? security.country : "IN"};
+
+		return Promise.all([
+			_computeStockRealtimeHistoricalDetail(security, minute),
+			_getSecurityDetail(security)
+		])
+		.then(([performanceDetail, securityDetail]) => {
+			security.detail = securityDetail;
+			resolve(Object.assign({}, security, {latestDetail: performanceDetail}));
+		})
+		.catch(err => {
+			console.log(err.message);
+			resolve(Object.assign({}, security, {latestDetail: {}}));
+		})
+	});
+};
+
+module.exports.getStockIntradayHistory = function(security, date) {
+	return new Promise(resolve => {
+		var query = {'security.ticker': security.ticker,
+						'security.exchange': security.exchange ? security.exchange : "NSE",
+						'security.securityType': security.securityType ? security.securityType : "EQ",
+						'security.country': security.country ? security.country : "IN"};
+
+		return Promise.all([
+			_getIntradayHistory(security, date),
+			_getSecurityDetail(security)
+		])
+		.then(([intradayDetail, securityDetail]) => {
+			security.detail = securityDetail;
+			resolve(Object.assign({}, security, {intradayHistory: intradayDetail.history}));
+		})
+		.catch(err => {
+			console.log(err.message);
+			resolve(Object.assign({}, security, {intradayHistory: []}));
+		})
+	});
+};
+
+module.exports.getStockIntervalDetail = function(security, startDateTime, endDateTime) {
+	var startDateEODTime = DateHelper.getMarketCloseDateTime(startDateTime);
+	var isStartDateTimeBeforeMarketClose = moment(startDateTime).isBefore(startDateEODTime);
+	var startDate = !isStartDateTimeBeforeMarketClose ? 
+		DateHelper.getNextNonHolidayWeekday(startDateEODTime) :
+		DateHelper.getDate(startDateTime);
+
+	var endDate = DateHelper.getDate(endDateTime);
+
+	return Promise.all([
+		isStartDateTimeBeforeMarketClose ? exports.getStockIntradayHistory(security, startDate) : null,
+		exports.getStockPriceHistory(security, startDate, endDate, "High"),
+		exports.getStockPriceHistory(security, startDate, endDate, "Low"),
+		exports.getStockIntradayHistory(security, endDate),
+		_getSecurityDetail(security)
+	])
+	.then(([startDateIntradayDetail, eodHighHistory, eodLowHistory, endDateIntradayDetail, securityDetail]) => {
+		
+		security.detail = securityDetail;
+		var startDateHistory = _.get(startDateIntradayDetail, 'intradayHistory', []).filter(item => {return moment(`${item.datetime}Z`).isAfter(moment(startDateTime))});
+		var endDateHistory = _.get(endDateIntradayDetail, 'intradayHistory', []).filter(item => {return moment(`${item.datetime}Z`).isBefore(moment(endDateTime))});
+		var lowPriceHistory =  _.get(eodLowHistory, 'priceHistory', []);
+		var highPriceHistory = _.get(eodHighHistory, 'priceHistory', []);
+
+		var intervalLowPrice = Math.min(...[
+			_.get(_.minBy(startDateHistory, 'low'), 'low', 0),
+			_.get(_.minBy(endDateHistory, 'low'), 'low', 0),
+			_.get(_.minBy(lowPriceHistory, 'price'), 'price', 0)]);
+
+		var intervalHighPrice = Math.max(...[
+			_.get(_.maxBy(startDateHistory, 'high'), 'high', 0),
+			_.get(_.maxBy(endDateHistory, 'high'), 'high', 0),
+			_.get(_.maxBy(highPriceHistory, 'price'), 'price', 0)]);
+
+		
+		return {...security, intervalDetail: {high: intervalHighPrice, low: intervalLowPrice}};
+
+	});
+};
+
+module.exports.countSecurities = function(hint) {
+	return exports.findSecurities(hint, 0, "count");
+};
+
+module.exports.findSecurities = function(hint, limit, outputType) {
+	return new Promise(function(resolve, reject) {
+
+		var msg = JSON.stringify({action:"find_securities", 
+	        			hint: hint ? hint : "", 
+	        			limit: limit ? limit : 0, 
+	        			outputType: outputType ? outputType : ""});
+
+		WSHelper.handleMktRequest(msg, resolve, reject);
+
+	});
+};
+
+module.exports.compareSecurity = function(oldSecurity, newSecurity) {
+	return new Promise(function(resolve, reject) {
+		
+		var msg = JSON.stringify({action:"compare_security", 
+	        				oldSecurity: oldSecurity,
+	        				newSecurity: newSecurity});
+
+		WSHelper.handleMktRequest(msg, resolve, reject);
+
+	});
 }
+
+module.exports.validateSecurity = function(security) {
+	return new Promise((resolve, reject) => {
+
+		var msg = JSON.stringify({action:"validate_security", 
+            						security: security});
+
+		WSHelper.handleMktRequest(msg, resolve, reject);
+
+    });
+};
 
 module.exports.getStockList = function(search, options) {
 	const universe = options.universe;
@@ -777,4 +743,75 @@ module.exports.getStockList = function(search, options) {
 		return totalSecurities;
 
 	});
+};
+
+module.exports.updateStockList = function() {
+
+	return exports.countSecurities()
+	.then(count => {
+		return exports.findSecurities("", 0);	
+	})
+	.then(securities => {
+		return Promise.map(securities, function(security) {
+			if (security.ticker != "") {
+				const query = {'security.ticker': security.ticker,
+						'security.exchange': security.exchange,
+						'security.securityType': security.securityType,
+						'security.country': security.country
+					};
+
+				const sec = {ticker: security.ticker,
+						exchange: security.exchange,
+						securityType: security.securityType,
+						country: security.country
+					};		
+				return _computeStockPerformance(sec)
+				.then(pf => {
+					console.log(security);
+					
+					//return;
+					return SecurityPerformanceModel.updateSecurityPerformance(query, pf);
+				});
+			} else {
+				return;
+			}	
+			//ADDING CONCURRENCY TO LIMIT SIMULTAENOUS EXECUTION LIMIT to 4
+		}, {concurrency: 4});
+	})
+	.catch(err => {
+		console.log(err);
+	})
+};
+
+module.exports.updateRealtimePrices = function(fname, type) {
+	return new Promise((resolve, reject) => {
+
+		var msg = JSON.stringify({action:"update_realtime_prices", 
+    					filename: fname,
+    					type: type});
+
+		WSHelper.handleMktRequest(msg, resolve, reject);
+    })
+};
+
+module.exports.getIntradaySnapshot = function(fname, type) {
+	return new Promise((resolve, reject) => {
+
+		var msg = JSON.stringify({action:"compute_intraday_snapshot", 
+    					filename: fname,
+    					type: type});
+
+		WSHelper.handleMktRequest(msg, resolve, reject);
+    })
+};
+
+module.exports.updateIntradayHistory = function(ticker, snapShot) {
+	var datetime = _.get(snapShot,'datetime', null);
+	if (datetime) {
+		var date = DateHelper.getMarketCloseDateTime(snapShot.datetime);
+		return SecurityPerformanceModel.addHistory({'security.ticker':ticker, date: date}, snapShot)
+	} else {
+		console.log("Updating Intraday History: Invalid DateTime")
+		return ;
+	}
 };
