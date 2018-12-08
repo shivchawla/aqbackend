@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-30 12:48:57
+* @Last Modified time: 2018-12-08 10:21:28
 */
 'use strict';
 const config = require('config');
@@ -44,7 +44,7 @@ function _sendPredictionUpdates(subscription) {
 
 		if (advisorId) {
 			return Promise.all([
-				DailyContestEntryHelper.getPredictionsForDate(advisorId, date, category),
+				DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category}),
 				DailyContestEntryHelper.getPnlForDate(advisorId, date, category)
 			]);
 		} else {
