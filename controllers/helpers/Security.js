@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-08 17:45:15
+* @Last Modified time: 2018-12-08 20:50:09
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -316,9 +316,24 @@ function _getIntradayHistory(security, date) {
 		
 	return SecurityIntradayHistoryModel.fetchHistory(query)
 	.then(dbHistory => {
-		if (dbHistory) {
-			return dbHistory;
-		} else {
+
+		var updateRequired = !dbHistory;
+
+		var eod = DateHelper.getMarketCloseDateTime(date);
+
+		if (!updateRequired) {
+			var ts = _.get(dbHistory, 'history', []).map(item => _.get(item, 'datetime', null)).slice(-1);
+
+			var dt20MinsAgo = moment().subtract(20, 'minutes')
+
+			var compareWithDate = dt20MinsAgo.isBefore(moment(eod)) ? dt20MinsAgo : moment(eod);
+			updateRequired = ts && ts.length > 0 && moment(ts[0]).add(1, 'minutes').startOf('minute').isBefore(compareWithDate);
+
+			//DEFAULT - till the above code is tested
+			updateRequired = true;
+		}
+
+		if (updateRequired) {
 			return _computeStockIntradayHistory(security, date)
 			.then(securityDetail => {
 				securityDetail.history = _.get(securityDetail, 'history', []).map(item => {
@@ -329,6 +344,8 @@ function _getIntradayHistory(security, date) {
 				//This can go on async
 				return SecurityIntradayHistoryModel.updateHistory(query, securityDetail.history, {upsert: true, new: true});
 			})
+		} else {
+			return dbHistory;
 		}
 	});	
 }
@@ -811,10 +828,13 @@ module.exports.getIntradaySnapshot = function(fname, type) {
 };
 
 module.exports.updateIntradayHistory = function(ticker, snapShot) {
-	var datetime = _.get(snapShot,'datetime', null);
+
+	//update to UTC format by appending Z
+	snapShot.datetime = `${_.get(snapShot,'datetime', null)}Z`;
+
 	if (datetime) {
-		var date = DateHelper.getMarketCloseDateTime(snapShot.datetime);
-		return SecurityPerformanceModel.addHistory({'security.ticker':ticker, date: date}, snapShot)
+		var date = DateHelper.getMarketCloseDateTime(DateHelper.getDate(snapShot.datetime));
+		return SecurityPerformanceModel.addHistory({'security.ticker':ticker, date: date}, snapShot);		
 	} else {
 		console.log("Updating Intraday History: Invalid DateTime")
 		return ;
