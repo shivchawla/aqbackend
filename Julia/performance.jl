@@ -661,7 +661,6 @@ function get_intraday_snapshot(fileNumber::Int, fileType::String)
         rethrow(err)
     end  
 end
-end
 
 function get_stock_intraday_history(security::Security, date::Date)
     #1. Read data from beginning to the current (if not available populate)
