@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-08 10:19:26
+* @Last Modified time: 2018-12-08 10:31:51
 */
 
 'use strict';
@@ -1710,9 +1710,9 @@ function _getDistinctPredictionTickersForAdvisors(date) {
 				var predictionTickers = predictions.map(item => {return _.get(item, 'position.security.ticker', null)}).filter(item => item) || [];
 				return Promise.map(predictionTickers, function(ticker) {
 					if (ticker in advisorsByTickers) {
-						advisorsByTickers[ticker].push(advisorId) 
+						advisorsByTicker[ticker].push(advisorId) 
 					} else {
-						advisorsByTickers[ticker] = [advisorId];
+						advisorsByTicker[ticker] = [advisorId];
 					}
 					return;
 				})
@@ -1741,7 +1741,7 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 			.then(securityDetail => {
 				var advisorsForThisTicker = _.uniq(allAdvisorsByTickers[ticker]);
 
-				//return Promise.mapSeries(advisorsForThisTicker, function(advisorId){
+				return Promise.mapSeries(advisorsForThisTicker, function(advisorId){
 					return exports.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false})
 					.then(predictions => {
 						return Promise.mapSeries(predictions, function(prediction){
@@ -1770,6 +1770,7 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 			})
 		
 		})
+	})
 }
 
 
