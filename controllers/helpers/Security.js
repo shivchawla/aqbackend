@@ -338,7 +338,7 @@ module.exports.getStockIntradayHistory = function(security, date) {
 		.then(([intradayDetail, securityDetail]) => {
 			security.detail = securityDetail;
 			const history = _.get(intradayDetail, 'history', []).map(item => ({
-				datetime: moment(_.get(item, 'datetime', undefined)).utc(),
+				datetime: `${_.get(item, 'datetime', undefined)}Z`,
 				price: _.get(item, 'close', undefined)
 			}));
 			resolve(Object.assign({}, security, {intradayHistory: history}));
