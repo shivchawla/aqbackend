@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-08 18:30:55
+* @Last Modified time: 2018-12-08 19:27:13
 */
 
 'use strict';
@@ -1151,25 +1151,6 @@ function _computeDailyPnlStats(advisorId, date, options) {
 	let yesterday = moment(date).subtract(1, 'days').toDate();
 
 	return exports.getPredictionsForDate(advisorId, date, {category})
-	// .then(rawPredictions => {
-	// 	//First change the startDate of all predictions before today to be yesterday
-		
-	// 	//THIS IS IRRELEVANT NOW --- as
-	// 	// rawPredictions = rawPredictions.map(item => {
-		
-	// 	// 	//What's the significance of dailyPnL for entries starting today - ?
-	// 	// 	//So don't update the startdate for those predictions		
-	// 	// 	var startDateRoundedEOD = DateHelper.getMarketCloseDateTime(item.startDate);
-			
-	// 	// 	if(startDateRoundedEOD.isBefore(moment(date))) {
-	// 	// 		item.startDate = yesterday;
-	// 	// 	}
-
-	// 	// 	return item;
-	// 	// });
-
-	// 	return _computeUpdatedPredictions(rawPredictions, date);
-	// })
 	.then(updatedPredictions => {
 			
 		//BUT THE updated predictions have Call price as of beginning of prediction
@@ -1402,27 +1383,31 @@ module.exports.getContestEntryForUser = function(userId) {
 module.exports.updateAllEntriesLatestPnlStats = function(date, options){
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
-	return DailyContestEntryModel.fetchDistinctAdvisors({date: date})
+	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
-			return Promise.all([
-				_computeTotalPnlStatsForAll(advisorId, date, options),
-				_computeDailyPnlStatsForAll(advisorId, date, options)
-			])
-			.then(([totalPnl, dailyPnl]) => {
-				const updates = {
-					cumulative: totalPnl,
-					daily: dailyPnl
+			return exports.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false})
+			.then(activePredictions => {
+				if (activePredictions.length > 0) {
+					return Promise.all([
+						_computeTotalPnlStatsForAll(advisorId, date, options),
+						_computeDailyPnlStatsForAll(advisorId, date, options)
+					])
+					.then(([totalPnl, dailyPnl]) => {
+						const updates = {
+							cumulative: totalPnl,
+							daily: dailyPnl
+						}
+						
+						return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, updates, date, "detail");
+					})
+				} else {
+					return;
 				}
-				
-				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, updates, date, "detail");
 			})
 		});
 	});
 };
-
-
-
 
 /**
  * Needs to be changed
@@ -1430,12 +1415,19 @@ module.exports.updateAllEntriesLatestPnlStats = function(date, options){
 module.exports.updateAllEntriesNetPnlStats = function(date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
-	return DailyContestEntryModel.fetchDistinctAdvisors({date: date})
+	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
-			return _computeNetPnlStats(advisorId, date)
-			.then(netPnlStats => {
-				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, netPnlStats, date, "net");
+			return exports.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false})
+			.then(activePredictions => {
+				if (activePredictions.length > 0) {
+					return _computeNetPnlStats(advisorId, date)
+					.then(netPnlStats => {
+						return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, netPnlStats, date, "net");
+					})
+				} else {
+					return;
+				}
 			})
 		});
 	})
@@ -1474,12 +1466,11 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 module.exports.checkForPredictionTarget = function(category = "active") {
 	const currentDate = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 
-	return DailyContestEntryModel.fetchDistinctAdvisors({date: currentDate})
+	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
 			return exports.getPredictionsForDate(advisorId, currentDate, {category, priceUpdate:false})
 			.then(predictions => {
-
 				return predictions.filter(item => !item.success.status).map(item => {
 						return {...item, advisorId: advisorId};
 				});
@@ -1617,7 +1608,7 @@ module.exports.addPredictions = function(advisorId, predictions, date) {
 module.exports.updateCallPriceForPredictions = function() {
 	const currentDate = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 
-	return DailyContestEntryModel.fetchDistinctAdvisors({date: currentDate})
+	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
 
@@ -1697,7 +1688,7 @@ function _getDistinctPredictionTickersForAdvisors(date) {
 	
 	var advisorsByTicker = {};
 	
-	return DailyContestEntryModel.fetchDistinctAdvisors({date: date})
+	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(distinctAdvisors => {
 		return Promise.mapSeries(distinctAdvisors, function(advisorId){
 			return exports.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false})
@@ -1718,9 +1709,6 @@ function _getDistinctPredictionTickersForAdvisors(date) {
 		return advisorsByTicker;
 	});	
 }
-
-
-
 
 //function to update the interval prices
 module.exports.updatePredictionsForIntervalPrice = function(date) {
@@ -1768,11 +1756,10 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 	})
 }
 
-
 function resetIntervalPrices(date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 	
-	return DailyContestEntryModel.fetchDistinctAdvisors({date: date})
+	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(distinctAdvisors => {
 		return Promise.mapSeries(distinctAdvisors, function(advisorId){
 			return exports.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false})
@@ -1785,7 +1772,6 @@ function resetIntervalPrices(date) {
 		})
 	})
 }
-
 
 function job() {
 	const dates = ["2018-11-12","2018-11-13","2018-11-14","2018-11-15", "2018-11-16", 
@@ -1810,7 +1796,3 @@ function job() {
         })
     });
 }
-
-
-
-
