@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-08 13:32:51
+* @Last Modified time: 2018-12-08 18:30:55
 */
 
 'use strict';
@@ -933,7 +933,7 @@ function _isTargetAchieved(prediction, highPrice, lowPrice) {
 }
 
 function _getExtremePrices(history, startDate, endDate) {
-	var relevantHistory = history.filter(item => {var dt =`${item.datetime}Z`; return moment(dt).isAfter(moment(startDate)) && !moment(dt).isAfter(moment(endDate))});
+	var relevantHistory = history.filter(item => {var dt = item.datetime; return moment(dt).isAfter(moment(startDate)) && !moment(dt).isAfter(moment(endDate))});
 
 	if (relevantHistory.length > 0) {
 		return {
@@ -982,7 +982,7 @@ function _updatePredictionForTrueCallPrice(prediction) {
 											_.get(eodSecurityDetail, 'latestDetail.Close', 0);
 		} else {
 
-			var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {return !moment(`${item.datetime}Z`).isBefore(startDate)});
+			var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {return !moment(item.datetime).isBefore(startDate)});
 
 			let trueLastPrice = 0.0;
 			if (relevantIntradayHistory.length > 0) {
@@ -1017,7 +1017,7 @@ function _updatePredictionForCallPrice(prediction) {
 		} else {
 			var relevantIntradayHistory = intradaySecurityDetail.intradayHistory.filter(item => {
 				
-				return !moment(`${item.datetime}Z`).isBefore(startDate)
+				return !moment(item.datetime).isBefore(startDate)
 			});
 
 			let trueLastPrice = 0.0;
@@ -1704,7 +1704,7 @@ function _getDistinctPredictionTickersForAdvisors(date) {
 			.then(predictions => {
 				var predictionTickers = predictions.map(item => {return _.get(item, 'position.security.ticker', null)}).filter(item => item) || [];
 				return Promise.map(predictionTickers, function(ticker) {
-					if (ticker in advisorsByTickers) {
+					if (ticker in advisorsByTicker) {
 						advisorsByTicker[ticker].push(advisorId) 
 					} else {
 						advisorsByTicker[ticker] = [advisorId];
@@ -1771,8 +1771,6 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 
 function resetIntervalPrices(date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
-	
-	var advisorsByTicker = {};
 	
 	return DailyContestEntryModel.fetchDistinctAdvisors({date: date})
 	.then(distinctAdvisors => {
