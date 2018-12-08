@@ -655,7 +655,7 @@ function get_intraday_snapshot(fileNumber::Int, fileType::String)
     try
         output = Dict{String, Any}() 
         (realtimePrices, eodPrices) = get_realtime_prices("$path/$fileNumber.fileType", fileType)
-        return Dict{String, Any}("realTime" => serialize(realtimePrices), "eodPrices" => serialize(eodPrices))
+        return Dict{String, Any}("realTime" => toDict(realtimePrices), "eodPrices" => toDict(eodPrices))
     catch err
         println(err)
         rethrow(err)
@@ -712,7 +712,7 @@ function empty_pnl()
 end
 
 #Serialize tradebar based dictionary
-function serialize(intradayPrices::Dict{String, TradeBar})
+function toDict(intradayPrices::Dict{String, TradeBar})
     output = Dict{String, Any}()
     
     for (k,v) in intradayPrices

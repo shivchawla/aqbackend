@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-12-08 15:12:00
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-08 15:36:04
+* @Last Modified time: 2018-12-08 17:47:59
 */
 
 'use strict';
@@ -29,8 +29,8 @@ SecurityIntradayHistory.statics.addHistory = function(query, snapShot) {
 	return this.findOneAndUpdate(query, {'$push': {history: snapShot}}, {upsert: true})
 };
 
-SecurityIntradayHistory.statics.updateHistory = function(query, history) {
-	return this.findOneAndUpdate(query, {'$set': {history: history}}, {upsert: true})
+SecurityIntradayHistory.statics.updateHistory = function(query, history, options) {
+	return this.findOneAndUpdate(query, {'$set': {history: history}}, options)
 };
 
 SecurityIntradayHistory.statics.fetchHistory = function(query) {
@@ -40,5 +40,5 @@ SecurityIntradayHistory.statics.fetchHistory = function(query) {
 };
 
 
-const SecurityIntradayHistory = mongoose.model('SecurityIntradayHistory', SecurityIntradayHistory);
-module.exports = SecurityIntradayHistory;
+const SecurityIntradayHistoryModel = mongoose.model('SecurityIntradayHistory', SecurityIntradayHistory);
+module.exports = SecurityIntradayHistoryModel;

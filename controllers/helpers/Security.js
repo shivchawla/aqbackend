@@ -2,10 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-08 16:04:04
+* @Last Modified time: 2018-12-08 17:45:15
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
+const SecurityIntradayHistoryModel = require('../../models/Marketplace/SecurityIntradayHistory');
 const APIError = require('../../utils/error');
 const WebSocket = require('ws'); 
 const config = require('config');
@@ -306,23 +307,27 @@ function _getSecurityDetail(security) {
 };
 
 function _getIntradayHistory(security, date) {
-	var query = {security, date: DateHelper.getMarketCloseDateTime(date)};
-	return SecurityIntradayHistory.fetchHistory(query)
+
+	var query = {'security.ticker': security.ticker,
+		'security.exchange': security.exchange ? security.exchange : "NSE",
+		'security.securityType': security.securityType ? security.securityType : "EQ",
+		'security.country': security.country ? security.country : "IN", 
+		date: DateHelper.getMarketCloseDateTime(date)};
+		
+	return SecurityIntradayHistoryModel.fetchHistory(query)
 	.then(dbHistory => {
 		if (dbHistory) {
 			return dbHistory;
 		} else {
 			return _computeStockIntradayHistory(security, date)
 			.then(securityDetail => {
-				securityDetail.history = _.get(securityDetail, 'intradayHistory', []).map(item => {
+				securityDetail.history = _.get(securityDetail, 'history', []).map(item => {
 					item.datetime = `${_.get(item, 'datetime', undefined)}Z`;
 					return item;
 				});
 
 				//This can go on async
-				SecurityIntradayHistory.updateHistory(query, securityDetail.history);
-
-				return securityDetail;
+				return SecurityIntradayHistoryModel.updateHistory(query, securityDetail.history, {upsert: true, new: true});
 			})
 		}
 	});	
