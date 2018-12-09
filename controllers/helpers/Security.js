@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-09 13:41:29
+* @Last Modified time: 2018-12-09 21:47:40
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -329,8 +329,6 @@ function _getIntradayHistory(security, date) {
 			var compareWithDate = dt20MinsAgo.isBefore(moment(eod)) ? dt20MinsAgo : moment(eod);
 			updateRequired = ts && ts.length > 0 && moment(ts[0]).add(1, 'minutes').startOf('minute').isBefore(compareWithDate);
 
-			//DEFAULT - till the above code is tested
-			updateRequired = true;
 		}
 
 		if (updateRequired) {
