@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-08 19:27:13
+* @Last Modified time: 2018-12-09 22:09:25
 */
 
 'use strict';
@@ -1773,12 +1773,11 @@ function resetIntervalPrices(date) {
 	})
 }
 
-function job() {
+module.exports.updatePerformanceHistoricalAdhoc = function() {
 	const dates = ["2018-11-12","2018-11-13","2018-11-14","2018-11-15", "2018-11-16", 
 	"2018-11-19","2018-11-20","2018-11-21", "2018-11-22", 
 	"2018-11-26","2018-11-27","2018-11-28", "2018-11-29", "2018-11-30",
 	"2018-12-03","2018-12-04","2018-12-05", "2018-12-06"];
-
 
     return Promise.mapSeries(dates, function(date) {
         return resetIntervalPrices(date)
