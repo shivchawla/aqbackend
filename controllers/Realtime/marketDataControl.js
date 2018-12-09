@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 13:05:39
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-08 20:53:03
+* @Last Modified time: 2018-12-09 13:47:11
 */
 'use strict';
 const config = require('config');
@@ -177,7 +177,7 @@ function _sendAllUpdates() {
 
 
 function _updateIntradayHistory(fileNumber, fileType) {
-	return SecurityHelper.getIntradaySnapshot(fileNumber, fileType);
+	return SecurityHelper.getIntradaySnapshot(fileNumber, fileType)
 	.then(snapShot => {
 		 var tickers = Object.keys(snapShot);
 		 return Promise.map(tickers, function(ticker) {
