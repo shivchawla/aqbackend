@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-08 10:21:10
+* @Last Modified time: 2018-12-09 15:46:40
 */
 
 'use strict';
@@ -24,25 +24,24 @@ const DailyContestStatsModel = require('../../models/Marketplace/DailyContestSta
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 
 function _computeContestWinners(date) {
-	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
+	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(allAdvisors => {
 		return Promise.mapSeries(allAdvisors, function(advisor) {
 			let advisorId = advisor._id;
-			return Promise.all([
-				DailyContestEntryHelper.getTotalPnlStats(advisorId, date, "ended"),
-				DailyContestEntryHelper.getTotalPnlStats(advisorId, date, "active")
-			])
-			.then(([pnlStatsEndedPredictionsForAdvisor, pnlStatsActivePredictionsForAdvisor]) => {
-				var realizedPnl =  pnlStatsEndedPredictionsForAdvisor.all.net.pnl;
-				var endedInvestment = pnlStatsEndedPredictionsForAdvisor.all.net.cost;
-				var activeInvestment = pnlStatsActivePredictionsForAdvisor.all.net.cost;
-				var totalInvestment = endedInvestment + activeInvestment;
-				
-				var pnlPct = totalInvestment > 0 ? realizedPnl/totalInvestment : 0;
+			
+			return DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId})
+			,then(pnlStatsForAdvisor => )
 
-				var profitFactor = pnlStatsEndedPredictionsForAdvisor.all.net.profitFactor;
+				//Winners are based on active pnl () and not realized
+				//Active pnl 
+				var activePnlStats =  _.get(pnlStatsForAdvisor, 'detail.cumulative.active.all.net', {});
+	
+				var pnlPct = _.get(activePnlStats, 'pnlPct', 0);
+				var cost = _.get(activePnlStats, 'cost', 0);
+				var profitFactor = _.get(activePnlStats, 'profitFactor', 0);
+				var pnl = _.get(activePnlStats, 'pnl', 0);
 
-				return Object.assign({advisor: advisorId}, {pnlStats: {total: {pnlPct, pnl: realizedPnl, profitFactor, cost: totalInvestment}}});
+				return Object.assign({advisor: advisorId}, {pnlStats: {total: {pnlPct, pnl, profitFactor, cost}}});
 			})
 		})
 		.then(pnlStatsForAllAdvisors => {
