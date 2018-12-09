@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-09 15:46:40
+* @Last Modified time: 2018-12-09 22:15:20
 */
 
 'use strict';
@@ -30,7 +30,7 @@ function _computeContestWinners(date) {
 			let advisorId = advisor._id;
 			
 			return DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId})
-			,then(pnlStatsForAdvisor => )
+			,then(pnlStatsForAdvisor => {
 
 				//Winners are based on active pnl () and not realized
 				//Active pnl 
