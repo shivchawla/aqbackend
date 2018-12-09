@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-09 22:05:50
+* @Last Modified time: 2018-12-09 22:57:30
 */
 
 'use strict';
@@ -56,6 +56,9 @@ if (config.get('jobsPort') === serverPort) {
         .then(() => {
         	DailyContestStatsHelper.updateContestStats();
         });
+        .then(() => {
+        	DailyContestEntryHelper.unTrackIntradayHistory();
+        })
 	});
 
 	const scheduleUpdateTopStocks = `*/30 * * * 1-5`;

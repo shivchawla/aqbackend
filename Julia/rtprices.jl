@@ -99,7 +99,7 @@ function track_intraday_prices(ticker)
 end
 
 function untrack_intraday_prices()
-    _intradayPriceHistory = Dict{String, Vector{TradeBar}}()
+    global _intradayPriceHistory = Dict{String, Vector{TradeBar}}()
 end
 
 function get_intraday_prices(ticker, date)

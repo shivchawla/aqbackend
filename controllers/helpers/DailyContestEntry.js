@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-09 22:09:25
+* @Last Modified time: 2018-12-09 22:56:36
 */
 
 'use strict';
@@ -1794,4 +1794,18 @@ module.exports.updatePerformanceHistoricalAdhoc = function() {
             })
         })
     });
+}
+
+function _unTrackIntradayHistory() {
+	return new Promise(function(resolve, reject) {
+
+		var msg = JSON.stringify({action:"untrack_stock_intraday_detail"});
+        								
+		WSHelper.handleMktRequest(msg, resolve, reject);
+
+	});
+}
+
+module.exports.unTrackIntradayHistory = function() {
+	_unTrackIntradayHistory();
 }
