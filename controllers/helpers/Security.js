@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-08 20:50:09
+* @Last Modified time: 2018-12-09 13:41:29
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -315,14 +315,14 @@ function _getIntradayHistory(security, date) {
 		date: DateHelper.getMarketCloseDateTime(date)};
 		
 	return SecurityIntradayHistoryModel.fetchHistory(query)
-	.then(dbHistory => {
+	.then(dbIntradayHistory => {
 
-		var updateRequired = !dbHistory;
+		var updateRequired = !dbIntradayHistory;
 
 		var eod = DateHelper.getMarketCloseDateTime(date);
 
 		if (!updateRequired) {
-			var ts = _.get(dbHistory, 'history', []).map(item => _.get(item, 'datetime', null)).slice(-1);
+			var ts = _.get(dbIntradayHistory, 'history', []).map(item => _.get(item, 'datetime', null)).slice(-1);
 
 			var dt20MinsAgo = moment().subtract(20, 'minutes')
 
@@ -345,7 +345,10 @@ function _getIntradayHistory(security, date) {
 				return SecurityIntradayHistoryModel.updateHistory(query, securityDetail.history, {upsert: true, new: true});
 			})
 		} else {
-			return dbHistory;
+			//only unique datetime
+			const uniqHistory = _.uniqBy(_.get(dbIntradayHistory, 'history', []), 'datetime');
+
+			return {...dbIntradayHistory.toObject(), history: uniqHistory};
 		}
 	});	
 }

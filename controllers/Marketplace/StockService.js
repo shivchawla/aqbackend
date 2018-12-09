@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-15 11:50:12
+* @Last Modified time: 2018-12-09 13:44:54
 */
 
 'use strict';
@@ -68,6 +68,10 @@ module.exports.getStockDetail = function(args, res, next) {
 			return SecurityHelper.getStockPriceHistory(security, startDate, endDate);
 		} else if (field == "intraDay") {
 			return SecurityHelper.getStockIntradayHistory(security, startDate)
+			.then(intraDayhistory => {
+				const history = _.get(intraDayhistory, 'history', []).map(item => {return _.pick(item, ['datetime', 'close'])});
+				return {...intraDayhistory, history};
+			});
 		} else if (field == "staticPerformance") {
 			return SecurityHelper.getStockStaticPerformance(security);
 		} else if (field == "rollingPerformance") {
