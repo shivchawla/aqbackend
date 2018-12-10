@@ -90,7 +90,7 @@ function get_realtime_prices(fname::String, ftype::String)
     end
 end
 
-function track_intraday_prices(ticker)
+function track_intraday_prices(ticker::String)
     if !haskey(_intradayPriceHistory, ticker)
         _intradayPriceHistory[ticker] = get_intraday_prices(ticker)
     end
@@ -102,7 +102,7 @@ function untrack_intraday_prices()
     global _intradayPriceHistory = Dict{String, Vector{TradeBar}}()
 end
 
-function get_intraday_prices(ticker, date)
+function get_intraday_prices(ticker::String, date::Date=currentIndiaDate())
 
     if date == currentIndiaDate()
         if haskey(_intradayPriceHistory, ticker)
@@ -117,7 +117,7 @@ function get_intraday_prices(ticker, date)
     end
 end
 
-function _get_intraday_prices(ticker, date=currentIndiaDate())
+function _get_intraday_prices(ticker::String, date=currentIndiaDate())
     
     priceHistory = Vector{TradeBar}()
     directory = "$path/$(Dates.format(date, "UddY"))"
