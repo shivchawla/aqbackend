@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-10 15:23:53
+* @Last Modified time: 2018-12-10 19:59:03
 */
 
 
@@ -75,8 +75,9 @@ const Prediction = new Schema({
 		highPrice: {type:Number, default: -Infinity}
 	},
 	
-	success: {
-		status: {type: Boolean, default: false},
+	status: {
+		profitTarget: {type:Boolean, default: false},
+		stopLoss: {type: Boolean, default: false},
 		date: Date,
 		trueDate: Date,
 		price: Number
@@ -172,7 +173,7 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 				...query, 
 				$or: [
 					{'predictions.endDate': date}, 
-					{'predictions.success.date': date}
+					{'predictions.status.date': date}
 				]
 			}, 
 			{predictions:1})
@@ -184,8 +185,10 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 				return allPredictions.filter(item => {
 					//Convert the date to market-close date time 
 					//(relevant for date today because input is true time) 
-					return (moment(item.endDate).isSame(moment(date)) && !item.success.status) || 
-					(item.success.status && moment(item.success.date).isSame(moment(date)))
+					var successFailureStatus = item.status.profitTarget || item.status.stopLoss;
+
+					return (moment(item.endDate).isSame(moment(date)) && !successFailureStatus) || 
+					(successFailureStatus && moment(item.status.date).isSame(moment(date)))
 				});
 			} else {
 				return [];
@@ -210,10 +213,11 @@ DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, da
 
 					//Convert startdate(exact time) to EOD datetime for comparison purposes
 					var startDate = DateHelper.getMarketCloseDateTime(DateHelper.getDate(item.startDate));
+					var successFailureStatus = item.status.profitTarget || item.status.stopLoss;
 					
 					return !moment(startDate).isAfter(moment(date)) &&  //start is same or before
 							!moment(item.endDate).isBefore(moment(date)) && //end is same or after
-							(!item.success.status || (item.success.status && !moment(item.success.date).isBefore(moment(date))))
+							(!successFailureStatus || (successFailureStatus && !moment(item.status.date).isBefore(moment(date))))
 				});
 			} else {
 				return [];
@@ -222,26 +226,6 @@ DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, da
 			return [];
 		}
 	});
-};
-
-//This is not good programming
-//NOT IN USE
-DailyContestEntry.statics.updatePredictionStatus = function(query, prediction) {
-   var q = {predictions:{$elemMatch:{'position.security.ticker': prediction.position.security.ticker, 
-                endDate: prediction.endDate,
-                startDate: prediction.startDate
-            }}, date: DateHelper.getMarketCloseDateTime(prediction.startDate)};
-
-	var updates = {
-		$set: {
-			'predictions.$.success': {
-				status: true, 
-				date: DateHelper.getMarketCloseDateTime(new Date())
-			}
-		}
-	};
-
-	return this.updateOne({...query, ...q}, updates);
 };
 
 //This is not good programming

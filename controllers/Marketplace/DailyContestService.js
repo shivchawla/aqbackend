@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-08 10:07:12
+* @Last Modified time: 2018-12-10 18:44:31
 */
 
 'use strict';
@@ -164,6 +164,13 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			if (latestPrice != 0) {
 				const investment = prediction.position.investment;
 				const target = prediction.target;
+				const stopLoss = -Math.abs(_.get(prediction, 'stopLoss', 1));
+
+				if (stopLoss == 0) {
+					APIError.throwJsonError({message: "Stoploss must be non-zero"});
+				} else if (Math.abs(stopLoss) > 1) {
+					APIError.throwJsonError({message: "Stoploss must be less than 100"});
+				} 
 
 				if (investment > 0 && target < 1.015*latestPrice) {
 					APIError.throwJsonError({msg:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% higher than call price`});
@@ -218,6 +225,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				item.endDate = DateHelper.getMarketCloseDateTime(DateHelper.getNextNonHolidayWeekday(item.endDate, 0));
 				item.active = true;
 				item.modified = 1;
+				item.stopLoss = -Math.abs(_.get(item, 'stopLoss', 1));
 				item.nonMarketHoursFlag = DateHelper.isHoliday() || !DateHelper.isMarketTrading();
 				item.createdDate = new Date();
 
