@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-07 00:23:44
+* @Last Modified time: 2018-12-10 15:23:53
 */
 
 
@@ -71,8 +71,8 @@ const Prediction = new Schema({
 	},
 	
 	priceInterval: {
-		lowPrice: {type:Number},
-		highPrice: {type:Number}
+		lowPrice: {type:Number, default: Infinity},
+		highPrice: {type:Number, default: -Infinity}
 	},
 	
 	success: {

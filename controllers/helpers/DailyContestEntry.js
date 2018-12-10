@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-09 22:56:36
+* @Last Modified time: 2018-12-10 15:40:03
 */
 
 'use strict';
@@ -1380,7 +1380,7 @@ module.exports.getContestEntryForUser = function(userId) {
 	})
 };
 
-module.exports.updateAllEntriesLatestPnlStats = function(date, options){
+module.exports.updateAllEntriesLatestPnlStats = function(date){
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
 	return DailyContestEntryModel.fetchDistinctAdvisors()
@@ -1390,8 +1390,8 @@ module.exports.updateAllEntriesLatestPnlStats = function(date, options){
 			.then(activePredictions => {
 				if (activePredictions.length > 0) {
 					return Promise.all([
-						_computeTotalPnlStatsForAll(advisorId, date, options),
-						_computeDailyPnlStatsForAll(advisorId, date, options)
+						_computeTotalPnlStatsForAll(advisorId, date),
+						_computeDailyPnlStatsForAll(advisorId, date)
 					])
 					.then(([totalPnl, dailyPnl]) => {
 						const updates = {
