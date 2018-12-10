@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-09 23:03:27
+* @Last Modified time: 2018-12-10 13:58:55
 */
 
 'use strict';
@@ -51,7 +51,7 @@ if (config.get('jobsPort') === serverPort) {
 	schedule.scheduleJob(scheduleUpdatedEODStats, function() { 
         DailyContestEntryHelper.updateAllEntriesLatestPnlStats(null, {fullUpdate: true})
         .then(() => {
-        	DailyContestEntryHelper.updateAllEntriesNetPnlStats()
+        	DailyContestEntryHelper.updateAllEntriesNetPnlStats();
     	})
         .then(() => {
         	DailyContestStatsHelper.updateContestStats();
@@ -62,13 +62,16 @@ if (config.get('jobsPort') === serverPort) {
 	});
 
 	const scheduleUpdateTopStocks = `*/30 * * * 1-5`;
-	schedule.scheduleJob(scheduleUpdateTopStocks, function() { 
-    	DailyContestEntryHelper.updateAllEntriesLatestPnlStats()
+	schedule.scheduleJob(scheduleUpdateTopStocks, function() {
+		DailyContestEntryhelper.updatePredictionsForIntervalPrice()
+		.then(() => { 
+    		DailyContestEntryHelper.updateAllEntriesLatestPnlStats();
+		})
         .then(() => {
-        	DailyContestEntryHelper.updateAllEntriesNetPnlStats()
+        	DailyContestEntryHelper.updateAllEntriesNetPnlStats();
     	}).
     	then(() => {
-    		DailyContestStatsHelper.updateContestTopStocks()
+    		DailyContestStatsHelper.updateContestTopStocks();
 		});
 	});
 
@@ -76,10 +79,10 @@ if (config.get('jobsPort') === serverPort) {
 	schedule.scheduleJob(scheduleUpdateTopStocksWeekends, function() { 
     	DailyContestEntryHelper.updateAllEntriesLatestPnlStats()
         .then(() => {
-        	DailyContestEntryHelper.updateAllEntriesNetPnlStats()
+        	DailyContestEntryHelper.updateAllEntriesNetPnlStats();
     	}).
     	then(() => {
-    		DailyContestStatsHelper.updateContestTopStocks()
+    		DailyContestStatsHelper.updateContestTopStocks();
 		});
 	});
 
