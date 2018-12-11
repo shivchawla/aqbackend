@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-10 17:44:08
+* @Last Modified time: 2018-12-11 17:41:02
 */
 
 'use strict';
@@ -26,8 +26,7 @@ const DailyContestEntryPerformanceModel = require('../../models/Marketplace/Dail
 function _computeContestWinners(date) {
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(allAdvisors => {
-		return Promise.mapSeries(allAdvisors, function(advisor) {
-			let advisorId = advisor._id;
+		return Promise.mapSeries(allAdvisors, function(advisorId) {
 			
 			return DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId})
 			.then(pnlStatsForAdvisor => {
