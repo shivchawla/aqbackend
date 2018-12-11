@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-11 17:41:02
+* @Last Modified time: 2018-12-11 17:57:33
 */
 
 'use strict';
@@ -28,7 +28,7 @@ function _computeContestWinners(date) {
 	.then(allAdvisors => {
 		return Promise.mapSeries(allAdvisors, function(advisorId) {
 			
-			return DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId})
+			return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
 			.then(pnlStatsForAdvisor => {
 
 				//Winners are based on active pnl () and not realized
