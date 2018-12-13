@@ -90,5 +90,26 @@ Watchlist.statics.deleteWatchlist = function(query) {
     });
 };
 
+Watchlist.statics.undoDelete = function(query, updates) {
+    return this.findOne(query)
+    .then(watchlist => {
+        if (watchlist) {
+            if (watchlist.deleted) {
+                watchlist.deleted = false;
+                watchlist.createdAt = new Date();
+                const keys = Object.keys(updates);
+                keys.forEach(key => {
+                    watchlist[key] = updates[key];
+                });
+                return watchlist.saveAsync();
+            } else {
+                throw new Error("Watchlist already exists");
+            }
+        } else {
+            throw new Error("Watchlist not found");
+        }
+    })
+}
+
 const WatchlistModel = mongoose.model('Watchlist', Watchlist, 'watchlist');
 module.exports = WatchlistModel;
