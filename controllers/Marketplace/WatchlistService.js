@@ -1,5 +1,6 @@
 
 const WatchlistModel = require('../../models/Marketplace/Watchlist');
+const _ = require('lodash');
 const Promise = require('bluebird');
 const APIError = require('../../utils/error');
 const SecurityHelper = require("../helpers/Security");
@@ -29,7 +30,8 @@ function _populateWatchlistDetail(watchlist) {
 
 module.exports.createWatchlist = function(args, res, next) {
 	const user = args.user;
-    const values = args.body.value;
+	const values = args.body.value;
+	const userId = user._id;
     
     const watchlist = {
         name: values.name,
@@ -37,7 +39,9 @@ module.exports.createWatchlist = function(args, res, next) {
         securities: values.securities,
         createdAt: new Date(),
         updatedAt: new Date(),
-    };
+	};
+	const watchlistName = values.name;
+    const query = {name: {$regex: `^${watchlistName}$`, $options: "i"}, user: userId};
 
     const securities = values.securities;
     return Promise.map(securities, function(security) {
@@ -45,12 +49,21 @@ module.exports.createWatchlist = function(args, res, next) {
     })
     .then(flags => {
     	if (flags.indexOf(false) == -1 || length(flags) == 0) {
-    		return WatchlistModel.saveWatchlist(watchlist);
+			return WatchlistModel.findOne(query)
     	} else {
     		var idx = flags.indexOf(false);
     		APIError.throwJsonError({security: securities[idx], message:"Security not found"});
     	}
-    })
+	})
+	.then(data => {
+		if (data !== null) { // Watchlist already present
+			const watchlistId = _.get(data, '_id', null);
+			const undoDeleteQuery = {_id: watchlistId, user: userId};
+			return WatchlistModel.undoDelete(undoDeleteQuery, {securities: watchlist.securities})
+		} else {
+			return WatchlistModel.saveWatchlist(watchlist);
+		}
+	})
     .then(watchlist => {
     	return res.status(200).json(watchlist);
     })
