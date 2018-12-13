@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-13 20:21:51
+* @Last Modified time: 2018-12-13 21:03:56
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -19,7 +19,7 @@ const WSHelper = require('./WSHelper');
 const homeDir = require('os').homedir();
 const _ = require('lodash');
 const moment = require('moment');
-const RedisUtils = require('../../utils/redisUtils');
+const RedisUtils = require('../../utils/RedisUtils');
 
 function _getRawStockList(fname) {
 	return new Promise(resolve => {
@@ -128,10 +128,13 @@ function _computeStockIntradayHistory(security, date) {
 			resolve(
 				reply.map(item => {
 					var pItem = JSON.parse(item); 
-					pItem.datetime = `${pItem.datetime}Z`; 
-					return pItem;
+					 return {datetime: pItem.date, 
+                            close: pItem.intClose, 
+                            open: pItem.intOpen, 
+                            high: pItem.intHigh, 
+                            low: pItem.intLow};
 				})
-				.sort((a,b) => {return moment(a).isBefore(b) > -1 : 1;})
+				.sort((a,b) => {return moment(a.datetime).isBefore(b.datetime) ? -1 : 1;})
 			);
 		});
 		
