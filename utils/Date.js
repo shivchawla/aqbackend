@@ -2,11 +2,12 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-04 17:28:49
+* @Last Modified time: 2018-12-13 20:22:26
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
 const localTimeZone = moment.tz.guess();
+
 
 function _isBeforeMarketClose() {
 	return moment().isBefore(exports.getMarketClose());
@@ -248,7 +249,7 @@ module.exports.getMarketCloseDateTime = function(date) {
 
 module.exports.getMarketOpenDateTime = function(date) {
 	var d = moment.tz(date, indiaTimeZone).format("YYYY-MM-DD"); 
-	return moment.tz(d, indiaTimeZone).tz(localTimeZone).set({hour: exports.getMarketOpenHour(), minute: exports.getMarketOpenMinute(), second: 0, millisecond: 0});
+	return moment.tz(d, localTimeZone).set({hour: exports.getMarketOpenHour(), minute: exports.getMarketOpenMinute(), second: 0, millisecond: 0});
 };
 
 module.exports.isMarketTrading = function() {

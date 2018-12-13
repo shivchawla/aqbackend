@@ -48,6 +48,16 @@ function getRangeFromRedis(key, fIdx, lIdx, callback) {
     });
 }
 
+function getSetDataFromRedis(key, callback) {
+    client.smembers(key, function(err, reply) {
+        if (err) {
+            callback(err);
+        } else {
+            callback(err, reply);
+        }
+    });
+}
+
 function setDataExpiry(key, time_in_sec) {
     client.expire(key, time_in_sec);
 }
@@ -61,7 +71,6 @@ function getValue(key, callback) {
         } else {
             callback(err, data);
         }
-
     });
 }
 
@@ -87,7 +96,8 @@ module.exports = {
     deleteKey,
     incValue,
     getAllFromRedis,
-    getRangeFromRedis
+    getRangeFromRedis,
+    getSetDataFromRedis
 }
 
 /*exports.getFromRedis = getFromRedis;

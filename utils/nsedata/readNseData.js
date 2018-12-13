@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-12-12 19:28:31
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-13 14:13:34
+* @Last Modified time: 2018-12-13 19:52:27
 */
 
 var csv = require("fast-csv");
@@ -51,52 +51,54 @@ module.exports.readMktFile = function(fname) {
 		let buffer = "";
 		
 		readStream.on('data', (data) => {
-			
-			var i=0;
-			var nData = buffer.concat(data.replace(/ /g , "").replace(/(\r\n|\n|\r)/gm,""));
+			try{
+				var i=0;
+				var nData = buffer.concat(data.replace(/ /g , "").replace(/(\r\n|\n|\r)/gm,""));
 
-			buffer = nData.slice(i, i+OBJECTSIZE);
-			
-			while(buffer.length == OBJECTSIZE) {
+				buffer = nData.slice(i, i+OBJECTSIZE);
+				
+				while(buffer.length == OBJECTSIZE) {
+					try{
+				  		var p = new Parser()
+			  			  	.endianess("little")
+				  			.int16("tcode")
+				  			.int32("timestamp")
+				  			.int16("msgLength")
+				  			.int16("stoken")
+				  			.int32("last")
+				  			.int32("bbq")
+				  			.int32("bbp")
+				  			.int32("bsq")
+				  			.int32("bsp")
+				  			.int32("ttq")
+				  			.int32("atp")
+				  			.int32("open")
+				  			.int32("high")
+				  			.int32("low")
+				  			.int32("close")
+				  			.int32("intHigh")
+				  			.int32("intLow")
+				  			.int32("intOpen")
+				  			.int32("intClose")
+				  			.int32("intTtq")
+				  			.int32("blank")
+				  			.parse(Buffer.from(buffer, 'hex'));
 
-		  		var p = new Parser()
-	  			  	.endianess("little")
-		  			.int16("tcode")
-		  			.int32("timestamp")
-		  			.int16("msgLength")
-		  			.int16("stoken")
-		  			.int32("last")
-		  			.int32("bbq")
-		  			.int32("bbp")
-		  			.int32("bsq")
-		  			.int32("bsp")
-		  			.int32("ttq")
-		  			.int32("atp")
-		  			.int32("open")
-		  			.int32("high")
-		  			.int32("low")
-		  			.int32("close")
-		  			.int32("intHigh")
-		  			.int32("intLow")
-		  			.int32("intOpen")
-		  			.int32("intClose")
-		  			.int32("intTtq")
-		  			.int32("blank")
-		  			.parse(Buffer.from(buffer, 'hex'));
-
-				i+=OBJECTSIZE;
-				
-	  			buffer = nData.slice(i, i+OBJECTSIZE);
-	  			
-				if (p.intClose != 0.0) {
-					output["RT"][p.stoken] = {date: new Date(p.timestamp*1000), intOpen: p.intOpen/100, intHigh: p.intHigh/100, intLow: p.intLow/100, intClose: p.intClose/100};
-				}
-				
-				if (p.close != 0.0) {
-					output["EOD"][p.stoken] = {date: new Date(p.timestamp*1000), open: p.open/100, high: p.high/100, low: p.low/100, close: p.close/100};
-				}
-				
-			}//while ends*/
+						i+=OBJECTSIZE;
+						
+			  			buffer = nData.slice(i, i+OBJECTSIZE);
+			  			
+						if (p.intClose != 0.0  && p.stoken in _codeToTicker) {
+							output["RT"][_codeToTicker[p.stoken]] = {date: new Date(p.timestamp*1000), intOpen: p.intOpen/100, intHigh: p.intHigh/100, intLow: p.intLow/100, intClose: p.intClose/100};
+						}
+						
+						if (p.close != 0.0 && p.stoken in _codeToTicker) {
+							output["EOD"][_codeToTicker[p.stoken]] = {date: new Date(p.timestamp*1000), open: p.open/100, high: p.high/100, low: p.low/100, close: p.close/100};
+						}
+					} catch(err) {console.log(err); reject(err); break;}
+					
+				} //while ends*/
+			} catch(err) {console.log(err); reject(err);}
 			
 		})
 		.on('end', () => {
@@ -138,54 +140,58 @@ module.exports.readIndFile = function(fname) {
 		let buffer = "";
 		
 		readStream.on('data', (data) => {
-			
-			var i=0;
-			var nData = buffer.concat(data.replace(/ /g , "").replace(/(\r\n|\n|\r)/gm,""));
-			buffer = nData.slice(i, i+OBJECTSIZE);
-			
-			while(buffer.length == OBJECTSIZE) {
-			
-		  		var p = new Parser()
-	  			  	.endianess("little")
-		  			.int16("tcode")
-		  			.int32("timestamp")
-		  			.int16("msgLength")
-		  			.int16("itoken")
-		  			.int32("open")
-		  			.int32("current")
-		  			.int32("high")
-		  			.int32("low")
-		  			.int32("change")
-		  			.int32("intHigh")
-		  			.int32("intLow")
-		  			.int32("intOpen")
-		  			.int32("intClose")
-		  			.int32("blank")
-		  			.parse(Buffer.from(buffer, 'hex'));
+			try{
+				var i=0;
+				var nData = buffer.concat(data.replace(/ /g , "").replace(/(\r\n|\n|\r)/gm,""));
+				buffer = nData.slice(i, i+OBJECTSIZE);
+				
+				while(buffer.length == OBJECTSIZE) {
+					try{
+				  		var p = new Parser()
+			  			  	.endianess("little")
+				  			.int16("tcode")
+				  			.int32("timestamp")
+				  			.int16("msgLength")
+				  			.int16("itoken")
+				  			.int32("open")
+				  			.int32("current")
+				  			.int32("high")
+				  			.int32("low")
+				  			.int32("change")
+				  			.int32("intHigh")
+				  			.int32("intLow")
+				  			.int32("intOpen")
+				  			.int32("intClose")
+				  			.int32("blank")
+				  			.parse(Buffer.from(buffer, 'hex'));
 
-				i+=OBJECTSIZE;
-				
-	  			buffer = nData.slice(i, i+OBJECTSIZE);
-	  			
-				//Computing close as this file is different from mkt file
-				//Doesn't contain last close
-				var close  = Math.round((p.current/100)/(1+p.change/10000), 2)
+						i+=OBJECTSIZE;
+						
+			  			buffer = nData.slice(i, i+OBJECTSIZE);
+			  			
+						//Computing close as this file is different from mkt file
+						//Doesn't contain last close
+						var close  = Math.round((p.current/100)/(1+p.change/10000), 2)
 
-				if (p.intClose != 0.0 && p.itoken in _codeToIndex) {
-					output["RT"][_codeToIndex[p.itoken]] = {date: new Date(p.timestamp*1000), intOpen: p.intOpen/100, intHigh: p.intHigh/100, intLow: p.intLow/100, intClose: p.intClose/100};
-				}
-				
-				if (p.close != 0.0 && p.itoken in _codeToIndex) {
-					output["EOD"][_codeToIndex[p.itoken]] = {date: new Date(p.timestamp*1000), open: p.open/100, high: p.high/100, low: p.low/100, close};
-				}
-				
-			}//while ends*/
+						if (p.intClose != 0.0 && p.itoken in _codeToIndex) {
+							output["RT"][_codeToIndex[p.itoken]] = {date: new Date(p.timestamp*1000), intOpen: p.intOpen/100, intHigh: p.intHigh/100, intLow: p.intLow/100, intClose: p.intClose/100};
+						}
+						
+						if (p.close != 0.0 && p.itoken in _codeToIndex) {
+							output["EOD"][_codeToIndex[p.itoken]] = {date: new Date(p.timestamp*1000), open: p.open/100, high: p.high/100, low: p.low/100, close};
+						}
+					} catch(err) {console.log(err); reject(err); break}
+					
+				}//while ends*/
+
+			} catch(err) {console.log(err); reject(err);}
 			
 		})
 		.on('end', () => {
 			resolve(output);
 		})
 		.on('error', (err) => {
+
 			reject(err);
 		})
 	})
@@ -236,49 +242,51 @@ function _readSecurityFile(fname) {
 		let buffer = "";
 
 		readStream.on('data', (data) => {
-			
-			var i=0;
-			var nData = buffer.concat(data.replace(/ /g , "").replace(/(\r\n|\n|\r)/gm,""));
-			buffer = nData.slice(i, i+OBJECTSIZE);
-			
-			while(buffer.length == OBJECTSIZE) {
-			
-		  		var p = new Parser()
-	  			  	.endianess("little")
-		  			.int16("tcode")
-		  			.int32("timestamp")
-		  			.int16("msgLength")
-		  			.int16("stoken")
-		  			.string("symbol", {length: 10})
-		  			.string("series", {length: 2})
-		  			.double("issuedCapital")
-		  			.int16("warningPct")
-		  			.int16("freezePct")
-		  			.string("creditRating",{length: 12})
-		  			.int16("issueRateShort")
-		  			.int32("issueStartDate")
-		  			.int32("issuePDate")
-		  			.int32("issueMaturityDate")
-		  			.int32("lotQuantity")
-		  			.int32("tickSize")
-		  			.string("nameCompany",{length: 25})
-		  			.int32("recordDate")
-		  			.int32("expiryDate")
-		  			.int32("noDeliveryStartDate")
-		  			.int32("noDeliveryEndDate")
-		  			.int32("bookClosureStartDate")
-		  			.int32("bookClosureEndDate")
-		  			.parse(Buffer.from(buffer, 'hex'));
+			try{
+				var i=0;
+				var nData = buffer.concat(data.replace(/ /g , "").replace(/(\r\n|\n|\r)/gm,""));
+				buffer = nData.slice(i, i+OBJECTSIZE);
+				
+				while(buffer.length == OBJECTSIZE) {
+					try{
+				  		var p = new Parser()
+			  			  	.endianess("little")
+				  			.int16("tcode")
+				  			.int32("timestamp")
+				  			.int16("msgLength")
+				  			.int16("stoken")
+				  			.string("symbol", {length: 10})
+				  			.string("series", {length: 2})
+				  			.double("issuedCapital")
+				  			.int16("warningPct")
+				  			.int16("freezePct")
+				  			.string("creditRating",{length: 12})
+				  			.int16("issueRateShort")
+				  			.int32("issueStartDate")
+				  			.int32("issuePDate")
+				  			.int32("issueMaturityDate")
+				  			.int32("lotQuantity")
+				  			.int32("tickSize")
+				  			.string("nameCompany",{length: 25})
+				  			.int32("recordDate")
+				  			.int32("expiryDate")
+				  			.int32("noDeliveryStartDate")
+				  			.int32("noDeliveryEndDate")
+				  			.int32("bookClosureStartDate")
+				  			.int32("bookClosureEndDate")
+				  			.parse(Buffer.from(buffer, 'hex'));
 
-				i+=OBJECTSIZE;
-				
-	  			buffer = nData.slice(i, i+OBJECTSIZE);
-	  			
-				if (p.series == "EQ" && p.stoken in _codeToTicker) {
-					output[_codeToTicker[p.stoken]] = p.symbol.trim().replace("[^a-zA-Z0-9]", "_");
-				}
-				
-			}//while ends*/
+						i+=OBJECTSIZE;
+						
+			  			buffer = nData.slice(i, i+OBJECTSIZE);
+			  			
+						if (p.series == "EQ") {
+							output[p.stoken] = p.symbol.trim().replace("[^a-zA-Z0-9]", "_");
+						}
+					} catch(err){console.log(err); reject(err); break}
+					
+				}//while ends*/
+			} catch(err) {console.log(err); reject(err);}
 			
 		})
 		.on('end', () => {
@@ -326,9 +334,19 @@ module.exports.processNseData = function(fileName, fileType) {
 
 _codeToTicker = {}; 
 _codeToIndex = {}; 
+dictionaryExists = false;
 
-return Promise.all([exports.readSecurities(), exports.readIndices()])
-.then(([securitiesDict, indicesDict]) => {
-	_codeToTicker = securitiesDict;
-	_codeToIndex = indicesDict;
-});
+module.exports.refreshNseTokenLookup = function() {
+	return Promise.resolve()
+	.then(() => {
+		if (dictionaryExists) {
+			return Promise.all([exports.readSecurities(), exports.readIndices()])
+			.then(([securitiesDict, indicesDict]) => {
+				_codeToTicker = securitiesDict;
+				_codeToIndex = indicesDict;
+				dictionaryExists = true;
+				return dictionaryExists;
+			});
+		} else { return true;}
+	});
+};

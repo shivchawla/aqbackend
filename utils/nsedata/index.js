@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-12-12 19:29:20
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-13 15:32:19
+* @Last Modified time: 2018-12-13 19:50:53
 */
 
 'use strict';
@@ -41,7 +41,6 @@ sftp.on('error', function(err) {
 sftp.on('ready', function() {
 	console.log("SFTP - On Ready event");
 	sftpClosed = false;
-	downloadAllFiles();
 });
 
 function connectSFTP() {
@@ -51,8 +50,8 @@ function connectSFTP() {
 		    host: config.get('nse_host'),
 		    port: config.get('nse_port'),
 		    username: config.get('nse_user'),
-		    //privateKey: fs.readFileSync(path.resolve(path.join(__dirname,`./token/${config.get('nse_private_key')}`))),
-		    privateKey: fs.readFileSync(path.resolve(path.join(__dirname,`../../controllers/Realtime/nse_15min_token_develop`))),
+		    privateKey: fs.readFileSync(path.resolve(path.join(__dirname,`./token/${config.get('nse_private_key')}`))),
+		    //privateKey: fs.readFileSync(path.resolve(path.join(__dirname,`../../controllers/Realtime/nse_15min_token_develop`))),
 		    //debug:debugConnection,
 		    keepaliveInterval: 5000
 		})
@@ -126,8 +125,7 @@ function downloadNSEData(fileN) {
 					minutesPassed = Math.floor(Math.abs(currentDate - dateEight50)/1000/60);
 					fileNumber = fileN || minutesPassed + 1;
 							}
-				console.log(fileN);
-				console.log(fileNumber);
+
 				if (fileNumber > config.get('nse_maxfilecount')) {
 					fileNumber = config.get('nse_maxfilecount');
 				}
@@ -147,7 +145,6 @@ function downloadNSEData(fileN) {
 				var nseFilePath =`/CM30/DATA/${nseDateStr}/${zipFileName}`;
 
 				var localPath = path.resolve(path.join(homeDir, `/rtdata/${nseDateStr}`));
-				console.log(localPath);
 				
 				if (!fs.existsSync(localPath)) {
 				    fs.mkdirSync(localPath);	
@@ -202,17 +199,25 @@ function uploadLatestDataToRedis(fileName, fileType) {
 	.then(nseData => {
 
 		var rtData = _.get(nseData, "RT", {});
+		var nextMarketOpen = DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday());
+		var currentDate = DateHelper.getMarketCloseDateTime();
+
 		Promise.map(Object.keys(rtData), (key) => {
-			return RedisUtils.pushValueInRedisList(key, rtData[key], function(err, reply) {
+			var redisSetKey = `RtData_${currentDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${key}`; 
+			return RedisUtils.pushValueInRedisList(redisSetKey, JSON.stringify(rtData[key]), function(err, reply) {
 				if (err) {
-					console.log(err)
+					console.log(err);
+				}
+
+				if(reply) {
+					RedisUtils.expireKeyInRedis(redisSetKey, Math.floor(nextMarketOpen.valueOf()/1000))
 				}
 			})
 		})
 	})
 }
 
-connectSFTP();
+//connectSFTP();
 
 function downloadAllFiles() {
 	if (!sftpClosed) {
@@ -224,7 +229,10 @@ function downloadAllFiles() {
 }
 
 function downloadAndUpdateNseData(minute) {
- 	return downloadNSEData(minute)
+	return NseDataHelper.refreshNseTokenLookup()
+	.then(() => {
+ 		return downloadNSEData(minute);
+	})
     .then(localFiles => {
     	return Promise.mapSeries(localFiles, (fileName, index) => {
     		return uploadLatestDataToRedis(fileName, fileTypes[index]);
@@ -234,7 +242,7 @@ function downloadAndUpdateNseData(minute) {
 
 
 //Run when seconds = 10
-schedule.scheduleJob(`40 * 4-13 * * 1-5`, function() {
+/*schedule.scheduleJob(`40 * 4-13 * * 1-5`, function() {
     
     return downloadAndUpdateNseData()
     .catch(err => {
@@ -244,6 +252,6 @@ schedule.scheduleJob(`40 * 4-13 * * 1-5`, function() {
     		connectSFTP();
     	}
     })
-});
+});*/
 
 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-10 15:14:25
+* @Last Modified time: 2018-12-13 20:21:51
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -19,6 +19,7 @@ const WSHelper = require('./WSHelper');
 const homeDir = require('os').homedir();
 const _ = require('lodash');
 const moment = require('moment');
+const RedisUtils = require('../../utils/redisUtils');
 
 function _getRawStockList(fname) {
 	return new Promise(resolve => {
@@ -98,7 +99,8 @@ function _computeStockEODDetail(security, date) {
     });
 };
 
-function _computeStockIntradayHistory(security, date) {
+function _computeStockIntradayHistory_OLD(security, date) {
+	//FETCHES FROK JULIA
 	return new Promise((resolve, reject) => {
 
 		var msg = JSON.stringify({action:"compute_stock_intraday_history", 
@@ -107,6 +109,32 @@ function _computeStockIntradayHistory(security, date) {
 								});
 								
 		WSHelper.handleMktRequest(msg, resolve, reject);
+    });
+}
+
+
+function _computeStockIntradayHistory(security, date) {
+	//Fetches from redis
+	return new Promise((resolve, reject) => {
+		
+		var activeTradingDate = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0));
+		var key = `RtData_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${security.ticker}`;
+		
+		RedisUtils.getSetDataFromRedis(key, (err, reply) => {
+			if (err) {
+				reject(err);
+			}
+
+			resolve(
+				reply.map(item => {
+					var pItem = JSON.parse(item); 
+					pItem.datetime = `${pItem.datetime}Z`; 
+					return pItem;
+				})
+				.sort((a,b) => {return moment(a).isBefore(b) > -1 : 1;})
+			);
+		});
+		
     });
 }
 
@@ -333,14 +361,8 @@ function _getIntradayHistory(security, date) {
 
 		if (updateRequired) {
 			return _computeStockIntradayHistory(security, date)
-			.then(securityDetail => {
-				securityDetail.history = _.get(securityDetail, 'history', []).map(item => {
-					item.datetime = `${_.get(item, 'datetime', undefined)}Z`;
-					return item;
-				});
-
-				//This can go on async
-				return SecurityIntradayHistoryModel.updateHistory(query, securityDetail.history, {upsert: true, new: true});
+			.then(intradayHistory => {
+				return SecurityIntradayHistoryModel.updateHistory(query, intradayHistory, {upsert: true, new: true});
 			})
 		} else {
 			//only unique datetime
@@ -805,6 +827,11 @@ module.exports.updateStockList = function() {
 		console.log(err);
 	})
 };
+
+
+
+
+
 
 module.exports.updateRealtimePrices = function(fname, type) {
 	return new Promise((resolve, reject) => {

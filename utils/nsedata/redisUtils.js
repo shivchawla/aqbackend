@@ -58,8 +58,22 @@ function pushValueInRedisList(key, value, callback) {
     });
 }
 
+function pushValueInRedisSet(key, value, callback) {
+    client.sadd(key, value, function(err, reply) {
+        if (err) {
+            callback(err);
+        } else {
+            callback(err, reply);
+        }
+    });
+}
+
 function setDataExpiry(key, time_in_sec) {
     client.expire(key, time_in_sec);
+}
+
+function expireKeyInRedis(key, unixtime) {
+    client.expireat(key, unixtime);
 }
 
 // For a single key set
@@ -98,7 +112,9 @@ module.exports = {
     incValue,
     getAllFromRedis,
     getRangeFromRedis,
-    pushValueInRedisList
+    pushValueInRedisList,
+    pushValueInRedisSet,
+    expireKeyInRedis
 }
 
 /*exports.getFromRedis = getFromRedis;
