@@ -17,8 +17,8 @@ function _populateWatchlistDetail(watchlist) {
 		])
 		.then(([detailRT, detailEOD]) => {
 
-			var eodLatestDetail = detailEOD && detailEOD.latestDetail && detailEOD.latestDetail.values ? detailEOD.latestDetail.values : {};
-			var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
+			var eodLatestDetail = _.get(detailEOD, 'latestDetail', {}); 
+			var rtLatestDetail = _.get(detailRT, 'latestDetail', {});
 			
 			return Object.assign(security, {realtime: rtLatestDetail, eod: eodLatestDetail});
 		})

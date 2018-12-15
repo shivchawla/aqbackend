@@ -99,7 +99,7 @@ function track_intraday_prices(ticker::String)
 end
 
 function untrack_intraday_prices()
-    global _intradayPriceHistory = Dict{String, Vector{TradeBar}}()
+    _intradayPriceHistory = Dict{String, Vector{TradeBar}}()
 end
 
 function get_intraday_prices(ticker::String, date::Date=currentIndiaDate())
