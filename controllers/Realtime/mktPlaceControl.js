@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 10:50:16
+* @Last Modified time: 2018-12-17 13:59:13
 */
 
 'use strict';
@@ -308,7 +308,7 @@ function _handleWatchlistSubscription(req, res) {
 				}
 
 				//Send immediate response back to subscriber
-				resolve(_sendUpdatedSingleStockOnNewData(ticker, [subscribers["stock"][ticker][userId]]));	
+				return _sendUpdatedSingleStockOnNewData(ticker, [subscribers["stock"][ticker][userId]]);	
 			})
 			.then(([]) => {
 				return true;
@@ -344,7 +344,7 @@ function _handleStockSubscription(req, res) {
 		}
 
 		//Send immediate response back to subscriber
-		resolve(_sendStockUpdates(ticker, [stockSubscribers[userId]]));
+		resolve(_sendUpdatedSingleStockOnNewData(ticker, [stockSubscribers[userId]]));
 	});
 }
 

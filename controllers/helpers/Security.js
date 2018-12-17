@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-13 21:03:56
+* @Last Modified time: 2018-12-17 11:51:15
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -659,6 +659,11 @@ module.exports.validateSecurity = function(security) {
 
     });
 };
+
+module.exports.getShortableUniverse = function() {
+	const fname_shortable = path.resolve(path.join(__dirname, `../../documents/universe/ind_nifty500list_shortable.csv`));
+	return _getRawStockList(fname_shortable);
+}
 
 module.exports.getStockList = function(search, options) {
 	const universe = options.universe;

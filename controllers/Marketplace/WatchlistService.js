@@ -5,6 +5,13 @@ const Promise = require('bluebird');
 const APIError = require('../../utils/error');
 const SecurityHelper = require("../helpers/Security");
 
+_shortableSecurities = [];
+
+SecurityHelper.getShortableUniverse()
+.then(shortableUniverse => {
+	_shortableSecurities = shortableUniverse;
+})
+
 function _checkIfValidSecurity(security) {
 	return SecurityHelper.validateSecurity(security);
 }
@@ -19,8 +26,9 @@ function _populateWatchlistDetail(watchlist) {
 
 			var eodLatestDetail = _.get(detailEOD, 'latestDetail', {}); 
 			var rtLatestDetail = _.get(detailRT, 'latestDetail', {});
+			var shortable = _shortableSecurities.indexOf(security.ticker) != -1;
 			
-			return Object.assign(security, {realtime: rtLatestDetail, eod: eodLatestDetail});
+			return Object.assign(security, {realtime: rtLatestDetail, eod: eodLatestDetail, shortable});
 		})
 	})
 	.then(detailForWatchlist => {
