@@ -7,7 +7,7 @@ const SecurityHelper = require("../helpers/Security");
 
 _shortableSecurities = [];
 
-return SecurityHelper.getShortableUniverse()
+SecurityHelper.getShortableUniverse()
 .then(shortableUniverse => {
 	_shortableSecurities = shortableUniverse;
 })
