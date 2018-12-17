@@ -4709,6 +4709,9 @@ definitions:
         format: date
       target:
         type: number
+      stopLoss:
+        type: number
+        default: -1
 
   DailyContestPredictions:
     type: object

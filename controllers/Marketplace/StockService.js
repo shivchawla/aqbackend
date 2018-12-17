@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-09 14:04:50
+* @Last Modified time: 2018-12-10 18:21:53
 */
 
 'use strict';
@@ -11,7 +11,9 @@ const Promise = require('bluebird');
 const config = require('config');
 const SecurityHelper = require("../helpers/Security");
 const APIError = require('../../utils/error');
+const DateHelper = require('../../utils/Date');
 const _ = require('lodash');
+const moment = require('moment');
 
 function updateStockWeight(query) {
 	return SecurityPerformanceModel.fetchSecurityPerformance(query, {fields: 'weight'})
@@ -69,7 +71,9 @@ module.exports.getStockDetail = function(args, res, next) {
 		} else if (field == "intraDay") {
 			return SecurityHelper.getStockIntradayHistory(security, startDate)
 			.then(intraDayDetail => {
-				const intradayHistory = _.get(intraDayDetail, 'intradayHistory', []).map(item => {return _.pick(item, ['datetime', 'close'])});
+				const intradayHistory = _.get(intraDayDetail, 'intradayHistory', [])
+				.map(item => {return _.pick(item, ['datetime', 'close'])})
+				.filter(item => {return moment(item.datetime).isBefore(moment(DateHelper.getMarketCloseDateTime(startDate)))});
 				return {...intraDayDetail, intradayHistory};
 			});
 		} else if (field == "staticPerformance") {
