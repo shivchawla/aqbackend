@@ -1370,6 +1370,44 @@ paths:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Advisor"
   
+  /advisor/name:
+    get:
+      tags:
+      - advisor
+      summary: search advisor based on firstName and lastName
+      description: search advisor based on firstName and lastName
+      operationId: fetchAdvisorByName
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: string
+        required: true
+      - name: name
+        in: query
+        type: string
+        required: false
+        description: user name
+      - name: skip
+        in: query
+        description: skip number of records
+        required: true
+        default: 0
+        type: number
+      - name: limit
+        type: number
+        required: true
+        in: query
+        default: 10
+      responses:
+        200:
+          description: "get advisor"
+        400:
+          description: "Not Authorized"
+      x-swagger-router-controller: "Advisor"
+      
   /advisor/{advisorId}:
     get:
       tags:
@@ -2854,6 +2892,11 @@ paths:
         description: "auth token"
         type: string
         required: true
+      - name: userId
+        in: query
+        type: string
+        required: false
+        description: "userId of the user for which the watchlist needs to be created"
       - name: body
         in: body
         required: true
@@ -2880,6 +2923,11 @@ paths:
         description: "auth token"
         type: string
         required: true
+      - name: userId
+        in: query
+        type: string
+        required: false
+        description: "userId of the user for which the watchlist needs to be created"
       - name: name
         in: query
         type: string
@@ -2939,6 +2987,11 @@ paths:
         description: "auth token"
         type: string
         required: true
+      - name: userId
+        in: query
+        type: string
+        required: false
+        description: "userId of the user for which the watchlist needs to be created"
       - name: watchlistId
         in: path
         required: true
@@ -2970,6 +3023,11 @@ paths:
         in: path
         required: true
         type: string
+      - name: userId
+        in: query
+        type: string
+        required: false
+        description: "userId of the user for which the watchlist needs to be created"
       - name: body
         in: body
         required: true
@@ -2998,6 +3056,11 @@ paths:
         description: "auth token"
         type: string
         required: true
+      - name: userId
+        in: query
+        type: string
+        required: false
+        description: "userId of the user for which the watchlist needs to be created"
       - name: watchlistId
         in: path
         required: true
@@ -3628,6 +3691,11 @@ paths:
         description: "auth token"
         type: "string"
         required: true
+      - name: advisorId
+        required: false
+        in: query
+        description: advisorId of the user for which the prediction is to be made
+        type: string
       - name: body
         in: body
         required: true
@@ -3674,6 +3742,11 @@ paths:
         default: "active"
         enum: ["started", "ended", "active"]
         required: false
+      - name: advisorId
+        required: false
+        in: query
+        description: advisorId of the user for which the prediction is to be made
+        type: string
       responses:
         200:
           description: OK
@@ -3709,6 +3782,11 @@ paths:
         default: "active"
         enum: ["active", "ended", "started"]
         required: false
+      - name: advisorId
+        required: false
+        in: query
+        description: advisorId of the user for which the prediction is to be made
+        type: string
       responses:
         200:
           description: OK

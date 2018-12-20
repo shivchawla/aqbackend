@@ -82,8 +82,11 @@ User.statics.fetchUser = function(query, options = {}) {
     return q.execAsync();
 };
 
-User.statics.fetchUsers = function(query, projections) {
-    return this.find(query, projections).execAsync()
+User.statics.fetchUsers = function(query, projections, options) {
+    return this.find(query, projections)
+    .skip(options.skip ? options.skip : 0)
+    .limit(options.limit ? options.limit: 0)
+    .execAsync()
 };
 
 User.statics.updateStatus = function(query, status) {
