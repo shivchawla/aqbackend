@@ -3681,6 +3681,33 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
+  /dailycontest/exitPrediction:
+    post:
+      tags: 
+      - dailycontest
+      summary: Exit stock prediction 
+      description: exit stock predictions
+      operationId: exitDailyContestPrediction
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: predictionId
+        in: query
+        description: prediction id
+        type: string
+        required: true 
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
   /dailycontest/pnl:
     get:
       tags: 

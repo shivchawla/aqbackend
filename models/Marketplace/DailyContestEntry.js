@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-10 19:59:03
+* @Last Modified time: 2018-12-21 10:24:37
 */
 
 
@@ -78,6 +78,7 @@ const Prediction = new Schema({
 	status: {
 		profitTarget: {type:Boolean, default: false},
 		stopLoss: {type: Boolean, default: false},
+		manualExit: {type: Boolean, default: false},
 		date: Date,
 		trueDate: Date,
 		price: Number
@@ -185,7 +186,7 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 				return allPredictions.filter(item => {
 					//Convert the date to market-close date time 
 					//(relevant for date today because input is true time) 
-					var successFailureStatus = item.status.profitTarget || item.status.stopLoss;
+					var successFailureStatus = item.status.profitTarget || item.status.stopLoss || item.status.manualExit;
 
 					return (moment(item.endDate).isSame(moment(date)) && !successFailureStatus) || 
 					(successFailureStatus && moment(item.status.date).isSame(moment(date)))
@@ -213,7 +214,7 @@ DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, da
 
 					//Convert startdate(exact time) to EOD datetime for comparison purposes
 					var startDate = DateHelper.getMarketCloseDateTime(DateHelper.getDate(item.startDate));
-					var successFailureStatus = item.status.profitTarget || item.status.stopLoss;
+					var successFailureStatus = item.status.profitTarget || item.status.stopLoss || item.status.manualExit;
 					
 					return !moment(startDate).isAfter(moment(date)) &&  //start is same or before
 							!moment(item.endDate).isBefore(moment(date)) && //end is same or after

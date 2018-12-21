@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-10 18:44:31
+* @Last Modified time: 2018-12-21 11:42:36
 */
 
 'use strict';
@@ -242,6 +242,55 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	})
 	.then(final => {
 		return res.status(200).send("Predictions updated successfully");
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);		
+	});
+};
+
+module.exports.exitDailyContestPrediction = (args, res, next) => {
+	const userId = _.get(args, 'user._id', null);
+	const predictionId = _.get(args, 'predictionId.value', null);
+	
+	let advisorId;
+
+	Promise.resolve()
+	.then(() => {
+		if(DateHelper.isMarketTrading()) {
+			APIError.throwJsonError({message: "Can't exit - Market is closed"});
+		} else {
+			return;
+		}
+	})
+	.then(() => {
+		return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})	
+	})
+	.then(advisor => {
+		if (advisor) {
+			advisorId = advisor._id.toString();
+			var date = DateHelper.getMarketCloseDateTime(prediction.startDate);
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "started", priceUpdate: false});
+		} else {
+			APIError.throwJsonError({message: "Not a valid user"});
+		}
+	})
+	.then(allStartedPredictions => {
+		var idx = allStartedPredictions.indexOf(item => {return item._id.toString() == predictionId;});
+		if (idx != -1) {
+
+			var prediction = allStartedPredictions[idx];
+			prediction.status.manualExit = true;
+			prediction.status.trueDate = new Date();
+			prediction.status.date = DateHelper.getMarketCloseDateTime(new Date());
+
+			return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
+
+		} else {
+			APIError.throwJsonError({message: "Prediction not found"});
+		}
+	})
+	.then(final => {
+		return res.status(200).send("Prediction exited successfully");
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);		

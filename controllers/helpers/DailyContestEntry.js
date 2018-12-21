@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-19 23:54:23
+* @Last Modified time: 2018-12-21 11:58:21
 */
 
 'use strict';
@@ -1070,7 +1070,9 @@ function _computeUpdatedPredictions(predictions, date) {
 				//Based on success status
 				var success = _.get(prediction, 'status.profitTarget', false) && moment(date).isSame(moment(prediction.status.date));
 				var failure = _.get(prediction, 'status.stopLoss', false) && moment(date).isSame(moment(prediction.status.date));
-				
+				var manualExit = _.get(prediction, 'status.manualExit', false) && moment(date).isSame(moment(prediction.status.date));
+				var lastPrice = _.get(prediction, 'position.lastPrice', 0);
+
 				if (success) {
 					
 					updatedCallPricePrediction.position.lastPrice = updatedCallPricePrediction.target;
@@ -1085,6 +1087,11 @@ function _computeUpdatedPredictions(predictions, date) {
 					
 					return [updatedCallPricePrediction.position];
 				
+				} else if(manualExit && lastPrice) {
+					//On manual exit the price is already populated at the time of exit (DELAYED)
+					//Last Price is populated via job
+					//But if price is not available, then move to next step and return current price
+					return [updatedCallPricePrediction.position];	
 				} else {
 					return _updatePositionsForPrice(_partialUpdatedPositions, date);
 				}
@@ -1128,6 +1135,7 @@ function _computeTotalPnlStats(advisorId, date, options) {
 
 			var success = _.get(prediction, 'status.profitTarget', false) && moment(date).isSame(moment(item.status.date));
 			var failure = _.get(prediction, 'status.stopLoss', false) && moment(date).isSame(moment(item.status.date));
+			var manualExit = _.get(prediction, 'status.manualExit', false) && moment(date).isSame(moment(item.status.date));
 				
 			if(success) {
 				item.position.lastPrice = item.target;
@@ -1138,7 +1146,7 @@ function _computeTotalPnlStats(advisorId, date, options) {
 
 				var stopLossPrice = (1+stopLossDirection*stopLoss)*item.position.avgprice;
 				item.position.lastPrice = stopLossPrice;
-			}
+			} 
 
 			return  item;
 		});
@@ -1208,7 +1216,8 @@ function _computeDailyPnlStats(advisorId, date, options) {
 			var updatedPredictions = updatedPredictionWithYesterdayCallPrice.map(item => {
 				var success = _.get(prediction, 'status.profitTarget', false) && moment(date).isSame(moment(item.status.date));
 				var failure = _.get(prediction, 'status.stopLoss', false) && moment(date).isSame(moment(item.status.date));
-				
+				var manualExit = _.get(prediction, 'status.manualExit', false) && moment(date).isSame(moment(item.status.date));
+
 				if(success) {
 					item.position.lastPrice = item.target;
 				} else if(failure) {
@@ -1218,7 +1227,7 @@ function _computeDailyPnlStats(advisorId, date, options) {
 
 					var stopLossPrice = (1+stopLossDirection*stopLoss)*item.position.avgprice;
 					item.position.lastPrice = stopLossPrice;
-				}
+				} 
 
 				return  item;
 			});
@@ -1513,7 +1522,9 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 					.filter(item =>  {
 						var targetStatus = _.get(item, 'status.profitTarget', false);
 						var stopLossStatus = _.get(item, 'status.stopLoss', false);
-						return !targetStatus && !stopLossStatus})
+						var manualExitStatus = _.get(item, 'status.manualExit', false);
+
+						return !targetStatus && !stopLossStatus && !manualExitStatus})
 					.map(item => {
 						return {...item, advisorId: advisorId};
 				});
@@ -1822,6 +1833,47 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 	})
 }
 
+//Function to update the last price for manually exited positions 
+module.exports.updateManuallyExitedPredictionsForLastPrice = function(date) {
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+
+	return _getDistinctPredictionTickersForAdvisors(date)
+	.then(allAdvisors => {
+		return Promise.mapSeries(allAdvisors, function(advisorId){
+			return exports.getPredictionsForDate(advisorId, date, {category: "ended", priceUpdate: false})
+			.then(predictions => {
+				return Promise.mapSeries(predictions, function(prediction){
+					var ticker = _.get(prediction, 'position.security.ticker', "");
+					var trueEndDateTime = _.get(prediction, 'status.trueDate', null);
+					var manualExit = _.get(prediction, 'status.manualExit', false);
+					
+					if (manualExit && trueEndDateTime) {
+						return SecurityHelper.getStockIntradayHistory({ticker: ticker}, trueEndDateTime);
+						.then(securityDetail => {
+							var intradayHistory = _.et(securityDetail, 'intradayHistory', []);
+
+							var relevantIntradayHistory = intradayHistory.filter(item => {return !moment(item.datetime).isBefore(moment(trueEndDateTime))});
+
+							if (relevantIntradayHistory.length > 0) {
+								var price = relevantIntradayHistory[0].close || 0;
+								prediction.position.lastPrice = price;
+
+								return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
+							} else {
+								return;
+							}
+						});
+
+					} else {
+						return;
+					}
+					
+				})
+			})
+		})
+	})
+}
+
 function resetIntervalPrices(date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 	
@@ -1839,7 +1891,6 @@ function resetIntervalPrices(date) {
 	})
 }
 
-
 function _unTrackIntradayHistory() {
 	return new Promise(function(resolve, reject) {
 
@@ -1853,9 +1904,6 @@ function _unTrackIntradayHistory() {
 module.exports.unTrackIntradayHistory = function() {
 	_unTrackIntradayHistory();
 }
-
-
-
 
 /*********TEMPORARY BACKFILL CODE***************/
 module.exports.updatePerformanceHistoricalAdhoc = function() {
@@ -1880,7 +1928,6 @@ module.exports.updatePerformanceHistoricalAdhoc = function() {
         })
     });
 }
-
 
 module.exports.updatePredictionStatusFormat = function() {
 	const dates = ["2018-11-12","2018-11-13","2018-11-14","2018-11-15", "2018-11-16", 
@@ -1934,4 +1981,3 @@ module.exports.updatePredictionStatusFormat = function() {
     })
 }; 
     
-

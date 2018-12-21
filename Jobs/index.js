@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-10 15:41:14
+* @Last Modified time: 2018-12-21 11:59:01
 */
 
 'use strict';
@@ -91,7 +91,10 @@ if (config.get('jobsPort') === serverPort) {
 
 	const scheduleCheckPredictionTarget = `*/30 ${DateHelper.getMarketOpenHour() - 1}-${DateHelper.getMarketCloseHour() + 1} * * 1-5`;
 	schedule.scheduleJob(scheduleCheckPredictionTarget, function() { 
-    	DailyContestEntryHelper.checkForPredictionTarget();
+    	DailyContestEntryHelper.checkForPredictionTarget()
+    	.then(() => {
+    		DailyContestEntryHelper.updateManuallyExitedPredictionsForLastPrice();
+    	})
 	});
 
 	const scheduleUpdateCallPrice = `*/5 * * * 0-6`;
