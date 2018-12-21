@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 18:32:14
+* @Last Modified time: 2018-12-21 16:00:03
 */
 'use strict';
 
@@ -39,6 +39,12 @@ const AdvisorAnalytics = new Schema({
     rating: Rating,
     numFollowers: Number,
     numAdvices: Number
+});
+
+const Account = new Schema({
+    cash: Number,
+    equity: Number,
+    liquidCash: Number
 });
 
 const Advisor = new Schema({
@@ -123,7 +129,10 @@ const Advisor = new Schema({
 
     analytics: [AdvisorAnalytics],
 
-    latestAnalytics: AdvisorAnalytics
+    latestAnalytics: AdvisorAnalytics,
+
+    account: Account
+
 });
 
 Advisor.index({
@@ -231,7 +240,7 @@ Advisor.statics.removeAdvice = function(query, adviceId) {
 };
 
 Advisor.statics.updateAdvisor = function(query, updates, options) {
-	return this.findOneAndUpdate(query, updates, options);
+	return this.findOneAndUpdate(query, {$set: updates}, options);
 };
 
 Advisor.statics.updateAnalytics = function(query, latestAnalytics) {

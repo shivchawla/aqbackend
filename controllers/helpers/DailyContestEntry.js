@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-21 13:38:07
+* @Last Modified time: 2018-12-21 18:45:14
 */
 
 'use strict';
@@ -15,6 +15,7 @@ const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
 const WSHelper = require('./WSHelper');
 const SecurityHelper = require('./Security');
+const AdvisorHelper = require('./Advisor');
 
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
@@ -1482,6 +1483,56 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 	})
 };
 
+
+/**
+ * Added job to update portfolio stats on daily basis
+ */
+module.exports.updateAllEntriesLatestPortfolioStats = function(date){
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+
+	return DailyContestEntryModel.fetchDistinctAdvisors()
+	.then(advisors => {
+		return Promise.mapSeries(advisors, function(advisorId) {
+			return Promise.all([
+				exports.getPredictionsForDate(advisorId, date, {category: "active"})
+				AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account'})
+			])
+			.then(([activePredictions, advisor]) => {
+				if (activePredictions.length > 0) {
+					
+					var netEquity = 0.0;
+					var grossEquity = 0.0;
+
+					activePredictions.forEach(item => {
+						var investment = _.get(item, 'position.investment', 0);
+						var lastPrice = _.get(item, 'position.lastPrice', 0);
+						var avgPrice = _.get(item, 'position.avgPrice', 0);
+
+						var equity = avgPrice > 0 ? investment * (lastPrice/avgPrice) : investment;
+						netEquity += equity
+						grossEquity += Math.abs(equity);
+					});
+
+					var cash = _.get(advisor, 'account.cash', 0.0);						
+
+					var grossTotal = grossEquity + cash;
+					var netTotal = netEquity + cash;
+
+					const updates = {
+						...advisor.account,
+						netEquity, grossEquity, grossTotal, netTotal
+					}
+					
+					return DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date);
+				} else {
+					return;
+				}
+			})
+		});
+	});
+};
+
+
 //Logic works for all predictions except that started today
 //Why??
 //Because high/low prices are not time resolved
@@ -1661,7 +1712,11 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 				var allSuccessfulPredictions = Array.prototype.concat.apply([], successfulPredictionByTickers);
 
 				return Promise.mapSeries(allSuccessfulPredictions, function(prediction) {
-					return DailyContestEntryModel.updatePrediction({advisor: prediction.advisorId}, prediction);
+
+					return Promise.all([
+						AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction),
+						DailyContestEntryModel.updatePrediction({advisor: prediction.advisorId}, prediction)
+					]);
 				});
 			});
 		});
@@ -1670,15 +1725,10 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 
 module.exports.addPredictions = function(advisorId, predictions, date) {
 	return DailyContestEntryModel.addEntryPredictions({advisor: advisorId, date: date}, predictions, {new:true, upsert: true, fields:'_id'})
-	.then(() => {
-		var currentDate = DateHelper.getCurrentDate();
-		return Promise.mapSeries(predictions, function(prediction) {
-			var isStartDateToday = DateHelper.compareDates(prediction.startDate, currentDate) == 0;
-			if (isStartDateToday && DateHelper.isMarketTrading()) {
-				return _trackIntradayHistory(prediction.position.security);				
-			}
-		})
-	})	
+	.then(added => {
+		//Updating advisor account with new metrics
+		return AdvisorHelper.updateAdvisorAccountDebit(advisorId, predictions);
+	});	
 };
 
 module.exports.updateCallPriceForPredictions = function() {
@@ -1858,7 +1908,11 @@ module.exports.updateManuallyExitedPredictionsForLastPrice = function(date) {
 								var price = relevantIntradayHistory[0].close || 0;
 								prediction.position.lastPrice = price;
 
-								return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
+								//Updating advisor account 
+								return Promise.all([(
+									AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction),
+									DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction)
+								]);
 							} else {
 								return;
 							}
@@ -1978,6 +2032,32 @@ module.exports.updatePredictionStatusFormat = function() {
 				})
 			})
 		})
+	})
+};
+
+module.exports.updateAdvisorFormat = function() {
+	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
+	.then(advisors => {
+		return Promise.all(advisors, function(advisor) {
+			let advisorId = advisor._id
+			
+			return exports.getPredictionsForDate(advisorId, DateHelper.getCurrentDate(), {category:'active', priceUpdate: false})
+			.then(activePredictions => {
+				var investment = activePredictions.length * 100000; 
+
+				if (investment <= 1000000) {
+					const newAccount = {
+						investment: investment
+						liquidCash: Math.max(1000000 - investment, 0),
+						cash: Math.max(1000000 - investment, 0),
+					};	
+
+					return AdvisorModel.updateAdvisor({_id: advisorId}, {account: newAccount});
+				} else {
+					console.log("Existing Investment greater than 10 Lacs");
+					console.log(advisor);
+				}
+			});
+		})
     })
 }; 
-    
