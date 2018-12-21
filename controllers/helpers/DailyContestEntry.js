@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-21 18:45:14
+* @Last Modified time: 2018-12-21 19:08:03
 */
 
 'use strict';
@@ -1358,6 +1358,11 @@ module.exports.getPnlForDate = function(advisorId, date, category="active") {
 	.then(([dailyPnl, totalPnl]) => {
 		return {daily: dailyPnl, cumulative: totalPnl};
 	});
+};
+
+module.exports.getPortfolioStatsForDate = function(advisorId, date) {
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+	return DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId});
 };
 
 module.exports.getPredictionsForDate = function(advisorId, date, options) {

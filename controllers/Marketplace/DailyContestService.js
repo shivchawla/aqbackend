@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-21 11:42:36
+* @Last Modified time: 2018-12-21 19:06:02
 */
 
 'use strict';
@@ -66,7 +66,7 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 };
 
 /* 
-* Get contest entry for a date
+* Get contest entry pnl-stats for a date
 */
 module.exports.getDailyContestPnlForDate = (args, res, next) => {
 	const _d = _.get(args, 'date.value', '');
@@ -109,6 +109,48 @@ module.exports.getDailyContestPnlForDate = (args, res, next) => {
 	});
 };
 
+/* 
+* Get contest entry portfolio-stats for a date
+*/
+module.exports.getDailyContestPortfolioStatsForDate = (args, res, next) => {
+	const _d = _.get(args, 'date.value', '');
+	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
+	
+	const date = DateHelper.getMarketCloseDateTime(_dd);
+	
+	const userId = _.get(args, 'user._id', null);
+	const advisorId = _.get(args, 'advisorId.value', null);
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+	let advisorSelection = {user: userId};
+	if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
+		advisorSelection = {_id: advisorId};
+	}
+
+	return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id'})
+	.then(advisor => {
+		if (advisor) {
+			const advisorId = advisor._id.toString();
+
+			return DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date);
+		} else if(!advisor) {
+			APIError.throwJsonError({message: "Not a valid user"});
+		} else {
+			APIError.throwJsonError({message: `No Contest found for ${date}`});
+		}
+	})
+	.then(portfolioStats => {
+		if (portfolioStats) {
+			return res.status(200).send(portfolioStats);
+		} else {
+			APIError.throwJsonError({message: `No contest entry found for ${_d}`});
+		}
+	})
+	.catch(err => {
+		console.log(err);
+		return res.status(400).send(err.message);		
+	});
+};
 
 /*
 * Next availble stock without prediction
@@ -171,31 +213,54 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 	let validStartDate = DailyContestEntryHelper.getValidStartDate();
 
-	return Promise.map(entryPredictions, function(prediction) {
-		return SecurityHelper.getStockLatestDetail(prediction.position.security)
-		.then(securityDetail => {
-			var latestPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
-			if (latestPrice != 0) {
-				const investment = prediction.position.investment;
-				const target = prediction.target;
-				const stopLoss = -Math.abs(_.get(prediction, 'stopLoss', 1));
+	return Promise.resolve()
+	.then(() => {
+		//Check if investment amount is either 25, 50, 75 or 100K
+		return Promise.map(entryPredictions.map(item => {return _.get(item, 'position.investment');}), function(investment) {
+			return [25, 50, 75, 100].indexOf(Math.abs(investment)) !=- 1;
+		})
+		.then(validInvestments => {
+			var valid = true;
 
-				if (stopLoss == 0) {
-					APIError.throwJsonError({message: "Stoploss must be non-zero"});
-				} else if (Math.abs(stopLoss) > 1) {
-					APIError.throwJsonError({message: "Stoploss must be less than 100"});
-				} 
+			validInvestments.forEach(v => {
+				valid &&= v;
+			});
 
-				if (investment > 0 && target < 1.015*latestPrice) {
-					APIError.throwJsonError({msg:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% higher than call price`});
-				} else if (investment < 0 && target > 1.015*latestPrice) {
-					APIError.throwJsonError({msg:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% lower than call price`});
-				}
-				return;
-			} else {
-				console.log("Create Prediction: Price not found");
-				return; 
+			if(!valid) {
+				APIError.throwJsonError({message: "Invalid investment value"});
+			} else{
+				return true;
 			}
+		});
+
+	})
+	.then(() => {
+		return Promise.map(entryPredictions, function(prediction) {
+			return SecurityHelper.getStockLatestDetail(prediction.position.security)
+			.then(securityDetail => {
+				var latestPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
+				if (latestPrice != 0) {
+					const investment = prediction.position.investment;
+					const target = prediction.target;
+					const stopLoss = -Math.abs(_.get(prediction, 'stopLoss', 1));
+
+					if (stopLoss == 0) {
+						APIError.throwJsonError({message: "Stoploss must be non-zero"});
+					} else if (Math.abs(stopLoss) > 1) {
+						APIError.throwJsonError({message: "Stoploss must be less than 100"});
+					} 
+
+					if (investment > 0 && target < 1.015*latestPrice) {
+						APIError.throwJsonError({msg:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% higher than call price`});
+					} else if (investment < 0 && target > 1.015*latestPrice) {
+						APIError.throwJsonError({msg:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% lower than call price`});
+					}
+					return;
+				} else {
+					console.log("Create Prediction: Price not found");
+					return; 
+				}
+			})
 		})
 	})
 	.then(() => {
@@ -203,34 +268,41 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
 			advisorSelection = {_id: advisorId};
 		}
-		return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id'})
+		return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id account'})
 	})
 	.then(advisor => {
 		if (advisor) {
 			advisorId = advisor._id.toString();
+			var liquidCash = _.get(advisor, 'account.liquidCash', 0);
+
+			var investmentRequired = 0;
+
+			entryPredictions.forEach(item => {
+				investmentRequired += _.get(item, 'position.investment', 0)*1000;
+			});
+
+			if (liquidCash < investmentRequired) {
+				APIError.throwJsonError({message: `Insufficient funds to create predictions. Only ${liquidCash} is available`});
+			}
 			
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "started", priceUpdate: false});
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "active", priceUpdate: false});
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}
 	})
-	.then(predictionsToday => {
-		if (predictionsToday.length + entryPredictions.length > 10000000000) {
-			APIError.throwJsonError({msg: "Limit exceeded: Cannot add more than 10 predictions per day"})
-		} else {
+	.then(activePredictions => {
 
-			return Promise.map(entryPredictions, function(prediction) {
-				var ticker = prediction.position.security.ticker;
-				var existingPredictionsInTicker = predictionsToday.filter(item => {return item.position.security.ticker == ticker;});
-				var newPredictioninTicker = entryPredictions.filter(item => {return item.position.security.ticker == ticker;});
+		return Promise.map(entryPredictions, function(prediction) {
+			var ticker = _.get(prediction, 'position.security.ticker', "");
+			var existingPredictionsInTicker = activePredictions.filter(item => {return item.position.security.ticker == ticker;});
+			var newPredictioninTicker = entryPredictions.filter(item => {return item.position.security.ticker == ticker;});
 
-				if (existingPredictionsInTicker.length + newPredictioninTicker.length > 3) {
-					APIError.throwJsonError({msg: `Limit exceeded: Can't add more than 3 prediction for one stock (${ticker})`});
-				}
+			if (existingPredictionsInTicker.length + newPredictioninTicker.length > 3) {
+				APIError.throwJsonError({msg: `Limit exceeded: Can't add more than 3 prediction for one stock (${ticker})`});
+			}
 
-				return; 
-			})
-		}
+			return; 
+		})
 	})
 	.then(() => {
 		
@@ -314,6 +386,7 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 		return res.status(400).send(err.message);		
 	});
 };
+
  
 /*
 * Get daily contest winners
@@ -381,7 +454,6 @@ module.exports.getDailyContestTopStocks = (args, res, next) => {
 		return res.status(400).send({msg: err.msg});	
 	})} catch(err){console.log(err);}
 };
-
 
 /*
 * Get contest (dashboard stats) for user
@@ -513,7 +585,6 @@ module.exports.sendSummaryEmailToParticipants = function(args, res, next) {
         return res.status(400).send(error.message)
     });
 };
-
 
 module.exports.sendTemplateEmailToParticipants = function(args, res, next) {
     const userId = args.user._id;

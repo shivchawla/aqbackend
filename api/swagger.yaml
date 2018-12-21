@@ -3842,6 +3842,39 @@ paths:
           description: Invalid Input
       x-swagger-router-controller: "DailyContest"
 
+  /dailycontest/portfoliostats:
+    get:
+      tags: 
+      - dailycontest
+      summary: get the portfolio-stats of contest entry
+      description: get the portfolio-stats of contest entry
+      operationId: getDailyContestPortfolioStatsForDate
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: date
+        in: query
+        type: string
+        format: date
+        description: date of contest
+        required: false
+      - name: advisorId
+        required: false
+        in: query
+        description: advisorId of the user for which the prediction is to be made
+        type: string
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
   /dailycontest/nextstock:
     get:
       tags: 
