@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-21 12:38:48
+* @Last Modified time: 2018-12-21 13:19:53
 */
 
 'use strict';
@@ -1133,9 +1133,9 @@ function _computeTotalPnlStats(advisorId, date, options) {
 
 		var updatedPredictions = activePredictions.map(item => {
 
-			var success = _.get(prediction, 'status.profitTarget', false) && moment(date).isSame(moment(item.status.date));
-			var failure = _.get(prediction, 'status.stopLoss', false) && moment(date).isSame(moment(item.status.date));
-			var manualExit = _.get(prediction, 'status.manualExit', false) && moment(date).isSame(moment(item.status.date));
+			var success = _.get(item, 'status.profitTarget', false) && moment(date).isSame(moment(item.status.date));
+			var failure = _.get(item, 'status.stopLoss', false) && moment(date).isSame(moment(item.status.date));
+			var manualExit = _.get(item, 'status.manualExit', false) && moment(date).isSame(moment(item.status.date));
 				
 			if(success) {
 				item.position.lastPrice = item.target;
@@ -1214,9 +1214,9 @@ function _computeDailyPnlStats(advisorId, date, options) {
 		.then(updatedPredictionWithYesterdayCallPrice => {
 
 			var updatedPredictions = updatedPredictionWithYesterdayCallPrice.map(item => {
-				var success = _.get(prediction, 'status.profitTarget', false) && moment(date).isSame(moment(item.status.date));
-				var failure = _.get(prediction, 'status.stopLoss', false) && moment(date).isSame(moment(item.status.date));
-				var manualExit = _.get(prediction, 'status.manualExit', false) && moment(date).isSame(moment(item.status.date));
+				var success = _.get(item, 'status.profitTarget', false) && moment(date).isSame(moment(item.status.date));
+				var failure = _.get(item, 'status.stopLoss', false) && moment(date).isSame(moment(item.status.date));
+				var manualExit = _.get(item, 'status.manualExit', false) && moment(date).isSame(moment(item.status.date));
 
 				if(success) {
 					item.position.lastPrice = item.target;
