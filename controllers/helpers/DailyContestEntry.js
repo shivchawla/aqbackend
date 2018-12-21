@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-21 13:19:53
+* @Last Modified time: 2018-12-21 13:38:07
 */
 
 'use strict';
@@ -1848,7 +1848,7 @@ module.exports.updateManuallyExitedPredictionsForLastPrice = function(date) {
 					var manualExit = _.get(prediction, 'status.manualExit', false);
 					
 					if (manualExit && trueEndDateTime) {
-						return SecurityHelper.getStockIntradayHistory({ticker: ticker}, trueEndDateTime);
+						return SecurityHelper.getStockIntradayHistory({ticker: ticker}, trueEndDateTime)
 						.then(securityDetail => {
 							var intradayHistory = _.et(securityDetail, 'intradayHistory', []);
 
