@@ -30,17 +30,21 @@ const SecurityHelper = require('../helpers/Security');
 module.exports.getDailyContestPredictions = (args, res, next) => {
 	const _d = _.get(args, 'date.value', '');
 	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
-	
 	const date = DateHelper.getMarketCloseDateTime(_dd);
-
 	const category = _.get(args, 'category.value', 'all');
 	const userId = _.get(args, 'user._id', null);
+	const advisorId = _.get(args, 'advisorId.value', null);
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+	let advisorSelection = {user: userId};
+	if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
+		advisorSelection = {_id: advisorId};
+	}
 
-	return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
+	return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id'})
 	.then(advisor => {
 		if (advisor) {
-			const advisorId = advisor._id.toString()
-			
+			const advisorId = advisor._id.toString();
 			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category});
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
@@ -56,6 +60,7 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 		}
 	})
 	.catch(err => {
+		console.log(err);
 		return res.status(400).send(err.message);		
 	});
 };
@@ -68,14 +73,21 @@ module.exports.getDailyContestPnlForDate = (args, res, next) => {
 	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
 	
 	const date = DateHelper.getMarketCloseDateTime(_dd);
-
+	
 	const category = _.get(args, 'category.value', 'all');
 	const userId = _.get(args, 'user._id', null);
+	const advisorId = _.get(args, 'advisorId.value', null);
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+	let advisorSelection = {user: userId};
+	if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
+		advisorSelection = {_id: advisorId};
+	}
 
-	return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
+	return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id'})
 	.then(advisor => {
 		if (advisor) {
-			const advisorId = advisor._id.toString()
+			const advisorId = advisor._id.toString();
 
 			return DailyContestEntryHelper.getPnlForDate(advisorId, date, category);
 		} else if(!advisor) {
@@ -92,6 +104,7 @@ module.exports.getDailyContestPnlForDate = (args, res, next) => {
 		}
 	})
 	.catch(err => {
+		console.log(err);
 		return res.status(400).send(err.message);		
 	});
 };
@@ -150,10 +163,11 @@ module.exports.getDailyContestNextStock = function(args, res, next) {
 module.exports.updateDailyContestPredictions = (args, res, next) => {
 	
 	const userId = _.get(args, 'user._id', null);
+	let advisorId = _.get(args, 'advisorId.value', null);
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
 	const entryPredictions = args.body.value.predictions;
 	const action = args.operation.value;
-	
-	let advisorId;
 
 	let validStartDate = DailyContestEntryHelper.getValidStartDate();
 
@@ -185,7 +199,11 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		})
 	})
 	.then(() => {
-		return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
+		let advisorSelection = {user: userId};
+		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
+			advisorSelection = {_id: advisorId};
+		}
+		return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id'})
 	})
 	.then(advisor => {
 		if (advisor) {

@@ -95,8 +95,11 @@ exports.userlogin = function(args, res, next) {
         ]);
     })
     .then(([investor, advisor]) => {
+        const email = _.get(userDetails, 'email', null);
+        const isAdmin = config.get('admin_user').indexOf(email) !== -1;
         userDetails.investor = investor._id;
         userDetails.advisor = advisor._id;
+        userDetails.isAdmin = isAdmin;
         res.status(200).json(userDetails);
     })
     .catch(function(err) {

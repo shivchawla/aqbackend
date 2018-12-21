@@ -6,6 +6,7 @@
 */
 
 'use strict';
+const _ = require('lodash');
 const UserModel = require('../../models/user');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
@@ -282,6 +283,35 @@ module.exports.approveAdvisor = function(args, res, next) {
 		return res.status(400).send(err.message);
 	})
 };
+
+module.exports.fetchAdvisorByName = function(args, res, next) {
+	const name = _.get(args, 'name.value', '');
+	const firstNameQuery = {firstName: {$regex: `${name}`, $options: "i"}};
+	const lastNameQuery = {lastName: {$regex: `${name}`, $options: "i"}};
+	const skip = _.get(args, 'skip.value', 0);
+	const limit = _.get(args, 'limit.value', 10); 
+	return UserModel.fetchUsers({
+			$or: [firstNameQuery, lastNameQuery]
+		}, 
+		{firstName: 1, lastName: 1, email: 1},
+		{skip, limit}
+	)
+	.then(users => {
+		return Promise.map(users, user => {
+			return AdvisorModel.fetchAdvisor({user: user._id}, {fields: '_id user'})
+			.then(advisor => {
+				return {...advisor.toObject()};
+			})
+		})
+	})
+	.then(users => {
+		return res.status(200).send(users);
+	})
+	.catch(err => {
+		console.log(err);
+		return res.status(400).send(err.message);
+	})
+}
 
 function farfuture() {
 	return new Date(2200, 1, 1);

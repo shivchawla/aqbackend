@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-21 11:58:21
+* @Last Modified time: 2018-12-21 12:38:48
 */
 
 'use strict';
@@ -1081,7 +1081,7 @@ function _computeUpdatedPredictions(predictions, date) {
 				} else if (failure) {
 					
 					var stopLossDirection = updatedCallPricePrediction.position.investment > 0 ? -1 : 1;
-					var stopLoss = Math.abs(_.get(item, 'stopLoss', 1));
+					var stopLoss = Math.abs(_.get(prediction, 'status.stopLoss', 1));
 					var stopLossPrice = (1+stopLossDirection*stopLoss)*updatedCallPricePrediction.position.avgprice;
 					updatedCallPricePrediction.position.lastPrice = stopLossPrice;
 					
