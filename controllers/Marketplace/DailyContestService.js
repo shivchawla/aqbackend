@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-22 13:42:18
+* @Last Modified time: 2018-12-22 15:06:04
 */
 
 'use strict';
@@ -223,7 +223,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			var valid = true;
 
 			validInvestments.forEach(v => {
-				valid &&= v;
+				valid = valid && v;
 			});
 
 			if(!valid) {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-21 19:08:03
+* @Last Modified time: 2018-12-22 15:08:23
 */
 
 'use strict';
@@ -998,8 +998,6 @@ function _updatePredictionForTrueCallPrice(prediction) {
 		return prediction;
 		
 	});
-
-	
 }
 
 function _updatePredictionForCallPrice(prediction) {
@@ -1499,7 +1497,7 @@ module.exports.updateAllEntriesLatestPortfolioStats = function(date){
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
 			return Promise.all([
-				exports.getPredictionsForDate(advisorId, date, {category: "active"})
+				exports.getPredictionsForDate(advisorId, date, {category: "active"}),
 				AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account'})
 			])
 			.then(([activePredictions, advisor]) => {
@@ -1914,7 +1912,7 @@ module.exports.updateManuallyExitedPredictionsForLastPrice = function(date) {
 								prediction.position.lastPrice = price;
 
 								//Updating advisor account 
-								return Promise.all([(
+								return Promise.all([
 									AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction),
 									DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction)
 								]);
@@ -2043,7 +2041,7 @@ module.exports.updatePredictionStatusFormat = function() {
 module.exports.updateAdvisorFormat = function() {
 	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
 	.then(advisors => {
-		return Promise.all(advisors, function(advisor) {
+		return Promise.mapSeries(advisors, function(advisor) {
 			let advisorId = advisor._id
 			
 			return exports.getPredictionsForDate(advisorId, DateHelper.getCurrentDate(), {category:'active', priceUpdate: false})
