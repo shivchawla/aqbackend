@@ -1079,7 +1079,8 @@ function _computeUpdatedPredictions(predictions, date) {
 				} else if (failure) {
 					
 					var stopLossDirection = updatedCallPricePrediction.position.investment > 0 ? -1 : 1;
-					var stopLoss = Math.abs(_.get(item, 'stopLoss', 1));
+					// var stopLoss = Math.abs(_.get(prediction, 'status.stopLoss', 1));
+					var stopLoss = 1; // This should be removed
 					var stopLossPrice = (1+stopLossDirection*stopLoss)*updatedCallPricePrediction.position.avgprice;
 					updatedCallPricePrediction.position.lastPrice = stopLossPrice;
 					
@@ -1126,8 +1127,8 @@ function _computeTotalPnlStats(advisorId, date, options) {
 
 		var updatedPredictions = activePredictions.map(item => {
 
-			var success = _.get(prediction, 'status.profitTarget', false) && moment(date).isSame(moment(item.status.date));
-			var failure = _.get(prediction, 'status.stopLoss', false) && moment(date).isSame(moment(item.status.date));
+			var success = _.get(item, 'status.profitTarget', false) && moment(date).isSame(moment(item.status.date));
+			var failure = _.get(item, 'status.stopLoss', false) && moment(date).isSame(moment(item.status.date));
 				
 			if(success) {
 				item.position.lastPrice = item.target;
@@ -1206,8 +1207,8 @@ function _computeDailyPnlStats(advisorId, date, options) {
 		.then(updatedPredictionWithYesterdayCallPrice => {
 
 			var updatedPredictions = updatedPredictionWithYesterdayCallPrice.map(item => {
-				var success = _.get(prediction, 'status.profitTarget', false) && moment(date).isSame(moment(item.status.date));
-				var failure = _.get(prediction, 'status.stopLoss', false) && moment(date).isSame(moment(item.status.date));
+				var success = _.get(item, 'status.profitTarget', false) && moment(date).isSame(moment(item.status.date));
+				var failure = _.get(item, 'status.stopLoss', false) && moment(date).isSame(moment(item.status.date));
 				
 				if(success) {
 					item.position.lastPrice = item.target;

@@ -2,6 +2,7 @@
 const WatchlistModel = require('../../models/Marketplace/Watchlist');
 const _ = require('lodash');
 const Promise = require('bluebird');
+const config = require('config');
 const APIError = require('../../utils/error');
 const SecurityHelper = require("../helpers/Security");
 
@@ -39,11 +40,17 @@ function _populateWatchlistDetail(watchlist) {
 module.exports.createWatchlist = function(args, res, next) {
 	const user = args.user;
 	const values = args.body.value;
-	const userId = user._id;
+	let userId = user._id;
+	const selectedUserId = _.get(args, 'userId.value', null);
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+	if (isAdmin && selectedUserId !== null) {
+		userId = selectedUserId
+	}
     
     const watchlist = {
         name: values.name,
-        user: user._id,
+        user: userId,
         securities: values.securities,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -81,7 +88,13 @@ module.exports.createWatchlist = function(args, res, next) {
 };
 
 module.exports.getAllWatchlists = function(args, res, next) {
-	const userId = args.user._id;
+	let userId = args.user._id;
+	const selectedUserId = _.get(args, 'userId.value', null);
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+	if (isAdmin && selectedUserId !== null) {
+		userId = selectedUserId
+	}
 	var query = {user: userId, deleted: false};
 	
 	if(args.name && args.name.value) {
@@ -108,8 +121,14 @@ module.exports.getAllWatchlists = function(args, res, next) {
 };
 
 module.exports.getWatchlist = function(args, res, next) {
-	const userId = args.user._id;
+	let userId = args.user._id;
 	const watchlistId = args.watchlistId.value;
+	const selectedUserId = _.get(args, 'userId.value', null);
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+	if (isAdmin && selectedUserId !== null) {
+		userId = selectedUserId
+	}
 
 	return WatchlistModel.fetchWatchlist({_id: watchlistId, user: userId, deleted: false})
 	.then(watchlist => {
@@ -128,8 +147,14 @@ module.exports.getWatchlist = function(args, res, next) {
 };
 
 module.exports.updateWatchlist = function(args, res, next) {
-	const userId = args.user._id;
+	let userId = args.user._id;
 	const watchlistId = args.watchlistId.value;
+	const selectedUserId = _.get(args, 'userId.value', null);
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+	if (isAdmin && selectedUserId !== null) {
+		userId = selectedUserId
+	}
 
 	const updates = args.body.value;
 	const securities = updates.securities;
@@ -154,7 +179,14 @@ module.exports.updateWatchlist = function(args, res, next) {
 };
 
 module.exports.deleteWatchlist = function(args, res, next) {
-	const userId = args.user._id;
+	let userId = args.user._id;
+	const selectedUserId = _.get(args, 'userId.value', null);
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+	if (isAdmin && selectedUserId !== null) {
+		userId = selectedUserId
+	}
+	console.log('User Id', userId);
 	const watchlistId = args.watchlistId.value;
 
 	return WatchlistModel.deleteWatchlist({_id: watchlistId, user: userId})

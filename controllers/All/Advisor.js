@@ -35,3 +35,7 @@ module.exports.updateAdvisorProfile = function(req, res, next) {
 module.exports.approveAdvisor = function(req, res, next) {
     Advisor.approveAdvisor(req.swagger.params, res, next);
 };
+
+module.exports.fetchAdvisorByName = function(req, res, next) {
+    Advisor.fetchAdvisorByName(req.swagger.params, res, next);
+};
