@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-22 15:37:49
+* @Last Modified time: 2018-12-22 16:17:58
 */
 
 'use strict';
@@ -2036,7 +2036,7 @@ module.exports.updatePredictionStatusFormat = function() {
 			})
 		})
 	})
-};
+};s
 
 module.exports.updateAdvisorFormat = function() {
 	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
@@ -2050,7 +2050,7 @@ module.exports.updateAdvisorFormat = function() {
 
 				if (investment <= 1000000) {
 					const newAccount = {
-						investment: investment
+						investment: investment,
 						liquidCash: Math.max(1000000 - investment, 0),
 						cash: Math.max(1000000 - investment, 0),
 					};	
