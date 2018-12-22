@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-22 16:17:58
+* @Last Modified time: 2018-12-22 16:44:03
 */
 
 'use strict';
@@ -2036,7 +2036,7 @@ module.exports.updatePredictionStatusFormat = function() {
 			})
 		})
 	})
-};s
+};
 
 module.exports.updateAdvisorFormat = function() {
 	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
