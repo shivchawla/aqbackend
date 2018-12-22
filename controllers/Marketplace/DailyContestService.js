@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-22 13:37:59
+* @Last Modified time: 2018-12-22 13:42:18
 */
 
 'use strict';
@@ -346,7 +346,7 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 
 	Promise.resolve()
 	.then(() => {
-		if(DateHelper.isMarketTrading()) {
+		if(!DateHelper.isMarketTrading()) {
 			APIError.throwJsonError({message: "Can't exit - Market is closed"});
 		} else {
 			return;
