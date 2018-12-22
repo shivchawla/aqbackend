@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-22 15:08:23
+* @Last Modified time: 2018-12-22 15:37:49
 */
 
 'use strict';
@@ -1992,7 +1992,7 @@ module.exports.updatePredictionStatusFormat = function() {
 	"2018-11-26","2018-11-27","2018-11-28", "2018-11-29", "2018-11-30",
 	"2018-12-03","2018-12-04","2018-12-05", "2018-12-06", "2018-12-07", 
 	"2018-12-10","2018-12-11", "2018-12-12", "2018-12-13", "2018-12-14", 
-    "2018-12-17", "2018-12-18", "2018-12-19"];
+    "2018-12-17", "2018-12-18", "2018-12-19", "2018-12-20", "2018-12-21"];
 
  	return Promise.mapSeries(dates, function(date) {
 		return DailyContestEntryModel.fetchDistinctAdvisors({date: DateHelper.getMarketCloseDateTime(date)})
@@ -2025,7 +2025,7 @@ module.exports.updatePredictionStatusFormat = function() {
 							newStatus = {...newStatus, price};		
 						}
 
-						newStatus = {...newStatus, stopLoss: false};		
+						newStatus = {...newStatus, stopLoss: false, manualExit: false};		
 					
 						const updatedPrediction = {...prediction, status: newStatus};
 
