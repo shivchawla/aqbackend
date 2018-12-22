@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:54:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-05 17:37:57
+* @Last Modified time: 2018-12-22 13:21:54
 */
 
 const DailyContest = require('../Marketplace/DailyContestService');
@@ -55,3 +55,6 @@ module.exports.getDailyContestStats = (req, res, next) => {
 	DailyContest.getDailyContestStats(req.swagger.params, res, next);
 };
 
+module.exports.exitDailyContestPrediction = (req, res, next) => {
+    DailyContest.exitDailyContestPrediction(req.swagger.params, res, next);
+};

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-21 19:06:02
+* @Last Modified time: 2018-12-22 13:37:59
 */
 
 'use strict';
@@ -358,17 +358,17 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 	.then(advisor => {
 		if (advisor) {
 			advisorId = advisor._id.toString();
-			var date = DateHelper.getMarketCloseDateTime(prediction.startDate);
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "started", priceUpdate: false});
+			var date = DateHelper.getMarketCloseDateTime();
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false});
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}
 	})
-	.then(allStartedPredictions => {
-		var idx = allStartedPredictions.indexOf(item => {return item._id.toString() == predictionId;});
+	.then(allActivePredictions => {
+		var idx = allActivePredictions.findIndex(item => {return item._id.toString() == predictionId;});
 		if (idx != -1) {
 
-			var prediction = allStartedPredictions[idx];
+			var prediction = allActivePredictions[idx];
 			prediction.status.manualExit = true;
 			prediction.status.trueDate = new Date();
 			prediction.status.date = DateHelper.getMarketCloseDateTime(new Date());
