@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-22 13:21:11
+* @Last Modified time: 2018-12-22 13:34:28
 */
 
 'use strict';
@@ -286,14 +286,14 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 	.then(advisor => {
 		if (advisor) {
 			advisorId = advisor._id.toString();
-			var date = DateHelper.getMarketCloseDateTime(prediction.startDate);
+			var date = DateHelper.getMarketCloseDateTime();
 			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false});
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}
 	})
 	.then(allActivePredictions => {
-		var idx = allActivePredictions.indexOf(item => {return item._id.toString() == predictionId;});
+		var idx = allActivePredictions.findIndex(item => {return item._id.toString() == predictionId;});
 		if (idx != -1) {
 
 			var prediction = allActivePredictions[idx];
