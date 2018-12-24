@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-21 18:17:42
+* @Last Modified time: 2018-12-24 19:51:32
 */
 
 
@@ -65,6 +65,14 @@ DailyContestEntryPerformance.statics.fetchLatestPnlStats = function(query) {
 	});
 };
 
+DailyContestEntryPerformance.statics.fetchLastPnlStats = function(query, date) {
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
+	return this.find({...query, date:{$lt: date}}, {pnlStats:1}).sort({date: -1}).limit(1)
+	.then(latestDoc => {
+		return _.get(latestDoc, '[0].pnlStats', null);
+	});
+};
+
 DailyContestEntryPerformance.statics.fetchLatestPortfolioStats = function(query) {
 	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate()); 
 	return this.find({...query, date:{$lte: date}}, {portfolioStats:1}).sort({date: -1}).limit(1)
@@ -73,11 +81,11 @@ DailyContestEntryPerformance.statics.fetchLatestPortfolioStats = function(query)
 	});
 };
 
-DailyContestEntryPerformance.statics.fetchLastPnlStats = function(query, date) {
+DailyContestEntryPerformance.statics.fetchLastPortfolioStats = function(query, date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
-	return this.find({...query, date:{$lt: date}}, {pnlStats:1}).sort({date: -1}).limit(1)
+	return this.find({...query, date:{$lt: date}}, {portfolioStats:1}).sort({date: -1}).limit(1)
 	.then(latestDoc => {
-		return _.get(latestDoc, '[0].pnlStats', null);
+		return _.get(latestDoc, '[0].portfolioStats', null);
 	});
 };
 
@@ -104,10 +112,24 @@ DailyContestEntryPerformance.statics.fetchLatestPnlStatsForSymbol = function(que
 
 DailyContestEntryPerformance.statics.fetchPnlStatsForDate = function(query, date) {
 	var projectionField = `pnlStats`;
-	var key = `pnlStats.date`;
 	return this.findOne({...query, date: date}, {[projectionField]: 1})
 	.then(doc => {
 		return _.get(doc, 'pnlStats', null);
+	})
+};
+
+DailyContestEntryPerformance.statics.fetchPortfolioStatsForDate = function(query, date) {
+	var projectionField = `portfolioStats`;
+	return this.findOne({...query, date: date}, {[projectionField]: 1})
+	.then(doc => {
+		return _.get(doc, 'portfolioStats', null);
+	})
+	.then(portfolioStatsForDate => {
+		if (!portfolioStatsForDate) {
+			return this.fetchLastPortfolioStats(query, date);
+		} else {
+			return portfolioStatsForDate;
+		}
 	})
 };
 
