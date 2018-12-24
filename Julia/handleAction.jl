@@ -420,7 +420,7 @@ function handleRequest(parsemsg::Dict{String, Any})
             
         elseif action == "get_security_detail"
           security = parsemsg["security"]
-          detail  = convert(Raftaar.Security, security).detail
+          detail  = get(security, "ticker", "") !="" ? convert(Raftaar.Security, YRead.getsecurity(security["ticker"])).detail : Dict()
           parsemsg["output"] = detail
 
         elseif action == "compute_attribution"

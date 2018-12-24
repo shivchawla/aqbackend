@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-17 11:51:15
+* @Last Modified time: 2018-12-24 17:21:59
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -516,7 +516,7 @@ module.exports.getStockLatestDetail = function(security) {
 		exports.getStockLatestDetailByType(security, "RT")
 	])
 	.then(([detailEOD, detailRT]) => {
-		var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
+		var rtLatestDetail = _.get(detailRT, 'latestDetail', {});
 		var x = Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
 
 		return x;
@@ -531,7 +531,7 @@ module.exports.getStockDetail = function(security, date) {
 		isToday ? exports.getStockLatestDetailByType(security, "RT") : null
 	])
 	.then(([detailEOD, detailRT]) => {
-		var rtLatestDetail = detailRT && detailRT.latestDetail ? detailRT.latestDetail : {};
+		var rtLatestDetail = _.get(detailRT, 'latestDetail', {});
 		return Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
 	});
 };
@@ -766,6 +766,7 @@ module.exports.getStockList = function(search, options) {
 	})
 	.then(([exactMatch, nearMatchTicker, nearMatchName, niftyExactMatch, niftyNearMatch]) => {
 
+
 		var securitiesExactMatch = exactMatch.map(item => item.toObject().security);
 		var securitiesNearMatchTicker = nearMatchTicker.map(item => item.toObject().security);
 		var securitiesNearMatchName = nearMatchName.map(item => item.toObject().security);
@@ -818,13 +819,19 @@ module.exports.updateStockList = function() {
 						securityType: security.securityType,
 						country: security.country
 					};		
-				return _computeStockPerformance(sec)
-				.then(pf => {
-					console.log(security);
-					
-					//return;
-					return SecurityPerformanceModel.updateSecurityPerformance(query, pf);
-				});
+				
+				return new Promise(resolve => {
+					return _getSecurityDetail(sec)
+					.then(securityDetail => {
+						const updates = {'security.detail' : securityDetail};
+						resolve(SecurityPerformanceModel.updateSecurityPerformance(query, updates));
+					})
+					.catch(err => {
+						console.log(err);
+						resolve(1);
+					})
+				})
+
 			} else {
 				return;
 			}	
