@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-22 16:44:03
+* @Last Modified time: 2018-12-24 19:17:24
 */
 
 'use strict';
@@ -1345,7 +1345,7 @@ module.exports.getDailyPnlStats = function(advisorId, date, category="active") {
 	});
 };
 
-module.exports.getPnlForDate = function(advisorId, date, category="active") {
+module.exports.getPnlStatsForDate = function(advisorId, date, category="active") {
 	
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
@@ -1488,49 +1488,56 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 
 
 /**
+ * Update the portfolio stats for advisorId
+ */
+module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+	
+	return Promise.all([
+		exports.getPredictionsForDate(advisorId, date, {category: "active"}),
+		exports.getPredictionsForDate(advisorId, date, {category: "started", priceUpdate:false}),
+		AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account'})
+	])
+	.then(([activePredictions, startedPredictions, advisor]) => {
+			
+		var netEquity = 0.0;
+		var grossEquity = 0.0;
+
+		activePredictions.forEach(item => {
+			var investment = _.get(item, 'position.investment', 0);
+			var lastPrice = _.get(item, 'position.lastPrice', 0);
+			var avgPrice = _.get(item, 'position.avgPrice', 0);
+
+			var equity = avgPrice > 0 ? investment * (lastPrice/avgPrice) : investment;
+			netEquity += equity
+			grossEquity += Math.abs(equity);
+		});
+
+		var cash = _.get(advisor, 'account.cash', 0.0);						
+
+		var grossTotal = grossEquity + cash;
+		var netTotal = netEquity + cash;
+
+		const updates = {
+			...advisor.account,
+			netEquity, grossEquity, grossTotal, netTotal,
+			activePredictions: activePredictions.length,
+			startedPredictions: startedPredictions.length
+		}
+		
+		return DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date);
+	})
+};
+
+/**
  * Added job to update portfolio stats on daily basis
  */
 module.exports.updateAllEntriesLatestPortfolioStats = function(date){
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
-
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
-			return Promise.all([
-				exports.getPredictionsForDate(advisorId, date, {category: "active"}),
-				AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account'})
-			])
-			.then(([activePredictions, advisor]) => {
-				if (activePredictions.length > 0) {
-					
-					var netEquity = 0.0;
-					var grossEquity = 0.0;
-
-					activePredictions.forEach(item => {
-						var investment = _.get(item, 'position.investment', 0);
-						var lastPrice = _.get(item, 'position.lastPrice', 0);
-						var avgPrice = _.get(item, 'position.avgPrice', 0);
-
-						var equity = avgPrice > 0 ? investment * (lastPrice/avgPrice) : investment;
-						netEquity += equity
-						grossEquity += Math.abs(equity);
-					});
-
-					var cash = _.get(advisor, 'account.cash', 0.0);						
-
-					var grossTotal = grossEquity + cash;
-					var netTotal = netEquity + cash;
-
-					const updates = {
-						...advisor.account,
-						netEquity, grossEquity, grossTotal, netTotal
-					}
-					
-					return DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date);
-				} else {
-					return;
-				}
-			})
+			return exports.updateLatestPortfolioStatsForAdvisor(advisorId, date);
 		});
 	});
 };
@@ -1731,7 +1738,13 @@ module.exports.addPredictions = function(advisorId, predictions, date) {
 	.then(added => {
 		//Updating advisor account with new metrics
 		return AdvisorHelper.updateAdvisorAccountDebit(advisorId, predictions);
-	});	
+	})
+	.then(updatedAdvisor => {
+		return exports.updateLatestPortfolioStatsForAdvisor(advisorId)
+	})
+	.then(() => {
+		return exports.getPortfolioStatsForDate(advisorId);
+	})
 };
 
 module.exports.updateCallPriceForPredictions = function() {

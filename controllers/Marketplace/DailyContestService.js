@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-22 15:06:04
+* @Last Modified time: 2018-12-24 18:54:41
 */
 
 'use strict';
@@ -89,7 +89,7 @@ module.exports.getDailyContestPnlForDate = (args, res, next) => {
 		if (advisor) {
 			const advisorId = advisor._id.toString();
 
-			return DailyContestEntryHelper.getPnlForDate(advisorId, date, category);
+			return DailyContestEntryHelper.getPnlStatsForDate(advisorId, date, category);
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} else {
@@ -418,7 +418,6 @@ module.exports.getDailyContestWinners = (args, res, next) => {
 * Get daily contest top stocks
 */
 module.exports.getDailyContestTopStocks = (args, res, next) => {
-	try{
 	const _d = _.get(args, 'date.value', '');
 	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
 	
@@ -452,7 +451,7 @@ module.exports.getDailyContestTopStocks = (args, res, next) => {
 	.catch(err => {
 		console.log(err);
 		return res.status(400).send({msg: err.msg});	
-	})} catch(err){console.log(err);}
+	})
 };
 
 /*
