@@ -2,13 +2,14 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:44:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-21 17:38:54
+* @Last Modified time: 2018-12-24 17:26:35
 */
 
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const UserModel = require('../../models/user');
 const config = require('config');
+const _ = require('lodash');
 
 module.exports.getAdminAdvisors = function() {
 	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {fields:'_id'})
