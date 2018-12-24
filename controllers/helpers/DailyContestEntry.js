@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-24 19:17:24
+* @Last Modified time: 2018-12-24 20:15:32
 */
 
 'use strict';
@@ -1360,7 +1360,7 @@ module.exports.getPnlStatsForDate = function(advisorId, date, category="active")
 
 module.exports.getPortfolioStatsForDate = function(advisorId, date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
-	return DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId});
+	return DailyContestEntryPerformanceModel.getPortfolioStatsForDate({advisor: advisorId}, date);
 };
 
 module.exports.getPredictionsForDate = function(advisorId, date, options) {
@@ -1508,7 +1508,7 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 			var lastPrice = _.get(item, 'position.lastPrice', 0);
 			var avgPrice = _.get(item, 'position.avgPrice', 0);
 
-			var equity = avgPrice > 0 ? investment * (lastPrice/avgPrice) : investment;
+			var equity = (avgPrice > 0 ? investment * (lastPrice/avgPrice) : investment)*1000;
 			netEquity += equity
 			grossEquity += Math.abs(equity);
 		});
@@ -1517,9 +1517,11 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 
 		var grossTotal = grossEquity + cash;
 		var netTotal = netEquity + cash;
-
+		
+		var advisorAccount = advisor ? _.get(advisor.toObject(), 'account', {}) : {};
+		
 		const updates = {
-			...advisor.account,
+			...advisorAccount,
 			netEquity, grossEquity, grossTotal, netTotal,
 			activePredictions: activePredictions.length,
 			startedPredictions: startedPredictions.length
