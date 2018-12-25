@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-25 15:59:38
+* @Last Modified time: 2018-12-25 20:02:02
 */
 
 'use strict';
@@ -1247,9 +1247,9 @@ function _computeNetPnlStats(advisorId, date) {
 		var lastRealizedPnlStats = _.get(yesterdayPnlStats, 'net.realized', {});
 		
 		return Promise.all([
-			_aggregatePnlStats([lastRealizedPnlStats.all, latestTotalPnlStats.all]),
+			_aggregatePnlStats([lastRealizedPnlStats.portfolio, latestTotalPnlStats.portfolio]),
 		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestTotalPnlStats.byTickers]),
-		    _aggregatePnlStats([lastRealizedPnlStats.all, latestRealizedPnlStats.all]),
+		    _aggregatePnlStats([lastRealizedPnlStats.portfolio, latestRealizedPnlStats.portfolio]),
 		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestRealizedPnlStats.byTickers])
 		])
 		.then(([pnlStatsTotalPortfolio, pnlStatsTotalByTicker, pnlStatsRealizedPortfolio, pnlStatsRealizedByTicker]) => {
@@ -2064,6 +2064,7 @@ module.exports.updatePredictionStatusFormat = function() {
 	})
 };
 
+//For new incentive structure
 module.exports.updateAdvisorFormat = function() {
 	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
 	.then(advisors => {
@@ -2090,3 +2091,74 @@ module.exports.updateAdvisorFormat = function() {
 		})
     })
 }; 
+
+
+module.exports.updatePerformanceFormat = function() {
+	const dates = ["2018-11-12","2018-11-13","2018-11-14","2018-11-15", "2018-11-16", 
+	"2018-11-19","2018-11-20","2018-11-21", "2018-11-22", 
+	"2018-11-26","2018-11-27","2018-11-28", "2018-11-29", "2018-11-30",
+	"2018-12-03","2018-12-04","2018-12-05", "2018-12-06", "2018-12-07", 
+	"2018-12-10","2018-12-11", "2018-12-12", "2018-12-13", "2018-12-14", 
+    "2018-12-17", "2018-12-18", "2018-12-19", "2018-12-20", "2018-12-21", 
+    "2018-12-24"];
+
+    return Promise.mapSeries(dates, function(date) {
+    	date = DateHelper.getMarketCloseDateTime(date);
+
+    	return DailyContestEntryModel.fetchDistinctAdvisors({date: date})
+    	.then(distinctAdvisors => {
+    		return Promise.mapSeries(distinctAdvisors, function(advisorId) {
+    			return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId})
+    			.then(pnlStatsForAdvisor => {
+    				if (pnlStatsForAdvisor) {
+    					const pnlStats = pnlStatsForAdvisor.toObject();
+    					try {
+
+    						const detailTypes = ["daily", "cumulative"];
+
+    						detailTypes.forEach(detailType => {
+    							const val = _.get(pnlStats, `detail.${detailType}.active`, null);
+								if (val) {
+	    							_.set(pnlStats, `detail.${detailType}.all`, val);
+	    							_.set(pnlStats, `detail.${detailType}.active`, null);
+	    							delete pnlStats.detail[`${detailType}`].all;
+    							}
+							});
+
+							const horizonTypes = ["all", "ended", "started"];
+
+							horizonTypes.forEach(horizonType => {
+								const val = _.get(pnlStats, `detail.cumulative.${horizonType}.all`, null);
+								if (val) {
+    								_.set(pnlStats, `detail.cumulative.${horizonType}.portfolio`, val);
+    								delete pnlStats.detail.cumulative[`${horizonType}`].all;
+    							}	
+							});
+
+							var netPnlTypes = ["realized", "total"];
+
+							netPnlTypes.forEach(netPnlTypes => {
+								const val = _.get(pnlStats, `net.${netPnlType}.all`, null);
+								if (val) {
+    								_.set(pnlStats, `net.${netPnlType}.portfolio`, val);
+    								delete pnlStats.net[`${netPnlType}`].all;
+    							}
+							});
+    							
+							return Promise.all([
+								DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, pnlStats.detail, date, "detail"),
+								DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, pnlStats.net, date, "net")
+							]);
+
+						}catch (err) {
+							console.log(err.message);
+						}
+
+					}
+    			});		
+    		}
+    	})
+    })
+};
+
+
