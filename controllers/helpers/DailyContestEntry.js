@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-24 20:22:11
+* @Last Modified time: 2018-12-25 15:59:38
 */
 
 'use strict';
@@ -1107,30 +1107,12 @@ function _computeUpdatedPredictions(predictions, date) {
 };
 
 function _computeTotalPnlStats(advisorId, date, options) {
-	const category = _.get(options, 'category', "active");
+	const category = _.get(options, 'category', "all");
 
-	return Promise.resolve()
-	.then(() => {
-		if (category == "all") { //All =  active + ending on date (doesn't include starting)	 
+	return exports.getPredictionsForDate(advisorId, date, options)
+	.then(predictions => {
 
-			var isToday = DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(date)) == 0;
-			var useEndedPredictions = !isToday || (isToday && moment().isAfter(moment(DateHelper.getMarketCloseDateTime(date))));
-			
-			return Promise.all([
-				useEndedPredictions ? exports.getPredictionsForDate(advisorId, date, {category: "ended"}) : [],
-				exports.getPredictionsForDate(advisorId, date, {category: "active"}) //A
-			])
-			.then(([endedPredictions, activePredictions]) => {
-				var allPredictions = endedPredictions.concat(activePredictions);
-				return allPredictions;
-			})
-		} else {
-			return exports.getPredictionsForDate(advisorId, date, options)
-		}
-	})
-	.then(activePredictions => {
-
-		var updatedPredictions = activePredictions.map(item => {
+		var updatedPredictions = predictions.map(item => {
 
 			var success = _.get(item, 'status.profitTarget', false) && moment(date).isSame(moment(item.status.date));
 			var failure = _.get(item, 'status.stopLoss', false) && moment(date).isSame(moment(item.status.date));
@@ -1154,9 +1136,9 @@ function _computeTotalPnlStats(advisorId, date, options) {
 			_getPnlStats(updatedPredictions, date),
 			_getPnlStats(updatedPredictions, date, true)
 		])
-		.then(([pnlStatsAll, pnlStatsByTicker]) => {
+		.then(([pnlStatsPortfolio, pnlStatsByTicker]) => {
 			return {
-				all: pnlStatsAll,
+				portfolio: pnlStatsPortfolio,
 				byTickers: pnlStatsByTicker
 			};
 		});
@@ -1166,13 +1148,13 @@ function _computeTotalPnlStats(advisorId, date, options) {
 function _computeTotalPnlStatsForAll(advisorId, date) {
 	return Promise.all([
 		_computeTotalPnlStats(advisorId, date, {category: "started"}),
-		_computeTotalPnlStats(advisorId, date, {category: "active"}),
+		_computeTotalPnlStats(advisorId, date, {category: "all"}),
 		_computeTotalPnlStats(advisorId, date, {category: "ended"})
 	])
-	.then(([startedPredictionsTotalPnl, activePredictionsTotalPnl, endedPredictionsTotalPnl]) => {
+	.then(([startedPredictionsTotalPnl, allPredictionsTotalPnl, endedPredictionsTotalPnl]) => {
 		return {
 			started: startedPredictionsTotalPnl,
-			active: activePredictionsTotalPnl,
+			all: allPredictionsTotalPnl,
 			ended: endedPredictionsTotalPnl
 		};
 	});
@@ -1180,7 +1162,7 @@ function _computeTotalPnlStatsForAll(advisorId, date) {
 
 function _computeDailyPnlStats(advisorId, date, options) {
 
-	const category = _.get(options, 'category', "active");
+	const category = _.get(options, 'category', "all");
 	
 	let yesterday = moment(date).subtract(1, 'days').toDate();
 
@@ -1240,13 +1222,13 @@ function _computeDailyPnlStats(advisorId, date, options) {
 function _computeDailyPnlStatsForAll(advisorId, date) {
 	return Promise.all([
 		_computeDailyPnlStats(advisorId, date, {category: "started"}),
-		_computeDailyPnlStats(advisorId, date, {category: "active"}),
+		_computeDailyPnlStats(advisorId, date, {category: "all"}),
 		_computeDailyPnlStats(advisorId, date, {category: "ended"})
 	])
-	.then(([startedPredictionsDailyPnl, activePredictionsDailyPnl, endedPredictionsDailyPnl]) => {
+	.then(([startedPredictionsDailyPnl, allPredictionsDailyPnl, endedPredictionsDailyPnl]) => {
 		return {
 			started: startedPredictionsDailyPnl,
-			active: activePredictionsDailyPnl,
+			all: allPredictionsDailyPnl,
 			ended: endedPredictionsDailyPnl
 		};
 	});
@@ -1260,21 +1242,21 @@ function _computeNetPnlStats(advisorId, date) {
 		DailyContestEntryPerformanceModel.fetchLastPnlStats({advisor: advisorId}, date),
 	])
 	.then(([latestPnlStats, yesterdayPnlStats]) => {
-		var latestActivePnlStats = _.get(latestPnlStats, 'detail.cumulative.active', {});
+		var latestTotalPnlStats = _.get(latestPnlStats, 'detail.cumulative.all', {});
 		var latestRealizedPnlStats = _.get(latestPnlStats, 'detail.cumulative.ended', {});
 		var lastRealizedPnlStats = _.get(yesterdayPnlStats, 'net.realized', {});
 		
 		return Promise.all([
-			_aggregatePnlStats([lastRealizedPnlStats.all, latestActivePnlStats.all]),
-		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestActivePnlStats.byTickers]),
+			_aggregatePnlStats([lastRealizedPnlStats.all, latestTotalPnlStats.all]),
+		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestTotalPnlStats.byTickers]),
 		    _aggregatePnlStats([lastRealizedPnlStats.all, latestRealizedPnlStats.all]),
 		    _aggregatePnlStatsByTickers([lastRealizedPnlStats.byTickers, latestRealizedPnlStats.byTickers])
 		])
-		.then(([pnlStatsTotalAll, pnlStatsTotalByTicker, pnlStatsRealizedAll, pnlStatsRealizedByTicker]) => {
+		.then(([pnlStatsTotalPortfolio, pnlStatsTotalByTicker, pnlStatsRealizedPortfolio, pnlStatsRealizedByTicker]) => {
 			return {
-				realized: {all: pnlStatsRealizedAll, byTickers: pnlStatsRealizedByTicker},
+				realized: {portfolio: pnlStatsRealizedPortfolio, byTickers: pnlStatsRealizedByTicker},
 				total: {
-					all: pnlStatsTotalAll, 
+					portfolio: pnlStatsTotalPortfolio, 
 					byTickers: pnlStatsTotalByTicker
 				}
 			};
@@ -1314,13 +1296,13 @@ module.exports.getValidStartDate = function(date) {
 	return validStartDate;
 };
 
-module.exports.getTotalPnlStats = function(advisorId, date, category="active") {
+module.exports.getTotalPnlStats = function(advisorId, date, category="all") {
 	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
 	.then(pnlStats => {
 		if (pnlStats) {
 			switch(category) {
 				//HOW TO ADD CHECK FOR KEYS
-				case "active" : return _.get(pnlStats,'detail.cumulative.active', null); break;
+				case "all" : return _.get(pnlStats,'detail.cumulative.all', null); break;
 				case "ended" : return _.get(pnlStats, 'detail.cumulative.ended', null); break;
 				case "started" : return _.get(pnlStats, 'detail.cumulative.started', null); break;
 			}
@@ -1330,12 +1312,12 @@ module.exports.getTotalPnlStats = function(advisorId, date, category="active") {
 	});	
 };
 
-module.exports.getDailyPnlStats = function(advisorId, date, category="active") {
+module.exports.getDailyPnlStats = function(advisorId, date, category="all") {
 	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
 	.then(pnlStats => {
 		if (pnlStats) {
 			switch(category) {
-				case "active" : return _.get(pnlStats, 'detail.daily.active', null); break;
+				case "all" : return _.get(pnlStats, 'detail.daily.all', null); break;
 				case "ended" : return _.get(pnlStats, 'detail.daily.ended', null); break;
 				case "started" : return _.get(pnlStats, 'detail.daily.started', null); break;
 			}
@@ -1345,7 +1327,7 @@ module.exports.getDailyPnlStats = function(advisorId, date, category="active") {
 	});
 };
 
-module.exports.getPnlStatsForDate = function(advisorId, date, category="active") {
+module.exports.getPnlStatsForDate = function(advisorId, date, category="all") {
 	
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
@@ -1373,7 +1355,7 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 	return Promise.resolve()
 	.then(() => {
 
-		//How to compute all predictions today [All = active (+ ended)]
+		//How to compute all predictions today [All = active ]
 		//Can there by any duplication in combining the ended and active - YES
 		//Because active is a super set of ending that day and ending after the day
 		//**** IF used before market close *****
@@ -1381,18 +1363,18 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 		var useEndedPredictions = !isToday || (isToday && moment().isAfter(moment(DateHelper.getMarketCloseDateTime(date))));
 		
 		switch(category) {
-			case "active": return DailyContestEntryModel.fetchEntryPredictionsActiveOnDate({advisor: advisorId}, date); break;
+			case "all": return DailyContestEntryModel.fetchEntryPredictionsOnDate({advisor: advisorId}, date); break;
 			case "started": return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, date); break;
 			case "ended": return DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({advisor: advisorId}, date); break;
 			
-			//not used 
-			case "all": return Promise.all([
-							useEndedPredictions ? DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({advisor: advisorId}, date) : [],
-							DailyContestEntryModel.fetchEntryPredictionsActiveOnDate({advisor: advisorId}, date) //A
-						])
-						.then(([endedPredictions, activePredictions]) => {
-							return endedPredictions.concat(activePredictions);
-						});
+			// //not used 
+			// case "all": return Promise.all([
+			// 				useEndedPredictions ? DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({advisor: advisorId}, date) : [],
+			// 				DailyContestEntryModel.fetchEntryPredictionsActiveOnDate({advisor: advisorId}, date) 
+			// 			])
+			// 			.then(([endedPredictions, activePredictions]) => {
+			// 				return endedPredictions.concat(activePredictions);
+			// 			});
 		}
 	})
 	.then(predictions => {
@@ -1436,7 +1418,7 @@ module.exports.updateAllEntriesLatestPnlStats = function(date){
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
-			return exports.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false})
+			return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
 			.then(activePredictions => {
 				if (activePredictions.length > 0) {
 					return Promise.all([
@@ -1468,7 +1450,7 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
-			return exports.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false})
+			return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
 			.then(activePredictions => {
 				if (activePredictions.length > 0) {
 					return _computeNetPnlStats(advisorId, date)
@@ -1494,45 +1476,82 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 	
 	return Promise.all([
-		exports.getPredictionsForDate(advisorId, date, {category: "active"}),
+		exports.getPredictionsForDate(advisorId, date, {category: "all"}),
 		exports.getPredictionsForDate(advisorId, date, {category: "started", priceUpdate:false}),
+		exports.getPredictionsForDate(advisorId, date, {category: "ended", priceUpdate: false}),
 		AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account'})
 	])
-	.then(([activePredictions, startedPredictions, advisor]) => {
+	.then(([allPredictions, startedPredictions, endedPredictions, advisor]) => {
+		
+		return new Promise(resolve => {
+			//Now some of the active predictions may have ended as well.		
+			var netEquity = 0.0;
+			var grossEquity = 0.0;
+			var cash = _.get(advisor, 'account.cash', 0.0);	
 			
-		var netEquity = 0.0;
-		var grossEquity = 0.0;
+			var endedPredictionIds = endedPredictions.map(item => item._id.toString());
 
-		activePredictions.forEach(item => {
-			var investment = _.get(item, 'position.investment', 0);
-			var lastPrice = _.get(item, 'position.lastPrice', 0);
-			var avgPrice = _.get(item, 'position.avgPrice', 0);
+			allPredictions.forEach(item => {
 
-			var equity = (avgPrice > 0 ? investment * (lastPrice/avgPrice) : investment)*1000;
-			netEquity += equity
-			grossEquity += Math.abs(equity);
-		});
+				//Filter out the ended predicition to compute equity/investment
+				if (endedPredictions.indexOf(item._id.toString()) == -1) {
+					var investment = _.get(item, 'position.investment', 0);
+					var lastPrice = _.get(item, 'position.lastPrice', 0);
+					var avgPrice = _.get(item, 'position.avgPrice', 0);
 
-		var cash = _.get(advisor, 'account.cash', 0.0);						
+					var equity = (avgPrice > 0 ? investment * (lastPrice/avgPrice) : investment)*1000;
+					netEquity += equity
+					grossEquity += Math.abs(equity);
+				}
 
-		var grossTotal = grossEquity + cash;
-		var netTotal = netEquity + cash;
+			});
+
+			Promise.map(endedPredictions, function(endedPrediction) {
+				var manualExit = _.get(item, 'status.manualExit', false);
+				var lastPrice = _.get(item, 'position.lastPrice', 0);
+				var investment = _.get(item, 'position.investment', 0);
+				var avgPrice = _.get(item, 'position.avgPrice', 0);
+
+				//Manual Exit will update cash (if lastPrice is not yet populated)
+				if (manualExit && lastPrice == 0.0) {
+					//Get the latest price to compute tentative cash procees
+					//This adjust just the 
+					return SecurityHelper.getStockLatestDetail(item.position.security)
+					.then(securityDetail => {
+						lastPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || 
+							_.get(securityDetail, 'latestDetailRT.close') || 
+							_.get(securityDetail, 'latestDetail.Close', 0);
+
+						var pnl = (avgPrice > 0 ? investment * ((lastPrice/avgPrice) - 1) : 0);
+
+						cash += (Math.abs(investment) + pnl) * 1000;
+					});
+				} 
+	
+			})
+			.then(() => {
+
+				var grossTotal = grossEquity + cash;
+				var netTotal = netEquity + cash;
+				
+				var advisorAccount = advisor ? _.get(advisor.toObject(), 'account', {}) : {};
+				
+				const updates = {
+					...advisorAccount, cash: cash,
+					netEquity, grossEquity, grossTotal, netTotal,
+					numPredictions: allPredictions.length,
+					numStartedPredictions: startedPredictions.length,
+					numEndedPredictions: endedPredictions.length
+				};
 		
-		var advisorAccount = advisor ? _.get(advisor.toObject(), 'account', {}) : {};
-		
-		const updates = {
-			...advisorAccount,
-			netEquity, grossEquity, grossTotal, netTotal,
-			activePredictions: activePredictions.length,
-			startedPredictions: startedPredictions.length
-		}
-		
-		return DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date);
+				resolve(DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date));
+			})
+		})
 	})
 };
 
 /**
- * Added job to update portfolio stats on daily basis
+ * Update the portoflio stats for all entries
  */
 module.exports.updateAllEntriesLatestPortfolioStats = function(date){
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
@@ -1572,7 +1591,7 @@ module.exports.updateAllEntriesLatestPortfolioStats = function(date){
 //and filter ot the successful ones
 
 //Handles only predictions ending today
-module.exports.checkForPredictionTarget = function(category = "active") {
+module.exports.checkForPredictionTarget = function(category = "all") {
 	const currentDate = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 
 	return DailyContestEntryModel.fetchDistinctAdvisors()
@@ -1726,11 +1745,14 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 				return Promise.mapSeries(allSuccessfulPredictions, function(prediction) {
 
 					return Promise.all([
-						AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction),
+						exports.updateAdvisorAccountCredit(prediction.advisorId, prediction),
 						DailyContestEntryModel.updatePrediction({advisor: prediction.advisorId}, prediction)
 					]);
 				});
-			});
+			})
+			.then(() => {
+				return exports.updateAllEntriesLatestPortfolioStats();
+			})
 		});
 	})
 };
@@ -1835,7 +1857,7 @@ function _getDistinctPredictionTickersForAdvisors(date) {
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(distinctAdvisors => {
 		return Promise.mapSeries(distinctAdvisors, function(advisorId){
-			return exports.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false})
+			return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
 			.then(predictions => {
 				var predictionTickers = predictions.map(item => {return _.get(item, 'position.security.ticker', null)}).filter(item => item) || [];
 				return Promise.map(predictionTickers, function(ticker) {
@@ -1869,7 +1891,7 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 				var advisorsForThisTicker = _.uniq(allAdvisorsByTickers[ticker]);
 
 				return Promise.mapSeries(advisorsForThisTicker, function(advisorId){
-					return exports.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false})
+					return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
 					.then(predictions => {
 						return Promise.mapSeries(predictions, function(prediction){
 							var pTicker = _.get(prediction, 'position.security.ticker', "");
@@ -1943,6 +1965,9 @@ module.exports.updateManuallyExitedPredictionsForLastPrice = function(date) {
 				})
 			})
 		})
+		.then(() => {
+			return exports.updateAllEntriesLatestPortfolioStats();
+		})
 	})
 }
 
@@ -1952,7 +1977,7 @@ function resetIntervalPrices(date) {
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(distinctAdvisors => {
 		return Promise.mapSeries(distinctAdvisors, function(advisorId){
-			return exports.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false})
+			return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
 			.then(predictions => {
 				return Promise.mapSeries(predictions, function(prediction){
 					prediction.priceInterval = {lowPrice:Infinity, highPrice:-Infinity};
@@ -1961,20 +1986,6 @@ function resetIntervalPrices(date) {
 			})
 		})
 	})
-}
-
-function _unTrackIntradayHistory() {
-	return new Promise(function(resolve, reject) {
-
-		var msg = JSON.stringify({action:"untrack_stock_intraday_detail"});
-        								
-		WSHelper.handleMktRequest(msg, resolve, reject);
-
-	});
-}
-
-module.exports.unTrackIntradayHistory = function() {
-	_unTrackIntradayHistory();
 }
 
 /*********TEMPORARY BACKFILL CODE***************/

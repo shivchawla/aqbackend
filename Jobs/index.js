@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-21 18:35:14
+* @Last Modified time: 2018-12-25 16:03:26
 */
 
 'use strict';
@@ -20,17 +20,10 @@ const moment = require('moment-timezone');
 
 const serverPort = require('../index').serverPort;
 
-//SecurityHelper.updateStockList();
+var winnersUpdated = false;
 
 if (config.get('jobsPort') === serverPort) {
-	//Run every 5th minute
-	// schedule.scheduleJob("*/50 * * * 1-5", function() { 
- //        AnalyticsHelper.updateAllAnalytics()
- //        .then(() => {
- //            ContestHelper.updateAllAnalytics();
- //        })
-	// });
-
+	
 	schedule.scheduleJob("0 23 * * *", function() {
 	    SecurityHelper.updateStockList();
 	});
@@ -45,66 +38,53 @@ if (config.get('jobsPort') === serverPort) {
  //    	}
 	// });
 
-	const marketCloseDateTimeOffset = DateHelper.getMarketCloseDateTime().add(30, 'minutes');
-	const scheduleUpdatedEODStats = `${marketCloseDateTimeOffset.get('minute')} ${marketCloseDateTimeOffset.get('hour')} * * 1-5`;
-	
-	schedule.scheduleJob(scheduleUpdatedEODStats, function() {
-		if (!DateHelper.isHoliday()){ 
-	        DailyContestEntryHelper.updateAllEntriesLatestPnlStats()
+	const scheduleMarketOpenTime = `${DateHelper.getMarketOpenMinute()} ${DateHelper.getMarketOpenHour()} * * 1-5`;
+	schedule.scheduleJob(scheduleMarketOpenTime, function() { 
+		winnersUpdated = false;
+	});
+
+
+	//Run the job sequence every 30 minutes from one hour before market open to one hour after market close
+	const scheduleCheckPredictionTarget = `*/30 ${DateHelper.getMarketOpenHour() - 1}-${DateHelper.getMarketCloseHour() + 1} * * 1-5`;
+	schedule.scheduleJob(scheduleCheckPredictionTarget, function() {   	
+    	
+    	if (!DateHelper.isHoliday()) {
+
+	    	DailyContestEntryHelper.checkForPredictionTarget()
+	    	.then(() => {
+	    		DailyContestEntryHelper.updateManuallyExitedPredictionsForLastPrice();
+	    	})
+	    	.then(() => {
+	    		DailyContestEntryHelper.updatePredictionsForIntervalPrice()
+    		})
+			.then(() => { 
+	    		DailyContestEntryHelper.updateAllEntriesLatestPnlStats();
+			})
 	        .then(() => {
 	        	DailyContestEntryHelper.updateAllEntriesNetPnlStats();
 	    	})
-	        .then(() => {
-	        	DailyContestStatsHelper.updateContestStats();
-	        })
-	        .then(() => {
-	        	DailyContestEntryHelper.unTrackIntradayHistory();
-	        })
-        }
+	    	.then(() => {
+	    		DailyContestStatsHelper.updateContestTopStocks();
+			})
+			.then(() => {
+				//If time after market close (+ 30 minutes), update the winners as well
+				const marketCloseDateTimeOffset = DateHelper.getMarketCloseDateTime().add(30, 'minutes');
+				if (moment().isAfter(marketCloseDateTimeOffset) && !winnersUpdated) { 
+		        	DailyContestStatsHelper.updateContestStats()
+		        	.then(() => {
+		        		winnersUpdated = true;
+		        	});
+		        }
+			})
+		}
 	});
 
-	const scheduleUpdateTopStocks = `*/30 * * * 1-5`;
-	schedule.scheduleJob(scheduleUpdateTopStocks, function() {
-		DailyContestEntryHelper.updatePredictionsForIntervalPrice()
-		.then(() => { 
-    		DailyContestEntryHelper.updateAllEntriesLatestPnlStats();
-		})
-        .then(() => {
-        	DailyContestEntryHelper.updateAllEntriesNetPnlStats();
-    	})
-    	.then(() => {
-    		DailyContestEntryHelper.updateAllEntriesLatestPortfolioStats();
-    	})
-    	.then(() => {
-    		DailyContestStatsHelper.updateContestTopStocks();
-		});
-	});
-
-	const scheduleUpdateTopStocksWeekends = `*/4 * * 0,6`;
-	schedule.scheduleJob(scheduleUpdateTopStocksWeekends, function() { 
-    	DailyContestEntryHelper.updateAllEntriesLatestPnlStats()
-        .then(() => {
-        	DailyContestEntryHelper.updateAllEntriesNetPnlStats();
-    	})
-    	.then(() => {
-    		DailyContestEntryHelper.updateAllEntriesLatestPortfolioStats();
-    	})
-    	.then(() => {
-    		DailyContestStatsHelper.updateContestTopStocks();
-		});
-	});
-
-
-	const scheduleCheckPredictionTarget = `*/30 ${DateHelper.getMarketOpenHour() - 1}-${DateHelper.getMarketCloseHour() + 1} * * 1-5`;
-	schedule.scheduleJob(scheduleCheckPredictionTarget, function() { 
-    	DailyContestEntryHelper.checkForPredictionTarget()
-    	.then(() => {
-    		DailyContestEntryHelper.updateManuallyExitedPredictionsForLastPrice();
-    	})
-	});
-
-	const scheduleUpdateCallPrice = `*/5 * * * 0-6`;
+	const scheduleUpdateCallPrice = `*/5 * * * 1-5`;
 	schedule.scheduleJob(scheduleUpdateCallPrice, function() { 
-	    DailyContestEntryHelper.updateCallPriceForPredictions();
+		if (!DateHelper.isHoliday()) {
+	    	DailyContestEntryHelper.updateCallPriceForPredictions();
+    	}
 	});
 }
+
+

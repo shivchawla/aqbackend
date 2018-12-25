@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-24 18:54:41
+* @Last Modified time: 2018-12-25 16:07:12
 */
 
 'use strict';
@@ -215,6 +215,11 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 	return Promise.resolve()
 	.then(() => {
+		if (!DateHelper.isMarketTrading()) {
+			APIError.throwJsonError({message: "Market is closed!"})
+		}
+	})
+	.then(() => {
 		//Check if investment amount is either 25, 50, 75 or 100K
 		return Promise.map(entryPredictions.map(item => {return _.get(item, 'position.investment');}), function(investment) {
 			return [25, 50, 75, 100].indexOf(Math.abs(investment)) !=- 1;
@@ -387,7 +392,6 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 	});
 };
 
- 
 /*
 * Get daily contest winners
 */

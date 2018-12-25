@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-21 10:24:37
+* @Last Modified time: 2018-12-25 12:37:32
 */
 
 
@@ -200,7 +200,10 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 	});						
 };
 
-DailyContestEntry.statics.fetchEntryPredictionsActiveOnDate = function(query, date) {
+/*
+* Return ALL predictions active on that date (including ended/started/active)
+*/
+DailyContestEntry.statics.fetchEntryPredictionsOnDate = function(query, date) {
 	return this.find({...query, date: {$lte: date}, 
 			'predictions.endDate': {$gte: date}}, {predictions: 1})
 	.then(contestEntries => {
