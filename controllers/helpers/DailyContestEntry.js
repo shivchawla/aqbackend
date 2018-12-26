@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-26 12:52:44
+* @Last Modified time: 2018-12-26 13:52:52
 */
 
 'use strict';
@@ -938,9 +938,12 @@ function _getExtremePrices(history, startDate, endDate) {
 	var relevantHistory = history.filter(item => {var dt = item.datetime; return moment(dt).isAfter(moment(startDate)) && !moment(dt).isAfter(moment(endDate))});
 
 	if (relevantHistory.length > 0) {
+		var highPriceDetail = _.maxBy(relevantHistory, 'high');
+		var lowPriceDetail = _.minBy(relevantHistory, 'low');
+
 		return {
-			high: _.get(_.maxBy(relevantHistory, 'high'), 'high', -Infinity), 
-			low: _.get(_.minBy(relevantHistory, 'low'), 'low', Infinity)
+			high: {price: _.get(highPriceDetail, 'high', -Infinity), datetime: _.get(highPriceDetail, 'datetime', null)} 
+			low: {price: _.get(lowPriceDetail, 'low', -Infinity), datetime: _.get(lowPriceDetail, 'datetime', null)} 
 		};
 	} else {
 		return {high: -Infinity, low: Infinity};
@@ -1584,7 +1587,11 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 
 							var successfulDayBasis = successfulPredictions.filter(item => {
 								var isStartDateToday = DateHelper.compareDates(item.startDate, currentDate) == 0;
-								return !isStartDateToday;
+								
+								//Make sure only one direction is hit with daily price movement
+								//If both directions are hit, we need to time resolve (which was hit first?) [at next step]
+								var oneOfStopLossAndProfitTarget = !(item.status.profitTarget && item.status.stopLoss);
+								return !isStartDateToday && oneOfStopLossAndProfitTarget
 							});
 
 							var partiallySuccessfulIntraday =  successfulPredictions.filter(item => {
@@ -1605,27 +1612,39 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 										var startDate = item.startDate;
 										var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, startDate);
 
-										var highPrice = _.get(extremePricesSinceStartDate, 'high', -Infinity);
-										var lowPrice = _.get(extremePricesSinceStartDate, 'low', Infinity);
+										var highPrice = _.get(extremePricesSinceStartDate, 'high.price', -Infinity);
+										var highPriceDateTime = _.get(extremePricesSinceStartDate, 'high.datetime', null);
+										var lowPrice = _.get(extremePricesSinceStartDate, 'low.price', Infinity);
+										var lowPriceDateTime = _.get(extremePricesSinceStartDate, 'low.datetime', null);
 
 										var success = (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
+										var successDateTime = success && investment > 0 ? highPriceDateTime : lowPriceDateTime;
+
+										var lossDirection = -1 * (investment > 0 ? 1 : -1);
+										var stopLossPrice = (1 + lossDirection*Math.abs(_.get(item, 'stopLoss', 1))) * item.position.avgPrice
+									 	var stopLossFailure = stopLossPrice != 0 && ((investment > 0 && lowPrice < stopLossPrice) || (investment < 0 && highPrice > stopLossPrice));	
+									 	var stopLossFailureDateTime = stopLossFailure && investment > 0 ? lowPriceDateTime : highPriceDateTime;
+
+									 	//If both are true, find which one hit first ****
+									 	if (success && stopLossFailure) {
+								 			if (moment(successDateTime).isBefore(stopLossFailureDateTime)) {
+								 				stopLossFailure = false;
+									 		} else {
+									 			success = false;
+									 		}
+									 	}	
 
 									 	if (success) {
 									 		item.status.price = investment > 0 ? highPrice : lowPrice;
 									 		item.status.profitTarget = true;
 									 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
-									 		item.status.trueDate = new Date();
+									 		item.status.trueDate = successDateTime;
 									 	}
-
-		 								var lossDirection = -1 * (investment > 0 ? 1 : -1);
-										var stopLossPrice = (1 + lossDirection*Math.abs(_.get(item, 'stopLoss', 1))) * item.position.avgPrice
-									 	var stopLossFailure = stopLossPrice != 0 && ((investment > 0 && lowPrice < stopLossPrice) || (investment < 0 && highPrice > stopLossPrice));	
-
-									 	if (stopLossFailure) {
+									 	else if (stopLossFailure) {
 									 		item.status.price = investment > 0 ? lowPrice : highPrice;
 									 		item.status.stopLoss = true;
 									 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
-									 		item.status.trueDate = new Date();
+									 		item.status.trueDate = stopLossFailureDateTime;
 									 	}
 
 									 	return success || stopLossFailure;
@@ -1801,8 +1820,8 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 
 								var possibleEndDate = prediction.status.trueDate || prediction.status.date || prediction.endDate;
 								var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, prediction.startDate, possibleEndDate);
-								var highPrice = _.get(extremePricesSinceStartDate, 'high', -Infinity);
-								var lowPrice = _.get(extremePricesSinceStartDate, 'low', Infinity);
+								var highPrice = _.get(extremePricesSinceStartDate, 'high.price', -Infinity);
+								var lowPrice = _.get(extremePricesSinceStartDate, 'low.price', Infinity);
 								
 								lowPrice = Math.min(lowPrice, currentLowPrice);
 								highPrice = Math.max(highPrice, currentHighPrice);
