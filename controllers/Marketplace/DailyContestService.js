@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-22 13:34:28
+* @Last Modified time: 2018-12-26 11:02:00
 */
 
 'use strict';
@@ -274,7 +274,7 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 
 	Promise.resolve()
 	.then(() => {
-		if(DateHelper.isMarketTrading()) {
+		if(!DateHelper.isMarketTrading()) {
 			APIError.throwJsonError({message: "Can't exit - Market is closed"});
 		} else {
 			return;
@@ -345,7 +345,6 @@ module.exports.getDailyContestWinners = (args, res, next) => {
 * Get daily contest top stocks
 */
 module.exports.getDailyContestTopStocks = (args, res, next) => {
-	try{
 	const _d = _.get(args, 'date.value', '');
 	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
 	
@@ -379,7 +378,7 @@ module.exports.getDailyContestTopStocks = (args, res, next) => {
 	.catch(err => {
 		console.log(err);
 		return res.status(400).send({msg: err.msg});	
-	})} catch(err){console.log(err);}
+	})
 };
 
 
