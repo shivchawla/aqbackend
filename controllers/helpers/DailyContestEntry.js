@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-26 12:33:02
+* @Last Modified time: 2018-12-26 12:52:44
 */
 
 'use strict';
@@ -1563,8 +1563,8 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 						 	}
 
 						 	var lossDirection = -1 * (investment > 0 ? 1 : -1);
-							var stopLossPrice = (1 + lossDirection*Math.abs(_.get(item, 'stopLoss', 1))) * item.position.avgPrice
-						 	var stopLossFailure = (investment > 0 && lowPrice < stopLossPrice) || (investment < 0 && highPrice > stopLossPrice)	
+							var stopLossPrice = (1 + lossDirection*Math.abs(_.get(item, 'stopLoss', 1))) * item.position.avgPrice;
+						 	var stopLossFailure = stopLossPrice != 0 && ((investment > 0 && lowPrice < stopLossPrice) || (investment < 0 && highPrice > stopLossPrice));	
 
 						 	if (stopLossFailure) {
 						 		item.status.price = investment > 0 ? lowPrice : highPrice;
