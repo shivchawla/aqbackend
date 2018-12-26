@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-17 13:59:13
+* @Last Modified time: 2018-12-26 11:14:47
 */
 
 'use strict';
@@ -15,8 +15,10 @@ const SecurityHelper = require("../helpers/Security");
 const PortfolioHelper = require("../helpers/Portfolio"); 
 const AdviceHelper = require("../helpers/Advice"); 
 const InvestorModel = require("../../models/Marketplace/Investor");
+const AdvisorModel = require("../../models/Marketplace/Advisor");
 const AdviceModel = require("../../models/Marketplace/Advice");
 const WatchlistModel = require("../../models/Marketplace/Watchlist");
+const UserModel = require('../../models/user');
 const APIError = require('../../utils/error');
 
 var isBusy = {};
@@ -182,9 +184,24 @@ function _handleStockUnsubscription(req, res) {
 */
 function _handleWatchlistUnsubscription(req, res) {
 	const watchlistId = req.watchlistId;
+	const advisorId = req.advisorId;
 	const userId = req.userId;
 
-	return WatchlistModel.fetchWatchlist({user: userId, _id: watchlistId})
+	return UserModel.fetchUser({_id: userId}, {fields:'email'})
+	.then(user => {
+		const userEmail = _.get(user, 'email', null);
+		const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+		
+		let advisorSelection = {user: userId};
+		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
+			advisorSelection = {_id: advisorId};
+		}
+
+		return AdvisorModel.fetchAdvisor(advisorSelection, {fields:'_id user'})
+		.then(advisor => {
+			return WatchlistModel.fetchWatchlist({user: advisor.user._id, _id: watchlistId});	
+		});	
+	})	
 	.then(watchlist => {
 		if(watchlist && watchlist.securities) {
 			watchlist.securities.forEach(security => {
@@ -287,9 +304,24 @@ function _handlePortfolioSubscription(req, res) {
 */
 function _handleWatchlistSubscription(req, res) {
 	const watchlistId = req.watchlistId;
+	const advisorId = req.advisorId;
 	const userId = req.userId;
 
-	return WatchlistModel.fetchWatchlist({user: userId, _id: watchlistId})
+	return UserModel.fetchUser({_id: userId}, {fields:'email'})
+	.then(user => {
+		const userEmail = _.get(user, 'email', null);
+		const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+		
+		let advisorSelection = {user: userId};
+		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
+			advisorSelection = {_id: advisorId};
+		}
+
+		return AdvisorModel.fetchAdvisor(advisorSelection, {fields:'_id user'})
+		.then(advisor => {
+			return WatchlistModel.fetchWatchlist({user: advisor.user._id, _id: watchlistId});	
+		});	
+	})
 	.then(watchlist => {
 		if(watchlist && watchlist.securities) {
 			return Promise.mapSeries(watchlist.securities, function(security){
