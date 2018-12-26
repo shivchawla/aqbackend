@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-26 13:52:52
+* @Last Modified time: 2018-12-26 13:58:23
 */
 
 'use strict';
@@ -942,7 +942,7 @@ function _getExtremePrices(history, startDate, endDate) {
 		var lowPriceDetail = _.minBy(relevantHistory, 'low');
 
 		return {
-			high: {price: _.get(highPriceDetail, 'high', -Infinity), datetime: _.get(highPriceDetail, 'datetime', null)} 
+			high: {price: _.get(highPriceDetail, 'high', -Infinity), datetime: _.get(highPriceDetail, 'datetime', null)}, 
 			low: {price: _.get(lowPriceDetail, 'low', -Infinity), datetime: _.get(lowPriceDetail, 'datetime', null)} 
 		};
 	} else {
