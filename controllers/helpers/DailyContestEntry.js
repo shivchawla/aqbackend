@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-26 15:50:17
+* @Last Modified time: 2018-12-26 16:43:56
 */
 
 'use strict';
@@ -2123,15 +2123,17 @@ module.exports.updatePerformanceFormat = function() {
 	"2018-12-03","2018-12-04","2018-12-05", "2018-12-06", "2018-12-07", 
 	"2018-12-10","2018-12-11", "2018-12-12", "2018-12-13", "2018-12-14", 
     "2018-12-17", "2018-12-18", "2018-12-19", "2018-12-20", "2018-12-21", 
-    "2018-12-24"];
+    "2018-12-24", "2018-12-26"];
 
     return Promise.mapSeries(dates, function(date) {
     	date = DateHelper.getMarketCloseDateTime(date);
-
-    	return DailyContestEntryModel.fetchDistinctAdvisors({date: date})
+    	
+    	console.log(date);
+    	
+    	return DailyContestEntryModel.fetchDistinctAdvisors()
     	.then(distinctAdvisors => {
     		return Promise.mapSeries(distinctAdvisors, function(advisorId) {
-    			return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId})
+    			return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
     			.then(pnlStatsForAdvisor => {
     				if (pnlStatsForAdvisor) {
     					const pnlStats = pnlStatsForAdvisor.toObject();
@@ -2143,8 +2145,7 @@ module.exports.updatePerformanceFormat = function() {
     							const val = _.get(pnlStats, `detail.${detailType}.active`, null);
 								if (val) {
 	    							_.set(pnlStats, `detail.${detailType}.all`, val);
-	    							_.set(pnlStats, `detail.${detailType}.active`, null);
-	    							delete pnlStats.detail[`${detailType}`].all;
+	    							delete pnlStats.detail[`${detailType}`].active;
     							}
 							});
 
@@ -2160,7 +2161,7 @@ module.exports.updatePerformanceFormat = function() {
 
 							var netPnlTypes = ["realized", "total"];
 
-							netPnlTypes.forEach(netPnlTypes => {
+							netPnlTypes.forEach(netPnlType => {
 								const val = _.get(pnlStats, `net.${netPnlType}.all`, null);
 								if (val) {
     								_.set(pnlStats, `net.${netPnlType}.portfolio`, val);
@@ -2179,9 +2180,9 @@ module.exports.updatePerformanceFormat = function() {
 
 					}
     			});		
-    		}
-    	})
-    })
+    		});
+    	});
+    });
 };
 
 
