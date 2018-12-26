@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-26 13:58:23
+* @Last Modified time: 2018-12-26 14:20:15
 */
 
 'use strict';
@@ -1561,6 +1561,7 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 							if (success) {
 						 		item.status.price = investment > 0 ? highPrice : lowPrice;
 						 		item.status.profitTarget = true;
+						 		item.status.stopLoss = false;
 						 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
 						 		item.status.trueDate = new Date();
 						 	}
@@ -1572,6 +1573,7 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 						 	if (stopLossFailure) {
 						 		item.status.price = investment > 0 ? lowPrice : highPrice;
 						 		item.status.stopLoss = true;
+						 		item.status.profitTarget = false;
 						 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
 						 		item.status.trueDate = new Date();
 						 	}
@@ -1627,7 +1629,7 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 
 									 	//If both are true, find which one hit first ****
 									 	if (success && stopLossFailure) {
-								 			if (moment(successDateTime).isBefore(stopLossFailureDateTime)) {
+								 			if (moment(successDateTime).isBefore(moment(stopLossFailureDateTime))) {
 								 				stopLossFailure = false;
 									 		} else {
 									 			success = false;
@@ -1637,12 +1639,14 @@ module.exports.checkForPredictionTarget = function(category = "active") {
 									 	if (success) {
 									 		item.status.price = investment > 0 ? highPrice : lowPrice;
 									 		item.status.profitTarget = true;
+									 		item.status.stopLoss = false;
 									 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
 									 		item.status.trueDate = successDateTime;
 									 	}
 									 	else if (stopLossFailure) {
 									 		item.status.price = investment > 0 ? lowPrice : highPrice;
 									 		item.status.stopLoss = true;
+									 		item.status.profitTarget = false;
 									 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
 									 		item.status.trueDate = stopLossFailureDateTime;
 									 	}
