@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-11 17:57:33
+* @Last Modified time: 2018-12-26 18:42:36
 */
 
 'use strict';
@@ -31,14 +31,14 @@ function _computeContestWinners(date) {
 			return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
 			.then(pnlStatsForAdvisor => {
 
-				//Winners are based on active pnl () and not realized
+				//Winners are based on active (all) pnl () and not realized
 				//Active pnl 
-				var activePnlStats =  _.get(pnlStatsForAdvisor, 'detail.cumulative.active.all.net', {});
+				var allPredictionsPnlStats =  _.get(pnlStatsForAdvisor, 'detail.cumulative.all.portfolio.net', {});
 	
-				var pnlPct = _.get(activePnlStats, 'pnlPct', 0);
-				var cost = _.get(activePnlStats, 'cost', 0);
-				var profitFactor = _.get(activePnlStats, 'profitFactor', 0);
-				var pnl = _.get(activePnlStats, 'pnl', 0);
+				var pnlPct = _.get(allPredictionsPnlStats, 'pnlPct', 0);
+				var cost = _.get(allPredictionsPnlStats, 'cost', 0);
+				var profitFactor = _.get(allPredictionsPnlStats, 'profitFactor', 0);
+				var pnl = _.get(allPredictionsPnlStats, 'pnl', 0);
 
 				return Object.assign({advisor: advisorId}, {pnlStats: {total: {pnlPct, pnl, profitFactor, cost}}});
 			})
@@ -276,9 +276,9 @@ function _getAdvisorPerformanceDigest(advisorId, date) {
 	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
 	.then(pnlStats => {
         const advisorDigest = {
-        	activePredictions: _.get(pnlStats, 'detail.cumulative.active.all.net.count', 0),
-        	dailyPnl: `${(_.get(pnlStats, 'detail.daily.active.net.pnlPct', 0)*100).toFixed(2)}%`,
-        	totalPnl: `${(_.get(pnlStats, 'detail.cumulative.active.all.net.pnlPct', 0)*100).toFixed(2)}%`
+        	allPredictions: _.get(pnlStats, 'detail.cumulative.all.portfolio.net.count', 0),
+        	dailyPnl: `${(_.get(pnlStats, 'detail.daily.all.net.pnlPct', 0)*100).toFixed(2)}%`,
+        	totalPnl: `${(_.get(pnlStats, 'detail.cumulative.all.portfolio.net.pnlPct', 0)*100).toFixed(2)}%`
     	}
 
     	return advisorDigest;
@@ -302,8 +302,8 @@ function _getContestAdvisors(options) {
 	.then(distinctAdvisors => {
 		var successRateMin = _.get(options, 'winRatioMin', 0);
 		var successRateMax = _.get(options, 'winRatioMax', 1.0);
-		var activePredictionsMin = _.get(options, 'activePredictionsMin', 0);
-		var activePredictionsMax = _.get(options, 'activePredictionsMax', Infinity);
+		var allPredictionsMin = _.get(options, 'allPredictionsMin', 0);
+		var allPredictionsMax = _.get(options, 'allPredictionsMax', Infinity);
 
 		return Promise.map(distinctAdvisors, function(advisorId) {
 			return DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId})
@@ -312,12 +312,12 @@ function _getContestAdvisors(options) {
 					const winRatio = _.get(pnlStats, 'net.all.net.winRatio', 0) || 0;
 					const successRate = winRatio > 0 ? winRatio/(1+winRatio) : 1.0;
 
-					const activePredictions = _.get(pnlStats, 'detail.cumulative.active.all.net.count', 0);
+					const allPredictions = _.get(pnlStats, 'detail.cumulative.all.portfolio.net.count', 0);
 					const totalPredictions = _.get(pnlStats, 'net.all.net.count', 0);
 
 					if (successRate >= successRateMin && successRate <= successRateMax &&
-							activePredictions >= activePredictionsMin && activePredictions <= activePredictionsMax) {
-						return {successRate, activePredictions, totalPredictions, advisorId};
+							allPredictions >= allPredictionsMin && allPredictions <= allPredictionsMax) {
+						return {successRate, allPredictions, totalPredictions, advisorId};
 					} else {
 						return null;
 					}
@@ -348,27 +348,27 @@ module.exports.sendTemplateEmailToParticipants = function(emailType) {
 
 			case "zeroPredictions": 
 				templateId = config.get('dailycontest_zero_predictions_advisors_template'); 
-				return _getContestAdvisors({activePredictionsMax: 0});
+				return _getContestAdvisors({allPredictionsMax: 0});
 				break;
 
 			case "lowProfitabilityLowPredictions": 
 				templateId = config.get('dailycontest_low_profitability_low_predictions_advisors_template'); 
-				return _getContestAdvisors({activePredictionsMin: 1, activePredictionsMax: 5, successRateMax: 0.5});
+				return _getContestAdvisors({allPredictionsMin: 1, allPredictionsMax: 5, successRateMax: 0.5});
 				break;	
 
 			case "highProfitabilityLowPredictions": 
 				templateId = config.get('dailycontest_high_profitability_low_predictions_advisors_template'); 
-				return _getContestAdvisors({activePredictionsMin: 1, activePredictionsMax: 5, successRateMin: 0.5});
+				return _getContestAdvisors({allPredictionsMin: 1, allPredictionsMax: 5, successRateMin: 0.5});
 				break;
 
 			case "lowProfitabilityHighPredictions": 
 				templateId = config.get('dailycontest_low_profitability_high_predictions_advisors_template'); 
-				return _getContestAdvisors({activePredictionsMin: 5, successRateMax: 0.5});
+				return _getContestAdvisors({allPredictionsMin: 5, successRateMax: 0.5});
 				break;
 
 			case "highProfitabilityHighPredictions": 
 				templateId = config.get('dailycontest_high_profitability_high_predictions_advisors_template'); 
-				return _getContestAdvisors({activePredictionsMin: 5, successRateMin: 0.5});
+				return _getContestAdvisors({allPredictionsMin: 5, successRateMin: 0.5});
 				break;
 
 			default: templateId = config.get('dailycontest_all_advisors_template'); return distinctAdvisors; break;
