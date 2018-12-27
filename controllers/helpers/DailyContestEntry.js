@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-26 14:20:15
+* @Last Modified time: 2018-12-27 10:19:58
 */
 
 'use strict';
@@ -1082,9 +1082,8 @@ function _computeUpdatedPredictions(predictions, date) {
 				} else if (failure) {
 					
 					var stopLossDirection = updatedCallPricePrediction.position.investment > 0 ? -1 : 1;
-					// var stopLoss = Math.abs(_.get(prediction, 'status.stopLoss', 1));
-					var stopLoss = 1; // This should be removed
-					var stopLossPrice = (1+stopLossDirection*stopLoss)*updatedCallPricePrediction.position.avgprice;
+					var stopLoss = Math.abs(_.get(prediction, 'stopLoss', 1));
+					var stopLossPrice = (1+stopLossDirection*stopLoss)*updatedCallPricePrediction.position.avgPrice;
 					updatedCallPricePrediction.position.lastPrice = stopLossPrice;
 					
 					return [updatedCallPricePrediction.position];
@@ -1140,7 +1139,7 @@ function _computeTotalPnlStats(advisorId, date, options) {
 				var stopLossDirection = item.position.investment > 0 ? -1 : 1;
 				var stopLoss = Math.abs(_.get(item, 'stopLoss', 1));
 
-				var stopLossPrice = (1+stopLossDirection*stopLoss)*item.position.avgprice;
+				var stopLossPrice = (1+stopLossDirection*stopLoss)*item.position.avgPrice;
 				item.position.lastPrice = stopLossPrice;
 			}
 
@@ -1220,7 +1219,7 @@ function _computeDailyPnlStats(advisorId, date, options) {
 					var stopLossDirection = item.position.investment > 0 ? -1 : 1;
 					var stopLoss = Math.abs(_.get(item, 'stopLoss', 1));
 
-					var stopLossPrice = (1+stopLossDirection*stopLoss)*item.position.avgprice;
+					var stopLossPrice = (1+stopLossDirection*stopLoss)*item.position.avgPrice;
 					item.position.lastPrice = stopLossPrice;
 				}
 
