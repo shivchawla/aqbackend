@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 14:03:07
+* @Last Modified time: 2018-12-27 15:25:47
 */
 
 'use strict';
@@ -1509,7 +1509,7 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 
 			});
 
-			Promise.map(endedPredictions, function(endedPrediction) {
+			Promise.map(endedPredictions, function(item) {
 				var manualExit = _.get(item, 'status.manualExit', false);
 				var lastPrice = _.get(item, 'position.lastPrice', 0);
 				var investment = _.get(item, 'position.investment', 0);
@@ -1787,10 +1787,8 @@ module.exports.addPredictions = function(advisorId, predictions, date) {
 		return AdvisorHelper.updateAdvisorAccountDebit(advisorId, predictions);
 	})
 	.then(updatedAdvisor => {
-		return exports.updateLatestPortfolioStatsForAdvisor(advisorId)
-	})
-	.then(() => {
-		return exports.getPortfolioStatsForDate(advisorId);
+		exports.updateLatestPortfolioStatsForAdvisor(advisorId);
+		return;
 	})
 };
 
