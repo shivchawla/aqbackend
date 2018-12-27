@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-08 10:21:28
+* @Last Modified time: 2018-12-26 10:40:23
 */
 'use strict';
 const config = require('config');
@@ -11,6 +11,7 @@ const Promise = require('bluebird');
 const WebSocket = require('ws');
 
 const AdvisorModel = require('../../models/Marketplace/Advisor');
+const UserModel = require('../../models/user');
 const APIError = require('../../utils/error');
 
 const DateHelper = require('../../utils/Date');
@@ -80,9 +81,19 @@ function _sendAllPredictionUpdates() {
 function _handlePredictionSubscription(req, res) {
 	return new Promise(resolve => {
 		const userId = req.userId;
+		const advisorId = req.advisorId;
 		const category = req.category;
 
-		return AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id'})
+ 		return UserModel.fetchUser({_id: userId}, {fields:'email'})
+ 		.then(user => {
+ 			const userEmail = _.get(user, 'email', null);
+ 			const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+			let advisorSelection = {user: userId};
+			if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
+				advisorSelection = {_id: advisorId};
+			}
+ 			return AdvisorModel.fetchAdvisor(advisorSelection, {fields:'_id'});	
+ 		})
 		.then(advisor => {
 			if (advisor) {
 
