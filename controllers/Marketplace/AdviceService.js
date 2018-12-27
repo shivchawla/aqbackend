@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-03 18:46:38
+* @Last Modified time: 2018-12-27 16:42:19
 */
 
 'use strict';
@@ -475,7 +475,7 @@ module.exports.getAdvices = function(args, res, next) {
     return Promise.all([
     	userId ? AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id', insert: true}) : null,
 		userId ? InvestorModel.fetchInvestor({user:userId}, {fields: '_id', insert: true}) : null,
-		userId ? UserModel.fetchUsers({email:{'$in': config.get('admin_user')}}, {fields:'_id'}) : []
+		userId ? UserModel.fetchUsers({email:{'$in': config.get('admin_user')}}, {_id:1}) : []
 	])
     .then(([advisor, investor, admins]) => {
     	
@@ -929,7 +929,7 @@ module.exports.approveAdvice = function(args, res, next) {
 	const adviceId = args.adviceId.value;
 	const approval = args.body.value;
 
-	return UserModel.fetchUsers({email:{'$in': config.get('admin_user')}}, {fields:'_id'})
+	return UserModel.fetchUsers({email:{'$in': config.get('admin_user')}}, {_id:1})
 	.then(users => {
 		if (users) {
 			if (users.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
@@ -955,7 +955,7 @@ module.exports.approveAdviceNew = (args, res, next) => {
 	const approval = _.get(args, 'body.value', {});
 
 	return Promise.all([
-		UserModel.fetchUsers({email: {$in: config.get('admin_user')}}, {$fields: '_id'}),
+		UserModel.fetchUsers({email: {$in: config.get('admin_user')}}, {_id:1}),
 		AdviceModel.fetchAdvice({_id: adviceId}, {fields: 'name'})
 	])
 	.then(([users, advice]) => {

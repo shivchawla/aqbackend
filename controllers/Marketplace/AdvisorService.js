@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 16:21:33
+* @Last Modified time: 2018-12-27 16:42:43
 */
 
 'use strict';
@@ -264,7 +264,7 @@ module.exports.approveAdvisor = function(args, res, next) {
 	const advisorId = args.advisorId.value;
 	const approval = args.body.value;
 
-	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {fields:'_id'})
+	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {_id:1})
 	.then(users => {
 		if(users) {
 			if(users.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
@@ -302,7 +302,7 @@ module.exports.fetchAdvisorByName = function(args, res, next) {
 
     const userId = args.user._id;
 
-    return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {fields:'_id'})
+    return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {_id:1})
     .then(users => {
         if((users||[]).map(item => item._id.toString()).indexOf(userId.toString()) == -1) {
             APIError.throwJsonError({message: "User not authorized to fetch advisors", errorCode: 1505});

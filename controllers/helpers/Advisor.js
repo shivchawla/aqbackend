@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:44:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-24 17:26:35
+* @Last Modified time: 2018-12-27 16:40:38
 */
 
 'use strict';
@@ -12,7 +12,7 @@ const config = require('config');
 const _ = require('lodash');
 
 module.exports.getAdminAdvisors = function() {
-	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {fields:'_id'})
+	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {_id:1})
 	.then(users => {
 		if(users) {
 			var userIds = users.map(item => item._id); 
@@ -24,7 +24,7 @@ module.exports.getAdminAdvisors = function() {
 };
 
 module.exports.getAdminAdvisor = function(userId) {
-	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {fields:'_id'})
+	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {_id:1})
 	.then(users => {
 		if(userId && users && users.map(item => item._id.toString()).indexOf(userId.toString()) != -1) {
 			return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'});

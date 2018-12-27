@@ -289,7 +289,7 @@ module.exports.getContestEntries = function(args, res, next) {
     return Promise.all([
     	userId ? AdvisorModel.fetchAdvisor({user:userId}, {fields:'_id', insert: true}) : null,
 		userId ? InvestorModel.fetchInvestor({user:userId}, {fields: '_id', insert: true}) : null,
-		userId ? UserModel.fetchUsers({email:{'$in': config.get('admin_user')}}, {fields:'_id'}) : []
+		userId ? UserModel.fetchUsers({email:{'$in': config.get('admin_user')}}, {_id:1}) : []
 	])
     .then(([advisor, investor, admins]) => {
     	

@@ -1,6 +1,7 @@
 'use strict';
 const mongoose = require('./index');
 const Schema = mongoose.Schema;
+const _ = require('lodash');
 
 const User = new Schema({    
     email: {
@@ -84,8 +85,8 @@ User.statics.fetchUser = function(query, options = {}) {
 
 User.statics.fetchUsers = function(query, projections, options) {
     return this.find(query, projections)
-    .skip(options.skip ? options.skip : 0)
-    .limit(options.limit ? options.limit: 0)
+    .skip(_.get(options, 'skip', 0))
+    .limit(_.get(options, 'limit', 10))
     .execAsync()
 };
 

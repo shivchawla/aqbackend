@@ -291,7 +291,7 @@ exports.sendTemplateEmail = function (args, res, next) {
     Promise.resolve()
     .then(() => {
         if (userId) { 
-            return UserModel.fetchUsers({email:{'$in': config.get('admin_user')}}, {fields:'_id'});
+            return UserModel.fetchUsers({email:{'$in': config.get('admin_user')}}, {_id:1});
         } else {
             return [];
         }
