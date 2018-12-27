@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-26 15:50:37
+* @Last Modified time: 2018-12-27 15:39:29
 */
 
 'use strict';
@@ -174,7 +174,7 @@ module.exports.getDailyContestNextStock = function(args, res, next) {
 		if (advisor) {
 			const advisorId = advisor._id.toString()
 
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate:false});
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate:false});
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} 
@@ -214,11 +214,11 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	let validStartDate = DailyContestEntryHelper.getValidStartDate();
 
 	return Promise.resolve()
-	.then(() => {
+	/*.then(() => {
 		if (!DateHelper.isMarketTrading()) {
 			APIError.throwJsonError({message: "Market is closed!"})
 		}
-	})
+	})*/
 	.then(() => {
 		//Check if investment amount is either 25, 50, 75 or 100K
 		return Promise.map(entryPredictions.map(item => {return _.get(item, 'position.investment');}), function(investment) {
@@ -290,7 +290,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				APIError.throwJsonError({message: `Insufficient funds to create predictions. Only ${liquidCash} is available`});
 			}
 			
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "active", priceUpdate: false});
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "all", priceUpdate: false});
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}
@@ -364,7 +364,7 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 		if (advisor) {
 			advisorId = advisor._id.toString();
 			var date = DateHelper.getMarketCloseDateTime();
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "active", priceUpdate: false});
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false});
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}

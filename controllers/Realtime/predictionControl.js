@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 15:22:46
+* @Last Modified time: 2018-12-27 15:35:49
 */
 'use strict';
 const config = require('config');
@@ -47,8 +47,8 @@ function _sendPredictionUpdates(subscription) {
 		if (advisorId) {
 			return Promise.all([
 				DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category}),
-				DailyContestEntryHelper.getPnlStatsForDate(advisorId, date, category)
-				DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date, category)
+				DailyContestEntryHelper.getPnlStatsForDate(advisorId, date, category),
+				DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date)
 			]);
 		} else {
 			console.log("WS: Advisor Invalid");
@@ -57,7 +57,7 @@ function _sendPredictionUpdates(subscription) {
 		
 	})
 	.then(([predictions, pnlStats, portStats]) => {
-		return _sendWSResponse(subscription.response, {advisorId, category, predictions, pnlStats, portStats);
+		return _sendWSResponse(subscription.response, {advisorId, category, predictions, pnlStats, portStats});
 	})
 	.catch(err => {
 		subscription.errorCount += 1;	
