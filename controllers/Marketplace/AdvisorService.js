@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-29 13:05:33
+* @Last Modified time: 2018-12-27 16:21:33
 */
 
 'use strict';
@@ -285,27 +285,55 @@ module.exports.approveAdvisor = function(args, res, next) {
 };
 
 module.exports.fetchAdvisorByName = function(args, res, next) {
-	const name = _.get(args, 'name.value', '');
-	const firstNameQuery = {firstName: {$regex: `${name}`, $options: "i"}};
-	const lastNameQuery = {lastName: {$regex: `${name}`, $options: "i"}};
-	const skip = _.get(args, 'skip.value', 0);
+	const name = _.get(args, 'name.value', '').split(" ");
+
+    let firstName = ''
+    let lastName = '';
+
+    if (name.length > 1) {
+        firstName = name[0];
+        lastName = name[1];
+    } else if(name.length == 1) {
+        firstName = name[0];
+    }
+
+    const skip = _.get(args, 'skip.value', 0);
 	const limit = _.get(args, 'limit.value', 10); 
-	return UserModel.fetchUsers({
-			$or: [firstNameQuery, lastNameQuery]
-		}, 
-		{firstName: 1, lastName: 1, email: 1},
-		{skip, limit}
-	)
-	.then(users => {
-		return Promise.map(users, user => {
-			return AdvisorModel.fetchAdvisor({user: user._id}, {fields: '_id user'})
-			.then(advisor => {
-				return {...advisor.toObject()};
-			})
-		})
-	})
-	.then(users => {
-		return res.status(200).send(users);
+
+    const userId = args.user._id;
+
+    return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {fields:'_id'})
+    .then(users => {
+        if((users||[]).map(item => item._id.toString()).indexOf(userId.toString()) == -1) {
+            APIError.throwJsonError({message: "User not authorized to fetch advisors", errorCode: 1505});
+        } else {
+            return;
+        }
+    })
+    .then(() => {
+        let dummyAdvisors = config.get('dummy_advisors');
+        var query;
+
+        if (firstName == '' && lastName == '' && dummyAdvisors.length > 0) {
+            query = {email:{$in: dummyAdvisors}};
+        } else {
+            const firstNameQuery = {firstName: {$regex: `${firstName}`, $options: "i"}};
+            const lastNameQuery = {lastName: {$regex: `${lastName}`, $options: "i"}};
+            query = {$or: [firstNameQuery, lastNameQuery]}; 
+        }
+
+        return UserModel.fetchUsers(query, {firstName: 1, lastName: 1, email: 1}, {skip, limit});
+    })
+    .then(users => {
+        return Promise.map(users, user => {
+            return AdvisorModel.fetchAdvisor({user: user._id}, {fields: '_id user'})
+            .then(advisor => {
+                return {...advisor.toObject()};
+            })
+        })
+    })
+	.then(advisors => {
+		return res.status(200).send(advisors);
 	})
 	.catch(err => {
 		console.log(err);
