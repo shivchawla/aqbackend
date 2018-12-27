@@ -3739,7 +3739,7 @@ paths:
         in: query
         type: string
         description: status of prediction
-        default: "active"
+        default: "all"
         enum: ["started", "ended", "all"]
         required: false
       - name: advisorId
@@ -3806,7 +3806,7 @@ paths:
         in: query
         type: string
         description: status of prediction
-        default: "active"
+        default: "all"
         enum: ["all", "ended", "started"]
         required: false
       - name: advisorId
