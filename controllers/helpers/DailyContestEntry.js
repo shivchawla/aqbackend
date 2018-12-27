@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 15:25:47
+* @Last Modified time: 2018-12-27 17:45:29
 */
 
 'use strict';
@@ -1787,8 +1787,8 @@ module.exports.addPredictions = function(advisorId, predictions, date) {
 		return AdvisorHelper.updateAdvisorAccountDebit(advisorId, predictions);
 	})
 	.then(updatedAdvisor => {
-		exports.updateLatestPortfolioStatsForAdvisor(advisorId);
-		return;
+		return exports.updateLatestPortfolioStatsForAdvisor(advisorId);
+
 	})
 };
 
