@@ -2,13 +2,14 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-26 10:40:23
+* @Last Modified time: 2018-12-27 10:32:33
 */
 'use strict';
 const config = require('config');
 const schedule = require('node-schedule');
 const Promise = require('bluebird');
 const WebSocket = require('ws');
+const _ = require('lodash');
 
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const UserModel = require('../../models/user');
