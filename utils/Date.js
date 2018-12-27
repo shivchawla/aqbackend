@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-25 11:45:54
+* @Last Modified time: 2018-12-27 14:04:39
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -280,6 +280,49 @@ module.exports.getTradingDays = function(startDate, endDate) {
 
 	return count;
 };
+
+module.exports.isEndOfWeek = function(date) {
+	date = exports.getDate(date);
+	
+	var previousNonHolidayWeekday = exports.getPreviousNonHolidayWeekday(date, offset = 0)
+	var nextNonHolidayWeekday = exports.getNextNonHolidayWeekday(date);
+
+	return (nextNonHolidayWeekday.getDay() < previousNonHolidayWeekday.getDay()) 
+		&& exports.compareDates(date, previousNonHolidayWeekday) == 0;
+	
+	//date - Thursday (4)
+	//pDate - Thursday()
+	//nDate - Friday (5)  - FALSE
+
+	//date - Friday(5)  (non-holiday)
+	//pDate - Friday(5)
+	//nDate - Monday(0)  - TRUE
+
+	//date - Friday(5)  (holiday)
+	//pDate - Thursday(4) (non-holiday)
+	//nDate - Monday(0) -- FALSE (dates don't match)
+
+	//date - Monday(1)  (holiday)
+	//pDate - Friday(4) (non-holiday)
+	//nDate - Tuesday(2) --  FALSE
+}; 
+
+module.exports.getEndOfWeek = function(date) {
+	while(!exports.isEndOfWeek(date)) {
+		date =	exports.getNextNonHolidayWeekday(date);
+	} 
+
+	return date;
+};
+
+module.exports.getEndOfLastWeek = function(date) {
+	date = exports.getDate(date);
+	
+	//Set 7 days backs
+	date.setDate(date.getDate() - 7);
+	return exports.getEndOfWeek(date);
+	
+}; 
 
 
 const holidays = [
