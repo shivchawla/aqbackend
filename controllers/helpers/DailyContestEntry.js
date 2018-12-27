@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 20:57:52
+* @Last Modified time: 2018-12-27 21:22:03
 */
 
 'use strict';
@@ -2094,13 +2094,20 @@ module.exports.updateAdvisorFormat = function() {
 			
 			return exports.getPredictionsForDate(advisorId, DateHelper.getCurrentDate(), {category:'active', priceUpdate: false})
 			.then(activePredictions => {
-				var investment = activePredictions.length * 100000; 
-
-				if (investment <= 1000000) {
+				
+				let totalInvestment = 0;
+				let cashUsed = 0;
+				activePredictions.forEach(item => {
+					var investment = item.position.investment * 1000;
+					totalInvestment += Math.abs(investment);
+					cashUsed -= investment;
+				});
+				
+				if (totalInvestment <= 1000000) {
 					const newAccount = {
-						investment: investment,
-						liquidCash: Math.max(1000000 - investment, 0),
-						cash: Math.max(1000000 - investment, 0),
+						investment: totalInvestment,
+						liquidCash: Math.max(1000000 - totalInvestment, 0),
+						cash: Math.max(1000000 - cashUsed, 0),
 					};	
 
 					return AdvisorModel.updateAdvisor({_id: advisorId}, {account: newAccount});
@@ -2112,7 +2119,6 @@ module.exports.updateAdvisorFormat = function() {
 		})
     })
 }; 
-
 
 module.exports.updatePerformanceFormat = function() {
 	const dates = ["2018-11-12","2018-11-13","2018-11-14","2018-11-15", "2018-11-16", 
