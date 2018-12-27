@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 14:04:39
+* @Last Modified time: 2018-12-27 19:11:53
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -280,6 +280,34 @@ module.exports.getTradingDays = function(startDate, endDate) {
 
 	return count;
 };
+
+module.exports.isEndOfMonth = function(date) {
+	date = exports.getDate(date);
+	
+	var previousNonHolidayWeekday = exports.getPreviousNonHolidayWeekday(date, offset = 0)
+	var nextNonHolidayWeekday = exports.getNextNonHolidayWeekday(date);
+
+	return ((nextNonHolidayWeekday.getYear() > previousNonHolidayWeekday.getYear()) || (nextNonHolidayWeekday.getMonth() > previousNonHolidayWeekday.getMonth())) 
+		&& exports.compareDates(date, previousNonHolidayWeekday) == 0;
+};
+
+module.exports.getEndOfMonth = function(date) {
+	
+	date = exports.getDate(date);
+	date.setMonth(date.getMonth() + 1);
+	date.setDate(1)
+
+	return exports.getPreviousNonHolidayWeekday(date);
+};
+
+module.exports.getEndOfLastMonth = function(date) {
+	date = exports.getDate(date);
+	
+	//Set date as 1st
+	date.setDate(1);
+	return exports.getPreviousNonHolidayWeekday(date);
+}; 
+
 
 module.exports.isEndOfWeek = function(date) {
 	date = exports.getDate(date);

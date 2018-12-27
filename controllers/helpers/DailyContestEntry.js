@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 17:45:29
+* @Last Modified time: 2018-12-27 20:57:52
 */
 
 'use strict';
@@ -1541,7 +1541,7 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 				
 				const updates = {
 					...advisorAccount, cash: cash,
-					netEquity, grossEquity, grossTotal, netTotal,
+					netEquity, grossEquity, grossTotal, netTotal, 
 					numPredictions: allPredictions.length,
 					numStartedPredictions: startedPredictions.length,
 					numEndedPredictions: endedPredictions.length

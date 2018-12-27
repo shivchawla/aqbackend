@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-26 18:42:36
+* @Last Modified time: 2018-12-27 21:00:59
 */
 
 'use strict';
@@ -23,34 +23,136 @@ const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEnt
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 
-function _computeContestWinners(date) {
+const MIN_DAILY_PCT_CHANGE = 0.005;
+const MIN_WEEKLY_PCT_CHANGE = 0.01;
+const MIN_MONTHLY_PCT_CHANGE = 0.01;
+
+const DAILY_PRIZES = [100, 70, 50];
+const WEEKLY_PRIZES = [500, 350, 250];
+
+function _computeDailyContestWinners(date) {
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(allAdvisors => {
 		return Promise.mapSeries(allAdvisors, function(advisorId) {
 			
-			return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
-			.then(pnlStatsForAdvisor => {
+			var lastWeekDay = DateHelper.getPreviousNonHolidayWeekday(date);
+			return Promise.all([
+				DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId}, date),
+				DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId}, lastWeekDay)
+			])
+			.then(([portfolioStatsToday, portfolioStatsYesterday]) => {
 
-				//Winners are based on active (all) pnl () and not realized
-				//Active pnl 
-				var allPredictionsPnlStats =  _.get(pnlStatsForAdvisor, 'detail.cumulative.all.portfolio.net', {});
-	
-				var pnlPct = _.get(allPredictionsPnlStats, 'pnlPct', 0);
-				var cost = _.get(allPredictionsPnlStats, 'cost', 0);
-				var profitFactor = _.get(allPredictionsPnlStats, 'profitFactor', 0);
-				var pnl = _.get(allPredictionsPnlStats, 'pnl', 0);
+				var netTotalToday = _.get(portfolioStatsToday, 'netTotal', 0.0);
+				var netTotalYesterday = _.get(portfolioStatsYesterday, 'netTotal', 0.0);
+				var cash = _.get(portfolioStatsToday, 'cash', 0)
 
-				return Object.assign({advisor: advisorId}, {pnlStats: {total: {pnlPct, pnl, profitFactor, cost}}});
+				var pnlPct = netTotalYesterday > 0 ?  (netTotalToday/netTotalYesterday) - 1 : 0;
+				var pnl = netTotalToday - netTotalYesterday;
+
+				return Object.assign({advisor: advisorId}, {pnlStats: {pnlPct, pnl, netTotal: netTotalToday, netTotalYesterday, cash}});
 			})
 		})
 		.then(pnlStatsForAllAdvisors => {
 			return pnlStatsForAllAdvisors
-			.filter(item => {return item.pnlStats.total.pnlPct > 0.005})			
-			.sort((a,b) => {return a.pnlStats.total.pnlPct > b.pnlStats.total.pnlPct ? -1 : 1})
-			.slice(0, 5)
+			.filter(item => {return item.pnlStats.pnlPct > MIN_DAILY_PCT_CHANGE})			
+			.sort((a,b) => {return a.pnlStats.pnlPct > b.pnlStats.pnlPct ? -1 : 1})
+			.slice(0, DAILY_PRIZES.length)
 			.map((item, index) => {item.rank = index+1; return item;});
 		});
 	})
+}
+
+function _computeWeeklyContestWinners(date) {
+	if (DateHelper.isEndOfWeek(date)) {
+		
+		var endOfLastWeek = DateHelper.getEndOfLastWeek(date);
+
+		return DailyContestEntryModel.fetchDistinctAdvisors()
+		.then(allAdvisors => {
+			return Promise.mapSeries(allAdvisors, function(advisorId) {
+				
+				return Promise.all([
+					DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId}, date),
+					DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId}, endOfLastWeek)
+				])
+				.then(([portfolioStatsToday, portfolioStatsLastWeek]) => {
+
+					var netTotalToday = _.get(portfolioStatsToday, 'netTotal', 0.0);
+					var netTotalLastWeek = _.get(portfolioStatsLastWeek, 'netTotal', 0.0);
+					var cash = _.get(portfolioStatsToday, 'cash', 0)
+
+					var pnlPct = netTotalLastWeek > 0 ?  (netTotalToday/netTotalLastWeek) - 1 : 0;
+					var pnl = netTotalToday - netTotalLastWeek;
+
+					return Object.assign({advisor: advisorId}, {pnlStats: {pnlPct, pnl, netTotal: netTotalToday, netTotalLastWeek, cash}});
+				})
+			})
+			.then(pnlStatsForAllAdvisors => {
+				return pnlStatsForAllAdvisors
+				.filter(item => {return item.pnlStats.pnlPct > MIN_WEEKLY_PCT_CHANGE})			
+				.sort((a,b) => {return a.pnlStats.pnlPct > b.pnlStats.total.pnlPct ? -1 : 1})
+				.slice(0, WEEKLY_PRIZES.length)
+				.map((item, index) => {item.rank = index+1; return item;});
+			});
+		})
+	} else {
+		return null;
+	}
+}
+
+/*
+* THIS CALCULATES MONTHLY PAYOUT TO THE PARTICIPANTS (NEEDS A LOT OF WORK)
+*/
+function _computeMonthlyPayout(date) {
+	if (DateHelper.isEndOfMonth(date)) {
+		
+		var endOfLastMonth = DateHelper.getEndOfLastMonth(date);
+
+		return DailyContestEntryModel.fetchDistinctAdvisors()
+		.then(allAdvisors => {
+			return Promise.mapSeries(allAdvisors, function(advisorId) {
+				
+				return Promise.all([
+					DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId}, date),
+					DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId}, endOfLastMonth)
+				])
+				.then(([portfolioStatsToday, portfolioStatsLastMonth]) => {
+
+					var netTotalToday = _.get(portfolioStatsToday, 'netTotal', 0.0);
+					var netTotalLastMonth = _.get(portfolioStatsLastMonth, 'netTotal', 0.0);
+					var cash = _.get(portfolioStatsToday, 'cash', 0)
+
+					//var maxNetTotalTillLastMonth = _.get(portfolioStatsLastMonth, 'maxNetTotal', 0.0); 
+					
+					//THis is tricky.....highwater mark is calulated using the payout NAV (and not the max NAV)
+					//var isHigherThanHighWaterMark = netTotalToday > maxNetTotalTillLastMonth;
+					
+					var pnlPct = netTotalLastMonth > 0 ?  (netTotalToday/netTotalLastMonth) - 1 : 0;
+					var pnl = netTotalToday - netTotalLastMonth;
+
+					//HERE WE NEED TO WRITE LOGIC TO COMPUTE THE REWARD MONEY BASED ON PNL
+					//HERE WE NEED TO COMPUTE BETA ADJUSTED RETURNS
+					//What's the investment value if I invested 10Lacs in NIFTY_50 at the start of the Year? 10.1Lacs
+					//What's my investment value = 10.2Lac
+					//My Beta = 0.5, Gain because of skill = 0.2 - max(0.5*0.1, 1% p.m) = 0.15Lac
+					//Profit Share = 10%
+					//Profit = 0.1*15000 = Rs. 1500
+					//Already Payout = Rs. 1000 (at end of month 1)
+					//Net Payout = Rs. 500
+
+					return Object.assign({advisor: advisorId}, {pnlStats: {pnlPct, pnl, netTotal: netTotalToday, netTotalLastMonth, cash}});
+				})
+			})
+			.then(pnlStatsForAllAdvisors => {
+				return pnlStatsForAllAdvisors
+				.filter(item => {return item.pnlStats.pnlPct > MIN_MONTHLY_PCT_CHANGE && item.isHigherThanHighWaterMark})			
+				.sort((a,b) => {return a.pnlStats.pnlPct > b.pnlStats.pnlPct ? -1 : 1})
+				.map((item, index) => {item.rank = index+1; return item;});
+			});
+		})
+	} else {
+		return null
+	}
 }
 
 function _initializeMetrics(prediction) {
@@ -139,16 +241,33 @@ function _computeContestPredictionMetrics(date) {
 	})
 }
 
+function _updateEarningStats(winners, date, category) {
+	return DailyContestEntryModel.fetchDistinctAdvisors({})
+	.then(allAdvisors => {
+		return Promise.mapSeries(allAdvisors, function(advisorId) {
+			let winAmount = 0;
+
+			var idx = winners.map(item => item.advisor).indexOf(advisorId);
+			if (idx != -1) { 
+				var allPrizes = category == "daily" ? DAILY_PRIZES : WEEKLY_PRIZES;
+				winAmount = allPrizes.length >= winners[idx].rank ? allPrizes[winner.rank - 1] : 0;
+			}
+
+			return DailyContestEntryPerformanceModel.updateEarningStats({advisor: advisorId}, date, {earnings: winAmount, category});
+		});
+	});
+}
 
 module.exports.updateContestStats = function(date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
 	//Get al entries started on a date
 	return Promise.all([
-		_computeContestWinners(date),
+		_computeDailyContestWinners(date),
+		_computeWeeklyContestWinners(date),
 		_computeContestPredictionMetrics(date)
 	])
-	.then(([winners, predictionMetrics]) => {
+	.then(([dailyWinners, weeklyWinners, predictionMetrics]) => {
 		var predictionMetricsBySecurity = predictionMetrics.bySecurity;
 		var metricsArray = Object.keys(predictionMetricsBySecurity)
 						.map(item => {return {ticker: item, ...predictionMetricsBySecurity[item]}});
@@ -163,7 +282,11 @@ module.exports.updateContestStats = function(date) {
 
 		var topStocks = {byUsers: topStocksUsers, byInvestment: topStocksInvestment};
 
-		return DailyContestStatsModel.updateContestStats(date, {winners, predictionMetrics, topStocks});
+		return Promise.all([
+			DailyContestStatsModel.updateContestStats(date, {dailyWinners, weeklyWinners, predictionMetrics, topStocks}),
+			_updateEarningStats(dailyWinners || [], date,  "daily"),
+			_updateEarningStats(weeklyWinners || [], date, "weekly")
+		])
 	})
 };
 

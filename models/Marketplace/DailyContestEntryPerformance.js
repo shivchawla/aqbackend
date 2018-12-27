@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-24 19:51:32
+* @Last Modified time: 2018-12-27 21:00:19
 */
 
 
@@ -14,6 +14,12 @@ const moment = require('moment');
 const Schema = mongoose.Schema;
 const DateHelper = require('../../utils/Date');
 const Advisor = require('./Advisor');
+
+
+const EarningStat = new Schema({
+	total: Number, 
+	detail: [{date: Date, value: Number}]
+});
 
 const DailyContestEntryPerformance = new Schema({
 	advisor : {type: Schema.Types.ObjectId, ref: 'Advisor'},
@@ -27,7 +33,11 @@ const DailyContestEntryPerformance = new Schema({
 		net: Schema.Types.Mixed,
 	},
 
-	earningStats: Schema.Types.Mixed
+	earnings: {
+		daily: {current: Number, cumulative: Number},
+		weekly: {current: Number, cumulative: Number},
+		monthly: {current: Number, cumulative: Number}
+	}
 });
 
 DailyContestEntryPerformance.index({advisor: 1, date:1}, {unique: true});
@@ -57,8 +67,8 @@ DailyContestEntryPerformance.statics.updatePortfolioStatsForDate = function(quer
 };
 
 
-DailyContestEntryPerformance.statics.fetchLatestPnlStats = function(query) {
-	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate()); 
+DailyContestEntryPerformance.statics.fetchLatestPnlStats = function(query, date) {
+	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate(date)); 
 	return this.find({...query, date:{$lte: date}}, {pnlStats:1}).sort({date: -1}).limit(1)
 	.then(latestDoc => {
 		return latestDoc && latestDoc.length > 0 ? _.get(latestDoc[0], 'pnlStats', null) : null;
@@ -73,8 +83,8 @@ DailyContestEntryPerformance.statics.fetchLastPnlStats = function(query, date) {
 	});
 };
 
-DailyContestEntryPerformance.statics.fetchLatestPortfolioStats = function(query) {
-	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate()); 
+DailyContestEntryPerformance.statics.fetchLatestPortfolioStats = function(query, date) {
+	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate(date)); 
 	return this.find({...query, date:{$lte: date}}, {portfolioStats:1}).sort({date: -1}).limit(1)
 	.then(latestDoc => {
 		return latestDoc && latestDoc.length > 0 ? _.get(latestDoc[0], 'portfolioStats', null) : null;
@@ -135,6 +145,29 @@ DailyContestEntryPerformance.statics.fetchPortfolioStatsForDate = function(query
 
 DailyContestEntryPerformance.statics.fetchPnlStatsHistory = function(query) {
 	return this.find(query, {pnlStats: 1});
+};
+
+DailyContestEntryPerformance.statics.updateEarningStats = function(query, date, earningDetail) {
+	
+	var category = _.get(earningDetail, 'category', "daily");
+	var key = `earnings.${category}`;
+
+	return this.findOne({...query, date:{$lt: date}}, {earnings:1})
+	.then(doc => {
+		return doc ? _.get(doc.toObject(), key, null) : null;
+	})
+	.then(lastEarnings => {
+		var lastCumulativeAmount = _.get(lastEarnings, 'cumulative', 0);
+		
+		var currentAmount = _.get(earningDetail, 'earning', 0);
+		var newCumulativeAmount = lastCumulativeAmount + currentAmount;
+
+		var updates = {current: currentAmount, cumulative: newCumulativeAmount};
+		
+		return this.updateOne({...query, date: date}, {$set: {[key]: updates}});
+
+	});
+	
 };
 
 const DailyContestEntryPerformanceModel = mongoose.model('DailyContestEntryPerformance', DailyContestEntryPerformance);

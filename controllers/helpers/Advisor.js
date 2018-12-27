@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:44:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 16:40:38
+* @Last Modified time: 2018-12-27 20:53:28
 */
 
 'use strict';
@@ -37,11 +37,38 @@ module.exports.getAdminAdvisor = function(userId) {
 module.exports.updateAdvisorAccountCredit = function(advisorId, prediction) {
 	return AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account'})
 	.then(advisor => {
-		var cashGenerated = prediction.position.avgPrice > 0 ? (prediction.position.lastPrice/prediction.position.avgPrice)*prediction.position.investment : 0;
+		var investment = prediction.position.investment*1000;
+		var cashGenerated = prediction.position.avgPrice > 0 ? (prediction.position.lastPrice/prediction.position.avgPrice)*investment : investment;
+
+		var pnl = cashGenerated - investment;
+
+		//SHORT COVER
+		//Cash = 300
+		//Liquid Cash = 100
+		//Investment = -100
+		//Short Cover or cash generated = -98 (pnl = 2)
+		
+		//=>
+
+		//Cash = 300 - 98 = 202
+		//Investment = 100 - 100 = 0 
+		//Liquid Cash = 100 + 100 + 2 = 202
+		
+		//SELL LONG
+		//Cash = 100
+		//Liquid Cash = 100
+		//Investment = 100
+		//Sell Long Cash Genrated = 98 (pnl = -2)
+
+		//=>
+
+		//Cash = 100 + 98 = 198
+		//Investment = 100 - 100 = 0 
+		//Liquid Cash = 100 + 100 - 2 = 198
 
 		const newAccount = {
-			investment: _.get(advisor, 'account.investment', 0) - prediction.position.investment * 1000,
-			liquidCash: _.get(advisor, 'account.liquidCash', 0) + cashGenerated,
+			investment: _.get(advisor, 'account.investment', 0) - Math.abs(investment),
+			liquidCash: _.get(advisor, 'account.liquidCash', 0) + Math.abs(investment) + pnl,
 			cash: _.get(advisor, 'account.cash', 0) + cashGenerated,
 		};
 
@@ -58,9 +85,32 @@ module.exports.updateAdvisorAccountDebit = function(advisorId, predictions) {
 			investedCapital += _.get(item, 'position.investment', 0) * 1000;	
 		});
 
+		//SHORT
+		//Cash = 200
+		//Liquid Cash = 200
+		//Investment = -100
+		
+		//=>
+
+		//Cash = 300
+		//Liquid Cash = 100
+		//Investment = 100
+
+
+		//LONG
+		//Cash = 200
+		//Liquid Cash = 200
+		//Investment = 100
+		
+		//=>
+
+		//Cash = 100
+		//Liquid Cash = 100
+		//Investment = 100
+		
 		const newAccount = {
-			investment: _.get(advisor, 'account.investment', 0) + investedCapital,
-			liquidCash: _.get(advisor, 'account.liquidCash', 0) - investedCapital,
+			investment: _.get(advisor, 'account.investment', 0) + Math.abs(investedCapital),
+			liquidCash: _.get(advisor, 'account.liquidCash', 0) - Math.abs(investedCapital),
 			cash: _.get(advisor, 'account.cash', 0) - investedCapital,
 		};
 

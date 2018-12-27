@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 10:47:05
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-11-05 16:05:47
+* @Last Modified time: 2018-12-27 21:01:50
 */
 
 'use strict';
@@ -40,7 +40,13 @@ const DailyContestStats = new Schema({
         required: true
     },
 
-    winners: [{
+    dailyWinners: [{
+        advisor: {type: Schema.Types.ObjectId, ref: 'Advisor'},
+        rank: Number,
+        pnlStats: Schema.Types.Mixed
+    }],
+
+    weeklyWinners: [{
         advisor: {type: Schema.Types.ObjectId, ref: 'Advisor'},
         rank: Number,
         pnlStats: Schema.Types.Mixed
