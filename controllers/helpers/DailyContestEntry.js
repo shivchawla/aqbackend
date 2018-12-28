@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 10:39:06
+* @Last Modified time: 2018-12-28 11:01:26
 */
 
 'use strict';
@@ -2154,8 +2154,11 @@ module.exports.updateAdvisorFormat = function() {
 
 // exports.updateAdvisorFormat()
 // .then(() => {
-// exports.updateAllEntriesLatestPortfolioStats();
-// });
+// 	exports.updateAllEntriesLatestPortfolioStats();
+// })
+// .then(() => {
+// 	exports.updatePerformanceFormat();
+// })
 
 
 module.exports.updatePerformanceFormat = function() {
@@ -2165,7 +2168,7 @@ module.exports.updatePerformanceFormat = function() {
 	"2018-12-03","2018-12-04","2018-12-05", "2018-12-06", "2018-12-07", 
 	"2018-12-10","2018-12-11", "2018-12-12", "2018-12-13", "2018-12-14", 
     "2018-12-17", "2018-12-18", "2018-12-19", "2018-12-20", "2018-12-21", 
-    "2018-12-24", "2018-12-26"];
+    "2018-12-24", "2018-12-26", "2018-12-27", "2018-12-28"];
 
     return Promise.mapSeries(dates, function(date) {
     	date = DateHelper.getMarketCloseDateTime(date);
