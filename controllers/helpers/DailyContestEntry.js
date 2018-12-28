@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 10:14:55
+* @Last Modified time: 2018-12-28 10:23:26
 */
 
 'use strict';
@@ -2108,8 +2108,9 @@ module.exports.updateAdvisorFormatForAdvisorId = function(advisorId) {
 			return AdvisorModel.updateAdvisor({_id: advisorId}, {account: newAccount})
 			.then(() => {return true;})
 		} else {
-			
+			return false
 		}
+	});
 };
 
 module.exports.updateAdvisorFormat = function() {
@@ -2127,6 +2128,14 @@ module.exports.updateAdvisorFormat = function() {
 
 					return exports.getPredictionsForDate(advisorId, DateHelper.getCurrentDate(), {category:'all', priceUpdate: false})
 					.then(activePredictions => {
+						let totalInvestment = 0;
+						let cashUsed = 0;
+						activePredictions.forEach(item => {
+							var investment = item.position.investment * 1000;
+							totalInvestment += Math.abs(investment);
+							cashUsed -= investment;
+						});
+		
 						return Promise.map(activePredictions, function(prediction) {
 							prediction.position.investment = (prediction.position.investment/totalInvestment)*700000;
 							return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction); 
@@ -2140,6 +2149,12 @@ module.exports.updateAdvisorFormat = function() {
 		})
     })
 }; 
+
+// exports.updateAdvisorFormat()
+// .then(() => {
+// exports.updateAllEntriesLatestPortfolioStats();
+// });
+
 
 module.exports.updatePerformanceFormat = function() {
 	const dates = ["2018-11-12","2018-11-13","2018-11-14","2018-11-15", "2018-11-16", 
