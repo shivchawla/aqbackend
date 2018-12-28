@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 16:42:43
+* @Last Modified time: 2018-12-28 10:52:16
 */
 
 'use strict';
@@ -317,9 +317,9 @@ module.exports.fetchAdvisorByName = function(args, res, next) {
         if (firstName == '' && lastName == '' && dummyAdvisors.length > 0) {
             query = {email:{$in: dummyAdvisors}};
         } else {
-            const firstNameQuery = {firstName: {$regex: `${firstName}`, $options: "i"}};
-            const lastNameQuery = {lastName: {$regex: `${lastName}`, $options: "i"}};
-            query = {$or: [firstNameQuery, lastNameQuery]}; 
+            const firstNameQuery = firstName!="" ? {firstName: {$regex: `${firstName}`, $options: "i"}} : {};
+            const lastNameQuery = lastName!="" ? {lastName: {$regex: `${lastName}`, $options: "i"}} : {};
+            query = {$and: [firstNameQuery, lastNameQuery]}; 
         }
 
         return UserModel.fetchUsers(query, {firstName: 1, lastName: 1, email: 1}, {skip, limit});

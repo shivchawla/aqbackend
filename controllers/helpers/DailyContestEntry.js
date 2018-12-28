@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 10:33:18
+* @Last Modified time: 2018-12-28 10:39:06
 */
 
 'use strict';
@@ -2108,7 +2108,7 @@ module.exports.updateAdvisorFormatForAdvisorId = function(advisorId) {
 			return AdvisorModel.updateAdvisor({_id: advisorId}, {account: newAccount})
 			.then(() => {return true;})
 		} else {
-			return false
+			return false;
 		}
 	});
 };
@@ -2135,11 +2135,13 @@ module.exports.updateAdvisorFormat = function() {
 							totalInvestment += Math.abs(investment);
 							cashUsed -= investment;
 						});
-		
-						return Promise.map(activePredictions, function(prediction) {
-							prediction.position.investment = (prediction.position.investment/totalInvestment)*700000;
-							return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction); 
-						})
+						
+						if (totalInvestment > 1000000) {
+							return Promise.map(activePredictions, function(prediction) {
+								prediction.position.investment = (prediction.position.investment/totalInvestment)*700000;
+								return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction); 
+							})
+						}
 					})
 					.then(() => {
 						return exports.updateAdvisorFormatForAdvisorId(advisorId);
