@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 21:22:03
+* @Last Modified time: 2018-12-28 09:59:17
 */
 
 'use strict';
@@ -2086,36 +2086,55 @@ module.exports.updatePredictionStatusFormat = function() {
 };
 
 //For new incentive structure
+module.exports.updateAdvisorFormatForAdvisorId = function(advisorId) {
+	return exports.getPredictionsForDate(advisorId, DateHelper.getCurrentDate(), {category:'all', priceUpdate: false})
+	.then(activePredictions => {
+		
+		let totalInvestment = 0;
+		let cashUsed = 0;
+		activePredictions.forEach(item => {
+			var investment = item.position.investment * 1000;
+			totalInvestment += Math.abs(investment);
+			cashUsed -= investment;
+		});
+		
+		if (totalInvestment <= 1000000) {
+			const newAccount = {
+				investment: totalInvestment,
+				liquidCash: Math.max(1000000 - totalInvestment, 0),
+				cash: Math.max(1000000 - cashUsed, 0),
+			};	
+
+			return AdvisorModel.updateAdvisor({_id: advisorId}, {account: newAccount})
+			.then(() => {return true;})
+		} else {
+			return false;
+		}
+};
+
 module.exports.updateAdvisorFormat = function() {
 	return AdvisorModel.fetchAdvisors({}, {fields: '_id'})
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisor) {
 			let advisorId = advisor._id
 			
-			return exports.getPredictionsForDate(advisorId, DateHelper.getCurrentDate(), {category:'active', priceUpdate: false})
-			.then(activePredictions => {
-				
-				let totalInvestment = 0;
-				let cashUsed = 0;
-				activePredictions.forEach(item => {
-					var investment = item.position.investment * 1000;
-					totalInvestment += Math.abs(investment);
-					cashUsed -= investment;
-				});
-				
-				if (totalInvestment <= 1000000) {
-					const newAccount = {
-						investment: totalInvestment,
-						liquidCash: Math.max(1000000 - totalInvestment, 0),
-						cash: Math.max(1000000 - cashUsed, 0),
-					};	
-
-					return AdvisorModel.updateAdvisor({_id: advisorId}, {account: newAccount});
-				} else {
-					console.log("Existing Investment greater than 10 Lacs");
+			return exports.updateAdvisorFormatForAdvisorId(advisorId)
+			.then(updated => {
+				if (!updated) {
 					console.log(advisor);
+					console.log("Existing Investment greater than 10 Lacs");
+					console.log("Normalizing the investment to 7L")
+
+					return Promise.map(activePredictions, function(prediction) {
+						prediction.position.investment = (prediction.position.investment/totalInvestment)*700000;
+						return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction); 
+					})
+					.then(() => {
+						return exports.updateAdvisorFormatForAdvisorId(advisorId);
+					})	
+
 				}
-			});
+			})
 		})
     })
 }; 
