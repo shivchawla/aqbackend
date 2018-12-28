@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 11:01:26
+* @Last Modified time: 2018-12-28 11:32:28
 */
 
 'use strict';
@@ -1525,9 +1525,9 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 							_.get(securityDetail, 'latestDetailRT.close') || 
 							_.get(securityDetail, 'latestDetail.Close', 0);
 
-						var pnl = (avgPrice > 0 ? investment * ((lastPrice/avgPrice) - 1) : 0);
-
-						cash += (Math.abs(investment) + pnl) * 1000;
+						var cashGenerated = avgPrice > 0 ? (lastPrice/avgPrice)*investment : investment;
+						
+						cash += cashGenerated;
 					});
 				} 
 	
@@ -1540,7 +1540,7 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 				var advisorAccount = advisor ? _.get(advisor.toObject(), 'account', {}) : {};
 				
 				const updates = {
-					...advisorAccount, cash: cash,
+					...advisorAccount, cash,
 					netEquity, grossEquity, grossTotal, netTotal, 
 					numPredictions: allPredictions.length,
 					numStartedPredictions: startedPredictions.length,
@@ -2152,14 +2152,18 @@ module.exports.updateAdvisorFormat = function() {
     })
 }; 
 
-// exports.updateAdvisorFormat()
-// .then(() => {
-// 	exports.updateAllEntriesLatestPortfolioStats();
-// })
-// .then(() => {
-// 	exports.updatePerformanceFormat();
-// })
-
+/*
+exports.updateAdvisorFormat()
+.then(() => {
+	exports.updateAllEntriesLatestPortfolioStats();
+})
+.then(() => {
+	exports.updateAllEntriesLatestPnlStats();
+})
+.then(() => {
+	exports.updatePerformanceFormat();
+})
+*/
 
 module.exports.updatePerformanceFormat = function() {
 	const dates = ["2018-11-12","2018-11-13","2018-11-14","2018-11-15", "2018-11-16", 
