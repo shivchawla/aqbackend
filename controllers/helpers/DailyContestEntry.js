@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 11:42:44
+* @Last Modified time: 2018-12-28 13:21:46
 */
 
 'use strict';
@@ -1502,7 +1502,7 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 					var lastPrice = _.get(item, 'position.lastPrice', 0);
 					var avgPrice = _.get(item, 'position.avgPrice', 0);
 
-					var equity = (avgPrice > 0 ? investment * (lastPrice/avgPrice) : investment)*1000;
+					var equity = (avgPrice > 0 ? investment * (lastPrice/avgPrice) : investment);
 					netEquity += equity
 					grossEquity += Math.abs(equity);
 				}
@@ -2093,16 +2093,16 @@ module.exports.updateAdvisorFormatForAdvisorId = function(advisorId) {
 		let totalInvestment = 0;
 		let cashUsed = 0;
 		activePredictions.forEach(item => {
-			var investment = item.position.investment * 1000;
+			var investment = item.position.investment;
 			totalInvestment += Math.abs(investment);
 			cashUsed += investment;
 		});
 		
-		if (totalInvestment <= 1000000) {
+		if (totalInvestment <= 1000) {
 			const newAccount = {
 				investment: totalInvestment,
-				liquidCash: Math.max(1000000 - totalInvestment, 0),
-				cash: Math.max(1000000 - cashUsed, 0),
+				liquidCash: Math.max(1000 - totalInvestment, 0),
+				cash: Math.max(1000 - cashUsed, 0),
 			};	
 
 			return AdvisorModel.updateAdvisor({_id: advisorId}, {account: newAccount})
@@ -2131,14 +2131,14 @@ module.exports.updateAdvisorFormat = function() {
 						let totalInvestment = 0;
 						let cashUsed = 0;
 						activePredictions.forEach(item => {
-							var investment = item.position.investment * 1000;
+							var investment = item.position.investment;
 							totalInvestment += Math.abs(investment);
 							cashUsed -= investment;
 						});
 						
-						if (totalInvestment > 1000000) {
+						if (totalInvestment > 1000) {
 							return Promise.map(activePredictions, function(prediction) {
-								prediction.position.investment = (prediction.position.investment/totalInvestment)*700000;
+								prediction.position.investment = (prediction.position.investment/totalInvestment)*700;
 								return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction); 
 							})
 						}

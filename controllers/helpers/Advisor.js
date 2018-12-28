@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:44:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 20:53:28
+* @Last Modified time: 2018-12-28 13:21:49
 */
 
 'use strict';
@@ -37,7 +37,7 @@ module.exports.getAdminAdvisor = function(userId) {
 module.exports.updateAdvisorAccountCredit = function(advisorId, prediction) {
 	return AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account'})
 	.then(advisor => {
-		var investment = prediction.position.investment*1000;
+		var investment = prediction.position.investment;
 		var cashGenerated = prediction.position.avgPrice > 0 ? (prediction.position.lastPrice/prediction.position.avgPrice)*investment : investment;
 
 		var pnl = cashGenerated - investment;
@@ -82,7 +82,7 @@ module.exports.updateAdvisorAccountDebit = function(advisorId, predictions) {
 		var investedCapital = 0;
 			
 		predictions.forEach(item => {
-			investedCapital += _.get(item, 'position.investment', 0) * 1000;	
+			investedCapital += _.get(item, 'position.investment', 0);	
 		});
 
 		//SHORT
