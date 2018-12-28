@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 19:32:26
+* @Last Modified time: 2018-12-28 20:31:47
 */
 
 'use strict';
@@ -1857,7 +1857,7 @@ module.exports.getDailyContestEntryPnlStats = function(advisorId, symbol, horizo
 				
 				keys.forEach(key => {
 					output[key] = {
-						..._.get(netPnlStats, `${key}.all`, {}),
+						..._.get(netPnlStats, `${key}.portfolio`, {}),
 						tickers: Object.keys(_.get(netPnlStats, `${key}.byTickers`, {}))
 					};
 				});
