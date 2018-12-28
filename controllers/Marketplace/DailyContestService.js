@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 13:31:35
+* @Last Modified time: 2018-12-28 14:05:57
 */
 
 'use strict';
@@ -220,9 +220,9 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		}
 	})*/
 	.then(() => {
-		//Check if investment amount is either 25, 50, 75 or 100K
+		//Check if investment amount is either 10, 25, 50, 75 or 100K
 		return Promise.map(entryPredictions.map(item => {return _.get(item, 'position.investment');}), function(investment) {
-			return [25, 50, 75, 100].indexOf(Math.abs(investment)) !=- 1;
+			return [10, 25, 50, 75, 100].indexOf(Math.abs(investment)) !=- 1;
 		})
 		.then(validInvestments => {
 			var valid = true;
