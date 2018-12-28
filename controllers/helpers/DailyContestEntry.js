@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 11:32:28
+* @Last Modified time: 2018-12-28 11:42:44
 */
 
 'use strict';
@@ -2095,7 +2095,7 @@ module.exports.updateAdvisorFormatForAdvisorId = function(advisorId) {
 		activePredictions.forEach(item => {
 			var investment = item.position.investment * 1000;
 			totalInvestment += Math.abs(investment);
-			cashUsed -= investment;
+			cashUsed += investment;
 		});
 		
 		if (totalInvestment <= 1000000) {
