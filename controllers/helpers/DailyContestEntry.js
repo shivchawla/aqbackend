@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 13:21:46
+* @Last Modified time: 2018-12-28 16:24:11
 */
 
 'use strict';
@@ -1497,12 +1497,12 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 			allPredictions.forEach(item => {
 
 				//Filter out the ended predicition to compute equity/investment
-				if (endedPredictions.indexOf(item._id.toString()) == -1) {
+				if (endedPredictionsIds.indexOf(item._id.toString()) == -1) {
 					var investment = _.get(item, 'position.investment', 0);
 					var lastPrice = _.get(item, 'position.lastPrice', 0);
 					var avgPrice = _.get(item, 'position.avgPrice', 0);
 
-					var equity = (avgPrice > 0 ? investment * (lastPrice/avgPrice) : investment);
+					var equity = avgPrice > 0 ? investment * (lastPrice/avgPrice) : investment;
 					netEquity += equity
 					grossEquity += Math.abs(equity);
 				}
