@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 14:05:57
+* @Last Modified time: 2018-12-28 14:17:53
 */
 
 'use strict';
@@ -384,7 +384,10 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 			APIError.throwJsonError({message: "Prediction not found"});
 		}
 	})
-	.then(final => {
+	.then(() => {
+		return DailyContestEntryHelper.updateLatestPortfolioStatsForAdvisor(advisorId);
+	})
+	.then(() => {
 		return res.status(200).send("Prediction exited successfully");
 	})
 	.catch(err => {
