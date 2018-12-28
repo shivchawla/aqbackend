@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 15:39:29
+* @Last Modified time: 2018-12-28 13:31:35
 */
 
 'use strict';
@@ -283,7 +283,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			var investmentRequired = 0;
 
 			entryPredictions.forEach(item => {
-				investmentRequired += _.get(item, 'position.investment', 0)*1000;
+				investmentRequired += _.get(item, 'position.investment', 0);
 			});
 
 			if (liquidCash < investmentRequired) {
