@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 19:11:53
+* @Last Modified time: 2018-12-28 20:58:23
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -352,7 +352,6 @@ module.exports.getEndOfLastWeek = function(date) {
 	
 }; 
 
-
 const holidays = [
 	"2018-08-22",
 	"2018-09-13",
@@ -362,6 +361,25 @@ const holidays = [
 	"2018-11-07",
 	"2018-11-08",
 	"2018-11-23",
-	"2018-12-25"
+	"2018-12-25",
+	"2019-01-26",
+	"2019-03-04",
+	"2019-03-21",
+	"2019-04-13",
+	"2019-04-14",
+	"2019-04-17",
+	"2019-04-19",
+	"2019-05-01",
+	"2019-06-05",
+	"2019-08-12",
+	"2019-08-15",
+	"2019-09-02",
+	"2019-09-10",
+	"2019-10-02",
+	"2019-10-08",
+	"2019-10-27",
+	"2019-10-28",
+	"2019-11-12",
+	"2019-12-25"
 ].map(item => exports.getDate(item));
 
