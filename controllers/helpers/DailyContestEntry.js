@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 10:23:26
+* @Last Modified time: 2018-12-28 10:33:18
 */
 
 'use strict';
@@ -2098,7 +2098,7 @@ module.exports.updateAdvisorFormatForAdvisorId = function(advisorId) {
 			cashUsed -= investment;
 		});
 		
-		if (totalInvestment > 1000000) {
+		if (totalInvestment <= 1000000) {
 			const newAccount = {
 				investment: totalInvestment,
 				liquidCash: Math.max(1000000 - totalInvestment, 0),
