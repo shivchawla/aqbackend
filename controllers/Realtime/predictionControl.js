@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 15:35:49
+* @Last Modified time: 2018-12-28 19:33:21
 */
 'use strict';
 const config = require('config');
@@ -115,7 +115,7 @@ function _handlePredictionSubscription(req, res) {
 				resolve(_sendPredictionUpdates(predictionSubscribers[userId]));
 			
 			} else {
-				APIError.throwJsonError({msg: "No advisor found. WS request can't be completed"});
+				APIError.throwJsonError({message: "No advisor found. WS request can't be completed"});
 			}
 
 		});

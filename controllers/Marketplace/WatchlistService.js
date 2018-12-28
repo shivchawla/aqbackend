@@ -191,7 +191,7 @@ module.exports.deleteWatchlist = function(args, res, next) {
 
 	return WatchlistModel.deleteWatchlist({_id: watchlistId, user: userId})
 	.then(watchlist => {
-		return res.status(200).json({_id: watchlistId, user: userId, msg: "Watchlist deleted"});
+		return res.status(200).json({_id: watchlistId, user: userId, message: "Watchlist deleted"});
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);	

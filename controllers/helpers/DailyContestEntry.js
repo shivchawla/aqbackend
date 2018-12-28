@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 18:54:09
+* @Last Modified time: 2018-12-28 19:32:26
 */
 
 'use strict';
@@ -1410,7 +1410,7 @@ module.exports.getContestEntryForUser = function(userId) {
 		if (advisor) {
 			return DailyContestEntryModel.fetchEntry({advisor:advisor._id}, {fields:'_id'})
 		} else {
-			APIError.throwJsonError({msg: "Advisor not found. WS request can't be completed"});
+			APIError.throwJsonError({message: "Advisor not found. WS request can't be completed"});
 		}
 	})
 };
@@ -1843,7 +1843,7 @@ module.exports.getDailyContestEntryPnlStats = function(advisorId, symbol, horizo
 			const nSymbol = symbol.toUpperCase();
 			return DailyContestEntryPerformanceModel.fetchLatestPnlStatsForSymbol({advisor: advisorId}, nSymbol);
 		} else {
-			APIError.throwJsonError({msg:"oops"});
+			APIError.throwJsonError({message:"oops"});
 		}
 	})
 	.then(latestPnlStats => {
@@ -1865,7 +1865,7 @@ module.exports.getDailyContestEntryPnlStats = function(advisorId, symbol, horizo
 				return output;
 			}
 		} else {
-			APIError.throwJsonError({msg: "No Pnl Stats"});
+			APIError.throwJsonError({message: "No Pnl Stats"});
 		}
 	})
 };

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 18:24:52
+* @Last Modified time: 2018-12-28 19:31:18
 */
 
 'use strict';
@@ -195,7 +195,7 @@ module.exports.getDailyContestNextStock = function(args, res, next) {
 		return res.status(200).send(possibleTickers);
 	})
 	.catch(err => {
-		return res.status(400).send({msg: err.msg});	
+		return res.status(400).send({messge: err.message});	
 	})
 };
 
@@ -256,9 +256,9 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 					} 
 
 					if (investment > 0 && target < 1.015*latestPrice) {
-						APIError.throwJsonError({msg:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% higher than call price`});
+						APIError.throwJsonError({message:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% higher than call price`});
 					} else if (investment < 0 && target > 1.015*latestPrice) {
-						APIError.throwJsonError({msg:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% lower than call price`});
+						APIError.throwJsonError({message:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% lower than call price`});
 					}
 					return;
 				} else {
@@ -287,7 +287,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			});
 
 			if (liquidCash < investmentRequired) {
-				APIError.throwJsonError({message: `Insufficient funds to create predictions. Only ${liquidCash} is available`});
+				APIError.throwJsonError({message: `Insufficient funds to create predictions.`});
 			}
 			
 			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "all", priceUpdate: false});
@@ -303,7 +303,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			var newPredictioninTicker = entryPredictions.filter(item => {return item.position.security.ticker == ticker;});
 
 			if (existingPredictionsInTicker.length + newPredictioninTicker.length > 3) {
-				APIError.throwJsonError({msg: `Limit exceeded: Can't add more than 3 prediction for one stock (${ticker})`});
+				APIError.throwJsonError({message: `Limit exceeded: Can't add more than 3 prediction for one stock (${ticker})`});
 			}
 
 			return; 
@@ -417,7 +417,7 @@ module.exports.getDailyContestWinners = (args, res, next) => {
 		return res.status(200).send({winners: populatedWinners});
 	})
 	.catch(err => {
-		return res.status(400).send({msg: err.msg});	
+		return res.status(400).send({message: err.message});	
 	})
 };
 
@@ -457,7 +457,7 @@ module.exports.getDailyContestTopStocks = (args, res, next) => {
 	})
 	.catch(err => {
 		console.log(err);
-		return res.status(400).send({msg: err.msg});	
+		return res.status(400).send({message: err.message});	
 	})
 };
 
@@ -475,7 +475,7 @@ module.exports.getDailyContestStats = (args, res, next) => {
 	.then(() => {
 		if (symbol && horizon) {
 
-			APIError.throwJsonError({msg: "Only one of symbol/horizon parameter is allowed"})
+			APIError.throwJsonError({message: "Only one of symbol/horizon parameter is allowed"})
 		} else {
 			let selection = {user: userId};
 			
@@ -523,7 +523,7 @@ module.exports.updateDailyContestTopStocks = (args, res, next) => {
         }
     })
     .then(() => {
-    	return res.status(200).send({msg: "Top stocks updated"});
+    	return res.status(200).send({message: "Top stocks updated"});
     })
 };
 
@@ -544,7 +544,7 @@ module.exports.updateDailyContestPnlForDate = (args, res, next) => {
         }
     })
     .then(() => {
-    	return res.status(200).send({msg: "Pnl Stats Updated"});
+    	return res.status(200).send({message: "Pnl Stats Updated"});
     })
 };
 

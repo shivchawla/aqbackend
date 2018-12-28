@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 21:00:59
+* @Last Modified time: 2018-12-28 19:32:36
 */
 
 'use strict';
@@ -590,7 +590,7 @@ module.exports.sendWinnerDigest = function(date) {
             })
 			
 		} else {
-			APIError.throwJsonError({msg: `Winner Digest Error! No contest stats found for ${date}`});
+			APIError.throwJsonError({message: `Winner Digest Error! No contest stats found for ${date}`});
 		}
 	});
 };
