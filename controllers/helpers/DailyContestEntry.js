@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 09:59:17
+* @Last Modified time: 2018-12-28 10:14:55
 */
 
 'use strict';
@@ -2098,7 +2098,7 @@ module.exports.updateAdvisorFormatForAdvisorId = function(advisorId) {
 			cashUsed -= investment;
 		});
 		
-		if (totalInvestment <= 1000000) {
+		if (totalInvestment > 1000000) {
 			const newAccount = {
 				investment: totalInvestment,
 				liquidCash: Math.max(1000000 - totalInvestment, 0),
@@ -2108,7 +2108,7 @@ module.exports.updateAdvisorFormatForAdvisorId = function(advisorId) {
 			return AdvisorModel.updateAdvisor({_id: advisorId}, {account: newAccount})
 			.then(() => {return true;})
 		} else {
-			return false;
+			
 		}
 };
 
@@ -2125,14 +2125,16 @@ module.exports.updateAdvisorFormat = function() {
 					console.log("Existing Investment greater than 10 Lacs");
 					console.log("Normalizing the investment to 7L")
 
-					return Promise.map(activePredictions, function(prediction) {
-						prediction.position.investment = (prediction.position.investment/totalInvestment)*700000;
-						return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction); 
+					return exports.getPredictionsForDate(advisorId, DateHelper.getCurrentDate(), {category:'all', priceUpdate: false})
+					.then(activePredictions => {
+						return Promise.map(activePredictions, function(prediction) {
+							prediction.position.investment = (prediction.position.investment/totalInvestment)*700000;
+							return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction); 
+						})
 					})
 					.then(() => {
 						return exports.updateAdvisorFormatForAdvisorId(advisorId);
 					})	
-
 				}
 			})
 		})
