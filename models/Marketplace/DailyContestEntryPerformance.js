@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 10:23:39
+* @Last Modified time: 2018-12-31 12:09:03
 */
 
 
@@ -101,7 +101,7 @@ DailyContestEntryPerformance.statics.fetchLastPortfolioStats = function(query, d
 
 DailyContestEntryPerformance.statics.fetchLatestPnlStatsForSymbol = function(query, symbol, date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
-	return this.find({...query, date:{$lt: date}}, {pnlStats:1}).sort({date: -1}).limit(1)
+	return this.find({...query, date:{$lte: date}}, {pnlStats:1}).sort({date: -1}).limit(1)
 	.then(latestDoc => {
 		const total = {
 			..._.get(latestDoc, `[0].pnlStats.net.total.byTickers[${symbol}]`, null),

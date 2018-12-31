@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-31 11:25:20
+* @Last Modified time: 2018-12-31 11:36:39
 */
 
 'use strict';
@@ -600,7 +600,7 @@ module.exports.formatWinnerFormat = function() {
     "2018-12-17", "2018-12-18", "2018-12-19", "2018-12-20", "2018-12-21", 
     "2018-12-24", "2018-12-26", "2018-12-27", "2018-12-28", "2018-12-31"];
 	
-	return Promise.all(dates, function(date) {
+	return Promise.mapSeries(dates, function(date) {
 		date = DateHelper.getMarketCloseDateTime(date);
 
 		return DailyContestStatsModel.fetchContestStats(date, {fields: 'winners'})
@@ -611,9 +611,11 @@ module.exports.formatWinnerFormat = function() {
 				if (dailyWinners) {
 					//Update the winner to dailyWinners
 					//and update pnlStats
-					var pnlStats = _.get(dailyWinners, 'pnlStats.total', null);
-					
-					dailyWinners.pnlStats = pnlStats;
+
+					dailyWinners.forEach((winner, idx) => {
+						var pnlStats = _.get(winner, 'pnlStats.total', null);
+						dailyWinners[idx].pnlStats = pnlStats;
+					})
 
 					return DailyContestStatsModel.updateContestStats(date, {dailyWinners})
 				}
