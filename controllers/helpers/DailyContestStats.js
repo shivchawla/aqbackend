@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-31 10:58:58
+* @Last Modified time: 2018-12-31 11:10:21
 */
 
 'use strict';
@@ -554,13 +554,13 @@ module.exports.sendSummaryDigest = function(date) {
     })
 };
 
-module.exports.sendWinnerDigest = function(date) {
+module.exports.sendDailyWinnerDigest = function(date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date).toDate();
 
 	return DailyContestStatsModel.fetchContestStats(date, {fields: 'topStocks winners'})
 	.then(contestStats => {
 		if (contestStats) {
-			var winners = contestStats.winners;
+			var winners = contestStats.dailyWinners;
 			
 			var leaderboardUrl = `${config.get('hostname')}/dailycontest/leaderboard?date=${moment(date).format("YYYY-MM-DD")}`;
 			var submitPredictionUrl = `${config.get('hostname')}/dailycontest/stockpredictions`;

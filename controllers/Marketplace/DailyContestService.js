@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 19:31:18
+* @Last Modified time: 2018-12-31 11:10:43
 */
 
 'use strict';
@@ -557,7 +557,7 @@ module.exports.sendEmailToDailyContestWinners = function(args, res, next) {
     Promise.resolve(true)
     .then(() => {
         if (admins.indexOf(userEmail) !== -1){ // user is admin and can send email
-            return DailyContestStatsHelper.sendWinnerDigest(date);
+            return DailyContestStatsHelper.sendDailyWinnerDigest(date);
         } else {
             APIError.throwJsonError({message: "User not authorized to send email"});
         }
