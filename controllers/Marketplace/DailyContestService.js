@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-31 13:34:18
+* @Last Modified time: 2018-12-31 13:45:28
 */
 
 'use strict';
@@ -416,12 +416,12 @@ module.exports.getDailyContestWinners = (args, res, next) => {
 
 	return DailyContestStatsModel.fetchContestStats(date, {fields:'dailyWinners weeklyWinners'})
 	.then(statsForDate => {
-		return Promise.all[(
+		return Promise.all([
 			_populateWinners(statsForDate.dailyWinners || []),
 			_populateWinners(statsForDate.weeklyWinners || [])
 		]);
 	})
-	.then([populatedDailyWinners, populatedWeeklyWinners]) => {
+	.then(([populatedDailyWinners, populatedWeeklyWinners]) => {
 		return res.status(200).send({dailyWinners: populatedDailyWinners, weeklyWinners: populatedWeeklyWinners});
 	})
 	.catch(err => {
