@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 19:32:36
+* @Last Modified time: 2018-12-31 10:58:58
 */
 
 'use strict';
@@ -35,21 +35,16 @@ function _computeDailyContestWinners(date) {
 	.then(allAdvisors => {
 		return Promise.mapSeries(allAdvisors, function(advisorId) {
 			
-			var lastWeekDay = DateHelper.getPreviousNonHolidayWeekday(date);
-			return Promise.all([
-				DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId}, date),
-				DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId}, lastWeekDay)
-			])
-			.then(([portfolioStatsToday, portfolioStatsYesterday]) => {
+            return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
+			.then(pnlStatsForAdvisor => {
+				var allPredictionsPnlStats =  _.get(pnlStatsForAdvisor, 'detail.cumulative.all.portfolio.net', {});
+				
+				var pnlPct = _.get(allPredictionsPnlStats, 'pnlPct', 0);
+				var cost = _.get(allPredictionsPnlStats, 'cost', 0);
+				var profitFactor = _.get(allPredictionsPnlStats, 'profitFactor', 0);
+				var pnl = _.get(allPredictionsPnlStats, 'pnl', 0);
 
-				var netTotalToday = _.get(portfolioStatsToday, 'netTotal', 0.0);
-				var netTotalYesterday = _.get(portfolioStatsYesterday, 'netTotal', 0.0);
-				var cash = _.get(portfolioStatsToday, 'cash', 0)
-
-				var pnlPct = netTotalYesterday > 0 ?  (netTotalToday/netTotalYesterday) - 1 : 0;
-				var pnl = netTotalToday - netTotalYesterday;
-
-				return Object.assign({advisor: advisorId}, {pnlStats: {pnlPct, pnl, netTotal: netTotalToday, netTotalYesterday, cash}});
+				return Object.assign({advisor: advisorId}, {pnlStats: {pnlPct, pnl, profitFactor, cash}});
 			})
 		})
 		.then(pnlStatsForAllAdvisors => {
@@ -594,5 +589,39 @@ module.exports.sendWinnerDigest = function(date) {
 		}
 	});
 };
+
+
+module.exports.formatWinnerFormat = function() {
+	const dates = ["2018-11-12","2018-11-13","2018-11-14","2018-11-15", "2018-11-16", 
+	"2018-11-19","2018-11-20","2018-11-21", "2018-11-22", 
+	"2018-11-26","2018-11-27","2018-11-28", "2018-11-29", "2018-11-30",
+	"2018-12-03","2018-12-04","2018-12-05", "2018-12-06", "2018-12-07", 
+	"2018-12-10","2018-12-11", "2018-12-12", "2018-12-13", "2018-12-14", 
+    "2018-12-17", "2018-12-18", "2018-12-19", "2018-12-20", "2018-12-21", 
+    "2018-12-24", "2018-12-26", "2018-12-27", "2018-12-28", "2018-12-31"];
+	
+	return Promise.all(dates, function(date) {
+		date = DateHelper.getMarketCloseDateTime(date);
+
+		return DailyContestStatsModel.fetchContestStats(date, {fields: 'winners'})
+		.then(contestStats => {
+			var dailyWinners = _.get(contestStats, 'winners', null);
+
+			if (dailyWinners) {
+				//Update the winner to dailyWinners
+				//and update pnlStats
+				var pnlStats = _.get(dailyWinners, 'pnlStats.total', null);
+				
+				dailyWinners.pnlStats = pnlStats;
+
+				return DailyContestStatsModel.updateContestStats(date, {dailyWinners})
+			}
+		})	
+	})
+}
+
+
+
+
 
 
