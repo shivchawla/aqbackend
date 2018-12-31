@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-31 11:26:54
+* @Last Modified time: 2018-12-31 13:34:18
 */
 
 'use strict';
@@ -395,6 +395,16 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 	});
 };
 
+
+function _populateWinners(winners) {
+	return Promise.map(winners, function(winner) {
+		return AdvisorModel.fetchAdvisor({_id: winner.advisor}, {fields: 'user'})
+		.then(populatedAdvisor => {
+			return {...winner.toObject(), user: populatedAdvisor.user.toObject()};
+		})
+	})
+}
+
 /*
 * Get daily contest winners
 */
@@ -404,17 +414,15 @@ module.exports.getDailyContestWinners = (args, res, next) => {
 	
 	const date = DateHelper.getMarketCloseDateTime(_dd);
 
-	return DailyContestStatsModel.fetchContestStats(date, {fields:'dailyWinners'})
+	return DailyContestStatsModel.fetchContestStats(date, {fields:'dailyWinners weeklyWinners'})
 	.then(statsForDate => {
-		return Promise.map(statsForDate.dailyWinners, function(winner) {
-			return AdvisorModel.fetchAdvisor({_id: winner.advisor}, {fields: 'user'})
-			.then(populatedAdvisor => {
-				return {...winner.toObject(), user: populatedAdvisor.user.toObject()};
-			})
-		})
+		return Promise.all[(
+			_populateWinners(statsForDate.dailyWinners || []),
+			_populateWinners(statsForDate.weeklyWinners || [])
+		]);
 	})
-	.then(populatedWinners => {
-		return res.status(200).send({winners: populatedWinners});
+	.then([populatedDailyWinners, populatedWeeklyWinners]) => {
+		return res.status(200).send({dailyWinners: populatedDailyWinners, weeklyWinners: populatedWeeklyWinners});
 	})
 	.catch(err => {
 		return res.status(400).send({message: err.message});	

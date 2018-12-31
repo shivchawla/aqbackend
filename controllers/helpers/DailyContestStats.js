@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-31 11:36:39
+* @Last Modified time: 2018-12-31 13:24:14
 */
 
 'use strict';
@@ -44,7 +44,7 @@ function _computeDailyContestWinners(date) {
 				var profitFactor = _.get(allPredictionsPnlStats, 'profitFactor', 0);
 				var pnl = _.get(allPredictionsPnlStats, 'pnl', 0);
 
-				return Object.assign({advisor: advisorId}, {pnlStats: {pnlPct, pnl, profitFactor, cash}});
+				return Object.assign({advisor: advisorId}, {pnlStats: {pnlPct, pnl, profitFactor, cost}});
 			})
 		})
 		.then(pnlStatsForAllAdvisors => {
@@ -73,7 +73,7 @@ function _computeWeeklyContestWinners(date) {
 				.then(([portfolioStatsToday, portfolioStatsLastWeek]) => {
 
 					var netTotalToday = _.get(portfolioStatsToday, 'netTotal', 0.0);
-					var netTotalLastWeek = _.get(portfolioStatsLastWeek, 'netTotal', 0.0);
+					var netTotalLastWeek = _.get(portfolioStatsLastWeek, 'netTotal', 1000.0);
 					var cash = _.get(portfolioStatsToday, 'cash', 0)
 
 					var pnlPct = netTotalLastWeek > 0 ?  (netTotalToday/netTotalLastWeek) - 1 : 0;

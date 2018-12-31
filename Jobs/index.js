@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-25 16:03:26
+* @Last Modified time: 2018-12-31 13:24:52
 */
 
 'use strict';
@@ -43,7 +43,6 @@ if (config.get('jobsPort') === serverPort) {
 		winnersUpdated = false;
 	});
 
-
 	//Run the job sequence every 30 minutes from one hour before market open to one hour after market close
 	const scheduleCheckPredictionTarget = `*/30 ${DateHelper.getMarketOpenHour() - 1}-${DateHelper.getMarketCloseHour() + 1} * * 1-5`;
 	schedule.scheduleJob(scheduleCheckPredictionTarget, function() {   	
@@ -55,7 +54,7 @@ if (config.get('jobsPort') === serverPort) {
 	    		DailyContestEntryHelper.updateManuallyExitedPredictionsForLastPrice();
 	    	})
 	    	.then(() => {
-	    		DailyContestEntryHelper.updatePredictionsForIntervalPrice()
+	    		DailyContestEntryHelper.updatePredictionsForIntervalPrice();
     		})
 			.then(() => { 
 	    		DailyContestEntryHelper.updateAllEntriesLatestPnlStats();

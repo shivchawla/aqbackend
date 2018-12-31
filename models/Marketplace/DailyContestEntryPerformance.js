@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-31 12:09:03
+* @Last Modified time: 2018-12-31 13:22:53
 */
 
 
@@ -68,7 +68,7 @@ DailyContestEntryPerformance.statics.updatePortfolioStatsForDate = function(quer
 
 
 DailyContestEntryPerformance.statics.fetchLatestPnlStats = function(query, date) {
-	date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate(date)); 
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
 	return this.find({...query, date:{$lte: date}}, {pnlStats:1}).sort({date: -1}).limit(1)
 	.then(latestDoc => {
 		return latestDoc && latestDoc.length > 0 ? _.get(latestDoc[0], 'pnlStats', null) : null;
@@ -84,7 +84,7 @@ DailyContestEntryPerformance.statics.fetchLastPnlStats = function(query, date) {
 };
 
 DailyContestEntryPerformance.statics.fetchLatestPortfolioStats = function(query, date) {
-	date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate(date)); 
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
 	return this.find({...query, date:{$lte: date}}, {portfolioStats:1}).sort({date: -1}).limit(1)
 	.then(latestDoc => {
 		return latestDoc && latestDoc.length > 0 ? _.get(latestDoc[0], 'portfolioStats', null) : null;
