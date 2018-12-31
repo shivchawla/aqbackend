@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-31 13:24:14
+* @Last Modified time: 2018-12-31 23:49:27
 */
 
 'use strict';
@@ -27,8 +27,8 @@ const MIN_DAILY_PCT_CHANGE = 0.005;
 const MIN_WEEKLY_PCT_CHANGE = 0.01;
 const MIN_MONTHLY_PCT_CHANGE = 0.01;
 
-const DAILY_PRIZES = [100, 70, 50];
-const WEEKLY_PRIZES = [500, 350, 250];
+const DAILY_PRIZES = [100, 75, 50];
+const WEEKLY_PRIZES = [500, 300, 200];
 
 function _computeDailyContestWinners(date) {
 	return DailyContestEntryModel.fetchDistinctAdvisors()
