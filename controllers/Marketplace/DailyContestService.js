@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-31 11:10:43
+* @Last Modified time: 2018-12-31 11:26:54
 */
 
 'use strict';
@@ -404,9 +404,9 @@ module.exports.getDailyContestWinners = (args, res, next) => {
 	
 	const date = DateHelper.getMarketCloseDateTime(_dd);
 
-	return DailyContestStatsModel.fetchContestStats(date, {fields:'winners'})
+	return DailyContestStatsModel.fetchContestStats(date, {fields:'dailyWinners'})
 	.then(statsForDate => {
-		return Promise.map(statsForDate.winners, function(winner) {
+		return Promise.map(statsForDate.dailyWinners, function(winner) {
 			return AdvisorModel.fetchAdvisor({_id: winner.advisor}, {fields: 'user'})
 			.then(populatedAdvisor => {
 				return {...winner.toObject(), user: populatedAdvisor.user.toObject()};

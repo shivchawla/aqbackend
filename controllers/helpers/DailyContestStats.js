@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-31 11:10:21
+* @Last Modified time: 2018-12-31 11:25:20
 */
 
 'use strict';
@@ -605,20 +605,22 @@ module.exports.formatWinnerFormat = function() {
 
 		return DailyContestStatsModel.fetchContestStats(date, {fields: 'winners'})
 		.then(contestStats => {
-			var dailyWinners = _.get(contestStats, 'winners', null);
+			if (contestStats) {
+				var dailyWinners = _.get(contestStats.toObject(), 'winners', null);
 
-			if (dailyWinners) {
-				//Update the winner to dailyWinners
-				//and update pnlStats
-				var pnlStats = _.get(dailyWinners, 'pnlStats.total', null);
-				
-				dailyWinners.pnlStats = pnlStats;
+				if (dailyWinners) {
+					//Update the winner to dailyWinners
+					//and update pnlStats
+					var pnlStats = _.get(dailyWinners, 'pnlStats.total', null);
+					
+					dailyWinners.pnlStats = pnlStats;
 
-				return DailyContestStatsModel.updateContestStats(date, {dailyWinners})
+					return DailyContestStatsModel.updateContestStats(date, {dailyWinners})
+				}
 			}
 		})	
 	})
-}
+};
 
 
 
