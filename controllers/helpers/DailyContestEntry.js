@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-01 12:10:59
+* @Last Modified time: 2019-01-01 13:15:28
 */
 
 'use strict';
@@ -1526,10 +1526,10 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 							_.get(securityDetail, 'latestDetail.Close', 0);
 
 					});
-				} 
 
-				var cashGenerated = avgPrice > 0 ? (lastPrice/avgPrice)*investment : investment;
-				cash += cashGenerated;
+					var cashGenerated = avgPrice > 0 ? (lastPrice/avgPrice)*investment : investment;
+					cash += cashGenerated;
+				} 
 	
 			})
 			.then(() => {
