@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-22 16:40:35
+* @Last Modified time: 2019-01-01 09:54:35
 */
 'use strict';
 
@@ -42,9 +42,9 @@ const AdvisorAnalytics = new Schema({
 });
 
 const Account = new Schema({
-    cash: Number,
-    investment: Number,
-    liquidCash: Number
+    cash: {type: Number, default: 1000},
+    investment: {type: Number, default: 0},
+    liquidCash: {type: Number, default: 1000}
 });
 
 const Advisor = new Schema({
