@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-01 10:25:04
+* @Last Modified time: 2019-01-01 10:54:23
 */
 
 'use strict';
@@ -1345,7 +1345,7 @@ module.exports.getPnlStatsForDate = function(advisorId, date, category="all") {
 
 module.exports.getPortfolioStatsForDate = function(advisorId, date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
-	return DailyContestEntryPerformanceModel.fetchPortfolioStatsForDate({advisor: advisorId}, date);
+	return DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId}, date);
 };
 
 module.exports.getPredictionsForDate = function(advisorId, date, options) {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-31 13:45:28
+* @Last Modified time: 2019-01-01 10:50:24
 */
 
 'use strict';
@@ -131,17 +131,22 @@ module.exports.getDailyContestPortfolioStatsForDate = (args, res, next) => {
 	.then(advisor => {
 		if (advisor) {
 			const advisorId = advisor._id.toString();
-
-			return DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date);
+			return Promise.all([
+				DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date),
+				AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account'})
+			]);
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} else {
 			APIError.throwJsonError({message: `No Contest found for ${date}`});
 		}
 	})
-	.then(portfolioStats => {
+	.then(([portfolioStats, advisor]) => {
 		if (portfolioStats) {
 			return res.status(200).send(portfolioStats);
+		} else if (advisor) {
+			var advisorAccount = advisor ? _.get(advisor.toObject(), 'account', {}) : {};
+			return res.status(200).send({...advisorAccount, netTotal: _.get(advisorAccount, 'cash', 0), netEquity: 0});
 		} else {
 			APIError.throwJsonError({message: `No contest entry found for ${_d}`});
 		}
