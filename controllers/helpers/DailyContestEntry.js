@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-01 10:54:23
+* @Last Modified time: 2019-01-01 12:10:59
 */
 
 'use strict';
@@ -1656,6 +1656,8 @@ module.exports.checkForPredictionTarget = function(category = "all") {
 						 		item.status.stopLoss = false;
 						 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
 						 		item.status.trueDate = new Date();
+
+						 		item.position.lastPrice =  target;
 						 	}
 
 						 	var lossDirection = -1 * (investment > 0 ? 1 : -1);
@@ -1668,6 +1670,8 @@ module.exports.checkForPredictionTarget = function(category = "all") {
 						 		item.status.profitTarget = false;
 						 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
 						 		item.status.trueDate = new Date();
+
+						 		item.position.lastPrice = stopLossPrice;
 						 	}
 
 						 	return success || stopLossFailure;
@@ -1734,6 +1738,8 @@ module.exports.checkForPredictionTarget = function(category = "all") {
 									 		item.status.stopLoss = false;
 									 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
 									 		item.status.trueDate = successDateTime;
+
+									 		item.position.lastPrice = target;
 									 	}
 									 	else if (stopLossFailure) {
 									 		item.status.price = investment > 0 ? lowPrice : highPrice;
@@ -1741,6 +1747,8 @@ module.exports.checkForPredictionTarget = function(category = "all") {
 									 		item.status.profitTarget = false;
 									 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
 									 		item.status.trueDate = stopLossFailureDateTime;
+
+									 		item.position.lastPrice = stopLossPrice;
 									 	}
 
 									 	return success || stopLossFailure;
@@ -1768,7 +1776,7 @@ module.exports.checkForPredictionTarget = function(category = "all") {
 				return Promise.mapSeries(allSuccessfulPredictions, function(prediction) {
 
 					return Promise.all([
-						exports.updateAdvisorAccountCredit(prediction.advisorId, prediction),
+						AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction),
 						DailyContestEntryModel.updatePrediction({advisor: prediction.advisorId}, prediction)
 					]);
 				});
