@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-01 00:49:22
+* @Last Modified time: 2019-01-01 10:25:04
 */
 
 'use strict';
@@ -1648,7 +1648,7 @@ module.exports.checkForPredictionTarget = function(category = "all") {
 							var investment = item.position.investment;							
 							var target = item.target;
 
-							var success = (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
+							var success = (investment > 0 && highPrice >= target) || (investment < 0 && lowPrice <= target);
 							 
 							if (success) {
 						 		item.status.price = investment > 0 ? highPrice : lowPrice;
@@ -1660,7 +1660,7 @@ module.exports.checkForPredictionTarget = function(category = "all") {
 
 						 	var lossDirection = -1 * (investment > 0 ? 1 : -1);
 							var stopLossPrice = (1 + lossDirection*Math.abs(_.get(item, 'stopLoss', 1))) * item.position.avgPrice;
-						 	var stopLossFailure = stopLossPrice != 0 && ((investment > 0 && lowPrice < stopLossPrice) || (investment < 0 && highPrice > stopLossPrice));	
+						 	var stopLossFailure = stopLossPrice != 0 && ((investment > 0 && lowPrice <= stopLossPrice) || (investment < 0 && highPrice >= stopLossPrice));	
 
 						 	if (stopLossFailure) {
 						 		item.status.price = investment > 0 ? lowPrice : highPrice;
@@ -1711,12 +1711,12 @@ module.exports.checkForPredictionTarget = function(category = "all") {
 										var lowPrice = _.get(extremePricesSinceStartDate, 'low.price', Infinity);
 										var lowPriceDateTime = _.get(extremePricesSinceStartDate, 'low.datetime', null);
 
-										var success = (investment > 0 && highPrice > target) || (investment < 0 && lowPrice < target);
+										var success = (investment > 0 && highPrice >= target) || (investment < 0 && lowPrice <= target);
 										var successDateTime = success && investment > 0 ? highPriceDateTime : lowPriceDateTime;
 
 										var lossDirection = -1 * (investment > 0 ? 1 : -1);
 										var stopLossPrice = (1 + lossDirection*Math.abs(_.get(item, 'stopLoss', 1))) * item.position.avgPrice
-									 	var stopLossFailure = stopLossPrice != 0 && ((investment > 0 && lowPrice < stopLossPrice) || (investment < 0 && highPrice > stopLossPrice));	
+									 	var stopLossFailure = stopLossPrice != 0 && ((investment > 0 && lowPrice <= stopLossPrice) || (investment < 0 && highPrice >= stopLossPrice));	
 									 	var stopLossFailureDateTime = stopLossFailure && investment > 0 ? lowPriceDateTime : highPriceDateTime;
 
 									 	//If both are true, find which one hit first ****
