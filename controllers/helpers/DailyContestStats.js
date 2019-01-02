@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-02 15:19:51
+* @Last Modified time: 2019-01-02 18:13:34
 */
 
 'use strict';
@@ -567,7 +567,7 @@ module.exports.sendDailyWinnerDigest = function(date) {
 
 			return Promise.mapSeries(winners, function(winner) {
 				let winnerDigest = {leaderboardUrl, submitPredictionUrl,
-					pnlPct: `${(_.get(winner,'pnlStats.total.pnlPct')*100).toFixed(2)}%`, 
+					pnlPct: `${(_.get(winner,'pnlStats.pnlPct')*100).toFixed(2)}%`, 
 					rank: winner.rank,
 					prizeMoney: winner.rank <= DAILY_PRIZES.length ? DAILY_PRIZES[winner.rank - 1] : 0,
 					dailyContestDate: moment(date).format("Do MMM YYYY")};
