@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-31 13:24:52
+* @Last Modified time: 2019-01-02 10:28:12
 */
 
 'use strict';
@@ -51,6 +51,9 @@ if (config.get('jobsPort') === serverPort) {
 
 	    	DailyContestEntryHelper.checkForPredictionTarget()
 	    	.then(() => {
+	    		DailyContestEntryHelper.checkForPredictionExpiry();
+	    	})
+	    	.then(() => {
 	    		DailyContestEntryHelper.updateManuallyExitedPredictionsForLastPrice();
 	    	})
 	    	.then(() => {
@@ -75,6 +78,9 @@ if (config.get('jobsPort') === serverPort) {
 		        	});
 		        }
 			})
+			.catch(err => {
+				console.log(err.message);
+			});
 		}
 	});
 

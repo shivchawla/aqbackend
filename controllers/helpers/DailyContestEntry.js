@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-01 13:15:28
+* @Last Modified time: 2019-01-02 10:26:26
 */
 
 'use strict';
@@ -1075,6 +1075,8 @@ function _computeUpdatedPredictions(predictions, date) {
 				var manualExit = _.get(prediction, 'status.manualExit', false) && moment(date).isSame(moment(prediction.status.date));
 				var lastPrice = _.get(prediction, 'position.lastPrice', 0);
 
+				var endedInTime = moment(_.get(prediction, 'endDate', null)).isBefore(moment());
+
 				if (success) {
 					
 					updatedCallPricePrediction.position.lastPrice = updatedCallPricePrediction.target;
@@ -1089,7 +1091,7 @@ function _computeUpdatedPredictions(predictions, date) {
 					
 					return [updatedCallPricePrediction.position];
 				
-				} else if(manualExit && lastPrice) {
+				} else if((manualExit || endedInTime) && lastPrice) {
 					//On manual exit the price is already populated at the time of exit (DELAYED)
 					//Last Price is populated via job
 					//But if price is not available, then move to next step and return current price
@@ -1492,7 +1494,19 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 			var grossEquity = 0.0;
 			var cash = _.get(advisor, 'account.cash', 0.0);	
 			
-			var endedPredictionIds = endedPredictions.map(item => item._id.toString());
+			//Find Predictions that have truly ended and not just on ended because of date
+			var endedPredictionIds = endedPredictions
+			.filter(item =>  {
+				
+				var targetStatus = _.get(item, 'status.profitTarget', false);
+				var stopLossStatus = _.get(item, 'status.stopLoss', false);
+				var manualExitStatus = _.get(item, 'status.manualExit', false);
+
+				var endedInTime = moment(_.get(item, 'endDate', null)).isBefore(moment());
+				
+				return targetStatus || stopLossStatus || manualExitStatus || endedInTime;
+			})
+			.map(item => item._id.toString());
 
 			allPredictions.forEach(item => {
 
@@ -1594,13 +1608,13 @@ module.exports.updateAllEntriesLatestPortfolioStats = function(date){
 //and filter ot the successful ones
 
 //Handles only predictions ending today
-module.exports.checkForPredictionTarget = function(category = "all") {
+module.exports.checkForPredictionTarget = function() {
 	const currentDate = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
-			return exports.getPredictionsForDate(advisorId, currentDate, {category, priceUpdate:false})
+			return exports.getPredictionsForDate(advisorId, currentDate, {category: "all", priceUpdate:false})
 			.then(predictions => {
 				
 				return predictions
@@ -1617,176 +1631,217 @@ module.exports.checkForPredictionTarget = function(category = "all") {
 			});
 
 		})
-		.then(allPredictionsByAdvisorIds => {
-			//this is an array of array of predicitions
-			//merge them
-			var allPredictions = Array.prototype.concat.apply([], allPredictionsByAdvisorIds);
+	})
+	.then(allPredictionsByAdvisorIds => {
+		//this is an array of array of predicitions
+		//merge them
+		var allPredictions = Array.prototype.concat.apply([], allPredictionsByAdvisorIds);
 
-			var uniqueTickers = _.uniq(allPredictions.map(item => item.position.security.ticker));
+		var uniqueTickers = _.uniq(allPredictions.map(item => item.position.security.ticker));
 
-			return Promise.mapSeries(uniqueTickers, function(ticker) {
-				var allPredictionsByTicker = allPredictions.filter(item => {
-					return item.position.security.ticker === ticker;
-				});
+		return Promise.mapSeries(uniqueTickers, function(ticker) {
+			var allPredictionsByTicker = allPredictions.filter(item => {
+				return item.position.security.ticker === ticker;
+			});
 
-				return new Promise(resolve => {
+			return new Promise(resolve => {
 
-					//check if prediction are successful on daily high/low basis
-					return SecurityHelper.getStockLatestDetailByType({ticker: ticker}, "RT")
-					.then(securityDetail => {
-						var highPrice = _.get(securityDetail,'latestDetail.high', -Infinity);
-						var lowPrice = _.get(securityDetail, 'latestDetail.low', Infinity);
-						var rtPriceDate = DateHelper.getDate(_.get(securityDetail, 'latestDetail.date', null));
-						
-						//At the beginning of the day, the latest RT may not be available
-						//And above call may return yesterday's RT data.
-						//Therefore, before making target check, make sure that the
-						//price belongs to the current date
-						var isPriceDataForToday = DateHelper.compareDates(DateHelper.getCurrentDate(), rtPriceDate) == 0;
+				//check if prediction are successful on daily high/low basis
+				return SecurityHelper.getStockLatestDetailByType({ticker: ticker}, "RT")
+				.then(securityDetail => {
+					var highPrice = _.get(securityDetail,'latestDetail.high', -Infinity);
+					var lowPrice = _.get(securityDetail, 'latestDetail.low', Infinity);
+					var rtPriceDate = DateHelper.getDate(_.get(securityDetail, 'latestDetail.date', null));
+					
+					//At the beginning of the day, the latest RT may not be available
+					//And above call may return yesterday's RT data.
+					//Therefore, before making target check, make sure that the
+					//price belongs to the current date
+					var isPriceDataForToday = DateHelper.compareDates(DateHelper.getCurrentDate(), rtPriceDate) == 0;
 
-						var successfulPredictions = isPriceDataForToday ? allPredictionsByTicker.filter(item => {
-							var investment = item.position.investment;							
-							var target = item.target;
+					var successfulPredictions = isPriceDataForToday ? allPredictionsByTicker.filter(item => {
+						var investment = item.position.investment;							
+						var target = item.target;
 
-							var success = (investment > 0 && highPrice >= target) || (investment < 0 && lowPrice <= target);
-							 
-							if (success) {
-						 		item.status.price = investment > 0 ? highPrice : lowPrice;
-						 		item.status.profitTarget = true;
-						 		item.status.stopLoss = false;
-						 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
-						 		item.status.trueDate = new Date();
+						var success = (investment > 0 && highPrice >= target) || (investment < 0 && lowPrice <= target);
+						 
+						if (success) {
+					 		item.status.price = investment > 0 ? highPrice : lowPrice;
+					 		item.status.profitTarget = true;
+					 		item.status.stopLoss = false;
+					 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
+					 		item.status.trueDate = new Date();
 
-						 		item.position.lastPrice =  target;
-						 	}
+					 		item.position.lastPrice =  target;
+					 	}
 
-						 	var lossDirection = -1 * (investment > 0 ? 1 : -1);
-							var stopLossPrice = (1 + lossDirection*Math.abs(_.get(item, 'stopLoss', 1))) * item.position.avgPrice;
-						 	var stopLossFailure = stopLossPrice != 0 && ((investment > 0 && lowPrice <= stopLossPrice) || (investment < 0 && highPrice >= stopLossPrice));	
+					 	var lossDirection = -1 * (investment > 0 ? 1 : -1);
+						var stopLossPrice = (1 + lossDirection*Math.abs(_.get(item, 'stopLoss', 1))) * item.position.avgPrice;
+					 	var stopLossFailure = stopLossPrice != 0 && ((investment > 0 && lowPrice <= stopLossPrice) || (investment < 0 && highPrice >= stopLossPrice));	
 
-						 	if (stopLossFailure) {
-						 		item.status.price = investment > 0 ? lowPrice : highPrice;
-						 		item.status.stopLoss = true;
-						 		item.status.profitTarget = false;
-						 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
-						 		item.status.trueDate = new Date();
+					 	if (stopLossFailure) {
+					 		item.status.price = investment > 0 ? lowPrice : highPrice;
+					 		item.status.stopLoss = true;
+					 		item.status.profitTarget = false;
+					 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
+					 		item.status.trueDate = new Date();
 
-						 		item.position.lastPrice = stopLossPrice;
-						 	}
+					 		item.position.lastPrice = stopLossPrice;
+					 	}
 
-						 	return success || stopLossFailure;
+					 	return success || stopLossFailure;
 
-						}) : [];
+					}) : [];
 
-						//SHORTCUT
-						//FIRST check which predictions are successful on daily high/low basis
-						
-						if (successfulPredictions.length > 0) {
+					//SHORTCUT
+					//FIRST check which predictions are successful on daily high/low basis
+					
+					if (successfulPredictions.length > 0) {
 
-							var successfulDayBasis = successfulPredictions.filter(item => {
-								var isStartDateToday = DateHelper.compareDates(item.startDate, currentDate) == 0;
-								
-								//Make sure only one direction is hit with daily price movement
-								//If both directions are hit, we need to time resolve (which was hit first?) [at next step]
-								var oneOfStopLossAndProfitTarget = !(item.status.profitTarget && item.status.stopLoss);
-								return !isStartDateToday && oneOfStopLossAndProfitTarget
-							});
-
-							var partiallySuccessfulIntraday =  successfulPredictions.filter(item => {
-								var isStartDateToday = DateHelper.compareDates(item.startDate, currentDate) == 0;
-								return isStartDateToday;	
-							});
-
-							let successfulIntraday;
-
-							if (partiallySuccessfulIntraday.length > 0) {
-								return SecurityHelper.getStockIntradayHistory({ticker: ticker})
-								.then(securityDetail => {
-
-									successfulIntraday = partiallySuccessfulIntraday.filter(item => {
-										var investment = item.position.investment;
-										var target = item.target;
-
-										var startDate = item.startDate;
-										var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, startDate);
-
-										var highPrice = _.get(extremePricesSinceStartDate, 'high.price', -Infinity);
-										var highPriceDateTime = _.get(extremePricesSinceStartDate, 'high.datetime', null);
-										var lowPrice = _.get(extremePricesSinceStartDate, 'low.price', Infinity);
-										var lowPriceDateTime = _.get(extremePricesSinceStartDate, 'low.datetime', null);
-
-										var success = (investment > 0 && highPrice >= target) || (investment < 0 && lowPrice <= target);
-										var successDateTime = success && investment > 0 ? highPriceDateTime : lowPriceDateTime;
-
-										var lossDirection = -1 * (investment > 0 ? 1 : -1);
-										var stopLossPrice = (1 + lossDirection*Math.abs(_.get(item, 'stopLoss', 1))) * item.position.avgPrice
-									 	var stopLossFailure = stopLossPrice != 0 && ((investment > 0 && lowPrice <= stopLossPrice) || (investment < 0 && highPrice >= stopLossPrice));	
-									 	var stopLossFailureDateTime = stopLossFailure && investment > 0 ? lowPriceDateTime : highPriceDateTime;
-
-									 	//If both are true, find which one hit first ****
-									 	if (success && stopLossFailure) {
-								 			if (moment(successDateTime).isBefore(moment(stopLossFailureDateTime))) {
-								 				stopLossFailure = false;
-									 		} else {
-									 			success = false;
-									 		}
-									 	}	
-
-									 	if (success) {
-									 		item.status.price = investment > 0 ? highPrice : lowPrice;
-									 		item.status.profitTarget = true;
-									 		item.status.stopLoss = false;
-									 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
-									 		item.status.trueDate = successDateTime;
-
-									 		item.position.lastPrice = target;
-									 	}
-									 	else if (stopLossFailure) {
-									 		item.status.price = investment > 0 ? lowPrice : highPrice;
-									 		item.status.stopLoss = true;
-									 		item.status.profitTarget = false;
-									 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
-									 		item.status.trueDate = stopLossFailureDateTime;
-
-									 		item.position.lastPrice = stopLossPrice;
-									 	}
-
-									 	return success || stopLossFailure;
-
-									});
-
-									resolve(successfulDayBasis.concat(successfulIntraday));
-								});
-							} else {
-								resolve(successfulDayBasis);
-							}
-
-						} else {
-							resolve([]);
-						}
+						var successfulDayBasis = successfulPredictions.filter(item => {
+							var isStartDateToday = DateHelper.compareDates(item.startDate, currentDate) == 0;
 							
-					})
-				
+							//Make sure only one direction is hit with daily price movement
+							//If both directions are hit, we need to time resolve (which was hit first?) [at next step]
+							var oneOfStopLossAndProfitTarget = !(item.status.profitTarget && item.status.stopLoss);
+							return !isStartDateToday && oneOfStopLossAndProfitTarget
+						});
+
+						var partiallySuccessfulIntraday =  successfulPredictions.filter(item => {
+							var isStartDateToday = DateHelper.compareDates(item.startDate, currentDate) == 0;
+							return isStartDateToday;	
+						});
+
+						let successfulIntraday;
+
+						if (partiallySuccessfulIntraday.length > 0) {
+							return SecurityHelper.getStockIntradayHistory({ticker: ticker})
+							.then(securityDetail => {
+
+								successfulIntraday = partiallySuccessfulIntraday.filter(item => {
+									var investment = item.position.investment;
+									var target = item.target;
+
+									var startDate = item.startDate;
+									var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, startDate);
+
+									var highPrice = _.get(extremePricesSinceStartDate, 'high.price', -Infinity);
+									var highPriceDateTime = _.get(extremePricesSinceStartDate, 'high.datetime', null);
+									var lowPrice = _.get(extremePricesSinceStartDate, 'low.price', Infinity);
+									var lowPriceDateTime = _.get(extremePricesSinceStartDate, 'low.datetime', null);
+
+									var success = (investment > 0 && highPrice >= target) || (investment < 0 && lowPrice <= target);
+									var successDateTime = success && investment > 0 ? highPriceDateTime : lowPriceDateTime;
+
+									var lossDirection = -1 * (investment > 0 ? 1 : -1);
+									var stopLossPrice = (1 + lossDirection*Math.abs(_.get(item, 'stopLoss', 1))) * item.position.avgPrice
+								 	var stopLossFailure = stopLossPrice != 0 && ((investment > 0 && lowPrice <= stopLossPrice) || (investment < 0 && highPrice >= stopLossPrice));	
+								 	var stopLossFailureDateTime = stopLossFailure && investment > 0 ? lowPriceDateTime : highPriceDateTime;
+
+								 	//If both are true, find which one hit first ****
+								 	if (success && stopLossFailure) {
+							 			if (moment(successDateTime).isBefore(moment(stopLossFailureDateTime))) {
+							 				stopLossFailure = false;
+								 		} else {
+								 			success = false;
+								 		}
+								 	}	
+
+								 	if (success) {
+								 		item.status.price = investment > 0 ? highPrice : lowPrice;
+								 		item.status.profitTarget = true;
+								 		item.status.stopLoss = false;
+								 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
+								 		item.status.trueDate = successDateTime;
+
+								 		item.position.lastPrice = target;
+								 	}
+								 	else if (stopLossFailure) {
+								 		item.status.price = investment > 0 ? lowPrice : highPrice;
+								 		item.status.stopLoss = true;
+								 		item.status.profitTarget = false;
+								 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
+								 		item.status.trueDate = stopLossFailureDateTime;
+
+								 		item.position.lastPrice = stopLossPrice;
+								 	}
+
+								 	return success || stopLossFailure;
+
+								});
+
+								resolve(successfulDayBasis.concat(successfulIntraday));
+							});
+						} else {
+							resolve(successfulDayBasis);
+						}
+
+					} else {
+						resolve([]);
+					}
+						
 				})
-				
+			
 			})
-			.then(successfulPredictionByTickers => {
-				var allSuccessfulPredictions = Array.prototype.concat.apply([], successfulPredictionByTickers);
+			
+		})
+	})
+	.then(successfulPredictionByTickers => {
+		var allSuccessfulPredictions = Array.prototype.concat.apply([], successfulPredictionByTickers);
 
-				return Promise.mapSeries(allSuccessfulPredictions, function(prediction) {
+		return Promise.mapSeries(allSuccessfulPredictions, function(prediction) {
 
-					return Promise.all([
-						AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction),
-						DailyContestEntryModel.updatePrediction({advisor: prediction.advisorId}, prediction)
-					]);
-				});
-			})
-			.then(() => {
-				return exports.updateAllEntriesLatestPortfolioStats();
-			})
+			return Promise.all([
+				AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction),
+				DailyContestEntryModel.updatePrediction({advisor: prediction.advisorId}, prediction)
+			]);
 		});
 	})
+	.then(() => {
+		return exports.updateAllEntriesLatestPortfolioStats();
+	})
 };
+
+module.exports.checkForPredictionExpiry = function() {
+
+	if (moment().isAfter(DateHelper.getMarketCloseDateTime())) {
+		
+		const currentDate = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
+
+		return DailyContestEntryModel.fetchDistinctAdvisors()
+		.then(advisors => {
+			return Promise.mapSeries(advisors, function(advisorId) {
+				return exports.getPredictionsForDate(advisorId, currentDate, {category: "ended", priceUpdate: true})
+				.then(endedPredictions => {
+					return endedPredictions
+					.filter(item =>  {
+						
+						var targetStatus = _.get(item, 'status.profitTarget', false);
+						var stopLossStatus = _.get(item, 'status.stopLoss', false);
+						var manualExitStatus = _.get(item, 'status.manualExit', false);
+
+						var endedInTime = moment(_.get(item, 'endDate', null)).isBefore(moment());
+						
+						return !targetStatus && !stopLossStatus && !manualExitStatus && endedInTime;
+					});	
+				})
+			})
+		})
+		.then(allPredictionsEndedInTimeByAdvisorIds => {
+			var allPredictionsEndedInTime = Array.prototype.concat.apply([], allPredictionsEndedInTimeByAdvisorIds);
+
+			return Promise.mapSeries(allPredictionsEndedInTime, function(prediction) {
+				return Promise.all([
+					AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction),
+					DailyContestEntryModel.updatePrediction({advisor: prediction.advisorId}, prediction)
+				]);
+			});
+		})
+		.then(() => {
+			return exports.updateAllEntriesLatestPortfolioStats();
+		})
+	}
+}
 
 module.exports.addPredictions = function(advisorId, predictions, date) {
 	return DailyContestEntryModel.addEntryPredictions({advisor: advisorId, date: date}, predictions, {new:true, upsert: true, fields:'_id'})
