@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-02 18:57:49
+* @Last Modified time: 2019-01-02 20:17:10
 */
 
 'use strict';
@@ -471,10 +471,10 @@ function _getContestAdvisors(options) {
 }
 
 function _getPortfolioSummary(advisorId) {
-	return Promise.al([
-		DailyContestEntryPerformanceModel.fetchLatestPortfolioStats(advisorId),
-		DailyContestEntryPerformanceModel.fetchLastPortfolioStats(advisorId),
-		DailyContestEntryPerformanceModel.fetchLatestPnlStats(advisorId),
+	return Promise.all([
+		DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId}),
+		DailyContestEntryPerformanceModel.fetchLastPortfolioStats({advisor: advisorId}),
+		DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId}),
 	])
 	.then(([latestPortfolioStats, lastPortfolioStats, latestPnlStats]) => {
 		var numActivePredictions = _.get(latestPortfolioStats, 'numPredictions', 0);
@@ -483,14 +483,13 @@ function _getPortfolioSummary(advisorId) {
 		} else {
 			var dailyPnl = _.get(latestPnlStats, 'detail.daily.all.net.pnl', 0);
 
-			var lastNAV = _.get(lastPortfolioStats, 'netValue', 1000);
+			var lastNAV = _.get(lastPortfolioStats, 'netTotal', 1000);
 			var dailyReturn = `${(dailyPnl*100/lastNAV).toFixed(2)}%`;
-			var latestNAV = _.get(latestPortfolioStats, 'netValue', 1000) || 1000;
+			var latestNAV = _.get(latestPortfolioStats, 'netTotal', 1000) || 1000;
 
 			var totalReturn = `${((latestNAV - 1000)*100/latestNAV).toFixed(2)}%`;
 
-
-			return {netValue: _formatInvestmentValue(netValue), totalReturn, dailyReturn};
+			return {netValue: _formatInvestmentValue(latestNAV), totalReturn, dailyReturn};
 		} 
 	});
 }
@@ -568,6 +567,7 @@ module.exports.sendSummaryDigest = function(date) {
 
 	return DailyContestEntryModel.fetchDistinctAdvisors({})
 	.then(distinctAdvisors => {
+		let sent = false;
 		return Promise.mapSeries(distinctAdvisors, function(advisorId) {
 
 			return Promise.all([
@@ -588,9 +588,11 @@ module.exports.sendSummaryDigest = function(date) {
 					const fullDigest = {...advisorDigest, ...contestDigest, ...portfolioSummary, unsubscribeUrl};
 
 		            if (process.env.NODE_ENV === 'production') {	
+		            	
 		            	return sendEmail.sendDailyContestSummaryDigest(fullDigest, userDetail);
 		        	
 		        	} else if(process.env.NODE_ENV === 'development') {
+		                
 		                return sendEmail.sendDailyContestSummaryDigest(fullDigest, 
 		                    {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
 		            }
