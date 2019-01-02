@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-02 18:13:34
+* @Last Modified time: 2019-01-02 18:57:49
 */
 
 'use strict';
@@ -29,6 +29,25 @@ const MIN_MONTHLY_PCT_CHANGE = 0.01;
 
 const DAILY_PRIZES = [100, 75, 50];
 const WEEKLY_PRIZES = [500, 300, 200];
+
+
+function _formatInvestmentValue(value) {
+	if (value && typeof(value) == "number"){
+		var valueLac = value/100;
+		var valueCr = value/10000;
+		var roundVal = value - Math.floor(value) > 0; 
+		var roundLacs = valueLac - Math.floor(valueLac) > 0;
+		var roundCrs = valueCr - Math.floor(valueCr) > 0;
+
+		return valueLac >= 1.0 ?  
+			valueCr >= 1.0 ? 
+			(roundCrs > 0 ? `${(valueCr).toFixed(2)}Cr` : `${valueCr.toFixed(0)}Cr`) : 
+		 	(roundLacs ? `${valueLac.toFixed(2)}L` : `${valueLac.toFixed(0)}L`) : 
+			(roundVal ? `${value.toFixed(2)}K` : `${value.toFixed(0)}K`);
+	} else{
+		return value;
+	}
+}
 
 function _computeDailyContestWinners(date) {
 	return DailyContestEntryModel.fetchDistinctAdvisors()
@@ -451,6 +470,30 @@ function _getContestAdvisors(options) {
 	});
 }
 
+function _getPortfolioSummary(advisorId) {
+	return Promise.al([
+		DailyContestEntryPerformanceModel.fetchLatestPortfolioStats(advisorId),
+		DailyContestEntryPerformanceModel.fetchLastPortfolioStats(advisorId),
+		DailyContestEntryPerformanceModel.fetchLatestPnlStats(advisorId),
+	])
+	.then(([latestPortfolioStats, lastPortfolioStats, latestPnlStats]) => {
+		var numActivePredictions = _.get(latestPortfolioStats, 'numPredictions', 0);
+		if (numActivePredictions == 0) {
+			return null;
+		} else {
+			var dailyPnl = _.get(latestPnlStats, 'detail.daily.all.net.pnl', 0);
+
+			var lastNAV = _.get(lastPortfolioStats, 'netValue', 1000);
+			var dailyReturn = `${(dailyPnl*100/lastNAV).toFixed(2)}%`;
+			var latestNAV = _.get(latestPortfolioStats, 'netValue', 1000) || 1000;
+
+			var totalReturn = `${((latestNAV - 1000)*100/latestNAV).toFixed(2)}%`;
+
+
+			return {netValue: _formatInvestmentValue(netValue), totalReturn, dailyReturn};
+		} 
+	});
+}
 
 module.exports.sendTemplateEmailToParticipants = function(emailType) {	
 	
@@ -530,24 +573,27 @@ module.exports.sendSummaryDigest = function(date) {
 			return Promise.all([
 				_getAdvisorPerformanceDigest(advisorId, date),
 				_getContestDigest(date),
-				_getUserDetail(advisorId, "daily_performance_digest")
+				_getUserDetail(advisorId, "daily_performance_digest"),
+				_getPortfolioSummary(advisorId)
 			])
-			.then(([advisorDigest, contestDigest, userDetail]) => {
+			.then(([advisorDigest, contestDigest, userDetail, portfolioSummary]) => {
 
-				const code = userDetail.code;
-        		const type = "daily_performance_digest";
-        		const email = userDetail.email;
-        		const sendDigest = _.get(userDetail, 'emailpreference.daily_performance_digest', true);        
-        		const unsubscribeUrl = eval('`'+config.get('request_unsubscribe_url') +'`');
+				if (portfolioSummary) {
+					const code = userDetail.code;
+	        		const type = "daily_performance_digest";
+	        		const email = userDetail.email;
+	        		const sendDigest = _.get(userDetail, 'emailpreference.daily_performance_digest', true);        
+	        		const unsubscribeUrl = eval('`'+config.get('request_unsubscribe_url') +'`');
 
-				const fullDigest = {...advisorDigest, ...contestDigest, unsubscribeUrl};
+					const fullDigest = {...advisorDigest, ...contestDigest, ...portfolioSummary, unsubscribeUrl};
 
-	            if (process.env.NODE_ENV === 'production') {	
-	            	return sendEmail.sendDailyContestSummaryDigest(fullDigest, userDetail);
-	        	
-	        	} else if(process.env.NODE_ENV === 'development') {
-	                return sendEmail.sendDailyContestSummaryDigest(fullDigest, 
-	                    {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+		            if (process.env.NODE_ENV === 'production') {	
+		            	return sendEmail.sendDailyContestSummaryDigest(fullDigest, userDetail);
+		        	
+		        	} else if(process.env.NODE_ENV === 'development') {
+		                return sendEmail.sendDailyContestSummaryDigest(fullDigest, 
+		                    {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+		            }
 	            }
             })
         })
