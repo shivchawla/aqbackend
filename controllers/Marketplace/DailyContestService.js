@@ -351,7 +351,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 module.exports.exitDailyContestPrediction = (args, res, next) => {
 	const userId = _.get(args, 'user._id', null);
 	const predictionId = _.get(args, 'predictionId.value', null);
-	
+	const userEmail = _.get(args, 'user.email', null);
 	let advisorId = _.get(args, 'advisorId.value', null);
 	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
 	
