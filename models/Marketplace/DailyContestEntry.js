@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-25 12:37:32
+* @Last Modified time: 2019-01-02 17:59:23
 */
 
 
@@ -79,6 +79,7 @@ const Prediction = new Schema({
 		profitTarget: {type:Boolean, default: false},
 		stopLoss: {type: Boolean, default: false},
 		manualExit: {type: Boolean, default: false},
+		expired: {type: Boolean, default: false},
 		date: Date,
 		trueDate: Date,
 		price: Number

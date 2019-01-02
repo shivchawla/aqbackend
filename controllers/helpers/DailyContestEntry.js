@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-02 10:26:26
+* @Last Modified time: 2019-01-02 18:02:17
 */
 
 'use strict';
@@ -1811,26 +1811,48 @@ module.exports.checkForPredictionExpiry = function() {
 		return DailyContestEntryModel.fetchDistinctAdvisors()
 		.then(advisors => {
 			return Promise.mapSeries(advisors, function(advisorId) {
-				return exports.getPredictionsForDate(advisorId, currentDate, {category: "ended", priceUpdate: true})
+				return exports.getPredictionsForDate(advisorId, currentDate, {category: "ended", priceUpdate: false})
 				.then(endedPredictions => {
-					return endedPredictions
-					.filter(item =>  {
-						
+					return Promise.mapSeries(endedPredictions, function(item) {
+
 						var targetStatus = _.get(item, 'status.profitTarget', false);
 						var stopLossStatus = _.get(item, 'status.stopLoss', false);
 						var manualExitStatus = _.get(item, 'status.manualExit', false);
 
+						var lastPrice = _.get(item, 'position.lastPrice', 0);
 						var endedInTime = moment(_.get(item, 'endDate', null)).isBefore(moment());
-						
-						return !targetStatus && !stopLossStatus && !manualExitStatus && endedInTime;
-					});	
+						var expiredStatus = _.get(item, 'status.expired', false);
+
+						var expiring = !targetStatus && !stopLossStatus && !manualExitStatus && endedInTime && !expiredStatus;
+
+						if (expiring && lastPrice == 0) {
+							return SecurityHelper.getStockLatestDetail(item.position.security)
+							.then(securityDetail => {
+								item.position.lastPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || 
+									_.get(securityDetail, 'latestDetailRT.close') || 
+									_.get(securityDetail, 'latestDetail.Close', 0);
+
+								item.status.expired = true;
+								return item;
+							});
+							
+						} else {return null;}
+					})
+				})
+				.then(expiringPredictions => {
+					return expiringPredictions
+						.filter(item => item)
+						.map(item => {
+							return {...item, advisorId: advisorId};
+						});
 				})
 			})
 		})
-		.then(allPredictionsEndedInTimeByAdvisorIds => {
+		.then(allPredictionsEndedInTimeByAdvisorIds => { //predictions not updated yet
 			var allPredictionsEndedInTime = Array.prototype.concat.apply([], allPredictionsEndedInTimeByAdvisorIds);
 
 			return Promise.mapSeries(allPredictionsEndedInTime, function(prediction) {
+
 				return Promise.all([
 					AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction),
 					DailyContestEntryModel.updatePrediction({advisor: prediction.advisorId}, prediction)
