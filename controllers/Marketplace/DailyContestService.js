@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-01 10:50:24
+* @Last Modified time: 2019-01-02 11:01:11
 */
 
 'use strict';
@@ -352,8 +352,9 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 	const userId = _.get(args, 'user._id', null);
 	const predictionId = _.get(args, 'predictionId.value', null);
 	
-	let advisorId;
-
+	let advisorId = _.get(args, 'advisorId.value', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+	
 	Promise.resolve()
 	.then(() => {
 		if(!DateHelper.isMarketTrading()) {
@@ -363,7 +364,11 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 		}
 	})
 	.then(() => {
-		return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})	
+		let advisorSelection = {user: userId};
+		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
+			advisorSelection = {_id: advisorId};
+		}
+		return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id'})	
 	})
 	.then(advisor => {
 		if (advisor) {
