@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-31 23:49:27
+* @Last Modified time: 2019-01-02 15:19:51
 */
 
 'use strict';
@@ -557,7 +557,7 @@ module.exports.sendSummaryDigest = function(date) {
 module.exports.sendDailyWinnerDigest = function(date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date).toDate();
 
-	return DailyContestStatsModel.fetchContestStats(date, {fields: 'topStocks winners'})
+	return DailyContestStatsModel.fetchContestStats(date, {fields: 'topStocks dailyWinners'})
 	.then(contestStats => {
 		if (contestStats) {
 			var winners = contestStats.dailyWinners;
@@ -569,6 +569,7 @@ module.exports.sendDailyWinnerDigest = function(date) {
 				let winnerDigest = {leaderboardUrl, submitPredictionUrl,
 					pnlPct: `${(_.get(winner,'pnlStats.total.pnlPct')*100).toFixed(2)}%`, 
 					rank: winner.rank,
+					prizeMoney: winner.rank <= DAILY_PRIZES.length ? DAILY_PRIZES[winner.rank - 1] : 0,
 					dailyContestDate: moment(date).format("Do MMM YYYY")};
 				
 				return _getUserDetail(winner.advisor)
