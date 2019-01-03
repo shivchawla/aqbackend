@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-02 18:02:17
+* @Last Modified time: 2019-01-03 17:43:19
 */
 
 'use strict';
@@ -1978,6 +1978,10 @@ function _getDistinctPredictionTickersForAdvisors(date) {
 		})
 	})
 	.then(() => {
+		Object.keys(advisorsByTicker).forEach(ticker => {
+			advisorsByTicker[ticker] = _.uniq(advisorsByTicker[ticker]);
+		});
+
 		return advisorsByTicker;
 	});	
 }
@@ -2043,10 +2047,12 @@ module.exports.updateManuallyExitedPredictionsForLastPrice = function(date) {
 					var trueEndDateTime = _.get(prediction, 'status.trueDate', null);
 					var manualExit = _.get(prediction, 'status.manualExit', false);
 					
-					if (manualExit && trueEndDateTime) {
+					var lastPrice = _.get(prediction, 'position.lastPrice', 0);
+
+					if (manualExit && trueEndDateTime && lastPrice == 0) {
 						return SecurityHelper.getStockIntradayHistory({ticker: ticker}, trueEndDateTime)
 						.then(securityDetail => {
-							var intradayHistory = _.et(securityDetail, 'intradayHistory', []);
+							var intradayHistory = _.get(securityDetail, 'intradayHistory', []);
 
 							var relevantIntradayHistory = intradayHistory.filter(item => {return !moment(item.datetime).isBefore(moment(trueEndDateTime))});
 
