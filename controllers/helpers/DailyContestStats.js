@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-02 20:17:10
+* @Last Modified time: 2019-01-03 13:03:01
 */
 
 'use strict';
@@ -550,12 +550,14 @@ module.exports.sendTemplateEmailToParticipants = function(emailType) {
         		const sendDigest = _.get(userDetail, `emailpreference.${type}`, true);        
         		const unsubscribeUrl = eval('`'+config.get('request_unsubscribe_url') +'`');
 
-	            if (process.env.NODE_ENV === 'production') {	
-	            	return sendEmail.sendTemplateEmail(templateId, {...motivationDigest, unsubscribeUrl}, userDetail, "contest");
-	        	
-	        	} else if(process.env.NODE_ENV === 'development') {
-	                return sendEmail.sendTemplateEmail(templateId, motivationDigest, 
-	                    {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"}, "contest");
+        		if (sendDigest) {
+		            if (process.env.NODE_ENV === 'production') {	
+		            	return sendEmail.sendTemplateEmail(templateId, {...motivationDigest, unsubscribeUrl}, userDetail, "contest");
+		        	
+		        	} else if(process.env.NODE_ENV === 'development') {
+		                return sendEmail.sendTemplateEmail(templateId, motivationDigest, 
+		                    {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"}, "contest");
+		            }
 	            }
             });
         })
