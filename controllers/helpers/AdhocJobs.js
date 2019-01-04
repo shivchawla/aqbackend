@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-04 18:14:30
+* @Last Modified time: 2019-01-04 18:23:16
 */
 
 'use strict';
@@ -334,7 +334,7 @@ function checkSumAdvisorAccount(update=false) {
 					var investment = account.investment + totalInvestment; 
 
 					var netTotal = netEquity + cash;
-					var grossTotal = netTotal + cash;
+					var grossTotal = grossEquity + cash;
 					
 					account = {cash, liquidCash, investment};
 
@@ -349,13 +349,12 @@ function checkSumAdvisorAccount(update=false) {
 						console.log(`LiquidCashDiff: ${liquidCashDiff}`);
 						console.log(`investmentDiff: ${investmentDiff}`);
 
+						const updates = {
+							...portfolioStats, ...account,
+							netEquity, grossEquity, grossTotal, netTotal	
+						};
+
 						if(update) {
-							const updates = {
-								...portfolioStats, ...account,
-								netEquity, grossEquity, grossTotal, netTotal
-								
-							};
-					
 							return DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date);
 						}
 					} else {
@@ -372,7 +371,7 @@ function checkSumAdvisorAccount(update=false) {
 }
 
 if (config.get('jobsPort') === serverPort) {
-	checkSumAdvisorAccount()
+	//checkSumAdvisorAccount()
 }
 
 
