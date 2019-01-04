@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-04 18:23:16
+* @Last Modified time: 2019-01-04 19:32:27
 */
 
 'use strict';
@@ -276,7 +276,7 @@ function checkSumAdvisorAccount(update=false) {
 		return Promise.mapSeries(advisors, function(advisorId) {
 
 			var account = {cash: 1000, liquidCash: 1000, investment:0};
-
+			
 			return Promise.mapSeries(dates, (date, index) => {
 				date = DateHelper.getMarketCloseDateTime(date);
 
@@ -309,23 +309,22 @@ function checkSumAdvisorAccount(update=false) {
 						if (index == 0) {
 							totalInvestment += Math.abs(investment);
 							cashUsed += investment;
-							netEquity += equity;
-							grossEquity += Math.abs(equity);
 						} else {
 							if (startedPredictions.map(item => item._id.toString()).indexOf(prediction._id.toString()) != -1) {
 								totalInvestment += Math.abs(investment);
 								cashUsed += investment;
-								netEquity += equity;
-								grossEquity += Math.abs(equity);
 							}
+						}
+
+						if(endedPredictions.map(item => item._id.toString()).indexOf(prediction._id.toString()) == -1) {
+							netEquity += equity; 
+							grossEquity += Math.abs(equity);
 						}
 
 						if(endedPredictions.map(item => item._id.toString()).indexOf(prediction._id.toString()) != -1) {
 							pnl += equity - investment;
 							totalInvestment -= Math.abs(investment)
 							cashUsed -= investment;
-							netEquity -= equity;
-							grossEquity -= Math.abs(equity);
 						}
 					});
 
@@ -362,6 +361,11 @@ function checkSumAdvisorAccount(update=false) {
 					}	
 				})
 			})
+			.then(() => {
+                if(update) {
+                        return AdvisorModel.updateAdvisor({_id: advisorId), {account}) 
+                }
+        	})
 
 		})
 	})
