@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-04 16:04:39
+* @Last Modified time: 2019-01-04 16:31:44
 */
 
 'use strict';
@@ -274,47 +274,49 @@ function compareAccount() {
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
 
-			const account = {cash: 1000, liquidCash: 1000, investment:0};
+			var account = {cash: 1000, liquidCash: 1000, investment:0};
 
 			return Promise.mapSeries(dates, function(date) {
 				date = DateHelper.getMarketCloseDateTime(date);
 
 				return Promise.all([
 					DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: true}),
+					DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "ended", priceUpdate: false}),
 					DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date)
 				])
-				.then(([allPredictions, portfolioStats]) => {
+				.then(([allPredictions, endedPredictions, portfolioStats]) => {
 					var totalInvestment = 0
-					var totalEquity = 0;
+					var pnl = 0;
 					var cashUsed = 0;
 					
 					allPredictions.forEach(prediction => {
 						var stopLoss = _.get(prediction, 'status.stopLoss', false);
 						var profitTarget = _.get(prediction, 'status.profitTarget', false);
-						var expired = _.get(prediction, 'status.expired', false) || !moment(DateHelper.getMarketCloseDateTime(prediction.endDate)).isBefore(date);
+						var expired = _.get(prediction, 'status.expired', false) || !moment(DateHelper.getMarketCloseDateTime(prediction.endDate)).isAfter(date);
 						var manualExit = _.get(prediction, 'status.manualExit', false);
 
 						var avgPrice = _.get(prediction, 'position.avgPrice', 0);
 						var lastPrice = _.get(prediction, 'position.lastPrice', 0);
 						var investment = _.get(prediction, 'position.investment', 0);
 
-						if (!(stopLoss || profitTarget || expired || manualExit)) {
-							
+						if (endedPredictions.map(item => item._id.toString()).indexOf(prediction._id.toString()) == -1) {
 							totalInvestment += Math.abs(investment);
 							cashUsed += investment;
-							totalEquity += avgPrice > 0 && lastPrice > 0 ? investment*(lastPrice/avgPrice) : investment;
+						}
 
+						if(endedPredictions.map(item => item._id.toString()).indexOf(prediction._id.toString()) != -1) {
+							pnl += (avgPrice > 0 && lastPrice > 0 ? investment*(lastPrice/avgPrice) : investment) - investment;
 						}
 					});
 
 					account = {
-						cash: account.cash - cashUsed, 
-						liquidCash: account.liquidCash - totalInvestment,
+						cash: account.cash - cashUsed + pnl, 
+						liquidCash: account.liquidCash - totalInvestment + pnl,
 						investment: account.investment + totalInvestment
 					}
 
 					console.log("AdvisorId: ", advisorId)
-					console.log("Date: ": date);
+					console.log("Date: ", date);
 					console.log("Account Compute: ", account);
 					console.log("PortfolioStats: ", portfolioStats);
 

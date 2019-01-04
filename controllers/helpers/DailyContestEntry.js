@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-04 16:02:30
+* @Last Modified time: 2019-01-04 16:17:05
 */
 
 'use strict';
@@ -1782,7 +1782,7 @@ module.exports.checkForPredictionTarget = function() {
 						
 				})
 			
-			})e
+			})
 			
 		})
 	})
