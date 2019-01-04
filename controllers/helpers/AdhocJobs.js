@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-04 17:49:57
+* @Last Modified time: 2019-01-04 18:14:30
 */
 
 'use strict';
@@ -268,7 +268,7 @@ module.exports.updatePerformanceFormat = function() {
     });
 };
 
-function checkSumAdvisorAccount() {
+function checkSumAdvisorAccount(update=false) {
 	
 	var dates = ["2019-01-01", "2019-01-02", "2019-01-03", "2019-01-04"];
 	return DailyContestEntryModel.fetchDistinctAdvisors()
@@ -283,6 +283,8 @@ function checkSumAdvisorAccount() {
 				var totalInvestment = 0
 				var pnl = 0;
 				var cashUsed = 0;
+				var grossEquity = 0;
+				var netEquity = 0;
 
 				return Promise.all([
 					DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: true}),
@@ -302,28 +304,39 @@ function checkSumAdvisorAccount() {
 						var lastPrice = _.get(prediction, 'position.lastPrice', 0);
 						var investment = _.get(prediction, 'position.investment', 0);
 
+						var equity = avgPrice > 0 && lastPrice > 0 ? investment*(lastPrice/avgPrice) : investment;
+
 						if (index == 0) {
 							totalInvestment += Math.abs(investment);
 							cashUsed += investment;
+							netEquity += equity;
+							grossEquity += Math.abs(equity);
 						} else {
 							if (startedPredictions.map(item => item._id.toString()).indexOf(prediction._id.toString()) != -1) {
 								totalInvestment += Math.abs(investment);
 								cashUsed += investment;
+								netEquity += equity;
+								grossEquity += Math.abs(equity);
 							}
 						}
 
 						if(endedPredictions.map(item => item._id.toString()).indexOf(prediction._id.toString()) != -1) {
-							pnl += (avgPrice > 0 && lastPrice > 0 ? investment*(lastPrice/avgPrice) : investment) - investment;
+							pnl += equity - investment;
 							totalInvestment -= Math.abs(investment)
 							cashUsed -= investment;
+							netEquity -= equity;
+							grossEquity -= Math.abs(equity);
 						}
 					});
 
-					account = {
-						cash: account.cash - cashUsed + pnl, 
-						liquidCash: account.liquidCash - totalInvestment + pnl,
-						investment: account.investment + totalInvestment
-					}
+					var cash = account.cash - cashUsed + pnl; 
+					var liquidCash = account.liquidCash - totalInvestment + pnl;
+					var investment = account.investment + totalInvestment; 
+
+					var netTotal = netEquity + cash;
+					var grossTotal = netTotal + cash;
+					
+					account = {cash, liquidCash, investment};
 
 					//Check sum condition
 					var cashDiff = Math.abs(account.cash - _.get(portfolioStats, 'cash', 1000));
@@ -335,6 +348,16 @@ function checkSumAdvisorAccount() {
 						console.log(`CashDiff: ${cashDiff}`);
 						console.log(`LiquidCashDiff: ${liquidCashDiff}`);
 						console.log(`investmentDiff: ${investmentDiff}`);
+
+						if(update) {
+							const updates = {
+								...portfolioStats, ...account,
+								netEquity, grossEquity, grossTotal, netTotal
+								
+							};
+					
+							return DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date);
+						}
 					} else {
 						console.log(`Checksum VALID for Advisor: ${advisorId} on Date: ${date.toDate()}`);
 					}	
@@ -349,7 +372,7 @@ function checkSumAdvisorAccount() {
 }
 
 if (config.get('jobsPort') === serverPort) {
-	//checkSumAdvisorAccount()
+	checkSumAdvisorAccount()
 }
 
 
