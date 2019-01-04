@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-04 16:31:44
+* @Last Modified time: 2019-01-04 16:42:21
 */
 
 'use strict';
@@ -276,15 +276,16 @@ function compareAccount() {
 
 			var account = {cash: 1000, liquidCash: 1000, investment:0};
 
-			return Promise.mapSeries(dates, function(date) {
+			return Promise.mapSeries(dates, (date, index) => {
 				date = DateHelper.getMarketCloseDateTime(date);
 
 				return Promise.all([
 					DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: true}),
 					DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "ended", priceUpdate: false}),
+					DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "started", priceUpdate: true}),
 					DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date)
 				])
-				.then(([allPredictions, endedPredictions, portfolioStats]) => {
+				.then(([allPredictions, endedPredictions, startedPredictions, portfolioStats]) => {
 					var totalInvestment = 0
 					var pnl = 0;
 					var cashUsed = 0;
@@ -299,9 +300,16 @@ function compareAccount() {
 						var lastPrice = _.get(prediction, 'position.lastPrice', 0);
 						var investment = _.get(prediction, 'position.investment', 0);
 
-						if (endedPredictions.map(item => item._id.toString()).indexOf(prediction._id.toString()) == -1) {
-							totalInvestment += Math.abs(investment);
-							cashUsed += investment;
+						if (index == 0) {
+							if (endedPredictions.map(item => item._id.toString()).indexOf(prediction._id.toString()) == -1) {
+								totalInvestment += Math.abs(investment);
+								cashUsed += investment;
+							}
+						} else {
+							if (startedPredictions.map(item => item._id.toString()).indexOf(prediction._id.toString()) == -1) {
+								totalInvestment += Math.abs(investment);
+								cashUsed += investment;
+							}
 						}
 
 						if(endedPredictions.map(item => item._id.toString()).indexOf(prediction._id.toString()) != -1) {
