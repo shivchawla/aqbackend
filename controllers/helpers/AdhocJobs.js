@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-04 16:42:21
+* @Last Modified time: 2019-01-04 17:49:57
 */
 
 'use strict';
@@ -268,7 +268,8 @@ module.exports.updatePerformanceFormat = function() {
     });
 };
 
-function compareAccount() {
+function checkSumAdvisorAccount() {
+	
 	var dates = ["2019-01-01", "2019-01-02", "2019-01-03", "2019-01-04"];
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
@@ -279,6 +280,10 @@ function compareAccount() {
 			return Promise.mapSeries(dates, (date, index) => {
 				date = DateHelper.getMarketCloseDateTime(date);
 
+				var totalInvestment = 0
+				var pnl = 0;
+				var cashUsed = 0;
+
 				return Promise.all([
 					DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: true}),
 					DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "ended", priceUpdate: false}),
@@ -286,9 +291,6 @@ function compareAccount() {
 					DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date)
 				])
 				.then(([allPredictions, endedPredictions, startedPredictions, portfolioStats]) => {
-					var totalInvestment = 0
-					var pnl = 0;
-					var cashUsed = 0;
 					
 					allPredictions.forEach(prediction => {
 						var stopLoss = _.get(prediction, 'status.stopLoss', false);
@@ -301,12 +303,10 @@ function compareAccount() {
 						var investment = _.get(prediction, 'position.investment', 0);
 
 						if (index == 0) {
-							if (endedPredictions.map(item => item._id.toString()).indexOf(prediction._id.toString()) == -1) {
-								totalInvestment += Math.abs(investment);
-								cashUsed += investment;
-							}
+							totalInvestment += Math.abs(investment);
+							cashUsed += investment;
 						} else {
-							if (startedPredictions.map(item => item._id.toString()).indexOf(prediction._id.toString()) == -1) {
+							if (startedPredictions.map(item => item._id.toString()).indexOf(prediction._id.toString()) != -1) {
 								totalInvestment += Math.abs(investment);
 								cashUsed += investment;
 							}
@@ -314,6 +314,8 @@ function compareAccount() {
 
 						if(endedPredictions.map(item => item._id.toString()).indexOf(prediction._id.toString()) != -1) {
 							pnl += (avgPrice > 0 && lastPrice > 0 ? investment*(lastPrice/avgPrice) : investment) - investment;
+							totalInvestment -= Math.abs(investment)
+							cashUsed -= investment;
 						}
 					});
 
@@ -323,11 +325,19 @@ function compareAccount() {
 						investment: account.investment + totalInvestment
 					}
 
-					console.log("AdvisorId: ", advisorId)
-					console.log("Date: ", date);
-					console.log("Account Compute: ", account);
-					console.log("PortfolioStats: ", portfolioStats);
+					//Check sum condition
+					var cashDiff = Math.abs(account.cash - _.get(portfolioStats, 'cash', 1000));
+					var liquidCashDiff = Math.abs(account.liquidCash - _.get(portfolioStats, 'liquidCash', 1000));
+					var investmentDiff = Math.abs(account.investment - _.get(portfolioStats, 'investment', 0));
 
+					if (cashDiff > 0.001 || liquidCashDiff > 0.001 || investmentDiff > 0.001) {
+						console.log(`Checksum FAILED for Advisor: ${advisorId} on Date: ${date.toDate()}`);
+						console.log(`CashDiff: ${cashDiff}`);
+						console.log(`LiquidCashDiff: ${liquidCashDiff}`);
+						console.log(`investmentDiff: ${investmentDiff}`);
+					} else {
+						console.log(`Checksum VALID for Advisor: ${advisorId} on Date: ${date.toDate()}`);
+					}	
 				})
 			})
 
@@ -339,7 +349,7 @@ function compareAccount() {
 }
 
 if (config.get('jobsPort') === serverPort) {
-	//tempJob();
+	//checkSumAdvisorAccount()
 }
 
 
