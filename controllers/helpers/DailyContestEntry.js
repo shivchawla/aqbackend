@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-04 16:17:05
+* @Last Modified time: 2019-01-04 22:13:26
 */
 
 'use strict';
@@ -1075,7 +1075,8 @@ function _computeUpdatedPredictions(predictions, date) {
 				var manualExit = _.get(prediction, 'status.manualExit', false) && moment(date).isSame(moment(prediction.status.date));
 				var lastPrice = _.get(prediction, 'position.lastPrice', 0);
 
-				var endedInTime = moment(_.get(prediction, 'endDate', null)).isBefore(moment());
+				var expired = _.get(prediction, 'status.expired', false) || moment(_.get(prediction, 'endDate', null)).isBefore(moment());
+				var endedInTime = expired && moment(date).isSame(moment(prediction.endDate));
 
 				if (success) {
 					
