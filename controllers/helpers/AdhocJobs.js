@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-04 19:32:27
+* @Last Modified time: 2019-01-04 19:35:52
 */
 
 'use strict';
@@ -363,7 +363,7 @@ function checkSumAdvisorAccount(update=false) {
 			})
 			.then(() => {
                 if(update) {
-                        return AdvisorModel.updateAdvisor({_id: advisorId), {account}) 
+                        return AdvisorModel.updateAdvisor({_id: advisorId}, {account}) 
                 }
         	})
 
