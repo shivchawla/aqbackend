@@ -247,7 +247,7 @@ exports.updateToken = function(args, res, next) {
             return Promise.resolve()
             .then(() => {
                 if (force) {               
-                    return hashUtil.getHash(uuid.v4())
+                    return hashUtil.genHash(uuid.v4())
                     .then(jwtId => {
                         return UserModel.updateJwtId({email: userEmail}, jwtId);
                     })
@@ -447,10 +447,10 @@ module.exports.userGoogleLogin = function(args, res, next) {
         return jwtUtil.signToken(_filterUserCredentials(userDetails), {jwtid: userDetails.jwtId});
     })
     .then(token => {
+        
+        userDetails = _filterUserCredentials(userDetails);
         userDetails.token = token;
-        delete userDetails.password;
-        delete userDetails.code;
-
+        
         return Promise.all([
             InvestorModel.fetchInvestor({user:userDetails._id}, {insert:true}),
             AdvisorModel.fetchAdvisor({user:userDetails._id}, {insert:true})
