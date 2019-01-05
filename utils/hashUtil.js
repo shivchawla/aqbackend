@@ -18,7 +18,7 @@ function genHash(password) {
     });
 }
 
-function comparePassword(hash, plain) {
+function compareHash(hash, plain) {
     return new Promise(function(resolve, reject) {
         bcrypt.compare(plain, hash, function(err, res) {
             if (err) {
@@ -30,4 +30,4 @@ function comparePassword(hash, plain) {
 }
 
 module.exports.genHash = genHash;
-module.exports.comparePassword = comparePassword;
+module.exports.compareHash = compareHash;
