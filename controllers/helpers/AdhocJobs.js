@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-04 19:35:52
+* @Last Modified time: 2019-01-05 22:54:50
 */
 
 'use strict';
@@ -12,6 +12,7 @@ const moment = require('moment-timezone');
 const schedule = require('node-schedule');
 const config = require('config');
 
+const hashUtil = require('../../utils/hashUtil');
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
 const WSHelper = require('./WSHelper');
@@ -19,6 +20,7 @@ const SecurityHelper = require('./Security');
 const AdvisorHelper = require('./Advisor');
 const DailyContestEntryHelper = require('./DailyContestEntry');
 
+const UserModel = require('../../models/user');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
@@ -267,6 +269,15 @@ module.exports.updatePerformanceFormat = function() {
     	});
     });
 };
+
+function updateUserJwtId() {
+	return UserModel.fetchUsers({},{_id:1}, {limit: 1000})
+	.then(users => {
+		return Promise.mapSeries(users, function(user) {
+			return UserModel.updateJwtId({_id: user._id}, 'jwtid');
+		});
+	})
+}
 
 function checkSumAdvisorAccount(update=false) {
 	

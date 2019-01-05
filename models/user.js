@@ -38,6 +38,11 @@ const User = new Schema({
         required: true
     },
 
+    jwtId: {
+        type: String,
+        required: true
+    },
+
     emailpreference: {
         daily_performance_digest: {
             type: Boolean,
@@ -110,6 +115,18 @@ User.statics.updateCode = function(query, code) {
                 throw new Error("Not a registered user");
             }
         });
+};
+
+User.statics.updateJwtId = function(query, jwtId) {
+    return this.findOne(query)
+    .then(user => {
+        if (user) {
+            user.jwtId = jwtId;
+            return user.save();
+        } else {
+            throw new Error("Not a registered user");
+        }
+    });
 };
 
 User.statics.updatePassword = function(query, hash) {

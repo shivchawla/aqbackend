@@ -14,22 +14,31 @@ const APIError = require('../../utils/error');
 const CLIENT_ID = config.get('app_client_id');
 const _ = require('lodash');
 
-exports.registerUser = function(args, res, next) {
-    const user = {
-        email: args.body.value.email.toLowerCase(),
-        firstName: args.body.value.firstName,
-        lastName: args.body.value.lastName,
-        password: args.body.value.password,
-        code: uuid.v4(),
-        createdDate: new Date(),
-    };
 
+function _filterUserCredentials(userObject) {
+    return _.pick(userObject, ['_id', 'firstName', 'lastName', 'email']);
+}
+
+exports.registerUser = function(args, res, next) {
+    
     const source = res && res.req && res.req.headers && res.req.headers.origin ? 
         res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
 
-    hashUtil.genHash(user.password)
-    .then(hash => {
-        user.password = hash;
+    return Promise.all([
+        hashUtil.genHash(user.password),
+        hashUtil.genHash(uuid.v4()),
+    ])
+    .then(([passwordHash, jwtId]) => {
+        const user = {
+            email: args.body.value.email.toLowerCase(),
+            firstName: args.body.value.firstName,
+            lastName: args.body.value.lastName,
+            password: passwordHash,
+            code: uuid.v4(),
+            jwtId: jwtId,
+            createdDate: new Date(),
+        };
+
         return UserModel.saveUser(user);
     })
     .then(userDetails => {
@@ -74,20 +83,20 @@ exports.userlogin = function(args, res, next) {
                 return Promise.reject('Check your email for account activation instructions');
             });
         } else {
-            return hashUtil.comparePassword(userDetails.password, user.password);
+            return hashUtil.compareHash(userDetails.password, user.password);
         }
     })
     .then(resp => {
         if (resp) {
-            return jwtUtil.signToken(userDetails);
+            return jwtUtil.signToken(_filterUserCredentials(userDetails) , {jwtid: userDetails.jwtId});
         }
 
         return Promise.reject('Username or Password is incorrect');
     })
     .then(token => {
+        
+        userDetails = _filterUserCredentials(userDetails);
         userDetails.token = token;
-        delete userDetails.password;
-        delete userDetails.code;
         
         return Promise.all([
             InvestorModel.fetchInvestor({user:userDetails._id}, {insert:true}),
@@ -172,7 +181,7 @@ exports.resetPassword = function(args, res, next) {
         .then(function(hash) {
             return UserModel.updatePassword({
                 code: code
-            },hash);
+            }, hash);
         })
         .then(function(userDetails) {
             if (userDetails) {
@@ -211,8 +220,12 @@ exports.updateToken = function(args, res, next) {
     const userEmail = args.body.value.email.toLowerCase();
     const token = args.body.value.token;
 
+    //parameter to update code no matter what 
+    const force = _.get(args, 'body.value.force', false);
+
     var options = {ignoreExpiration: true};
-    jwtUtil.verifyToken(token, options)
+    
+    return jwtUtil.verifyToken(token, options)
     .then(decoded => {
         //Check if token expired within last 15 minute
         if (decoded.exp*1000 <= Date.now() - 15*60*1000) {
@@ -226,17 +239,31 @@ exports.updateToken = function(args, res, next) {
     .then(user => {
         if(user) {
             const userDetails = user.toObject();
+            
             if (!userDetails.active) {
                 throw new Error('User not active');
             }
-            return [jwtUtil.signToken(userDetails), userDetails];
+
+            return Promise.resolve()
+            .then(() => {
+                if (force) {               
+                    return hashUtil.getHash(uuid.v4())
+                    .then(jwtId => {
+                        return UserModel.updateJwtId({email: userEmail}, jwtId);
+                    })
+                } else {
+                    return user;
+                }
+            })
+            .then(user => {
+                return [jwtUtil.signToken(_filterUserCredentials(userDetails), {jwtid: userDetails.jwtId, expiresIn: force ? '1000d' : '5d'}), _filterUserCredentials(userDetails)];
+            })
         } else {
             throw new Error("Unauthorized Access");
         }
     })
-    .spread(function(token, userDetails){
+    .spread(function(token, userDetails) {
         userDetails.token = token;
-        delete userDetails.password;
         return res.status(200).json(userDetails);
     })
     .catch(err => {
@@ -389,20 +416,25 @@ module.exports.userGoogleLogin = function(args, res, next) {
     .then(userM => {
         if (!userM) {
             // Registration should be done here
-            const user = {
-                email: googleUserDetails.userEmail,
-                firstName: googleUserDetails.userFirstName,
-                lastName: googleUserDetails.userLastName,
-                photourl: googleUserDetails.userPicture,
-                password: randomPassword,
-                code: uuid.v4(),
-                active: true,
-                createdDate: new Date(),
-                isUserFromGoogle: true
-            };
-            userAlreadyPresent = false;
+            return hashUtil.genHash(uuid.v4())
+            .then(jwtId => {
+                const user = {
+                    email: googleUserDetails.userEmail,
+                    firstName: googleUserDetails.userFirstName,
+                    lastName: googleUserDetails.userLastName,
+                    photourl: googleUserDetails.userPicture,
+                    password: randomPassword,
+                    code: uuid.v4(),
+                    jwtId: jwtId,
+                    active: true,
+                    createdDate: new Date(),
+                    isUserFromGoogle: true
+                };
+                
+                userAlreadyPresent = false;
 
-            return UserModel.saveUser(user)
+                return UserModel.saveUser(user);
+            });
         } else {
             // Login should be done here
             return Promise.resolve(userM);
@@ -412,7 +444,7 @@ module.exports.userGoogleLogin = function(args, res, next) {
         userDetails = userResponse.toObject();
         !userAlreadyPresent && Promise.resolve(sendEmail.welcomeEmail(null, userResponse, source, false));
 
-        return jwtUtil.signToken(userDetails);
+        return jwtUtil.signToken(_filterUserCredentials(userDetails), {jwtid: userDetails.jwtId});
     })
     .then(token => {
         userDetails.token = token;
