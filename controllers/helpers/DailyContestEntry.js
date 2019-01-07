@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-04 22:13:26
+* @Last Modified time: 2019-01-07 16:01:55
 */
 
 'use strict';
@@ -1502,7 +1502,10 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 				var profitTargetStatus = _.get(item, 'status.profitTarget', false);
 				var stopLossStatus = _.get(item, 'status.stopLoss', false);
 				var manualExitStatus = _.get(item, 'status.manualExit', false);
-				var expired = _.get(item, 'status.expired', false) || !moment(_.get(item, 'endDate', null)).isBefore(date);;
+				var expired = _.get(item, 'status.expired', false);
+
+				//This condition for expiry is nt required as epired flag will be true
+				// || !moment(_.get(item, 'endDate', null)).isBefore(date);;
 				
 				return profitTargetStatus || stopLossStatus || manualExitStatus || expired;
 			})
@@ -1516,7 +1519,7 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 					var lastPrice = _.get(item, 'position.lastPrice', 0);
 					var avgPrice = _.get(item, 'position.avgPrice', 0);
 
-					var equity = avgPrice > 0 ? investment * (lastPrice/avgPrice) : investment;
+					var equity = avgPrice > 0  && lastPrice > 0 ? investment * (lastPrice/avgPrice) : investment;
 					netEquity += equity
 					grossEquity += Math.abs(equity);
 				}
@@ -1539,12 +1542,10 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 							_.get(securityDetail, 'latestDetailRT.close') || 
 							_.get(securityDetail, 'latestDetail.Close', 0);
 
+						var cashGenerated = avgPrice > 0 && lastPrice > 0 ? (lastPrice/avgPrice)*investment : investment;
+						cash += cashGenerated;
 					});
-
-					var cashGenerated = avgPrice > 0 ? (lastPrice/avgPrice)*investment : investment;
-					cash += cashGenerated;
 				} 
-	
 			})
 			.then(() => {
 
@@ -2041,7 +2042,7 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 module.exports.updateManuallyExitedPredictionsForLastPrice = function(date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
-	return _getDistinctPredictionTickersForAdvisors(date)
+	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(allAdvisors => {
 		return Promise.mapSeries(allAdvisors, function(advisorId){
 			return exports.getPredictionsForDate(advisorId, date, {category: "ended", priceUpdate: false})
