@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-04 19:35:52
+* @Last Modified time: 2019-01-08 14:52:36
 */
 
 'use strict';
@@ -270,7 +270,7 @@ module.exports.updatePerformanceFormat = function() {
 
 function checkSumAdvisorAccount(update=false) {
 	
-	var dates = ["2019-01-01", "2019-01-02", "2019-01-03", "2019-01-04"];
+	var dates = ["2019-01-01", "2019-01-02", "2019-01-03", "2019-01-04", "2019-01-07", "2019-01-09"];
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
@@ -294,10 +294,26 @@ function checkSumAdvisorAccount(update=false) {
 				])
 				.then(([allPredictions, endedPredictions, startedPredictions, portfolioStats]) => {
 					
+					endedPredictions = endedPredictions.filter(prediction => {
+						var stopLoss = _.get(prediction, 'status.stopLoss', false);
+						var profitTarget = _.get(prediction, 'status.profitTarget', false);
+						var expired = _.get(prediction, 'status.expired', false) || 
+							(DateHelper.compareDates(date, DateHelper.getCurrentDate()) != 0 && !moment(DateHelper.getMarketCloseDateTime(prediction.endDate)).isAfter(date)) ||
+							(DateHelper.compareDates(date, DateHelper.getCurrentDate()) == 0 && !moment(DateHelper.getMarketCloseDateTime(prediction.endDate)).isAfter(moment()));
+
+						var manualExit = _.get(prediction, 'status.manualExit', false);
+
+						return stopLoss || profitTarget || expired || manualExit;
+					});
+
+
 					allPredictions.forEach(prediction => {
 						var stopLoss = _.get(prediction, 'status.stopLoss', false);
 						var profitTarget = _.get(prediction, 'status.profitTarget', false);
-						var expired = _.get(prediction, 'status.expired', false) || !moment(DateHelper.getMarketCloseDateTime(prediction.endDate)).isAfter(date);
+						var expired = _.get(prediction, 'status.expired', false) || 
+							(DateHelper.compareDates(date, DateHelper.getCurrentDate()) != 0 && !moment(DateHelper.getMarketCloseDateTime(prediction.endDate)).isAfter(date)) ||
+							(DateHelper.compareDates(date, DateHelper.getCurrentDate()) == 0 && !moment(DateHelper.getMarketCloseDateTime(prediction.endDate)).isAfter(moment()));
+
 						var manualExit = _.get(prediction, 'status.manualExit', false);
 
 						var avgPrice = _.get(prediction, 'position.avgPrice', 0);

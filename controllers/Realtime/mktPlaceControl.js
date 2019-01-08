@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-26 11:14:47
+* @Last Modified time: 2019-01-08 14:04:39
 */
 
 'use strict';
@@ -10,6 +10,7 @@ const config = require('config');
 const schedule = require('node-schedule');
 const Promise = require('bluebird');
 const WebSocket = require('ws');
+const _ = require('lodash');
 
 const SecurityHelper = require("../helpers/Security"); 
 const PortfolioHelper = require("../helpers/Portfolio"); 
@@ -224,8 +225,6 @@ function _handleWatchlistUnsubscription(req, res) {
 				}
 			});
 		}
-
-		resolve(true);	
 	});
 }
 
