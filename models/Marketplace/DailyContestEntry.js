@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-02 17:59:23
+* @Last Modified time: 2019-01-08 12:12:20
 */
 
 
@@ -109,7 +109,7 @@ DailyContestEntry.index({advisor: 1}, {unique: false});
 */
 
 DailyContestEntry.statics.addEntryPredictions = function(query, predictions, options) {
-	return this.findOneAndUpdate(query, {$push: {predictions: {$each: predictions}}}, options)
+	return this.findOneAndUpdate(query, {$addToSet: {predictions: {$each: predictions}}}, options)
 };
 
 DailyContestEntry.statics.fetchEntry = function(query, options) {
@@ -163,7 +163,7 @@ DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, d
 	.then(contestEntry => {
 		if (contestEntry) {
 			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
-			return allPredictions;
+			return allPredictions.filter(item => item);
 		} else {
 			return [];
 		}
@@ -184,7 +184,7 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 			var allPredictions = Array.prototype.concat(...contestEntries.map(item => item.predictions ? item.predictions.toObject() : []));
 			
 			if (allPredictions.length > 0 ) {
-				return allPredictions.filter(item => {
+				return allPredictions.filter(item => item).filter(item => {
 					//Convert the date to market-close date time 
 					//(relevant for date today because input is true time) 
 					var successFailureStatus = item.status.profitTarget || item.status.stopLoss || item.status.manualExit;
@@ -214,7 +214,7 @@ DailyContestEntry.statics.fetchEntryPredictionsOnDate = function(query, date) {
 			var isToday = DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(date)) == 0;
 
 			if (allPredictions.length > 0 ) {
-				return allPredictions.filter(item => {
+				return allPredictions.filter(item => item).filter(item => {
 
 					//Convert startdate(exact time) to EOD datetime for comparison purposes
 					var startDate = DateHelper.getMarketCloseDateTime(DateHelper.getDate(item.startDate));
