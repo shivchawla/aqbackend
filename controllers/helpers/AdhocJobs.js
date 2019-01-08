@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-08 18:04:50
+* @Last Modified time: 2019-01-08 18:09:43
 */
 
 'use strict';
@@ -372,9 +372,7 @@ function checkSumAdvisorAccount(update=false) {
 						if(update) {
 							return DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date);
 						}
-					} else {
-						console.log(`Checksum VALID for Advisor: ${advisorId} on Date: ${date.toDate()}`);
-					}	
+					} 	
 				})
 			})
 			.then(() => {
