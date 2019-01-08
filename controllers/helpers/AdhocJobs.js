@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-08 15:20:57
+* @Last Modified time: 2019-01-08 18:04:50
 */
 
 'use strict';
@@ -390,11 +390,6 @@ function checkSumAdvisorAccount(update=false) {
 	})
 }
 
-if (config.get('jobsPort') === serverPort) {
-	//checkSumAdvisorAccount()
-}
-
-
 function checkPredictionDuplicates() {
 	var dates = ["2019-01-01", "2019-01-02", "2019-01-03", "2019-01-04", "2019-01-07", "2019-01-08"];
 
@@ -405,7 +400,7 @@ function checkPredictionDuplicates() {
 			return Promise.mapSeries(dates, (date, index) => {
 				date = DateHelper.getMarketCloseDateTime(date);
 
-				return DailyContestEntryModel.fetchEntryPredictionsOnDate(advisorId, date)
+				return DailyContestEntryModel.fetchEntryPredictionsOnDate({advisor: advisorId}, date)
 				.then(allPredictions => {
 					var predictionIds = allPredictions.map(item => item._id.toString());
 
@@ -414,20 +409,36 @@ function checkPredictionDuplicates() {
 					var diff = Math.abs(uniqPredictionIds.length - predictionIds.length);
 					if (diff > 0) {
 						console.log(`${diff} duplicate predictions found for advisor: ${advisorId} and date: ${date}`)
+						
+						uniqPredictionIds.forEach(uniqId => {
+							if (predictionIds.filter(id => {return id == uniqId;}).length > 1) {
+								
+								console.log(allPredictions
+									.filter(item => { return item._id.toString() == uniqId;})
+									.map(item => {
+										return {
+											pId: uniqId, 
+											date: DateHelper.getMarketCloseDateTime(item.startDate)
+										};
+									})
+								);
+							}
+						});
 					}
-
-					return;
+					
 				});
 
 			});
-
 		});
-
 	})
-
 }
 
-checkPredictionDuplicates();
+if (config.get('jobsPort') === serverPort) {
+	//checkPredictionDuplicates();
+	//checkSumAdvisorAccount()
+}
+
+
 
 
 
