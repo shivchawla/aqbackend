@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-08 14:52:36
+* @Last Modified time: 2019-01-08 15:20:57
 */
 
 'use strict';
@@ -270,7 +270,7 @@ module.exports.updatePerformanceFormat = function() {
 
 function checkSumAdvisorAccount(update=false) {
 	
-	var dates = ["2019-01-01", "2019-01-02", "2019-01-03", "2019-01-04", "2019-01-07", "2019-01-09"];
+	var dates = ["2019-01-01", "2019-01-02", "2019-01-03", "2019-01-04", "2019-01-07", "2019-01-08"];
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
@@ -393,5 +393,41 @@ function checkSumAdvisorAccount(update=false) {
 if (config.get('jobsPort') === serverPort) {
 	//checkSumAdvisorAccount()
 }
+
+
+function checkPredictionDuplicates() {
+	var dates = ["2019-01-01", "2019-01-02", "2019-01-03", "2019-01-04", "2019-01-07", "2019-01-08"];
+
+	return DailyContestEntryModel.fetchDistinctAdvisors()
+	.then(advisors => {
+		return Promise.mapSeries(advisors, function(advisorId) {
+
+			return Promise.mapSeries(dates, (date, index) => {
+				date = DateHelper.getMarketCloseDateTime(date);
+
+				return DailyContestEntryModel.fetchEntryPredictionsOnDate(advisorId, date)
+				.then(allPredictions => {
+					var predictionIds = allPredictions.map(item => item._id.toString());
+
+					var uniqPredictionIds = _.uniq(predictionIds);
+
+					var diff = Math.abs(uniqPredictionIds.length - predictionIds.length);
+					if (diff > 0) {
+						console.log(`${diff} duplicate predictions found for advisor: ${advisorId} and date: ${date}`)
+					}
+
+					return;
+				});
+
+			});
+
+		});
+
+	})
+
+}
+
+checkPredictionDuplicates();
+
 
 
