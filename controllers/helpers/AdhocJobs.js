@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-05 23:39:19
+* @Last Modified time: 2019-01-09 18:31:42
 */
 
 'use strict';
@@ -189,19 +189,6 @@ module.exports.updateAdvisorFormat = function() {
     })
 }; 
 
-/*
-exports.updateAdvisorFormat()
-.then(() => {
-	exports.updateAllEntriesLatestPortfolioStats();
-})
-.then(() => {
-	exports.updateAllEntriesLatestPnlStats();
-})
-.then(() => {
-	exports.updatePerformanceFormat();
-})
-*/
-
 module.exports.updatePerformanceFormat = function() {
 	const dates = ["2018-11-12","2018-11-13","2018-11-14","2018-11-15", "2018-11-16", 
 	"2018-11-19","2018-11-20","2018-11-21", "2018-11-22", 
@@ -288,7 +275,7 @@ function updateUserJwtId(hash=false) {
 
 function checkSumAdvisorAccount(update=false) {
 	
-	var dates = ["2019-01-01", "2019-01-02", "2019-01-03", "2019-01-04"];
+	var dates = ["2019-01-01", "2019-01-02", "2019-01-03", "2019-01-04", "2019-01-07", "2019-01-08"];
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
@@ -312,11 +299,20 @@ function checkSumAdvisorAccount(update=false) {
 				])
 				.then(([allPredictions, endedPredictions, startedPredictions, portfolioStats]) => {
 					
-					allPredictions.forEach(prediction => {
+					endedPredictions = endedPredictions.filter(prediction => {
 						var stopLoss = _.get(prediction, 'status.stopLoss', false);
 						var profitTarget = _.get(prediction, 'status.profitTarget', false);
-						var expired = _.get(prediction, 'status.expired', false) || !moment(DateHelper.getMarketCloseDateTime(prediction.endDate)).isAfter(date);
+						var expired = _.get(prediction, 'status.expired', false) || 
+							(DateHelper.compareDates(date, DateHelper.getCurrentDate()) != 0 && !moment(DateHelper.getMarketCloseDateTime(prediction.endDate)).isAfter(date)) ||
+							(DateHelper.compareDates(date, DateHelper.getCurrentDate()) == 0 && !moment(DateHelper.getMarketCloseDateTime(prediction.endDate)).isAfter(moment()));
+
 						var manualExit = _.get(prediction, 'status.manualExit', false);
+
+						return stopLoss || profitTarget || expired || manualExit;
+					});
+
+
+					allPredictions.forEach(prediction => {
 
 						var avgPrice = _.get(prediction, 'position.avgPrice', 0);
 						var lastPrice = _.get(prediction, 'position.lastPrice', 0);
@@ -374,9 +370,7 @@ function checkSumAdvisorAccount(update=false) {
 						if(update) {
 							return DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date);
 						}
-					} else {
-						console.log(`Checksum VALID for Advisor: ${advisorId} on Date: ${date.toDate()}`);
-					}	
+					} 	
 				})
 			})
 			.then(() => {
@@ -392,8 +386,69 @@ function checkSumAdvisorAccount(update=false) {
 	})
 }
 
-if (config.get('jobsPort') === serverPort) {
-	//checkSumAdvisorAccount()
+function checkPredictionDuplicates() {
+	var dates = ["2019-01-01", "2019-01-02", "2019-01-03", "2019-01-04", "2019-01-07", "2019-01-08"];
+
+	return DailyContestEntryModel.fetchDistinctAdvisors()
+	.then(advisors => {
+		return Promise.mapSeries(advisors, function(advisorId) {
+
+			return Promise.mapSeries(dates, (date, index) => {
+				date = DateHelper.getMarketCloseDateTime(date);
+
+				return DailyContestEntryModel.fetchEntryPredictionsOnDate({advisor: advisorId}, date)
+				.then(allPredictions => {
+					var predictionIds = allPredictions.map(item => item._id.toString());
+
+					var uniqPredictionIds = _.uniq(predictionIds);
+
+					var diff = Math.abs(uniqPredictionIds.length - predictionIds.length);
+					if (diff > 0) {
+						console.log(`${diff} duplicate predictions found for advisor: ${advisorId} and date: ${date}`)
+						
+						uniqPredictionIds.forEach(uniqId => {
+							if (predictionIds.filter(id => {return id == uniqId;}).length > 1) {
+								
+								console.log(allPredictions
+									.filter(item => { return item._id.toString() == uniqId;})
+									.map(item => {
+										return {
+											pId: uniqId, 
+											date: DateHelper.getMarketCloseDateTime(item.startDate)
+										};
+									})
+								);
+							}
+						});
+					}
+					
+				});
+
+			});
+		});
+	})
 }
+
+if (config.get('jobsPort') === serverPort) {
+	//checkPredictionDuplicates();
+	//checkSumAdvisorAccount()
+
+
+	//OLD JOB TO UPDATE ADVISOR FORMAT (NOT REQUIRED)
+	// exports.updateAdvisorFormat()
+	// .then(() => {
+	// 	exports.updateAllEntriesLatestPortfolioStats();
+	// })
+	// .then(() => {
+	// 	exports.updateAllEntriesLatestPnlStats();
+	// })
+	// .then(() => {
+	// 	exports.updatePerformanceFormat();
+	// })
+
+}
+
+
+
 
 
