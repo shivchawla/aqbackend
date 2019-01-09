@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-08 18:09:43
+* @Last Modified time: 2019-01-09 21:07:02
 */
 
 'use strict';
@@ -370,17 +370,22 @@ function checkSumAdvisorAccount(update=false) {
 						};
 
 						if(update) {
-							return DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date);
+							return DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date)
+							.then(() => {
+				                return DailyContestEntryHelper.updateAdvisorLatestPnlStats(advisorId, date);
+				            })
+				            .then(() => {
+				                return DailyContestEntryHelper.updateAdvisorNetPnlStats(advisorId, date);                       
+				            })
 						}
 					} 	
 				})
 			})
 			.then(() => {
                 if(update) {
-                        return AdvisorModel.updateAdvisor({_id: advisorId}, {account}) 
+                    return AdvisorModel.updateAdvisor({_id: advisorId}, {account})
                 }
         	})
-
 		})
 	})
 	.catch(err => {

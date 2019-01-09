@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-07 16:01:55
+* @Last Modified time: 2019-01-09 21:00:59
 */
 
 'use strict';
@@ -1418,33 +1418,55 @@ module.exports.getContestEntryForUser = function(userId) {
 	})
 };
 
+module.exports.updateAdvisorLatestPnlStats = function(advisorId, date){
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+
+	return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
+	.then(activePredictions => {
+		if (activePredictions.length > 0) {
+			return Promise.all([
+				_computeTotalPnlStatsForAll(advisorId, date),
+				_computeDailyPnlStatsForAll(advisorId, date)
+			])
+			.then(([totalPnl, dailyPnl]) => {
+				const updates = {
+					cumulative: totalPnl,
+					daily: dailyPnl
+				}
+				
+				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, updates, date, "detail");
+			})
+		} else {
+			return;
+		}
+	})
+};
+
 module.exports.updateAllEntriesLatestPnlStats = function(date){
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
-			return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
-			.then(activePredictions => {
-				if (activePredictions.length > 0) {
-					return Promise.all([
-						_computeTotalPnlStatsForAll(advisorId, date),
-						_computeDailyPnlStatsForAll(advisorId, date)
-					])
-					.then(([totalPnl, dailyPnl]) => {
-						const updates = {
-							cumulative: totalPnl,
-							daily: dailyPnl
-						}
-						
-						return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, updates, date, "detail");
-					})
-				} else {
-					return;
-				}
-			})
+			return exports.updateAdvisorLatestPnlStats(advisorId, date);
 		});
 	});
+};
+
+
+
+module.exports.updateAdvisorNetPnlStats = function(advisorId, date) {
+	return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
+	.then(activePredictions => {
+		if (activePredictions.length > 0) {
+			return _computeNetPnlStats(advisorId, date)
+			.then(netPnlStats => {
+				return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, netPnlStats, date, "net");
+			})
+		} else {
+			return;
+		}
+	})
 };
 
 /**
@@ -1456,17 +1478,7 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
-			return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
-			.then(activePredictions => {
-				if (activePredictions.length > 0) {
-					return _computeNetPnlStats(advisorId, date)
-					.then(netPnlStats => {
-						return DailyContestEntryPerformanceModel.updatePnlStatsForDate({advisor: advisorId}, netPnlStats, date, "net");
-					})
-				} else {
-					return;
-				}
-			})
+			return exports.updateAdvisorNetPnlStats(advisorId, date);
 		});
 	})
 	.catch(err => {
@@ -1871,7 +1883,7 @@ module.exports.checkForPredictionExpiry = function() {
 }
 
 module.exports.addPredictions = function(advisorId, predictions, date) {
-	return DailyContestEntryModel.addEntryPredictions({advisor: advisorId, date: date}, predictions, {new:true, upsert: true, fields:'_id'})
+	return DailyContestEntryModel.addEntryPredictions({advisor: advisorId, date: date}, predictions, {new:false, upsert: true, fields:'_id'})
 	.then(added => {
 		//Updating advisor account with new metrics
 		return AdvisorHelper.updateAdvisorAccountDebit(advisorId, predictions);
