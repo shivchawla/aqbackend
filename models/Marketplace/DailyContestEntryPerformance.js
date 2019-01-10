@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-31 13:22:53
+* @Last Modified time: 2019-01-10 10:48:47
 */
 
 
@@ -69,7 +69,7 @@ DailyContestEntryPerformance.statics.updatePortfolioStatsForDate = function(quer
 
 DailyContestEntryPerformance.statics.fetchLatestPnlStats = function(query, date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
-	return this.find({...query, date:{$lte: date}}, {pnlStats:1}).sort({date: -1}).limit(1)
+	return this.find({...query, date:{$lte: date}, pnlStats:{$exists: true}}, {pnlStats:1}).sort({date: -1}).limit(1)
 	.then(latestDoc => {
 		return latestDoc && latestDoc.length > 0 ? _.get(latestDoc[0], 'pnlStats', null) : null;
 	});
@@ -77,7 +77,7 @@ DailyContestEntryPerformance.statics.fetchLatestPnlStats = function(query, date)
 
 DailyContestEntryPerformance.statics.fetchLastPnlStats = function(query, date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
-	return this.find({...query, date:{$lt: date}}, {pnlStats:1}).sort({date: -1}).limit(1)
+	return this.find({...query, date:{$lt: date}, pnlStats:{$exists: true}}, {pnlStats:1}).sort({date: -1}).limit(1)
 	.then(latestDoc => {
 		return _.get(latestDoc, '[0].pnlStats', null);
 	});
@@ -85,7 +85,7 @@ DailyContestEntryPerformance.statics.fetchLastPnlStats = function(query, date) {
 
 DailyContestEntryPerformance.statics.fetchLatestPortfolioStats = function(query, date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
-	return this.find({...query, date:{$lte: date}}, {portfolioStats:1}).sort({date: -1}).limit(1)
+	return this.find({...query, date:{$lte: date}, portfolioStats:{$exists: true}}, {portfolioStats:1}).sort({date: -1}).limit(1)
 	.then(latestDoc => {
 		return latestDoc && latestDoc.length > 0 ? _.get(latestDoc[0], 'portfolioStats', null) : null;
 	});
@@ -93,7 +93,7 @@ DailyContestEntryPerformance.statics.fetchLatestPortfolioStats = function(query,
 
 DailyContestEntryPerformance.statics.fetchLastPortfolioStats = function(query, date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
-	return this.find({...query, date:{$lt: date}}, {portfolioStats:1}).sort({date: -1}).limit(1)
+	return this.find({...query, date:{$lt: date}, portfolioStats:{$exists: true}}, {portfolioStats:1}).sort({date: -1}).limit(1)
 	.then(latestDoc => {
 		return _.get(latestDoc, '[0].portfolioStats', null);
 	});
@@ -101,7 +101,7 @@ DailyContestEntryPerformance.statics.fetchLastPortfolioStats = function(query, d
 
 DailyContestEntryPerformance.statics.fetchLatestPnlStatsForSymbol = function(query, symbol, date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
-	return this.find({...query, date:{$lte: date}}, {pnlStats:1}).sort({date: -1}).limit(1)
+	return this.find({...query, date:{$lte: date}, pnlStats:{$exists: true}}, {pnlStats:1}).sort({date: -1}).limit(1)
 	.then(latestDoc => {
 		const total = {
 			..._.get(latestDoc, `[0].pnlStats.net.total.byTickers[${symbol}]`, null),
