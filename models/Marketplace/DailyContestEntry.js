@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-08 12:12:20
+* @Last Modified time: 2019-01-10 09:58:00
 */
 
 
@@ -236,8 +236,8 @@ DailyContestEntry.statics.fetchEntryPredictionsOnDate = function(query, date) {
 //This is not good programming
 DailyContestEntry.statics.updatePredictionCallPrice = function(query, prediction, price) {
    	var q = {predictions:{$elemMatch:{'position.security.ticker': prediction.position.security.ticker, 
-            	endDate: prediction.endDate,
-                startDate: prediction.startDate
+                createdDate: prediction.createdDate,
+                _id: prediction._id,
             }}, date: DateHelper.getMarketCloseDateTime(prediction.startDate)};
 
 	var updates = {
@@ -250,12 +250,11 @@ DailyContestEntry.statics.updatePredictionCallPrice = function(query, prediction
 };
 
 
-
 //THIS IS IN USE
 DailyContestEntry.statics.updatePrediction = function(query, updatedPrediction) {
 	var q = {predictions:{$elemMatch:{'position.security.ticker': updatedPrediction.position.security.ticker, 
-            	endDate: updatedPrediction.endDate,
-                startDate: updatedPrediction.startDate
+                createdDate: prediction.createdDate,
+                _id: prediction._id,
             }}, date: DateHelper.getMarketCloseDateTime(updatedPrediction.startDate)};
 
 	var updates = {
