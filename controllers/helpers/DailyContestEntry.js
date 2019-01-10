@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-09 21:00:59
+* @Last Modified time: 2019-01-10 10:30:46
 */
 
 'use strict';
@@ -1500,83 +1500,86 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 		AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account'})
 	])
 	.then(([allPredictions, startedPredictions, endedPredictions, advisor]) => {
-		
-		return new Promise(resolve => {
-			//Now some of the active predictions may have ended as well.		
-			var netEquity = 0.0;
-			var grossEquity = 0.0;
-			var cash = _.get(advisor, 'account.cash', 0.0);	
-			
-			//Find Predictions that have truly ended and not just on ended because of date
-			var endedPredictionIds = endedPredictions
-			.filter(item =>  {
+		if (allPredictions.length > 0) {
+			return new Promise(resolve => {
+				//Now some of the active predictions may have ended as well.		
+				var netEquity = 0.0;
+				var grossEquity = 0.0;
+				var cash = _.get(advisor, 'account.cash', 0.0);	
 				
-				var profitTargetStatus = _.get(item, 'status.profitTarget', false);
-				var stopLossStatus = _.get(item, 'status.stopLoss', false);
-				var manualExitStatus = _.get(item, 'status.manualExit', false);
-				var expired = _.get(item, 'status.expired', false);
+				//Find Predictions that have truly ended and not just on ended because of date
+				var endedPredictionIds = endedPredictions
+				.filter(item =>  {
+					
+					var profitTargetStatus = _.get(item, 'status.profitTarget', false);
+					var stopLossStatus = _.get(item, 'status.stopLoss', false);
+					var manualExitStatus = _.get(item, 'status.manualExit', false);
+					var expired = _.get(item, 'status.expired', false);
 
-				//This condition for expiry is nt required as epired flag will be true
-				// || !moment(_.get(item, 'endDate', null)).isBefore(date);;
-				
-				return profitTargetStatus || stopLossStatus || manualExitStatus || expired;
-			})
-			.map(item => item._id.toString());
+					//This condition for expiry is nt required as epired flag will be true
+					// || !moment(_.get(item, 'endDate', null)).isBefore(date);;
+					
+					return profitTargetStatus || stopLossStatus || manualExitStatus || expired;
+				})
+				.map(item => item._id.toString());
 
-			allPredictions.forEach(item => {
+				allPredictions.forEach(item => {
 
-				//Filter out the ended predicition to compute equity/investment
-				if (endedPredictionIds.indexOf(item._id.toString()) == -1) {
-					var investment = _.get(item, 'position.investment', 0);
+					//Filter out the ended predicition to compute equity/investment
+					if (endedPredictionIds.indexOf(item._id.toString()) == -1) {
+						var investment = _.get(item, 'position.investment', 0);
+						var lastPrice = _.get(item, 'position.lastPrice', 0);
+						var avgPrice = _.get(item, 'position.avgPrice', 0);
+
+						var equity = avgPrice > 0  && lastPrice > 0 ? investment * (lastPrice/avgPrice) : investment;
+						netEquity += equity
+						grossEquity += Math.abs(equity);
+					}
+
+				});
+
+				Promise.map(endedPredictions, function(item) {
+					var manualExit = _.get(item, 'status.manualExit', false);
 					var lastPrice = _.get(item, 'position.lastPrice', 0);
+					var investment = _.get(item, 'position.investment', 0);
 					var avgPrice = _.get(item, 'position.avgPrice', 0);
 
-					var equity = avgPrice > 0  && lastPrice > 0 ? investment * (lastPrice/avgPrice) : investment;
-					netEquity += equity
-					grossEquity += Math.abs(equity);
-				}
+					//Manual Exit will update cash (if lastPrice is not yet populated)
+					if (manualExit && lastPrice == 0.0) {
+						//Get the latest price to compute tentative cash procees
+						//This adjust just the 
+						return SecurityHelper.getStockLatestDetail(item.position.security)
+						.then(securityDetail => {
+							lastPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || 
+								_.get(securityDetail, 'latestDetailRT.close') || 
+								_.get(securityDetail, 'latestDetail.Close', 0);
 
-			});
+							var cashGenerated = avgPrice > 0 && lastPrice > 0 ? (lastPrice/avgPrice)*investment : investment;
+							cash += cashGenerated;
+						});
+					} 
+				})
+				.then(() => {
 
-			Promise.map(endedPredictions, function(item) {
-				var manualExit = _.get(item, 'status.manualExit', false);
-				var lastPrice = _.get(item, 'position.lastPrice', 0);
-				var investment = _.get(item, 'position.investment', 0);
-				var avgPrice = _.get(item, 'position.avgPrice', 0);
-
-				//Manual Exit will update cash (if lastPrice is not yet populated)
-				if (manualExit && lastPrice == 0.0) {
-					//Get the latest price to compute tentative cash procees
-					//This adjust just the 
-					return SecurityHelper.getStockLatestDetail(item.position.security)
-					.then(securityDetail => {
-						lastPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || 
-							_.get(securityDetail, 'latestDetailRT.close') || 
-							_.get(securityDetail, 'latestDetail.Close', 0);
-
-						var cashGenerated = avgPrice > 0 && lastPrice > 0 ? (lastPrice/avgPrice)*investment : investment;
-						cash += cashGenerated;
-					});
-				} 
+					var grossTotal = grossEquity + cash;
+					var netTotal = netEquity + cash;
+					
+					var advisorAccount = advisor ? _.get(advisor.toObject(), 'account', {}) : {};
+					
+					const updates = {
+						...advisorAccount, cash,
+						netEquity, grossEquity, grossTotal, netTotal, 
+						numPredictions: allPredictions.length,
+						numStartedPredictions: startedPredictions.length,
+						numEndedPredictions: endedPredictions.length
+					};
+			
+					resolve(DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date));
+				})
 			})
-			.then(() => {
-
-				var grossTotal = grossEquity + cash;
-				var netTotal = netEquity + cash;
-				
-				var advisorAccount = advisor ? _.get(advisor.toObject(), 'account', {}) : {};
-				
-				const updates = {
-					...advisorAccount, cash,
-					netEquity, grossEquity, grossTotal, netTotal, 
-					numPredictions: allPredictions.length,
-					numStartedPredictions: startedPredictions.length,
-					numEndedPredictions: endedPredictions.length
-				};
-		
-				resolve(DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date));
-			})
-		})
+		} else {
+			return;
+		}
 	})
 };
 
