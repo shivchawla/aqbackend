@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-10 10:30:46
+* @Last Modified time: 2019-01-11 19:32:15
 */
 
 'use strict';
@@ -1628,7 +1628,7 @@ module.exports.checkForPredictionTarget = function() {
 	const currentDate = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 
 	return DailyContestEntryModel.fetchDistinctAdvisors()
-	.then(advisors => {
+	.then(advisors => { 
 		return Promise.mapSeries(advisors, function(advisorId) {
 			return exports.getPredictionsForDate(advisorId, currentDate, {category: "all", priceUpdate:false})
 			.then(predictions => {
@@ -2074,17 +2074,24 @@ module.exports.updateManuallyExitedPredictionsForLastPrice = function(date) {
 						.then(securityDetail => {
 							var intradayHistory = _.get(securityDetail, 'intradayHistory', []);
 
-							var relevantIntradayHistory = intradayHistory.filter(item => {return !moment(item.datetime).isBefore(moment(trueEndDateTime))});
+							var relevantIntradayHistory = intradayHistory.filter(item => {return moment(item.datetime).isAfter(moment(trueEndDateTime))});
 
-							if (relevantIntradayHistory.length > 0) {
+							if (relevantIntradayHistory.length > 0 && moment(relevantIntradayHistory[0].datetime).isAfter(moment(trueEndDateTime))) {
 								var price = relevantIntradayHistory[0].close || 0;
-								prediction.position.lastPrice = price;
+								
+								if (price) { //Check if price is non-zero or not null
+									console.log(`Populating Last price for ${advisorId}/${ticker} at ${Date()}`);
+									prediction.position.lastPrice = price;
 
-								//Updating advisor account 
-								return Promise.all([
-									AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction),
-									DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction)
-								]);
+									//Updating advisor account 
+									return Promise.all([
+										AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction),
+										DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction)
+									]);
+								} else {
+									console.log("Price while populating Last Price is Zero..OOPS!!")
+									console.log(relevantIntradayHistory);
+								}
 							} else {
 								return;
 							}
