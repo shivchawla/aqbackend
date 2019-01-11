@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-10 10:48:47
+* @Last Modified time: 2019-01-11 20:29:14
 */
 
 
@@ -152,9 +152,9 @@ DailyContestEntryPerformance.statics.updateEarningStats = function(query, date, 
 	var category = _.get(earningDetail, 'category', "daily");
 	var key = `earnings.${category}`;
 
-	return this.findOne({...query, date:{$lt: date}}, {earnings:1})
-	.then(doc => {
-		return doc ? _.get(doc.toObject(), key, null) : null;
+	return this.find({...query, date:{$lt: date}}, {earnings:1}).sort({date: -1}).limit(1)
+	.then(latestDoc => {
+		return latestDoc && latestDoc.length > 0 ? _.get(latestDoc[0], key, null) : null;
 	})
 	.then(lastEarnings => {
 		var lastCumulativeAmount = _.get(lastEarnings, 'cumulative', 0);

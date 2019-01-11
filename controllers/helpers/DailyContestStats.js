@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-11 19:21:38
+* @Last Modified time: 2019-01-11 20:36:12
 */
 
 'use strict';
@@ -27,9 +27,22 @@ const MIN_DAILY_PCT_CHANGE = 0.005;
 const MIN_WEEKLY_PCT_CHANGE = 0.01;
 const MIN_MONTHLY_PCT_CHANGE = 0.01;
 
+const DAILY_PRIZES_OLD = [100, 100, 100, 100, 100];
 const DAILY_PRIZES = [100, 75, 50];
 const WEEKLY_PRIZES = [500, 300, 200];
 
+
+function _getWeeklyPrizes(date) {
+	return WEEKLY_PRIZES;
+}
+
+function _getDailyPrizes(date) {
+	if (DateHelper.getMarketCloseDateTime(data).isAfter(DateHelper.getMarketCloseDateTime("2018-12-31"))) {
+		return DAILY_PRIZES;
+	} else {
+		return DAILY_PRIZES_OLD;
+	}
+}
 
 function _formatInvestmentValue(value) {
 	if (value && typeof(value) == "number"){
@@ -70,7 +83,7 @@ function _computeDailyContestWinners(date) {
 			return pnlStatsForAllAdvisors
 			.filter(item => {return item.pnlStats.pnlPct > MIN_DAILY_PCT_CHANGE})			
 			.sort((a,b) => {return a.pnlStats.pnlPct > b.pnlStats.pnlPct ? -1 : 1})
-			.slice(0, DAILY_PRIZES.length)
+			.slice(0, _getDailyPrizes(date).length)
 			.map((item, index) => {item.rank = index+1; return item;});
 		});
 	})
@@ -255,7 +268,7 @@ function _computeContestPredictionMetrics(date) {
 	})
 }
 
-function _updateEarningStats(winners, date, category) {
+module.exports.updateEarningStats = function(winners, date, category) {
 	return DailyContestEntryModel.fetchDistinctAdvisors({})
 	.then(allAdvisors => {
 		return Promise.mapSeries(allAdvisors, function(advisorId) {
@@ -263,7 +276,7 @@ function _updateEarningStats(winners, date, category) {
 
 			var idx = winners.map(item => item.advisor).indexOf(advisorId);
 			if (idx != -1) { 
-				var allPrizes = category == "daily" ? DAILY_PRIZES : WEEKLY_PRIZES;
+				var allPrizes = category == "daily" ? _getDailyPrizes(date) : _getWeeklyPrizes(date);
 				winAmount = allPrizes.length >= winners[idx].rank ? allPrizes[winner.rank - 1] : 0;
 			}
 
@@ -298,8 +311,8 @@ module.exports.updateContestStats = function(date) {
 
 		return Promise.all([
 			DailyContestStatsModel.updateContestStats(date, {dailyWinners, weeklyWinners, predictionMetrics, topStocks}),
-			_updateEarningStats(dailyWinners || [], date,  "daily"),
-			_updateEarningStats(weeklyWinners || [], date, "weekly")
+			exports.updateEarningStats(dailyWinners || [], date,  "daily"),
+			exports.updateEarningStats(weeklyWinners || [], date, "weekly")
 		])
 	})
 };
@@ -615,11 +628,13 @@ module.exports.sendDailyWinnerDigest = function(date) {
 			var leaderboardUrl = `${config.get('hostname')}/dailycontest/leaderboard?date=${moment(date).format("YYYY-MM-DD")}`;
 			var submitPredictionUrl = `${config.get('hostname')}/dailycontest/stockpredictions`;
 
+			var dailyPrizesForDate = _getDailyPrizes(date);
+
 			return Promise.mapSeries(winners, function(winner) {
 				let winnerDigest = {leaderboardUrl, submitPredictionUrl,
 					pnlPct: `${(_.get(winner,'pnlStats.pnlPct')*100).toFixed(2)}%`, 
 					rank: winner.rank,
-					prizeMoney: winner.rank <= DAILY_PRIZES.length ? DAILY_PRIZES[winner.rank - 1] : 0,
+					prizeMoney: winner.rank <= dailyPrizesForDate.length ? dailyPrizesForDate[winner.rank - 1] : 0,
 					dailyContestDate: moment(date).format("Do MMM YYYY")};
 				
 				return _getUserDetail(winner.advisor)
