@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-10 09:58:00
+* @Last Modified time: 2019-01-11 11:29:09
 */
 
 
@@ -253,8 +253,8 @@ DailyContestEntry.statics.updatePredictionCallPrice = function(query, prediction
 //THIS IS IN USE
 DailyContestEntry.statics.updatePrediction = function(query, updatedPrediction) {
 	var q = {predictions:{$elemMatch:{'position.security.ticker': updatedPrediction.position.security.ticker, 
-                createdDate: prediction.createdDate,
-                _id: prediction._id,
+                createdDate: updatedPrediction.createdDate,
+                _id: updatedPrediction._id,
             }}, date: DateHelper.getMarketCloseDateTime(updatedPrediction.startDate)};
 
 	var updates = {
