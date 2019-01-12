@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-11 20:33:53
+* @Last Modified time: 2019-01-12 09:45:28
 */
 
 'use strict';
@@ -63,14 +63,18 @@ function updateUserJwtId(hash=false) {
 
 function checkSumAdvisorAccount(update=false) {
 	
-	var dates = ["2019-01-01", "2019-01-02", "2019-01-03", "2019-01-04", "2019-01-07", "2019-01-08"];
+	var seedDate = DateHelper.getMarketCloseDateTime("2019-01-01");
+	var lastDate = DateHelper.getMarketCloseDateTime();
+
+	var tradingDates = DateHelper.getTradingDates(seedDate, lastDate);
+
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
 
 			var account = {cash: 1000, liquidCash: 1000, investment:0};
 			
-			return Promise.mapSeries(dates, (date, index) => {
+			return Promise.mapSeries(tradingDates, (date, index) => {
 				date = DateHelper.getMarketCloseDateTime(date);
 
 				var totalInvestment = 0
@@ -180,13 +184,16 @@ function checkSumAdvisorAccount(update=false) {
 }
 
 function checkPredictionDuplicates() {
-	var dates = ["2019-01-01", "2019-01-02", "2019-01-03", "2019-01-04", "2019-01-07", "2019-01-08"];
+	var seedDate = DateHelper.getMarketCloseDateTime("2019-01-01");
+	var lastDate = DateHelper.getMarketCloseDateTime();
+
+	var tradingDates = DateHelper.getTradingDates(seedDate, lastDate);
 
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(advisors => {
 		return Promise.mapSeries(advisors, function(advisorId) {
 
-			return Promise.mapSeries(dates, (date, index) => {
+			return Promise.mapSeries(tradingDates, (date, index) => {
 				date = DateHelper.getMarketCloseDateTime(date);
 
 				return DailyContestEntryModel.fetchEntryPredictionsOnDate({advisor: advisorId}, date)

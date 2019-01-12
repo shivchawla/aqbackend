@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-11 20:36:12
+* @Last Modified time: 2019-01-12 09:28:19
 */
 
 'use strict';
@@ -37,7 +37,7 @@ function _getWeeklyPrizes(date) {
 }
 
 function _getDailyPrizes(date) {
-	if (DateHelper.getMarketCloseDateTime(data).isAfter(DateHelper.getMarketCloseDateTime("2018-12-31"))) {
+	if (DateHelper.getMarketCloseDateTime(date).isAfter(DateHelper.getMarketCloseDateTime("2018-12-31"))) {
 		return DAILY_PRIZES;
 	} else {
 		return DAILY_PRIZES_OLD;
@@ -274,10 +274,11 @@ module.exports.updateEarningStats = function(winners, date, category) {
 		return Promise.mapSeries(allAdvisors, function(advisorId) {
 			let winAmount = 0;
 
-			var idx = winners.map(item => item.advisor).indexOf(advisorId);
+			var idx = winners.map(item => item.advisor.toString()).indexOf(advisorId.toString());
 			if (idx != -1) { 
 				var allPrizes = category == "daily" ? _getDailyPrizes(date) : _getWeeklyPrizes(date);
-				winAmount = allPrizes.length >= winners[idx].rank ? allPrizes[winner.rank - 1] : 0;
+				var winner = winners[idx];
+				winAmount = allPrizes.length >= winner.rank ? allPrizes[winner.rank - 1] : 0;
 			}
 
 			return DailyContestEntryPerformanceModel.updateEarningStats({advisor: advisorId}, date, {earnings: winAmount, category});

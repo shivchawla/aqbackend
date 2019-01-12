@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-11 20:29:14
+* @Last Modified time: 2019-01-12 09:30:06
 */
 
 
@@ -159,7 +159,7 @@ DailyContestEntryPerformance.statics.updateEarningStats = function(query, date, 
 	.then(lastEarnings => {
 		var lastCumulativeAmount = _.get(lastEarnings, 'cumulative', 0);
 		
-		var currentAmount = _.get(earningDetail, 'earning', 0);
+		var currentAmount = _.get(earningDetail, 'earnings', 0);
 		var newCumulativeAmount = lastCumulativeAmount + currentAmount;
 
 		var updates = {current: currentAmount, cumulative: newCumulativeAmount};

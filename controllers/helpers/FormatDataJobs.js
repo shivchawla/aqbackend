@@ -2,13 +2,14 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-11 19:42:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-11 20:39:02
+* @Last Modified time: 2019-01-12 09:42:23
 */
 
 'use strict';
 const _ = require('lodash');
 const Promise = require('bluebird');
 const config = require('config');
+const moment = require('moment-timezone');
 
 const DateHelper = require('../../utils/Date');
 const DailyContestEntryHelper = require('./DailyContestEntry');
@@ -241,28 +242,19 @@ module.exports.populateEarningStats = function() {
 	var seedDate = DateHelper.getMarketCloseDateTime("2018-11-12");
 	var lastDate = DateHelper.getMarketCloseDateTime();
 
-	var nDays = lastDate.diff(seedDate, 'days');
+	var tradingDates = DateHelper.getTradingDates(seedDate, lastDate);
+	
+	return new Promise.mapSeries(tradingDates, function(date) {
 
-	var date = seedDate;
+		date = DateHelper.getMarketCloseDateTime(date);
 
-	return new Promise(Array.from(Array(nDays).keys()), function(days) {
-		
-		if (!moment(date).isAfter(moment(lastDate))) {
-
-			return DailyContestStatsModel.fetchContestStats(date, {fields: 'dailyWinners weeklyWinners'})
-			.then(contestStats => {
-
-				return Promise.all([
-					DailyContestStatsHelper.updateEarningStats(contestStats.dailyWinners || [], date, "daily"),
-					DailyContestStatsHelper.updateEarningStats(contestStats.weeklyWinners || [], date, "weekly")
-				]);
-			})
-			.then(() => {
-				date = DateHelper.getNextNonHolidayWeekday(date, 1);
-			})
-
-		}	
-
+		return DailyContestStatsModel.fetchContestStats(date, {fields: 'dailyWinners weeklyWinners'})
+		.then(contestStats => {
+			return Promise.all([
+				DailyContestStatsHelper.updateEarningStats(_.get(contestStats, 'dailyWinners', []) || [], date, "daily"),
+				DailyContestStatsHelper.updateEarningStats(_.get(contestStats, 'weeklyWinners', []) || [], date, "weekly")
+			]);
+		})
 	});
 
 };
