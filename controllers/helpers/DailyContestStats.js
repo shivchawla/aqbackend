@@ -10,6 +10,9 @@ const _ = require('lodash');
 const Promise = require('bluebird');
 const moment = require('moment-timezone');
 const config = require('config');
+var path = require('path');
+var fs = require('fs');
+var csv = require('fast-csv');
 
 const DateHelper = require('../../utils/Date');
 const DailyContestEntryHelper = require('./DailyContestEntry');
@@ -691,8 +694,51 @@ module.exports.formatWinnerFormat = function() {
 	})
 };
 
+module.exports.updateDailyContestOverallWinnersByEarnings = function(filePath = null) {
+	filePath = filePath !== null ? filePath : path.dirname(require.main.filename);
+	DailyContestEntryPerformanceModel.fetchDistinctPerformances({})
+	.then(performances => {
+		const winners = performances.map(performance => {
+			// performance = performance.toObject();
+			let firstName = _.get(performance, 'advisor.user.firstName', '');
+			let lastName = _.get(performance, 'advisor.user.lastName', '');
+			firstName = firstName[0].toUpperCase() + firstName.slice(1).toLowerCase();
+			lastName = lastName[0].toUpperCase() + lastName.slice(1).toLowerCase();
+			const userName = `${firstName} ${lastName}`;
+			const dailyEarnings = _.get(performance, 'totalDaily', 0);
+			const weeklyEarnings = _.get(performance, 'totalWeekly', 0);
+			const totalEarnings = dailyEarnings + weeklyEarnings;
 
+			return {name: userName, dailyEarnings, weeklyEarnings, totalEarnings};
+		});
+		writeWinnersToCsv(`${filePath}/examples/winners.csv`, winners);
+	})
+	.catch(err => {
+		console.log(err);
+	})
+}
 
-
-
-
+const writeWinnersToCsv = (path, winners) => {
+	const csvStream = csv
+		.createWriteStream({headers: true})
+		.transform(function(row, next){
+			setImmediate(function(){
+				// this should be same as the object structure
+				next(null, {
+					Name: row.name, 
+					Earnings: row.totalEarnings
+					// Daily: row.dailyEarnings, 
+					// Weekly: row.weeklyEarnings
+				});
+			});;
+		});
+	const writableStream = fs.createWriteStream(path);		
+	writableStream.on("finish", function(){
+		console.log("Written to file");
+	});
+	csvStream.pipe(writableStream);
+	winners.map(winner => {
+		csvStream.write(winner);
+	});
+	csvStream.end();
+}

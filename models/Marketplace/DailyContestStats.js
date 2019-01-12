@@ -69,7 +69,6 @@ DailyContestStats.statics.updateContestStats = function(date, stats) {
 
 DailyContestStats.statics.fetchContestStats = function(date, options) {
     let q = this.findOne({date: date});
-    const populate = _.get(options, 'populate', '');
     if (options.skip) {
         q = q.skip(options.skip);
     }
@@ -82,6 +81,27 @@ DailyContestStats.statics.fetchContestStats = function(date, options) {
     
     return q.execAsync();
 };
+
+DailyContestStats.statics.fetchAllContestStats = function(query = {}, options = {}) {
+    let q = this.find(query);
+    if (options.skip) {
+        q = q.skip(options.skip);
+    }
+    
+    if (options.limit) {
+        q = q.limit(options.limit);
+    }
+    q = q.populate({
+        path: 'dailyWinners.advisor', 
+        select: 'user',
+        populate: {
+            path: 'user',
+            select: 'firstName lastName'
+        }
+    });
+
+    return q.execAsync();
+}
 
 const DailyContestStatsModel = mongoose.model('DailyContestStats', DailyContestStats);
 module.exports = DailyContestStatsModel;

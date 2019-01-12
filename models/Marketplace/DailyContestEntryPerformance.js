@@ -170,5 +170,60 @@ DailyContestEntryPerformance.statics.updateEarningStats = function(query, date, 
 	
 };
 
+DailyContestEntryPerformance.statics.fetchDistinctPerformances = function(query) {
+	return new Promise((resolve, reject) => {
+		this.aggregate(
+			[
+				{
+					$group:
+					  {
+						_id: "$advisor",
+						id: { $first: "$_id" },
+						currentDate: {$last: "$date"},
+						totalDaily: {$last: "$earnings.daily.cumulative"},
+						totalWeekly: {$last: "$earnings.weekly.cumulative"}
+					  }
+				},
+				{$sort: {totalWeekly: -1, totalDaily: -1}},
+				{$limit: 10},
+				{
+				   $project:{
+					   _id:"$id",
+					   advisor: "$_id",
+					   date: "$currentDate",
+					   totalDaily: "$totalDaily",
+					   totalWeekly: "$totalWeekly",
+					}
+				}   
+			]
+		)
+		.exec((err, transactions) => {
+			if (err) {
+				reject(err);
+			} else {
+				this.populate(
+					transactions, 
+					{
+						path: 'advisor', 
+						select: 'user',
+						populate: {
+							path: 'user',
+							select: 'firstName lastName'
+						}
+					},
+					function(err, populatedTransactions) {
+						console.log(populatedTransactions);
+						if (err) {
+							reject(err);
+						} else {
+							resolve(populatedTransactions);
+						}
+					}
+				);
+			}
+		})
+	})
+}
+
 const DailyContestEntryPerformanceModel = mongoose.model('DailyContestEntryPerformance', DailyContestEntryPerformance);
 module.exports = DailyContestEntryPerformanceModel;
