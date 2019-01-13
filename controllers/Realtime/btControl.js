@@ -56,7 +56,7 @@ function handleSubscription(req, res, fresh) {
         2. Backtest was already completed long time back
     */
     var backtestId = req.backtestId;
-    BacktestModel.fetchBacktest({_id: backtestId, deleted: false}, {select: 'status'})
+    return BacktestModel.fetchBacktest({_id: backtestId, deleted: false}, {select: 'status'})
     .then(bt => {
         if(!bt) {
             throw new Error("Backtest not found");
@@ -82,7 +82,7 @@ function handleSubscription(req, res, fresh) {
                 setSendDataTimer(backtestId);   
             }
 
-            handleRedisSubscription(backtestId);
+            return handleRedisSubscription(backtestId);
         }
     })
     .catch(err => {
@@ -252,13 +252,17 @@ function saveData(backtestId) {
                 redisSubscriber.unsubscribe(finalOutputChannel(backtestId));
             }
 
-            //Unsubscribe from RT data
-            subscribed[backtestId] = false;
-            clearSendDataTimer(backtestId);
+            //THIS IS NOT REQUIRED
+            //NEGATIVE: pending REALTIME data can't transferred (FE halsts at "Completion: x%")
+            // setTimeout(function() {
+            //     //Unsubscribe from RT data
+            //     subscribed[backtestId] = false;
+            //     clearSendDataTimer(backtestId);
+            // }, 10000);
 
         })
         .catch(err => {
-            return console.error(err);
+            console.error(err);
         })
     })
 }
@@ -329,7 +333,7 @@ function sendData(backtestId, final) {
 // Save backtest data to databse
 function updateBacktestResult(backtestId, data) {
     console.log(`Updating Backtest: ${backtestId}`);
-    BacktestModel.updateBacktest({
+    return BacktestModel.updateBacktest({
         _id: backtestId
     }, data);
 }
@@ -427,6 +431,8 @@ function handleRedisSubscription(backtestId) {
     } else {
         console.log("Invalid backtestId provided");
     }
+
+    return;
 }
 
 // Function to pop out the top priority backtest from queue

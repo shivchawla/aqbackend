@@ -31,7 +31,6 @@ function pushToRangeRedis(key, element) {
     return client.lpushAsync(key, element);
 }
 
-
 function popFromRangeRedis(key) {
     return client.rpopAsync(key);
 }
@@ -41,7 +40,7 @@ function getSetDataFromRedis(key) {
 }
 
 function setDataExpiry(key, time_in_sec) {
-    return client.expireAsync(key, time_in_sec);
+    return client.expire(key, time_in_sec);
 }
 
 // For a single key set
