@@ -80,7 +80,7 @@ exports.handleAction = function(req, res) {
         return BacktestController.handleBacktest(req, res);
     }
     else if(req.action === 'run-all-forwardtest') {
-        return ForwardTestController.runAllForwardTest();
+        return ForwardTestController.runAllForwardTests();
     }
     else if(req.action === 'run-forwardtest') {
         return ForwardTestController.runForwardTest(req.forwardtestId);
