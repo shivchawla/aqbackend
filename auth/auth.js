@@ -35,6 +35,6 @@ module.exports = function(req, next) {
     })
     .catch(err => {
         console.log(err);
-        next(err);
+        next({statusCode: 403, message: err.message});
     });
 };
