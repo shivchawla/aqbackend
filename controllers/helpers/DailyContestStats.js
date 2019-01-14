@@ -700,7 +700,13 @@ module.exports.updateDailyContestOverallWinnersByEarnings = function(filePath = 
 		: `${path.dirname(require.main.filename)}/examples/winners.csv`;
 	DailyContestEntryPerformanceModel.fetchDistinctPerformances({})
 	.then(performances => {
-		let winners = performances.map(performance => {
+		let winners = performances.filter(performance => {
+			let firstName = _.get(performance, 'advisor.user.firstName', '');
+			let lastName = _.get(performance, 'advisor.user.lastName', '');
+
+			return (firstName.toLowerCase() !== 'saurav' && lastName.toLowerCase() !== 'biswas');
+		})
+		.performances.map(performance => {
 			// performance = performance.toObject();
 			let firstName = _.get(performance, 'advisor.user.firstName', '');
 			let lastName = _.get(performance, 'advisor.user.lastName', '');
@@ -714,6 +720,7 @@ module.exports.updateDailyContestOverallWinnersByEarnings = function(filePath = 
 			return {name: userName, dailyEarnings, weeklyEarnings, totalEarnings};
 		});
 		winners = _.orderBy(winners, 'totalEarnings', 'desc');
+		winners.slice(0, 10);
 		writeWinnersToCsv(filePath, winners);
 		// writeWinnersToCsv(`${filePath}/examples/winners.csv`, winners);
 	})

@@ -185,7 +185,7 @@ DailyContestEntryPerformance.statics.fetchDistinctPerformances = function(query)
 					  }
 				},
 				{$sort: {totalWeekly: -1, totalDaily: -1}},
-				{$limit: 10},
+				{$limit: 15},
 				{
 				   $project:{
 					   _id:"$id",
