@@ -695,7 +695,9 @@ module.exports.formatWinnerFormat = function() {
 };
 
 module.exports.updateDailyContestOverallWinnersByEarnings = function(filePath = null) {
-	filePath = filePath !== null ? filePath : path.dirname(require.main.filename);
+	filePath = filePath !== null 
+		? filePath 
+		: `${path.dirname(require.main.filename)}/examples/winners.csv`;
 	DailyContestEntryPerformanceModel.fetchDistinctPerformances({})
 	.then(performances => {
 		const winners = performances.map(performance => {
@@ -711,7 +713,8 @@ module.exports.updateDailyContestOverallWinnersByEarnings = function(filePath = 
 
 			return {name: userName, dailyEarnings, weeklyEarnings, totalEarnings};
 		});
-		writeWinnersToCsv(`${filePath}/examples/winners.csv`, winners);
+		writeWinnersToCsv(filePath, winners);
+		// writeWinnersToCsv(`${filePath}/examples/winners.csv`, winners);
 	})
 	.catch(err => {
 		console.log(err);
