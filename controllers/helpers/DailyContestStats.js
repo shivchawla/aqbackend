@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-11 19:21:38
+* @Last Modified time: 2019-01-14 23:45:19
 */
 
 'use strict';
@@ -10,6 +10,9 @@ const _ = require('lodash');
 const Promise = require('bluebird');
 const moment = require('moment-timezone');
 const config = require('config');
+var path = require('path');
+var fs = require('fs');
+var csv = require('fast-csv');
 
 const DateHelper = require('../../utils/Date');
 const DailyContestEntryHelper = require('./DailyContestEntry');
@@ -27,9 +30,22 @@ const MIN_DAILY_PCT_CHANGE = 0.005;
 const MIN_WEEKLY_PCT_CHANGE = 0.01;
 const MIN_MONTHLY_PCT_CHANGE = 0.01;
 
+const DAILY_PRIZES_OLD = [100, 100, 100, 100, 100];
 const DAILY_PRIZES = [100, 75, 50];
 const WEEKLY_PRIZES = [500, 300, 200];
 
+
+function _getWeeklyPrizes(date) {
+	return WEEKLY_PRIZES;
+}
+
+function _getDailyPrizes(date) {
+	if (DateHelper.getMarketCloseDateTime(date).isAfter(DateHelper.getMarketCloseDateTime("2018-12-31"))) {
+		return DAILY_PRIZES;
+	} else {
+		return DAILY_PRIZES_OLD;
+	}
+}
 
 function _formatInvestmentValue(value) {
 	if (value && typeof(value) == "number"){
@@ -70,7 +86,7 @@ function _computeDailyContestWinners(date) {
 			return pnlStatsForAllAdvisors
 			.filter(item => {return item.pnlStats.pnlPct > MIN_DAILY_PCT_CHANGE})			
 			.sort((a,b) => {return a.pnlStats.pnlPct > b.pnlStats.pnlPct ? -1 : 1})
-			.slice(0, DAILY_PRIZES.length)
+			.slice(0, _getDailyPrizes(date).length)
 			.map((item, index) => {item.rank = index+1; return item;});
 		});
 	})
@@ -255,16 +271,17 @@ function _computeContestPredictionMetrics(date) {
 	})
 }
 
-function _updateEarningStats(winners, date, category) {
+module.exports.updateEarningStats = function(winners, date, category) {
 	return DailyContestEntryModel.fetchDistinctAdvisors({})
 	.then(allAdvisors => {
 		return Promise.mapSeries(allAdvisors, function(advisorId) {
 			let winAmount = 0;
 
-			var idx = winners.map(item => item.advisor).indexOf(advisorId);
+			var idx = winners.map(item => item.advisor.toString()).indexOf(advisorId.toString());
 			if (idx != -1) { 
-				var allPrizes = category == "daily" ? DAILY_PRIZES : WEEKLY_PRIZES;
-				winAmount = allPrizes.length >= winners[idx].rank ? allPrizes[winner.rank - 1] : 0;
+				var allPrizes = category == "daily" ? _getDailyPrizes(date) : _getWeeklyPrizes(date);
+				var winner = winners[idx];
+				winAmount = allPrizes.length >= winner.rank ? allPrizes[winner.rank - 1] : 0;
 			}
 
 			return DailyContestEntryPerformanceModel.updateEarningStats({advisor: advisorId}, date, {earnings: winAmount, category});
@@ -298,8 +315,8 @@ module.exports.updateContestStats = function(date) {
 
 		return Promise.all([
 			DailyContestStatsModel.updateContestStats(date, {dailyWinners, weeklyWinners, predictionMetrics, topStocks}),
-			_updateEarningStats(dailyWinners || [], date,  "daily"),
-			_updateEarningStats(weeklyWinners || [], date, "weekly")
+			exports.updateEarningStats(dailyWinners || [], date,  "daily"),
+			exports.updateEarningStats(weeklyWinners || [], date, "weekly")
 		])
 	})
 };
@@ -615,11 +632,13 @@ module.exports.sendDailyWinnerDigest = function(date) {
 			var leaderboardUrl = `${config.get('hostname')}/dailycontest/leaderboard?date=${moment(date).format("YYYY-MM-DD")}`;
 			var submitPredictionUrl = `${config.get('hostname')}/dailycontest/stockpredictions`;
 
+			var dailyPrizesForDate = _getDailyPrizes(date);
+
 			return Promise.mapSeries(winners, function(winner) {
 				let winnerDigest = {leaderboardUrl, submitPredictionUrl,
 					pnlPct: `${(_.get(winner,'pnlStats.pnlPct')*100).toFixed(2)}%`, 
 					rank: winner.rank,
-					prizeMoney: winner.rank <= DAILY_PRIZES.length ? DAILY_PRIZES[winner.rank - 1] : 0,
+					prizeMoney: winner.rank <= dailyPrizesForDate.length ? dailyPrizesForDate[winner.rank - 1] : 0,
 					dailyContestDate: moment(date).format("Do MMM YYYY")};
 				
 				return _getUserDetail(winner.advisor)
@@ -675,8 +694,68 @@ module.exports.formatWinnerFormat = function() {
 	})
 };
 
+module.exports.updateDailyContestOverallWinnersByEarnings = function(filePath = null) {
+	filePath = filePath !== null 
+		? filePath 
+		: `${path.dirname(require.main.filename)}/examples/winners.csv`;
 
+	Promise.all([
+		DailyContestEntryPerformanceModel.fetchDistinctPerformances({}),
+		UserModel.fetchUsers({email: {$in: config.get('winners_not_allowed')}}, {_id: 1})
+	])
+	.then(([performances, usersNotAllowed]) => {
+		return Promise.mapSeries(performances,  function(performance) {
 
+			// performance = performance.toObject();
+			let userId = _.get(performance, 'advisor.user._id', "");
+			if (usersNotAllowed.map(item => item._id.toString()).indexOf(userId.toString()) == -1) {
+				let firstName = _.get(performance, 'advisor.user.firstName', '');
+				let lastName = _.get(performance, 'advisor.user.lastName', '');
+				firstName = firstName[0].toUpperCase() + firstName.slice(1).toLowerCase();
+				lastName = lastName[0].toUpperCase() + lastName.slice(1).toLowerCase();
+				const userName = `${firstName} ${lastName}`;
+				const dailyEarnings = _.get(performance, 'totalDaily', 0);
+				const weeklyEarnings = _.get(performance, 'totalWeekly', 0);
+				const totalEarnings = dailyEarnings + weeklyEarnings;
 
+				return {name: userName, dailyEarnings, weeklyEarnings, totalEarnings};
 
+			} else {
+				return null;
+			}
+		})
+	})
+	.then(winners => {
+		winners = _.orderBy(winners.filter(item => item), 'totalEarnings', 'desc').slice(0, 10); 
+		writeWinnersToCsv(filePath, winners);	
+			// writeWinnersToCsv(`${filePath}/examples/winners.csv`, winners);
+	})
+	.catch(err => {
+		console.log(err);
+	})
+}
 
+const writeWinnersToCsv = (path, winners) => {
+	const csvStream = csv
+		.createWriteStream({headers: true})
+		.transform(function(row, next){
+			setImmediate(function(){
+				// this should be same as the object structure
+				next(null, {
+					Name: row.name, 
+					Earnings: row.totalEarnings
+					// Daily: row.dailyEarnings, 
+					// Weekly: row.weeklyEarnings
+				});
+			});;
+		});
+	const writableStream = fs.createWriteStream(path);		
+	writableStream.on("finish", function(){
+		console.log("Written to file");
+	});
+	csvStream.pipe(writableStream);
+	winners.map(winner => {
+		csvStream.write(winner);
+	});
+	csvStream.end();
+}

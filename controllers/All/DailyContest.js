@@ -62,3 +62,7 @@ module.exports.getDailyContestStats = (req, res, next) => {
 module.exports.exitDailyContestPrediction = (req, res, next) => {
     DailyContest.exitDailyContestPrediction(req.swagger.params, res, next);
 };
+
+module.exports.getDailyContestOverallWinners = (req, res, next) => {
+    DailyContest.getDailyContestOverallWinnersByEarnings(req.swagger.params, res, next);
+}

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-04 16:18:01
+* @Last Modified time: 2019-01-14 23:54:59
 */
 
 'use strict';
@@ -13,6 +13,7 @@ const ContestHelper = require('../controllers/helpers/Contest');
 const DailyContestStatsHelper = require('../controllers/helpers/DailyContestStats');
 const DailyContestEntryHelper = require('../controllers/helpers/DailyContestEntry');
 const AdhocJobs = require('../controllers/helpers/AdhocJobs');
+const FormatJobs = require('../controllers/helpers/FormatDataJobs');
 const DateHelper = require('../utils/Date');
 
 const schedule = require('node-schedule');
@@ -74,6 +75,9 @@ if (config.get('jobsPort') === serverPort) {
 				const marketCloseDateTimeOffset = DateHelper.getMarketCloseDateTime().add(30, 'minutes');
 				if (moment().isAfter(marketCloseDateTimeOffset) && !winnersUpdated) { 
 		        	DailyContestStatsHelper.updateContestStats()
+		        	.then(() => {
+		        		DailyContestStatsHelper.updateDailyContestOverallWinnersByEarnings(confi.get('winner_csv_path'));
+		        	})
 		        	.then(() => {
 		        		winnersUpdated = true;
 		        	});

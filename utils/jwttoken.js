@@ -10,13 +10,13 @@ const priv = fs.readFileSync(path.join(__dirname, '../', 'priv.pem'));
  * payload should be object
  */
 
-function signToken(payload) {
+function signToken(payload, options = {}) {
     return new Promise(function(resolve, reject) {
         jwt.sign(payload, priv, {
             issuer: 'aimsquant',
             jwtid: 'jwtid',
             algorithm: 'RS256',
-            expiresIn: '2d'
+            expiresIn: '5d', ...options
         },
         function(err, token) {
             if (err) {

@@ -4227,6 +4227,9 @@ definitions:
         type: string
       email:
         type: string
+      force:
+        type: boolean
+        default: false
 
   captchaToken:
     type: object

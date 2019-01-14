@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-10 10:48:47
+* @Last Modified time: 2019-01-14 23:07:01
 */
 
 
@@ -152,14 +152,14 @@ DailyContestEntryPerformance.statics.updateEarningStats = function(query, date, 
 	var category = _.get(earningDetail, 'category', "daily");
 	var key = `earnings.${category}`;
 
-	return this.findOne({...query, date:{$lt: date}}, {earnings:1})
-	.then(doc => {
-		return doc ? _.get(doc.toObject(), key, null) : null;
+	return this.find({...query, date:{$lt: date}, earnings:{$exists: true}}, {earnings:1}).sort({date: -1}).limit(1)
+	.then(latestDoc => {
+		return latestDoc && latestDoc.length > 0 ? _.get(latestDoc[0], key, null) : null;
 	})
 	.then(lastEarnings => {
 		var lastCumulativeAmount = _.get(lastEarnings, 'cumulative', 0);
 		
-		var currentAmount = _.get(earningDetail, 'earning', 0);
+		var currentAmount = _.get(earningDetail, 'earnings', 0);
 		var newCumulativeAmount = lastCumulativeAmount + currentAmount;
 
 		var updates = {current: currentAmount, cumulative: newCumulativeAmount};
@@ -169,6 +169,60 @@ DailyContestEntryPerformance.statics.updateEarningStats = function(query, date, 
 	});
 	
 };
+
+DailyContestEntryPerformance.statics.fetchDistinctPerformances = function(query) {
+	return new Promise((resolve, reject) => {
+		this.aggregate(
+			[
+				{
+					$group:
+					  {
+						_id: "$advisor",
+						id: { $first: "$_id" },
+						currentDate: {$last: "$date"},
+						totalDaily: {$last: "$earnings.daily.cumulative"},
+						totalWeekly: {$last: "$earnings.weekly.cumulative"}
+					  }
+				},
+				{$sort: {totalWeekly: -1, totalDaily: -1}},
+				{$limit: 15},
+				{
+				   $project:{
+					   _id:"$id",
+					   advisor: "$_id",
+					   date: "$currentDate",
+					   totalDaily: "$totalDaily",
+					   totalWeekly: "$totalWeekly",
+					}
+				}   
+			]
+		)
+		.exec((err, transactions) => {
+			if (err) {
+				reject(err);
+			} else {
+				this.populate(
+					transactions, 
+					{
+						path: 'advisor', 
+						select: 'user',
+						populate: {
+							path: 'user',
+							select: 'firstName lastName _id'
+						}
+					},
+					function(err, populatedTransactions) {
+						if (err) {
+							reject(err);
+						} else {
+							resolve(populatedTransactions);
+						}
+					}
+				);
+			}
+		})
+	})
+}
 
 const DailyContestEntryPerformanceModel = mongoose.model('DailyContestEntryPerformance', DailyContestEntryPerformance);
 module.exports = DailyContestEntryPerformanceModel;

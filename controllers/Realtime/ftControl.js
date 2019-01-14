@@ -132,7 +132,7 @@ function filterForwardTest(fTest) {
     
      //Also, just send the latest Cash Tracker and Account Tracker
     var allCashDates = Object.keys(serializedData.cashtracker).map(item => new Date(item).getTime()).sort();
-    var lastCashDate = allCashDates.length > 0 ? DateHelper.formatDate(new Date(allCashDatess.slice(-1)[0])) : null;
+    var lastCashDate = allCashDates.length > 0 ? DateHelper.formatDate(new Date(allCashDates.slice(-1)[0])) : null;
     serializedData.cashtracker = lastCashDate ? {[lastCashDate]: serializedData.cashtracker[lastCashDate]} : null;
 
     var allAccountDates = Object.keys(serializedData.accounttracker).map(item => new Date(item).getTime()).sort();

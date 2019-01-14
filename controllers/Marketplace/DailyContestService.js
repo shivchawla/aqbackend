@@ -10,6 +10,9 @@ const _ = require('lodash');
 const Promise = require('bluebird');
 const schedule = require('node-schedule');
 const moment = require('moment-timezone');
+var path = require('path');
+var fs = require('fs');
+var csv = require('fast-csv');
 
 const config = require('config');
 const sendEmail = require('../../email');
@@ -19,6 +22,7 @@ const APIError = require('../../utils/error');
 const UserModel = require('../../models/user');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
+const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryHelper = require('../helpers/DailyContestEntry');
 const DailyContestHelper = require('../helpers/DailyContest');
@@ -439,6 +443,73 @@ module.exports.getDailyContestWinners = (args, res, next) => {
 	})
 };
 
+/**
+ * Get overall contest winners
+ */
+module.exports.getDailyContestOverallWinners = (args, res, next) => {
+	const query = {$and: [{dailyWinners: {$exists: true}}, {'dailyWinners.0': {$exists: true}}]};
+	const resultFilePath = path.dirname(require.main.filename);
+
+	return DailyContestStatsModel.fetchAllContestStats(query)
+	.then(stats => {
+		let requiredWinners = [];
+		// Flattening all the winners
+		stats.map(stat => {
+			const requiredStat = stat.toObject();
+			requiredWinners = [...requiredWinners, ...requiredStat.dailyWinners];
+		});
+		// Group all the winners by advisorId
+		const overallWinners = _.groupBy(requiredWinners, winner => winner.advisor._id);
+		// Getting all the advisorIds
+		const advisors = Object.keys(overallWinners);
+		// Getting all the earnings of the advisor
+		let winnerArray = advisors.map(advisor => {
+			const totalEarnings = _.sum(overallWinners[advisor].map(item => getPrizeValue(item.rank)));
+			console.log(overallWinners[advisor][0]);
+			const firstName = overallWinners[advisor][0].advisor.user.firstName;
+			const lastName = overallWinners[advisor][0].advisor.user.lastName;
+			const name = `${firstName} ${lastName}`;
+			return {advisor, totalEarnings, name};
+		});
+		// Ordering all the advisors based on their total earnings
+		winnerArray = _.orderBy(winnerArray, 'totalEarnings', 'desc');
+		// Writing the winners to csv files
+		// writeWinnersToCsv(`${resultFilePath}/examples/winners.csv`, winnerArray);
+		
+		return res.status(200).send({winners: winnerArray});
+	})
+	.catch(err => {
+		return res.status(400).send({message: err.message});
+	})
+}
+
+module.exports.getDailyContestOverallWinnersByEarnings = (args, res, next) => {
+	const resultFilePath = path.dirname(require.main.filename);
+
+	return DailyContestEntryPerformanceModel.fetchDistinctPerformances({})
+	.then(performances => {
+		const winners = performances.map(performance => {
+			// performance = performance.toObject();
+			let firstName = _.get(performance, 'advisor.user.firstName', '');
+			let lastName = _.get(performance, 'advisor.user.lastName', '');
+			firstName = firstName[0].toUpperCase() + firstName.slice(1).toLowerCase();
+			lastName = lastName[0].toUpperCase() + lastName.slice(1).toLowerCase();
+			const userName = `${firstName} ${lastName}`;
+			const dailyEarnings = _.get(performance, 'totalDaily', 0);
+			const weeklyEarnings = _.get(performance, 'totalWeekly', 0);
+			const totalEarnings = dailyEarnings + weeklyEarnings;
+
+			return {name: userName, dailyEarnings, weeklyEarnings, totalEarnings};
+		});
+		writeWinnersToCsv(`${resultFilePath}/examples/winners.csv`, winners);
+
+		return res.status(200).send(winners);
+	})
+	.catch(err => {
+		return res.status(400).send({message: err.message});
+	})
+}
+
 /*
 * Get daily contest top stocks
 */
@@ -633,4 +704,41 @@ module.exports.sendTemplateEmailToParticipants = function(args, res, next) {
     });
 };
 
+const getPrizeValue = (rank = 1) => {
+	switch(rank){
+        case 1:
+            return 100;
+        case 2:
+            return 75;
+        case 3:
+            return 50;
+        default:
+            return 0;  
+    }
+}
+
+const writeWinnersToCsv = (path, winners) => {
+	const csvStream = csv
+		.createWriteStream({headers: true})
+		.transform(function(row, next){
+			setImmediate(function(){
+				// this should be same as the object structure
+				next(null, {
+					Name: row.name, 
+					Earnings: row.totalEarnings
+					// Daily: row.dailyEarnings, 
+					// Weekly: row.weeklyEarnings
+				});
+			});;
+		});
+	const writableStream = fs.createWriteStream(path);		
+	writableStream.on("finish", function(){
+		console.log("Written to file");
+	});
+	csvStream.pipe(writableStream);
+	winners.map(winner => {
+		csvStream.write(winner);
+	});
+	csvStream.end();
+}
 
