@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-11 20:34:28
+* @Last Modified time: 2019-01-14 23:54:59
 */
 
 'use strict';
@@ -75,6 +75,9 @@ if (config.get('jobsPort') === serverPort) {
 				const marketCloseDateTimeOffset = DateHelper.getMarketCloseDateTime().add(30, 'minutes');
 				if (moment().isAfter(marketCloseDateTimeOffset) && !winnersUpdated) { 
 		        	DailyContestStatsHelper.updateContestStats()
+		        	.then(() => {
+		        		DailyContestStatsHelper.updateDailyContestOverallWinnersByEarnings(confi.get('winner_csv_path'));
+		        	})
 		        	.then(() => {
 		        		winnersUpdated = true;
 		        	});

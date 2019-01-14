@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-14 23:13:00
+* @Last Modified time: 2019-01-14 23:45:19
 */
 
 'use strict';
@@ -698,7 +698,8 @@ module.exports.updateDailyContestOverallWinnersByEarnings = function(filePath = 
 	filePath = filePath !== null 
 		? filePath 
 		: `${path.dirname(require.main.filename)}/examples/winners.csv`;
-	Promise.map([
+
+	Promise.all([
 		DailyContestEntryPerformanceModel.fetchDistinctPerformances({}),
 		UserModel.fetchUsers({email: {$in: config.get('winners_not_allowed')}}, {_id: 1})
 	])
