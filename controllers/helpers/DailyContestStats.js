@@ -706,7 +706,8 @@ module.exports.updateDailyContestOverallWinnersByEarnings = function(filePath = 
 
 			return (firstName.toLowerCase() !== 'saurav' && lastName.toLowerCase() !== 'biswas');
 		})
-		.performances.map(performance => {
+		.map(performance => {
+
 			// performance = performance.toObject();
 			let firstName = _.get(performance, 'advisor.user.firstName', '');
 			let lastName = _.get(performance, 'advisor.user.lastName', '');
@@ -720,7 +721,7 @@ module.exports.updateDailyContestOverallWinnersByEarnings = function(filePath = 
 			return {name: userName, dailyEarnings, weeklyEarnings, totalEarnings};
 		});
 		winners = _.orderBy(winners, 'totalEarnings', 'desc');
-		winners.slice(0, 10);
+		winners = winners.slice(0, 10);
 		writeWinnersToCsv(filePath, winners);
 		// writeWinnersToCsv(`${filePath}/examples/winners.csv`, winners);
 	})
