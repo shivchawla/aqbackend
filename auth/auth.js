@@ -9,6 +9,12 @@ const hashUtil = require('../utils/hashUtil');
 //This prevents the active BOTS using the API incessantly with same token
 //NOT PURSUING NOW AS 12/12/2017 [approach still has flaws]
 
+const allowedThirdPaths = [
+    '/dailycontest/prediction',
+    '/dailycontest/exitPrediction',
+    '/dailycontest/portfoliostats',
+]
+
 module.exports = function(req, next) {
     const token = req.headers['aimsquant-token'];
     
@@ -24,9 +30,21 @@ module.exports = function(req, next) {
             return UserModel.fetchUser({_id: decodedToken._id, jwtId: decodedToken.jti}, {fields: 'firstName lastName email'})
         }
     })
-    .then(userDetails => {
-        if(userDetails) {
-            req.swagger.params.user = userDetails.toObject();
+    // .then(userDetails => {
+    //     if(userDetails) {
+    //         req.swagger.params.user = userDetails.toObject();
+    .then(user => {
+        if(user) {
+            const apiPath = req.swagger.apiPath;
+            if (checkThirdPartyUser(req.headers)) {
+                if (allowedThirdPaths.indexOf(apiPath) === -1) {
+                    throw new Error("User not allowed for this operation");
+                }
+                console.log('Third party user');
+            }
+            delete user.password;
+            delete user.code;
+            req.swagger.params.user = user.toJSON();
             next();
             return null;
         } else {
@@ -38,3 +56,8 @@ module.exports = function(req, next) {
         next({statusCode: 403, message: err.message});
     });
 };
+
+const checkThirdPartyUser = host => {
+    const firstPartyHost = 'adviceqube.com';
+    return firstPartyHost !== host;
+}
