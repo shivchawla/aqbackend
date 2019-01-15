@@ -2,6 +2,8 @@
 const UserModel = require('../models/user');
 const jwtUtil = require('../utils/jwttoken');
 const hashUtil = require('../utils/hashUtil');
+const config = require('config');
+const _ = require('lodash');
 
 //Keep track of number of requests by the user (using REDIS may be)
 //And send toekn expired error after let's say 200 API calls
@@ -30,13 +32,10 @@ module.exports = function(req, next) {
             return UserModel.fetchUser({_id: decodedToken._id, jwtId: decodedToken.jti}, {fields: 'firstName lastName email'})
         }
     })
-    // .then(userDetails => {
-    //     if(userDetails) {
-    //         req.swagger.params.user = userDetails.toObject();
     .then(user => {
         if(user) {
             const apiPath = req.swagger.apiPath;
-            if (checkThirdPartyUser(req.headers)) {
+            if (checkThirdPartyUser(_.get(req, 'headers.origin', null))) {
                 if (allowedThirdPaths.indexOf(apiPath) === -1) {
                     throw new Error("User not allowed for this operation");
                 }
@@ -58,6 +57,6 @@ module.exports = function(req, next) {
 };
 
 const checkThirdPartyUser = host => {
-    const firstPartyHost = 'adviceqube.com';
+    const firstPartyHost = config.get('first_party_host');
     return firstPartyHost !== host;
 }
