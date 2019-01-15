@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 13:05:39
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-09 13:47:11
+* @Last Modified time: 2019-01-15 15:34:51
 */
 'use strict';
 const config = require('config');
@@ -43,7 +43,7 @@ function _updateData(filePath, type) {
 	return Promise.resolve()
 	.then(() => {
 
-		if (filePath && filePath !=""){ // && fs.existsSync(filePath)) {
+		if (filePath && filePath !="" && fs.existsSync(filePath)) {
 			return SecurityHelper.updateRealtimePrices(filePath, type)
 		} else {
 			//console.log("Can't process realtime data. Bad filename");
@@ -265,10 +265,6 @@ function processLatestFiles() {
 	])
 	.then(([mktFile, indFile]) => {
 		
-		//Call these function to update the DB async
-		//_updateIntradayHistory(mktFile, "mkt");
-		//_updateIntradayHistory(indFile, "ind");
-
 		return Promise.all([
 			_updateData(mktFile, "mkt"),
 			_updateData(indFile, "ind")
@@ -276,10 +272,16 @@ function processLatestFiles() {
 	})
 	.then(([s1, s2]) => {
 		if (s1 && s2) {
-			console.log("Successfully updated the stock prices");
 			return _sendAllUpdates()
-		} else {
+		} 
+		else if (!s1 && !s2){
 			console.log("No Realtime files for Ind/Mkt to use");
+		}
+		else if(!s1) {
+			console.log("No Realtime files for Mkt to use");
+		} 
+		else if (!s2) {
+			console.log("No Realtime files for Ind to use");	
 		}
 	})
 	.catch(err => {
