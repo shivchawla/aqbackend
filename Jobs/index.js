@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-14 23:54:59
+* @Last Modified time: 2019-01-15 16:14:23
 */
 
 'use strict';
@@ -76,7 +76,7 @@ if (config.get('jobsPort') === serverPort) {
 				if (moment().isAfter(marketCloseDateTimeOffset) && !winnersUpdated) { 
 		        	DailyContestStatsHelper.updateContestStats()
 		        	.then(() => {
-		        		DailyContestStatsHelper.updateDailyContestOverallWinnersByEarnings(confi.get('winner_csv_path'));
+		        		DailyContestStatsHelper.updateDailyContestOverallWinnersByEarnings(config.get('winner_csv_path'));
 		        	})
 		        	.then(() => {
 		        		winnersUpdated = true;

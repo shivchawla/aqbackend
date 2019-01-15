@@ -15,7 +15,9 @@ const allowedThirdPaths = [
     '/dailycontest/prediction',
     '/dailycontest/exitPrediction',
     '/dailycontest/portfoliostats',
-    '/dailycontest/stats'
+    '/dailycontest/stats',
+    '/dailycontest/winneremail',
+    '/dailycontest/summaryemail'
 ]
 
 module.exports = function(req, next) {

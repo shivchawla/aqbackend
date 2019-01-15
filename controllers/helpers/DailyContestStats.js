@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-15 13:51:08
+* @Last Modified time: 2019-01-15 16:14:56
 */
 
 'use strict';
@@ -84,7 +84,7 @@ function _computeDailyContestWinners(date) {
 				var profitFactor = _.get(allPredictionsPnlStats, 'profitFactor', 0);
 				var pnl = _.get(allPredictionsPnlStats, 'pnl', 0);
 
-				var uniquePredictions = _.uniq(allPredictions.map(item => _.get(item, 'position.security.ticker', ""))).length(); 
+				var uniquePredictions = _.uniq(allPredictions.map(item => _.get(item, 'position.security.ticker', ""))).length; 
 
 				return Object.assign({advisor: advisorId}, {pnlStats: {pnlPct, pnl, profitFactor, cost, uniquePredictions}});
 			})
