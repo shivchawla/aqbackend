@@ -15,6 +15,7 @@ const allowedThirdPaths = [
     '/dailycontest/prediction',
     '/dailycontest/exitPrediction',
     '/dailycontest/portfoliostats',
+    '/dailycontest/stats'
 ]
 
 module.exports = function(req, next) {
@@ -57,6 +58,6 @@ module.exports = function(req, next) {
 };
 
 const checkThirdPartyUser = host => {
-    const firstPartyHost = config.get('first_party_host');
+    const firstPartyHost = config.get('hostname');
     return firstPartyHost !== host;
 }
