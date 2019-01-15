@@ -256,7 +256,7 @@ exports.updateToken = function(args, res, next) {
                 }
             })
             .then(user => {
-                return [jwtUtil.signToken(_filterUserCredentials(userDetails), {jwtid: userDetails.jwtId, expiresIn: force ? '1000d' : '5d'}), _filterUserCredentials(userDetails)];
+                return [jwtUtil.signToken(_filterUserCredentials(user), {jwtid: user.jwtId, expiresIn: force ? '1000d' : '5d'}), _filterUserCredentials(userDetails)];
             })
         } else {
             throw new Error("Unauthorized Access");
