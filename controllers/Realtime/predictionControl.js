@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 19:33:21
+* @Last Modified time: 2019-01-15 16:26:42
 */
 'use strict';
 const config = require('config');
@@ -28,7 +28,8 @@ function _sendWSResponse(res, data) {
 		var msg = JSON.stringify(data)
 		return res.send(msg);
 	} else {
-		throw new Error("Websocket is not OPEN");
+		return;
+		//throw new Error("Websocket is not OPEN");
 	}
 }
 
