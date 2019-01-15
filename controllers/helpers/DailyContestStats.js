@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-14 23:45:19
+* @Last Modified time: 2019-01-15 13:51:08
 */
 
 'use strict';
@@ -29,6 +29,8 @@ const DailyContestEntryPerformanceModel = require('../../models/Marketplace/Dail
 const MIN_DAILY_PCT_CHANGE = 0.005;
 const MIN_WEEKLY_PCT_CHANGE = 0.01;
 const MIN_MONTHLY_PCT_CHANGE = 0.01;
+
+const MIN_DAILY_UNIQ_PREDICTIONS = 3;
 
 const DAILY_PRIZES_OLD = [100, 100, 100, 100, 100];
 const DAILY_PRIZES = [100, 75, 50];
@@ -70,8 +72,11 @@ function _computeDailyContestWinners(date) {
 	.then(allAdvisors => {
 		return Promise.mapSeries(allAdvisors, function(advisorId) {
 			
-            return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
-			.then(pnlStatsForAdvisor => {
+            return Promise.all([
+            	DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date),
+            	DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {priceUpdate: false, category: "all"})
+        	])
+			.then(([pnlStatsForAdvisor, allPredictions]) => {
 				var allPredictionsPnlStats =  _.get(pnlStatsForAdvisor, 'detail.cumulative.all.portfolio.net', {});
 				
 				var pnlPct = _.get(allPredictionsPnlStats, 'pnlPct', 0);
@@ -79,12 +84,14 @@ function _computeDailyContestWinners(date) {
 				var profitFactor = _.get(allPredictionsPnlStats, 'profitFactor', 0);
 				var pnl = _.get(allPredictionsPnlStats, 'pnl', 0);
 
-				return Object.assign({advisor: advisorId}, {pnlStats: {pnlPct, pnl, profitFactor, cost}});
+				var uniquePredictions = _.uniq(allPredictions.map(item => _.get(item, 'position.security.ticker', ""))).length(); 
+
+				return Object.assign({advisor: advisorId}, {pnlStats: {pnlPct, pnl, profitFactor, cost, uniquePredictions}});
 			})
 		})
 		.then(pnlStatsForAllAdvisors => {
 			return pnlStatsForAllAdvisors
-			.filter(item => {return item.pnlStats.pnlPct > MIN_DAILY_PCT_CHANGE})			
+			.filter(item => {return item.pnlStats.pnlPct > MIN_DAILY_PCT_CHANGE && item.pnlStats.uniquePredictions > MIN_DAILY_UNIQ_PREDICTIONS})			
 			.sort((a,b) => {return a.pnlStats.pnlPct > b.pnlStats.pnlPct ? -1 : 1})
 			.slice(0, _getDailyPrizes(date).length)
 			.map((item, index) => {item.rank = index+1; return item;});
@@ -229,7 +236,7 @@ function _computeContestPredictionMetrics(date) {
 		
 		return Promise.mapSeries(allAdvisors, function(advisor) {
 			var advisorId = advisor._id;
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {caegory: "started"})
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "started"})
 		})
 		.then(predictionsByAdvisors => {
 			return Array.prototype.concat.apply([], predictionsByAdvisors);
