@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-14 21:06:02
+* @Last Modified time: 2019-01-14 23:07:01
 */
 
 
@@ -208,11 +208,10 @@ DailyContestEntryPerformance.statics.fetchDistinctPerformances = function(query)
 						select: 'user',
 						populate: {
 							path: 'user',
-							select: 'firstName lastName'
+							select: 'firstName lastName _id'
 						}
 					},
 					function(err, populatedTransactions) {
-						console.log(populatedTransactions);
 						if (err) {
 							reject(err);
 						} else {

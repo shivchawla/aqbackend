@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-12 09:28:19
+* @Last Modified time: 2019-01-14 23:13:00
 */
 
 'use strict';
@@ -698,32 +698,36 @@ module.exports.updateDailyContestOverallWinnersByEarnings = function(filePath = 
 	filePath = filePath !== null 
 		? filePath 
 		: `${path.dirname(require.main.filename)}/examples/winners.csv`;
-	DailyContestEntryPerformanceModel.fetchDistinctPerformances({})
-	.then(performances => {
-		let winners = performances.filter(performance => {
-			let firstName = _.get(performance, 'advisor.user.firstName', '');
-			let lastName = _.get(performance, 'advisor.user.lastName', '');
-
-			return (firstName.toLowerCase() !== 'saurav' && lastName.toLowerCase() !== 'biswas');
-		})
-		.map(performance => {
+	Promise.map([
+		DailyContestEntryPerformanceModel.fetchDistinctPerformances({}),
+		UserModel.fetchUsers({email: {$in: config.get('winners_not_allowed')}}, {_id: 1})
+	])
+	.then(([performances, usersNotAllowed]) => {
+		return Promise.mapSeries(performances,  function(performance) {
 
 			// performance = performance.toObject();
-			let firstName = _.get(performance, 'advisor.user.firstName', '');
-			let lastName = _.get(performance, 'advisor.user.lastName', '');
-			firstName = firstName[0].toUpperCase() + firstName.slice(1).toLowerCase();
-			lastName = lastName[0].toUpperCase() + lastName.slice(1).toLowerCase();
-			const userName = `${firstName} ${lastName}`;
-			const dailyEarnings = _.get(performance, 'totalDaily', 0);
-			const weeklyEarnings = _.get(performance, 'totalWeekly', 0);
-			const totalEarnings = dailyEarnings + weeklyEarnings;
+			let userId = _.get(performance, 'advisor.user._id', "");
+			if (usersNotAllowed.map(item => item._id.toString()).indexOf(userId.toString()) == -1) {
+				let firstName = _.get(performance, 'advisor.user.firstName', '');
+				let lastName = _.get(performance, 'advisor.user.lastName', '');
+				firstName = firstName[0].toUpperCase() + firstName.slice(1).toLowerCase();
+				lastName = lastName[0].toUpperCase() + lastName.slice(1).toLowerCase();
+				const userName = `${firstName} ${lastName}`;
+				const dailyEarnings = _.get(performance, 'totalDaily', 0);
+				const weeklyEarnings = _.get(performance, 'totalWeekly', 0);
+				const totalEarnings = dailyEarnings + weeklyEarnings;
 
-			return {name: userName, dailyEarnings, weeklyEarnings, totalEarnings};
-		});
-		winners = _.orderBy(winners, 'totalEarnings', 'desc');
-		winners = winners.slice(0, 10);
-		writeWinnersToCsv(filePath, winners);
-		// writeWinnersToCsv(`${filePath}/examples/winners.csv`, winners);
+				return {name: userName, dailyEarnings, weeklyEarnings, totalEarnings};
+
+			} else {
+				return null;
+			}
+		})
+	})
+	.then(winners => {
+		winners = _.orderBy(winners.filter(item => item), 'totalEarnings', 'desc').slice(0, 10); 
+		writeWinnersToCsv(filePath, winners);	
+			// writeWinnersToCsv(`${filePath}/examples/winners.csv`, winners);
 	})
 	.catch(err => {
 		console.log(err);
