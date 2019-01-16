@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-16 00:45:10
+* @Last Modified time: 2019-01-16 10:26:27
 */
 
 'use strict';
@@ -2149,11 +2149,19 @@ module.exports.checkAdvisorInvestmentSum = function() {
 					var manualExitStatus = _.get(prediction, 'status.manualExit', false) && 
 						_.get(prediction, 'position.lastPrice', 0) != 0; 
 
-					return !stopLossStatus && !profitTargetStatus && !expiredStatus && !manualExitStatus;
+					return !stopLossStatus && 
+							!profitTargetStatus && 
+								!expiredStatus && 
+									!manualExitStatus ? prediction : null;
 				})
 				.then(activePredictions => {
 					var totalInvestmentActual = 0;
-					activePredictions.forEach(item => {totalInvestmentActual += Math.abs(_.get(item, 'position.investment', 0))});
+					
+					activePredictions
+					.filter(item => item)
+					.forEach(item => {
+						totalInvestmentActual += Math.abs(_.get(item, 'position.investment', 0))
+					});
 
 					var totalInvestmentInAccount = _.get(advisor, 'account.investment', 0);
 
