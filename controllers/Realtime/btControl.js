@@ -11,7 +11,7 @@ const SettingsParser = require('./btSettings.js');
 const serverPort = require('../../index').serverPort;
 
 schedule.scheduleJob("0 * * * * *", function() {
-    processBacktest(null);
+    //processBacktest(null);
 });
 
 var isBusy = {};
