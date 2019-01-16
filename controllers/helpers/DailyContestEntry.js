@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-11 19:32:15
+* @Last Modified time: 2019-01-14 18:12:20
 */
 
 'use strict';
@@ -1808,10 +1808,18 @@ module.exports.checkForPredictionTarget = function() {
 
 		return Promise.mapSeries(allSuccessfulPredictions, function(prediction) {
 
-			return Promise.all([
-				AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction),
+			return new Promise(resolve => {
 				DailyContestEntryModel.updatePrediction({advisor: prediction.advisorId}, prediction)
-			]);
+				.then(() => {
+					resolve(AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction));
+				})
+				.catch(err => {
+					console.log(`checkForPredictionTarget(): Error updating prediction/account for ${prediction.advisorId}`);
+					console.log(err.message);
+					resolve(null);
+				})
+			})
+			
 		});
 	})
 	.then(() => {
@@ -1873,10 +1881,17 @@ module.exports.checkForPredictionExpiry = function() {
 
 			return Promise.mapSeries(allPredictionsEndedInTime, function(prediction) {
 
-				return Promise.all([
-					AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction),
+				return new Promise(resolve => {
 					DailyContestEntryModel.updatePrediction({advisor: prediction.advisorId}, prediction)
-				]);
+					.then(() => {
+						resolve(AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction));
+					})
+					.catch(err => {
+						console.log(`CheckForPredictionExpiry(): Error updating prediction/account for ${prediction.advisorId}`);
+						console.log(err.message);
+						resolve(null);
+					})
+				})
 			});
 		})
 		.then(() => {
@@ -2083,11 +2098,18 @@ module.exports.updateManuallyExitedPredictionsForLastPrice = function(date) {
 									console.log(`Populating Last price for ${advisorId}/${ticker} at ${Date()}`);
 									prediction.position.lastPrice = price;
 
-									//Updating advisor account 
-									return Promise.all([
-										AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction),
+									return new Promise(resolve => {
 										DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction)
-									]);
+										.then(() => {
+											resolve(AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction));
+										})
+										.catch(err => {
+											console.log(`updateManuallyExitedPredictionsForLastPrice(): Error updating prediction/account for ${advisorId}`);
+											console.log(err.message);
+											resolve(null);
+										});
+									});
+
 								} else {
 									console.log("Price while populating Last Price is Zero..OOPS!!")
 									console.log(relevantIntradayHistory);

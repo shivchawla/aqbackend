@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-08 14:04:39
+* @Last Modified time: 2019-01-15 15:30:36
 */
 
 'use strict';
@@ -396,7 +396,8 @@ function _sendWSResponse(res, data, category, typeId) {
 
 		return res.send(msg);
 	} else {
-		APIError.throwJsonError({message: "Websocket is not OPEN"});
+		return; 
+		//APIError.throwJsonError({message: "Websocket is not OPEN"});
 	}
 }
 
