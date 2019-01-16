@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-16 10:26:27
+* @Last Modified time: 2019-01-16 10:27:39
 */
 
 'use strict';
@@ -2165,7 +2165,7 @@ module.exports.checkAdvisorInvestmentSum = function() {
 
 					var totalInvestmentInAccount = _.get(advisor, 'account.investment', 0);
 
-					if (totalInvestmentActual != totalInvestmentInAccount) {
+					if (Math.abs(totalInvestmentActual - totalInvestmentInAccount) > 0.001) {
 						console.log(`Advisor Investment Sum Failed for ${advisorId}`);
 						console.log("Advisor: ", advisor.user);
 						console.log(`Actual Investment: ${totalInvestmentActual}`);
