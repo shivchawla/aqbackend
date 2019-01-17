@@ -18,22 +18,25 @@ exports.createBacktest = function(strategy, values, res, next) {
         deleted:false,
     };
 
-    BacktestModel.saveBacktest(backtest)
+    return BacktestModel.saveBacktest(backtest)
     .then(bt => {
         if(bt) {
             var req = {action:'exec-backtest', backtestId: bt._id};
             try {
-                spawn.handleAction(req, null);
+                return spawn.handleAction(req, null)
+                .then(() =>{
+                    return bt;
+                })
             } catch(err) {
                 console.log(err);
             }
-            
-            return res.status(200).json(bt);
-        }
+        } 
+    })
+    .then(bt => {
+        return res.status(200).json(bt);
     })
     .catch(err => {
         return res.status(400).send(err.message);
-        next(err);
     });
 };
 
