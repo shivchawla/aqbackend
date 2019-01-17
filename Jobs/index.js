@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-15 16:14:23
+* @Last Modified time: 2019-01-16 00:42:29
 */
 
 'use strict';
@@ -82,6 +82,9 @@ if (config.get('jobsPort') === serverPort) {
 		        		winnersUpdated = true;
 		        	});
 		        }
+			})
+			.then(() => {
+				DailyContestEntryHelper.checkAdvisorInvestmentSum();
 			})
 			.catch(err => {
 				console.log(err.message);

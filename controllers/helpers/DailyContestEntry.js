@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-14 18:12:20
+* @Last Modified time: 2019-01-16 18:08:32
 */
 
 'use strict';
@@ -1516,9 +1516,6 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 					var manualExitStatus = _.get(item, 'status.manualExit', false);
 					var expired = _.get(item, 'status.expired', false);
 
-					//This condition for expiry is nt required as epired flag will be true
-					// || !moment(_.get(item, 'endDate', null)).isBefore(date);;
-					
 					return profitTargetStatus || stopLossStatus || manualExitStatus || expired;
 				})
 				.map(item => item._id.toString());
@@ -1907,7 +1904,7 @@ module.exports.addPredictions = function(advisorId, predictions, date) {
 		return AdvisorHelper.updateAdvisorAccountDebit(advisorId, predictions);
 	})
 	.then(updatedAdvisor => {
-		return exports.updateLatestPortfolioStatsForAdvisor(advisorId);
+		return exports.updateLatestPortfolioStatsForAdvisor(advisorId, date);
 
 	})
 };
@@ -2131,3 +2128,53 @@ module.exports.updateManuallyExitedPredictionsForLastPrice = function(date) {
 		})
 	})
 }
+
+
+module.exports.checkAdvisorInvestmentSum = function() {
+	var date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
+
+	return DailyContestEntryModel.fetchDistinctAdvisors()
+	.then(allAdvisors => {
+		return Promise.mapSeries(allAdvisors, function(advisorId) {
+			return Promise.all([
+				exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false}),
+				AdvisorModel.fetchAdvisor({_id:advisorId}, {fields: 'account user'})
+			])
+			.then(([predictions, advisor]) => {
+				
+				return Promise.mapSeries(predictions, function(prediction) {
+					var stopLossStatus = _.get(prediction, 'status.stopLoss', false); 
+					var profitTargetStatus = _.get(prediction, 'status.profitTarget', false); 
+					var expiredStatus = _.get(prediction, 'status.expired', false); 
+					var manualExitStatus = _.get(prediction, 'status.manualExit', false) && 
+						_.get(prediction, 'position.lastPrice', 0) != 0; 
+
+					return !stopLossStatus && 
+							!profitTargetStatus && 
+								!expiredStatus && 
+									!manualExitStatus ? prediction : null;
+				})
+				.then(activePredictions => {
+					var totalInvestmentActual = 0;
+					
+					activePredictions
+					.filter(item => item)
+					.forEach(item => {
+						totalInvestmentActual += Math.abs(_.get(item, 'position.investment', 0))
+					});
+
+					var totalInvestmentInAccount = _.get(advisor, 'account.investment', 0);
+
+					if (Math.abs(totalInvestmentActual - totalInvestmentInAccount) > 0.001) {
+						console.log(`Advisor Investment Sum Failed for ${advisorId}`);
+						console.log("Advisor: ", advisor.user);
+						console.log(`Actual Investment: ${totalInvestmentActual}`);
+						console.log(`Account Investment: ${totalInvestmentInAccount}`);
+					}
+				})
+
+			})
+			
+		})
+	})
+};
