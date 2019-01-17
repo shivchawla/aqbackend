@@ -12,8 +12,10 @@ const SettingsParser = require('./btSettings.js');
 const serverPort = require('../../index').serverPort;
 const _ = require('lodash'); 
 
-
 setTimeout(reSubscribeAfterConnection, 5000);
+setInterval(checkCompletionSet, 10000);
+
+var polledBacktestsForCompletion = {};
 
 var redisSubscriber;
 
@@ -180,7 +182,18 @@ function saveData(backtestId) {
     
     return new Promise(resolve => {
         //Fetch all the data from the redis Queue "backtest-final-${backtestId}"
-        Promise.resolve()
+        return BacktestModel.fetchBacktest({_id: backtestId, deleted: false}, {select: 'status'})
+        .then(bt => {
+            if(!bt) {
+                console.log("Backtest not found");
+                resolve(true);
+            }
+
+            if(bt.status === "complete" || bt.status === "exception") {
+                console.log("Backtest status is already updated");
+                resolve(true);
+            }
+        })
         .then(() => {
             if (!_.get(juliaError, backtestId, false)) {
                 return redisUtils.getRangeFromRedis(finalOutputChannel(backtestId), 0 , -1);
@@ -235,6 +248,9 @@ function saveData(backtestId) {
     .then(() => {
         //remove julia error status
         delete juliaError[backtestId];
+
+        //remove the polled status;
+        delete polledBacktestsForCompletion[backtestId];
         
         // Delete this backtest from redis (from this process SET)
         return Promise.all([
@@ -434,6 +450,42 @@ function handleRedisSubscription(backtestId) {
     }
 
     return;
+}
+
+
+function checkCompletionSet() {
+    return redisUtils.getAllFromRedis(THIS_PROCESS_BACKTEST_SET, 0, -1)
+    .then(data => {
+       
+        if (!data) {
+            // Redis is empty
+            return;
+        }
+
+        //Re-subscribe to the channels
+        return Promise.mapSeries(Object.keys(data), function(key) {
+            var req = JSON.parse(data[key]);
+
+            var nodePort = req.nodePort;
+            var backtestId = req.backtestId;
+
+            if (nodePort != serverPort || !backtestId)  {
+                console.log("Error while fetching requests for this process");
+            }
+
+            return redisUtils.getFromRedis(COMPLETE_BACKTEST_SET, backtestId)
+            .then(found => {
+                if (found) {
+                    if (!polledBacktestsForCompletion[backtestId]) {
+
+                        polledBacktestsForCompletion[backtestId] = true;
+
+                        return saveData(backtestId);
+                    }
+                }
+            });
+        })
+    });
 }
 
 // Function to pop out the top priority backtest from queue
