@@ -13,9 +13,9 @@ const _ = require('lodash');
 const APIError = require('../../utils/error');
 const DateHelper = require('../../utils/Date');
 
-const FORWARDTEST_QUEUE = "backtest-request-queue"
+const FORWARDTEST_QUEUE = `backtest-request-queue-${process.env.NODE_ENV}`;
 const THIS_PROCESS_FORWARDTEST_SET = `forwardtest-request-set-${serverPort}`;
-const COMPLETE_FORWARDTEST_SET  = 'backtest-completion-set';
+const COMPLETE_FORWARDTEST_SET  = `backtest-completion-set-${process.env.NODE_ENV}`;
 
 // Schedule all the forward test jobs
 var schedulerString = config.get('ft_second') + " " + config.get('ft_minute') + " "+config.get('ft_hour')+ ' * * *';

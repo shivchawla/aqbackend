@@ -34,9 +34,9 @@ var freshSubscription = {};
 var lastIndexSent = {};
 var lastChunkSent = {};
 
-const BACKTEST_QUEUE = "backtest-request-queue"
+const BACKTEST_QUEUE = `backtest-request-queue-${process.env.NODE_ENV}`;
 const THIS_PROCESS_BACKTEST_SET = `backtest-request-set-${serverPort}`;
-const COMPLETE_BACKTEST_SET  = 'backtest-completion-set';
+const COMPLETE_BACKTEST_SET  = `backtest-completion-set-${process.env.NODE_ENV}`;
 
 function realtimeOutputChannel(backtestId) {
     return `backtest-realtime-${backtestId}`;
