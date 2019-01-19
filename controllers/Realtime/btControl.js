@@ -225,7 +225,7 @@ function saveData(backtestId) {
                     fOutput = JSON.parse(dataArray.map(item => item.data).join(""));
                     
                     //Even with output, status could be exceptions (output will only contain logs)
-                    var status = !_.get(juliaError, backtestId, false) ? "exception" : "complete";
+                    var status = _.get(juliaError, backtestId, false) ? "exception" : "complete";
                     
                     return {output: fOutput, status};
                     
