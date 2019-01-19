@@ -13,9 +13,11 @@ exports.createThread = function(args, res, next) {
     let thread;
     let backtestQuery;
     
+    var isAdmin = config.get('admin_user').indexOf(user.email) != -1;
+
     return UserModel.fetchUsers({email:{$in:config.get('admin_followers')}})
     .then(adminFollowers => {
-        var markdownOptions = user.email != config.get('admin_user') ? {excludes: 'img'} : {};
+        var markdownOptions = !isAdmin ? {excludes: 'img'} : {};
         thread = {
             user: user._id,
             category: args.body.value.category,
@@ -195,7 +197,8 @@ exports.replyToThread = function(args, res, next) {
     const user = args.user;
 
     //if user is not admin, don't allow image ig markdown
-    var markdownOptions = user.email != config.get('admin_user') ? {excludes: 'img'} : {};
+    var isAdmin = config.get('admin_user').indexOf(user.email) != -1;
+    var markdownOptions = !isAdmin ? {excludes: 'img'} : {};
 
     const embedThread = {
         user: user._id,

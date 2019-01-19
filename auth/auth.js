@@ -15,9 +15,7 @@ const allowedThirdPaths = [
     '/dailycontest/prediction',
     '/dailycontest/exitPrediction',
     '/dailycontest/portfoliostats',
-    '/dailycontest/stats',
-    '/dailycontest/winneremail',
-    '/dailycontest/summaryemail'
+    '/dailycontest/stats'
 ]
 
 module.exports = function(req, next) {
@@ -37,16 +35,24 @@ module.exports = function(req, next) {
     })
     .then(user => {
         if(user) {
+            var isAdmin = config.get('admin_user').indexOf(user.email) != -1;
+
+            //Admin can access any API from anywhere
             const apiPath = req.swagger.apiPath;
-            if (checkThirdPartyUser(_.get(req, 'headers.origin', null))) {
-                if (allowedThirdPaths.indexOf(apiPath) === -1) {
-                    throw new Error("User not allowed for this operation");
+            if (!isAdmin) {
+                if (checkThirdPartyUser(_.get(req, 'headers.origin', null))) {
+                    if (allowedThirdPaths.indexOf(apiPath) === -1) {
+                        throw new Error("User not allowed for this operation");
+                    }
+                    console.log('Third party user');
                 }
-                console.log('Third party user');
             }
+
             delete user.password;
             delete user.code;
+            
             req.swagger.params.user = user.toJSON();
+            
             next();
             return null;
         } else {
