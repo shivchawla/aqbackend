@@ -117,7 +117,7 @@ function runForwardTest(forwardtestId) {
             let req = {};
 
             req.backtestId = forwardtestId
-            req.argArray = argsArray;
+            req.argArray = argArray;
 
             // epoch time (measure for time of request)
             req.requestTime = (new Date()).getTime();

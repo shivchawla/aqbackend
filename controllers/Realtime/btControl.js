@@ -143,10 +143,10 @@ function handleBacktest(req, res) {
             return console.error("No strategy found");
         }
 
-        var argsArray = SettingsParser.parseSettings(bt, false);
-        argsArray = argsArray.concat(['--backtestid', backtestId]).join("??##");
+        var argArray = SettingsParser.parseSettings(bt, false);
+        argArray = argArray.concat(['--backtestid', backtestId]).join("??##");
 
-        req.argArray = argsArray;
+        req.argArray = argArray;
 
         // epoch time (measure for time of request)
         req.requestTime = (new Date()).getTime();
