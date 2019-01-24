@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-24 17:21:59
+* @Last Modified time: 2019-01-24 11:53:56
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -120,11 +120,8 @@ function _computeStockIntradayHistory(security, date) {
 		var activeTradingDate = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0));
 		var key = `RtData_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${security.ticker}`;
 		
-		RedisUtils.getSetDataFromRedis(key, (err, reply) => {
-			if (err) {
-				reject(err);
-			}
-
+		return RedisUtils.getSetDataFromRedis(key)
+		.then(reply => {
 			resolve(
 				reply.map(item => {
 					var pItem = JSON.parse(item); 
@@ -136,6 +133,10 @@ function _computeStockIntradayHistory(security, date) {
 				})
 				.sort((a,b) => {return moment(a.datetime).isBefore(b.datetime) ? -1 : 1;})
 			);
+		})
+		.catch(err => {
+			console.log(err);
+			reject(err);
 		});
 		
     });
