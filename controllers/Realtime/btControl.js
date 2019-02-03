@@ -132,7 +132,7 @@ function getRedisSubscriber() {
         });
     } 
 
-    return redisClient;
+    return redisSubscriber;
 }
 
 /* =====================================
