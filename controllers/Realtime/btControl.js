@@ -13,7 +13,8 @@ const serverPort = require('../../index').serverPort;
 const BacktestModel = require('../../models/Research/backtest');
 const StrategyModel = require('../../models/Research/strategy');
 
-var redisClient = null; 
+var redisClient = null;
+var redisSubscriber = null; 
 
 setTimeout(reSubscribeAfterConnection, 5000);
 setInterval(checkCompletionSet, 10000);
@@ -54,10 +55,18 @@ function finalOutputChannel(backtestId) {
 function getRedisClient() {
     if (!redisClient || !redisClient.connected) {
         redisClient = redis.createClient(config.get('julia_redis_port'), config.get('julia_redis_host'), {password: config.get('julia_redis_pass')});
+    } 
+
+    return redisClient;
+}
+
+function getRedisSubscriber() {
+    if (!redisSubscriber || !redisSubscriber.connected) {
+        redisSubscriber = redis.createClient(config.get('julia_redis_port'), config.get('julia_redis_host'), {password: config.get('julia_redis_pass')});
         
-        redisClient.on("ready", function() {
+        redisSubscriber.on("ready", function() {
             // Let's retrieve pending backtest requests from Redis for this process
-            return RedisUtils.getAllFromRedis(redisClient, THIS_PROCESS_BACKTEST_SET)
+            return RedisUtils.getAllFromRedis(getRedisClient(), THIS_PROCESS_BACKTEST_SET)
             .then(data => {
                
                 if (!data) {
@@ -77,7 +86,7 @@ function getRedisClient() {
                     }
 
                     //Fetch the status of this backtest, in Completion Set
-                    return RedisUtils.getFromRedis(redisClient, COMPLETE_BACKTEST_SET, backtestId)
+                    return RedisUtils.getFromRedis(getRedisClient(), COMPLETE_BACKTEST_SET, backtestId)
                     .then(found => {
                         if (found) {
                             //Use this flag before subscribing realtime data
@@ -98,7 +107,7 @@ function getRedisClient() {
             })
         });
 
-        redisClient.on("message", function(channel, message) {
+        redisSubscriber.on("message", function(channel, message) {
             
             var backtestId = channel.split("-")[2];
 
@@ -276,7 +285,7 @@ function saveData(backtestId) {
         })
         .then(() => {
             if (!_.get(juliaError, backtestId, false)) {
-                return RedisUtils.getRangeFromRedis(getRedisClient(), finalOutputChannel(backtestId), 0 , -1);
+                return RedisUtils.getRangeFromRedis(getRedisSubscriber(), finalOutputChannel(backtestId), 0 , -1);
             } else {
                 throw new Error ("Julia Error");
             }
@@ -350,12 +359,12 @@ function saveData(backtestId) {
         .then(() => {
             
             //Expire the channels
-            RedisUtils.setDataExpiry(getRedisClient(), realtimeOutputChannel(backtestId), 20);
-            RedisUtils.setDataExpiry(getRedisClient(), finalOutputChannel(backtestId), 1);
+            RedisUtils.setDataExpiry(getRedisSubscriber(), realtimeOutputChannel(backtestId), 20);
+            RedisUtils.setDataExpiry(getRedisSubscriber(), finalOutputChannel(backtestId), 1);
 
             //Unsubscribe the channels
-            RedisUtils.unsubscribe(getRedisClient(), realtimeOutputChannel(backtestId));
-            RedisUtils.unsubscribe(getRedisClient(), finalOutputChannel(backtestId));
+            RedisUtils.unsubscribe(getRedisSubscriber(), realtimeOutputChannel(backtestId));
+            RedisUtils.unsubscribe(getRedisSubscriber(), finalOutputChannel(backtestId));
 
         })
         .catch(err => {
@@ -372,7 +381,7 @@ function sendData(backtestId, final) {
         //Retrieve the  websocket response variable for the backtestId
         var res = response[backtestId];
 
-        return RedisUtils.getRangeFromRedis(getRedisClient(), realtimeOutputChannel(backtestId), 0, -1)
+        return RedisUtils.getRangeFromRedis(getRedisSubscriber(), realtimeOutputChannel(backtestId), 0, -1)
         .then(dataArray => {
 
             noresponse = !res;
@@ -437,14 +446,14 @@ function updateBacktestResult(backtestId, data) {
 
 function reSubscribeAfterConnection() {
     //Get (gets the client and sets up various subscription channels)
-    getRedisClient();
+    getRedisSubscriber();
 }
 
 function handleRedisSubscription(backtestId) {
 
     if (backtestId ) {
-        RedisUtils.subscribe(getRedisClient(), realtimeOutputChannel(backtestId));
-        RedisUtils.subscribe(getRedisClient(), finalOutputChannel(backtestId));
+        RedisUtils.subscribe(getRedisSubscriber(), realtimeOutputChannel(backtestId));
+        RedisUtils.subscribe(getRedisSubscriber(), finalOutputChannel(backtestId));
 
         //Create timer function to send data to FE
         if(subscribed[backtestId]) {
