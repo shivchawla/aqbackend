@@ -273,7 +273,7 @@ function handleRedisSubscription(forwardtestId) {
 }
 
 function reSubscribeAfterConnection() {
-    setupRedisSubscriber();
+    getRedisClient();
 }
 
 function saveData(forwardtestId) {

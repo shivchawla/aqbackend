@@ -1,16 +1,17 @@
 'use strict';
 var redis = require('redis');
 const Promise = require('bluebird');
-const RedisUtils = require('../../utils/RedisUtils');
 const config = require('config');
 const WebSocket = require('ws');
-const BacktestModel = require('../../models/Research/backtest');
-const StrategyModel = require('../../models/Research/strategy');
 const schedule = require('node-schedule');
 var fs = require('fs');
+const _ = require('lodash'); 
+
+const RedisUtils = require('../../utils/RedisUtils');
 const SettingsParser = require('./btSettings.js');
 const serverPort = require('../../index').serverPort;
-const _ = require('lodash'); 
+const BacktestModel = require('../../models/Research/backtest');
+const StrategyModel = require('../../models/Research/strategy');
 
 var redisClient = null; 
 
@@ -56,7 +57,7 @@ function getRedisClient() {
         
         redisClient.on("ready", function() {
             // Let's retrieve pending backtest requests from Redis for this process
-            return RedisUtils.getAllFromRedis(getRedisClient(), THIS_PROCESS_BACKTEST_SET, 0, -1)
+            return RedisUtils.getAllFromRedis(redisClient, THIS_PROCESS_BACKTEST_SET, 0, -1)
             .then(data => {
                
                 if (!data) {
@@ -76,7 +77,7 @@ function getRedisClient() {
                     }
 
                     //Fetch the status of this backtest, in Completion Set
-                    return RedisUtils.getFromRedis(getRedisClient(), COMPLETE_BACKTEST_SET, backtestId)
+                    return RedisUtils.getFromRedis(redisClient, COMPLETE_BACKTEST_SET, backtestId)
                     .then(found => {
                         if (found) {
                             //Use this flag before subscribing realtime data

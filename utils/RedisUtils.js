@@ -59,11 +59,11 @@ function incValue(client, key, increment) {
 }
 
 function subscribe(client, channel) {
-    return client.subscribe(channel);    
+    client.subscribe(channel);    
 }
 
 function unsubscribe(client, channel) {
-    return client.unsubscribe(channel);    
+    client.unsubscribe(channel);    
 }
 
 module.exports = {
