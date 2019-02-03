@@ -360,13 +360,13 @@ function saveData(forwardtestId) {
         Promise.resolve()
         .then(() => {
             if (!_.get(juliaError, forwardtestId, false)) {
-                return RedisUtils.getRangeFromRedis(getRedisSubscriber(), finalOutputChannel(forwardtestId), 0 , -1);
+                return RedisUtils.getRangeFromRedis(getRedisClient(), finalOutputChannel(forwardtestId), 0 , -1);
             } else {
                 throw new Error ("Julia Error");
             }
         }).
         then(() => {
-            return RedisUtils.getRangeFromRedis(getRedisSubscriber(), finalOutputChannel(forwardtestId), 0 , -1);
+            return RedisUtils.getRangeFromRedis(getRedisClient(), finalOutputChannel(forwardtestId), 0 , -1);
         })
         .then(data => {
 
@@ -433,8 +433,8 @@ function saveData(forwardtestId) {
         .then(() => {
             
             //Expire the channels
-            RedisUtils.setDataExpiry(getRedisSubscriber(), realtimeOutputChannel(forwardtestId), 20);
-            RedisUtils.setDataExpiry(getRedisSubscriber(), finalOutputChannel(forwardtestId), 1);
+            RedisUtils.setDataExpiry(getRedisClient(), realtimeOutputChannel(forwardtestId), 20);
+            RedisUtils.setDataExpiry(getRedisClient(), finalOutputChannel(forwardtestId), 1);
 
             //Unsubscribe the channels
             RedisUtils.unsubscribe(getRedisSubscriber(), realtimeOutputChannel(forwardtestId));

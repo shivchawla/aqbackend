@@ -285,7 +285,7 @@ function saveData(backtestId) {
         })
         .then(() => {
             if (!_.get(juliaError, backtestId, false)) {
-                return RedisUtils.getRangeFromRedis(getRedisSubscriber(), finalOutputChannel(backtestId), 0 , -1);
+                return RedisUtils.getRangeFromRedis(getRedisClient(), finalOutputChannel(backtestId), 0 , -1);
             } else {
                 throw new Error ("Julia Error");
             }
@@ -359,8 +359,8 @@ function saveData(backtestId) {
         .then(() => {
             
             //Expire the channels
-            RedisUtils.setDataExpiry(getRedisSubscriber(), realtimeOutputChannel(backtestId), 20);
-            RedisUtils.setDataExpiry(getRedisSubscriber(), finalOutputChannel(backtestId), 1);
+            RedisUtils.setDataExpiry(getRedisClient(), realtimeOutputChannel(backtestId), 20);
+            RedisUtils.setDataExpiry(getRedisClient(), finalOutputChannel(backtestId), 1);
 
             //Unsubscribe the channels
             RedisUtils.unsubscribe(getRedisSubscriber(), realtimeOutputChannel(backtestId));
@@ -381,7 +381,7 @@ function sendData(backtestId, final) {
         //Retrieve the  websocket response variable for the backtestId
         var res = response[backtestId];
 
-        return RedisUtils.getRangeFromRedis(getRedisSubscriber(), realtimeOutputChannel(backtestId), 0, -1)
+        return RedisUtils.getRangeFromRedis(getRedisClient(), realtimeOutputChannel(backtestId), 0, -1)
         .then(dataArray => {
 
             noresponse = !res;
