@@ -2,18 +2,27 @@
 * @Author: Shiv Chawla
 * @Date:   2018-04-25 16:09:37
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-24 22:56:46
+* @Last Modified time: 2019-02-03 15:17:00
 */
 'use strict';
 var redis = require('redis');
-const redisUtils = require('../../utils/RedisUtils');
+const RedisUtils = require('../../utils/RedisUtils');
 const config = require('config');
 const WebSocket = require('ws');
 const serverPort = require('../../index').serverPort;
 const APIError = require('../../utils/error');
 const _ = require('lodash');
 
-redisUtils.insertKeyValue(`numFailedRequests-${serverPort}`, 0);
+var redisClient;
+
+function getRedisClient() {
+    if (!redisClient || !redisClient.connected) {
+        redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: config.get('node_redis_pass')});  
+        RedisUtils.insertKeyValue(redisClient, `numFailedRequests-${serverPort}`, 0);    
+    }
+
+    return redisClient;
+}
 
 var numAttempts = {};
 var numRequests = 0;

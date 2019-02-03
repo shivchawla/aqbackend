@@ -9,7 +9,6 @@ const config = require('config');
 var fs = require('fs');
 var path = require("path");    
 const fname = "../../examples/template.txt";
-const RedisUtils = require('../../utils/RedisUtils');
 
 exports.createStrategy = function(args, res, next) {
     const user = args.user;

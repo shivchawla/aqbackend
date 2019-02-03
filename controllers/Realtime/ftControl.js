@@ -1,6 +1,6 @@
 'use strict';
 var redis = require("redis");
-const redisUtils = require('../../utils/RedisUtils');
+const RedisUtils = require('../../utils/RedisUtils');
 const CryptoJS = require('crypto-js');
 const config = require('config');
 const WebSocket = require('ws');
@@ -28,7 +28,7 @@ if (serverPort == config.get('jobsPort')) {
     setTimeout(reSubscribeAfterConnection, 5000);
 }
 
-var redisSubscriber;
+var redisClient;
 var juliaError = {};
 
 function finalOutputChannel(forwardtestId) {
@@ -37,6 +37,82 @@ function finalOutputChannel(forwardtestId) {
 
 function realtimeOutputChannel(forwardtestId) {
     return `backtest-realtime-${forwardtestId}`;
+}
+
+function getRedisClient() {
+    if (!redisClient || !redisClient.connected) {
+        redisClient = redis.createClient(config.get('julia_redis_port'), config.get('julia_redis_host'), {password: config.get('julia_redis_pass')});
+        
+        redisClient.on("ready", function() {
+
+            // Let's retrieve pending backtest requests from Redis for this process
+            return RedisUtils.getAllFromRedis(redisClient, THIS_PROCESS_FORWARDTEST_SET, 0, -1)
+            .then(data => {
+               
+                if (!data) {
+                    // Redis is empty
+                    return;
+                }
+
+                //Re-subscribe to the channels
+                return Promise.mapSeries(Object.keys(data), function(key) {
+                    var req = JSON.parse(data[key]);
+
+                    var nodePort = req.nodePort;
+                    
+                    //Request is passed with ***backtestId**
+                    var forwardtestId = req.backtestId;
+
+                    if (nodePort != serverPort || !forwardtestId)  {
+                        console.log("Error while fetching requests for this process");
+                    }
+
+                    //Fetch the status of this backtest, in Completion Set
+                    return RedisUtils.getFromRedis(redisClient, COMPLETE_FORWARDTEST_SET, forwardtestId)
+                    .then(found => {
+                        if (found) {
+                            return saveData(forwardtestId);
+                        }
+
+                        //Other-wise subscribe;
+                        juliaError[forwardtestId] = false;
+                        return handleRedisSubscription(forwardtestId);
+                    })
+                    
+                });
+            })
+            .catch(err => {
+                console.error(`Error reading active requests from redist set: ${serverPort}`);
+                console.log(err);
+            })
+        });
+
+        redisClient.on("message", function(channel, message) {
+            
+            var forwardtestId = channel.split("-")[2];
+
+            if(channel.indexOf("backtest-realtime") != -1) {     
+                try {
+                    const dataJSON = JSON.parse(message);
+                
+                    if(dataJSON.outputtype === 'log' && dataJSON.messagetype === "ERROR") {
+                        juliaError[forwardtestId] = true;
+                    } else if(dataJSON.outputtype === "internal") {
+                        juliaError[forwardtestId] = true;
+                    }
+                }
+                catch (e) {
+                    console.log(e);
+                }
+            }
+
+            if(channel.indexOf("backtest-final") != -1) {
+                setTimeout(function(){saveData(forwardtestId);}, 1000);    
+            }
+        });
+    } 
+
+    return redisClient;
 }
 
 /* =====================================
@@ -150,8 +226,8 @@ function saveForwardTestRequestInQueue(req, forwardtestId) {
     console.log("Adding forward test request to redis queue");
 
     return Promise.all([
-        redisUtils.pushToRangeRedis(FORWARDTEST_QUEUE, JSON.stringify(req)),
-        redisUtils.insertIntoRedis(THIS_PROCESS_FORWARDTEST_SET, forwardtestId, JSON.stringify(req))
+        RedisUtils.pushToRangeRedis(getRedisClient(), FORWARDTEST_QUEUE, JSON.stringify(req)),
+        RedisUtils.insertIntoRedis(getRedisClient(), THIS_PROCESS_FORWARDTEST_SET, forwardtestId, JSON.stringify(req))
     ])
     .catch(err => {
         console.error(err);
@@ -185,88 +261,11 @@ function filterForwardTest(fTest) {
     return nFt;
 }
 
-function setupRedisSubscriber() {
-    
-    redisSubscriber = redis.createClient(config.get('redis_port'), config.get('redis_host'));
-    
-    redisSubscriber.on("ready", function() {
-
-        // Let's retrieve pending backtest requests from Redis for this process
-        return redisUtils.getAllFromRedis(THIS_PROCESS_FORWARDTEST_SET, 0, -1)
-        .then(data => {
-           
-            if (!data) {
-                // Redis is empty
-                return;
-            }
-
-            //Re-subscribe to the channels
-            return Promise.mapSeries(Object.keys(data), function(key) {
-                var req = JSON.parse(data[key]);
-
-                var nodePort = req.nodePort;
-                
-                //Request is passed with ***backtestId**
-                var forwardtestId = req.backtestId;
-
-                if (nodePort != serverPort || !forwardtestId)  {
-                    console.log("Error while fetching requests for this process");
-                }
-
-                //Fetch the status of this backtest, in Completion Set
-                return redisUtils.getFromRedis(COMPLETE_FORWARDTEST_SET, forwardtestId)
-                .then(found => {
-                    if (found) {
-                        return saveData(forwardtestId);
-                    }
-
-                    //Other-wise subscribe;
-                    juliaError[forwardtestId] = false;
-                    return handleRedisSubscription(forwardtestId);
-                })
-                
-            });
-        })
-        .catch(err => {
-            console.error(`Error reading active requests from redist set: ${serverPort}`);
-            console.log(err);
-        })
-    });
-
-    redisSubscriber.on("message", function(channel, message) {
-        
-        var forwardtestId = channel.split("-")[2];
-
-        if(channel.indexOf("backtest-realtime") != -1) {     
-            try {
-                const dataJSON = JSON.parse(message);
-            
-                if(dataJSON.outputtype === 'log' && dataJSON.messagetype === "ERROR") {
-                    juliaError[forwardtestId] = true;
-                } else if(dataJSON.outputtype === "internal") {
-                    juliaError[forwardtestId] = true;
-                }
-            }
-            catch (e) {
-                console.log(e);
-            }
-        }
-
-        if(channel.indexOf("backtest-final") != -1) {
-            setTimeout(function(){saveData(forwardtestId);}, 1000);    
-        }
-    });
-}
-
 function handleRedisSubscription(forwardtestId) {
-    
-    if(!redisSubscriber) {
-        setupRedisSubscriber();
-    }
 
-    if (forwardtestId && redisSubscriber) {
-        redisSubscriber.subscribe(finalOutputChannel(forwardtestId));
-        redisSubscriber.subscribe(realtimeOutputChannel(forwardtestId));
+    if (forwardtestId) {
+        RedisUtils.subscribe(getRedisClient(), finalOutputChannel(forwardtestId));
+        RedisUtils.subscribe(getRedisClient(), realtimeOutputChannel(forwardtestId));
 
     } else {
         console.log("Invalid forwardId provided");
@@ -284,13 +283,13 @@ function saveData(forwardtestId) {
         Promise.resolve()
         .then(() => {
             if (!_.get(juliaError, forwardtestId, false)) {
-                return redisUtils.getRangeFromRedis(finalOutputChannel(forwardtestId), 0 , -1);
+                return RedisUtils.getRangeFromRedis(getRedisClient(), finalOutputChannel(forwardtestId), 0 , -1);
             } else {
                 throw new Error ("Julia Error");
             }
         }).
         then(() => {
-            return redisUtils.getRangeFromRedis(finalOutputChannel(forwardtestId), 0 , -1);
+            return RedisUtils.getRangeFromRedis(getRedisClient(), finalOutputChannel(forwardtestId), 0 , -1);
         })
         .then(data => {
 
@@ -343,7 +342,7 @@ function saveData(forwardtestId) {
         .then(updatedFlag => {
             //After completion (and updating the data),
             //Delete the forward test from the ongoing queue as well
-            redisUtils.deleteFromRedis(`forwardtest-ongoing-request-queue-${serverPort}`, forwardtestId, function(err, reply) {
+            RedisUtils.deleteFromRedis(getRedisClient(), `forwardtest-ongoing-request-queue-${serverPort}`, forwardtestId, function(err, reply) {
                 if (err) {
                     return console.error(err);
                 } 
@@ -359,20 +358,18 @@ function saveData(forwardtestId) {
         
         // Delete this backtest from redis (from this process SET)
         return Promise.all([
-            redisUtils.deleteFromRedis(THIS_PROCESS_FORWARDTEST_SET, forwardtestId),
-            redisUtils.deleteFromRedis(COMPLETE_FORWARDTEST_SET, forwardtestId)
+            RedisUtils.deleteFromRedis(getRedisClient(), THIS_PROCESS_FORWARDTEST_SET, forwardtestId),
+            RedisUtils.deleteFromRedis(getRedisClient(), COMPLETE_FORWARDTEST_SET, forwardtestId)
         ])
         .then(() => {
             
             //Expire the channels
-            redisUtils.setDataExpiry(realtimeOutputChannel(forwardtestId), 20);
-            redisUtils.setDataExpiry(finalOutputChannel(forwardtestId), 1);
+            RedisUtils.setDataExpiry(getRedisClient(), realtimeOutputChannel(forwardtestId), 20);
+            RedisUtils.setDataExpiry(getRedisClient(), finalOutputChannel(forwardtestId), 1);
 
             //Unsubscribe the channels
-            if (redisSubscriber) {
-                redisSubscriber.unsubscribe(realtimeOutputChannel(forwardtestId));
-                redisSubscriber.unsubscribe(finalOutputChannel(forwardtestId));
-            }
+            RedisUtils.unsubscribe(getRedisClient(), realtimeOutputChannel(forwardtestId));
+            RedisUtils.unsubscribe(getRedisClient(), finalOutputChannel(forwardtestId));
 
         })
         .catch(err => {

@@ -1,7 +1,6 @@
 'use strict';
 const ws = require('../../index').ws;
 const jwtUtil = require('../../utils/jwttoken');
-const redisUtils = require('../../utils/RedisUtils');
 const BacktestController = require('./btControl.js');
 const ForwardTestController = require('./ftControl.js');
 

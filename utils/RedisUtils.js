@@ -5,59 +5,65 @@ const Promise = require('bluebird');
 Promise.promisifyAll(redis.RedisClient.prototype);
 Promise.promisifyAll(redis.Multi.prototype);
 
-var client = redis.createClient(config.get('redis_port'), config.get('redis_host'));
-
-function getAllFromRedis(masterKey) {
+function getAllFromRedis(client, masterKey) {
     return client.hgetallAsync(masterKey);
 }
 
-function getFromRedis(masterKey, key) {
+function getFromRedis(client, masterKey, key) {
     return client.hgetAsync(masterKey, key);
 }
 
-function insertIntoRedis(masterKey, key, data) {
+function insertIntoRedis(client, masterKey, key, data) {
     return client.hsetAsync(masterKey, key, data);
 }
 
-function deleteFromRedis(masterKey, key) {
+function deleteFromRedis(client, masterKey, key) {
     return client.hdelAsync(masterKey, key);
 }
 
-function getRangeFromRedis(key, fIdx, lIdx) {
+function getRangeFromRedis(client, key, fIdx, lIdx) {
     return client.lrangeAsync(key, fIdx, lIdx);
 }
 
-function pushToRangeRedis(key, element) {
+function pushToRangeRedis(client, key, element) {
     return client.lpushAsync(key, element);
 }
 
-function popFromRangeRedis(key) {
+function popFromRangeRedis(client, key) {
     return client.rpopAsync(key);
 }
 
-function getSetDataFromRedis(key) {
+function getSetDataFromRedis(client, key) {
     return client.smembersAsync(key);
 }
 
-function setDataExpiry(key, time_in_sec) {
+function setDataExpiry(client, key, time_in_sec) {
     return client.expire(key, time_in_sec);
 }
 
 // For a single key set
-function getValue(key) {
+function getValue(client, key) {
     return client.getAsync(key);
 }
 
-function insertKeyValue(key, data) {
+function insertKeyValue(client, key, data) {
     client.setAsync(key, data);
 }
 
-function deleteKey(key) {
+function deleteKey(client, key) {
     client.delAsync(key);
 }
 
-function incValue(key, increment) {
+function incValue(client, key, increment) {
     client.incrbyAsync(key, increment);
+}
+
+function subscribe(client, channel) {
+    return client.subscribe(channel);    
+}
+
+function unsubscribe(client, channel) {
+    return client.unsubscribe(channel);    
 }
 
 module.exports = {
@@ -73,7 +79,9 @@ module.exports = {
     getRangeFromRedis,
     getSetDataFromRedis,
     pushToRangeRedis,
-    popFromRangeRedis
+    popFromRangeRedis,
+    subscribe,
+    unsubscribe
 }
 
 /*exports.getFromRedis = getFromRedis;

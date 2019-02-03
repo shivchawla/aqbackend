@@ -1,7 +1,7 @@
 'use strict';
 var redis = require('redis');
 const Promise = require('bluebird');
-const redisUtils = require('../../utils/RedisUtils');
+const RedisUtils = require('../../utils/RedisUtils');
 const config = require('config');
 const WebSocket = require('ws');
 const BacktestModel = require('../../models/Research/backtest');
@@ -12,12 +12,12 @@ const SettingsParser = require('./btSettings.js');
 const serverPort = require('../../index').serverPort;
 const _ = require('lodash'); 
 
+var redisClient = null; 
+
 setTimeout(reSubscribeAfterConnection, 5000);
 setInterval(checkCompletionSet, 10000);
 
 var polledBacktestsForCompletion = {};
-
-var redisSubscriber;
 
 //Track julia error for backtest 
 //If julia error = TRUE, final output is saved as just {status: 'exception'} 
@@ -36,6 +36,8 @@ var freshSubscription = {};
 var lastIndexSent = {};
 var lastChunkSent = {};
 
+var backtestCompleted = {};
+
 const BACKTEST_QUEUE = `backtest-request-queue-${process.env.NODE_ENV}`;
 const THIS_PROCESS_BACKTEST_SET = `backtest-request-set-${serverPort}`;
 const COMPLETE_BACKTEST_SET  = `backtest-completion-set-${process.env.NODE_ENV}`;
@@ -46,6 +48,81 @@ function realtimeOutputChannel(backtestId) {
 
 function finalOutputChannel(backtestId) {
     return `backtest-final-${backtestId}`;
+}
+
+function getRedisClient() {
+    if (!redisClient || !redisClient.connected) {
+        redisClient = redis.createClient(config.get('julia_redis_port'), config.get('julia_redis_host'), {password: config.get('julia_redis_pass')});
+        
+        redisClient.on("ready", function() {
+            // Let's retrieve pending backtest requests from Redis for this process
+            return RedisUtils.getAllFromRedis(getRedisClient(), THIS_PROCESS_BACKTEST_SET, 0, -1)
+            .then(data => {
+               
+                if (!data) {
+                    // Redis is empty
+                    return;
+                }
+
+                //Re-subscribe to the channels
+                return Promise.mapSeries(Object.keys(data), function(key) {
+                    var req = JSON.parse(data[key]);
+
+                    var nodePort = req.nodePort;
+                    var backtestId = req.backtestId;
+
+                    if (nodePort != serverPort || !backtestId)  {
+                        console.log("Error while fetching requests for this process");
+                    }
+
+                    //Fetch the status of this backtest, in Completion Set
+                    return RedisUtils.getFromRedis(getRedisClient(), COMPLETE_BACKTEST_SET, backtestId)
+                    .then(found => {
+                        if (found) {
+                            //Use this flag before subscribing realtime data
+                            backtestCompleted[backtestId] = true;
+                            return saveData(backtestId);
+                        }
+
+                        //Other-wise subscribe;
+                        juliaError[backtestId] = false;
+                        return handleRedisSubscription(backtestId);
+                    })
+                    
+                });
+            })
+            .catch(err => {
+                console.error(`Error reading active requests from redist set: ${serverPort}`);
+                console.log(err);
+            })
+        });
+
+        redisClient.on("message", function(channel, message) {
+            
+            var backtestId = channel.split("-")[2];
+
+            if(channel.indexOf("backtest-realtime") != -1) {     
+                try {
+                    const dataJSON = JSON.parse(message);
+                
+                    if(dataJSON.outputtype === 'log' && dataJSON.messagetype === "ERROR") {
+                        juliaError[backtestId] = true;
+                    } else if(dataJSON.outputtype === "internal") {
+                        juliaError[backtestId] = true;
+                    }
+                }
+                catch (e) {
+                    console.log(e);
+                }
+            }
+
+            if(channel.indexOf("backtest-final") != -1) {
+                setTimeout(function(){saveData(backtestId);}, 1000);    
+            }
+        });
+    } 
+
+    return redisClient;
 }
 
 /* =====================================
@@ -64,7 +141,7 @@ function handleSubscription(req, res, fresh) {
         if(!bt) {
             throw new Error("Backtest not found");
         }
-        if(bt.status === "complete" || bt.status === "exception") {
+        if(bt.status === "complete" || bt.status === "exception" || backtestCompleted[backtestId]) {
             // Backtest was already completed
             console.log("Backtest already completed");
             return res.send(JSON.stringify({backtestId: backtestId, strategyId: bt.strategy._id, status: bt.status}));
@@ -173,13 +250,15 @@ function saveRequestInQueue(req) {
     // backtest-request-queue contains key-value pairs
     // where each key is the backtestId pointing to the corresponding backtest request
     return Promise.all([
-        redisUtils.pushToRangeRedis(BACKTEST_QUEUE, JSON.stringify(req)),
-        redisUtils.insertIntoRedis(THIS_PROCESS_BACKTEST_SET, req.backtestId.toString(), JSON.stringify(req)),
+        RedisUtils.pushToRangeRedis(getRedisClient(), BACKTEST_QUEUE, JSON.stringify(req)),
+        RedisUtils.insertIntoRedis(getRedisClient(), THIS_PROCESS_BACKTEST_SET, req.backtestId.toString(), JSON.stringify(req)),
     ]);
 }
 
 function saveData(backtestId) {
     
+    let status = "exception";
+
     return new Promise(resolve => {
         //Fetch all the data from the redis Queue "backtest-final-${backtestId}"
         return BacktestModel.fetchBacktest({_id: backtestId, deleted: false}, {select: 'status'})
@@ -196,7 +275,7 @@ function saveData(backtestId) {
         })
         .then(() => {
             if (!_.get(juliaError, backtestId, false)) {
-                return redisUtils.getRangeFromRedis(finalOutputChannel(backtestId), 0 , -1);
+                return RedisUtils.getRangeFromRedis(getRedisClient(), finalOutputChannel(backtestId), 0 , -1);
             } else {
                 throw new Error ("Julia Error");
             }
@@ -225,7 +304,7 @@ function saveData(backtestId) {
                     fOutput = JSON.parse(dataArray.map(item => item.data).join(""));
                     
                     //Even with output, status could be exceptions (output will only contain logs)
-                    var status = _.get(juliaError, backtestId, false) ? "exception" : "complete";
+                    status = _.get(juliaError, backtestId, false) ? "exception" : "complete";
                     
                     return {output: fOutput, status};
                     
@@ -243,42 +322,39 @@ function saveData(backtestId) {
         })
         .catch(err => {
             console.error(err);
-            
+           
             // Let's put it's status to exception
-            resolve(updateBacktestResult(backtestId, {status: "exception"}));
+            resolve(updateBacktestResult(backtestId, {status}));
         })
     })
     .then(() => {
+
+        if(backtestId in response && subscribed[backtestId]) {
+            var res = response[backtestId]
+            res.send(JSON.stringify({backtestId: backtestId, status}));
+        }
+       
         //remove julia error status
         delete juliaError[backtestId];
+        delete backtestCompleted[backtestId];
 
         //remove the polled status;
         delete polledBacktestsForCompletion[backtestId];
         
         // Delete this backtest from redis (from this process SET)
         return Promise.all([
-            redisUtils.deleteFromRedis(THIS_PROCESS_BACKTEST_SET, backtestId),
-            redisUtils.deleteFromRedis(COMPLETE_BACKTEST_SET, backtestId)
+            RedisUtils.deleteFromRedis(getRedisClient(), THIS_PROCESS_BACKTEST_SET, backtestId),
+            RedisUtils.deleteFromRedis(getRedisClient(), COMPLETE_BACKTEST_SET, backtestId)
         ])
         .then(() => {
             
             //Expire the channels
-            redisUtils.setDataExpiry(realtimeOutputChannel(backtestId), 20);
-            redisUtils.setDataExpiry(finalOutputChannel(backtestId), 1);
+            RedisUtils.setDataExpiry(getRedisClient(), realtimeOutputChannel(backtestId), 20);
+            RedisUtils.setDataExpiry(getRedisClient(), finalOutputChannel(backtestId), 1);
 
             //Unsubscribe the channels
-            if (redisSubscriber) {
-                redisSubscriber.unsubscribe(realtimeOutputChannel(backtestId));
-                redisSubscriber.unsubscribe(finalOutputChannel(backtestId));
-            }
-
-            //THIS IS NOT REQUIRED
-            //NEGATIVE: pending REALTIME data can't transferred (FE halsts at "Completion: x%")
-            // setTimeout(function() {
-            //     //Unsubscribe from RT data
-            //     subscribed[backtestId] = false;
-            //     clearSendDataTimer(backtestId);
-            // }, 10000);
+            RedisUtils.unsubscribe(getRedisClient(), realtimeOutputChannel(backtestId));
+            RedisUtils.unsubscribe(getRedisClient(), finalOutputChannel(backtestId));
 
         })
         .catch(err => {
@@ -295,7 +371,7 @@ function sendData(backtestId, final) {
         //Retrieve the  websocket response variable for the backtestId
         var res = response[backtestId];
 
-        return redisUtils.getRangeFromRedis(realtimeOutputChannel(backtestId), 0, -1)
+        return RedisUtils.getRangeFromRedis(getRedisClient(), realtimeOutputChannel(backtestId), 0, -1)
         .then(dataArray => {
 
             noresponse = !res;
@@ -359,89 +435,15 @@ function updateBacktestResult(backtestId, data) {
 }
 
 function reSubscribeAfterConnection() {
-    setupRedisSubscriber();
-}
-
-function setupRedisSubscriber() {
-    
-    redisSubscriber = redis.createClient(config.get('redis_port'), config.get('redis_host'));
-    
-    redisSubscriber.on("ready", function() {
-
-        // Let's retrieve pending backtest requests from Redis for this process
-        return redisUtils.getAllFromRedis(THIS_PROCESS_BACKTEST_SET, 0, -1)
-        .then(data => {
-           
-            if (!data) {
-                // Redis is empty
-                return;
-            }
-
-            //Re-subscribe to the channels
-            return Promise.mapSeries(Object.keys(data), function(key) {
-                var req = JSON.parse(data[key]);
-
-                var nodePort = req.nodePort;
-                var backtestId = req.backtestId;
-
-                if (nodePort != serverPort || !backtestId)  {
-                    console.log("Error while fetching requests for this process");
-                }
-
-                //Fetch the status of this backtest, in Completion Set
-                return redisUtils.getFromRedis(COMPLETE_BACKTEST_SET, backtestId)
-                .then(found => {
-                    if (found) {
-                        return saveData(backtestId);
-                    }
-
-                    //Other-wise subscribe;
-                    juliaError[backtestId] = false;
-                    return handleRedisSubscription(backtestId);
-                })
-                
-            });
-        })
-        .catch(err => {
-            console.error(`Error reading active requests from redist set: ${serverPort}`);
-            console.log(err);
-        })
-    });
-
-    redisSubscriber.on("message", function(channel, message) {
-        
-        var backtestId = channel.split("-")[2];
-
-        if(channel.indexOf("backtest-realtime") != -1) {     
-            try {
-                const dataJSON = JSON.parse(message);
-            
-                if(dataJSON.outputtype === 'log' && dataJSON.messagetype === "ERROR") {
-                    juliaError[backtestId] = true;
-                } else if(dataJSON.outputtype === "internal") {
-                    juliaError[backtestId] = true;
-                }
-            }
-            catch (e) {
-                console.log(e);
-            }
-        }
-
-        if(channel.indexOf("backtest-final") != -1) {
-            setTimeout(function(){saveData(backtestId);}, 1000);    
-        }
-    });
+    //Get (gets the client and sets up various subscription channels)
+    getRedisClient();
 }
 
 function handleRedisSubscription(backtestId) {
-    
-    if(!redisSubscriber) {
-        setupRedisSubscriber();
-    }
 
-    if (backtestId && redisSubscriber) {
-        redisSubscriber.subscribe(realtimeOutputChannel(backtestId));
-        redisSubscriber.subscribe(finalOutputChannel(backtestId));
+    if (backtestId ) {
+        RedisUtils.subscribe(getRedisClient(), realtimeOutputChannel(backtestId));
+        RedisUtils.subscribe(getRedisClient(), finalOutputChannel(backtestId));
 
         //Create timer function to send data to FE
         if(subscribed[backtestId]) {
@@ -455,9 +457,8 @@ function handleRedisSubscription(backtestId) {
     return;
 }
 
-
 function checkCompletionSet() {
-    return redisUtils.getAllFromRedis(THIS_PROCESS_BACKTEST_SET, 0, -1)
+    return RedisUtils.getAllFromRedis(getRedisClient(), THIS_PROCESS_BACKTEST_SET, 0, -1)
     .then(data => {
        
         if (!data) {
@@ -476,7 +477,7 @@ function checkCompletionSet() {
                 console.log("Error while fetching requests for this process");
             }
 
-            return redisUtils.getFromRedis(COMPLETE_BACKTEST_SET, backtestId)
+            return RedisUtils.getFromRedis(COMPLETE_BACKTEST_SET, backtestId)
             .then(found => {
                 if (found) {
                     if (!polledBacktestsForCompletion[backtestId]) {

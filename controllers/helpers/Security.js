@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-24 11:53:56
+* @Last Modified time: 2019-02-03 15:14:30
 */
 'use strict';
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
@@ -20,6 +20,16 @@ const homeDir = require('os').homedir();
 const _ = require('lodash');
 const moment = require('moment');
 const RedisUtils = require('../../utils/RedisUtils');
+
+var redisClient;
+
+function getRedisClient() {
+	if (!redisClient || !redisClient.connected) {
+        redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: config.get('node_redis_pass')});
+    }
+
+    return redisClient; 
+}
 
 function _getRawStockList(fname) {
 	return new Promise(resolve => {
@@ -120,7 +130,7 @@ function _computeStockIntradayHistory(security, date) {
 		var activeTradingDate = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0));
 		var key = `RtData_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${security.ticker}`;
 		
-		return RedisUtils.getSetDataFromRedis(key)
+		return RedisUtils.getSetDataFromRedis(getRedisClient(), key)
 		.then(reply => {
 			resolve(
 				reply.map(item => {
