@@ -57,7 +57,7 @@ function getRedisClient() {
         
         redisClient.on("ready", function() {
             // Let's retrieve pending backtest requests from Redis for this process
-            return RedisUtils.getAllFromRedis(redisClient, THIS_PROCESS_BACKTEST_SET, 0, -1)
+            return RedisUtils.getAllFromRedis(redisClient, THIS_PROCESS_BACKTEST_SET)
             .then(data => {
                
                 if (!data) {
@@ -459,7 +459,7 @@ function handleRedisSubscription(backtestId) {
 }
 
 function checkCompletionSet() {
-    return RedisUtils.getAllFromRedis(getRedisClient(), THIS_PROCESS_BACKTEST_SET, 0, -1)
+    return RedisUtils.getAllFromRedis(getRedisClient(), THIS_PROCESS_BACKTEST_SET)
     .then(data => {
        
         if (!data) {
