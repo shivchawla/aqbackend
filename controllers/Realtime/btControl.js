@@ -487,7 +487,7 @@ function checkCompletionSet() {
                 console.log("Error while fetching requests for this process");
             }
 
-            return RedisUtils.getFromRedis(COMPLETE_BACKTEST_SET, backtestId)
+            return RedisUtils.getFromRedis(getRedisClient(), COMPLETE_BACKTEST_SET, backtestId)
             .then(found => {
                 if (found) {
                     if (!polledBacktestsForCompletion[backtestId]) {
