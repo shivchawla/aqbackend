@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-08 20:21:16
+* @Last Modified time: 2019-02-08 20:39:15
 */
 
 'use strict';
@@ -78,7 +78,7 @@ function _computeDailyContestWinners(date) {
             	DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {priceUpdate: false, category: "all"})
         	])
 			.then(([pnlStatsForAdvisor, allPredictions]) => {
-				var allPredictionsPnlStats =  _.get(pnlStatsForAdvisor, 'detail.cumulative.all.portfolio.net', {});
+				var allPredictionsPnlStats =  _.get(pnlStatsForAdvisor, 'detail.daily.all.net', {});
 				
 				var pnlPct = _.get(allPredictionsPnlStats, 'pnlPct', 0);
 				var cost = _.get(allPredictionsPnlStats, 'cost', 0);

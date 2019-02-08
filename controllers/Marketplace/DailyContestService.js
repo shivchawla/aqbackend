@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-02 11:01:11
+* @Last Modified time: 2019-02-01 18:45:38
 */
 
 'use strict';
@@ -325,7 +325,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		var adjustedPredictions = entryPredictions.map(item => {
 			if (DateHelper.compareDates(item.endDate, item.startDate) == 1) {
 				
-				item.startDate = DailyContestEntryHelper.getValidStartDate(item.startDate);
+				item.startDate = validStartDate;
 				item.endDate = DateHelper.getMarketCloseDateTime(DateHelper.getNextNonHolidayWeekday(item.endDate, 0));
 				item.active = true;
 				item.modified = 1;

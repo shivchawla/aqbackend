@@ -25,7 +25,7 @@ exports.registerUser = function(args, res, next) {
         res.req.headers.origin.indexOf("aimsquant")!=-1 ? "aimsquant" : "adviceqube" : "adviceqube";
 
     return Promise.all([
-        hashUtil.genHash(user.password),
+        hashUtil.genHash(args.body.value.password),
         hashUtil.genHash(uuid.v4()),
     ])
     .then(([passwordHash, jwtId]) => {
