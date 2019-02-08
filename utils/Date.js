@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-12 09:40:12
+* @Last Modified time: 2019-02-08 20:13:51
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -281,18 +281,14 @@ module.exports.getTradingDays = function(startDate, endDate) {
 	return count;
 };
 
-module.exports.getTradingDates = function(startDate, endDate) {		
+module.exports.getTradingDates = function(startDate, endDate, includeStart = true) {		
 	var dates = [];
 	
-	if(!exports.isHoliday(startDate)) {
-		dates.push(startDate);
-	}
-	
-	startDate = exports.getNextNonHolidayWeekday(startDate);	
-	
-	while(exports.compareDates(startDate, endDate) < 1) {
-		dates.push(startDate);
-		startDate = exports.getNextNonHolidayWeekday(startDate);	
+	var _sd = includeStart ? moment(startDate).subtract(1, 'days').toDate() : moment(startDate).toDate();
+
+	while(exports.compareDates(_sd, endDate) < 1) {
+		_sd = exports.getNextNonHolidayWeekday(_sd);	
+		dates.push(_sd);
 	}
 
 	return dates;
@@ -369,8 +365,6 @@ module.exports.getEndOfLastWeek = function(date) {
 	
 }; 
 
-
-module.exports.getTradingDays
 
 const holidays = [
 	"2018-08-22",

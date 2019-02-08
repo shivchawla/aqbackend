@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-16 16:21:21
+* @Last Modified time: 2019-02-08 20:21:16
 */
 
 'use strict';
@@ -29,6 +29,7 @@ const DailyContestEntryPerformanceModel = require('../../models/Marketplace/Dail
 const MIN_DAILY_PCT_CHANGE = 0.005;
 const MIN_WEEKLY_PCT_CHANGE = 0.01;
 const MIN_MONTHLY_PCT_CHANGE = 0.01;
+const MIN_WEEKLY_ACTIVE_DAYS = 3;
 
 const MIN_DAILY_UNIQ_PREDICTIONS = 3;
 
@@ -103,6 +104,7 @@ function _computeWeeklyContestWinners(date) {
 	if (DateHelper.isEndOfWeek(date)) {
 		
 		var endOfLastWeek = DateHelper.getEndOfLastWeek(date);
+		var tradingDates = DateHelper.getTradingDates(endOfLastWeek, DateHelper.getDate(), false);
 
 		return DailyContestEntryModel.fetchDistinctAdvisors()
 		.then(allAdvisors => {
@@ -110,9 +112,14 @@ function _computeWeeklyContestWinners(date) {
 				
 				return Promise.all([
 					DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId}, date),
-					DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId}, endOfLastWeek)
+					DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId}, endOfLastWeek),
+					Promise.mapSeries(tradingDates, function(date){
+						return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {priceUpdate: false, category: "all"}).then(p => {return p.length});
+					})
 				])
-				.then(([portfolioStatsToday, portfolioStatsLastWeek]) => {
+				.then(([portfolioStatsToday, portfolioStatsLastWeek, predictionCountPerDate]) => {
+
+					var activePredictionDateCount = predictionCountPerDate.filter(item => {return item.count > 0}).length;
 
 					var netTotalToday = _.get(portfolioStatsToday, 'netTotal', 0.0);
 					var netTotalLastWeek = _.get(portfolioStatsLastWeek, 'netTotal', 1000.0);
@@ -121,12 +128,12 @@ function _computeWeeklyContestWinners(date) {
 					var pnlPct = netTotalLastWeek > 0 ?  (netTotalToday/netTotalLastWeek) - 1 : 0;
 					var pnl = netTotalToday - netTotalLastWeek;
 
-					return Object.assign({advisor: advisorId}, {pnlStats: {pnlPct, pnl, netTotal: netTotalToday, netTotalLastWeek, cash}});
+					return Object.assign({advisor: advisorId}, {pnlStats: {pnlPct, pnl, netTotal: netTotalToday, netTotalLastWeek, cash, activeDays: activePredictionDateCount}});
 				})
 			})
 			.then(pnlStatsForAllAdvisors => {
 				return pnlStatsForAllAdvisors
-				.filter(item => {return item.pnlStats.pnlPct > MIN_WEEKLY_PCT_CHANGE})			
+				.filter(item => {return item.pnlStats.pnlPct > MIN_WEEKLY_PCT_CHANGE && item.pnlStats.activeDays >= MIN_WEEKLY_ACTIVE_DAYS})			
 				.sort((a,b) => {return a.pnlStats.pnlPct > b.pnlStats.pnlPct ? -1 : 1})
 				.slice(0, WEEKLY_PRIZES.length)
 				.map((item, index) => {item.rank = index+1; return item;});
