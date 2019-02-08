@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-08 20:39:15
+* @Last Modified time: 2019-02-08 21:04:05
 */
 
 'use strict';
@@ -119,7 +119,7 @@ function _computeWeeklyContestWinners(date) {
 				])
 				.then(([portfolioStatsToday, portfolioStatsLastWeek, predictionCountPerDate]) => {
 
-					var activePredictionDateCount = predictionCountPerDate.filter(item => {return item.count > 0}).length;
+					var activePredictionDateCount = predictionCountPerDate.filter(item => {return item > 0}).length;
 
 					var netTotalToday = _.get(portfolioStatsToday, 'netTotal', 0.0);
 					var netTotalLastWeek = _.get(portfolioStatsLastWeek, 'netTotal', 1000.0);
@@ -133,7 +133,7 @@ function _computeWeeklyContestWinners(date) {
 			})
 			.then(pnlStatsForAllAdvisors => {
 				return pnlStatsForAllAdvisors
-				.filter(item => {return item.pnlStats.pnlPct > MIN_WEEKLY_PCT_CHANGE && item.pnlStats.activeDays >= MIN_WEEKLY_ACTIVE_DAYS})			
+				.filter(item => {return item.pnlStats.pnlPct > MIN_WEEKLY_PCT_CHANGE && item.pnlStats.activeDays > MIN_WEEKLY_ACTIVE_DAYS})			
 				.sort((a,b) => {return a.pnlStats.pnlPct > b.pnlStats.pnlPct ? -1 : 1})
 				.slice(0, WEEKLY_PRIZES.length)
 				.map((item, index) => {item.rank = index+1; return item;});

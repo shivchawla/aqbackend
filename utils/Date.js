@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-08 20:13:51
+* @Last Modified time: 2019-02-08 21:03:07
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -286,7 +286,7 @@ module.exports.getTradingDates = function(startDate, endDate, includeStart = tru
 	
 	var _sd = includeStart ? moment(startDate).subtract(1, 'days').toDate() : moment(startDate).toDate();
 
-	while(exports.compareDates(_sd, endDate) < 1) {
+	while(exports.compareDates(_sd, endDate) < 0) {
 		_sd = exports.getNextNonHolidayWeekday(_sd);	
 		dates.push(_sd);
 	}
