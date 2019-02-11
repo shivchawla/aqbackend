@@ -9,30 +9,35 @@ const config = require('config');
 var fs = require('fs');
 var path = require("path");    
 const fname = "../../examples/template.txt";
+const _ = require('lodash');
 
 exports.createStrategy = function(args, res, next) {
-    const user = args.user;
-    const values = args.body.value;
-    var code = values.code;
+    const userId = _.get(args, 'user._id', null);
+    const body = _.get(args, 'body.value', null);
+    var code = _.get(body, 'code', "");
+    var type = _.get(body, 'type', "GUI");
     
-    if(code=="") {   
+ 
+    if(code=="" && type == "CODE") {   
         console.log(path.resolve(path.join(__dirname, fname)));
         code = fs.readFileSync(path.resolve(path.join(__dirname, fname)), 'utf8');
     }
 
     var encoded_code = CryptoJS.AES.encrypt(code, config.get('encoding_key'));
+    
     const strategy = {
-        name: values.name.trim(),
-        user: user._id,
-        type: values.name,
-        language: values.language,
-        description: values.description,
+        name: _.get(body, 'name', "Sample Strategy").trim(),
+        user: userId,
+        type,
+        description: _.get(body, 'description', ""),
         code: encoded_code,
+        entryConditions: _.get(body, "entryConditions", []),
+        exitConditions: _.get(body, "exitConditions", []),
         createdAt: new Date(),
         updatedAt: new Date()
     };
 
-    StrategyModel.fetchStrategys({name: strategy.name, user:user._id})
+    return StrategyModel.fetchStrategys({name: strategy.name, user:user._id})
     .then(strategies => {
         if(strategies.length > 0) {
             strategy.suffix = Math.max.apply(null, strategies.map(item => item.suffix)) + 1;
@@ -56,11 +61,11 @@ exports.createStrategy = function(args, res, next) {
 exports.execStrategy = function(args, res, next) {
     const userId = args.user._id;
     const strategyId = args.strategyId.value;
-    const values = args.body.value;
+    const settings = args.body.value;
 
-    StrategyModel.fetchStrategy({user: userId, _id: strategyId}, {})
+    return StrategyModel.fetchStrategy({user: userId, _id: strategyId}, {})
     .then(strategy => {
-        BacktestService.createBacktest(strategy, values, res, next);
+        return BacktestService.createBacktest(strategy, settings, res, next);
     })
     .catch(err => {
         res.status(400).json(err);
@@ -136,8 +141,8 @@ exports.getStrategys = function(args, res, next) {
         } else if (!hasSearchParam) {
 
             return Promise.all([
-                StrategyModel.createStrategy(user, "Sample Strategy", "A quick tutorial", "sample.txt"),
-                StrategyModel.createStrategy(user, "NIFTY-50 Stock Reversal", "Invest in least performing stocks based on 22 days returns", "reversal.txt"),
+                StrategyModel.createStrategy({user, name:"Sample Strategy", description: "A quick tutorial", fname: "sample.txt", type:"CODE"}),
+                StrategyModel.createStrategy({user, name:"NIFTY-50 Stock Reversal", description: "Invest in least performing stocks based on 22 days returns", fname: "reversal.txt", type:"CODE"}),
             ]).then(strs => {
                 strs.forEach(str => {
                     str.code = CryptoJS.AES.decrypt(str.code,config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
@@ -217,18 +222,18 @@ exports.getStrategy = function(args, res, next) {
 };
 
 exports.updateStrategy = function(args, res, next) {
-    const strategyId = args.strategyId.value;
-    const userId = args.user._id;
+    const strategyId = _.get(args,'strategyId.value', null);
+    const userId = _.get(args, 'user._id', null);
 
     const query = {
         _id: strategyId,
         user: userId
     };
 
-    const updates = args.body.value;
+    const updates = _.get(args, 'body.value', {});
 
-    if(args.body.value && args.body.value.code) {
-        var str = args.body.value.code;
+    if(_.get(updates, 'code', null)) {
+        var str = _.get(updates, 'code', "");
         updates.code = CryptoJS.AES.encrypt(str, config.get('encoding_key'));
     }
     

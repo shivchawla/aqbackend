@@ -913,7 +913,7 @@ paths:
         description: sort criteria
         type: string
         required: false
-        enum: ['name', 'type', 'language', 'updatedAt asc', 'updatedAt desc']
+        enum: ['name', 'type', 'updatedAt asc', 'updatedAt desc']
       responses:
         200:
           description: "strategies"
@@ -4253,21 +4253,53 @@ definitions:
     required:
     - name
     - type
-    - language
     - description
     properties:
       name:
         type: string
       type:
         type: string
-      language:
-        type: string
-        enum: ['julia', 'python', 'nodejs', 'java']
+        enum: ['GUI', 'CODE']
       description:
         type: string
       code:
         type: string
+      entryConditions:
+        type: array
+        items:
+          $ref: "#/definitions/TradeCondition"
+      exitConditions:
+        type: array
+        items:
+          $ref: "#/definitions/TradeCondition"
   
+  TradeCondition:
+    type: object
+    required:
+      - indicator1
+      - indicator2
+      - operator
+    properties:
+      indicator1:
+        $ref: "#/definitions/TradeIndicator"
+      indicator2:
+        $ref: "#/definitions/TradeIndicator"
+      operator:
+        type: string
+        enum: ["LT", "LTE", "GT", "GTE", "EQ", "CA", "CB"]
+
+  TradeIndicator:
+    type: object
+    required:
+      - name
+      - params
+    properties:
+      name:
+        type: string
+      params:
+        type: object 
+
+
   BacktestSettings:
     type: object
     required:

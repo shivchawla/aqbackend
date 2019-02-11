@@ -31,6 +31,17 @@ const Backtest = new Schema({
         type: String,
         required: false
     },
+
+    entryConditions: [{
+        type: Schema.Types.Mixed,
+        required: false
+    }],
+
+    exitConditions: [{
+        type: Schema.Types.Mixed,
+        required: false
+    }],
+
     shared : {
         type : Boolean,
         require : false

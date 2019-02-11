@@ -25,10 +25,6 @@ const Strategy = new Schema({
         type: String,
         required: true
     },
-    language: {
-        type: String,
-        required: true
-    },
     description: {
         type: String,
         required: true
@@ -37,6 +33,17 @@ const Strategy = new Schema({
         type: String,
         required: false
     },
+
+    entryConditions: [{
+        type: Schema.Types.Mixed,
+        required: false
+    }],
+
+    exitConditions: [{
+        type: Schema.Types.Mixed,
+        required: false
+    }],
+
     createdAt: Date,
     updatedAt: Date,
     
@@ -57,23 +64,31 @@ var CryptoJS = require("crypto-js");
 var fs = require('fs');
 var path = require('path');
 const config = require('config');
+const _ = require('lodash');
 
-Strategy.statics.createStrategy = function(user, name, desc, fname) { 
-    var fname = "../../examples/" + fname;
+Strategy.statics.createStrategy = function(imputs) { 
+    
+    var type = _.get(inputs, 'type', "CODE")
+
+    let fname;
+    if (type == "CODE") {
+        fname = "../../examples/" + inputs.fname;
+    }
 
     var code = fs.readFileSync(path.resolve(path.join(__dirname, fname)), 'utf8');
     var encoded_code = CryptoJS.AES.encrypt(code, config.get('encoding_key'));
     const detail = {
-        name: name.trim(),
-        user: user._id,
-        type: 'NA',
-        language: 'julia',
-        description: desc,
+        name: _.get(inputs, 'name', "").trim(),
+        user: _.get(inputs, 'user._id', ""),
+        type: _.get(inputs, 'type', "CODE"),
+        description: _.get(inputs, 'description', ""),
         code: encoded_code,
+        entryConditions: _.get(inputs, "entryConditions", []),
+        exitConditions: _.get(inputs, "exitConditions", []),
         createdAt: new Date()
     };
 
-    return this.find({name: detail.name, user:user._id})
+    return this.find({name: detail.name, user:detail.user})
     .then(strategies => {
         if(strategies.length > 0) {
             
