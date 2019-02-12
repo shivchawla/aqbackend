@@ -4272,6 +4272,11 @@ definitions:
         type: array
         items:
           $ref: "#/definitions/TradeCondition"
+      entryLogic:
+        type: string
+      exitLogic:
+        type: string
+
   
   TradeCondition:
     type: object
@@ -4279,6 +4284,7 @@ definitions:
       - indicator1
       - indicator2
       - operator
+      - name
     properties:
       indicator1:
         $ref: "#/definitions/TradeIndicator"
@@ -4287,6 +4293,8 @@ definitions:
       operator:
         type: string
         enum: ["LT", "LTE", "GT", "GTE", "EQ", "CA", "CB"]
+      name:
+        type: string
 
   TradeIndicator:
     type: object

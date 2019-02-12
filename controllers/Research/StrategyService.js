@@ -16,7 +16,6 @@ exports.createStrategy = function(args, res, next) {
     const body = _.get(args, 'body.value', null);
     var code = _.get(body, 'code', "");
     var type = _.get(body, 'type', "GUI");
-    
  
     if(code=="" && type == "CODE") {   
         console.log(path.resolve(path.join(__dirname, fname)));
@@ -33,6 +32,8 @@ exports.createStrategy = function(args, res, next) {
         code: encoded_code,
         entryConditions: _.get(body, "entryConditions", []),
         exitConditions: _.get(body, "exitConditions", []),
+        entryLogic: _.get(body, "entryLogic", ""),
+        exitLogic: _.get(body, "exitLogic", ""),
         createdAt: new Date(),
         updatedAt: new Date()
     };

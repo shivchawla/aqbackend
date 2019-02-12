@@ -42,6 +42,9 @@ const Backtest = new Schema({
         required: false
     }],
 
+    entryLogic: {type: String, required: false},
+    exitLogic: {type: String, required: false},
+
     shared : {
         type : Boolean,
         require : false

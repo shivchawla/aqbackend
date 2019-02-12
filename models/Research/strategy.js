@@ -44,6 +44,9 @@ const Strategy = new Schema({
         required: false
     }],
 
+    entryLogic: {type: String, required: false},
+    exitLogic: {type: String, required: false},
+
     createdAt: Date,
     updatedAt: Date,
     
@@ -85,6 +88,8 @@ Strategy.statics.createStrategy = function(imputs) {
         code: encoded_code,
         entryConditions: _.get(inputs, "entryConditions", []),
         exitConditions: _.get(inputs, "exitConditions", []),
+        entryLogic: _.get(inputs, "entryLogic", ""),
+        exitLogic: _.get(inputs, "exitLogic", ""),
         createdAt: new Date()
     };
 
