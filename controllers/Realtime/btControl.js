@@ -331,7 +331,7 @@ function saveData(backtestId) {
             resolve(updateBacktestResult(backtestId, data));
         })
         .catch(err => {
-            console.error(err);
+            //console.error(err);
            
             // Let's put it's status to exception
             resolve(updateBacktestResult(backtestId, {status}));

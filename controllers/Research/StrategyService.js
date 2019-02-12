@@ -38,7 +38,7 @@ exports.createStrategy = function(args, res, next) {
         updatedAt: new Date()
     };
 
-    return StrategyModel.fetchStrategys({name: strategy.name, user:user._id})
+    return StrategyModel.fetchStrategys({name: strategy.name, user:userId})
     .then(strategies => {
         if(strategies.length > 0) {
             strategy.suffix = Math.max.apply(null, strategies.map(item => item.suffix)) + 1;
