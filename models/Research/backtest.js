@@ -32,6 +32,11 @@ const Backtest = new Schema({
         required: false
     },
 
+    type: {
+        type: String,
+        required: true,
+    },
+
     entryConditions: [{
         type: Schema.Types.Mixed,
         required: false
@@ -83,6 +88,11 @@ const Backtest = new Schema({
             type: Schema.Types.ObjectId,
             ref: 'TransactionHistory',
         }],
+
+        tradebook: {
+            type: Schema.Types.ObjectId,
+            ref: 'TradeBook'
+        }
     },
 
     executionDetail: Schema.Types.Mixed,
@@ -107,6 +117,7 @@ Backtest.statics.fetchBacktest = function(query, options) {
         select = select.replace('logs', 'output.logs');
         select = select.replace('portfolioHistory', 'output.portfolioHistory');
         select = select.replace('transactionHistory', 'output.transactionHistory');
+        select = select.replace('tradebook', 'output.tradebook');
         q = q.select(select); // 
     }
 
@@ -129,6 +140,10 @@ Backtest.statics.fetchBacktest = function(query, options) {
 
     if((options.select && options.select.indexOf('transactionHistory') != -1)) {
         q = q.populate('output.transactionHistory');
+    }
+
+    if((options.select && options.select.indexOf('tradebook') != -1)) {
+        q = q.populate('output.tradebook');
     }
   
     return q.populate('strategy', 'user').execAsync();
@@ -171,12 +186,13 @@ Backtest.statics.removeAllBack = function(query) {
                 HelperModels.LogModel.deleteLogs({_id: bt.output.logs}),
                 HelperModels.PerformanceModel.deletePerformance({_id: bt.output.performance}),
                 HelperModels.TransactionHistoryModel.deleteTransactionHistory({_id: {$in: bt.output.transactionHistory}}),
-                HelperModels.PortfolioHistoryModel.deletePortfolioHistory({_id: {$in: bt.output.portfolioHistory}})]); 
+                HelperModels.PortfolioHistoryModel.deletePortfolioHistory({_id: {$in: bt.output.portfolioHistory}}),
+                HelperModels.TradeBookModel.deleteTradeBook({_id: {$in: bt.output.tradebook}})]); 
         } else {
-            return [{},{},{},{}];
+            return [{},{},{},{},{}];
         } 
     })
-    .then(([d1, d2, d3, d4]) => {
+    .then(([d1, d2, d3, d4, d5]) => {
         return this.removeAsync(query);
     })
     .catch(err => {
@@ -193,8 +209,9 @@ Backtest.statics.updateBacktest = function(query, updates) {
         HelperModels.LogModel.saveLogs(fupdates.output ? fupdates.output.logs : null),
         HelperModels.PerformanceModel.savePerformance(fupdates.output ? fupdates.output.performance : null),
         HelperModels.TransactionHistoryModel.saveTransactionHistory(fupdates.output ? fupdates.output.transactionHistory : null),
-        HelperModels.PortfolioHistoryModel.savePortfolioHistory(fupdates.output ? fupdates.output.portfolioHistory : null)])
-    .then(([logId, performanceId, thId, phIds]) => {
+        HelperModels.PortfolioHistoryModel.savePortfolioHistory(fupdates.output ? fupdates.output.portfolioHistory : null),
+        HelperModels.TradeBookModel.saveTradeBook(fupdates.output ? fupdates.output.tradebook : null)])
+    .then(([logId, performanceId, thId, phIds, tbId]) => {
         
         //update values with ids
         if(fupdates.output) {
@@ -202,6 +219,7 @@ Backtest.statics.updateBacktest = function(query, updates) {
             fupdates.output.performance = performanceId;
             fupdates.output.transactionHistory = thId;
             fupdates.output.portfolioHistory = phIds;
+            fupdates.output.tradebook = tbId;
         }
 
         return this.update(query, fupdates);
@@ -233,11 +251,17 @@ function _formatUpdates(updates) {
             Object.keys(output).forEach(o_key => {
                 if(o_key == "account") {
                     foutput["portfolioHistory"] = output["account"];
-                } else if (o_key == "transactions") {
+                } 
+                else if (o_key == "transactions") {
                     foutput["transactionHistory"] = output["transactions"];
-                } else if (["logs","summary", "totalreturn", "detail"].indexOf(o_key) != -1) {
+                } 
+                else if (o_key == "tradebook") {
+                    foutput["tradebook"] = output["tradebook"]
+                }  
+                else if (["logs","summary", "totalreturn", "detail"].indexOf(o_key) != -1) {
                     foutput[o_key] = output[o_key];
-                } else {
+                } 
+                else {
                     if(!("performance" in foutput)) {
                         foutput["performance"] = {};    
                     }

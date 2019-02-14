@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-09-04 15:52:51
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-12-07 21:35:36
+* @Last Modified time: 2019-02-14 20:34:09
 */
 const Promise = require('bluebird');
 const mongoose = require('../index');
@@ -22,6 +22,10 @@ const PortfolioHistory = new Schema({
 
 const TransactionHistory = new Schema({
     values: [{date: Date, transactions: [Schema.Types.Mixed]}],
+});
+
+const TradeBook = new Schema({
+    detail: Schema.Types.Mixed,
 });
 
 Logs.statics.saveLogs = function(logs) {
@@ -98,14 +102,27 @@ TransactionHistory.statics.deleteTransactionHistory = function(query) {
     return this.removeAsync(query);
 }
 
+TradeBook.statics.saveTradeBook = function(tradebook) {
+    return tradebook ? (new this({detail: tradebook})).saveAsync() : null;
+};
+
+TradeBook.statics.deleteTradeBook = function(query) {
+    return this.removeAsync(query);
+};
+
+
 const LogModel = mongoose.model('Logs', Logs);
 const PerformanceModel = mongoose.model('Performance', Performance);
 const PortfolioHistoryModel = mongoose.model('PortfolioHistory', PortfolioHistory);
 const TransactionHistoryModel = mongoose.model('TransactionHistory', TransactionHistory);
+const TradeBookModel = mongoose.model('TradeBook', TradeBook);
 
 module.exports = {
 	LogModel : LogModel,
 	PerformanceModel : PerformanceModel,
 	PortfolioHistoryModel : PortfolioHistoryModel,
-	TransactionHistoryModel : TransactionHistoryModel
+	TransactionHistoryModel : TransactionHistoryModel,
+    TradeBookModel: TradeBookModel
 };
+
+
