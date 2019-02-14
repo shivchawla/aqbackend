@@ -11,6 +11,7 @@ exports.createBacktest = function(strategy, settings, res, next) {
         strategy: strategy._id,
         settings: settings,
         code: strategy.code,
+        type: strategy.type,
         entryConditions: strategy.entryConditions,
         exitConditions: strategy.exitConditions,
         entryLogic:strategy.entryLogic,
