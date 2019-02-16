@@ -34,7 +34,7 @@ const Strategy = new Schema({
         required: false
     },
 
-    resolution: {
+    tradeDirection: {
         type:String,
         required: false
     },
