@@ -2,10 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-16 00:42:29
+* @Last Modified time: 2019-02-15 16:21:29
 */
 
 'use strict';
+const BacktestHelper = require('../controllers/helpers/Backtest');
 const PortfolioHelper = require('../controllers/helpers/Portfolio');
 const AnalyticsHelper = require('../controllers/helpers/Analytics');
 const SecurityHelper = require('../controllers/helpers/Security');
@@ -28,6 +29,10 @@ if (config.get('jobsPort') === serverPort) {
 	
 	schedule.scheduleJob("0 23 * * *", function() {
 	    SecurityHelper.updateStockList();
+	});
+
+	schedule.scheduleJob("30 18 * * *", function() {
+	    BacktestHelper.resetBacktestCounter()
 	});
 
 	schedule.scheduleJob("30 22 * * *", function() {
@@ -98,6 +103,9 @@ if (config.get('jobsPort') === serverPort) {
 	    	DailyContestEntryHelper.updateCallPriceForPredictions();
     	}
 	});
+
+
+
 }
 
 

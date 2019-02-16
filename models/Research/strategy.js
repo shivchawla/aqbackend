@@ -34,6 +34,11 @@ const Strategy = new Schema({
         required: false
     },
 
+    resolution: {
+        type:String,
+        required: false
+    },
+
     entryConditions: [{
         type: Schema.Types.Mixed,
         required: false

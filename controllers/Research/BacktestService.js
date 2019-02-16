@@ -23,7 +23,7 @@ exports.createBacktest = function(strategy, settings, res, next) {
         shared:false,
         deleted:false,
     };
-
+    
     return BacktestModel.saveBacktest(backtest)
     .then(bt => {
         if(bt) {

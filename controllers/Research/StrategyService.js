@@ -1,8 +1,4 @@
 'use strict';
-const StrategyModel = require('../../models/Research/strategy');
-const BacktestService = require('./BacktestService');
-const BacktestModel = require('../../models/Research/backtest');
-const ForwardtestModel = require('../../models/Research/forwardtest');
 const Promise = require('bluebird');
 var CryptoJS = require("crypto-js");
 const config = require('config');
@@ -11,11 +7,19 @@ var path = require("path");
 const fname = "../../examples/template.txt";
 const _ = require('lodash');
 
+const StrategyModel = require('../../models/Research/strategy');
+const BacktestService = require('./BacktestService');
+const BacktestModel = require('../../models/Research/backtest');
+const ForwardtestModel = require('../../models/Research/forwardtest');
+const BacktestHelper = require('../helpers/Backtest');
+
+
 exports.createStrategy = function(args, res, next) {
     const userId = _.get(args, 'user._id', null);
     const body = _.get(args, 'body.value', null);
     var code = _.get(body, 'code', "");
     var type = _.get(body, 'type', "GUI");
+    var resolution = _.get(body, 'resolution', '');
  
     if(code=="" && type == "CODE") {   
         console.log(path.resolve(path.join(__dirname, fname)));
@@ -28,6 +32,7 @@ exports.createStrategy = function(args, res, next) {
         name: _.get(body, 'name', "Sample Strategy").trim(),
         user: userId,
         type,
+        resolution,
         description: _.get(body, 'description', ""),
         code: encoded_code,
         entryConditions: _.get(body, "entryConditions", []),
@@ -64,12 +69,19 @@ exports.execStrategy = function(args, res, next) {
     const strategyId = args.strategyId.value;
     const settings = args.body.value;
 
-    return StrategyModel.fetchStrategy({user: userId, _id: strategyId}, {})
+    return BacktestHelper.isBacktestCapacityAvailable(userId)
+    .then(available => {
+        if (available) {
+            return StrategyModel.fetchStrategy({user: userId, _id: strategyId}, {})
+        } else {
+            throw new Error("Limit Exceeded");
+        }
+    })
     .then(strategy => {
         return BacktestService.createBacktest(strategy, settings, res, next);
     })
     .catch(err => {
-        res.status(400).json(err);
+        res.status(400).send(err.message);
     });
 };
 

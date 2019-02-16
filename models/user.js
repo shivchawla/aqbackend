@@ -64,6 +64,11 @@ const User = new Schema({
     isUserFromGoogle: {
         type: Boolean,
         default: false
+    },
+
+    backtestSubscription: {
+        counter: {type: Number, default: 0},
+        maximum: {type: Number, default: 20}
     }
 });
 
@@ -86,6 +91,10 @@ User.statics.fetchUser = function(query, options = {}) {
     }
 
     return q.execAsync();
+};
+
+User.statics.countUsers = function(query) {
+    return this.countAsync(query);
 };
 
 User.statics.fetchUsers = function(query, projections, options) {
@@ -148,6 +157,19 @@ User.statics.updateEmailPreference = function(query, preferences) {
 
     return this.findOneAndUpdate(query, {$set: updateObj});
 };
+
+
+User.statics.resetBacktestCounter = function(query) {
+    return this.updateOne(query, {$set: {backtestSubscription: {counter: 0}}});
+}
+
+User.statics.shiftBacktestCounter = function(query) {
+    return this.updateOne(query, {$inc: {backtestSubscription: {counter: 1}}});
+}
+
+User.statics.updateBacktestSubscription = function(query, maxCount) {
+    return this.updateOne(query, {$set: {backtestSubscription: {maximum: maxCount}}});
+}
 
 const userModel = mongoose.model('User', User, 'users');
 module.exports = userModel;
