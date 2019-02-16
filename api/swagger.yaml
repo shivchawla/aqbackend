@@ -4276,6 +4276,8 @@ definitions:
         type: string
       exitLogic:
         type: string
+      tradeDirection:
+        type: string
 
   
   TradeCondition:

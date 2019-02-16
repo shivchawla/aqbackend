@@ -19,7 +19,7 @@ exports.createStrategy = function(args, res, next) {
     const body = _.get(args, 'body.value', null);
     var code = _.get(body, 'code', "");
     var type = _.get(body, 'type', "GUI");
-    var resolution = _.get(body, 'resolution', '');
+    var tradeDirection = _.get(body, 'tradeDirection', '');
  
     if(code=="" && type == "CODE") {   
         console.log(path.resolve(path.join(__dirname, fname)));
@@ -32,7 +32,7 @@ exports.createStrategy = function(args, res, next) {
         name: _.get(body, 'name', "Sample Strategy").trim(),
         user: userId,
         type,
-        resolution,
+        tradeDirection, //only useful/relevant for GUI strategies
         description: _.get(body, 'description', ""),
         code: encoded_code,
         entryConditions: _.get(body, "entryConditions", []),
