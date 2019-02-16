@@ -2,13 +2,14 @@
 * @Author: Shiv Chawla
 * @Date:   2019-02-15 16:20:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-15 17:12:19
+* @Last Modified time: 2019-02-16 11:14:11
 */
 
 'use strict'
 const UserModel = require('../../models/user');
 const Promise = require('bluebird');
 const _ = require('lodash');
+const config = require('config');
 
 module.exports.resetBacktestCounter = function() {
 	return UserModel.countUsers()
