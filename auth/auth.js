@@ -66,6 +66,6 @@ module.exports = function(req, next) {
 };
 
 const checkThirdPartyUser = host => {
-    const firstPartyHost = config.get('hostname');
-    return firstPartyHost.indexOf(host) < 0;
+    const firstPartyHosts = config.get('first_party_hosts');
+    return firstPartyHosts.indexOf(host) < 0;
 }
