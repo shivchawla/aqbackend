@@ -81,7 +81,7 @@
 
     "node_redis_pass":"",
     "node_redis_port":13472,
-    "noderedis_host":"127.0.0.1",
+    "node_redis_host":"127.0.0.1",
     
     "julia_redis_port":13472,
     "julia_redis_host":"94.23.0.139",
