@@ -4,12 +4,18 @@ const StrategyModel = require('../../models/Research/strategy');
 var CryptoJS = require("crypto-js");
 const config = require('config');
 const spawn = require('../Realtime/spawn');
+const _ = require('lodash');
 
-exports.createBacktest = function(strategy, values, res, next) {
+exports.createBacktest = function(strategy, settings, res, next) {
     const backtest = {
         strategy: strategy._id,
-        settings: values, 
+        settings: settings,
         code: strategy.code,
+        type: strategy.type,
+        entryConditions: strategy.entryConditions,
+        exitConditions: strategy.exitConditions,
+        entryLogic:strategy.entryLogic,
+        exitLogic:strategy.entryLogic,
         name: strategy.name,
         strategy_name: strategy.name,
         status : 'active',
@@ -17,7 +23,7 @@ exports.createBacktest = function(strategy, values, res, next) {
         shared:false,
         deleted:false,
     };
-
+    
     return BacktestModel.saveBacktest(backtest)
     .then(bt => {
         if(bt) {

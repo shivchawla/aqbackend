@@ -1,6 +1,5 @@
 node_modules
 .idea/
-config/
 utils/julia/connection.json
 .eslintrc
 Julia/rtdata

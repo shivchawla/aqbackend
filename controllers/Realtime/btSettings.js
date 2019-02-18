@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-11-08 13:39:25
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2017-11-29 20:53:26
+* @Last Modified time: 2019-02-15 10:12:41
 */
 const CryptoJS = require('crypto-js');
 const config = require('config');
@@ -72,6 +72,16 @@ function parseSettings(bt, forward) {
     if(advanced.slippage) {
         var slippage = advanced.slippage.model + ',' + advanced.slippage.value.toString();
         args = args.concat(['--slippage', slippage]);
+    }
+
+    if(advanced.profitTarget) {
+        var profitTarget = advanced.profitTarget;
+        args = args.concat(['--profitTarget', profitTarget]);
+    }
+
+    if(advanced.stopLoss) {
+        var stopLoss = advanced.stopLoss;
+        args = args.concat(['--stopLoss', stopLoss]);
     }
 
     return args;

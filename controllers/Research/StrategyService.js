@@ -1,39 +1,94 @@
 'use strict';
-const StrategyModel = require('../../models/Research/strategy');
-const BacktestService = require('./BacktestService');
-const BacktestModel = require('../../models/Research/backtest');
-const ForwardtestModel = require('../../models/Research/forwardtest');
 const Promise = require('bluebird');
 var CryptoJS = require("crypto-js");
 const config = require('config');
 var fs = require('fs');
 var path = require("path");    
 const fname = "../../examples/template.txt";
-const RedisUtils = require('../../utils/RedisUtils');
+const _ = require('lodash');
+
+const StrategyModel = require('../../models/Research/strategy');
+const BacktestService = require('./BacktestService');
+const BacktestModel = require('../../models/Research/backtest');
+const ForwardtestModel = require('../../models/Research/forwardtest');
+const BacktestHelper = require('../helpers/Backtest');
+
+const defaultStrategy1 = {
+    description: "Breakout strategy 1 - SMA crosses the upper bollinger band",
+    entryConditions: {
+        indicator1: {
+            name:"SMA",
+            params:{horizon: 10}
+        },
+        indicator2:{
+            name: "UBB",
+            params: {horizon: 50, width: 1.5}
+
+        },
+        name: "c1",
+        operator: "CA"
+    },
+
+    entryLogic: "c1",
+    language:"julia",
+    name: "SMA/Bollinger crossover",
+    tradeDirection:"BUY",
+    type: "GUI"
+};
+
+const defaultStrategy2 = {
+    description: "Breakout strategy 2 - Short term EMA crosses long term EMA",
+    entryConditions: {
+        indicator1: {
+            name:"EMA",
+            params:{horizon: 10, wilder: false}
+        },
+        indicator2:{
+            name: "EMA",
+            params: {horizon: 50, wilder: false}
+
+        },
+        name: "c1",
+        operator: "CA"
+    },
+
+    entryLogic: "c1",
+    language:"julia",
+    name: "EMA crossover",
+    tradeDirection:"BUY",
+    type: "GUI"
+};
 
 exports.createStrategy = function(args, res, next) {
-    const user = args.user;
-    const values = args.body.value;
-    var code = values.code;
-    
-    if(code=="") {   
+    const userId = _.get(args, 'user._id', null);
+    const body = _.get(args, 'body.value', null);
+    var code = _.get(body, 'code', "");
+    var type = _.get(body, 'type', "GUI");
+    var tradeDirection = _.get(body, 'tradeDirection', '');
+ 
+    if(code=="" && type == "CODE") {   
         console.log(path.resolve(path.join(__dirname, fname)));
         code = fs.readFileSync(path.resolve(path.join(__dirname, fname)), 'utf8');
     }
 
     var encoded_code = CryptoJS.AES.encrypt(code, config.get('encoding_key'));
+    
     const strategy = {
-        name: values.name.trim(),
-        user: user._id,
-        type: values.name,
-        language: values.language,
-        description: values.description,
+        name: _.get(body, 'name', "Sample Strategy").trim(),
+        user: userId,
+        type,
+        tradeDirection, //only useful/relevant for GUI strategies
+        description: _.get(body, 'description', ""),
         code: encoded_code,
+        entryConditions: _.get(body, "entryConditions", []),
+        exitConditions: _.get(body, "exitConditions", []),
+        entryLogic: _.get(body, "entryLogic", ""),
+        exitLogic: _.get(body, "exitLogic", ""),
         createdAt: new Date(),
         updatedAt: new Date()
     };
 
-    StrategyModel.fetchStrategys({name: strategy.name, user:user._id})
+    return StrategyModel.fetchStrategys({name: strategy.name, user:userId})
     .then(strategies => {
         if(strategies.length > 0) {
             strategy.suffix = Math.max.apply(null, strategies.map(item => item.suffix)) + 1;
@@ -57,14 +112,21 @@ exports.createStrategy = function(args, res, next) {
 exports.execStrategy = function(args, res, next) {
     const userId = args.user._id;
     const strategyId = args.strategyId.value;
-    const values = args.body.value;
+    const settings = args.body.value;
 
-    StrategyModel.fetchStrategy({user: userId, _id: strategyId}, {})
+    return BacktestHelper.isBacktestCapacityAvailable(userId)
+    .then(available => {
+        if (available) {
+            return StrategyModel.fetchStrategy({user: userId, _id: strategyId}, {})
+        } else {
+            throw new Error("Limit Exceeded");
+        }
+    })
     .then(strategy => {
-        BacktestService.createBacktest(strategy, values, res, next);
+        return BacktestService.createBacktest(strategy, settings, res, next);
     })
     .catch(err => {
-        res.status(400).json(err);
+        res.status(400).send(err.message);
     });
 };
 
@@ -137,8 +199,8 @@ exports.getStrategys = function(args, res, next) {
         } else if (!hasSearchParam) {
 
             return Promise.all([
-                StrategyModel.createStrategy(user, "Sample Strategy", "A quick tutorial", "sample.txt"),
-                StrategyModel.createStrategy(user, "NIFTY-50 Stock Reversal", "Invest in least performing stocks based on 22 days returns", "reversal.txt"),
+                StrategyModel.createStrategy({...defaultStrategy1, user, fname: "SMAcrossover.txt"}),
+                StrategyModel.createStrategy({...defaultStrategy2, user, fname: "EMAcrossover.txt"}),
             ]).then(strs => {
                 strs.forEach(str => {
                     str.code = CryptoJS.AES.decrypt(str.code,config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
@@ -218,18 +280,18 @@ exports.getStrategy = function(args, res, next) {
 };
 
 exports.updateStrategy = function(args, res, next) {
-    const strategyId = args.strategyId.value;
-    const userId = args.user._id;
+    const strategyId = _.get(args,'strategyId.value', null);
+    const userId = _.get(args, 'user._id', null);
 
     const query = {
         _id: strategyId,
         user: userId
     };
 
-    const updates = args.body.value;
+    const updates = _.get(args, 'body.value', {});
 
-    if(args.body.value && args.body.value.code) {
-        var str = args.body.value.code;
+    if(_.get(updates, 'code', null)) {
+        var str = _.get(updates, 'code', "");
         updates.code = CryptoJS.AES.encrypt(str, config.get('encoding_key'));
     }
     

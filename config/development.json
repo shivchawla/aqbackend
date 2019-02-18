@@ -1,0 +1,123 @@
+{
+    //"hostname": ["https://develop.adviceqube.com", "https://quant-develop.adviceqube.com", "http://localhost:3000", "http://localhost:3001"],
+    
+    "hostname": "https://develop.adviceqube.com",
+    "first_party_hosts": ["https://develop.adviceqube.com", "https://quant-develop.adviceqube.com", "http://localhost:3000", "http://localhost:3001"],
+
+    "sendgrid_key":"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",
+    "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv",
+
+    "activation_email_template_id" :{
+        "adviceqube": "957ed889-0141-41d5-b192-588d4df89d09",
+        "aimsquant":""
+    },
+
+    "reset_password_template_id" :{
+        "adviceqube": "8bdad2e4-56e2-4a8e-b618-0fca30bdfabe",
+        "aimsquant" : ""
+    },
+
+    "forgot_password_template_id" : {
+        "adviceqube": "19065ebf-c290-413c-94f2-7e804043ba58",
+        "aimsquant" :""
+    },
+
+    "welcome_template_id" :{
+        "adviceqube": "1a9b11ec-1697-4caa-b17b-59b976b12977",
+        "aimsquant": ""
+    },
+
+    "account_activation_api_url": {
+        "aimsquant": "http://developapi.aimsquant.com/api/v2/user/activate?code=${code}",
+        "adviceqube": "http://developapi.aimsquant.com/api/v2/user/activate?code=${code}"
+    },
+
+    "reset_password_api_url": {
+        "aimsquant": "http://developapi.aimsquant.com/api/v2/user/resetpage?code=${code}&source=${src}",
+        "adviceqube": "http://developapi.aimsquant.com/api/v2/user/resetpage?code=${code}&source=${src}"
+    },
+
+    "sender_details": {
+        "aimsquant": {"name":"AimsQuant", "email":"admin@aimsquant.com"},
+        "adviceqube": {"name":"AdviceQube", "email":"support@adviceqube.com"}
+    },
+
+    "activation_url": {
+        "aimsquant": "http://localhost:8080/user/authMessage?mode=activationComplete",
+        "adviceqube": "http://localhost:3000/authMessage?mode=activationComplete"
+    },
+
+    "reset_password_url" :{
+        "aimsquant": "http://localhost:8080/user/resetpassword?resetcode=${code}",
+        "adviceqube": "http://localhost:3000/resetpassword?resetcode=${code}"
+    },
+
+    "reset_password_successful_url": {
+        "aimsquant": "http://localhost:3000/authMessage?mode=resetComplete",
+        "adviceqube": "http://localhost:3000/authMessage?mode=resetComplete"
+    },
+
+    "advice_rejection_template_id": "9e1ade09-91f9-4c2d-a207-9eef637820b5",
+    "advice_approval_template_id": "0d823e51-6135-4a27-8bc2-cb77436462a2",
+    "advice_request_approval_template_id": "816ee533-6f18-4cad-b019-86f35d8a023a",
+    "contest_entry_successful_template_id": "3675409c-c7cd-4360-ab03-230334597c06",
+    "contest_entry_withdrawal_template_id":"d542bbc0-6595-4cd6-bd96-62407ae7e0f1",
+    "contest_entry_removal_template_id":"4c0305aa-a3cb-45e6-a4f8-2d7534af2c4a",
+    "contest_entry_update_template_id":"f492cb51-afd3-407e-8816-6ad47bcf3476",
+    "email_unsubscribe_url": "http://localhost:3000/authMessage?mode=unsubscribe&type=${type}",
+    "request_unsubscribe_url": "http://developapi.adviceqube.com/api/v2/user/unsubscribe?email=${email}&code=${code}&type=${type}",
+
+    "validate_advice_full": true,
+    "validate_contest_entry_full": false,
+
+    "mongo_db":"aimsquant_develop",
+    "mongo_user":"app_server_develop",
+    "mongo_pass":"pwd_app_server_develop!",
+    "mongo_path":"localhost",
+    "mongo_port":25027,
+    "mongo_debug":false,
+
+    "app_client_id": "327368242858-bipnkvbvstq7ujb6qjg36g8u01dsrma5.apps.googleusercontent.com",
+
+    "node_redis_pass":"",
+    "node_redis_port":13472,
+    "node_redis_host":"127.0.0.1",
+    
+    "julia_redis_port":13472,
+    "julia_redis_host":"94.23.0.139",
+    "julia_redis_pass":"2d17e4712e29b43b28eaab2b5b1ebd2e3e48b07beb4efaaaffb07e81cbfe87b1",
+
+    "max_num_julia_process_user": 1,
+    "max_num_julia_process_total": 2,
+    "time_interval_realtime_output":3000,
+
+    "mktMachines": [{"host":"37.187.157.214", "port":11000, "dedicatedParent": 5001}],
+    "jobsPort":5001,
+    "send_performance_digest": false,
+    
+    "max_dailyentry_changes": 3, 
+    "max_advices_per_advisor":1000,
+    "max_contest_entries_per_advisor":1000,
+
+    "max_subscription_per_investor":100000,
+    "advisor_public_profile_fields":["companyName", "isIndividual", "isCompany", "isRegistered", "registrationNumber", "linkedIn", "facebook", "twitter", "webUrl"],
+    "admin_user":["shivchawla2001@gmail.com","saru.sreyo@gmail.com"],
+    "admin_followers":["shivchawla2001@gmail.com","saru.sreyo@gmail.com"],
+
+    "winners_not_allowed":["shivchawla2001@gmail.com", "saru.sreyo@gmail.com", "sauravbiswas16294@gmail.com", "sauravdroid16@gmail.com","saurav.aimsquant@gmail.com"],
+    "dummy_advisors":[],
+    "nse_private_key": "nse_15min_token",
+    "nse_host":"121.241.2.65",
+    "nse_port":6010,
+    "nse_user":"AIMSCM15",
+    "nse_maxfilecount":391,
+    "nse_delayinseconds": 10,
+    "nse_reload_file_set":"385,400",
+	
+	"default_backtest_limit": 500,
+   
+    "ft_second":0,
+    "ft_minute":0,
+    "ft_hour":7,
+    "ft_port":13000
+}
