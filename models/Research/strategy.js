@@ -75,7 +75,7 @@ const config = require('config');
 const _ = require('lodash');
 
 
-Strategy.statics.createStrategy = function(imputs) { 
+Strategy.statics.createStrategy = function(inputs) { 
     
     var type = _.get(inputs, 'type', "CODE")
 
