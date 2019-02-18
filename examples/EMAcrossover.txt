@@ -1,0 +1,23 @@
+# This is a machine generated code.
+
+function initialize(state)
+    
+end
+
+function longEntryCondition()
+    return  crossAbove(EMA(horizon = 10,wilder = false), EMA(horizon = 50,wilder = false))
+end
+    
+
+function longExitCondition()
+    return
+end
+    
+
+shortEntryCondition() = nothing
+
+shortExitCondition() = nothing
+
+function ondata(data, state)
+
+end
