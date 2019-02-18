@@ -1,0 +1,115 @@
+{
+    "hostname":"https://staging.adviceqube.com",
+    "first_party_hosts": ["https://staging.adviceqube.com", "https://quant-staging.adviceqube.com"],
+
+    "sendgrid_key": "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",
+    "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv",
+    
+   "activation_email_template_id" :{
+        "adviceqube": "957ed889-0141-41d5-b192-588d4df89d09",
+        "aimsquant":"4ec30191-74d2-4675-b652-b2ce05e279d5"
+    },
+
+    "reset_password_template_id" :{
+        "adviceqube": "8bdad2e4-56e2-4a8e-b618-0fca30bdfabe",
+        "aimsquant" : "fa3d3c9c-b562-4b87-8375-0e85fc74bf0c"
+    },
+
+    "forgot_password_template_id" : {
+        "adviceqube": "19065ebf-c290-413c-94f2-7e804043ba58",
+        "aimsquant" :"9c5c19ed-964d-40aa-b09f-a9caa695abbb"
+    },
+
+    "welcome_template_id" :{
+        "adviceqube": "1a9b11ec-1697-4caa-b17b-59b976b12977",
+        "aimsquant": "b26605cb-d21a-4b71-a50a-dcae731ed25b"
+    },
+
+    "account_activation_api_url": {
+        "aimsquant": "https://stagingapi.aimsquant.com/api/v2/user/activate?code=${code}&source=${src}",
+        "adviceqube": "https://stagingapi.adviceqube.com/api/v2/user/activate?code=${code}&source=${src}"
+    },
+
+    "reset_password_api_url": {
+        "aimsquant": "https://stagingapi.aimsquant.com/api/v2/user/resetpage?code=${code}&source=${src}",
+        "adviceqube": "https://stagingapi.adviceqube.com/api/v2/user/resetpage?code=${code}&source=${src}"
+    },
+
+    "sender_details": {
+        "aimsquant": {"name":"AimsQuant", "email":"admin@aimsquant.com"},
+        "adviceqube": {"name":"AdviceQube", "email":"support@adviceqube.com"}
+    },
+
+    "activation_url": {
+        "aimsquant": "https://staging.aimsquant.com/authMessage?mode=activationComplete",
+        "adviceqube": "https://staging.adviceqube.com/authMessage?mode=activationComplete"
+    },
+
+    "reset_password_url" :{
+        "aimsquant": "https://staging.aimsquant.com/resetpassword?resetcode=${code}",
+        "adviceqube": "https://staging.adviceqube.com/resetpassword?resetcode=${code}"
+    },
+
+    "reset_password_successful_url": {
+        "aimsquant": "https://staging.aimsquant.com/authMessage?mode=resetPassword",
+        "adviceqube": "https://staging.adviceqube.com/authMessage?mode=resetPassword"
+    },
+
+    "advice_rejection_template_id": "9e1ade09-91f9-4c2d-a207-9eef637820b5",
+    "advice_approval_template_id": "0d823e51-6135-4a27-8bc2-cb77436462a2",
+    "advice_request_approval_template_id": "816ee533-6f18-4cad-b019-86f35d8a023a",
+    "contest_entry_successful_template_id": "3675409c-c7cd-4360-ab03-230334597c06",
+    "contest_entry_withdrawal_template_id":"d542bbc0-6595-4cd6-bd96-62407ae7e0f1",
+    "contest_entry_removal_template_id":"4c0305aa-a3cb-45e6-a4f8-2d7534af2c4a",
+    "contest_entry_update_template_id":"f492cb51-afd3-407e-8816-6ad47bcf3476",
+    "validate_advice_full": true,
+
+    "daily_contest_winner_template_id": "d3465847-b751-4c61-b182-99b481b25810",
+    "daily_contest_summary_digest_template_id":"3b4a8d0e-8be3-48b9-8442-df937c48be4e",
+    
+    "app_client_id": "290564807736-i54kun2iuoneavbe24bto7ok7fdb2ejp.apps.googleusercontent.com",
+
+    "mongo_db":"aimsquant_staging",
+    "mongo_user":"app_server_staging",
+    "mongo_pass":"pwd_app_server_staging!",
+    "mongo_path":"localhost",
+    "mongo_port":25027,
+    "mongo_debug":false,
+
+    "node_redis_pass":"",
+    "node_redis_port":13472,
+    "node_redis_host":"127.0.0.1",
+
+    "julia_redis_pass":"2d17e4712e29b43b28eaab2b5b1ebd2e3e48b07beb4efaaaffb07e81cbfe87b1",
+    "julia_redis_port":13472,
+    "julia_redis_host":"94.23.0.139",
+
+    "max_num_julia_process_user": 1,
+    "max_num_julia_process_total": 2,
+    "time_interval_realtime_output":3000,
+
+    "mktMachines": [{"host":"127.0.0.1", "port":11001, "dedicatedParent": 7001}],
+    "jobsPort":7001,
+ 
+    "max_advices_per_advisor":50,
+    "max_subscription_per_investor":10,
+
+    "advisor_public_profile_fields":["companyName", "isIndividual", "isCompany", "isRegistered", "registrationNumber", "linkedIn", "facebook", "twitter", "webUrl"],
+    "admin_user":["shivchawla2001@gmail.com","admin@aimsquant.com"],
+    "dummy_advisors":[],
+
+
+    "nse_private_key": "nse_15min_token",
+    "nse_host":"121.241.2.65",
+    "nse_port":6010,
+    "nse_user":"AIMSCM15", 
+    "nse_maxfilecount":392,
+    "nse_delayinseconds": 30,
+    "nse_reload_file_set":"385,392",
+
+    "default_backtest_limit": 500,
+    "ft_second":0,
+    "ft_minute":0,
+    "ft_hour":7,
+    "ft_port":13001
+}
