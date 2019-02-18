@@ -74,14 +74,12 @@ var path = require('path');
 const config = require('config');
 const _ = require('lodash');
 
+
 Strategy.statics.createStrategy = function(imputs) { 
     
     var type = _.get(inputs, 'type', "CODE")
 
-    let fname;
-    if (type == "CODE") {
-        fname = "../../examples/" + inputs.fname;
-    }
+    let fname = "../../examples/" + inputs.fname;
 
     var code = fs.readFileSync(path.resolve(path.join(__dirname, fname)), 'utf8');
     var encoded_code = CryptoJS.AES.encrypt(code, config.get('encoding_key'));

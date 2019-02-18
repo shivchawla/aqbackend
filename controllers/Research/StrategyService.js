@@ -13,6 +13,51 @@ const BacktestModel = require('../../models/Research/backtest');
 const ForwardtestModel = require('../../models/Research/forwardtest');
 const BacktestHelper = require('../helpers/Backtest');
 
+const defaultStrategy1 = {
+    description: "Breakout strategy 1 - SMA crosses the upper bollinger band",
+    entryConditions: {
+        indicator1: {
+            name:"SMA",
+            params:{horizon: 10}
+        },
+        indicator2:{
+            name: "UBB",
+            params: {horizon: 50, width: 1.5}
+
+        },
+        name: "c1",
+        operator: "CA"
+    },
+
+    entryLogic: "c1",
+    language:"julia",
+    name: "SMA/Bollinger crossover",
+    tradeDirection:"BUY",
+    type: "GUI"
+};
+
+const defaultStrategy2 = {
+    description: "Breakout strategy 2 - Short term EMA crosses long term EMA",
+    entryConditions: {
+        indicator1: {
+            name:"EMA",
+            params:{horizon: 10, wilder: false}
+        },
+        indicator2:{
+            name: "EMA",
+            params: {horizon: 50, wilder: false}
+
+        },
+        name: "c1",
+        operator: "CA"
+    },
+
+    entryLogic: "c1",
+    language:"julia",
+    name: "EMA crossover",
+    tradeDirection:"BUY",
+    type: "GUI"
+};
 
 exports.createStrategy = function(args, res, next) {
     const userId = _.get(args, 'user._id', null);
@@ -154,8 +199,8 @@ exports.getStrategys = function(args, res, next) {
         } else if (!hasSearchParam) {
 
             return Promise.all([
-                StrategyModel.createStrategy({user, name:"Sample Strategy", description: "A quick tutorial", fname: "sample.txt", type:"CODE"}),
-                StrategyModel.createStrategy({user, name:"NIFTY-50 Stock Reversal", description: "Invest in least performing stocks based on 22 days returns", fname: "reversal.txt", type:"CODE"}),
+                StrategyModel.createStrategy({...defaultStrategy1, user, fname: "SMAcrossover.txt"}),
+                StrategyModel.createStrategy({...defaultStrategy2, user, fname: "EMAcrossover.txt"}),
             ]).then(strs => {
                 strs.forEach(str => {
                     str.code = CryptoJS.AES.decrypt(str.code,config.get('encoding_key')).toString(CryptoJS.enc.Utf8);
