@@ -95,7 +95,8 @@
     "max_subscription_per_investor":10,
 
     "advisor_public_profile_fields":["companyName", "isIndividual", "isCompany", "isRegistered", "registrationNumber", "linkedIn", "facebook", "twitter", "webUrl"],
-    "admin_user":["shivchawla2001@gmail.com","admin@aimsquant.com"],
+    "admin_user":["shivchawla2001@gmail.com","admin@aimsquant.com", "saru.sreyo@gmail.com"],
+    "admin_followers":["shivchawla2001@gmail.com","saru.sreyo@gmail.com"],
     "dummy_advisors":[],
 
 
