@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-02-15 16:20:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-19 12:50:08
+* @Last Modified time: 2019-02-19 13:08:06
 */
 
 'use strict'
@@ -36,7 +36,8 @@ module.exports.isBacktestCapacityAvailable  = function(userId) {
 	.then(user => {
 		if (user) {
 			var currentCount = _.get(user, 'backtestSubscription.counter', 0);
-			var maximum = _.get(user, 'backtestSubscription.maximum', config.get('default_backtest_limit'));
+			//var maximum = _.get(user, 'backtestSubscription.maximum', config.get('default_backtest_limit'));
+			var maximum = config.get('default_backtest_limit');
 
 			return currentCount < maximum;
 		} else {
