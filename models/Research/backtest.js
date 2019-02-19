@@ -108,7 +108,7 @@ Backtest.statics.saveBacktest = function(backtestDetails) {
     return backtest.saveAsync();
 };
 
-Backtest.statics.fetchBacktest = function(query, options) {
+Backtest.statics.fetchBacktest = function(query, options = {}) {
     var q = this.findOne(query);
 
     if(options.select) {
