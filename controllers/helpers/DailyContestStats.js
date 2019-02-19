@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-08 21:04:05
+* @Last Modified time: 2019-02-19 15:57:21
 */
 
 'use strict';
@@ -603,32 +603,37 @@ module.exports.sendSummaryDigest = function(date) {
 		let sent = false;
 		return Promise.mapSeries(distinctAdvisors, function(advisorId) {
 
-			return Promise.all([
-				_getAdvisorPerformanceDigest(advisorId, date),
-				_getContestDigest(date),
-				_getUserDetail(advisorId, "daily_performance_digest"),
-				_getPortfolioSummary(advisorId)
-			])
-			.then(([advisorDigest, contestDigest, userDetail, portfolioSummary]) => {
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {priceUpdate: false, category: "all"})
+			.then(predictions => {
+				if (predictions.length > 0) {
+					return Promise.all([
+						_getAdvisorPerformanceDigest(advisorId, date),
+						_getContestDigest(date),
+						_getUserDetail(advisorId, "daily_performance_digest"),
+						_getPortfolioSummary(advisorId)
+					])
+					.then(([advisorDigest, contestDigest, userDetail, portfolioSummary]) => {
 
-				if (portfolioSummary) {
-					const code = userDetail.code;
-	        		const type = "daily_performance_digest";
-	        		const email = userDetail.email;
-	        		const sendDigest = _.get(userDetail, 'emailpreference.daily_performance_digest', true);        
-	        		const unsubscribeUrl = eval('`'+config.get('request_unsubscribe_url') +'`');
+						if (portfolioSummary) {
+							const code = userDetail.code;
+			        		const type = "daily_performance_digest";
+			        		const email = userDetail.email;
+			        		const sendDigest = _.get(userDetail, 'emailpreference.daily_performance_digest', true);        
+			        		const unsubscribeUrl = eval('`'+config.get('request_unsubscribe_url') +'`');
 
-					const fullDigest = {...advisorDigest, ...contestDigest, ...portfolioSummary, unsubscribeUrl};
+							const fullDigest = {...advisorDigest, ...contestDigest, ...portfolioSummary, unsubscribeUrl};
 
-		            if (process.env.NODE_ENV === 'production') {	
-		            	
-		            	return sendEmail.sendDailyContestSummaryDigest(fullDigest, userDetail);
-		        	
-		        	} else if(process.env.NODE_ENV === 'development') {
-		                
-		                return sendEmail.sendDailyContestSummaryDigest(fullDigest, 
-		                    {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
-		            }
+				            if (process.env.NODE_ENV === 'production') {	
+				            	
+				            	return sendEmail.sendDailyContestSummaryDigest(fullDigest, userDetail);
+				        	
+				        	} else if(process.env.NODE_ENV === 'development') {
+				                
+				                return sendEmail.sendDailyContestSummaryDigest(fullDigest, 
+				                    {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+				            }
+			            }
+		            })
 	            }
             })
         })
