@@ -448,7 +448,6 @@ module.exports.getDailyContestWinners = (args, res, next) => {
  */
 module.exports.getDailyContestOverallWinners = (args, res, next) => {
 	const query = {$and: [{dailyWinners: {$exists: true}}, {'dailyWinners.0': {$exists: true}}]};
-	const resultFilePath = path.dirname(require.main.filename);
 
 	return DailyContestStatsModel.fetchAllContestStats(query)
 	.then(stats => {
@@ -465,7 +464,6 @@ module.exports.getDailyContestOverallWinners = (args, res, next) => {
 		// Getting all the earnings of the advisor
 		let winnerArray = advisors.map(advisor => {
 			const totalEarnings = _.sum(overallWinners[advisor].map(item => getPrizeValue(item.rank)));
-			console.log(overallWinners[advisor][0]);
 			const firstName = overallWinners[advisor][0].advisor.user.firstName;
 			const lastName = overallWinners[advisor][0].advisor.user.lastName;
 			const name = `${firstName} ${lastName}`;
@@ -484,12 +482,12 @@ module.exports.getDailyContestOverallWinners = (args, res, next) => {
 }
 
 module.exports.getDailyContestOverallWinnersByEarnings = (args, res, next) => {
-	const resultFilePath = path.dirname(require.main.filename);
+	const skip = _.get(args, 'skip.value', 0);
+	const limit = _.get(args, 'limit.value', 10); 
 
-	return DailyContestEntryPerformanceModel.fetchDistinctPerformances({})
+	return DailyContestEntryPerformanceModel.fetchDistinctPerformances({}, skip, limit)
 	.then(performances => {
-		const winners = performances.map(performance => {
-			// performance = performance.toObject();
+		return Promise.map(performances, async performance => {
 			let firstName = _.get(performance, 'advisor.user.firstName', '');
 			let lastName = _.get(performance, 'advisor.user.lastName', '');
 			firstName = firstName[0].toUpperCase() + firstName.slice(1).toLowerCase();
@@ -497,13 +495,73 @@ module.exports.getDailyContestOverallWinnersByEarnings = (args, res, next) => {
 			const userName = `${firstName} ${lastName}`;
 			const dailyEarnings = _.get(performance, 'totalDaily', 0);
 			const weeklyEarnings = _.get(performance, 'totalWeekly', 0);
-			const totalEarnings = dailyEarnings + weeklyEarnings;
+			const totalEarnings = dailyEarnings + weeklyEarnings;	
 
-			return {name: userName, dailyEarnings, weeklyEarnings, totalEarnings};
-		});
-		writeWinnersToCsv(`${resultFilePath}/examples/winners.csv`, winners);
-
-		return res.status(200).send(winners);
+			return {
+				advisorId: _.get(performance, 'advisor._id', null),
+				name: userName, 
+				dailyEarnings, 
+				weeklyEarnings, 
+				totalEarnings,
+				pnlStats: performance.pnlStats,
+				portfolioStats: performance.portfolioStats
+			};
+		})
+	})
+	.then(winners => {
+		/**
+		 * 1. We run a map on all the winners object obtained from the previous Promise, get the portfolioStats
+		 *    from the db, if it is null
+		 * 2. We run a map on all the winners object obtained from the previous Promise, get the pnlStats from
+		 *    the db, if it is null
+		 * 3. We wrap both the above step in Promise.all, such that both the 2 steps runs aysnchronously
+		 */
+		return Promise.all([
+			Promise.map(winners, performance => {
+				const advisorId = _.get(performance, 'advisorId', null);
+				if (performance.portfolioStats === null) {
+					return DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId})
+					.then(data => {
+						return {
+							...performance,
+							portfolioStats: data
+						}
+					});
+				} else {
+					return performance;
+				}
+			}),
+			Promise.map(winners, performance => {
+				const advisorId = _.get(performance, 'advisorId', null);
+				if (performance.pnlStats === null) {
+					return DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId})
+					.then(data => {
+						return {
+							...performance,
+							pnlStats: data
+						}
+					});
+				} else {
+					return performance;
+				}
+			})
+		])
+	})
+	.then(performances => {
+		const portfolioData = performances[0];
+		const pnlData = performances[1];
+		/**
+		 * Explanation of the following steps
+		 * 1. Keys both the portfolio and pnl collections by advisorId, which converts it to object
+		 * 2. We merge both the objects obtained from the previous step
+		 * 3. We convert the objects into an array of values.
+		 * See docs for better explanation
+		 */
+		const mergedData = _.values(_.merge(
+			_.keyBy(portfolioData, 'advisorId'),
+			_.keyBy(pnlData, 'advisorId'),
+		))
+		return res.status(200).send(mergedData);
 	})
 	.catch(err => {
 		return res.status(400).send({message: err.message});

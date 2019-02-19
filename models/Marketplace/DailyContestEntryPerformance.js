@@ -170,7 +170,7 @@ DailyContestEntryPerformance.statics.updateEarningStats = function(query, date, 
 	
 };
 
-DailyContestEntryPerformance.statics.fetchDistinctPerformances = function(query) {
+DailyContestEntryPerformance.statics.fetchDistinctPerformances = function(query, skip = 0, limit = 10) {
 	return new Promise((resolve, reject) => {
 		this.aggregate(
 			[
@@ -178,14 +178,17 @@ DailyContestEntryPerformance.statics.fetchDistinctPerformances = function(query)
 					$group:
 					  {
 						_id: "$advisor",
-						id: { $first: "$_id" },
+						id: { $last: "$_id" },
 						currentDate: {$last: "$date"},
 						totalDaily: {$last: "$earnings.daily.cumulative"},
-						totalWeekly: {$last: "$earnings.weekly.cumulative"}
-					  }
+						totalWeekly: {$last: "$earnings.weekly.cumulative"},
+						portfolioStats: {$last: "$portfolioStats"},
+						pnlStats: {$last: "$pnlStats"},
+					}
 				},
-				{$sort: {totalWeekly: -1, totalDaily: -1}},
-				{$limit: 15},
+				{$sort: {'totalDaily': -1, 'totalWeekly': -1}},
+				{$skip: skip},
+				{$limit: limit},
 				{
 				   $project:{
 					   _id:"$id",
@@ -193,10 +196,13 @@ DailyContestEntryPerformance.statics.fetchDistinctPerformances = function(query)
 					   date: "$currentDate",
 					   totalDaily: "$totalDaily",
 					   totalWeekly: "$totalWeekly",
+					   pnlStats: "$pnlStats",
+					   portfolioStats: "$portfolioStats",
 					}
 				}   
 			]
 		)
+		.allowDiskUse(true)
 		.exec((err, transactions) => {
 			if (err) {
 				reject(err);
