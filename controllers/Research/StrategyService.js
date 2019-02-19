@@ -123,7 +123,10 @@ exports.execStrategy = function(args, res, next) {
         }
     })
     .then(strategy => {
-        return BacktestService.createBacktest(strategy, settings, res, next);
+        return BacktestHelper.createBacktest(userId, strategy, settings);
+    })
+    .then(bt => {
+        return res.status(200).json(bt);
     })
     .catch(err => {
         res.status(400).send(err.message);

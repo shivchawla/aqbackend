@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-02-15 16:20:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-16 11:14:11
+* @Last Modified time: 2019-02-19 10:55:59
 */
 
 'use strict'
@@ -10,6 +10,8 @@ const UserModel = require('../../models/user');
 const Promise = require('bluebird');
 const _ = require('lodash');
 const config = require('config');
+const BacktestModel = require('../../models/Research/backtest');
+const spawn = require('../Realtime/spawn');
 
 module.exports.resetBacktestCounter = function() {
 	return UserModel.countUsers()
@@ -44,5 +46,46 @@ module.exports.isBacktestCapacityAvailable  = function(userId) {
 };
 
 module.exports.increaseBacktestCounter  = function(userId) {
-	return UserModel.shiftBacktestCounter({_id: userId}) 
+	return UserModel.shiftBacktestCounter({_id: userId}, 1) 
 };
+
+module.exports.decreaseBacktestCounter  = function(userId) {
+	return UserModel.shiftBacktestCounter({_id: userId}, -1) 
+};
+
+module.exports.createBacktest = function(userId, strategy, settings) {
+    const backtest = {
+        strategy: strategy._id,
+        settings: settings,
+        code: strategy.code,
+        type: strategy.type,
+        entryConditions: strategy.entryConditions,
+        exitConditions: strategy.exitConditions,
+        entryLogic:strategy.entryLogic,
+        exitLogic:strategy.entryLogic,
+        name: strategy.name,
+        strategy_name: strategy.name,
+        status : 'active',
+        createdAt : new Date(),
+        shared:false,
+        deleted:false,
+    };
+    
+    return Promise.all([
+    	exports.increaseBacktestCounter(userId),
+    	BacktestModel.saveBacktest(backtest)
+	])
+    .then(([x, bt]) => {
+        if(bt) {
+            var req = {action:'exec-backtest', backtestId: bt._id};
+            try {
+                return spawn.handleAction(req, null)
+                .then(() =>{
+                    return bt;
+                })
+            } catch(err) {
+                console.log(err);
+            }
+        } 
+    })
+}

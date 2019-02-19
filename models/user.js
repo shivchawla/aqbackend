@@ -163,8 +163,8 @@ User.statics.resetBacktestCounter = function(query) {
     return this.updateOne(query, {$set: {backtestSubscription: {counter: 0}}});
 }
 
-User.statics.shiftBacktestCounter = function(query) {
-    return this.updateOne(query, {$inc: {backtestSubscription: {counter: 1}}});
+User.statics.shiftBacktestCounter = function(query, inc=1) {
+    return this.updateOne(query, {$inc: {backtestSubscription: {counter: inc}}});
 }
 
 User.statics.updateBacktestSubscription = function(query, maxCount) {

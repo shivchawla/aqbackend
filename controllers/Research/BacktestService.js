@@ -5,46 +5,9 @@ var CryptoJS = require("crypto-js");
 const config = require('config');
 const spawn = require('../Realtime/spawn');
 const _ = require('lodash');
+const Promise = require('bluebird');
+const BacktestHelper = require('../helpers/Backtest');
 
-exports.createBacktest = function(strategy, settings, res, next) {
-    const backtest = {
-        strategy: strategy._id,
-        settings: settings,
-        code: strategy.code,
-        type: strategy.type,
-        entryConditions: strategy.entryConditions,
-        exitConditions: strategy.exitConditions,
-        entryLogic:strategy.entryLogic,
-        exitLogic:strategy.entryLogic,
-        name: strategy.name,
-        strategy_name: strategy.name,
-        status : 'active',
-        createdAt : new Date(),
-        shared:false,
-        deleted:false,
-    };
-    
-    return BacktestModel.saveBacktest(backtest)
-    .then(bt => {
-        if(bt) {
-            var req = {action:'exec-backtest', backtestId: bt._id};
-            try {
-                return spawn.handleAction(req, null)
-                .then(() =>{
-                    return bt;
-                })
-            } catch(err) {
-                console.log(err);
-            }
-        } 
-    })
-    .then(bt => {
-        return res.status(200).json(bt);
-    })
-    .catch(err => {
-        return res.status(400).send(err.message);
-    });
-};
 
 exports.getBackTests = function(args, res, next) {
     
@@ -159,7 +122,15 @@ exports.updateBacktest = function(args, res, next) {
         updates.notes = args.notes.value;
     }
 
-    return BacktestModel.updateBacktest({user: userId, _id: backtestId}, updates)
+    return Promise.resolve()
+    .then(() => {
+        if(_.get(updates, 'status', "exception") == "exception") {
+            return BacktestHelper.decreaseBacktestCounter(userId);
+        }
+    })
+    .then(() => {
+        return BacktestModel.updateBacktest({user: userId, _id: backtestId}, updates)    
+    })
     .then(obj => {
         if(obj) {
             return res.status(200).json(obj);
