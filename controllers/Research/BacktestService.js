@@ -121,16 +121,8 @@ exports.updateBacktest = function(args, res, next) {
     if(args.notes.value) {
         updates.notes = args.notes.value;
     }
-
-    return Promise.resolve()
-    .then(() => {
-        if(_.get(updates, 'status', "exception") == "exception") {
-            return BacktestHelper.decreaseBacktestCounter(userId);
-        }
-    })
-    .then(() => {
-        return BacktestModel.updateBacktest({user: userId, _id: backtestId}, updates)    
-    })
+  
+    return BacktestModel.updateBacktest({user: userId, _id: backtestId}, updates)    
     .then(obj => {
         if(obj) {
             return res.status(200).json(obj);

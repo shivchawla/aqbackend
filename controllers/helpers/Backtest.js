@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-02-15 16:20:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-19 10:55:59
+* @Last Modified time: 2019-02-19 12:50:08
 */
 
 'use strict'
@@ -89,3 +89,25 @@ module.exports.createBacktest = function(userId, strategy, settings) {
         } 
     })
 }
+
+// Save backtest data to databse
+module.exports.updateBacktestResult = function(backtestId, updates) {
+   	console.log(`Updating Backtest: ${backtestId}`);
+ 	
+ 	return BacktestModel.fetchBacktest({_id: backtestId})
+    .then(bt => {
+        if(_.get(updates, 'status', "exception") == "exception") {
+        	var userId = _.get(bt, 'strategy.user._id', null);
+            return userId ? exports.decreaseBacktestCounter(userId) : null;
+        }
+    })
+    .then(() => {
+    	return BacktestModel.updateBacktest({_id: backtestId}, updates);
+	})
+}
+
+
+
+
+
+
