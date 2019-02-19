@@ -13,6 +13,8 @@ const serverPort = require('../../index').serverPort;
 const BacktestModel = require('../../models/Research/backtest');
 const StrategyModel = require('../../models/Research/strategy');
 
+const BacktestHelper = require('../helpers/Backtest');
+
 var redisClient = null;
 var redisSubscriber = null; 
 
@@ -328,13 +330,13 @@ function saveData(backtestId) {
         })
         .then(data => {
             console.log("Saving to DB");
-            resolve(updateBacktestResult(backtestId, data));
+            resolve(BacktestHelper.updateBacktestResult(backtestId, data));
         })
         .catch(err => {
             //console.error(err);
            
             // Let's put it's status to exception
-            resolve(updateBacktestResult(backtestId, {status}));
+            resolve(BacktestHelper.updateBacktestResult(backtestId, {status}));
         })
     })
     .then(() => {
@@ -434,14 +436,6 @@ function sendData(backtestId, final) {
             clearSendDataTimer(backtestId);          
         })  
     }
-}
-
-// Save backtest data to databse
-function updateBacktestResult(backtestId, data) {
-    console.log(`Updating Backtest: ${backtestId}`);
-    return BacktestModel.updateBacktest({
-        _id: backtestId
-    }, data);
 }
 
 function reSubscribeAfterConnection() {
