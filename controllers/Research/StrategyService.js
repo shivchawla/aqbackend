@@ -264,6 +264,9 @@ exports.getStrategy = function(args, res, next) {
             }
 
             strategy.code = code;
+            if (_.get(strategy, 'type', "GUI") == "NA")  {
+                strategy.type = "CODE";
+            } 
 
             return strategy;
         } else {
