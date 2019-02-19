@@ -114,7 +114,7 @@
     "nse_delayinseconds": 10,
     "nse_reload_file_set":"385,400",
 	
-	"default_backtest_limit": 500,
+	"default_backtest_limit": 5,
    
     "ft_second":0,
     "ft_minute":0,
