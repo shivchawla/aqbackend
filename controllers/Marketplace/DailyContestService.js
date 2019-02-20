@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-19 19:45:45
+* @Last Modified time: 2019-02-20 19:57:18
 */
 
 'use strict';
@@ -49,7 +49,7 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 	.then(advisor => {
 		if (advisor) {
 			const advisorId = advisor._id.toString();
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category});
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category, active: null});
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} else {
