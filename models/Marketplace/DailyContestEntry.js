@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-11 11:29:09
+* @Last Modified time: 2019-02-19 19:23:30
 */
 
 
@@ -48,6 +48,23 @@ const Prediction = new Schema({
 		type: DollarPosition,
 		required: true
 	},
+	
+	triggered: {
+		status: {
+			type: Boolean,
+			default: true
+		},
+
+		date: Date,
+		
+		trueDate: Date,
+	},
+
+	conditional: {
+		type: Boolean,
+		default: false
+	},
+
 	target: {
 		type: Number,
 		required: true
@@ -158,8 +175,23 @@ DailyContestEntry.statics.fetchEntries = function(query, options) {
     return q.execAsync();
 };
 
-DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, date) {
-	return this.findOne({...query, date: date}, {predictions:1})
+
+DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, date, options) {
+	
+	//Active has 3 values (false, true, null)
+	//Null includes everything
+	var active = _.get(options, 'active', true); 
+
+	var q = active == null ? {date: date} : 
+
+				!active ? {$and: [{date: date}, {$exists: {'predictions.triggered': true}}, {'predictions.triggered.status': false}]} :
+
+			{$or:[
+				{$and: [{$exists: {'predictions.triggered': true}}, {'predictions.triggered.status': true}, {'predictions.triggered.date': date}]}, 
+				{$and: [{date: date}, {$exists: {'predictions.triggered': false}}]}
+			]};
+
+	return this.findOne({...query, ...q}, {predictions:1})
 	.then(contestEntry => {
 		if (contestEntry) {
 			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
@@ -170,15 +202,28 @@ DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, d
 	});
 };
 
-DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, date) {
+
+DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, date, options) {
+	
+	//Active has 3 values (false, true, null)
+	//Null includes everything
+	var active = _.get(options, 'active', true); 
+
+	var q = active == null ? {} :
+				
+				!active ? {$and: [{$exists: {'predictions.triggered': true}}, {'predictions.triggered.status': false}]} :
+
+					{$or:[
+						{$and: [{$exists: {'predictions.triggered': true}}, {'predictions.triggered.status': true}]}, 
+						{$exists: {'predictions.triggered': false}}
+					]};
+
 	return this.find({
 				...query, 
-				$or: [
-					{'predictions.endDate': date}, 
-					{'predictions.status.date': date}
-				]
-			}, 
-			{predictions:1})
+				...q, 
+				$or: [{'predictions.endDate': date}, 
+					{'predictions.status.date': date}]
+			}, {predictions:1})
 	.then(contestEntries => { //[{predictions: []}, {predictions: []}]
 		if (contestEntries) {
 			var allPredictions = Array.prototype.concat(...contestEntries.map(item => item.predictions ? item.predictions.toObject() : []));
@@ -201,11 +246,29 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 	});						
 };
 
+
 /*
 * Return ALL predictions active on that date (including ended/started/active)
 */
-DailyContestEntry.statics.fetchEntryPredictionsOnDate = function(query, date) {
-	return this.find({...query, date: {$lte: date}, 
+DailyContestEntry.statics.fetchEntryPredictionsOnDate = function(query, date, options) {
+
+	//Active has 3 values (false, true, null)
+	//Null includes everything
+	var active = _.get(options, 'active', true); 
+
+	var q = active == null ? 
+				
+				{date: {$lte: date}} : 
+
+				!active  ?  {$and: [{$exists: {'predictions.triggered': true}}, {'predictions.triggered.status': false}]} :
+				
+				{$or:[
+					{$and: [{$exists: {'predictions.triggered': true}}, {'predictions.triggered.status': true}, {'predictions.triggered.date': {$lte: date}}]}, 
+					{$and: [{date: {$lte: date}}, {$exists: {'predictions.triggered': false}}]}
+				]};
+
+
+	return this.find({...query, ...q,
 			'predictions.endDate': {$gte: date}}, {predictions: 1})
 	.then(contestEntries => {
 		if (contestEntries) {

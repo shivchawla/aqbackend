@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-16 18:08:32
+* @Last Modified time: 2019-02-20 10:51:01
 */
 
 'use strict';
@@ -951,6 +951,7 @@ function _getExtremePrices(history, startDate, endDate) {
 	}
 }
 
+
 function _trackIntradayHistory(security) {
 	return new Promise(function(resolve, reject) {
 
@@ -1356,6 +1357,9 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 	const category = _.get(options, 'category', "started");
 	const priceUpdate = _.get(options, 'priceUpdate', true);
+	
+	//TO match with flag triggered in DB (means prediction was active)
+	const active = _.get(options, 'active', true);
 
 	let updatedPredictions;
 	return Promise.resolve()
@@ -1369,9 +1373,9 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 		var useEndedPredictions = !isToday || (isToday && moment().isAfter(moment(DateHelper.getMarketCloseDateTime(date))));
 		
 		switch(category) {
-			case "all": return DailyContestEntryModel.fetchEntryPredictionsOnDate({advisor: advisorId}, date); break;
-			case "started": return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, date); break;
-			case "ended": return DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({advisor: advisorId}, date); break;
+			case "all": return DailyContestEntryModel.fetchEntryPredictionsOnDate({advisor: advisorId}, date, {active}); break;
+			case "started": return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, date, {active}); break;
+			case "ended": return DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({advisor: advisorId}, date, {active}); break;
 			
 			// //not used 
 			// case "all": return Promise.all([
@@ -1384,6 +1388,7 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 		}
 	})
 	.then(predictions => {
+
 		if (predictions && predictions.length > 0){
 			return priceUpdate ? _computeUpdatedPredictions(predictions, date) : predictions;
 		} else {
@@ -1987,7 +1992,7 @@ module.exports.getDailyContestEntryPnlStats = function(advisorId, symbol, horizo
 	})
 };
 
-function _getDistinctPredictionTickersForAdvisors(date) {
+function _getDistinctPredictionTickersForAdvisors(date, options={}) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 	
 	var advisorsByTicker = {};
@@ -1995,7 +2000,7 @@ function _getDistinctPredictionTickersForAdvisors(date) {
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(distinctAdvisors => {
 		return Promise.mapSeries(distinctAdvisors, function(advisorId){
-			return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
+			return exports.getPredictionsForDate(advisorId, date, {...options, category: "all", priceUpdate: false})
 			.then(predictions => {
 				var predictionTickers = predictions.map(item => {return _.get(item, 'position.security.ticker', null)}).filter(item => item) || [];
 				return Promise.map(predictionTickers, function(ticker) {
@@ -2042,7 +2047,13 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 								var currentLowPrice = _.get(prediction, 'priceInterval.lowPrice', Infinity);
 
 								var possibleEndDate = prediction.status.trueDate || prediction.status.date || prediction.endDate;
-								var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, prediction.startDate, possibleEndDate);
+								
+								var effectiveStartDate = prediction.startDate
+								if (_.get(prediction, 'conditional', false)) {
+									effectiveStartDate = prediction.triggered.trueDate
+								}
+
+								var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, effectiveStartDate, possibleEndDate);
 								var highPrice = _.get(extremePricesSinceStartDate, 'high.price', -Infinity);
 								var lowPrice = _.get(extremePricesSinceStartDate, 'low.price', Infinity);
 								
@@ -2178,3 +2189,80 @@ module.exports.checkAdvisorInvestmentSum = function() {
 		})
 	})
 };
+
+
+module.exports.checkPredictionTriggers = function(date) {
+
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+
+	//Active flag will fetch prediction that are inactive (not triggered yet)
+	return _getDistinctPredictionTickersForAdvisors(date, {active: false})
+	.then(allAdvisorsByTickers => {
+		var allTickers = Object.keys(allAdvisorsByTickers);
+
+		return Promise.mapSeries(allTickers, function(ticker) {
+			return SecurityHelper.getStockIntradayHistory({ticker: ticker}, date)
+			.then(securityDetail => {
+				var advisorsForThisTicker = _.uniq(allAdvisorsByTickers[ticker]);
+
+				return Promise.mapSeries(advisorsForThisTicker, function(advisorId){
+					return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: false})
+					.then(inActivePredictions => {
+						return Promise.mapSeries(inActivePredictions, function(prediction) {
+	
+							if (inActivePredictions && inActivePredictions.length > 0) {
+
+								return Promise.mapSeries(inActivePredictions, function(prediction) {
+									var investment = prediction.position.investment;
+									var avgPrice = prediction.position.avgPrice;
+
+									if (avgPrice == 0) {
+										console.log(`OOPS!! Buy-Below/Sell-Above prediction without average Price, Advisor: ${advisorId} & Prediction: ${prediction._id}`);
+										return;
+									}
+
+									var startDate = prediction.startDate;
+
+									if (DateHelper.compareDates(date, startDate) > 0) {
+										startDate = DateHelper.getMarketOpenDateTime(date);
+									}
+									
+									var endDate = DateHelper.getMarketCloseDateTime(date);
+
+									var relevantIntradayHistory = history.filter(item => {var dt = item.datetime; return moment(dt).isAfter(moment(startDate)) && !moment(dt).isAfter(moment(endDate))});
+
+									if (relevantIntradayHistory.length > 0) {
+
+										var idx = -1;
+										if (investment > 0) {
+											idx = relevantIntradayHistory.findIndex(item => {return _.get(item, 'low', Infinity) <= avgPrice;});
+										} else {
+											idx = relevantIntradayHistory.findIndex(item => {return _.get(item, 'high', -Infinity) >= avgPrice;});
+										}
+										
+										if (idx != -1) {
+											prediction.triggered.date = date;
+											prediction.triggered.trueDate = relevantHistory[idx].datetime;
+											prediction.triggered.status = true;
+
+											console.log(`Prediction Triggered for Advisor: ${advisorId} & predictionId: ${prediction._id}`);
+											return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
+										}
+
+									}
+
+								})
+
+							}
+						})
+					})
+				})
+			})
+
+		});
+	})
+};
+
+
+
+
