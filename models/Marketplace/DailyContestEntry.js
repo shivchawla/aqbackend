@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-19 19:23:30
+* @Last Modified time: 2019-02-20 19:35:25
 */
 
 
@@ -184,11 +184,11 @@ DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, d
 
 	var q = active == null ? {date: date} : 
 
-				!active ? {$and: [{date: date}, {$exists: {'predictions.triggered': true}}, {'predictions.triggered.status': false}]} :
+				!active ? {$and: [{date: date}, {'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': false}]} :
 
 			{$or:[
-				{$and: [{$exists: {'predictions.triggered': true}}, {'predictions.triggered.status': true}, {'predictions.triggered.date': date}]}, 
-				{$and: [{date: date}, {$exists: {'predictions.triggered': false}}]}
+				{$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': true}, {'predictions.triggered.date': date}]}, 
+				{$and: [{date: date}, {'predictions.triggered': {$exists: false}}]}
 			]};
 
 	return this.findOne({...query, ...q}, {predictions:1})
@@ -211,11 +211,11 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 
 	var q = active == null ? {} :
 				
-				!active ? {$and: [{$exists: {'predictions.triggered': true}}, {'predictions.triggered.status': false}]} :
+				!active ? {$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': false}]} :
 
 					{$or:[
-						{$and: [{$exists: {'predictions.triggered': true}}, {'predictions.triggered.status': true}]}, 
-						{$exists: {'predictions.triggered': false}}
+						{$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': true}]}, 
+						{'predictions.triggered': {$exists: false}}
 					]};
 
 	return this.find({
@@ -260,11 +260,11 @@ DailyContestEntry.statics.fetchEntryPredictionsOnDate = function(query, date, op
 				
 				{date: {$lte: date}} : 
 
-				!active  ?  {$and: [{$exists: {'predictions.triggered': true}}, {'predictions.triggered.status': false}]} :
+				!active  ?  {$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': false}]} :
 				
 				{$or:[
-					{$and: [{$exists: {'predictions.triggered': true}}, {'predictions.triggered.status': true}, {'predictions.triggered.date': {$lte: date}}]}, 
-					{$and: [{date: {$lte: date}}, {$exists: {'predictions.triggered': false}}]}
+					{$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': true}, {'predictions.triggered.date': {$lte: date}}]}, 
+					{$and: [{date: {$lte: date}}, {'predictions.triggered': {$exists: false}}]}
 				]};
 
 
