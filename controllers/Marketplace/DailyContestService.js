@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-01 18:45:38
+* @Last Modified time: 2019-02-19 19:45:45
 */
 
 'use strict';
@@ -292,14 +292,14 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			var investmentRequired = 0;
 
 			entryPredictions.forEach(item => {
-				investmentRequired += Math.abs(_.get(item, 'position.investment', 0));
+				investmentRequired += !item.conditional ? Math.abs(_.get(item, 'position.investment', 0)) : 0;
 			});
 
 			if (liquidCash < investmentRequired) {
 				APIError.throwJsonError({message: `Insufficient funds to create predictions.`});
 			}
 			
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "all", priceUpdate: false});
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "all", priceUpdate: false, active: null});
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}
@@ -327,11 +327,13 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				
 				item.startDate = validStartDate;
 				item.endDate = DateHelper.getMarketCloseDateTime(DateHelper.getNextNonHolidayWeekday(item.endDate, 0));
-				item.active = true;
 				item.modified = 1;
 				item.stopLoss = -Math.abs(_.get(item, 'stopLoss', 1));
 				item.nonMarketHoursFlag = DateHelper.isHoliday() || !DateHelper.isMarketTrading();
 				item.createdDate = new Date();
+
+				//Set trigger
+				item = {...item, triggered: {status: !item.conditional}};
 
 				return item;
 
