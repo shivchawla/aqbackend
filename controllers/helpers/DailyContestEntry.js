@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 13:53:25
+* @Last Modified time: 2019-02-21 16:39:58
 */
 
 'use strict';
@@ -2271,6 +2271,45 @@ module.exports.checkPredictionTriggers = function(date) {
 		});
 	})
 };
+
+/*
+* Remove unfulfilled conditional predictions at EOD (GTC not allowed yet..)
+*/
+module.exports.removeConditionalPredictions = function(date) {
+
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+
+	return DailyContestEntryModel.fetchDistinctAdvisors()
+	.then(allAdvisors => {
+		return Promise.mapSeries(allAdvisors, function(advisorId) {
+			return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: false})
+			.then(inActivePredictions => {
+			
+				var unfulfilledPredictions = inActivePredictions.filter(item => {
+					
+					//extra checks
+					var conditional = _.get(item, 'conditional', false); 
+					var triggered = _.get(item, 'triggered.status', true); 
+					var manualExit = _.get(item, 'status.manualExit', false);
+
+					return conditional && !triggered && !manualExit;
+				});
+
+				return Promise.mapSeries(unfulfilledPredictions, function(prediction) {
+					prediction.status.manualExit = true;
+					prediction.status.trueDate = DateHelper.getMarketCloseDateTime();
+					prediction.status.date = DateHelper.getMarketCloseDateTime();
+
+					return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction)
+					.then(() => {
+						//Update the Account credit if prediction was never triggered 
+						return AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction);
+					})
+				})
+			})
+		})
+	})
+}
 
 
 

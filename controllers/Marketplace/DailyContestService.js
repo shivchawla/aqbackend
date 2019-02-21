@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 13:45:45
+* @Last Modified time: 2019-02-21 16:23:00
 */
 
 'use strict';
@@ -225,11 +225,12 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	let validStartDate = DailyContestEntryHelper.getValidStartDate();
 
 	return Promise.resolve()
-	/*.then(() => {
-		if (!DateHelper.isMarketTrading()) {
-			APIError.throwJsonError({message: "Market is closed!"})
+	.then(() => {
+
+		if (!DateHelper.isMarketTrading() && entryPredictions.filter(item => {return item.conditional;}).length > 0) {
+			APIError.throwJsonError({message: "Market is closed! Conditional predictions not allowed!!"})
 		}
-	})*/
+	})
 	.then(() => {
 		//Check if investment amount is either 10, 25, 50, 75 or 100K
 		return Promise.map(entryPredictions.map(item => {return _.get(item, 'position.investment');}), function(investment) {
