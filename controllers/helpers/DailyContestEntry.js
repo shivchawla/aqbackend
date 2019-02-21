@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 17:49:38
+* @Last Modified time: 2019-02-21 18:51:17
 */
 
 'use strict';
@@ -2208,71 +2208,71 @@ module.exports.checkPredictionTriggers = function(date) {
 				return Promise.mapSeries(advisorsForThisTicker, function(advisorId){
 					return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: false})
 					.then(inActivePredictions => {
-						return Promise.mapSeries(inActivePredictions, function(prediction) {
-	
-							if (inActivePredictions && inActivePredictions.length > 0) {
+						
+						if (inActivePredictions && inActivePredictions.length > 0) {
 
-								return Promise.mapSeries(inActivePredictions, function(prediction) {
-									
-									if (prediction.position.ticker == ticker) {
+							return Promise.mapSeries(inActivePredictions, function(prediction) {
+								
+								if (prediction.position.security.ticker == ticker) {
 
-										var investment = prediction.position.investment;
-										var avgPrice = prediction.position.avgPrice;
+									var investment = prediction.position.investment;
+									var avgPrice = prediction.position.avgPrice;
 
-										//Make sure that prediction has average price (comes from the user)
-										if (avgPrice == 0) {
-											console.log(`OOPS!! Buy-Below/Sell-Above prediction without average Price, Advisor: ${advisorId} & Prediction: ${prediction._id}`);
-											return;
-										}
-
-										//Make sure here that prediction is NOT exited already
-										var manualExit = _.get(prediction, 'status.manualExit', false);
-
-										if (manualExit) {
-											console.log(`OOPS!! Buy-Below/Sell-Above prediction has already been exited, Advisor: ${advisorId} & Prediction: ${prediction._id}`);
-											return;
-										}
-
-										var startDate = prediction.startDate;
-
-										if (DateHelper.compareDates(date, startDate) > 0) {
-											startDate = DateHelper.getMarketOpenDateTime(date);
-										}
-										
-										var endDate = DateHelper.getMarketCloseDateTime(date);
-
-										var relevantIntradayHistory = securityDetail.intradayHistory.filter(item => {var dt = item.datetime; return moment(dt).isAfter(moment(startDate)) && !moment(dt).isAfter(moment(endDate))});
-
-										if (relevantIntradayHistory.length > 0) {
-
-											var idx = -1;
-											if (investment > 0) {
-												idx = relevantIntradayHistory.findIndex(item => {return _.get(item, 'low', Infinity) <= avgPrice;});
-											} else {
-												idx = relevantIntradayHistory.findIndex(item => {return _.get(item, 'high', -Infinity) >= avgPrice;});
-											}
-											
-											if (idx != -1) {
-												prediction.triggered.date = date;
-												prediction.triggered.trueDate = relevantIntradayHistory[idx].datetime;
-												prediction.triggered.status = true;
-
-												//If the condition triggers ar market open, update the average price
-												if (moment(prediction.triggered.trueDate).isSame(DateHelper.getMarketOpenDateTime(date).add(1, 'minute'))) {
-													prediction.position.avgPrice = relevantIntradayHistory[idx].close;
-												}
-
-												console.log(`Prediction Triggered for Advisor: ${advisorId} & predictionId: ${prediction._id}`);
-												return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
-											}
-
-										}
+									//Make sure that prediction has average price (comes from the user)
+									if (avgPrice == 0) {
+										console.log(`OOPS!! Buy-Below/Sell-Above prediction without average Price, Advisor: ${advisorId} & Prediction: ${prediction._id}`);
+										return;
 									}
 
-								})
+									//Make sure here that prediction is NOT exited already
+									var manualExit = _.get(prediction, 'status.manualExit', false);
 
-							}
-						})
+									if (manualExit) {
+										console.log(`OOPS!! Buy-Below/Sell-Above prediction has already been exited, Advisor: ${advisorId} & Prediction: ${prediction._id}`);
+										return;
+									}
+
+									var startDate = prediction.startDate;
+
+									if (DateHelper.compareDates(date, startDate) > 0) {
+										startDate = DateHelper.getMarketOpenDateTime(date);
+									}
+									
+									var endDate = DateHelper.getMarketCloseDateTime(date);
+
+									var relevantIntradayHistory = securityDetail.intradayHistory.filter(item => {var dt = item.datetime; return moment(dt).isAfter(moment(startDate)) && !moment(dt).isAfter(moment(endDate))});
+
+									if (relevantIntradayHistory.length > 0) {
+
+										var idx = -1;
+										if (investment > 0) {
+											idx = relevantIntradayHistory.findIndex(item => {return _.get(item, 'low', Infinity) <= avgPrice;});
+										} else {
+											idx = relevantIntradayHistory.findIndex(item => {return _.get(item, 'high', -Infinity) >= avgPrice;});
+										}
+										
+										if (idx != -1) {
+											console.log(`Prediction Triggered for Advisor: ${advisorId} & predictionId: ${prediction._id}`);
+
+											prediction.triggered.date = date;
+											prediction.triggered.trueDate = moment(relevantIntradayHistory[idx].datetime).add(1, 'minute').startOf('minute').toDate();
+											prediction.triggered.status = true;
+
+											//If the condition triggers ar market open, update the average price
+											if (moment(prediction.triggered.trueDate).isSame(DateHelper.getMarketOpenDateTime(date).add(1, 'minute'))) {
+												console.log(`Prediction triggered at Day's Open. Resetting average price!!`);
+												prediction.position.avgPrice = relevantIntradayHistory[idx].close;
+											}
+
+											return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
+										}
+
+									}
+								}
+
+							})
+
+						}
 					})
 				})
 			})
