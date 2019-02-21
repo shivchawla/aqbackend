@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-15 16:21:29
+* @Last Modified time: 2019-02-19 18:42:04
 */
 
 'use strict';
@@ -65,6 +65,9 @@ if (config.get('jobsPort') === serverPort) {
 	    	})
 	    	.then(() => {
 	    		DailyContestEntryHelper.updatePredictionsForIntervalPrice();
+    		})
+    		.then(() => {
+	    		DailyContestEntryHelper.checkPredictionTriggers();
     		})
 			.then(() => { 
 	    		DailyContestEntryHelper.updateAllEntriesLatestPnlStats();
