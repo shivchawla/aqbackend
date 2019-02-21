@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 20:53:11
+* @Last Modified time: 2019-02-21 21:14:29
 */
 
 'use strict';
@@ -1505,9 +1505,9 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 	
 	return Promise.all([
-		exports.getPredictionsForDate(advisorId, date, {category: "all"}),
-		exports.getPredictionsForDate(advisorId, date, {category: "started", priceUpdate:false}),
-		exports.getPredictionsForDate(advisorId, date, {category: "ended", priceUpdate: false}),
+		exports.getPredictionsForDate(advisorId, date, {category: "all", active: null}),
+		exports.getPredictionsForDate(advisorId, date, {category: "started", priceUpdate:false, active: null}),
+		exports.getPredictionsForDate(advisorId, date, {category: "ended", priceUpdate: false, active: null}),
 		AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account'})
 	])
 	.then(([allPredictions, startedPredictions, endedPredictions, advisor]) => {
@@ -1539,7 +1539,9 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 						var lastPrice = _.get(item, 'position.lastPrice', 0);
 						var avgPrice = _.get(item, 'position.avgPrice', 0);
 
-						var equity = avgPrice > 0  && lastPrice > 0 ? investment * (lastPrice/avgPrice) : investment;
+						var triggered = _.get(item, 'triggered.status', true);
+
+						var equity = avgPrice > 0 && lastPrice > 0 && triggered ? investment * (lastPrice/avgPrice) : investment;
 						netEquity += equity
 						grossEquity += Math.abs(equity);
 					}
