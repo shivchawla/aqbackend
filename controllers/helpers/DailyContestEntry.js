@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 21:14:29
+* @Last Modified time: 2019-02-21 22:52:25
 */
 
 'use strict';
@@ -1554,8 +1554,10 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 					var investment = _.get(item, 'position.investment', 0);
 					var avgPrice = _.get(item, 'position.avgPrice', 0);
 
-					//Manual Exit will update cash (if lastPrice is not yet populated)
-					if (manualExit && lastPrice == 0.0) {
+					var triggered = _.get(item, 'triggered.status', true);
+
+					//Manual Exit will update cash (if lastPrice is not yet populated) and it's was active(triggred)
+					if (manualExit && lastPrice == 0.0 && triggered) {
 						//Get the latest price to compute tentative cash procees
 						//This adjust just the 
 						return SecurityHelper.getStockLatestDetail(item.position.security)
@@ -1573,9 +1575,12 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 
 					var grossTotal = grossEquity + cash;
 					var netTotal = netEquity + cash;
-					
 					var advisorAccount = advisor ? _.get(advisor.toObject(), 'account', {}) : {};
-					
+
+					// console.log(`Equity: ${netEquity}`);
+					// console.log(`Cash: ${cash}`);
+					// console.log(`Account: ${advisorAccount}`);
+
 					const updates = {
 						...advisorAccount, cash,
 						netEquity, grossEquity, grossTotal, netTotal, 
