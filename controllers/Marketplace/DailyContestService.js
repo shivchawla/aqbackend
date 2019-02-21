@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 17:44:39
+* @Last Modified time: 2019-02-21 20:19:49
 */
 
 'use strict';
@@ -366,13 +366,6 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 	
 	Promise.resolve()
 	.then(() => {
-		if(!DateHelper.isMarketTrading()) {
-			APIError.throwJsonError({message: "Can't exit - Market is closed"});
-		} else {
-			return;
-		}
-	})
-	.then(() => {
 		let advisorSelection = {user: userId};
 		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
 			advisorSelection = {_id: advisorId};
@@ -393,6 +386,12 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 		if (idx != -1) {
 
 			var prediction = allPredictions[idx];
+			var unfulfilledConditional = _.get(prediction, 'conditional', false) && !_.get(prediction, 'triggered.status', true);
+
+			if (!unfulfilledConditional && !DateHelper.isMarketTrading()) {
+				APIError.throwJsonError({message: "Can't exit active prediction - Market is closed"});	
+			} 
+
 			prediction.status.manualExit = true;
 			prediction.status.trueDate = new Date();
 			prediction.status.date = DateHelper.getMarketCloseDateTime(new Date());
