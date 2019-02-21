@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-15 16:26:42
+* @Last Modified time: 2019-02-21 10:30:51
 */
 'use strict';
 const config = require('config');
@@ -48,6 +48,7 @@ function _sendPredictionUpdates(subscription) {
 		if (advisorId) {
 			return Promise.all([
 				DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category}),
+				DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category, active: false, priceUpdate: false}),
 				DailyContestEntryHelper.getPnlStatsForDate(advisorId, date, category),
 				DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date)
 			]);
@@ -57,8 +58,8 @@ function _sendPredictionUpdates(subscription) {
 		}	
 		
 	})
-	.then(([predictions, pnlStats, portStats]) => {
-		return _sendWSResponse(subscription.response, {advisorId, category, predictions, pnlStats, portStats});
+	.then(([predictionsActive, predictionsInActive, pnlStats, portStats]) => {
+		return _sendWSResponse(subscription.response, {advisorId, category, predictions: predictionsActive.concat(predictionsInActive), pnlStats, portStats});
 	})
 	.catch(err => {
 		subscription.errorCount += 1;	
