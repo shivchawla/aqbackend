@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 19:09:21
+* @Last Modified time: 2019-02-21 20:53:11
 */
 
 'use strict';
@@ -2218,11 +2218,11 @@ module.exports.checkPredictionTriggers = function(date) {
 								if (prediction.position.security.ticker == ticker) {
 
 									var investment = prediction.position.investment;
-									var avgPrice = prediction.position.avgPrice;
+									var conditionalPrice = prediction.conditionalPrice || prediction.position.avgPrice;
 
 									//Make sure that prediction has average price (comes from the user)
-									if (avgPrice == 0) {
-										console.log(`OOPS!! Buy-Below/Sell-Above prediction without average Price, Advisor: ${advisorId} & Prediction: ${prediction._id}`);
+									if (!conditionalPrice || conditionalPrice == 0) {
+										console.log(`OOPS!! Buy-Below/Sell-Above prediction without conditional Price, Advisor: ${advisorId} & Prediction: ${prediction._id}`);
 										return;
 									}
 
@@ -2250,9 +2250,9 @@ module.exports.checkPredictionTriggers = function(date) {
 
 										var idx = -1;
 										if (investment > 0) {
-											idx = relevantIntradayHistory.findIndex(item => {return _.get(item, 'low', Infinity) <= avgPrice;});
+											idx = relevantIntradayHistory.findIndex(item => {return _.get(item, 'low', Infinity) <= conditionalPrice;});
 										} else {
-											idx = relevantIntradayHistory.findIndex(item => {return _.get(item, 'high', -Infinity) >= avgPrice;});
+											idx = relevantIntradayHistory.findIndex(item => {return _.get(item, 'high', -Infinity) >= conditionalPrice;});
 										}
 										
 										if (idx != -1) {

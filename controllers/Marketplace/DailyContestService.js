@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 20:19:49
+* @Last Modified time: 2019-02-21 20:51:59
 */
 
 'use strict';
@@ -336,7 +336,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				item.createdDate = new Date();
 
 				//Set trigger
-				item = {...item, triggered: {status: !item.conditional}};
+				item = {...item, triggered: {status: !item.conditional}, conditionalPrice: item.conditional ? item.position.avgPrice : 0};
 
 				return item;
 
