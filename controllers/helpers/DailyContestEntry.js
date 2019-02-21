@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 18:51:17
+* @Last Modified time: 2019-02-21 19:09:21
 */
 
 'use strict';
@@ -21,6 +21,11 @@ const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
+
+
+function _getEffectiveStartDate(prediction) {
+	return _.get(prediction, 'conditional', false) ? prediction.triggered.trueDate : prediction.startDate;
+}
 
 function _aggregatePnlStats(pnlStatsAllArray) {	
 	return new Promise(resolve => {
@@ -570,7 +575,7 @@ function _computePnlStats(predictions, date, ticker=null) {
 
 			var pos = item.position;
 
-			var startDate = item.startDate;
+			var startDate = _getEffectiveStartDate(item);
 			var predictionEndDate = item.status.date ||  item.endDate;
 			
 			var endDate = moment(date).isBefore(moment(predictionEndDate)) ? date : predictionEndDate;
@@ -975,12 +980,12 @@ function _updatePortfolioForAveragePrice(portfolioHistory) {
 }
 
 function _updatePredictionForTrueCallPrice(prediction) {
-	var startDate = moment(prediction.startDate);
+	var startDate = moment(_getEffectiveStartDate(prediction));
 	var isAfterMarket = _.get(prediction, 'nonMarketHoursFlag', false);
 
 	return Promise.all([
 		SecurityHelper.getStockIntradayHistory(prediction.position.security),
-		SecurityHelper.getStockDetail(prediction.position.security, prediction.startDate)
+		SecurityHelper.getStockDetail(prediction.position.security, _getEffectiveStartDate(prediction))
 	])		
 	.then(([intradaySecurityDetail, eodSecurityDetail]) => {
 		
@@ -1005,11 +1010,11 @@ function _updatePredictionForTrueCallPrice(prediction) {
 }
 
 function _updatePredictionForCallPrice(prediction) {
-	var startDate = moment(prediction.startDate);
+	var startDate = moment(_getEffectiveStartDate(prediction));
 	
 	return Promise.all([
 		SecurityHelper.getStockIntradayHistory(prediction.position.security),
-		SecurityHelper.getStockDetail(prediction.position.security, prediction.startDate)
+		SecurityHelper.getStockDetail(prediction.position.security, _getEffectiveStartDate(prediction))
 	])
 	.then(([intradaySecurityDetail, eodSecurityDetail]) => {
 		
@@ -1190,7 +1195,7 @@ function _computeDailyPnlStats(advisorId, date, options) {
 			//What's the significance of dailyPnL for entries starting today - ?
 			//So don't update the startdate for those predictions		
 			let startDate = date;
-			var startDateRoundedEOD = DateHelper.getMarketCloseDateTime(prediction.startDate);
+			var startDateRoundedEOD = DateHelper.getMarketCloseDateTime(_getEffectiveStartDate(prediction));
 
 			return Promise.resolve()
 			.then(() => {
@@ -1719,7 +1724,7 @@ module.exports.checkForPredictionTarget = function() {
 					if (successfulPredictions.length > 0) {
 
 						var successfulDayBasis = successfulPredictions.filter(item => {
-							var isStartDateToday = DateHelper.compareDates(item.startDate, currentDate) == 0;
+							var isStartDateToday = DateHelper.compareDates(_getEffectiveStartDate(item), currentDate) == 0;
 							
 							//Make sure only one direction is hit with daily price movement
 							//If both directions are hit, we need to time resolve (which was hit first?) [at next step]
@@ -1728,7 +1733,7 @@ module.exports.checkForPredictionTarget = function() {
 						});
 
 						var partiallySuccessfulIntraday =  successfulPredictions.filter(item => {
-							var isStartDateToday = DateHelper.compareDates(item.startDate, currentDate) == 0;
+							var isStartDateToday = DateHelper.compareDates(_getEffectiveStartDate(item), currentDate) == 0;
 							return isStartDateToday;	
 						});
 
@@ -1742,7 +1747,7 @@ module.exports.checkForPredictionTarget = function() {
 									var investment = item.position.investment;
 									var target = item.target;
 
-									var startDate = item.startDate;
+									var startDate = _getEffectiveStartDate(item);
 									var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, startDate);
 
 									var highPrice = _.get(extremePricesSinceStartDate, 'high.price', -Infinity);
@@ -2049,10 +2054,7 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 
 								var possibleEndDate = prediction.status.trueDate || prediction.status.date || prediction.endDate;
 								
-								var effectiveStartDate = prediction.startDate
-								if (_.get(prediction, 'conditional', false)) {
-									effectiveStartDate = prediction.triggered.trueDate
-								}
+								var effectiveStartDate = _getEffectiveStartDate(prediction);
 
 								var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, effectiveStartDate, possibleEndDate);
 								var highPrice = _.get(extremePricesSinceStartDate, 'high.price', -Infinity);
@@ -2232,6 +2234,8 @@ module.exports.checkPredictionTriggers = function(date) {
 										return;
 									}
 
+									//Here effective is not required
+									//Here, actual matters and triggered is not even available
 									var startDate = prediction.startDate;
 
 									if (DateHelper.compareDates(date, startDate) > 0) {
