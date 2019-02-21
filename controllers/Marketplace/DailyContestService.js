@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 22:59:32
+* @Last Modified time: 2019-02-21 23:02:28
 */
 
 'use strict';
@@ -309,7 +309,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	})
 	.then(activePredictions => {
 
-		activePredictions = activePredictions.filter(ite => {
+		activePredictions = activePredictions.filter(item => {
 			var completeStatus = _.get(item, 'status.profitTarget', false) ||  
 				_.get(item, 'status.stopLoss', false) ||  
 				_.get(item, 'status.manualExit', false) ||  
@@ -317,7 +317,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 				return !completeStatus; 
 		});
-		
+
 		return Promise.map(entryPredictions, function(prediction) {
 			
 			var ticker = _.get(prediction, 'position.security.ticker', "");
