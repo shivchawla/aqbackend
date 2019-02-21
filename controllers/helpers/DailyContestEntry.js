@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-20 10:51:01
+* @Last Modified time: 2019-02-21 13:53:25
 */
 
 'use strict';
@@ -1138,6 +1138,10 @@ function _computeTotalPnlStats(advisorId, date, options) {
 
 			return  item;
 		});
+
+		// console.log("Total PnL");
+		// console.log(updatedPredictions);
+
 		//Total Pnl
 		return Promise.all([
 			_getPnlStats(updatedPredictions, date),
@@ -1175,6 +1179,9 @@ function _computeDailyPnlStats(advisorId, date, options) {
 
 	return exports.getPredictionsForDate(advisorId, date, {category})
 	.then(updatedPredictions => {
+
+		// console.log("While computing pnl");
+		// console.log(updatedPredictions);
 			
 		//BUT THE updated predictions have Call price as of beginning of prediction
 		//For Daily change, we need daily changes
@@ -1219,6 +1226,9 @@ function _computeDailyPnlStats(advisorId, date, options) {
 
 				return  item;
 			});
+
+			// console.log("What's the updated");
+			// console.log(updatedPredictions);
 
 			//Total Pnl
 			return _getPnlStats(updatedPredictions);
@@ -1376,15 +1386,6 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 			case "all": return DailyContestEntryModel.fetchEntryPredictionsOnDate({advisor: advisorId}, date, {active}); break;
 			case "started": return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, date, {active}); break;
 			case "ended": return DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({advisor: advisorId}, date, {active}); break;
-			
-			// //not used 
-			// case "all": return Promise.all([
-			// 				useEndedPredictions ? DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({advisor: advisorId}, date) : [],
-			// 				DailyContestEntryModel.fetchEntryPredictionsActiveOnDate({advisor: advisorId}, date) 
-			// 			])
-			// 			.then(([endedPredictions, activePredictions]) => {
-			// 				return endedPredictions.concat(activePredictions);
-			// 			});
 		}
 	})
 	.then(predictions => {
@@ -2140,7 +2141,6 @@ module.exports.updateManuallyExitedPredictionsForLastPrice = function(date) {
 	})
 }
 
-
 module.exports.checkAdvisorInvestmentSum = function() {
 	var date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 
@@ -2216,8 +2216,17 @@ module.exports.checkPredictionTriggers = function(date) {
 									var investment = prediction.position.investment;
 									var avgPrice = prediction.position.avgPrice;
 
+									//Make sure that prediction has average price (comes from the user)
 									if (avgPrice == 0) {
 										console.log(`OOPS!! Buy-Below/Sell-Above prediction without average Price, Advisor: ${advisorId} & Prediction: ${prediction._id}`);
+										return;
+									}
+
+									//Make sure here that prediction is NOT exited already
+									var manualExit = _.get(prediction, 'status.manualExit', false);
+
+									if (manualExit) {
+										console.log(`OOPS!! Buy-Below/Sell-Above prediction has already been exited, Advisor: ${advisorId} & Prediction: ${prediction._id}`);
 										return;
 									}
 

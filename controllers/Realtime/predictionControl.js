@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 10:40:51
+* @Last Modified time: 2019-02-21 13:04:58
 */
 'use strict';
 const config = require('config');
@@ -55,9 +55,9 @@ function _sendPredictionUpdates(subscription) {
 			console.log("WS: Advisor Invalid");
 			return; 
 		}	
-		
+			
 	})
-	.then(([predictions, predictionsInActive, pnlStats, portStats]) => {
+	.then(([predictions, pnlStats, portStats]) => {
 		return _sendWSResponse(subscription.response, {advisorId, category, predictions, pnlStats, portStats});
 	})
 	.catch(err => {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-20 19:57:18
+* @Last Modified time: 2019-02-21 13:45:45
 */
 
 'use strict';
@@ -28,6 +28,8 @@ const DailyContestEntryHelper = require('../helpers/DailyContestEntry');
 const DailyContestHelper = require('../helpers/DailyContest');
 const DailyContestStatsHelper = require('../helpers/DailyContestStats');
 const SecurityHelper = require('../helpers/Security');
+const AdvisorHelper = require('../helpers/Advisor');
+
 /* 
 * Get contest entry for a date
 */
@@ -380,21 +382,27 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 		if (advisor) {
 			advisorId = advisor._id.toString();
 			var date = DateHelper.getMarketCloseDateTime();
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false});
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: null});
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}
 	})
-	.then(allActivePredictions => {
-		var idx = allActivePredictions.findIndex(item => {return item._id.toString() == predictionId;});
+	.then(allPredictions => {
+		var idx = allPredictions.findIndex(item => {return item._id.toString() == predictionId;});
 		if (idx != -1) {
 
-			var prediction = allActivePredictions[idx];
+			var prediction = allPredictions[idx];
 			prediction.status.manualExit = true;
 			prediction.status.trueDate = new Date();
 			prediction.status.date = DateHelper.getMarketCloseDateTime(new Date());
 
-			return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
+			return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction)
+			.then(() => {
+				//Update the Account credit if prediction was never triggered (else handle it in helper)
+				if (!_.get(prediction,'triggered.status', true)) {
+					return AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction);
+				}
+			})
 
 		} else {
 			APIError.throwJsonError({message: "Prediction not found"});
