@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 20:45:38
+* @Last Modified time: 2019-02-22 09:34:44
 */
 
 
@@ -121,6 +121,8 @@ const DailyContestEntry = new Schema({
 
 DailyContestEntry.index({advisor: 1, date:1}, {unique: true});
 DailyContestEntry.index({advisor: 1}, {unique: false});
+DailyContestEntry.index({'predictions.triggered': 1, 'predictions.endDate':1});
+
 
 /*Rules
 1. Entry Item can be added any day
