@@ -518,6 +518,7 @@ module.exports.getDailyContestOverallWinnersByEarnings = (args, res, next) => {
 			const dailyEarnings = _.get(performance, 'totalDaily', 0);
 			const weeklyEarnings = _.get(performance, 'totalWeekly', 0);
 			const totalEarnings = dailyEarnings + weeklyEarnings;	
+			const date = _.get(performance, 'date', null)
 
 			return {
 				advisorId: _.get(performance, 'advisor._id', null),
@@ -526,7 +527,8 @@ module.exports.getDailyContestOverallWinnersByEarnings = (args, res, next) => {
 				weeklyEarnings, 
 				totalEarnings,
 				pnlStats: performance.pnlStats,
-				portfolioStats: performance.portfolioStats
+				portfolioStats: performance.portfolioStats,
+				date
 			};
 		})
 	})
@@ -570,8 +572,16 @@ module.exports.getDailyContestOverallWinnersByEarnings = (args, res, next) => {
 		])
 	})
 	.then(performances => {
-		const portfolioData = performances[0];
-		const pnlData = performances[1];
+		let portfolioData = performances[0];
+		let pnlData = performances[1];
+		
+		pnlData = pnlData.map(dataItem => {
+			return _.omit(dataItem, 'pnlStats.detail', 'pnlStats.net.realized', 'pnlStats.net.total.byTickers');
+		});
+		portfolioData = portfolioData.map(dataItem => {
+			return _.omit(dataItem, 'pnlStats.detail', 'pnlStats.net.realized', 'pnlStats.net.total.byTickers');
+		});
+
 		/**
 		 * Explanation of the following steps
 		 * 1. Keys both the portfolio and pnl collections by advisorId, which converts it to object
