@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-22 09:34:44
+* @Last Modified time: 2019-02-22 11:05:14
 */
 
 
@@ -186,27 +186,39 @@ DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, d
 	//Null includes everything
 	var active = _.get(options, 'active', true); 
 
-	var q = active == null ? {} : 
+	// var q = active == null ? {} : 
 
-				!active ? {$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': false}]} :
+	// 			!active ? {$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': false}]} :
 
-			{$or:[
-				{$and: [
-					{'predictions.triggered': {$exists: true}}, 
-					{'predictions.triggered.status': true}, 
-					{$or: [
-						{'predictions.triggered.date': date},
-						{'predictions.triggered.date': {$exists: false}}]
-					}
-				]}, 
-				{'predictions.triggered': {$exists: false}}
-			]};
+	// 		{$or:[
+	// 			{$and: [
+	// 				{'predictions.triggered': {$exists: true}}, 
+	// 				{'predictions.triggered.status': true}, 
+	// 				{$or: [
+	// 					{'predictions.triggered.date': date},
+	// 					{'predictions.triggered.date': {$exists: false}}]
+	// 				}
+	// 			]}, 
+	// 			{'predictions.triggered': {$exists: false}}
+	// 		]};
 
-	return this.findOne({...query, date: date, ...q}, {predictions:1})
+	return this.findOne({...query, date: date}, {predictions:1})
 	.then(contestEntry => {
 		if (contestEntry) {
 			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
-			return allPredictions.filter(item => item);
+			return allPredictions.filter(item => {
+				var _triggered = _.get(item, 'prediction.status', true);
+				var triggeredDate = _.get(item, 'prediction.date', null);
+
+				var triggered = _triggered && (!triggeredDate || !moment(triggeredDate).isAfter(date));
+
+				var isActivePrediction = triggered;
+				var isInactivePrediction = !triggered;
+
+				return active == null ? isActivePrediction || isInactivePrediction : 
+					!active ? isInactivePrediction : isActivePrediction;
+
+			});
 		} else {
 			return [];
 		}
@@ -220,18 +232,18 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 	//Null includes everything
 	var active = _.get(options, 'active', true); 
 
-	var q = active == null ? {} :
+	// var q = active == null ? {} :
 				
-				!active ? {$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': false}]} :
+	// 			!active ? {$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': false}]} :
 
-					{$or:[
-						{$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': true}]}, 
-						{'predictions.triggered': {$exists: false}}
-					]};
+	// 				{$or:[
+	// 					{$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': true}]}, 
+	// 					{'predictions.triggered': {$exists: false}}
+	// 				]};
 
 	return this.find({
 				...query, 
-				...q, 
+				//...q, 
 				$or: [{'predictions.endDate': date}, 
 					{'predictions.status.date': date}]
 			}, {predictions:1})
@@ -244,9 +256,27 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 					//Convert the date to market-close date time 
 					//(relevant for date today because input is true time) 
 					var successFailureStatus = item.status.profitTarget || item.status.stopLoss || item.status.manualExit;
+					var manualExit  = item.status.manualExit;
 
-					return (moment(item.endDate).isSame(moment(date)) && !successFailureStatus) || 
-					(successFailureStatus && moment(item.status.date).isSame(moment(date)))
+					var dateCondition = moment(item.endDate).isSame(moment(date));
+
+					var _triggered = _.get(item, 'prediction.status', true);
+					var triggeredDate = _.get(item, 'prediction.date', null);
+
+					var triggered = _triggered && (!triggeredDate || !moment(triggeredDate).isAfter(date));
+
+
+					var isActivePrediction = triggered && dateCondition && 
+						(!successFailureStatus || (successFailureStatus && moment(item.status.date).isSame(moment(date))));
+
+					var isInactivePrediction = !triggered && dateCondition &&
+						(!manualExit || (manualExit && moment(item.status.date).isSame(moment(date))));
+
+
+					return active == null ? isActivePrediction || isInactivePrediction :
+						!active ? isInactivePrediction : isActivePrediction;
+
+
 				});
 			} else {
 				return [];
@@ -267,26 +297,26 @@ DailyContestEntry.statics.fetchEntryPredictionsOnDate = function(query, date, op
 	//Null includes everything
 	var active = _.get(options, 'active', true); 
 
-	var q = active == null ? 
+	// var q = active == null ? 
 				
-				{} : 
+	// 			{} : 
 
-				!active  ?  {$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': false}]} :
+	// 			!active  ?  {$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': false}]} :
 				
-				{$or:[
-					{$and: [
-						{'predictions.triggered': {$exists: true}}, 
-						{'predictions.triggered.status': true}, 
-						{$or: [
-							{'predictions.triggered.date': {$lte: date}},
-							{'predictions.triggered.date': {$exists: false}}]
-						}
-					]}, 
-					{'predictions.triggered': {$exists: false}}
-				]};
+	// 			{$or:[
+	// 				{$and: [
+	// 					{'predictions.triggered': {$exists: true}}, 
+	// 					{'predictions.triggered.status': true}, 
+	// 					{$or: [
+	// 						{'predictions.triggered.date': {$lte: date}},
+	// 						{'predictions.triggered.date': {$exists: false}}]
+	// 					}
+	// 				]}, 
+	// 				{'predictions.triggered': {$exists: false}}
+	// 			]};
 
 
-	return this.find({...query, date: {$lte: date}, ...q,
+	return this.find({...query, date: {$lte: date},
 			'predictions.endDate': {$gte: date}}, {predictions: 1})
 	.then(contestEntries => {
 		if (contestEntries) {
@@ -299,11 +329,25 @@ DailyContestEntry.statics.fetchEntryPredictionsOnDate = function(query, date, op
 
 					//Convert startdate(exact time) to EOD datetime for comparison purposes
 					var startDate = DateHelper.getMarketCloseDateTime(DateHelper.getDate(item.startDate));
-					var successFailureStatus = item.status.profitTarget || item.status.stopLoss || item.status.manualExit;
+					var manualExit = item.status.manualExit;
+					var successFailureStatus = item.status.profitTarget || item.status.stopLoss || manualExit;
 					
-					return !moment(startDate).isAfter(moment(date)) &&  //start is same or before
-							!moment(item.endDate).isBefore(moment(date)) && //end is same or after
-							(!successFailureStatus || (successFailureStatus && !moment(item.status.date).isBefore(moment(date))))
+					var _triggered = _.get(item, 'prediction.status', true);
+					var triggeredDate = _.get(item, 'prediction.date', null);
+
+					var triggered = _triggered && (!triggeredDate || !moment(triggeredDate).isAfter(date))
+
+					var dateCondition = !moment(startDate).isAfter(moment(date)) &&  //start is same or before
+							!moment(item.endDate).isBefore(moment(date)); //end is same or after
+
+					var isActivePrediction = triggered && dateCondition &&
+							(!successFailureStatus || (successFailureStatus && !moment(item.status.date).isBefore(moment(date))));
+
+					var isInactivePrediction = !triggered && dateCondition && (!manualExit || (manualExit && !moment(item.status.date).isBefore(moment(date))));
+
+					return active == null ? isActivePrediction || isInactivePrediction :
+						!active ? isInactivePrediction : isActivePrediction;
+
 				});
 			} else {
 				return [];
