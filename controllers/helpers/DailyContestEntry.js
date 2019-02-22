@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-22 12:35:41
+* @Last Modified time: 2019-02-22 15:01:37
 */
 
 'use strict';
@@ -2162,11 +2162,13 @@ module.exports.checkAdvisorInvestmentSum = function() {
 			.then(([predictions, advisor]) => {
 				
 				return Promise.mapSeries(predictions, function(prediction) {
+					var triggered = _.get(prediction, 'triggered.status', true);
+
 					var stopLossStatus = _.get(prediction, 'status.stopLoss', false); 
 					var profitTargetStatus = _.get(prediction, 'status.profitTarget', false); 
 					var expiredStatus = _.get(prediction, 'status.expired', false); 
 					var manualExitStatus = _.get(prediction, 'status.manualExit', false) && 
-						_.get(prediction, 'position.lastPrice', 0) != 0; 
+						 (!triggered || _.get(prediction, 'position.lastPrice', 0) != 0); 
 
 					return !stopLossStatus && 
 							!profitTargetStatus && 
