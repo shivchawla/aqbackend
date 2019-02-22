@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-22 11:41:04
+* @Last Modified time: 2019-02-22 12:21:38
 */
 
 
@@ -207,7 +207,7 @@ DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, d
 			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
 			return allPredictions.filter(item => {
 				var _triggered = _.get(item, 'prediction.status', true);
-				var triggeredDate = _.get(item, 'prediction.date', null);
+				var triggeredDate = _.get(item, 'prediction.triggered.date', null);
 
 				var triggered = _triggered && (!triggeredDate || !moment(triggeredDate).isAfter(date));
 
@@ -260,7 +260,7 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 					var dateCondition = moment(item.endDate).isSame(moment(date));
 
 					var _triggered = _.get(item, 'prediction.status', true);
-					var triggeredDate = _.get(item, 'prediction.date', null);
+					var triggeredDate = _.get(item, 'prediction.triggered.date', null);
 
 					var triggered = _triggered && (!triggeredDate || !moment(triggeredDate).isAfter(date));
 
@@ -330,17 +330,18 @@ DailyContestEntry.statics.fetchEntryPredictionsOnDate = function(query, date, op
 					var successFailureStatus = item.status.profitTarget || item.status.stopLoss || manualExit;
 					
 					var _triggered = _.get(item, 'prediction.status', true);
-					var triggeredDate = _.get(item, 'prediction.date', null);
+					var triggeredDate = _.get(item, 'prediction.triggered.date', null);
 
 					var triggered = _triggered && (!triggeredDate || !moment(triggeredDate).isAfter(date))
 
 					var dateCondition = !moment(startDate).isAfter(moment(date)) &&  //start is same or before
-							!moment(item.endDate).isBefore(moment(date)); //end is same or after
+						!moment(item.endDate).isBefore(moment(date)); //end is same or after
 
 					var isActivePrediction = triggered && dateCondition &&
-							(!successFailureStatus || (successFailureStatus && !moment(item.status.date).isBefore(moment(date))));
+						(!successFailureStatus || (successFailureStatus && !moment(item.status.date).isBefore(moment(date))));
 
-					var isInactivePrediction = !triggered && dateCondition && (!manualExit || (manualExit && !moment(item.status.date).isBefore(moment(date))));
+					var isInactivePrediction = !triggered && dateCondition && 
+						(!manualExit || (manualExit && !moment(item.status.date).isBefore(moment(date))));
 
 					return active == null ? isActivePrediction || isInactivePrediction :
 						!active ? isInactivePrediction : isActivePrediction;
