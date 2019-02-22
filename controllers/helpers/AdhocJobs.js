@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-12 09:45:28
+* @Last Modified time: 2019-02-21 19:48:47
 */
 
 'use strict';
@@ -35,7 +35,7 @@ function resetIntervalPrices(date) {
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(distinctAdvisors => {
 		return Promise.mapSeries(distinctAdvisors, function(advisorId){
-			return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
+			return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: null})
 			.then(predictions => {
 				return Promise.mapSeries(predictions, function(prediction){
 					prediction.priceInterval = {lowPrice:Infinity, highPrice:-Infinity};
@@ -84,21 +84,21 @@ function checkSumAdvisorAccount(update=false) {
 				var netEquity = 0;
 
 				return Promise.all([
-					DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: true}),
-					DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "ended", priceUpdate: false}),
-					DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "started", priceUpdate: true}),
+					DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: true, active: null}),
+					DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "ended", priceUpdate: false, active: null}),
+					DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "started", priceUpdate: true, active: null}),
 					DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date)
 				])
 				.then(([allPredictions, endedPredictions, startedPredictions, portfolioStats]) => {
 					
 					endedPredictions = endedPredictions.filter(prediction => {
-						var stopLoss = _.get(prediction, 'status.stopLoss', false);
-						var profitTarget = _.get(prediction, 'status.profitTarget', false);
+						var stopLoss = _.get(prediction, 'status.stopLoss', false) && moment(date).isSame(moment(prediction.status.date));
+						var profitTarget = _.get(prediction, 'status.profitTarget', false) && moment(date).isSame(moment(prediction.status.date));
 						var expired = _.get(prediction, 'status.expired', false) || 
 							(DateHelper.compareDates(date, DateHelper.getCurrentDate()) != 0 && !moment(DateHelper.getMarketCloseDateTime(prediction.endDate)).isAfter(date)) ||
 							(DateHelper.compareDates(date, DateHelper.getCurrentDate()) == 0 && !moment(DateHelper.getMarketCloseDateTime(prediction.endDate)).isAfter(moment()));
 
-						var manualExit = _.get(prediction, 'status.manualExit', false);
+						var manualExit = _.get(prediction, 'status.manualExit', false) && moment(date).isSame(moment(prediction.status.date));
 
 						return stopLoss || profitTarget || expired || manualExit;
 					});
@@ -110,7 +110,12 @@ function checkSumAdvisorAccount(update=false) {
 						var lastPrice = _.get(prediction, 'position.lastPrice', 0);
 						var investment = _.get(prediction, 'position.investment', 0);
 
-						var equity = avgPrice > 0 && lastPrice > 0 ? investment*(lastPrice/avgPrice) : investment;
+						var effectiveStartDate = DateHelper.getMarketCloseDateTime(_.get(prediction, 'conditional', false) ? prediction.triggered.trueDate : prediction.startDate);
+
+						var equity = investment;
+						if (effectiveStartDate && !moment(effectiveStartDate).isAfter(date)) {
+							equity = avgPrice > 0 && lastPrice > 0 ? investment*(lastPrice/avgPrice) : investment;	
+						}
 
 						if (index == 0) {
 							totalInvestment += Math.abs(investment);

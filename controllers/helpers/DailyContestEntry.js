@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-16 18:08:32
+* @Last Modified time: 2019-02-22 15:01:37
 */
 
 'use strict';
@@ -21,6 +21,11 @@ const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
+
+
+function _getEffectiveStartDate(prediction) {
+	return _.get(prediction, 'conditional', false) ? prediction.triggered.trueDate : prediction.startDate;
+}
 
 function _aggregatePnlStats(pnlStatsAllArray) {	
 	return new Promise(resolve => {
@@ -570,7 +575,7 @@ function _computePnlStats(predictions, date, ticker=null) {
 
 			var pos = item.position;
 
-			var startDate = item.startDate;
+			var startDate = _getEffectiveStartDate(item);
 			var predictionEndDate = item.status.date ||  item.endDate;
 			
 			var endDate = moment(date).isBefore(moment(predictionEndDate)) ? date : predictionEndDate;
@@ -951,6 +956,7 @@ function _getExtremePrices(history, startDate, endDate) {
 	}
 }
 
+
 function _trackIntradayHistory(security) {
 	return new Promise(function(resolve, reject) {
 
@@ -974,12 +980,12 @@ function _updatePortfolioForAveragePrice(portfolioHistory) {
 }
 
 function _updatePredictionForTrueCallPrice(prediction) {
-	var startDate = moment(prediction.startDate);
+	var startDate = moment(_getEffectiveStartDate(prediction));
 	var isAfterMarket = _.get(prediction, 'nonMarketHoursFlag', false);
 
 	return Promise.all([
 		SecurityHelper.getStockIntradayHistory(prediction.position.security),
-		SecurityHelper.getStockDetail(prediction.position.security, prediction.startDate)
+		SecurityHelper.getStockDetail(prediction.position.security, _getEffectiveStartDate(prediction))
 	])		
 	.then(([intradaySecurityDetail, eodSecurityDetail]) => {
 		
@@ -1004,11 +1010,11 @@ function _updatePredictionForTrueCallPrice(prediction) {
 }
 
 function _updatePredictionForCallPrice(prediction) {
-	var startDate = moment(prediction.startDate);
+	var startDate = moment(_getEffectiveStartDate(prediction));
 	
 	return Promise.all([
 		SecurityHelper.getStockIntradayHistory(prediction.position.security),
-		SecurityHelper.getStockDetail(prediction.position.security, prediction.startDate)
+		SecurityHelper.getStockDetail(prediction.position.security, _getEffectiveStartDate(prediction))
 	])
 	.then(([intradaySecurityDetail, eodSecurityDetail]) => {
 		
@@ -1137,6 +1143,10 @@ function _computeTotalPnlStats(advisorId, date, options) {
 
 			return  item;
 		});
+
+		// console.log("Total PnL");
+		// console.log(updatedPredictions);
+
 		//Total Pnl
 		return Promise.all([
 			_getPnlStats(updatedPredictions, date),
@@ -1174,6 +1184,9 @@ function _computeDailyPnlStats(advisorId, date, options) {
 
 	return exports.getPredictionsForDate(advisorId, date, {category})
 	.then(updatedPredictions => {
+
+		// console.log("While computing pnl");
+		// console.log(updatedPredictions);
 			
 		//BUT THE updated predictions have Call price as of beginning of prediction
 		//For Daily change, we need daily changes
@@ -1182,7 +1195,7 @@ function _computeDailyPnlStats(advisorId, date, options) {
 			//What's the significance of dailyPnL for entries starting today - ?
 			//So don't update the startdate for those predictions		
 			let startDate = date;
-			var startDateRoundedEOD = DateHelper.getMarketCloseDateTime(prediction.startDate);
+			var startDateRoundedEOD = DateHelper.getMarketCloseDateTime(_getEffectiveStartDate(prediction));
 
 			return Promise.resolve()
 			.then(() => {
@@ -1218,6 +1231,9 @@ function _computeDailyPnlStats(advisorId, date, options) {
 
 				return  item;
 			});
+
+			// console.log("What's the updated");
+			// console.log(updatedPredictions);
 
 			//Total Pnl
 			return _getPnlStats(updatedPredictions);
@@ -1356,6 +1372,9 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 	const category = _.get(options, 'category', "started");
 	const priceUpdate = _.get(options, 'priceUpdate', true);
+	
+	//TO match with flag triggered in DB (means prediction was active)
+	const active = _.get(options, 'active', true);
 
 	let updatedPredictions;
 	return Promise.resolve()
@@ -1369,21 +1388,13 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 		var useEndedPredictions = !isToday || (isToday && moment().isAfter(moment(DateHelper.getMarketCloseDateTime(date))));
 		
 		switch(category) {
-			case "all": return DailyContestEntryModel.fetchEntryPredictionsOnDate({advisor: advisorId}, date); break;
-			case "started": return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, date); break;
-			case "ended": return DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({advisor: advisorId}, date); break;
-			
-			// //not used 
-			// case "all": return Promise.all([
-			// 				useEndedPredictions ? DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({advisor: advisorId}, date) : [],
-			// 				DailyContestEntryModel.fetchEntryPredictionsActiveOnDate({advisor: advisorId}, date) 
-			// 			])
-			// 			.then(([endedPredictions, activePredictions]) => {
-			// 				return endedPredictions.concat(activePredictions);
-			// 			});
+			case "all": return DailyContestEntryModel.fetchEntryPredictionsOnDate({advisor: advisorId}, date, {active}); break;
+			case "started": return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, date, {active}); break;
+			case "ended": return DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({advisor: advisorId}, date, {active}); break;
 		}
 	})
 	.then(predictions => {
+
 		if (predictions && predictions.length > 0){
 			return priceUpdate ? _computeUpdatedPredictions(predictions, date) : predictions;
 		} else {
@@ -1494,9 +1505,9 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 	
 	return Promise.all([
-		exports.getPredictionsForDate(advisorId, date, {category: "all"}),
-		exports.getPredictionsForDate(advisorId, date, {category: "started", priceUpdate:false}),
-		exports.getPredictionsForDate(advisorId, date, {category: "ended", priceUpdate: false}),
+		exports.getPredictionsForDate(advisorId, date, {category: "all", active: null}),
+		exports.getPredictionsForDate(advisorId, date, {category: "started", priceUpdate:false, active: null}),
+		exports.getPredictionsForDate(advisorId, date, {category: "ended", priceUpdate: false, active: null}),
 		AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account'})
 	])
 	.then(([allPredictions, startedPredictions, endedPredictions, advisor]) => {
@@ -1528,7 +1539,9 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 						var lastPrice = _.get(item, 'position.lastPrice', 0);
 						var avgPrice = _.get(item, 'position.avgPrice', 0);
 
-						var equity = avgPrice > 0  && lastPrice > 0 ? investment * (lastPrice/avgPrice) : investment;
+						var triggered = _.get(item, 'triggered.status', true);
+
+						var equity = avgPrice > 0 && lastPrice > 0 && triggered ? investment * (lastPrice/avgPrice) : investment;
 						netEquity += equity
 						grossEquity += Math.abs(equity);
 					}
@@ -1541,8 +1554,10 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 					var investment = _.get(item, 'position.investment', 0);
 					var avgPrice = _.get(item, 'position.avgPrice', 0);
 
-					//Manual Exit will update cash (if lastPrice is not yet populated)
-					if (manualExit && lastPrice == 0.0) {
+					var triggered = _.get(item, 'triggered.status', true);
+
+					//Manual Exit will update cash (if lastPrice is not yet populated) and it's was active(triggred)
+					if (manualExit && lastPrice == 0.0 && triggered) {
 						//Get the latest price to compute tentative cash procees
 						//This adjust just the 
 						return SecurityHelper.getStockLatestDetail(item.position.security)
@@ -1560,9 +1575,12 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 
 					var grossTotal = grossEquity + cash;
 					var netTotal = netEquity + cash;
-					
 					var advisorAccount = advisor ? _.get(advisor.toObject(), 'account', {}) : {};
-					
+
+					// console.log(`Equity: ${netEquity}`);
+					// console.log(`Cash: ${cash}`);
+					// console.log(`Account: ${advisorAccount}`);
+
 					const updates = {
 						...advisorAccount, cash,
 						netEquity, grossEquity, grossTotal, netTotal, 
@@ -1713,7 +1731,7 @@ module.exports.checkForPredictionTarget = function() {
 					if (successfulPredictions.length > 0) {
 
 						var successfulDayBasis = successfulPredictions.filter(item => {
-							var isStartDateToday = DateHelper.compareDates(item.startDate, currentDate) == 0;
+							var isStartDateToday = DateHelper.compareDates(_getEffectiveStartDate(item), currentDate) == 0;
 							
 							//Make sure only one direction is hit with daily price movement
 							//If both directions are hit, we need to time resolve (which was hit first?) [at next step]
@@ -1722,7 +1740,7 @@ module.exports.checkForPredictionTarget = function() {
 						});
 
 						var partiallySuccessfulIntraday =  successfulPredictions.filter(item => {
-							var isStartDateToday = DateHelper.compareDates(item.startDate, currentDate) == 0;
+							var isStartDateToday = DateHelper.compareDates(_getEffectiveStartDate(item), currentDate) == 0;
 							return isStartDateToday;	
 						});
 
@@ -1736,7 +1754,7 @@ module.exports.checkForPredictionTarget = function() {
 									var investment = item.position.investment;
 									var target = item.target;
 
-									var startDate = item.startDate;
+									var startDate = _getEffectiveStartDate(item);
 									var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, startDate);
 
 									var highPrice = _.get(extremePricesSinceStartDate, 'high.price', -Infinity);
@@ -1987,7 +2005,7 @@ module.exports.getDailyContestEntryPnlStats = function(advisorId, symbol, horizo
 	})
 };
 
-function _getDistinctPredictionTickersForAdvisors(date) {
+function _getDistinctPredictionTickersForAdvisors(date, options={}) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 	
 	var advisorsByTicker = {};
@@ -1995,7 +2013,7 @@ function _getDistinctPredictionTickersForAdvisors(date) {
 	return DailyContestEntryModel.fetchDistinctAdvisors()
 	.then(distinctAdvisors => {
 		return Promise.mapSeries(distinctAdvisors, function(advisorId){
-			return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
+			return exports.getPredictionsForDate(advisorId, date, {...options, category: "all", priceUpdate: false})
 			.then(predictions => {
 				var predictionTickers = predictions.map(item => {return _.get(item, 'position.security.ticker', null)}).filter(item => item) || [];
 				return Promise.map(predictionTickers, function(ticker) {
@@ -2042,6 +2060,8 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 								var currentLowPrice = _.get(prediction, 'priceInterval.lowPrice', Infinity);
 
 								var possibleEndDate = prediction.status.trueDate || prediction.status.date || prediction.endDate;
+								
+								//Use true startdate for populating interval pricing
 								var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, prediction.startDate, possibleEndDate);
 								var highPrice = _.get(extremePricesSinceStartDate, 'high.price', -Infinity);
 								var lowPrice = _.get(extremePricesSinceStartDate, 'low.price', Infinity);
@@ -2129,7 +2149,6 @@ module.exports.updateManuallyExitedPredictionsForLastPrice = function(date) {
 	})
 }
 
-
 module.exports.checkAdvisorInvestmentSum = function() {
 	var date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 
@@ -2143,11 +2162,13 @@ module.exports.checkAdvisorInvestmentSum = function() {
 			.then(([predictions, advisor]) => {
 				
 				return Promise.mapSeries(predictions, function(prediction) {
+					var triggered = _.get(prediction, 'triggered.status', true);
+
 					var stopLossStatus = _.get(prediction, 'status.stopLoss', false); 
 					var profitTargetStatus = _.get(prediction, 'status.profitTarget', false); 
 					var expiredStatus = _.get(prediction, 'status.expired', false); 
 					var manualExitStatus = _.get(prediction, 'status.manualExit', false) && 
-						_.get(prediction, 'position.lastPrice', 0) != 0; 
+						 (!triggered || _.get(prediction, 'position.lastPrice', 0) != 0); 
 
 					return !stopLossStatus && 
 							!profitTargetStatus && 
@@ -2176,5 +2197,98 @@ module.exports.checkAdvisorInvestmentSum = function() {
 			})
 			
 		})
+	})
+};
+
+
+module.exports.checkPredictionTriggers = function(date) {
+
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+
+	//Active flag will fetch prediction that are inactive (not triggered yet)
+	return _getDistinctPredictionTickersForAdvisors(date, {active: false})
+	.then(allAdvisorsByTickers => {
+		var allTickers = Object.keys(allAdvisorsByTickers);
+
+		return Promise.mapSeries(allTickers, function(ticker) {
+			return SecurityHelper.getStockIntradayHistory({ticker: ticker}, date)
+			.then(securityDetail => {
+				var advisorsForThisTicker = _.uniq(allAdvisorsByTickers[ticker]);
+
+				return Promise.mapSeries(advisorsForThisTicker, function(advisorId){
+					return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: false})
+					.then(inActivePredictions => {
+						
+						if (inActivePredictions && inActivePredictions.length > 0) {
+
+							return Promise.mapSeries(inActivePredictions, function(prediction) {
+								
+								if (prediction.position.security.ticker == ticker) {
+
+									var investment = prediction.position.investment;
+									var conditionalPrice = prediction.conditionalPrice || prediction.position.avgPrice;
+
+									//Make sure that prediction has average price (comes from the user)
+									if (!conditionalPrice || conditionalPrice == 0) {
+										console.log(`OOPS!! Buy-Below/Sell-Above prediction without conditional Price, Advisor: ${advisorId} & Prediction: ${prediction._id}`);
+										return;
+									}
+
+									//Make sure here that prediction is NOT exited already
+									var manualExit = _.get(prediction, 'status.manualExit', false);
+
+									if (manualExit) {
+										console.log(`OOPS!! Buy-Below/Sell-Above prediction has already been exited, Advisor: ${advisorId} & Prediction: ${prediction._id}`);
+										return;
+									}
+
+									//Here effective is not required
+									//Here, actual matters and triggered is not even available
+									var startDate = prediction.startDate;
+
+									if (DateHelper.compareDates(date, startDate) > 0) {
+										startDate = DateHelper.getMarketOpenDateTime(date);
+									}
+									
+									var endDate = DateHelper.getMarketCloseDateTime(date);
+
+									var relevantIntradayHistory = securityDetail.intradayHistory.filter(item => {var dt = item.datetime; return moment(dt).isAfter(moment(startDate)) && !moment(dt).isAfter(moment(endDate))});
+
+									if (relevantIntradayHistory.length > 0) {
+
+										var idx = -1;
+										if (investment > 0) {
+											idx = relevantIntradayHistory.findIndex(item => {return _.get(item, 'low', Infinity) <= conditionalPrice;});
+										} else {
+											idx = relevantIntradayHistory.findIndex(item => {return _.get(item, 'high', -Infinity) >= conditionalPrice;});
+										}
+										
+										if (idx != -1) {
+											console.log(`Prediction Triggered for Advisor: ${advisorId} & predictionId: ${prediction._id}`);
+
+											prediction.triggered.date = date;
+											prediction.triggered.trueDate = moment(relevantIntradayHistory[idx].datetime).add(1, 'minute').startOf('minute').toDate();
+											prediction.triggered.status = true;
+
+											//If the condition triggers ar market open, update the average price
+											if (moment(prediction.triggered.trueDate).isSame(DateHelper.getMarketOpenDateTime(date).add(1, 'minute'))) {
+												console.log(`Prediction triggered at Day's Open. Resetting average price!!`);
+												prediction.position.avgPrice = relevantIntradayHistory[idx].close;
+											}
+
+											return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
+										}
+
+									}
+								}
+
+							})
+
+						}
+					})
+				})
+			})
+
+		});
 	})
 };

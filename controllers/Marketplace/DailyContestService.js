@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-01 18:45:38
+* @Last Modified time: 2019-02-21 23:12:43
 */
 
 'use strict';
@@ -28,6 +28,8 @@ const DailyContestEntryHelper = require('../helpers/DailyContestEntry');
 const DailyContestHelper = require('../helpers/DailyContest');
 const DailyContestStatsHelper = require('../helpers/DailyContestStats');
 const SecurityHelper = require('../helpers/Security');
+const AdvisorHelper = require('../helpers/Advisor');
+
 /* 
 * Get contest entry for a date
 */
@@ -49,7 +51,7 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 	.then(advisor => {
 		if (advisor) {
 			const advisorId = advisor._id.toString();
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category});
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category, active: null});
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} else {
@@ -223,11 +225,12 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	let validStartDate = DailyContestEntryHelper.getValidStartDate();
 
 	return Promise.resolve()
-	/*.then(() => {
-		if (!DateHelper.isMarketTrading()) {
-			APIError.throwJsonError({message: "Market is closed!"})
-		}
-	})*/
+	.then(() => {
+
+		// if (!DateHelper.isMarketTrading() && entryPredictions.filter(item => {return item.conditional;}).length > 0) {
+		// 	APIError.throwJsonError({message: "Market is closed! Conditional predictions not allowed!!"})
+		// }
+	})
 	.then(() => {
 		//Check if investment amount is either 10, 25, 50, 75 or 100K
 		return Promise.map(entryPredictions.map(item => {return _.get(item, 'position.investment');}), function(investment) {
@@ -292,21 +295,31 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			var investmentRequired = 0;
 
 			entryPredictions.forEach(item => {
-				investmentRequired += Math.abs(_.get(item, 'position.investment', 0));
+				investmentRequired += !item.conditional ? Math.abs(_.get(item, 'position.investment', 0)) : 0;
 			});
 
 			if (liquidCash < investmentRequired) {
 				APIError.throwJsonError({message: `Insufficient funds to create predictions.`});
 			}
 			
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "all", priceUpdate: false});
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "all", priceUpdate: false, active: null});
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}
 	})
 	.then(activePredictions => {
 
+		activePredictions = activePredictions.filter(item => {
+			var completeStatus = _.get(item, 'status.profitTarget', false) ||  
+				_.get(item, 'status.stopLoss', false) ||  
+				_.get(item, 'status.manualExit', false) ||  
+				_.get(item, 'status.expired', false);
+
+				return !completeStatus; 
+		});
+
 		return Promise.map(entryPredictions, function(prediction) {
+			
 			var ticker = _.get(prediction, 'position.security.ticker', "");
 			var existingPredictionsInTicker = activePredictions.filter(item => {return item.position.security.ticker == ticker;});
 			var newPredictioninTicker = entryPredictions.filter(item => {return item.position.security.ticker == ticker;});
@@ -327,11 +340,15 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				
 				item.startDate = validStartDate;
 				item.endDate = DateHelper.getMarketCloseDateTime(DateHelper.getNextNonHolidayWeekday(item.endDate, 0));
-				item.active = true;
 				item.modified = 1;
 				item.stopLoss = -Math.abs(_.get(item, 'stopLoss', 1));
 				item.nonMarketHoursFlag = DateHelper.isHoliday() || !DateHelper.isMarketTrading();
 				item.createdDate = new Date();
+
+				var isConditional = item.conditional && item.position.avgPrice != 0; 
+
+				//Set trigger
+				item = {...item, triggered: {status: !isConditional}, conditionalPrice: isConditional ? item.position.avgPrice : 0};
 
 				return item;
 
@@ -361,13 +378,6 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 	
 	Promise.resolve()
 	.then(() => {
-		if(!DateHelper.isMarketTrading()) {
-			APIError.throwJsonError({message: "Can't exit - Market is closed"});
-		} else {
-			return;
-		}
-	})
-	.then(() => {
 		let advisorSelection = {user: userId};
 		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
 			advisorSelection = {_id: advisorId};
@@ -378,21 +388,33 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 		if (advisor) {
 			advisorId = advisor._id.toString();
 			var date = DateHelper.getMarketCloseDateTime();
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false});
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: null});
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}
 	})
-	.then(allActivePredictions => {
-		var idx = allActivePredictions.findIndex(item => {return item._id.toString() == predictionId;});
+	.then(allPredictions => {
+		var idx = allPredictions.findIndex(item => {return item._id.toString() == predictionId;});
 		if (idx != -1) {
 
-			var prediction = allActivePredictions[idx];
+			var prediction = allPredictions[idx];
+			var unfulfilledConditional = _.get(prediction, 'conditional', false) && !_.get(prediction, 'triggered.status', true);
+
+			if (!unfulfilledConditional && !DateHelper.isMarketTrading()) {
+				APIError.throwJsonError({message: "Can't exit active prediction - Market is closed"});	
+			} 
+
 			prediction.status.manualExit = true;
 			prediction.status.trueDate = new Date();
 			prediction.status.date = DateHelper.getMarketCloseDateTime(new Date());
 
-			return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
+			return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction)
+			.then(() => {
+				//Update the Account credit if prediction was never triggered (else handle it in helper)
+				if (!_.get(prediction,'triggered.status', true)) {
+					return AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction);
+				}
+			})
 
 		} else {
 			APIError.throwJsonError({message: "Prediction not found"});

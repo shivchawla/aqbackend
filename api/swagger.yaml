@@ -4934,6 +4934,9 @@ definitions:
       stopLoss:
         type: number
         default: -1
+      conditional:
+        type: boolean
+        default: false 
 
   DailyContestPredictions:
     type: object
