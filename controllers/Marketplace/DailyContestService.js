@@ -520,7 +520,7 @@ module.exports.getDailyContestOverallWinnersByEarnings = (args, res, next) => {
 			Promise.map(winners, performance => {
 				const advisorId = _.get(performance, 'advisorId', null);
 				if (performance.portfolioStats === null) {
-					return DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId})
+					return DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId})
 					.then(data => {
 						return {
 							...performance,
