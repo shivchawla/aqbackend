@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 22:52:25
+* @Last Modified time: 2019-02-22 12:35:41
 */
 
 'use strict';
@@ -2061,9 +2061,8 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 
 								var possibleEndDate = prediction.status.trueDate || prediction.status.date || prediction.endDate;
 								
-								var effectiveStartDate = _getEffectiveStartDate(prediction);
-
-								var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, effectiveStartDate, possibleEndDate);
+								//Use true startdate for populating interval pricing
+								var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, prediction.startDate, possibleEndDate);
 								var highPrice = _.get(extremePricesSinceStartDate, 'high.price', -Infinity);
 								var lowPrice = _.get(extremePricesSinceStartDate, 'low.price', Infinity);
 								
@@ -2291,46 +2290,3 @@ module.exports.checkPredictionTriggers = function(date) {
 		});
 	})
 };
-
-// /*
-// * Remove unfulfilled conditional predictions at EOD (GTC not allowed yet..)
-// */
-// module.exports.removeConditionalPredictions = function(date) {
-
-// 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
-
-// 	return DailyContestEntryModel.fetchDistinctAdvisors()
-// 	.then(allAdvisors => {
-// 		return Promise.mapSeries(allAdvisors, function(advisorId) {
-// 			return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: false})
-// 			.then(inActivePredictions => {
-			
-// 				var unfulfilledPredictions = inActivePredictions.filter(item => {
-					
-// 					//extra checks
-// 					var conditional = _.get(item, 'conditional', false); 
-// 					var triggered = _.get(item, 'triggered.status', true); 
-// 					var manualExit = _.get(item, 'status.manualExit', false);
-
-// 					return conditional && !triggered && !manualExit;
-// 				});
-
-// 				return Promise.mapSeries(unfulfilledPredictions, function(prediction) {
-// 					prediction.status.manualExit = true;
-// 					prediction.status.trueDate = DateHelper.getMarketCloseDateTime();
-// 					prediction.status.date = DateHelper.getMarketCloseDateTime();
-
-// 					return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction)
-// 					.then(() => {
-// 						//Update the Account credit if prediction was never triggered 
-// 						return AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction);
-// 					})
-// 				})
-// 			})
-// 		})
-// 	})
-// }
-
-
-
-
