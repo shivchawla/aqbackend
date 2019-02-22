@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 17:43:51
+* @Last Modified time: 2019-02-22 09:58:39
 */
 
 'use strict';
@@ -66,9 +66,6 @@ if (config.get('jobsPort') === serverPort) {
 	    	.then(() => {
 	    		DailyContestEntryHelper.updatePredictionsForIntervalPrice();
     		})
-    		.then(() => {
-	    		DailyContestEntryHelper.checkPredictionTriggers();
-    		})
 			.then(() => { 
 	    		DailyContestEntryHelper.updateAllEntriesLatestPnlStats();
 			})
@@ -100,14 +97,17 @@ if (config.get('jobsPort') === serverPort) {
 		}
 	});
 
-	const scheduleUpdateCallPrice = `*/5 * * * 1-5`;
+
+
+	const scheduleUpdateCallPrice = `*/5 ${DateHelper.getMarketOpenHour() - 1}-${DateHelper.getMarketCloseHour() + 1} * * 1-5`;
 	schedule.scheduleJob(scheduleUpdateCallPrice, function() { 
 		if (!DateHelper.isHoliday()) {
-	    	DailyContestEntryHelper.updateCallPriceForPredictions();
+	    	DailyContestEntryHelper.updateCallPriceForPredictions()
+	    	.then(() => {
+	    		DailyContestEntryHelper.checkPredictionTriggers();
+	    	})
     	}
 	});
-
-
 
 }
 
