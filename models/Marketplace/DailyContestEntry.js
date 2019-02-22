@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-22 12:24:36
+* @Last Modified time: 2019-02-22 12:28:44
 */
 
 
@@ -206,8 +206,8 @@ DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, d
 		if (contestEntry) {
 			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
 			return allPredictions.filter(item => {
-				var _triggered = _.get(item, 'prediction.triggered.status', true);
-				var triggeredDate = _.get(item, 'prediction.triggered.date', null);
+				var _triggered = _.get(item, 'triggered.status', true);
+				var triggeredDate = _.get(item, 'triggered.date', null);
 
 				var triggered = _triggered && (!triggeredDate || !moment(triggeredDate).isAfter(date));
 
@@ -259,8 +259,8 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 
 					var dateCondition = moment(item.endDate).isSame(moment(date));
 
-					var _triggered = _.get(item, 'prediction.triggered.status', true);
-					var triggeredDate = _.get(item, 'prediction.triggered.date', null);
+					var _triggered = _.get(item, 'triggered.status', true);
+					var triggeredDate = _.get(item, 'triggered.date', null);
 
 					var triggered = _triggered && (!triggeredDate || !moment(triggeredDate).isAfter(date));
 
@@ -329,8 +329,8 @@ DailyContestEntry.statics.fetchEntryPredictionsOnDate = function(query, date, op
 					var manualExit = item.status.manualExit;
 					var successFailureStatus = item.status.profitTarget || item.status.stopLoss || manualExit;
 					
-					var _triggered = _.get(item, 'prediction.triggered.status', true);
-					var triggeredDate = _.get(item, 'prediction.triggered.date', null);
+					var _triggered = _.get(item, 'triggered.status', true);
+					var triggeredDate = _.get(item, 'triggered.date', null);
 
 					var triggered = _triggered && (!triggeredDate || !moment(triggeredDate).isAfter(date))
 
