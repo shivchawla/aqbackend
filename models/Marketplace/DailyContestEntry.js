@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-22 11:05:14
+* @Last Modified time: 2019-02-22 11:41:04
 */
 
 
@@ -121,7 +121,6 @@ const DailyContestEntry = new Schema({
 
 DailyContestEntry.index({advisor: 1, date:1}, {unique: true});
 DailyContestEntry.index({advisor: 1}, {unique: false});
-DailyContestEntry.index({'predictions.triggered': 1, 'predictions.endDate':1});
 
 
 /*Rules
@@ -265,13 +264,11 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 
 					var triggered = _triggered && (!triggeredDate || !moment(triggeredDate).isAfter(date));
 
+					var isActivePrediction = triggered && (dateCondition || 
+						(successFailureStatus && moment(item.status.date).isSame(moment(date))));
 
-					var isActivePrediction = triggered && dateCondition && 
-						(!successFailureStatus || (successFailureStatus && moment(item.status.date).isSame(moment(date))));
-
-					var isInactivePrediction = !triggered && dateCondition &&
-						(!manualExit || (manualExit && moment(item.status.date).isSame(moment(date))));
-
+					var isInactivePrediction = !triggered && (dateCondition ||
+						(manualExit && moment(item.status.date).isSame(moment(date))));
 
 					return active == null ? isActivePrediction || isInactivePrediction :
 						!active ? isInactivePrediction : isActivePrediction;
