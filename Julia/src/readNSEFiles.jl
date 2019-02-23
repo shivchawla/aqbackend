@@ -65,8 +65,8 @@ function readMktFile(fname::String)
 			intTtq = read(f, Int32)
 			blank = read(f, Int32)
 			
-			ttd = TradeBar(Dates.unix2datetime(timestamp), open, high, low, close, Int64(ttq))
-			tt = TradeBar(Dates.unix2datetime(timestamp), intOpen, intHigh, intLow, intClose, Int64(intTtq))
+			ttd = TradeBar(Dates.unix2datetime(timestamp), open, high, low, close, Float64(ttq))
+			tt = TradeBar(Dates.unix2datetime(timestamp), intOpen, intHigh, intLow, intClose, Float64(intTtq))
 			
 			if intClose != 0.0
 				output["RT"][stoken] = tt
@@ -142,8 +142,8 @@ function readIndFile(fname::String)
 			#Doesn't contain last close
 			close  = round(current/(1+change/100), digits = 2)
 
-			ttd = TradeBar(Dates.unix2datetime(timestamp), open, high, low, close, 0)
-			tt = TradeBar(Dates.unix2datetime(timestamp), intOpen, intHigh, intLow, intClose, 0)
+			ttd = TradeBar(Dates.unix2datetime(timestamp), open, high, low, close, 0.0)
+			tt = TradeBar(Dates.unix2datetime(timestamp), intOpen, intHigh, intLow, intClose, 0.0)
 			
 			if intClose != 0.0
 				output["RT"][itoken] = tt

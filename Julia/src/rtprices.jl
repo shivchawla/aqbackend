@@ -59,7 +59,7 @@ function _updateportfolio_RTprice(port)
                 if price != nothing
                     updatedDate = DateTime(timestamp(price)[1])
                     val = values(price)[1]
-                    latest_tradebar = BackTester.TradeBar(DateTime(), val, val, val, val, 0)
+                    latest_tradebar = BackTester.TradeBar(DateTime(), val, val, val, val)
                 end
             end
             
