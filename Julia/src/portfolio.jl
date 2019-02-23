@@ -1,8 +1,8 @@
 using YRead
-using Raftaar: Security, SecuritySymbol, Portfolio, DollarPortfolio, Position, DollarPosition, OrderFill, TradeBar, Adjustment
-using Raftaar: Performance, PortfolioStats 
-using Raftaar: calculateperformance
-using Raftaar: updateportfolio_fill!, updateportfolio_price!, updateportfolio_splits_dividends!
+using BackTester: Security, SecuritySymbol, Portfolio, DollarPortfolio, Position, DollarPosition, OrderFill, TradeBar, Adjustment
+using BackTester: Performance, PortfolioStats 
+using BackTester: calculateperformance
+using BackTester: updateportfolio_fill!, updateportfolio_price!, updateportfolio_splits_dividends!
 
 import Base: convert
 using TimeSeries
@@ -19,7 +19,7 @@ format = "yyyy-mm-ddTHH:MM:SS.sssZ"
 function filternan(ta::TimeArray, col = "")
     (nrows, ncols) = size(ta)
     lastname = col == "" ? colnames(ta)[ncols] : col
-    ta[.!isnan.(ta[lastname].values)]
+    ta[.!isnan.(values(ta[lastname]))]
 end 
 
 function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate::DateTime; adjustment::Bool = false, strict::Bool = true, appendRealtime::Bool = false, field="Close") 
@@ -49,7 +49,7 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
     rtTimeArray = nothing
     try
         if appendRealtime && Date(enddate) >= currentDate 
-            laststamp = eod_prices != nothing ? eod_prices.timestamp[end] : nothing
+            laststamp = eod_prices != nothing ? timestamp(eod_prices)[end] : nothing
 
             if laststamp == nothing || (laststamp != nothing && laststamp < currentDate)
                 ##HERE APPEND REAL TIME PRICES
@@ -86,6 +86,7 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
                 rtTimeArray = TimeArray([rtTimeStamp], mat, tickers)
             end
         end
+    catch err
     end
 
     if rtTimeArray != nothing
@@ -185,7 +186,7 @@ function _compute_latest_portfoliovalue(portfolio)
             return cash
         end
 
-        ts = prices.timestamp
+        ts = timestamp(prices)
 
         nrows = length(ts)
         portfolio_value = 0.0
@@ -195,7 +196,7 @@ function _compute_latest_portfoliovalue(portfolio)
 
             ticker = sym.ticker
             
-            close = prices[ticker].values[end]
+            close = values(prices[ticker])[end]
             equity_value += _getquantity(portfolio, sym) * close 
         end
 
@@ -306,7 +307,7 @@ function _compute_portfoliovalue(portfolio, start_date::DateTime, end_date::Date
 
         if merged_prices == nothing
             println("Price data not available")
-            dt_array = benchmark_prices != nothing ? benchmark_prices.timestamp : []
+            dt_array = benchmark_prices != nothing ? timestamp(benchmark_prices) : []
             if length(dt_array) == 0 
                 return nothing
             end
@@ -314,7 +315,7 @@ function _compute_portfoliovalue(portfolio, start_date::DateTime, end_date::Date
             return TimeArray([dt for dt in dt_array], portfolio.cash*ones(length(dt_array)), ["Portfolio"])
         end
 
-        ts = merged_prices.timestamp
+        ts = timestamp(merged_prices)
 
         nrows = length(ts)
         portfolio_value = zeros(nrows, 1)
@@ -355,7 +356,7 @@ function _compute_portfoliovalue(port::Dict{String, Any}, date::DateTime)
         portfolio = convertPortfolio(port)
         portfolio_value = _compute_portfoliovalue(portfolio, date, date)
 
-        return portfolio_value.values[1]
+        return values(portfolio_value)[1]
     catch err
         rethrow(err)
     end
@@ -382,7 +383,7 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, ed
         end
 
         portfolio_value = values(portfolio_values)[end]
-        latest_date = DateTime(portfolio_values.timestamp[end])
+        latest_date = DateTime(timestamp(portfolio_values)[end])
 
         # Get the list of ticker
         allkeys = keys(portfolio.positions)
@@ -465,7 +466,7 @@ function _cashRequirement(oldPortfolio, newPortfolio, date::DateTime)
                 adjType = adjustment[3]
                 adjFactor = adjustment[2]
                 if(adjType != 17.0)
-                    oldQty = Int(round(oldQty*1.0/adjFactor))
+                    oldQty = Int(round(oldQty*1.0/adjFactor, digits = 0))
                 end
             end
         end
@@ -593,7 +594,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
             end
 
             if portfolio_value_ta_adj != nothing 
-               portfolio_value_ta_adj = round.(portfolio_value_ta_adj.*dividendFactor, 2) 
+               portfolio_value_ta_adj = round.(portfolio_value_ta_adj.*dividendFactor, digits = 2) 
                ts[length(portfolioHistory)-idx+1] = portfolio_value_ta_adj
             end
 
@@ -614,8 +615,8 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
         end
 
         if f_ts != nothing
-            netValues = f_ts.values
-            timeStamps = f_ts.timestamp
+            netValues = values(f_ts)
+            timeStamps = timestamp(f_ts)
             return (netValues[:], timeStamps)
         else 
             return (nothing, nothing)
@@ -650,7 +651,7 @@ function compute_portfolio_value_period(port::Dict{String, Any}, startDate::Date
 
         portfolio_value = _compute_portfoliovalue(portfolio, startDate, endDate, excludeCash = excludeCash, adjustment=true)
 
-        return (portfolio_value.values, portfolio_value.timestamp)
+        return (values(portfolio_value), timestamp(portfolio_value))
     catch err
         rethrow(err)
     end
@@ -673,13 +674,13 @@ function updateportfolio_transactions(port::Dict{String, Any}, transactions::Vec
             if (transaction["security"]["ticker"] == "CASH_INR")  
                 cash += convert(Float64, transaction["quantity"])
             else
-                fill = convert(Raftaar.OrderFill, transaction)
+                fill = convert(BackTester.OrderFill, transaction)
                 push!(fills, fill)
             end
         end
 
         if length(fills) > 0
-            Raftaar.updateportfolio_fills!(portfolio, fills)
+            BackTester.updateportfolio_fills!(portfolio, fills)
         end
 
         portfolio.cash += cash
@@ -725,7 +726,7 @@ end
 ###
 #=function update_dollarportfolio_price(port::Dict{String, Any}, end_date::DateTime = currentIndiaTime(), typ::String = "EOD")
     try
-        portfolio = convert(Raftaar.DollarPortfolio, port)    
+        portfolio = convert(BackTester.DollarPortfolio, port)    
 
         #Add check if endDate is greater than equal to current date
         #Use EOD prices otherwise
@@ -762,8 +763,7 @@ function updateportfolio_splitsAndDividends(portfolio::Dict{String,Any}, startda
 
             sym = YRead.getsecurity(secid).symbol
 
-            adjustmentsByDate[date][sym] = Raftaar.Adjustment(adjs[1], string(round(adjs[3])), adjs[2])
-            
+            adjustmentsByDate[date][sym] = BackTester.Adjustment(adjs[1], string(round(adjs[3])), adjs[2])
         end
     end
 
@@ -776,7 +776,7 @@ function updateportfolio_splitsAndDividends(portfolio::Dict{String,Any}, startda
             portfolio["endDate"] = DateTime(date) - Dates.Day(1)
             push!(output, portfolio)
 
-            Raftaar.updateportfolio_splits_dividends!(port, adjustmentsAllSecurities)
+            BackTester.updateportfolio_splits_dividends!(port, adjustmentsAllSecurities)
             startdate = date
         end
     end
@@ -853,12 +853,12 @@ function compute_portfolio_metrics(port::Dict{String, Any}, start_date::DateTime
         #Return the default output
         return defaultOutput
 
-    elseif length(prices_benchmark.timestamp) > 0 
+    elseif length(timestamp(prices_benchmark)) > 0 
 
         #This can happen when start date of portfolio is today and EOD day for today is not yet available
         #In such a case, calculate composition of current portfolio as of last availale benchmark date (EOD date)        
-        if prices_benchmark.timestamp[end] < Date(start_date)
-            sdate = DateTime(prices_benchmark.timestamp[end])
+        if timestamp(prices_benchmark)[end] < Date(start_date)
+            sdate = DateTime(timestamp(prices_benchmark)[end])
             edate = DateTime(sdate)   
         end
 
@@ -891,8 +891,8 @@ end
 
 function _update_portfolio_averageprice(portfolioHistory)
 
-    currentPortfolio = Raftaar.Portfolio()
-    newPortfolio = Raftaar.Portfolio()
+    currentPortfolio = BackTester.Portfolio()
+    newPortfolio = BackTester.Portfolio()
 
     for port in portfolioHistory
         newPortfolio = convertPortfolio(port)
@@ -910,7 +910,7 @@ function _update_portfolio_averageprice(portfolioHistory)
             #this prevents cases where start date is NaN (forwardfill wont work)
             prices = TimeSeries.head(from(YRead.history(secids, "Close", :Day, newStartDate - Dates.Day(10) , now(), displaylogs=false, forwardfill=true), newStartDate), 1)
         catch err
-            warn("Price data for range not available while calculating average price!!")    
+            @warn "Price data for range not available while calculating average price!!"
         end
 
         if prices == nothing
@@ -922,7 +922,7 @@ function _update_portfolio_averageprice(portfolioHistory)
         useRtPrices = false #Flag to indicate whether to use EOD prices or RT prices
         #RtPrices are used during the middle of the day to compute averageprice (because EOD is not available yet)
         if Date(newStartDate) >= Date(currentIndiaTime()) && 
-                prices.timestamp[end] != Date(newStartDate)
+                timestamp(prices)[end] != Date(newStartDate)
             useRtPrices = true         
         end
 
@@ -961,11 +961,11 @@ function _update_dollarportfolio_averageprice(portfolioHistory::Vector{Dict{Stri
     #n1,p1  n2,p2
     #Avg = [(n1P1 + (n2 - n1)*I(n2-n1 > 0)*P2]/max(n1,n2) 
 
-    currentPortfolio = Raftaar.DollarPortfolio()
-    newPortfolio = Raftaar.DollarPortfolio()
+    currentPortfolio = BackTester.DollarPortfolio()
+    newPortfolio = BackTester.DollarPortfolio()
 
     for port in portfolioHistory
-        newPortfolio = convert(Raftaar.DollarPortfolio, port)
+        newPortfolio = convert(BackTester.DollarPortfolio, port)
         newStartDate = haskey(port, "startDate") ? DateTime(port["startDate"], jsdateformat) : DateTime("2018-01-01")
 
         allkeys = keys(newPortfolio.positions)
@@ -980,7 +980,7 @@ function _update_dollarportfolio_averageprice(portfolioHistory::Vector{Dict{Stri
             #this prevents cases where start date is NaN (forwardfill wont work)
             prices = TimeSeries.head(from(YRead.history(secids, "Close", :Day, newStartDate - Dates.Day(10) , now(), displaylogs=false, forwardfill=true), newStartDate), 1)
         catch err
-            warn("Price data for range not available while calculating average price!!")    
+            @warn "Price data for range not available while calculating average price!!"
         end
 
         if prices == nothing
@@ -992,7 +992,7 @@ function _update_dollarportfolio_averageprice(portfolioHistory::Vector{Dict{Stri
         useRtPrices = false #Flag to indicate whether to use EOD prices or RT prices
         #RtPrices are used during the middle of the day to compute averageprice (because EOD is not available yet)
         if Date(newStartDate) >= Date(currentIndiaTime()) && 
-                prices.timestamp[end] != Date(newStartDate)
+                timestamp(prices)[end] != Date(newStartDate)
             useRtPrices = true         
         end
 
@@ -1053,8 +1053,8 @@ end
 function compute_portfolioTransactions(newPortfolio, currentPortfolio)
     startDate = DateTime(newPortfolio["startDate"], jsdateformat)
 
-    newPortfolio = newPortfolio != nothing ? convert(Portfolio, newPortfolio) : Raftaar.Portfolio()
-    currentPortfolio = currentPortfolio != nothing ? convert(Portfolio, currentPortfolio) : Raftaar.Portfolio()
+    newPortfolio = newPortfolio != nothing ? convert(Portfolio, newPortfolio) : BackTester.Portfolio()
+    currentPortfolio = currentPortfolio != nothing ? convert(Portfolio, currentPortfolio) : BackTester.Portfolio()
 
     transactions = Vector{Dict{String, Any}}()
 
@@ -1173,7 +1173,7 @@ function compute_fractional_ranking(vals::Dict{String, Float64}, scale::Float64)
 end
 
 ###
-# Fucntion to search security in securites database
+# Function to search security in securites database
 ###
 function findsecurities(hint::String, limit::Int, outputType::String) 
     try

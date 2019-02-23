@@ -20,10 +20,10 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
 
         #If portfolio has benchmark
         if haskey(portfolio, "benchmark") 
-            benchmark = convert(Raftaar.Security, portfolio["benchmark"])
+            benchmark = convert(BackTester.Security, portfolio["benchmark"])
              
             if haskey(oldPortfolio, "benchmark")
-                benchmark_old = convert(Raftaar.Security, oldPortfolio["benchmark"])
+                benchmark_old = convert(BackTester.Security, oldPortfolio["benchmark"])
                 if benchmark != benchmark_old
                     error("Benchmark change is not valid for active advice")
                 end
@@ -126,10 +126,10 @@ function _validate_contest_entry(entry::Dict{String, Any}, lastEntry::Dict{Strin
 
         #If portfolio has benchmark
         if haskey(portfolio, "benchmark") 
-            benchmark = convert(Raftaar.Security, portfolio["benchmark"])
+            benchmark = convert(BackTester.Security, portfolio["benchmark"])
              
             if haskey(oldPortfolio, "benchmark")
-                benchmark_old = convert(Raftaar.Security, oldPortfolio["benchmark"])
+                benchmark_old = convert(BackTester.Security, oldPortfolio["benchmark"])
                 if benchmark != benchmark_old
                     error("Benchmark change is not valid for active advice")
                 end
@@ -161,7 +161,7 @@ end
 function _validate_security(security::Dict{String, Any})
     
     try
-        security_raftaar = convert(Raftaar.Security, security)
+        security_raftaar = convert(BackTester.Security, security)
         if security_raftaar == Security()
             error("Invalid Security")
         end
@@ -185,18 +185,18 @@ function _validate_transactions(transactions::Vector{Dict{String,Any}}, advicePo
                 effInvPortfolio = updateportfolio_transactions(Dict("positions" => []), transactions);
             end
 
-            #=transactions_raftaar = Raftaar.OrderFill[];
+            #=transactions_raftaar = BackTester.OrderFill[];
 
             for (i, transaction) in enumerate(transactions)
                 try
-                    push!(transactions_raftaar, convert(Raftaar.OrderFill, transaction))
+                    push!(transactions_raftaar, convert(BackTester.OrderFill, transaction))
                     #Can add a check by comparing the price...but not important 
                 catch err
                     rethrow(err)
                 end
             end=#
             
-            advPortfolio = convert(Raftaar.Portfolio, advicePort)
+            advPortfolio = convert(BackTester.Portfolio, advicePort)
             multiple = Int64[]
 
             if length(keys(advPortfolio.positions)) != length(keys(effInvPortfolio.positions))
@@ -243,8 +243,8 @@ function _validate_portfolio(port::Dict{String, Any}; checkbenchmark = true, dol
         portfolio = nothing
         if haskey(port, "detail")
             portfolio = !dollarposition ? 
-                convert(Raftaar.Portfolio, port["detail"]) :
-                convert(Raftaar.DollarPortfolio, port["detail"])
+                convert(BackTester.Portfolio, port["detail"]) :
+                convert(BackTester.DollarPortfolio, port["detail"])
         else
             error("Empty portfolio")
         end 
@@ -256,7 +256,7 @@ function _validate_portfolio(port::Dict{String, Any}; checkbenchmark = true, dol
                 error("Benchmark is not present")
             end
 
-            benchmark = convert(Raftaar.Security, port["benchmark"])
+            benchmark = convert(BackTester.Security, port["benchmark"])
             
             if benchmark == Security()
                 error("Invalid benchmark security")

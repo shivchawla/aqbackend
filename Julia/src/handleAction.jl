@@ -124,24 +124,40 @@ function handleRequest(parsemsg::Dict{String, Any})
           performance = serialize(performance)
           parsemsg["output"] = Dict("date" => endDate, "value" => performance)
 
-
         ##NOT IN USE
         elseif action == "compute_performance_netvalue"
-          performance = Dict{String, Any}()
-           
-          netValues = [convert(Float64, val) for val in parsemsg["netValue"]]
-          benchmark = parsemsg["benchmark"]["ticker"]
-          dates = parsemsg["dates"]
-          dates = [Date(DateTime(date, jsdateformat)) for date in dates]
+          
+          try
+            netValues = [get(dict, "netValue", NaN) for dict in parsemsg["netValues"]]
+            dates = [haskey(dict, "date") ? Date(dict["date"]) : Date()  for dict in parsemsg["netValues"]]
+            benchmark = parsemsg["benchmark"]["ticker"]
 
-          vals = zeros(length(netValues), 1)
-          for (i,val) in enumerate(netValues)
-            vals[i,1] = val
+            (lastdate, performance, dperformance, rolling_performances, rolling_performances_diff, static_performances, rolling_performances_bench, static_performances_bench) = compute_performance(TimeArray(dates, reshape(netValues, (length(netValues),1)), ["Portfolio"]), benchmark)
+
+            parsemsg["output"] = Dict{String, Any}("date" => lastdate, 
+                                          "value" => Dict(
+                                            "true" => serialize(performance), 
+                                            "diff" => serialize(dperformance), 
+                                            "rolling" => serialize(rolling_performances),
+                                            "rolling_diff" => serialize(rolling_performances_diff),
+                                            "static" => serialize(static_performances),
+                                            "rolling_benchmark" => serialize(rolling_performances_bench),
+                                            "static_benchmark" => serialize(static_performances_bench)),  
+                                          "portfolioValues" => nVDict)
+          catch err
+                parsemsg["output"] = Dict{String, Any}("date" => Date(currentIndiaTime()), 
+                                          "value" => Dict(
+                                              "true" => serialize(Performance()), 
+                                              "diff" => serialize(Performance()), 
+                                              "rolling" => serialize(Dict{String, Performance}()),
+                                              "rolling_diff" => serialize(Dict{String, Performance}()),
+                                              "static" => serialize(Dict{String, Dict{String, Performance}}()),
+                                              "rolling_benchmark" => serialize(Dict{String, Performance}()),
+                                              "static_benchmark" => serialize(Dict{String, Dict{String, Performance}}())
+                                            ),
+                                          "portfolioValues" => Dict{String, Any}())
           end
           
-          (lastdate, performance, dperformance) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
-
-          parsemsg["output"] = Dict("date" => lastdate, "value" => Dict("true" => serialize(performance), "diff" => serialize(dperformance)))
         
         elseif action == "compute_portfolio_constituents_performance"
 
@@ -213,7 +229,6 @@ function handleRequest(parsemsg::Dict{String, Any})
                 #error("Missing Input")
             end
          
-
         ##NOT IN USE
         elseif action == "compute_portfolio_value_history"
 
@@ -237,7 +252,6 @@ function handleRequest(parsemsg::Dict{String, Any})
           end
 
           parsemsg["output"] = Dict("portfolioValues" => nVDict)
-
 
         #NOT IN USE
         elseif action == "compute_portfolio_value_date"          
@@ -274,7 +288,7 @@ function handleRequest(parsemsg::Dict{String, Any})
 
         elseif action == "compute_stock_intraday_history"
             parsemsg["output"] = ""
-            security = convert(Raftaar.Security, parsemsg["security"])
+            security = convert(BackTester.Security, parsemsg["security"])
             date = parsemsg["date"]
             date = date == "" ? currentIndiaDate() : Date(DateTime(date, jsdateformat))
             parsemsg["output"] = get_stock_intraday_history(security, date)
@@ -285,7 +299,7 @@ function handleRequest(parsemsg::Dict{String, Any})
 
         elseif action == "track_stock_intraday_detail"
             parsemsg["output"] = ""
-            security = convert(Raftaar.Security, parsemsg["security"])
+            security = convert(BackTester.Security, parsemsg["security"])
             parsemsg["output"] = track_stock_intraday_detail(security)
 
         elseif action == "untrack_stock_intraday_detail"
@@ -401,14 +415,14 @@ function handleRequest(parsemsg::Dict{String, Any})
             parsemsg["output"] = update_realtime_prices(fname, ftype)
            
         elseif action == "compare_security"
-            oldSecurity = convert(Raftaar.Security, parsemsg["oldSecurity"])
-            newSecurity = convert(Raftaar.Security, parsemsg["newSecurity"])
+            oldSecurity = convert(BackTester.Security, parsemsg["oldSecurity"])
+            newSecurity = convert(BackTester.Security, parsemsg["newSecurity"])
 
             parsemsg["output"] = oldSecurity == newSecurity
 
         elseif action == "compare_portfolio"
-            oldPortfolio = convert(Raftaar.Portfolio, parsemsg["oldPortfolio"])
-            newPorfolo = convert(Raftaar.Portfolio, parsemsg["newPortfolio"])
+            oldPortfolio = convert(BackTester.Portfolio, parsemsg["oldPortfolio"])
+            newPorfolo = convert(BackTester.Portfolio, parsemsg["newPortfolio"])
 
             parsemsg["output"] = oldPortfolio == newPortfolio
 
@@ -420,7 +434,7 @@ function handleRequest(parsemsg::Dict{String, Any})
             
         elseif action == "get_security_detail"
           security = parsemsg["security"]
-          detail  = get(security, "ticker", "") !="" ? convert(Raftaar.Security, YRead.getsecurity(security["ticker"])).detail : Dict()
+          detail  = get(security, "ticker", "") !="" ? convert(BackTester.Security, YRead.getsecurity(security["ticker"])).detail : Dict()
           parsemsg["output"] = detail
 
         elseif action == "compute_attribution"
@@ -434,7 +448,7 @@ function handleRequest(parsemsg::Dict{String, Any})
         err_msg = geterrormsg(err)
         parsemsg["error"] = err_msg
         parsemsg["code"] = 400
-        warn("Error: $(err_msg)")
+        @warn "Error: $(err_msg)"
     end
 
     return parsemsg

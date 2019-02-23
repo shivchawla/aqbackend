@@ -94,7 +94,7 @@ function _update_portfolio_splits(port, date::DateTime = currentIndiaTime())
             updated = true
             
             if pos.quantity != nothing # if "share" portfolio
-                pos.quantity = Int(round(qty * 1.0/splt, 0))
+                pos.quantity = Int(round(qty * 1.0/splt, digits = 0))
             end
 
             pos.lastprice = pos.lastprice * splt
@@ -119,7 +119,7 @@ function _update_portfolio_bonus(port, date::DateTime = currentIndiaTime())
             updated = true
             
             if pos.quantity != nothing  # if "share" portfolio
-                pos.quantity = Int(round(pos.quantity * 1.0/bns, 0))
+                pos.quantity = Int(round(pos.quantity * 1.0/bns, digits = 0))
             end
 
             pos.lastprice = pos.lastprice * bns

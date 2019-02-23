@@ -24,7 +24,7 @@ function convert(::Type{Security}, security::Dict{String, Any})
     
     try
         #Before validating the security, replace special characters by _ (underscore)
-        ticker = replace(uppercase(get(security, "ticker","")), r"[^a-zA-Z0-9]", "_")
+        ticker = replace(uppercase(get(security, "ticker","")), r"[^a-zA-Z0-9]" => "_")
         securitytype = uppercase(get(security, "securitytype", "EQ"))
         exchange = uppercase(get(security, "exchange", "NSE"))
         country = uppercase(get(security, "country", "IN"))
@@ -40,7 +40,7 @@ end
 function convert(::Type{OrderFill}, transaction::Dict{String, Any})
  
     try
-        security = convert(Raftaar.Security, transaction["security"])
+        security = convert(BackTester.Security, transaction["security"])
 
         if security == Security() && transaction["security"]["ticker"] != "CASH_INR"
             error("Invalid transaction (Invalid Security: $(transaction["security"]["ticker"]))")
@@ -61,8 +61,8 @@ end
 
 function convertPortfolio(port)
     get(port, "positionType", "shares") == "shares" ? 
-        convert(Raftaar.Portfolio, port) :
-        convert(Raftaar.DollarPortfolio, port)
+        convert(BackTester.Portfolio, port) :
+        convert(BackTester.DollarPortfolio, port)
 end
 
 function convert(::Type{Portfolio}, port::Dict{String, Any})
@@ -77,7 +77,7 @@ function convert(::Type{Portfolio}, port::Dict{String, Any})
             for pos in positions
                 if haskey(pos, "security")
                     
-                    security = convert(Raftaar.Security, pos["security"])
+                    security = convert(BackTester.Security, pos["security"])
                     
                     if security == Security()
                         if pos["security"]["ticker"] == "CASH_INR" 
@@ -142,7 +142,7 @@ function convert(::Type{DollarPortfolio}, port::Dict{String, Any})
             for pos in positions
                 if haskey(pos, "security")
                     
-                    security = convert(Raftaar.Security, pos["security"])
+                    security = convert(BackTester.Security, pos["security"])
                     
                     if security == Security()
                         if pos["security"]["ticker"] == "CASH_INR" 
@@ -289,7 +289,7 @@ end
 
 
 function _isNotionalPortfolio(portfolio)
-    typeof(portfolio) == Raftaar.DollarPortfolio    
+    typeof(portfolio) == BackTester.DollarPortfolio    
 end
 
 function _getquantity(pos; notionalPortfolio=false)

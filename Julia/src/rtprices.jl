@@ -24,17 +24,17 @@ function _updateportfolio_EODprice(port, date::DateTime)
             merged_prices = stock_value_52w
 
             latest_values = merged_prices[end]
-            latest_dt = DateTime(latest_values.timestamp[end])
+            latest_dt = DateTime(timestamp(latest_values)[end])
 
             tradebars = Dict{SecuritySymbol, Vector{TradeBar}}()
             for (sym, pos) in port.positions
                 tradebars[sym] = haskey(_lastDayPrices, sym.ticker) && _lastDayPrices[sym.ticker].datetime == date ? 
                     [_lastDayPrices[sym.ticker]] :  
-                    [Raftaar.TradeBar(latest_dt, 0.0, 0.0, 0.0, latest_values[sym.ticker].values[1])]
+                    [BackTester.TradeBar(latest_dt, 0.0, 0.0, 0.0, values(latest_values[sym.ticker])[1])]
             end
 
             updatedDate = latest_dt
-            Raftaar.updateportfolio_price!(port, tradebars, latest_dt)
+            BackTester.updateportfolio_price!(port, tradebars, latest_dt)
 
         end
     end
@@ -57,16 +57,16 @@ function _updateportfolio_RTprice(port)
                 println("Using EOD price for $(sym.ticker)")
                 price = YRead.history([sym.id], "Close", :Day, 1, now(), displaylogs=false, forwardfill=true)
                 if price != nothing
-                    updatedDate = DateTime(price.timestamp[1])
+                    updatedDate = DateTime(timestamp(price)[1])
                     val = values(price)[1]
-                    latest_tradebar = Raftaar.TradeBar(DateTime(), val, val, val, val, 0)
+                    latest_tradebar = BackTester.TradeBar(DateTime(), val, val, val, val, 0)
                 end
             end
             
             tradebars[sym] = [latest_tradebar]
         end
 
-        Raftaar.updateportfolio_price!(port, tradebars, DateTime())
+        BackTester.updateportfolio_price!(port, tradebars, DateTime())
 
     end
 
@@ -153,7 +153,7 @@ function _update_realtime_mkt_prices(fname::String)
         @sync begin
         
             @async for (k,v) in mktPrices["RT"]
-                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
+                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]" => "_")
 
                 if ticker != ""
                     _realtimePrices[ticker] = v
@@ -166,7 +166,7 @@ function _update_realtime_mkt_prices(fname::String)
             end
 
             @async for (k,v) in mktPrices["EOD"]
-                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
+                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]" => "_")
 
                 if ticker != ""
                     _lastDayPrices[ticker] = v
@@ -191,7 +191,7 @@ function _get_realtime_mkt_prices(fname::String)
         @sync begin
         
             @async for (k,v) in mktPrices["RT"]
-                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
+                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]" => "_")
 
                 if ticker != ""
                     realtimePrices[ticker] = v
@@ -200,7 +200,7 @@ function _get_realtime_mkt_prices(fname::String)
             end
 
             @async for (k,v) in mktPrices["EOD"]
-                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]", "_")
+                ticker = replace(get(_codeToTicker, k, ""), r"[^a-zA-Z0-9]" => "_")
 
                 if ticker != ""
                     eodPrices[ticker] = v
@@ -225,7 +225,7 @@ function _update_realtime_ind_prices(fname::String)
         @sync begin
         
             @async for (k,v) in indPrices["RT"]
-                ticker = replace(get(_codeToIndex, k, ""), r"[^a-zA-Z0-9]", "_")
+                ticker = replace(get(_codeToIndex, k, ""), r"[^a-zA-Z0-9]" => "_")
 
                 if ticker != ""
                     _realtimePrices[ticker] = v
@@ -234,7 +234,7 @@ function _update_realtime_ind_prices(fname::String)
             end
 
             @async for (k,v) in indPrices["EOD"]
-                ticker = replace(get(_codeToIndex, k, ""), r"[^a-zA-Z0-9]", "_")
+                ticker = replace(get(_codeToIndex, k, ""), r"[^a-zA-Z0-9]" => "_")
 
                 if ticker != ""
                     _lastDayPrices[ticker] = v

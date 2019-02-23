@@ -1,5 +1,6 @@
 
-using Raftaar
+using BackTester
+using DelimitedFiles
 #NSE 15 minutes snapshot DATA
 
 ###
@@ -139,7 +140,7 @@ function readIndFile(fname::String)
 
 			#Computing close as this file is differnet from mkt file
 			#Doesn't contain last close
-			close  = round(current/(1+change/100), 2)
+			close  = round(current/(1+change/100), digits = 2)
 
 			ttd = TradeBar(Dates.unix2datetime(timestamp), open, high, low, close, 0)
 			tt = TradeBar(Dates.unix2datetime(timestamp), intOpen, intHigh, intLow, intClose, 0)
@@ -235,7 +236,7 @@ function readSecurityFile(fname::String)
 			bookClosureEndDate = read(f, Int32) #4 Bytes 109
 			
 			if series == "EQ"
-				output[stoken] = replace(rstrip(symbol), r"[^a-zA-Z0-9]", "_")
+				output[stoken] = replace(rstrip(symbol), r"[^a-zA-Z0-9]" => "_")
 			end
 		end
 
@@ -255,7 +256,7 @@ end
 
 function readIndices()    
     output = Dict{Int16, String}()
-    data = readcsv(Base.source_dir()*"/benchmark.csv", header=false)
+    data = readdlm(Base.source_dir()*"/benchmark.csv", ',', header=false)
 
     for row in 1:size(data)[1]
         code = data[row, 2]

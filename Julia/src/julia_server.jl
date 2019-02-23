@@ -1,13 +1,15 @@
 using YRead
-import Mongo: MongoClient
-using HttpServer
-using WebSockets
+using Mongoc
+using HTTP
 using JSON
 using TimeSeries
 using BufferedStreams
+using Logging
+using Dates
 
-using Raftaar: Performance, Returns, Drawdown, Ratios, Deviation, PortfolioStats, TradeBar
-using Raftaar: serialize
+
+using BackTester: Performance, Returns, Drawdown, Ratios, Deviation, PortfolioStats, TradeBar
+using BackTester: serialize
 
 currentIndiaTime() = now(Dates.UTC) + Dates.Hour(5) + Dates.Minute(30)
 currentIndiaDate() = Date(currentIndiaTime())
@@ -25,6 +27,7 @@ SERVER_AVAILABLE = true
 try
  port = parse(ARGS[1])
  host = ARGS[2]
+catch err
 end
 
 #Setup database connections
@@ -36,20 +39,16 @@ mongo_host = connection["mongo_host"]
 mongo_port = connection["mongo_port"]
  
 usr_pwd_less = mongo_user=="" && mongo_pass==""
-const client = usr_pwd_less ? MongoClient(mongo_host, mongo_port) :
-                        MongoClient(mongo_host, mongo_port, mongo_user, mongo_pass)
+client = usr_pwd_less ? Mongoc.Client("mongodb://$(mongo_host):$(mongo_port)") :
+                            Mongoc.Client("mongodb://$(mongo_user):$(mongo_pass)@$(mongo_host):$(mongo_port)/?authMechanism=MONGODB-CR&authSource=admin")
+
+
+YRead.configureMongo(client, database = connection["mongo_database"], priority = 3)
+
  
-YRead.configure(client, database = connection["mongo_database"], priority = 3)
- 
-#global Dict to store open connections in
-global connections = Dict{Int,WebSocket}()
-fname = ""
-  
 function close_connection(client)  
-    #println("Closing Connection: $client")
     try
         close(client)
-        global SERVER_AVAILABLE = true;
     catch
         println("Error Closing: $client")
     end
@@ -57,7 +56,7 @@ end
 
 
 function decode_message(msg)
-   String(copy(msg))
+   String(msg)
 end
 
 function geterrormsg(err::Any)
@@ -68,22 +67,24 @@ function geterrormsg(err::Any)
   return msg
 end
 
-
 jsdateformat = "yyyy-mm-ddTHH:MM:SS.sssZ"
 
-wsh = WebSocketHandler() do req, client
-    
+# wsh = WebsocketHandler() do req, client
+
+function requestHandler(client)    
+    println("HERE")
     responseMsg = Dict{String, Any}("error" => "")
+    
     try 
+        msg =  decode_message(readavailable(client))
         
-        msg = decode_message(read(client))
         parsemsg = JSON.parse(msg)
-        
+
         if haskey(parsemsg, "action") 
             responseMsg = handleRequest(parsemsg)
         else
           println(parsemsg)
-          warn("No action provided")
+          @warn "No action provided"
           responseMsg["error"] = "No or invalid action provided"
           responseMsg["code"] = 403
         end
@@ -94,10 +95,11 @@ wsh = WebSocketHandler() do req, client
     end
 
     write(client, JSON.json(responseMsg))
-    close_connection(client) 
-  
+
 end
- 
-server = Server(wsh)
-run(server, host=IPv4(host), port=port)
+
+HTTP.WebSockets.listen(host, UInt16(port)) do ws
+    requestHandler(ws)
+end
+
  
