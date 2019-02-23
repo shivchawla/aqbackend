@@ -1,7 +1,7 @@
 # @Author: Shiv Chawla
 # @Date:   2019-02-12 16:16:44
 # @Last Modified by:   Shiv Chawla
-# @Last Modified time: 2019-02-12 17:54:57
+# @Last Modified time: 2019-02-23 13:43:36
 
 #!/bin/bash
 user="$1"
@@ -26,23 +26,23 @@ cp /home/admin/$env/aqbackend/Julia /home/$user/ -R
 chown -R $user /home/$user/raftaar
 chown -R $user /home/$user/yojak
 chown -R $user /home/$user/Julia
+chown -R $user /home/$user/.julia
 
 chgrp -R $user /home/$user/raftaar
 chgrp -R $user /home/$user/yojak
 chgrp -R $user /home/$user/Julia
+chgrp -R $user /home/$user/.julia
 
 chmod -R u=rx /home/$user/raftaar
 chmod -R u=rx /home/$user/yojak
 chmod -R u=rx /home/$user/Julia
+chmod -R u=rwx /home/$user/.julia
 
-cp /home/$user/Julia/Deploy/.juliarc.jl /home/$user/.juliarc.jl
-cp /home/$user/Julia/Deploy/REQUIRE /home/$user/.julia/v0.6/REQUIRE
-cp -r /home/$use/Julia/Deploy/Redis-src/* /home/$user/.julia/v0.6/Redis/src/
-
-chown -R $user /home/$user/.juliarc.jl
-chgrp -R $user /home/$user/.juliarc.jl
+cp /home/$user/Julia/Deploy/REQUIRE /home/$user/.julia/REQUIRE
+mkdir -p /home/$user/.julia/config && cp /home/$user/Julia/Deploy/startup.jl /home/$user/.julia/config/startup.jl --force
 		
-julia="/usr/local/julia/bin/julia"  
-process=/home/$user/Julia/julia_server.jl
+# julia="/usr/local/julia/bin/julia"  
+# 
+process=/home/$user/Julia/src/julia_server.jl
 sudo su - $user -c "$julia $process $port $address"
 
