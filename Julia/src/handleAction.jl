@@ -77,7 +77,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                     vals[i,1] = val
                 end
                   
-                (lastdate, performance, dperformance, rolling_performances, rolling_performances_diff, static_performances, rolling_performances_bench, static_performances_bench) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
+                (lastdate, performance, dperformance, rolling_performances, rolling_performances_diff, static_performances, rolling_performances_bench, static_performances_bench) = compute_performance(TimeArray(dates, vals, [:Portfolio]), benchmark)
                 
                 nVDict = Dict{String, Any}()
 
@@ -132,7 +132,7 @@ function handleRequest(parsemsg::Dict{String, Any})
             dates = [haskey(dict, "date") ? Date(dict["date"]) : Date()  for dict in parsemsg["netValues"]]
             benchmark = parsemsg["benchmark"]["ticker"]
 
-            (lastdate, performance, dperformance, rolling_performances, rolling_performances_diff, static_performances, rolling_performances_bench, static_performances_bench) = compute_performance(TimeArray(dates, reshape(netValues, (length(netValues),1)), ["Portfolio"]), benchmark)
+            (lastdate, performance, dperformance, rolling_performances, rolling_performances_diff, static_performances, rolling_performances_bench, static_performances_bench) = compute_performance(TimeArray(dates, reshape(netValues, (length(netValues),1)), [:Portfolio]), benchmark)
 
             parsemsg["output"] = Dict{String, Any}("date" => lastdate, 
                                           "value" => Dict(
@@ -195,7 +195,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                     vals[i,1] = val
                 end
                   
-                (lastdate, performance, dperformance, rolling_performances, rolling_performances_diff, static_performances, rolling_performances_bench, static_performances_bench) = compute_performance(TimeArray(dates, vals, ["Portfolio"]), benchmark)
+                (lastdate, performance, dperformance, rolling_performances, rolling_performances_diff, static_performances, rolling_performances_bench, static_performances_bench) = compute_performance(TimeArray(dates, vals, [:Portfolio]), benchmark)
                 
                 nVDict = Dict{String, Any}()
 
@@ -256,12 +256,12 @@ function handleRequest(parsemsg::Dict{String, Any})
         #NOT IN USE
         elseif action == "compute_portfolio_value_date"          
           netvalue = 0.0
-          lastdate = DateTime()
+          lastdate = DateTime(1)
           portfolio = parsemsg["portfolio"]
           date = DateTime(data["date"], jsdateformat)
 
           netvalue = compute_portfoliovalue(portfolio, date)
-          if (lastdate == DateTime())
+          if (lastdate == DateTime(1))
             parsemsg["output"] = Dict("date" => lastdate, "value" => netvalue)
             parsemsg["error"] = ""
           end

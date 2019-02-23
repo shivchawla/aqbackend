@@ -7,7 +7,6 @@ using BufferedStreams
 using Logging
 using Dates
 
-
 using BackTester: Performance, Returns, Drawdown, Ratios, Deviation, PortfolioStats, TradeBar
 using BackTester: serialize
 

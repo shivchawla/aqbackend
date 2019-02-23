@@ -39,40 +39,11 @@ function _validate_advice(advice::Dict{String, Any}, lastAdvice::Dict{String, An
         portfolioDetail = get(portfolio, "detail", Dict{String, Any}())
         oldPortfolioDetail = get(oldPortfolio, "detail", Dict{String, Any}())
        
-        #=startDate = haskey(portfolioDetail, "startDate") ? Date(DateTime(portfolioDetail["startDate"], jsdateformat)) : Date()
-        
-        if startDate < Date(currentIndiaTime())
-            error("Startdate of new advice: $(startDate) can't be before today")
-        end
-
-        #this date comes from js object and is in jsformat - 12/04/2018
-        oldStartDate = haskey(oldPortfolioDetail, "startDate") ? Date(DateTime(oldPortfolioDetail["startDate"], jsFormat)) : Date()
-        if (startDate <= oldStartDate) 
-            error("Startdate of new advice: $(startDate) can't be same or before Startdate of current Advice: $(oldStartDate)")
-        end=#
-        
         #Validating positions and benchmark
         (valid_port, port) = _validate_portfolio(portfolio, checkbenchmark = false)
 
-        #if !valid_port
-        
         return valid_port
         
-        #end
-
-        #ADD CHECK FOR ZERO PRICES (OR PRICES DIFFERENT FROM CLOSE ON THE DATE)
-
-        #=portval = _compute_latest_portfoliovalue(port)
-
-        maxnotional = get(advice, "maxNotional", 1000000.0)
-
-        if portval == nothing
-            error("Can't compute portfolio prices | missing prices")
-        elseif portval > 1.05 * maxnotional && strictNetValue #Allow 5% 
-            error("Portfolio value exceeds inital:$(maxnotional) + 5% bound")
-        else
-            return true
-        end=#
     catch err
         rethrow(err)
     end
@@ -84,17 +55,17 @@ function _validate_adviceportfolio(advicePortfolio::Dict{String, Any}, lastAdvic
     try
         format = "yyyy-mm-ddTHH:MM:SS.sssZ"
         
-        startDate = haskey(advicePortfolio, "startDate") ? DateTime(advicePortfolio["startDate"], format) : DateTime()
-        endDate = haskey(advicePortfolio, "endDate") ? DateTime(advicePortfolio["endDate"], format) : DateTime()
+        startDate = haskey(advicePortfolio, "startDate") ? DateTime(advicePortfolio["startDate"], format) : DateTime(1)
+        endDate = haskey(advicePortfolio, "endDate") ? DateTime(advicePortfolio["endDate"], format) : DateTime(1)
 
-        lastStartDate = haskey(lastAdvicePortfolio, "startDate") ? DateTime(lastAdvicePortfolio["startDate"], format) : DateTime()
-        lastEndDate = haskey(lastAdvicePortfolio, "endDate") ? DateTime(lastAdvicePortfolio["endDate"], format) : DateTime()
+        lastStartDate = haskey(lastAdvicePortfolio, "startDate") ? DateTime(lastAdvicePortfolio["startDate"], format) : DateTime(1)
+        lastEndDate = haskey(lastAdvicePortfolio, "endDate") ? DateTime(lastAdvicePortfolio["endDate"], format) : DateTime(1)
 
-        if startDate >= endDate || startDate == DateTime() || endDate == DateTime()
+        if startDate >= endDate || startDate == DateTime(1) || endDate == DateTime(1)
             return false
         end
 
-        if lastStartDate != DateTime() && lastEndDate != DateTime() && startDate <= lastEndDate 
+        if lastStartDate != DateTime(1) && lastEndDate != DateTime(1) && startDate <= lastEndDate 
             return false
         end
 

@@ -2,7 +2,7 @@
 function forwardfill(ta, col = "Portfolio")
     names = colnames(ta)
 
-    idx = findall(isequal(col), names)
+    idx = findall(isequal(Symbol(col)), names)
 
     if idx != nothing
         vs = values(ta)
@@ -61,8 +61,8 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
 
             merged_returns = percentchange(merged_value)
             
-            portfolio_returns = values(merged_returns["Portfolio"])
-            benchmark_returns = values(merged_returns[benchmark])
+            portfolio_returns = values(merged_returns[:Portfolio])
+            benchmark_returns = values(merged_returns[Symbol(benchmark)])
 
             dates = timestamp(merged_returns)
 
@@ -70,15 +70,15 @@ function compute_performance(port::Dict{String, Any}, start_date::DateTime, end_
             ndays = Int(Dates.value(timestamp(merged_returns)[end] - timestamp(merged_returns)[1])) + 1
 
             performance = BackTester.calculateperformance(portfolio_returns, benchmark_returns, scale = 365, period = ndays)
-            dperformance = BackTester.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns, scale = 365, period = ndays)
+            dperformance = BackTester.calculateperformance(portfolio_returns .- benchmark_returns, benchmark_returns, scale = 365, period = ndays)
             
-            diff_returns_ts = merged_returns["Portfolio"] - merged_returns[benchmark]
-            rollingperformance_diff = BackTester.calculateperformance_rollingperiods(rename(merge(diff_returns_ts, merged_returns[benchmark]), ["algorithm", "benchmark"]))    
+            diff_returns_ts = merged_returns[:Portfolio] .- merged_returns[Symbol(benchmark)]
+            rollingperformance_diff = BackTester.calculateperformance_rollingperiods(rename(merge(diff_returns_ts, merged_returns[benchmark]), [:algorithm, :benchmark]))    
 
-            rollingperformance = BackTester.calculateperformance_rollingperiods(rename(merged_returns, ["algorithm", "benchmark"]))
-            staticperformance = BackTester.calculateperformance_staticperiods(rename(merged_returns, ["algorithm", "benchmark"]))
+            rollingperformance = BackTester.calculateperformance_rollingperiods(rename(merged_returns, [:algorithm, :benchmark]))
+            staticperformance = BackTester.calculateperformance_staticperiods(rename(merged_returns, [:algorithm, :benchmark]))
             
-            onlybenchmark_returns = merge(TimeArray(dates, benchmark_returns, ["algorithm"]), TimeArray(dates, benchmark_returns, ["benchmark"]))
+            onlybenchmark_returns = merge(TimeArray(dates, benchmark_returns, [:algorithm]), TimeArray(dates, benchmark_returns, [:benchmark]))
             rollingperformance_bench = BackTester.calculateperformance_rollingperiods(onlybenchmark_returns)
             staticperformance_bench = BackTester.calculateperformance_staticperiods(onlybenchmark_returns)
             
@@ -130,7 +130,7 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
     start_date = ts[1]
     end_date = ts[end]
         
-    portfolio_value = rename(portfolio_value, ["Portfolio"])
+    portfolio_value = rename(portfolio_value, [:Portfolio])
     benchmark_value = _getPricehistory([benchmark], DateTime(start_date), DateTime(end_date), strict=false, appendRealtime = true)
     
     if portfolio_value != nothing && benchmark_value != nothing && length(ts) >= 2
@@ -150,23 +150,23 @@ function compute_performance(portfolio_value::TimeArray, benchmark::String)
 
         merged_returns = percentchange(merged_value)
         
-        portfolio_returns = values(merged_returns["Portfolio"])
-        benchmark_returns = values(merged_returns[benchmark])
+        portfolio_returns = values(merged_returns[:Portfolio])
+        benchmark_returns = values(merged_returns[Symbol(benchmark)])
         dates = timestamp(merged_returns)
 
         ndays = Int(Dates.value(timestamp(merged_returns)[end] - timestamp(merged_returns)[1])) + 1
 
         performance = BackTester.calculateperformance(portfolio_returns, benchmark_returns, scale = 365, period = ndays)
         
-        dperformance = BackTester.calculateperformance(portfolio_returns - benchmark_returns, benchmark_returns, scale = 365, period = ndays)
+        dperformance = BackTester.calculateperformance(portfolio_returns .- benchmark_returns, benchmark_returns, scale = 365, period = ndays)
         
-        diff_returns_ts = merged_returns["Portfolio"] - merged_returns[benchmark]
-        rollingperformance_diff =  BackTester.calculateperformance_rollingperiods(rename(merge(diff_returns_ts, merged_returns[benchmark]), ["algorithm", "benchmark"]))
+        diff_returns_ts = merged_returns[:Portfolio] .- merged_returns[Symbol(benchmark)]
+        rollingperformance_diff =  BackTester.calculateperformance_rollingperiods(rename(merge(diff_returns_ts, merged_returns[Symbol(benchmark)]), [:algorithm, :benchmark]))
 
-        rollingperformance = BackTester.calculateperformance_rollingperiods(rename(merged_returns, ["algorithm", "benchmark"]))
-        staticperformance = BackTester.calculateperformance_staticperiods(rename(merged_returns, ["algorithm", "benchmark"]))
+        rollingperformance = BackTester.calculateperformance_rollingperiods(rename(merged_returns, [:algorithm, :benchmark]))
+        staticperformance = BackTester.calculateperformance_staticperiods(rename(merged_returns, [:algorithm, :benchmark]))
 
-        onlybenchmark_returns = merge(TimeArray(dates, benchmark_returns, ["algorithm"]), TimeArray(dates, benchmark_returns, ["benchmark"]))
+        onlybenchmark_returns = merge(TimeArray(dates, benchmark_returns, [:algorithm]), TimeArray(dates, benchmark_returns, [:benchmark]))
         rollingperformance_bench = BackTester.calculateperformance_rollingperiods(onlybenchmark_returns)
         staticperformance_bench = BackTester.calculateperformance_staticperiods(onlybenchmark_returns)            
 
@@ -311,10 +311,10 @@ function compute_stock_performance(security::Dict{String, Any}, start_date::Date
                     return defaultOutput
                 end
 
-                merged_returns = rename(merged_returns, ["stock", "benchmark"])
+                merged_returns = rename(merged_returns, [:stock, :benchmark])
 
-                stock_returns = values(merged_returns["stock"])
-                benchmark_returns = values(merged_returns["benchmark"])
+                stock_returns = values(merged_returns[:stock])
+                benchmark_returns = values(merged_returns[:benchmark])
 
                 performance = BackTester.calculateperformance(stock_returns, benchmark_returns, scale = 365, period = ndays)
         
@@ -378,7 +378,7 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
                     return defaultOutput
                 end
 
-                merged_returns = rename(merged_returns, ["algorithm", "benchmark"])
+                merged_returns = rename(merged_returns, [:algorithm, :benchmark])
 
                 return  (timestamp(merged_prices)[end], BackTester.calculateperformance_rollingperiods(merged_returns))
             
@@ -437,7 +437,7 @@ function compute_stock_static_performance(security_dict::Dict{String,Any}; bench
                     return Performance()
                 end
 
-                merged_returns = rename(merged_returns, ["algorithm", "benchmark"])
+                merged_returns = rename(merged_returns, [:algorithm, :benchmark])
 
                 return BackTester.calculateperformance_staticperiods(merged_returns)
             else
@@ -481,7 +481,7 @@ function get_stock_price_history(security_dict::Dict{String,Any}, field="Close")
             if stock_prices != nothing && benchmark_prices != nothing
                 stock_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), timestamp(benchmark_prices)[end]), :any)
 
-                (ts, prices) = (timestamp(stock_prices[security.symbol.ticker]), values(stock_prices[security.symbol.ticker])) 
+                (ts, prices) = (timestamp(stock_prices[security.symbol.ticker]), values(stock_prices[Symbol(security.symbol.ticker)])) 
                 
                 history = Vector{Dict{String, Any}}()
                 for i = 1:length(ts)
@@ -531,14 +531,14 @@ function get_stock_price_historical(security_dict::Dict{String,Any}, date:: Date
 
                 nDays = length(stock_prices)
 
-                lastPrice = values(stock_prices[ticker])[1]
-                closePrice = values(stock_prices[ticker])[end]
+                lastPrice = values(stock_prices[Symbol(ticker)])[1]
+                closePrice = values(stock_prices[Symbol(ticker)])[end]
 
                 change = 0
                 changePct = 0
 
                 if (nDays > 1) 
-                    change = values(TimeSeries.diff(stock_prices[ticker]))[end]
+                    change = values(TimeSeries.diff(stock_prices[Symbol(ticker)]))[end]
                     changePct = lastPrice > 0 ? change/lastPrice : 0;
                 end
 
@@ -591,19 +591,19 @@ function get_stock_price_latest(security_dict::Dict{String,Any}, ptype::String="
 
                 if(length(values(stock_value_52w)) > 0)
                     
-                    highs = values(stock_value_52w["High"])
-                    lows = values(stock_value_52w["Low"])
+                    highs = values(stock_value_52w[:High])
+                    lows = values(stock_value_52w[:Low])
                     
                     output["High_52w"] = maximum(highs)
                     output["Low_52w"] = minimum(lows)
 
-                    output["Low"] = values(stock_value_52w["Low"])[end]
-                    output["High"] = values(stock_value_52w["High"])[end]
-                    output["Open"] = values(stock_value_52w["Open"])[end]
-                    output["Close"] = values(stock_value_52w["Close"])[end]
+                    output["Low"] = values(stock_value_52w[:Low])[end]
+                    output["High"] = values(stock_value_52w[:High])[end]
+                    output["Open"] = values(stock_value_52w[:Open])[end]
+                    output["Close"] = values(stock_value_52w[:Close])[end]
                     output["Date"] = string(Date(timestamp(stock_value_52w)[end]))
-                    output["ChangePct"] = length(timestamp(stock_value_52w)) > 1 ? round(percentchange(values(stock_value_52w["Close"]))[end], digits = 4) : 0.0
-                    output["Change"] = length(timestamp(stock_value_52w)) > 1 ? round(diff(values(stock_value_52w["Close"]))[end], digits = 2) : 0.0
+                    output["ChangePct"] = length(timestamp(stock_value_52w)) > 1 ? round(percentchange(values(stock_value_52w[:Close]))[end], digits = 4) : 0.0
+                    output["Change"] = length(timestamp(stock_value_52w)) > 1 ? round(diff(values(stock_value_52w[:Close]))[end], digits = 2) : 0.0
                 else
                     error("Stock data for $(security.symbol.ticker) is not present")
                 end

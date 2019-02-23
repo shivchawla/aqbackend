@@ -30,7 +30,7 @@ function _updateportfolio_EODprice(port, date::DateTime)
             for (sym, pos) in port.positions
                 tradebars[sym] = haskey(_lastDayPrices, sym.ticker) && _lastDayPrices[sym.ticker].datetime == date ? 
                     [_lastDayPrices[sym.ticker]] :  
-                    [BackTester.TradeBar(latest_dt, 0.0, 0.0, 0.0, values(latest_values[sym.ticker])[1])]
+                    [BackTester.TradeBar(latest_dt, 0.0, 0.0, 0.0, values(latest_values[Symbol(sym.ticker)])[1])]
             end
 
             updatedDate = latest_dt
@@ -59,14 +59,14 @@ function _updateportfolio_RTprice(port)
                 if price != nothing
                     updatedDate = DateTime(timestamp(price)[1])
                     val = values(price)[1]
-                    latest_tradebar = BackTester.TradeBar(DateTime(), val, val, val, val)
+                    latest_tradebar = BackTester.TradeBar(DateTime(1), val, val, val, val)
                 end
             end
             
             tradebars[sym] = [latest_tradebar]
         end
 
-        BackTester.updateportfolio_price!(port, tradebars, DateTime())
+        BackTester.updateportfolio_price!(port, tradebars, DateTime(1))
 
     end
 

@@ -18,13 +18,14 @@ format = "yyyy-mm-ddTHH:MM:SS.sssZ"
 
 function filternan(ta::TimeArray, col = "")
     (nrows, ncols) = size(ta)
-    lastname = col == "" ? colnames(ta)[ncols] : col
+    lastname = col == "" ? colnames(ta)[ncols] : Symbol(col)
     ta[.!isnan.(values(ta[lastname]))]
 end 
 
 function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate::DateTime; adjustment::Bool = false, strict::Bool = true, appendRealtime::Bool = false, field="Close") 
     currentDate = Date(now())
     eod_prices = nothing
+
 
     #Added withing try catch to handle error at YRead 
     try
@@ -61,7 +62,7 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
                 backstopData = TimeSeries.tail(YRead.history(tickers, field, :Day, currentIndiaTime() - Dates.Day(10), currentIndiaTime(), displaylogs=false, forwardfill=true), 1)
                 
                 for ticker in  tickers
-                    priceForTicker = backstopData != nothing ? values(backstopData[ticker])[end] : NaN
+                    priceForTicker = backstopData != nothing ? values(backstopData[Symbol(ticker)])[end] : NaN
                     if haskey(_realtimePrices, ticker)
                         if rtTimeStamp == nothing
                             rtTimeStamp = Date(_realtimePrices[ticker].datetime)
@@ -80,14 +81,15 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
                     push!(rtPriceArray,  priceForTicker)
                 end
 
-                mat = Matrix{Float64}(1, length(rtPriceArray))
-                mat[1, :] = rtPriceArray
+                mat = Matrix{Float64}(undef, 1, length(rtPriceArray))
+                mat[1, :] .= rtPriceArray
                 
-                rtTimeArray = TimeArray([rtTimeStamp], mat, tickers)
+                rtTimeArray = TimeArray([rtTimeStamp], mat, Symbol.(tickers))
             end
         end
     catch err
     end
+
 
     if rtTimeArray != nothing
         output = eod_prices != nothing ? [eod_prices; rtTimeArray] : rtTimeArray
@@ -96,7 +98,7 @@ function _getPricehistory(tickers::Array{String,1}, startdate::DateTime, enddate
     end
 
     if output != nothing
-        final = output[Date(startdate):Date(enddate)]
+        final = output[Date(startdate):Day(1):Date(enddate)]
         return length(final) == 0 ? nothing : final
     else 
         return nothing
@@ -196,7 +198,7 @@ function _compute_latest_portfoliovalue(portfolio)
 
             ticker = sym.ticker
             
-            close = values(prices[ticker])[end]
+            close = values(prices[Symbol(ticker)])[end]
             equity_value += _getquantity(portfolio, sym) * close 
         end
 
@@ -312,7 +314,7 @@ function _compute_portfoliovalue(portfolio, start_date::DateTime, end_date::Date
                 return nothing
             end
 
-            return TimeArray([dt for dt in dt_array], portfolio.cash*ones(length(dt_array)), ["Portfolio"])
+            return TimeArray([dt for dt in dt_array], portfolio.cash*ones(length(dt_array)), [:Portfolio])
         end
 
         ts = timestamp(merged_prices)
@@ -329,7 +331,7 @@ function _compute_portfoliovalue(portfolio, start_date::DateTime, end_date::Date
                 ticker = sym.ticker
                 
                 #IMPROVEMENT: Using Last Non-NaN prices 
-                _temp_ts_close_non_nan = values(dropnan(to(merged_prices[ticker], date), :any))
+                _temp_ts_close_non_nan = values(dropnan(to(merged_prices[Symbol(ticker)], date), :any))
                 _last_valid_close = length(_temp_ts_close_non_nan) > 0 ? _temp_ts_close_non_nan[end] : 0.0
                 
                 qty = _getquantity(portfolio, sym)
@@ -339,7 +341,7 @@ function _compute_portfoliovalue(portfolio, start_date::DateTime, end_date::Date
             portfolio_value[i, 1] = equity_value + (excludeCash ? 0.0 : portfolio.cash)
         end
 
-        return TimeArray(ts, portfolio_value, ["Portfolio"])
+        return TimeArray(ts, portfolio_value, [:Portfolio])
 
     catch err
         rethrow(err)
@@ -398,12 +400,12 @@ function _compute_portfolio_metrics(port::Dict{String, Any}, sdate::DateTime, ed
             return defaultOutput
         end
         
-        equity_value_wt = Vector{Float64}(length(allkeys))
+        equity_value_wt = Vector{Float64}(undef, length(allkeys))
 
         for (i, sym) in enumerate(allkeys)
             ticker = sym.ticker
             
-            _temp_ts_close_non_nan = values(dropnan(prices[ticker], :any))
+            _temp_ts_close_non_nan = values(dropnan(prices[Symbol(ticker)], :any))
             _last_valid_close = length(_temp_ts_close_non_nan) > 0 ? _temp_ts_close_non_nan[end] : 0.0
 
             equity_value = _getquantity(portfolio, sym) * _last_valid_close
@@ -491,7 +493,7 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
            return (nothing, nothing)
         end
 
-        ts = Vector{TimeArray}(length(portfolioHistory))
+        ts = Vector{TimeArray}(undef, length(portfolioHistory))
 
         latest_portfolio_value_ta = nothing 
         portfolio_value_ta_adj = nothing
@@ -500,8 +502,8 @@ function compute_portfoliohistory_netvalue(portfolioHistory, cashAdjustment::Boo
         cash_adj_factor = 1.0
         cashFlow = 0.0 
         
-        historyStartDate = length(portfolioHistory) > 0 ? DateTime(portfolioHistory[1]["startDate"], format) : DateTime() 
-        historyEndDate = length(portfolioHistory) > 0 ? DateTime(portfolioHistory[end]["endDate"], format) : DateTime() 
+        historyStartDate = length(portfolioHistory) > 0 ? DateTime(portfolioHistory[1]["startDate"], format) : DateTime(1) 
+        historyEndDate = length(portfolioHistory) > 0 ? DateTime(portfolioHistory[end]["endDate"], format) : DateTime(1) 
 
         dividendFactor = 1.0
         hasDividendFactor = false
@@ -929,7 +931,7 @@ function _update_portfolio_averageprice(portfolioHistory)
         allprices = Dict{SecuritySymbol, Float64}()
         for sym in allkeys
             allprices[sym] = useRtPrices && haskey(_realtimePrices, sym.ticker) ? get(_realtimePrices, sym.ticker, TradeBar()).close : 
-                    prices!=nothing && sym.ticker in colnames(prices) ? values(prices[sym.ticker])[end] : 0.0
+                    prices!=nothing && sym.ticker in colnames(prices) ? values(prices[Symbol(sym.ticker)])[end] : 0.0
         end
 
         for sym in allkeys
@@ -999,7 +1001,7 @@ function _update_dollarportfolio_averageprice(portfolioHistory::Vector{Dict{Stri
         allprices = Dict{SecuritySymbol, Float64}()
         for sym in allkeys
             allprices[sym] = useRtPrices && haskey(_realtimePrices, sym.ticker) ? get(_realtimePrices, sym.ticker, TradeBar()).close : 
-                    prices!=nothing && sym.ticker in colnames(prices) ? values(prices[sym.ticker])[end] : 0.0
+                    prices!=nothing && sym.ticker in colnames(prices) ? values(prices[Symbol(sym.ticker)])[end] : 0.0
         end
 
         for sym in allkeys
@@ -1103,7 +1105,7 @@ function compute_portfolioTransactions(newPortfolio, currentPortfolio)
 
             pnlDiffQty = isCoverLong ? max(diffQty, -currentQty) : isCoverShort ? min(diffQty, -currentQty) : 0
 
-            priceSymbol = priceHistory != nothing ? priceHistory[sym.ticker] != nothing ? values(priceHistory[sym.ticker])[end] : 0.0 : 0.0
+            priceSymbol = priceHistory != nothing ? priceHistory[sym.ticker] != nothing ? values(priceHistory[Symbol(sym.ticker)])[end] : 0.0 : 0.0
             
             realizedPnl = isCoverLong || isCoverShort ? -1.0 * pnlDiffQty * (priceSymbol -  averageprice) : 0.0
             #push!(transactions, OrderFill(sym, priceSymbol, diffQty, 0.0, false, startDate))
