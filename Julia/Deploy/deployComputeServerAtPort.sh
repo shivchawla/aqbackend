@@ -1,7 +1,7 @@
 # @Author: Shiv Chawla
 # @Date:   2019-02-12 16:16:44
 # @Last Modified by:   Shiv Chawla
-# @Last Modified time: 2019-02-23 13:43:36
+# @Last Modified time: 2019-02-23 15:15:58
 
 #!/bin/bash
 user="$1"
@@ -20,7 +20,6 @@ else
 fi
 
 cp /home/admin/$env/raftaar /home/$user/ -R
-cp /home/admin/$env/yojak /home/$user/ -R
 cp /home/admin/$env/aqbackend/Julia /home/$user/ -R
 
 chown -R $user /home/$user/raftaar
@@ -42,7 +41,7 @@ cp /home/$user/Julia/Deploy/REQUIRE /home/$user/.julia/REQUIRE
 mkdir -p /home/$user/.julia/config && cp /home/$user/Julia/Deploy/startup.jl /home/$user/.julia/config/startup.jl --force
 		
 # julia="/usr/local/julia/bin/julia"  
-# 
+julia="/home/admin/julia-1.1.0/bin/julia"
 process=/home/$user/Julia/src/julia_server.jl
 sudo su - $user -c "$julia $process $port $address"
 

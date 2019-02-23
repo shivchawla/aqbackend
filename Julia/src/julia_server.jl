@@ -25,8 +25,8 @@ SERVER_READY = false
 SERVER_AVAILABLE = true
 
 try
- port = parse(ARGS[1])
- host = ARGS[2]
+ global port = Meta.parse(ARGS[1])
+ global host = ARGS[2]
 catch err
 end
 
@@ -42,10 +42,8 @@ usr_pwd_less = mongo_user=="" && mongo_pass==""
 client = usr_pwd_less ? Mongoc.Client("mongodb://$(mongo_host):$(mongo_port)") :
                             Mongoc.Client("mongodb://$(mongo_user):$(mongo_pass)@$(mongo_host):$(mongo_port)/?authMechanism=MONGODB-CR&authSource=admin")
 
-
 YRead.configureMongo(client, database = connection["mongo_database"], priority = 3)
 
- 
 function close_connection(client)  
     try
         close(client)
@@ -53,7 +51,6 @@ function close_connection(client)
         println("Error Closing: $client")
     end
 end
-
 
 function decode_message(msg)
    String(msg)
@@ -68,8 +65,6 @@ function geterrormsg(err::Any)
 end
 
 jsdateformat = "yyyy-mm-ddTHH:MM:SS.sssZ"
-
-# wsh = WebsocketHandler() do req, client
 
 function requestHandler(client)    
     println("HERE")

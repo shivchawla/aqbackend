@@ -12,5 +12,5 @@ JuMP
 Ipopt
 DataFrames
 GLM
-Redis
 BufferedStreams
+HTTP
