@@ -1,15 +1,16 @@
-JSON			 
-Requests		 
-LibBSON			 0.3.0
-TimeSeries		 
-Mongo			 0.3.0
-WebSockets		 
-ZipFile			 
-ArgParse		 
-MarketTechnicals	 
-MultivariateStats	 
-JuMP			 
-Ipopt			
-DataFrames		 
-GLM			 
+Reexport
+StatsBase
+JSON
+Mongoc
+TimeSeries
+ZipFile
+ArgParse
+DataFrames
+DataStructures
+MultivariateStats
+JuMP
+Ipopt
+DataFrames
+GLM
 Redis
+BufferedStreams
