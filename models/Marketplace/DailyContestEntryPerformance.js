@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-14 23:07:01
+* @Last Modified time: 2019-02-24 14:29:41
 */
 
 
@@ -33,6 +33,8 @@ const DailyContestEntryPerformance = new Schema({
 		net: Schema.Types.Mixed,
 	},
 
+	performanceStats: Schema.Types.Mixed,
+
 	earnings: {
 		daily: {current: Number, cumulative: Number},
 		weekly: {current: Number, cumulative: Number},
@@ -61,6 +63,17 @@ DailyContestEntryPerformance.statics.updatePortfolioStatsForDate = function(quer
 	let qDate = {...query, date: date};
     const updates = {
     	$set: {portfolioStats: portfolioStats}
+ 	};
+		 	
+    return this.findOneAndUpdate(qDate, updates, {upsert: true});
+};
+
+
+DailyContestEntryPerformance.statics.updatePerformanceStatsForDate = function(query, performanceStats, date) {
+	
+	let qDate = {...query, date: date};
+    const updates = {
+    	$set: {performanceStats: performanceStats}
  	};
 		 	
     return this.findOneAndUpdate(qDate, updates, {upsert: true});
@@ -143,8 +156,50 @@ DailyContestEntryPerformance.statics.fetchPortfolioStatsForDate = function(query
 	})
 };
 
-DailyContestEntryPerformance.statics.fetchPnlStatsHistory = function(query) {
-	return this.find(query, {pnlStats: 1});
+
+DailyContestEntryPerformance.statics.fetchPerformanceStatsForDate = function(query, date) {
+	var projectionField = `performanceStats`;
+	return this.findOne({...query, date: date}, {[projectionField]: 1})
+	.then(doc => {
+		return _.get(doc, 'performanceStats', null);
+	})
+};
+
+DailyContestEntryPerformance.statics.fetchLatestPerformanceStats = function(query, date) {
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
+	return this.find({...query, date:{$lte: date}, performanceStats:{$exists: true}}, {performanceStats:1}).sort({date: -1}).limit(1)
+	.then(latestDoc => {
+		return latestDoc && latestDoc.length > 0 ? _.get(latestDoc[0], 'performanceStats', null) : null;
+	});
+};
+
+DailyContestEntryPerformance.statics.fetchLastPerformanceStats = function(query, date) {
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : DateHelper.getDate(date)); 
+	return this.find({...query, date:{$lt: date}, performanceStats:{$exists: true}}, {performanceStats:1}).sort({date: -1}).limit(1)
+	.then(latestDoc => {
+		return _.get(latestDoc, '[0].performanceStats', null);
+	});
+};
+
+DailyContestEntryPerformance.statics.fetchPnlStatsHistory = function(query, date) {
+	return this.find({...query, date:{$lte: date}}, {date:1, pnlStats: 1})
+	.then(allDocs => {
+		return allDocs.map(item => _.pick(item, ['date', 'pnlStats']));
+	})
+};
+
+DailyContestEntryPerformance.statics.fetchPortfolioStatsHistory = function(query, date) {
+	return this.find({...query, date:{$lte:date}}, {date:1, portfolioStats: 1})
+	.then(allDocs => {
+		return allDocs.map(item => _.pick(item, ['date', 'portfolioStats']));
+	})
+};
+
+DailyContestEntryPerformance.statics.fetchPerformanceStatsHistory = function(query) {
+	return this.find(query, {date:1, performanceStats: 1})
+	.then(allDocs => {
+		return allDocs.map(item => _.pick(item, ['date', 'performanceStats']));
+	})
 };
 
 DailyContestEntryPerformance.statics.updateEarningStats = function(query, date, earningDetail) {
@@ -167,7 +222,6 @@ DailyContestEntryPerformance.statics.updateEarningStats = function(query, date, 
 		return this.updateOne({...query, date: date}, {$set: {[key]: updates}});
 
 	});
-	
 };
 
 DailyContestEntryPerformance.statics.fetchDistinctPerformances = function(query, skip = 0, limit = 10) {
@@ -228,7 +282,9 @@ DailyContestEntryPerformance.statics.fetchDistinctPerformances = function(query,
 			}
 		})
 	})
-}
+};
 
 const DailyContestEntryPerformanceModel = mongoose.model('DailyContestEntryPerformance', DailyContestEntryPerformance);
 module.exports = DailyContestEntryPerformanceModel;
+
+

@@ -4083,6 +4083,34 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
+
+  /dailycontest/performance:
+    get:
+      tags: 
+      - dailycontest
+      summary: get portfolio stats for users
+      description: get portfolio stats for users
+      operationId: getDailyContestPerformanceStats
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: advisor
+        in: query
+        required: false
+        type: string
+        description: advisor id of the user for whom stats required
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
   /dailycontest/winneremail:
     get:
       tags:

@@ -15,7 +15,6 @@ function forwardfill(ta, col = "Portfolio")
         return TimeArray(timestamp(ta), vs, names)
     
     else
-
         return ta
     end
 end
@@ -122,13 +121,19 @@ end
 # Compute Portfolio Performance based on NET-VALUE over a period (start and end dates)
 # OUTPUT: Performance object
 ###
-function compute_performance(portfolio_value::TimeArray, benchmark::String)
+function compute_performance(portfolio_value::TimeArray, benchmark::String, lastdate::Date = Date(1))
 
     ts = timestamp(portfolio_value)
 
     #Fetch benchmark price history
     start_date = ts[1]
     end_date = ts[end]
+
+    #In case, last date is provided
+    #Used when incoming netvalue is same after the date (daily contest entry)
+    if lastdate != Date(1) && lastdate > end_date
+        end_date = lastdate
+    end
         
     portfolio_value = rename(portfolio_value, [:Portfolio])
     benchmark_value = _getPricehistory([benchmark], DateTime(start_date), DateTime(end_date), strict=false, appendRealtime = true)
@@ -481,7 +486,7 @@ function get_stock_price_history(security_dict::Dict{String,Any}, field="Close")
             if stock_prices != nothing && benchmark_prices != nothing
                 stock_prices = dropnan(to(merge(stock_prices, benchmark_prices, :right), timestamp(benchmark_prices)[end]), :any)
 
-                (ts, prices) = (timestamp(stock_prices[security.symbol.ticker]), values(stock_prices[Symbol(security.symbol.ticker)])) 
+                (ts, prices) = (timestamp(stock_prices[Symbol(security.symbol.ticker)]), values(stock_prices[Symbol(security.symbol.ticker)])) 
                 
                 history = Vector{Dict{String, Any}}()
                 for i = 1:length(ts)

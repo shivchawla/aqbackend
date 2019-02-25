@@ -124,15 +124,25 @@ function handleRequest(parsemsg::Dict{String, Any})
           performance = serialize(performance)
           parsemsg["output"] = Dict("date" => endDate, "value" => performance)
 
-        ##NOT IN USE
+        
+
         elseif action == "compute_performance_netvalue"
           
           try
-            netValues = [get(dict, "netValue", NaN) for dict in parsemsg["netValues"]]
-            dates = [haskey(dict, "date") ? Date(dict["date"]) : Date()  for dict in parsemsg["netValues"]]
+            netValues = [Float64(get(dict, "netValue", NaN)) for dict in parsemsg["netValues"]]
+            dates = [haskey(dict, "date") ? Date(DateTime(dict["date"], jsdateformat)) : Date(1)  for dict in parsemsg["netValues"]]
             benchmark = parsemsg["benchmark"]["ticker"]
 
-            (lastdate, performance, dperformance, rolling_performances, rolling_performances_diff, static_performances, rolling_performances_bench, static_performances_bench) = compute_performance(TimeArray(dates, reshape(netValues, (length(netValues),1)), [:Portfolio]), benchmark)
+            lastdate = haskey(parsemsg, "date") ? Date(parsemsg["date"], jsdateformat) : Date(1)
+            nVDict = Dict{String, Any}()
+
+            for (i,date) in enumerate(dates)
+                if date != Date(1)
+                  nVDict[string(date)] = netValues[i]
+                end
+            end
+            
+            (lastdate, performance, dperformance, rolling_performances, rolling_performances_diff, static_performances, rolling_performances_bench, static_performances_bench) = compute_performance(TimeArray(dates, netValues, [:Portfolio], lastdate), benchmark)
 
             parsemsg["output"] = Dict{String, Any}("date" => lastdate, 
                                           "value" => Dict(
@@ -145,6 +155,7 @@ function handleRequest(parsemsg::Dict{String, Any})
                                             "static_benchmark" => serialize(static_performances_bench)),  
                                           "portfolioValues" => nVDict)
           catch err
+                println(err)
                 parsemsg["output"] = Dict{String, Any}("date" => Date(currentIndiaTime()), 
                                           "value" => Dict(
                                               "true" => serialize(Performance()), 

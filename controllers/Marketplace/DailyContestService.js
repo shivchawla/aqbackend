@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 23:12:43
+* @Last Modified time: 2019-02-24 14:29:24
 */
 
 'use strict';
@@ -162,6 +162,7 @@ module.exports.getDailyContestPortfolioStatsForDate = (args, res, next) => {
 		return res.status(400).send(err.message);		
 	});
 };
+
 
 /*
 * Next availble stock without prediction
@@ -670,7 +671,7 @@ module.exports.getDailyContestStats = (args, res, next) => {
 			switch(category) {
 				case "general" : return DailyContestEntryHelper.getDailyContestEntryPnlStats(advisorId, symbol, horizon); 
 				case "prediction" : return DailyContestEntryHelper.getDailyContestEntryPnlStats(advisorId, symbol, horizon); break;
-				case "pnl" : return DailyContestEnteryHelper.getDailyContestEntryPnlStats(advisorId, horizon); break;
+				case "pnl" : return DailyContestEntryHelper.getDailyContestEntryPnlStats(advisorId, horizon); break;
 			}
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
@@ -683,6 +684,39 @@ module.exports.getDailyContestStats = (args, res, next) => {
 		return res.status(400).send(err.message);
 	});
 };
+
+/*
+* Get contest (dashboard stats) for user
+*/
+module.exports.getDailyContestPerformanceStats = (args, res, next) => {
+	
+	const advisor = _.get(args, 'advisor.value', null);
+	const userId = _.get(args, 'user._id', null);
+
+	let selection = {user: userId};
+
+	if (advisor !== null && (advisor || '').trim().length > 0) {
+		selection = {_id: advisor.trim()};
+	}
+
+	return AdvisorModel.fetchAdvisor({...selection}, {fields: '_id'})		
+	.then(advisor => {
+		if (advisor) {
+			const advisorId = advisor._id.toString()
+			return DailyContestEntryHelper.getLatestPerformanceStats(advisorId);
+		} else {
+			APIError.throwJsonError({message: "Not a valid user"});
+		} 
+	})	
+	.then(stats => {
+		return res.status(200).send(stats);
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	});
+};
+
+
 
 module.exports.updateDailyContestTopStocks = (args, res, next) => {
 	const _d = _.get(args, 'date.value', '');

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-22 15:01:37
+* @Last Modified time: 2019-02-25 11:38:10
 */
 
 'use strict';
@@ -1286,6 +1286,37 @@ function _computeNetPnlStats(advisorId, date) {
 	});
 }
 
+function _getDistinctPredictionTickersForAdvisors(date, options={}) {
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+	
+	var advisorsByTicker = {};
+	
+	return DailyContestEntryModel.fetchDistinctAdvisors()
+	.then(distinctAdvisors => {
+		return Promise.mapSeries(distinctAdvisors, function(advisorId){
+			return exports.getPredictionsForDate(advisorId, date, {...options, category: "all", priceUpdate: false})
+			.then(predictions => {
+				var predictionTickers = predictions.map(item => {return _.get(item, 'position.security.ticker', null)}).filter(item => item) || [];
+				return Promise.map(predictionTickers, function(ticker) {
+					if (ticker in advisorsByTicker) {
+						advisorsByTicker[ticker].push(advisorId) 
+					} else {
+						advisorsByTicker[ticker] = [advisorId];
+					}
+					return;
+				})
+			})
+		})
+	})
+	.then(() => {
+		Object.keys(advisorsByTicker).forEach(ticker => {
+			advisorsByTicker[ticker] = _.uniq(advisorsByTicker[ticker]);
+		});
+
+		return advisorsByTicker;
+	});	
+}
+
 module.exports.getValidStartDate = function(date) {
 	
 	let latestTradingDateIncludingToday = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0)); 
@@ -1464,8 +1495,6 @@ module.exports.updateAllEntriesLatestPnlStats = function(date){
 	});
 };
 
-
-
 module.exports.updateAdvisorNetPnlStats = function(advisorId, date) {
 	return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
 	.then(activePredictions => {
@@ -1496,7 +1525,6 @@ module.exports.updateAllEntriesNetPnlStats = function(date) {
 		console.log('Error', err);
 	})
 };
-
 
 /**
  * Update the portfolio stats for advisorId
@@ -2005,36 +2033,93 @@ module.exports.getDailyContestEntryPnlStats = function(advisorId, symbol, horizo
 	})
 };
 
-function _getDistinctPredictionTickersForAdvisors(date, options={}) {
+
+function _computePerformanceStats(advisorId, date) {
+	
+	return DailyContestEntryPerformanceModel.fetchPortfolioStatsHistory({advisor: advisorId}, date)
+	.then(allPortfolioStats => {
+		if (allPortfolioStats) {
+			var portfolioValueHistory = allPortfolioStats
+				.map(item => {return {date: _.get(item, 'date', null), netValue: _.get(item, 'portfolioStats.netTotal', null)};})
+				.filter(item => {return item.netValue != null && item.date != null;})
+				.sort((a,b) => {
+					return moment(a.date).isBefore(b.date) ? -1 : 1; 
+				});
+
+			return new Promise(function(resolve, reject) {
+				var msg = JSON.stringify({action:"compute_performance_netvalue", 
+		        								netValues: portfolioValueHistory,
+		        								date: date,
+		        								benchmark: {ticker: 'NIFTY_50'}}); 
+
+				WSHelper.handleMktRequest(msg, resolve, reject);
+
+			})
+		} else {
+			APIError.throwJsonError({message: "No portfolio stats"});
+		}
+	})
+	.then(performance => {
+		//FORMAT the output of portfolio values
+		performance.portfolioValues = Object.keys(performance.portfolioValues).sort().map(date => {
+			return {date: new Date(date), netValue: performance.portfolioValues[date]}
+		})
+
+		var performanceSummary = {
+			totalReturn: _.get(performance, 'value.true.returns.totalreturn', 0.0),
+			annualReturn: _.get(performance, 'value.true.returns.annualreturn', 0.0),
+			volatility: _.get(performance, 'value.true.deviation.annualstandarddeviation', 0.0),
+			sharpe: _.get(performance, 'value.true.ratios.sharperatio', 0.0),
+			beta: _.get(performance, 'value.true.ratios.beta', 0.0),
+			calmar: _.get(performance, 'value.true.ratios.calmarratio', 0.0),
+			information: _.get(performance, 'value.true.ratios.informationratio', 0.0),
+			alpha: _.get(performance, 'value.true.ratios.alpha', 0.0),
+			maxLoss: _.get(performance, 'value.true.drawdown.maxdrawdown', 0.0),
+			currentLoss: _.get(performance, 'value.true.drawdown.currentdrawdown', 0.0),
+			period: _.get(performance, 'value.true.period', 0)
+		};
+
+		var performanceStats = {...performance, performanceSummary};
+
+		return DailyContestEntryPerformanceModel.updatePerformanceStatsForDate({advisor: advisorId}, performanceStats, date);
+	})
+	.then(doc => {
+		return _.get(doc, 'performanceStats', {});
+	})
+}
+
+	
+/*
+* Get portfolio performance stats for advisor
+*/
+module.exports.getLatestPerformanceStats = function(advisorId, date) {
+
+	date = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(date, 0));
+
+	return DailyContestEntryPerformanceModel.fetchLatestPerformanceStats({advisor: advisorId}, date)
+	.then(performanceStats => {
+		if (performanceStats) {
+			return performanceStats;
+		} else {
+			return _computePerformanceStats(advisorId, date);
+		}
+	});
+};
+
+/*
+* Update portfolio performance stats for all advisors
+*/
+module.exports.updateAllEntriesPerformanceStats = function(date) {
+
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 	
-	var advisorsByTicker = {};
-	
 	return DailyContestEntryModel.fetchDistinctAdvisors()
-	.then(distinctAdvisors => {
-		return Promise.mapSeries(distinctAdvisors, function(advisorId){
-			return exports.getPredictionsForDate(advisorId, date, {...options, category: "all", priceUpdate: false})
-			.then(predictions => {
-				var predictionTickers = predictions.map(item => {return _.get(item, 'position.security.ticker', null)}).filter(item => item) || [];
-				return Promise.map(predictionTickers, function(ticker) {
-					if (ticker in advisorsByTicker) {
-						advisorsByTicker[ticker].push(advisorId) 
-					} else {
-						advisorsByTicker[ticker] = [advisorId];
-					}
-					return;
-				})
-			})
+	.then(advisors => {
+		return Promise.mapSeries(advisors, function(advisorId) {
+			return _computePerformanceStats(advisorId, date);	
 		})
-	})
-	.then(() => {
-		Object.keys(advisorsByTicker).forEach(ticker => {
-			advisorsByTicker[ticker] = _.uniq(advisorsByTicker[ticker]);
-		});
-
-		return advisorsByTicker;
-	});	
-}
+	})	
+};
 
 //function to update the interval prices
 module.exports.updatePredictionsForIntervalPrice = function(date) {

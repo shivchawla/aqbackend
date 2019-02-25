@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-04-25 16:09:37
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-03 15:17:00
+* @Last Modified time: 2019-02-25 10:26:47
 */
 'use strict';
 var redis = require('redis');
@@ -49,6 +49,7 @@ function getConnectionForMktPlace(purpose) {
     return 'ws://' + machine.host + ":" + machine.port;
 }
 
+
 module.exports.handleMktRequest = function(requestMsg, resolve, reject, options) {
 	
     let connection = _.get(options, 'connection', null);
@@ -75,13 +76,19 @@ module.exports.handleMktRequest = function(requestMsg, resolve, reject, options)
 		return;
 	}
 
-	//BUG FIX: backend shouldn't crash if WS connection is unavailable
-	//TO BE ADDED- max number of attempts
-    wsClient.on('error', function() {
-     	if (wsClient.readyState == 0) {
-     		reject(APIError.jsonError({message: `Error connecting to ${connection}`}));
-			return;
-     	}
+    //Re-connect on WS error
+    wsClient.on('error', function(err) {
+        console.log(`Error connecting to WS at ${connection}`);
+        setTimeout(function() {
+            // we must choose the same server when updating realtime prices
+            // other wise server may not get updated
+            var parsedMsg = JSON.parse(requestMsg);
+            if (parsedMsg.action == "update_realtime_prices") {
+                exports.handleMktRequest(requestMsg, resolve, reject, Object.assign(options ? options : {}, {maxAttempts: maxAttempts - 1}));
+            } else {
+                exports.handleMktRequest(requestMsg, resolve, reject, Object.assign(options ? options : {}, {maxAttempts: maxAttempts - 1}));
+            }
+        }, 1000);        
     });
 
     wsClient.on('open', function open() {
