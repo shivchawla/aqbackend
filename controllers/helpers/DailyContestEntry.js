@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-25 11:38:10
+* @Last Modified time: 2019-02-25 18:25:54
 */
 
 'use strict';
@@ -2046,6 +2046,7 @@ function _computePerformanceStats(advisorId, date) {
 					return moment(a.date).isBefore(b.date) ? -1 : 1; 
 				});
 
+
 			return new Promise(function(resolve, reject) {
 				var msg = JSON.stringify({action:"compute_performance_netvalue", 
 		        								netValues: portfolioValueHistory,
@@ -2336,16 +2337,33 @@ module.exports.checkPredictionTriggers = function(date) {
 									}
 									
 									var endDate = DateHelper.getMarketCloseDateTime(date);
-
 									var relevantIntradayHistory = securityDetail.intradayHistory.filter(item => {var dt = item.datetime; return moment(dt).isAfter(moment(startDate)) && !moment(dt).isAfter(moment(endDate))});
+
+									//Conditional Type (could be "limit" or "cross")
+									var conditionalType = prediction.conditionalType;
+									if (condtionalType == "") {
+										console.log(`OOPS!! Invalid conditional type (must be LIMIT or CROSS), Advisor: ${advisorId} & Prediction: ${prediction._id}`);
+										return;
+									}
 
 									if (relevantIntradayHistory.length > 0) {
 
+										var lowPrices = relevantIntradayHistory.map(item => _.get(item, 'low', Infinity));
+										var highPrices = relevantIntradayHistory.map(item => _.get(item, 'high', -Infinity));
+
 										var idx = -1;
-										if (investment > 0) {
-											idx = relevantIntradayHistory.findIndex(item => {return _.get(item, 'low', Infinity) <= conditionalPrice;});
+										if (conditionalType == "LIMIT") { //COMPARE LOW for BUYS an HIGH FOR SELLS
+											if (investment > 0) {
+												idx = lowPrices.filter(item => {return item <= conditionalPrice;});
+											} else {
+												idx = highPrices.filter(item => {return item >= conditionalPrice;});
+											}
 										} else {
-											idx = relevantIntradayHistory.findIndex(item => {return _.get(item, 'high', -Infinity) >= conditionalPrice;});
+											if (investment > 0) { //COMPARE HIGH for BUYS and LOW FOR SELLS
+												idx = highPrices.filter(item => {return item >= conditionalPrice;});
+											} else {
+												idx = lowPrices.filter(item => {return item <= conditionalPrice;});
+											}
 										}
 										
 										if (idx != -1) {

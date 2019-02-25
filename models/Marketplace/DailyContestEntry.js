@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-22 12:28:44
+* @Last Modified time: 2019-02-25 18:12:12
 */
 
 
@@ -66,6 +66,8 @@ const Prediction = new Schema({
 	},
 
 	conditionalPrice: Number,
+
+	conditionalType: String,
 
 	target: {
 		type: Number,

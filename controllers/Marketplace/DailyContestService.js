@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-24 14:29:24
+* @Last Modified time: 2019-02-25 20:14:29
 */
 
 'use strict';
@@ -346,10 +346,10 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				item.nonMarketHoursFlag = DateHelper.isHoliday() || !DateHelper.isMarketTrading();
 				item.createdDate = new Date();
 
-				var isConditional = item.conditional && item.position.avgPrice != 0; 
+				var isConditional = item.conditionalType != "NOW" && item.position.avgPrice != 0; 
 
 				//Set trigger
-				item = {...item, triggered: {status: !isConditional}, conditionalPrice: isConditional ? item.position.avgPrice : 0};
+				item = {...item, conditional:isConditional, triggered: {status: !isConditional}, conditionalPrice: isConditional ? item.position.avgPrice : 0, conditionalType: isConditional ? conditionalType : ""};
 
 				return item;
 

@@ -66,19 +66,23 @@ end
 jsdateformat = "yyyy-mm-ddTHH:MM:SS.sssZ"
 
 function requestHandler(client)    
-    println("HERE")
+    
+    println("Request Received: $(now())")
+    
     responseMsg = Dict{String, Any}("error" => "")
     
     try 
+        println("Decoding request: $(now())")
         msg =  decode_message(readavailable(client))
         
         parsemsg = JSON.parse(msg)
 
         if haskey(parsemsg, "action") 
+            println("Handling request: $(now())")
             responseMsg = handleRequest(parsemsg)
         else
           println(parsemsg)
-          @warn "No action provided"
+          @warn "Error: No action provided: $(now())"
           responseMsg["error"] = "No or invalid action provided"
           responseMsg["code"] = 403
         end
@@ -88,6 +92,7 @@ function requestHandler(client)
         responseMsg = Dict{String, Any}("error" => err, "code" => 401, "outputtype" => "internal")
     end
 
+    println("Sending response: $(now())")
     write(client, JSON.json(responseMsg))
 
 end

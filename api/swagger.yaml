@@ -4962,9 +4962,10 @@ definitions:
       stopLoss:
         type: number
         default: -1
-      conditional:
-        type: boolean
-        default: false 
+      conditionalType:
+        type: string
+        default: "NOW"
+        enum: ["NOW", "CROSS", "LIMIT"]
 
   DailyContestPredictions:
     type: object
