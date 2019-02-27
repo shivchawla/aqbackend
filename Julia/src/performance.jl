@@ -607,7 +607,7 @@ function get_stock_price_latest(security_dict::Dict{String,Any}, ptype::String="
                     output["Open"] = values(stock_value_52w[:Open])[end]
                     output["Close"] = values(stock_value_52w[:Close])[end]
                     output["Date"] = string(Date(timestamp(stock_value_52w)[end]))
-                    output["ChangePct"] = length(timestamp(stock_value_52w)) > 1 ? round(percentchange(values(stock_value_52w[:Close]))[end], digits = 4) : 0.0
+                    output["ChangePct"] = length(timestamp(stock_value_52w)) > 1 ? round(values(percentchange(stock_value_52w[:Close]))[end], digits = 4) : 0.0
                     output["Change"] = length(timestamp(stock_value_52w)) > 1 ? round(diff(values(stock_value_52w[:Close]))[end], digits = 2) : 0.0
                 else
                     error("Stock data for $(security.symbol.ticker) is not present")
