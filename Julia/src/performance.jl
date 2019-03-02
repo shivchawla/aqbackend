@@ -342,7 +342,7 @@ end
 ###
 function compute_stock_rolling_performance(security_dict::Dict{String,Any})
 
-    defaultOutput = (Date(), Dict{String, Performance}())
+    defaultOutput = (Date(1), Dict{String, Performance}())
     try
         (valid, security) = _validate_security(security_dict)
         
@@ -373,7 +373,7 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
 
                 merged_prices_raw = from(to(merge(stock_prices, benchmark_prices, :right), ed), sd)
                 merged_prices = merged_prices_raw != nothing ? dropnan(merged_prices_raw, :any) : nothing
-                
+
                 if merged_prices == nothing
                     return defaultOutput
                 end
