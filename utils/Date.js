@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-05 12:56:29
+* @Last Modified time: 2019-03-05 17:47:31
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -10,7 +10,7 @@ const localTimeZone = moment.tz.guess();
 
 
 function _isBeforeMarketClose(minuteOffset = 0) {
-	return moment().isBefore(exports.getMarketClose(offsetMinutes).subtract(minuteOffset, 'minutes'));
+	return moment().isBefore(exports.getMarketClose().subtract(minuteOffset, 'minutes'));
 }
 
 function _isAfterMarketOpen(minuteOffset = 0) {

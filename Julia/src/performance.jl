@@ -342,7 +342,7 @@ end
 ###
 function compute_stock_rolling_performance(security_dict::Dict{String,Any})
 
-    defaultOutput = (Date(), Dict{String, Performance}())
+    defaultOutput = (Date(1), Dict{String, Performance}())
     try
         (valid, security) = _validate_security(security_dict)
         
@@ -373,7 +373,7 @@ function compute_stock_rolling_performance(security_dict::Dict{String,Any})
 
                 merged_prices_raw = from(to(merge(stock_prices, benchmark_prices, :right), ed), sd)
                 merged_prices = merged_prices_raw != nothing ? dropnan(merged_prices_raw, :any) : nothing
-                
+
                 if merged_prices == nothing
                     return defaultOutput
                 end
@@ -607,7 +607,7 @@ function get_stock_price_latest(security_dict::Dict{String,Any}, ptype::String="
                     output["Open"] = values(stock_value_52w[:Open])[end]
                     output["Close"] = values(stock_value_52w[:Close])[end]
                     output["Date"] = string(Date(timestamp(stock_value_52w)[end]))
-                    output["ChangePct"] = length(timestamp(stock_value_52w)) > 1 ? round(percentchange(values(stock_value_52w[:Close]))[end], digits = 4) : 0.0
+                    output["ChangePct"] = length(timestamp(stock_value_52w)) > 1 ? round(values(percentchange(stock_value_52w[:Close]))[end], digits = 4) : 0.0
                     output["Change"] = length(timestamp(stock_value_52w)) > 1 ? round(diff(values(stock_value_52w[:Close]))[end], digits = 2) : 0.0
                 else
                     error("Stock data for $(security.symbol.ticker) is not present")

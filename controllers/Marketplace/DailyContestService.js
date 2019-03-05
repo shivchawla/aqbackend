@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-05 15:38:57
+* @Last Modified time: 2019-03-05 17:54:25
 */
 
 'use strict';
@@ -227,10 +227,10 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 	return Promise.resolve()
 	.then(() => {
-
-		if (!DateHelper.isMarketTrading(15, 15) && entryPredictions.filter(item => {return item.real == true;}).length > 0) {
-		 	APIError.throwJsonError({message: "Market is closed!! Real trades are allowed only between 9:30 AM to 3:15 PM!!"})
-		}
+		return ;
+		// if (!DateHelper.isMarketTrading(15, 15) && entryPredictions.filter(item => item.real).length > 0) {
+		//  	APIError.throwJsonError({message: "Market is closed!! Real trades are allowed only between 9:30 AM to 3:15 PM!!"})
+		// }
 	})
 	.then(() => {		
 		//Check if investment amount is either 10, 25, 50, 75 or 100K for unreal predictions
@@ -398,7 +398,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		})
 	})
 	.then(() => {
-		return  Promise.mapSeries(entryPredictions, item => {
+		return Promise.mapSeries(entryPredictions, function(item) {
 			if (DateHelper.compareDates(item.endDate, item.startDate) == 1) {
 				
 				item.startDate = validStartDate;
@@ -406,11 +406,11 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				item.modified = 1;
 				item.nonMarketHoursFlag = DateHelper.isHoliday() || !DateHelper.isMarketTrading();
 				item.createdDate = new Date();
-
+					
 				var isConditional = item.conditionalType != "NOW" && item.position.avgPrice != 0; 
 
 				//Set trigger
-				item = {...item, conditional:isConditional, triggered: {status: !isConditional}, conditionalPrice: isConditional ? item.position.avgPrice : 0, conditionalType: isConditional ? conditionalType : ""};
+				item = {...item, conditional:isConditional, triggered: {status: !isConditional}, conditionalPrice: isConditional ? item.position.avgPrice : 0, conditionalType: isConditional ? item.conditionalType : ""};
 
 				return item;
 
