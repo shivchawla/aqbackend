@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-24 14:29:41
+* @Last Modified time: 2019-03-05 12:09:07
 */
 
 
@@ -227,29 +227,53 @@ DailyContestEntryPerformance.statics.updateEarningStats = function(query, date, 
 DailyContestEntryPerformance.statics.fetchDistinctPerformances = function(query, skip = 0, limit = 10) {
 	return new Promise((resolve, reject) => {
 		this.aggregate(
-			[
+			[	
+				{
+					$match: {'earnings': {$exists: true}}
+				},
+
+				{
+					$sort: { advisor: 1, date: 1 } 
+				},
+
+				{
+				   $project:{
+					   advisor: "$advisor",
+					   date: "$date",
+					   dailyEarnings: "$earnings.daily.cumulative",
+					   weeklyEarnings: "$earnings.weekly.cumulative",
+					   pnlStats: "$pnlStats.net.total.portfolio.net",
+					   portfolioStats: "$portfolioStats",
+					}
+				},
 				{
 					$group:
 					  {
 						_id: "$advisor",
-						id: { $last: "$_id" },
 						currentDate: {$last: "$date"},
-						totalDaily: {$last: "$earnings.daily.cumulative"},
-						totalWeekly: {$last: "$earnings.weekly.cumulative"},
+						totalDaily: {$last: "$dailyEarnings"},
+						totalWeekly: {$last: "$weeklyEarnings"},
 						portfolioStats: {$last: "$portfolioStats"},
 						pnlStats: {$last: "$pnlStats"},
 					}
 				},
-				{$sort: {'totalDaily': -1, 'totalWeekly': -1}},
+				{
+					$addFields: {
+						totalEarnings: {
+							$add: [{$ifNull: ["$totalDaily", 0]}, {$ifNull:["$totalWeekly", 0]}]
+						}
+					}
+				},
+				{$sort: {'totalEarnings': -1}},
 				{$skip: skip},
-				{$limit: limit},
+				{$limit: limit}, 
 				{
 				   $project:{
-					   _id:"$id",
 					   advisor: "$_id",
 					   date: "$currentDate",
 					   totalDaily: "$totalDaily",
 					   totalWeekly: "$totalWeekly",
+					   totaEarnings: "$totalEarnings",
 					   pnlStats: "$pnlStats",
 					   portfolioStats: "$portfolioStats",
 					}

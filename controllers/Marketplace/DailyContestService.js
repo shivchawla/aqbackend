@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-25 20:14:29
+* @Last Modified time: 2019-03-05 12:29:25
 */
 
 'use strict';
@@ -516,16 +516,12 @@ module.exports.getDailyContestOverallWinnersByEarnings = (args, res, next) => {
 			firstName = firstName[0].toUpperCase() + firstName.slice(1).toLowerCase();
 			lastName = lastName[0].toUpperCase() + lastName.slice(1).toLowerCase();
 			const userName = `${firstName} ${lastName}`;
-			const dailyEarnings = _.get(performance, 'totalDaily', 0);
-			const weeklyEarnings = _.get(performance, 'totalWeekly', 0);
-			const totalEarnings = dailyEarnings + weeklyEarnings;	
+			const totalEarnings = _.get(performance, 'totalEarnings', 0);
 			const date = _.get(performance, 'date', null)
 
 			return {
 				advisorId: _.get(performance, 'advisor._id', null),
 				name: userName, 
-				dailyEarnings, 
-				weeklyEarnings, 
 				totalEarnings,
 				pnlStats: performance.pnlStats,
 				portfolioStats: performance.portfolioStats,
@@ -542,47 +538,38 @@ module.exports.getDailyContestOverallWinnersByEarnings = (args, res, next) => {
 		 * 3. We wrap both the above step in Promise.all, such that both the 2 steps runs aysnchronously
 		 */
 		return Promise.all([
-			Promise.map(winners, performance => {
-				const advisorId = _.get(performance, 'advisorId', null);
-				if (performance.portfolioStats === null) {
+			Promise.map(winners, winner => {
+				const advisorId = _.get(winner, 'advisorId', null);
+				if (winner.portfolioStats === null) {
 					return DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId})
-					.then(data => {
+					.then(latestPortfolioStats => {
 						return {
-							...performance,
-							portfolioStats: data
+							...winner,
+							portfolioStats: latestPortfolioStats
 						}
 					});
 				} else {
-					return performance;
+					return winner;
 				}
 			}),
-			Promise.map(winners, performance => {
-				const advisorId = _.get(performance, 'advisorId', null);
-				if (performance.pnlStats === null) {
+			Promise.map(winners, winner => {
+				const advisorId = _.get(winner, 'advisorId', null);
+				if (winner.pnlStats === null) {
 					return DailyContestEntryPerformanceModel.fetchLatestPnlStats({advisor: advisorId})
-					.then(data => {
+					.then(latestPnlStats => {
 						return {
-							...performance,
-							pnlStats: data
+							...winner,
+							pnlStats: _.pick(latestPnlStats, 'latesPnlStats.net.total.portfolio.net')
 						}
 					});
 				} else {
-					return performance;
+					return winner;
 				}
 			})
 		])
 	})
-	.then(performances => {
-		let portfolioData = performances[0];
-		let pnlData = performances[1];
+	.then(([allWinnersPortfolioStats, allWinnersPerformanceStats]) => {
 		
-		pnlData = pnlData.map(dataItem => {
-			return _.omit(dataItem, 'pnlStats.detail', 'pnlStats.net.realized', 'pnlStats.net.total.byTickers');
-		});
-		portfolioData = portfolioData.map(dataItem => {
-			return _.omit(dataItem, 'pnlStats.detail', 'pnlStats.net.realized', 'pnlStats.net.total.byTickers');
-		});
-
 		/**
 		 * Explanation of the following steps
 		 * 1. Keys both the portfolio and pnl collections by advisorId, which converts it to object
@@ -591,8 +578,8 @@ module.exports.getDailyContestOverallWinnersByEarnings = (args, res, next) => {
 		 * See docs for better explanation
 		 */
 		const mergedData = _.values(_.merge(
-			_.keyBy(portfolioData, 'advisorId'),
-			_.keyBy(pnlData, 'advisorId'),
+			_.keyBy(allWinnersPortfolioStats, 'advisorId'),
+			_.keyBy(allWinnersPerformanceStats, 'advisorId'),
 		))
 		return res.status(200).send(mergedData);
 	})
