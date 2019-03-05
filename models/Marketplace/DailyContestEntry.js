@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-25 18:12:12
+* @Last Modified time: 2019-03-05 14:07:57
 */
 
 
@@ -69,6 +69,11 @@ const Prediction = new Schema({
 
 	conditionalType: String,
 
+	real: {
+		type: Boolean,
+		default: false,
+	},
+
 	target: {
 		type: Number,
 		required: true
@@ -76,8 +81,13 @@ const Prediction = new Schema({
 	stopLoss: {
 		type: Number,
 		required: false,
-		default: -1, //~ 100%
 	},
+
+	stopLossType: {
+		type: String,
+		default: "NOTIONAL",
+	},
+
 	createdDate: {
 		type: Date,
 		required: true

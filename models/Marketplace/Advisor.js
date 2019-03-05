@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-01 09:54:35
+* @Last Modified time: 2019-03-05 14:57:32
 */
 'use strict';
 
@@ -131,7 +131,16 @@ const Advisor = new Schema({
 
     latestAnalytics: AdvisorAnalytics,
 
-    account: Account
+    //For simulated preditions
+    account: Account,
+
+    //Real account for allocated users
+    allocation: {
+        startDate: Date,
+        status: Boolean,
+        endDate: Date,
+        account: Account
+    },
 
 });
 

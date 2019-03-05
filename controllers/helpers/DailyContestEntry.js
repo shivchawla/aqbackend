@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-25 18:25:54
+* @Last Modified time: 2019-03-05 15:55:37
 */
 
 'use strict';
@@ -22,6 +22,23 @@ const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEnt
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 
+
+function _getStopLossPrice(prediction) {
+
+	var stopLossPrice = 0;
+	if (_.get(prediction, 'stopLossType', "") != "NOTIONAL") {
+		
+		var investment = prediction.investment;
+		var lossDirection = -1 * (investment > 0 ? 1 : -1);
+		stopLossPrice = (1 + lossDirection*Math.abs(_.get(prediction, 'stopLoss', 1))) * prediction.position.avgPrice;
+	
+	} else {
+		stopLossPrice = _.get(prediction, 'stopLoss', 0);
+	}
+
+	return stopLossPrice || prediction.position.avgPrice;
+ 	
+}
 
 function _getEffectiveStartDate(prediction) {
 	return _.get(prediction, 'conditional', false) ? prediction.triggered.trueDate : prediction.startDate;
@@ -1091,9 +1108,8 @@ function _computeUpdatedPredictions(predictions, date) {
 				
 				} else if (failure) {
 					
-					var stopLossDirection = updatedCallPricePrediction.position.investment > 0 ? -1 : 1;
-					var stopLoss = Math.abs(_.get(prediction, 'stopLoss', 1));
-					var stopLossPrice = (1+stopLossDirection*stopLoss)*updatedCallPricePrediction.position.avgPrice;
+					//Find stop loss price based on stop-loss type
+					var stopLossPrice = _getStopLossPrice(updatedCallPricePrediction);
 					updatedCallPricePrediction.position.lastPrice = stopLossPrice;
 					
 					return [updatedCallPricePrediction.position];
@@ -1133,12 +1149,7 @@ function _computeTotalPnlStats(advisorId, date, options) {
 			if(success) {
 				item.position.lastPrice = item.target;
 			} else if(failure) {
-
-				var stopLossDirection = item.position.investment > 0 ? -1 : 1;
-				var stopLoss = Math.abs(_.get(item, 'stopLoss', 1));
-
-				var stopLossPrice = (1+stopLossDirection*stopLoss)*item.position.avgPrice;
-				item.position.lastPrice = stopLossPrice;
+				item.position.lastPrice = _getStopLossPrice(item);
 			} 
 
 			return  item;
@@ -1221,12 +1232,7 @@ function _computeDailyPnlStats(advisorId, date, options) {
 				if(success) {
 					item.position.lastPrice = item.target;
 				} else if(failure) {
-
-					var stopLossDirection = item.position.investment > 0 ? -1 : 1;
-					var stopLoss = Math.abs(_.get(item, 'stopLoss', 1));
-
-					var stopLossPrice = (1+stopLossDirection*stopLoss)*item.position.avgPrice;
-					item.position.lastPrice = stopLossPrice;
+					item.position.lastPrice = _getStopLossPrice(item);
 				} 
 
 				return  item;
@@ -1735,8 +1741,7 @@ module.exports.checkForPredictionTarget = function() {
 					 		item.position.lastPrice =  target;
 					 	}
 
-					 	var lossDirection = -1 * (investment > 0 ? 1 : -1);
-						var stopLossPrice = (1 + lossDirection*Math.abs(_.get(item, 'stopLoss', 1))) * item.position.avgPrice;
+					 	var stopLossPrice = _getStopLossPrice(prediction);
 					 	var stopLossFailure = stopLossPrice != 0 && ((investment > 0 && lowPrice <= stopLossPrice) || (investment < 0 && highPrice >= stopLossPrice));	
 
 					 	if (stopLossFailure) {
@@ -1794,7 +1799,7 @@ module.exports.checkForPredictionTarget = function() {
 									var successDateTime = success && investment > 0 ? highPriceDateTime : lowPriceDateTime;
 
 									var lossDirection = -1 * (investment > 0 ? 1 : -1);
-									var stopLossPrice = (1 + lossDirection*Math.abs(_.get(item, 'stopLoss', 1))) * item.position.avgPrice
+									var stopLossPrice = _getStopLossPrice(item);
 								 	var stopLossFailure = stopLossPrice != 0 && ((investment > 0 && lowPrice <= stopLossPrice) || (investment < 0 && highPrice >= stopLossPrice));	
 								 	var stopLossFailureDateTime = stopLossFailure && investment > 0 ? lowPriceDateTime : highPriceDateTime;
 

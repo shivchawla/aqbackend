@@ -4966,6 +4966,10 @@ definitions:
         type: string
         default: "NOW"
         enum: ["NOW", "CROSS", "LIMIT"]
+      real:
+        type: boolean
+        default: false
+      
 
   DailyContestPredictions:
     type: object

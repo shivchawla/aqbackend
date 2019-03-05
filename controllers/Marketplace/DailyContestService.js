@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-05 12:29:25
+* @Last Modified time: 2019-03-05 15:38:57
 */
 
 'use strict';
@@ -228,13 +228,13 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	return Promise.resolve()
 	.then(() => {
 
-		// if (!DateHelper.isMarketTrading() && entryPredictions.filter(item => {return item.conditional;}).length > 0) {
-		// 	APIError.throwJsonError({message: "Market is closed! Conditional predictions not allowed!!"})
-		// }
+		if (!DateHelper.isMarketTrading(15, 15) && entryPredictions.filter(item => {return item.real == true;}).length > 0) {
+		 	APIError.throwJsonError({message: "Market is closed!! Real trades are allowed only between 9:30 AM to 3:15 PM!!"})
+		}
 	})
-	.then(() => {
-		//Check if investment amount is either 10, 25, 50, 75 or 100K
-		return Promise.map(entryPredictions.map(item => {return _.get(item, 'position.investment');}), function(investment) {
+	.then(() => {		
+		//Check if investment amount is either 10, 25, 50, 75 or 100K for unreal predictions
+		return Promise.map(entryPredictions.filter(item =>  {return !item.real;}).map(item => {return _.get(item, 'position.investment');}), function(investment) {
 			return [10, 25, 50, 75, 100].indexOf(Math.abs(investment)) !=- 1;
 		})
 		.then(validInvestments => {
@@ -258,14 +258,48 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			.then(securityDetail => {
 				var latestPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
 				if (latestPrice != 0) {
-					const investment = prediction.position.investment;
+
+					const investment = _.get(prediction, 'position.investment', 0);
+					const quantity = _.get(prediction, 'position.quantity', 0);
+					const isRealPrediction = _.get(prediction, 'real', false);
+
+					if (isRealPrediction && (investment != 0 || shares <= 0)) {
+						APIError.throwJsonError({message: "Must provide zero investment and positive shares for real trades!!"})
+					}
+
+					const isConditional = _.get(prediction, "conditionalType", "NOW") == "NOW"
+					const avgPrice = _.get(prediction, 'position.avgPrice', 0);
+
+					investment = investment || (isConditional ? quantity.avgPrice : quantity*latestPrice);
+
+					//Mark the real investment at the latest price as well (execution price may be different)
+					//(now this could be not true but let's keep things for simple for now)
+					prediction.investment = investment
+
+					if (isRealPrediction && investment < 0) {
+						APIError.throwJsonError({message: "Only LONG prediction are allowed for real trades!!"})	
+					}
+					
+					if (isRealPrediction) {
+
+						if (isConditional && avgPrice > 0 && quantity*avgPrice > 50000) {
+							APIError.throwJsonError({message: "Effective investment in real trade must be less than 50K!!"})
+						}
+
+						if (!isConditional && latestPrice > 0 && quantity*latestPrice > 50000) {
+							APIError.throwJsonError({message: "Effective investment in real trade must be less than 50K!!"})
+						}
+					}
+
 					const target = prediction.target;
-					const stopLoss = -Math.abs(_.get(prediction, 'stopLoss', 1));
+					const stopLoss = _.get(prediction, 'stopLoss', 0);
 
 					if (stopLoss == 0) {
 						APIError.throwJsonError({message: "Stoploss must be non-zero"});
-					} else if (Math.abs(stopLoss) > 1) {
-						APIError.throwJsonError({message: "Stoploss must be less than 100"});
+					} else if (investment > 0 &&  (stopLoss > latestPrice || stopLoss > target)) {
+						APIError.throwJsonError({message: "Inaccurate Stoploss!! Must be lower than the call price"});
+					} else if (investment < 0 &&  (stopLoss < latestPrice || stopLoss < target)) {
+						APIError.throwJsonError({message: "Inaccurate Stoploss!! Must be higher than the call price"});
 					} 
 
 					if (investment > 0 && target < 1.015*latestPrice) {
@@ -286,21 +320,45 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
 			advisorSelection = {_id: advisorId};
 		}
-		return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id account'})
+		return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id account allocation'})
 	})
 	.then(advisor => {
 		if (advisor) {
 			advisorId = advisor._id.toString();
+
 			var liquidCash = _.get(advisor, 'account.liquidCash', 0);
 
 			var investmentRequired = 0;
 
 			entryPredictions.forEach(item => {
-				investmentRequired += !item.conditional ? Math.abs(_.get(item, 'position.investment', 0)) : 0;
+				investmentRequired += Math.abs(_.get(item, 'position.investment', 0));
 			});
 
 			if (liquidCash < investmentRequired) {
-				APIError.throwJsonError({message: `Insufficient funds to create predictions.`});
+				APIError.throwJsonError({message: `Insufficient funds to create predictions!!`});
+			}
+
+			var realPredictions = entryPredictions.filter(item => item.real);
+
+			if (realPredictions.length > 0) {
+				var allocationStatus = _.get(advisor, 'allocation.status', false);
+				if (!allocationStatus) {
+					APIError.throwJsonError({message: `User not authorized to place real trades`});
+				}
+
+				var realLiquidCash = _.get(advisor, 'allocation.account.liquidCash', 0);
+				var realInvestmentRequired = 0;
+
+				//Real investment is an approximation (actual investment will be different based on markt entry price)
+				//The risk is currently borne by the company
+				realPredictions.forEach(item => {
+					realInvestmentRequired += Math.abs(_.get(item, 'position.investment', 0));
+				});
+
+				if (realLiquidCash < realInvestmentRequired) {
+					APIError.throwJsonError({message: `Insufficient funds to create real trades!!`});
+				}
+
 			}
 			
 			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "all", priceUpdate: false, active: null});
@@ -323,26 +381,29 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			
 			var ticker = _.get(prediction, 'position.security.ticker', "");
 			var existingPredictionsInTicker = activePredictions.filter(item => {return item.position.security.ticker == ticker;});
-			var newPredictioninTicker = entryPredictions.filter(item => {return item.position.security.ticker == ticker;});
+			var newPredictionsInTicker = entryPredictions.filter(item => {return item.position.security.ticker == ticker;});
 
-			if (existingPredictionsInTicker.length + newPredictioninTicker.length > 3) {
+			if (existingPredictionsInTicker.length + newPredictionsInTicker.length > 3) {
 				APIError.throwJsonError({message: `Limit exceeded: Can't add more than 3 prediction for one stock (${ticker})`});
+			}
+
+			var existingRealPredictionsInTicker = activePredictions.filter(item => {return item.position.security.ticker == ticker && item.real;});
+			var newRealPredictionsInTicker = entryPredictions.filter(item => {return item.position.security.ticker == ticker && item.real;});
+
+			if (existingRealPredictionsInTicker.length + newRealPredictionsInTicker.length > 1) {
+				APIError.throwJsonError({message: `Limit exceeded: Can't add more than 1 real trade for one stock (${ticker})`});
 			}
 
 			return; 
 		})
 	})
 	.then(() => {
-		
-		//Change this to use PROMISE 
-		//And check redundancy of predictions
-		var adjustedPredictions = entryPredictions.map(item => {
+		return  Promise.mapSeries(entryPredictions, item => {
 			if (DateHelper.compareDates(item.endDate, item.startDate) == 1) {
 				
 				item.startDate = validStartDate;
 				item.endDate = DateHelper.getMarketCloseDateTime(DateHelper.getNextNonHolidayWeekday(item.endDate, 0));
 				item.modified = 1;
-				item.stopLoss = -Math.abs(_.get(item, 'stopLoss', 1));
 				item.nonMarketHoursFlag = DateHelper.isHoliday() || !DateHelper.isMarketTrading();
 				item.createdDate = new Date();
 
@@ -357,10 +418,11 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				console.log("Invalid prediction");
 				return null;
 			}
-		}).filter(item => item);
-
+		})
+	})
+	.then(adjustedPredictions => {
+		adjustedPredictions = adjustedPredictions.filter(item => item);
 		return DailyContestEntryHelper.addPredictions(advisorId, adjustedPredictions, DateHelper.getMarketCloseDateTime(validStartDate)); 
-		
 	})
 	.then(final => {
 		return res.status(200).send("Predictions updated successfully");

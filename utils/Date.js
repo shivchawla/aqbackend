@@ -2,19 +2,19 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-08 21:03:07
+* @Last Modified time: 2019-03-05 12:56:29
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
 const localTimeZone = moment.tz.guess();
 
 
-function _isBeforeMarketClose() {
-	return moment().isBefore(exports.getMarketClose());
+function _isBeforeMarketClose(minuteOffset = 0) {
+	return moment().isBefore(exports.getMarketClose(offsetMinutes).subtract(minuteOffset, 'minutes'));
 }
 
-function _isAfterMarketOpen() {
-	return moment().isAfter(exports.getMarketOpen());
+function _isAfterMarketOpen(minuteOffset = 0) {
+	return moment().isAfter(exports.getMarketOpen().add(minuteOffset, 'minutes'));
 }
 
 module.exports.getMarketOpen = function() {
@@ -252,9 +252,9 @@ module.exports.getMarketOpenDateTime = function(date) {
 	return moment.tz(d, localTimeZone).set({hour: exports.getMarketOpenHour(), minute: exports.getMarketOpenMinute(), second: 0, millisecond: 0});
 };
 
-module.exports.isMarketTrading = function() {
+module.exports.isMarketTrading = function(openMinuteOffset = 0, closeMinuteOffset = 0) {
 	if (!exports.isHoliday()) {
-		return _isAfterMarketOpen() && _isBeforeMarketClose();
+		return _isAfterMarketOpen(openMinuteOffset) && _isBeforeMarketClose(closeMinuteOffset);
 	}
 };
 
