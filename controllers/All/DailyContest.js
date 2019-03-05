@@ -2,13 +2,17 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:54:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-24 13:18:34
+* @Last Modified time: 2019-03-05 19:49:26
 */
 
 const DailyContest = require('../Marketplace/DailyContestService');
 
 module.exports.getDailyContestPredictions = (req, res, next) => {
     DailyContest.getDailyContestPredictions(req.swagger.params, res, next);
+};
+
+module.exports.getRealTradePredictions = (req, res, next) => {
+    DailyContest.getRealTradePredictions(req.swagger.params, res, next);
 };
 
 module.exports.updateDailyContestPredictions = (req, res, next) => {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-05 14:07:57
+* @Last Modified time: 2019-03-05 19:45:21
 */
 
 
@@ -41,6 +41,16 @@ const Prize = new Schema({
         type: Number,
         required: true
     }
+});
+
+const TradeActivity = new Schema({
+	date: Date,
+	action: {
+		type: String,
+		enum: ["OPEN", "CLOSE", "REDUCE"]
+	},
+	orderId: String,
+	notes: String		
 });
 
 const Prediction = new Schema({
@@ -121,7 +131,9 @@ const Prediction = new Schema({
 	nonMarketHoursFlag: {
 		type: Boolean,
 		default: false
-	}
+	},
+
+	tradeActivity: [TradeActivity]
 });
 
 const DailyContestEntry = new Schema({  
@@ -193,25 +205,10 @@ DailyContestEntry.statics.fetchEntries = function(query, options) {
 
 DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, date, options) {
 	
-	//Active has 3 values (false, true, null)
+	//Active/Real have 3 values (false, true, null)
 	//Null includes everything
 	var active = _.get(options, 'active', true); 
-
-	// var q = active == null ? {} : 
-
-	// 			!active ? {$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': false}]} :
-
-	// 		{$or:[
-	// 			{$and: [
-	// 				{'predictions.triggered': {$exists: true}}, 
-	// 				{'predictions.triggered.status': true}, 
-	// 				{$or: [
-	// 					{'predictions.triggered.date': date},
-	// 					{'predictions.triggered.date': {$exists: false}}]
-	// 				}
-	// 			]}, 
-	// 			{'predictions.triggered': {$exists: false}}
-	// 		]};
+	var real = _.get(options, 'real', null);
 
 	return this.findOne({...query, date: date}, {predictions:1})
 	.then(contestEntry => {
@@ -226,8 +223,14 @@ DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, d
 				var isActivePrediction = triggered;
 				var isInactivePrediction = !triggered;
 
-				return active == null ? isActivePrediction || isInactivePrediction : 
+				var activeFilterSubset = active == null ? isActivePrediction || isInactivePrediction : 
 					!active ? isInactivePrediction : isActivePrediction;
+
+				var isRealPrediction = _.get(item, 'real', false);
+
+				return !real ? activeFilterSubset : 
+							real == true ? activeFilterSubset && isRealPrediction : 
+							activeFilterSubset && !isRealPrediction;
 
 			});
 		} else {
@@ -239,26 +242,17 @@ DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, d
 
 DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, date, options) {
 	
-	//Active has 3 values (false, true, null)
+	//Active/Real have 3 values (false, true, null)
 	//Null includes everything
 	var active = _.get(options, 'active', true); 
-
-	// var q = active == null ? {} :
-				
-	// 			!active ? {$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': false}]} :
-
-	// 				{$or:[
-	// 					{$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': true}]}, 
-	// 					{'predictions.triggered': {$exists: false}}
-	// 				]};
+	var real = _.get(options, 'real', null);
 
 	return this.find({
 				...query, 
-				//...q, 
 				$or: [{'predictions.endDate': date}, 
 					{'predictions.status.date': date}]
 			}, {predictions:1})
-	.then(contestEntries => { //[{predictions: []}, {predictions: []}]
+	.then(contestEntries => { 
 		if (contestEntries) {
 			var allPredictions = Array.prototype.concat(...contestEntries.map(item => item.predictions ? item.predictions.toObject() : []));
 			
@@ -282,8 +276,14 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 					var isInactivePrediction = !triggered && (dateCondition ||
 						(manualExit && moment(item.status.date).isSame(moment(date))));
 
-					return active == null ? isActivePrediction || isInactivePrediction :
+					var activeFilterSubset  = active == null ? isActivePrediction || isInactivePrediction :
 						!active ? isInactivePrediction : isActivePrediction;
+
+					var isRealPrediction = _.get(item, 'real', false);
+
+					return !real ? activeFilterSubset : 
+								real == true ? activeFilterSubset && isRealPrediction : 
+								activeFilterSubset && !isRealPrediction;
 
 
 				});
@@ -302,28 +302,10 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 */
 DailyContestEntry.statics.fetchEntryPredictionsOnDate = function(query, date, options) {
 
-	//Active has 3 values (false, true, null)
+	//Active/Real have 3 values (false, true, null)
 	//Null includes everything
 	var active = _.get(options, 'active', true); 
-
-	// var q = active == null ? 
-				
-	// 			{} : 
-
-	// 			!active  ?  {$and: [{'predictions.triggered': {$exists: true}}, {'predictions.triggered.status': false}]} :
-				
-	// 			{$or:[
-	// 				{$and: [
-	// 					{'predictions.triggered': {$exists: true}}, 
-	// 					{'predictions.triggered.status': true}, 
-	// 					{$or: [
-	// 						{'predictions.triggered.date': {$lte: date}},
-	// 						{'predictions.triggered.date': {$exists: false}}]
-	// 					}
-	// 				]}, 
-	// 				{'predictions.triggered': {$exists: false}}
-	// 			]};
-
+	var real = _.get(options, 'real', null);
 
 	return this.find({...query, date: {$lte: date},
 			'predictions.endDate': {$gte: date}}, {predictions: 1})
@@ -355,8 +337,14 @@ DailyContestEntry.statics.fetchEntryPredictionsOnDate = function(query, date, op
 					var isInactivePrediction = !triggered && dateCondition && 
 						(!manualExit || (manualExit && !moment(item.status.date).isBefore(moment(date))));
 
-					return active == null ? isActivePrediction || isInactivePrediction :
+					var activeFilterSubset = active == null ? isActivePrediction || isInactivePrediction :
 						!active ? isInactivePrediction : isActivePrediction;
+
+					var isRealPrediction = _.get(item, 'real', false);
+
+					return !real ? activeFilterSubset : 
+								real == true ? activeFilterSubset && isRealPrediction : 
+								activeFilterSubset && !isRealPrediction;
 
 				});
 			} else {

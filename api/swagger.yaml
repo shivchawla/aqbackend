@@ -3754,6 +3754,52 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
+  /dailycontest/realpredictions:
+    get:
+      tags: 
+      - dailycontest
+      summary: get real trade predictions for user (or all)
+      description: get real trade predictons
+      operationId: getRealTradePredictions
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: date
+        in: query
+        type: string
+        format: date
+        description: date of activity
+        required: false
+      - name: advisorId
+        required: false
+        in: query
+        description: advisorId for real predictions
+        type: string
+      - name: category
+        in: query
+        type: string
+        description:  date status of prediction
+        default: "all"
+        enum: ["started", "ended", "all"]
+      - name: active
+        in: query
+        type: boolean
+        description: active status of prediction
+        default: true
+
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
+
   /dailycontest/exitPrediction:
     post:
       tags: 

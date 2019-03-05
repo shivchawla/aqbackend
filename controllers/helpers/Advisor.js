@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:44:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 13:45:06
+* @Last Modified time: 2019-03-05 19:31:32
 */
 
 'use strict';
@@ -117,3 +117,10 @@ module.exports.updateAdvisorAccountDebit = function(advisorId, predictions) {
 		return AdvisorModel.updateAdvisor({_id: advisorId}, {account: newAccount});
 	});
 };
+
+module.exports.fetchAdvisorsWithAllocation = function() {
+	return AdvisorModel.fetchAdvisors({'allocation.status': true}, {limit:1000});
+};
+
+
+

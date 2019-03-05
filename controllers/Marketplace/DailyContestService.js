@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-05 18:12:56
+* @Last Modified time: 2019-03-05 20:02:56
 */
 
 'use strict';
@@ -29,6 +29,15 @@ const DailyContestHelper = require('../helpers/DailyContest');
 const DailyContestStatsHelper = require('../helpers/DailyContestStats');
 const SecurityHelper = require('../helpers/Security');
 const AdvisorHelper = require('../helpers/Advisor');
+
+function _populateWinners(winners) {
+	return Promise.map(winners, function(winner) {
+		return AdvisorModel.fetchAdvisor({_id: winner.advisor}, {fields: 'user'})
+		.then(populatedAdvisor => {
+			return {...winner.toObject(), user: populatedAdvisor.user.toObject()};
+		})
+	})
+}
 
 /* 
 * Get contest entry for a date
@@ -65,6 +74,38 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 			APIError.throwJsonError({message: `No contest entry found for ${date}`});
 		}
 	})
+	.catch(err => {
+		console.log(err);
+		return res.status(400).send(err.message);		
+	});
+};
+
+/*
+* Admin API to get all active tradeable predictions
+*/
+module.exports.getRealTradePredictions = (args, res, next) => {
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;	
+	
+	const _d = _.get(args, 'date.value', '');
+	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
+	const date = DateHelper.getMarketCloseDateTime(_dd);
+
+	const advisorId = _.get(args, 'advisorId.value', null);
+	const active = _.get(args, 'active.value', null);
+	const category = _.get(args, 'category.value', 'all');
+
+	return Promise.resolve()
+	.then(() => {
+		if (isAdmin) {
+			return DailyContestEntryHelper.getAllRealTradePredictions(advisorId, date, {active, category});
+		} else {
+			APIError.throwJsonError({message: "Not authorized!!"});
+		}
+	})
+	.then(tradeablePredictions => {
+		return res.status(200).send(tradeablePredictions);
+	})	
 	.catch(err => {
 		console.log(err);
 		return res.status(400).send(err.message);		
@@ -496,15 +537,6 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 };
 
 
-function _populateWinners(winners) {
-	return Promise.map(winners, function(winner) {
-		return AdvisorModel.fetchAdvisor({_id: winner.advisor}, {fields: 'user'})
-		.then(populatedAdvisor => {
-			return {...winner.toObject(), user: populatedAdvisor.user.toObject()};
-		})
-	})
-}
-
 /*
 * Get daily contest winners
 */
@@ -529,43 +561,6 @@ module.exports.getDailyContestWinners = (args, res, next) => {
 	})
 };
 
-/**
- * Get overall contest winners
- */
-module.exports.getDailyContestOverallWinners = (args, res, next) => {
-	const query = {$and: [{dailyWinners: {$exists: true}}, {'dailyWinners.0': {$exists: true}}]};
-
-	return DailyContestStatsModel.fetchAllContestStats(query)
-	.then(stats => {
-		let requiredWinners = [];
-		// Flattening all the winners
-		stats.map(stat => {
-			const requiredStat = stat.toObject();
-			requiredWinners = [...requiredWinners, ...requiredStat.dailyWinners];
-		});
-		// Group all the winners by advisorId
-		const overallWinners = _.groupBy(requiredWinners, winner => winner.advisor._id);
-		// Getting all the advisorIds
-		const advisors = Object.keys(overallWinners);
-		// Getting all the earnings of the advisor
-		let winnerArray = advisors.map(advisor => {
-			const totalEarnings = _.sum(overallWinners[advisor].map(item => getPrizeValue(item.rank)));
-			const firstName = overallWinners[advisor][0].advisor.user.firstName;
-			const lastName = overallWinners[advisor][0].advisor.user.lastName;
-			const name = `${firstName} ${lastName}`;
-			return {advisor, totalEarnings, name};
-		});
-		// Ordering all the advisors based on their total earnings
-		winnerArray = _.orderBy(winnerArray, 'totalEarnings', 'desc');
-		// Writing the winners to csv files
-		// writeWinnersToCsv(`${resultFilePath}/examples/winners.csv`, winnerArray);
-		
-		return res.status(200).send({winners: winnerArray});
-	})
-	.catch(err => {
-		return res.status(400).send({message: err.message});
-	})
-}
 
 module.exports.getDailyContestOverallWinnersByEarnings = (args, res, next) => {
 	const skip = _.get(args, 'skip.value', 0);
@@ -767,7 +762,6 @@ module.exports.getDailyContestPerformanceStats = (args, res, next) => {
 };
 
 
-
 module.exports.updateDailyContestTopStocks = (args, res, next) => {
 	const _d = _.get(args, 'date.value', '');
 	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
@@ -877,42 +871,4 @@ module.exports.sendTemplateEmailToParticipants = function(args, res, next) {
         return res.status(400).send(error.message)
     });
 };
-
-const getPrizeValue = (rank = 1) => {
-	switch(rank){
-        case 1:
-            return 100;
-        case 2:
-            return 75;
-        case 3:
-            return 50;
-        default:
-            return 0;  
-    }
-}
-
-const writeWinnersToCsv = (path, winners) => {
-	const csvStream = csv
-		.createWriteStream({headers: true})
-		.transform(function(row, next){
-			setImmediate(function(){
-				// this should be same as the object structure
-				next(null, {
-					Name: row.name, 
-					Earnings: row.totalEarnings
-					// Daily: row.dailyEarnings, 
-					// Weekly: row.weeklyEarnings
-				});
-			});;
-		});
-	const writableStream = fs.createWriteStream(path);		
-	writableStream.on("finish", function(){
-		console.log("Written to file");
-	});
-	csvStream.pipe(writableStream);
-	winners.map(winner => {
-		csvStream.write(winner);
-	});
-	csvStream.end();
-}
 

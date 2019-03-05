@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-05 17:54:47
+* @Last Modified time: 2019-03-05 20:02:35
 */
 
 'use strict';
@@ -1411,7 +1411,7 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 	const priceUpdate = _.get(options, 'priceUpdate', true);
 	
 	//TO match with flag triggered in DB (means prediction was active)
-	const active = _.get(options, 'active', true);
+	const fetchOptions = {active: _.get(options, 'active', true), real: _.get(options, 'real', null)};
 
 	let updatedPredictions;
 	return Promise.resolve()
@@ -1425,9 +1425,9 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 		var useEndedPredictions = !isToday || (isToday && moment().isAfter(moment(DateHelper.getMarketCloseDateTime(date))));
 		
 		switch(category) {
-			case "all": return DailyContestEntryModel.fetchEntryPredictionsOnDate({advisor: advisorId}, date, {active}); break;
-			case "started": return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, date, {active}); break;
-			case "ended": return DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({advisor: advisorId}, date, {active}); break;
+			case "all": return DailyContestEntryModel.fetchEntryPredictionsOnDate({advisor: advisorId}, date, fetchOptions); break;
+			case "started": return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, date, fetchOptions); break;
+			case "ended": return DailyContestEntryModel.fetchEntryPredictionsEndedOnDate({advisor: advisorId}, date, fetchOptions); break;
 		}
 	})
 	.then(predictions => {
@@ -1454,6 +1454,41 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 		}
 	});
 };
+
+module.exports.getAllRealTradePredictions = function(advisorId, date, options) {
+
+	const category = _.get(options, 'category', "started");
+	const active = _.get(options, "active", null);
+
+	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
+
+	return AdvisorHelper.fetchAdvisorsWithAllocation()
+	.then(realAdvisors => {
+		if (advisorId) {
+			var idx = realAdvisors.map(item => item._id.toString()).indexOf(advisorId);
+			
+			if (idx !=-1) {
+				realAdvisors = [realAdvisors[idx]];
+			} else {
+				APIError.throwJsonError({message: `No allocation for chosen advisor: ${advisorId}`});
+			}
+		}
+
+		return Promise.mapSeries(realAdvisors, function(advisor) {
+			
+			advisorId = advisor._id
+			
+			return exports.getPredictionsForDate(advisorId, date, {category, active, priceUpdate: true, real: true})
+			.then(predictions => {
+				return predictions.map(item => {return {...item, advisor};})
+			})
+
+		});
+	}) 
+	.then(allRealPredictionsByAdvisorId => {
+		return Array.prototype.concat.apply([], allRealPredictionsByAdvisorId);
+	})
+}
 
 module.exports.getContestEntryForUser = function(userId) {
 	return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
