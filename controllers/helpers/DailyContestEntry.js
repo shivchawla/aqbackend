@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-25 18:25:54
+* @Last Modified time: 2019-03-05 17:12:58
 */
 
 'use strict';
@@ -2354,15 +2354,15 @@ module.exports.checkPredictionTriggers = function(date) {
 										var idx = -1;
 										if (conditionalType == "LIMIT") { //COMPARE LOW for BUYS an HIGH FOR SELLS
 											if (investment > 0) {
-												idx = lowPrices.filter(item => {return item <= conditionalPrice;});
+												idx = lowPrices.findIndex(item => {return item <= conditionalPrice;});
 											} else {
-												idx = highPrices.filter(item => {return item >= conditionalPrice;});
+												idx = highPrices.findIndex(item => {return item >= conditionalPrice;});
 											}
 										} else {
 											if (investment > 0) { //COMPARE HIGH for BUYS and LOW FOR SELLS
-												idx = highPrices.filter(item => {return item >= conditionalPrice;});
+												idx = highPrices.findIndex(item => {return item >= conditionalPrice;});
 											} else {
-												idx = lowPrices.filter(item => {return item <= conditionalPrice;});
+												idx = lowPrices.findIndex(item => {return item <= conditionalPrice;});
 											}
 										}
 										
