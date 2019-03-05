@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-05 17:54:25
+* @Last Modified time: 2019-03-05 17:57:22
 */
 
 'use strict';
@@ -263,8 +263,8 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 					const quantity = _.get(prediction, 'position.quantity', 0);
 					const isRealPrediction = _.get(prediction, 'real', false);
 
-					if (isRealPrediction && (investment != 0 || shares <= 0)) {
-						APIError.throwJsonError({message: "Must provide zero investment and positive shares for real trades!!"})
+					if (isRealPrediction && (investment != 0 || quantity <= 0)) {
+						APIError.throwJsonError({message: "Must provide zero investment and positive quantity (LONG) for real trades!!"})
 					}
 
 					const isConditional = _.get(prediction, "conditionalType", "NOW") == "NOW"
