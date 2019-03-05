@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-05 17:59:54
+* @Last Modified time: 2019-03-05 18:12:56
 */
 
 'use strict';
@@ -275,7 +275,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 					//Mark the real investment at the latest price as well (execution price may be different)
 					//(now this could be not true but let's keep things for simple for now)
-					prediction.investment = investment
+					prediction.position.investment = investment
 
 					if (isRealPrediction && investment < 0) {
 						APIError.throwJsonError({message: "Only LONG prediction are allowed for real trades!!"})	
