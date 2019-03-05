@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-05 17:57:22
+* @Last Modified time: 2019-03-05 17:59:54
 */
 
 'use strict';
@@ -259,7 +259,8 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				var latestPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
 				if (latestPrice != 0) {
 
-					const investment = _.get(prediction, 'position.investment', 0);
+					//Investment is modified downstream so can't be const
+					var investment = _.get(prediction, 'position.investment', 0);
 					const quantity = _.get(prediction, 'position.quantity', 0);
 					const isRealPrediction = _.get(prediction, 'real', false);
 
