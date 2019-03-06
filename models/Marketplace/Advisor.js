@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-06 16:27:57
+* @Last Modified time: 2019-03-06 16:31:23
 */
 'use strict';
 
@@ -154,6 +154,7 @@ Advisor.index({
 });
 
 Advisor.index({user: 1, isMasterAdvisor: 1}, {unique: true});
+Advisor.index({user: 1});
 
 Advisor.statics.saveAdvisor = function(advisorDetail) {
     const advisor = new this(advisorDetail);
