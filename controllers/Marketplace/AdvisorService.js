@@ -47,7 +47,8 @@ module.exports.allocateAdvisor = function(args, res, next) {
     const userEmail = _.get(args, 'user.email', null);
     const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
     
-    const account = _.get(args,'body.value.account', null);
+    // const account = _.get(args,'body.value.account', null);
+    const cash = _.get(args, 'body.value.cash', null);
 
     let masterAdvisor;
     return Promise.resolve()
@@ -61,6 +62,8 @@ module.exports.allocateAdvisor = function(args, res, next) {
     .then(advisor => {
         masterAdvisor = advisor;
 
+        let account = _.get(advisor, 'account', null);
+
         if(!advisor) {
             APIError.throwJsonError({userId: userId, message:"Advisor not found"});
         }
@@ -69,24 +72,23 @@ module.exports.allocateAdvisor = function(args, res, next) {
             APIError.throwJsonError({message: "Not the master advisor! Operation not allowed"});
         }
 
-        if (!_.get(advisor, 'allocation.advisor', null)) {
+        if (_.get(advisor, 'allocation.advisor', undefined) !== undefined) {
             APIError.throwJsonError({message: "Allocation already present!! Use update API!"});
         }
 
-        if (!account){
+        if (!cash){
             APIError.throwJsonError({message: "Invalid allocation input"});
         }
-
-        const cash = _.get(account, 'cash', 0);
 
         if (cash == 0) {
              APIError.throwJsonError({message: "Invalid cash amount for allocation"});
         }
 
-        account = {...account, liquidCash: cash, investment: 0};
+        account = {...account.toObject(), liquidCash: cash, investment: 0};
 
-        return AdvisorModel.saveAdvisor({user:userId, isMasterAdvisor: false, account});
-            
+        // return AdvisorModel.saveAdvisor({user:userId, isMasterAdvisor: false, account});
+        const updates = {isMasterAdvisor: false, account};
+        return AdvisorModel.updateAdvisor({_id: advisorId}, updates, {new: true});
     })
     .then(allocatedAdvisor => {
         if(allocatedAdvisor) {
