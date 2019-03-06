@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-06 13:47:56
+* @Last Modified time: 2019-03-06 16:27:44
 */
 
 'use strict';
@@ -186,10 +186,12 @@ module.exports.getDailyContestPortfolioStatsForDate = (args, res, next) => {
 	return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id'})
 	.then(advisor => {
 		if (advisor) {
-			const advisorId = advisor._id.toString();
+			
+			advisorId = advisor._id.toString();
+			
 			return Promise.all([
 				DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date),
-				AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account'})
+				AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: !real}, {fields: 'account'})
 			]);
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
