@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:44:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-05 19:31:32
+* @Last Modified time: 2019-03-06 11:43:42
 */
 
 'use strict';
@@ -27,7 +27,7 @@ module.exports.getAdminAdvisor = function(userId) {
 	return UserModel.fetchUsers({email:{'$in':config.get('admin_user')}}, {_id:1})
 	.then(users => {
 		if(userId && users && users.map(item => item._id.toString()).indexOf(userId.toString()) != -1) {
-			return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'});
+			return AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {fields: '_id'});
 		} else {
 			return null;
 		}

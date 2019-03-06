@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-28 12:39:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-09-29 11:33:23
+* @Last Modified time: 2019-03-06 11:43:42
 */
 
 'use strict';
@@ -321,7 +321,7 @@ module.exports.saveContestEntry = function(contestEntry, advisorId, effectiveSta
 
 module.exports.getContestEntryAccessStatus = function(entryId, userId) {
 	return Promise.all([
-		userId ? AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}) : null,
+		userId ? AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {fields:'_id', insert:true}) : null,
 		userId ? InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true}) : null,
 		ContestEntryModel.fetchEntry({_id: entryId, deleted: false}, {fields: 'advisor'}),
 		AdvisorHelper.getAdminAdvisor(userId)
@@ -356,7 +356,7 @@ module.exports.isUserAuthorizedToViewContestEntryDetail = function(entryId, user
 
 module.exports.isUserAuthorizedToViewContestEntrySummary = function(entryId, userId) {
 	return Promise.all([
-		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert: true}),
+		AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {fields:'_id', insert: true}),
 		ContestEntryModel.fetchEntry({_id: entryId, deleted:false}, {fields:'advisor prohibited'})])
 	.then(([advisor, contestEntry])  => {
 		if(advisor && contest) {

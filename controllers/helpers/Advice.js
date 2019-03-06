@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-05 12:10:56
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-08-30 11:29:25
+* @Last Modified time: 2019-03-06 11:43:42
 */
 'use strict';
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -112,7 +112,7 @@ module.exports.saveAdvice = function(advice, advisorId, effectiveStartDate, user
 
 module.exports.getAdviceAccessStatus = function(adviceId, userId) {
 	return Promise.all([
-		userId ? AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}) : null,
+		userId ? AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {fields:'_id', insert:true}) : null,
 		userId ? InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true}) : null,
 		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, {fields: 'advisor subscribers followers'}),
 		AdvisorHelper.getAdminAdvisor(userId)
@@ -194,7 +194,7 @@ module.exports.isUserAuthorizedToViewAdviceDetail = function(adviceId, userId) {
 
 module.exports.isUserAuthorizedToViewAdviceSummary = function(adviceId, userId) {
 	return Promise.all([
-		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert: true}),
+		AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {fields:'_id', insert: true}),
 		AdviceModel.fetchAdvice({_id: adviceId, deleted:false}, {fields:'advisor prohibited public subscribers'})])
 	.then(([advisor, advice])  => {
 		if(advisor && advice) {

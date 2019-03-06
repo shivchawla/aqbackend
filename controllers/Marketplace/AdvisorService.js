@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-28 10:52:16
+* @Last Modified time: 2019-03-06 11:22:42
 */
 
 'use strict';
@@ -40,6 +40,70 @@ module.exports.createAdvisor = function(args, res, next) {
 		return res.status(400).send(err.message);
 	});
 };
+
+module.exports.allocateAdvisor = function(args, res, next) {
+    const advisorId = _.get(args, 'advisorId.value', null);
+    const userId = _.get(args, 'user._id', null);
+    const userEmail = _.get(args, 'user.email', null);
+    const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+    
+    const account = _.get(args,'body.value.account', null);
+
+    let masterAdvisor;
+    return Promise.resolve()
+    .then(() => {
+        if (isAdmin) {
+            return AdvisorModel.fetchAdvisor({_id:advisorId}, {})
+        } else {
+            APIError.throwJsonError({message: "Not authorized to allocate!!"});
+        }
+    })    
+    .then(advisor => {
+        masterAdvisor = advisor;
+
+        if(!advisor) {
+            APIError.throwJsonError({userId: userId, message:"Advisor not found"});
+        }
+    
+        if (!advisor.isMasterAdvisor) {
+            APIError.throwJsonError({message: "Not the master advisor! Operation not allowed"});
+        }
+
+        if (!_.get(advisor, 'allocation.advisor', null)) {
+            APIError.throwJsonError({message: "Allocation already present!! Use update API!"});
+        }
+
+        if (!account){
+            APIError.throwJsonError({message: "Invalid allocation input"});
+        }
+
+        const cash = _.get(account, 'cash', 0);
+
+        if (cash == 0) {
+             APIError.throwJsonError({message: "Invalid cash amount for allocation"});
+        }
+
+        account = {...account, liquidCash: cash, investment: 0};
+
+        return AdvisorModel.saveAdvisor({user:userId, isMasterAdvisor: false, account});
+            
+    })
+    .then(allocatedAdvisor => {
+        if(allocatedAdvisor) {
+            const allocation = {startDate: new Date(), status: true, advisor: allocatedAdvisor._id};
+            return AdvisorModel.updateAllocation({_id: masterAdvisor._id}, allocation);     
+        } else {
+            APIError.throwJsonError({userId: userId, message:"Internal error creating advisor", errorCode: 1203});
+        }
+    })
+    .then(advisor => {
+        return res.status(200).send("Allocated successfully");
+    })
+    .catch(err => {
+        return res.status(400).send(err.message);
+    });
+};
+
 
 module.exports.getAdvisors = function(args, res, next) {
     

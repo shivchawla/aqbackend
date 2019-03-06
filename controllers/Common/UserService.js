@@ -100,7 +100,7 @@ exports.userlogin = function(args, res, next) {
         
         return Promise.all([
             InvestorModel.fetchInvestor({user:userDetails._id}, {insert:true}),
-            AdvisorModel.fetchAdvisor({user:userDetails._id}, {insert:true})
+            AdvisorModel.fetchAdvisor({user:userDetails._id, isMasterAdvisor: true}, {insert:true})
         ]);
     })
     .then(([investor, advisor]) => {
@@ -108,6 +108,11 @@ exports.userlogin = function(args, res, next) {
         const isAdmin = config.get('admin_user').indexOf(email) !== -1;
         userDetails.investor = investor._id;
         userDetails.advisor = advisor._id;
+
+        if (_.get(advisor, 'allocation.status', false)) {
+            userDetails.allocationAdvisor = advisor.allocation.advisor;
+        }
+
         userDetails.isAdmin = isAdmin;
         res.status(200).json(userDetails);
     })
@@ -452,8 +457,8 @@ module.exports.userGoogleLogin = function(args, res, next) {
         userDetails.token = token;
         
         return Promise.all([
-            InvestorModel.fetchInvestor({user:userDetails._id}, {insert:true}),
-            AdvisorModel.fetchAdvisor({user:userDetails._id}, {insert:true})
+            InvestorModel.fetchInvestor({user:userDetails._id, isMasterAdvisor: true}, {insert:true}),
+            AdvisorModel.fetchAdvisor({user:userDetails._id, isMasterAdvisor: true}, {insert:true})
         ]);
     })
     .then(([investor, advisor]) => {
@@ -461,6 +466,12 @@ module.exports.userGoogleLogin = function(args, res, next) {
         const isAdmin = config.get('admin_user').indexOf(email) !== -1;
         userDetails.investor = investor._id;
         userDetails.advisor = advisor._id;
+
+        //Assign allocated advisor (for the master advisor)
+        if (_.get(advisor, 'allocation.status', false)) {
+            userDetails.allocationAdvisor = advisor.allocation.advisor;
+        }
+
         userDetails.isAdmin = isAdmin;
         res.status(200).json(userDetails)
     })

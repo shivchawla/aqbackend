@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-03-03 15:00:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-27 16:42:19
+* @Last Modified time: 2019-03-06 11:43:01
 */
 
 'use strict';
@@ -231,7 +231,7 @@ module.exports.updateAdvice = function(args, res, next) {
 	var adviceFields = 'advisor public portfolio name investmentObjective rebalance maxNotional approvalRequested latestApproval';
 
 	return Promise.all([
-		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
+		AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {fields: '_id'}),
 		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, {fields: adviceFields, populate: 'portfolio'})
 	])
 	.then(([advisor, advice]) => {
@@ -739,7 +739,7 @@ module.exports.deleteAdvice = function(args, res, next) {
 	const userId = args.user._id;
 	
 	return Promise.all([
-		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id'}),
+		AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {fields:'_id'}),
 		AdviceModel.fetchAdvice({_id: adviceId, deleted: false}, {fields: '_id advisor'})
 	])
 	.then(([advisor, advice]) => {
@@ -773,7 +773,7 @@ module.exports.publishAdvice = function(args, res, next) {
   	const adviceId = args.adviceId.value;
 
   	Promise.all([
-		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
+		AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {fields:'_id', insert:true}),
 		AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: false}, {field:'advisor name'})
 	])
   	.then(([advisor, advice]) => {
@@ -812,7 +812,7 @@ module.exports.followAdvice = function(args, res, next) {
   	const adviceId = args.adviceId.value;
 
   	Promise.all([
-  		AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
+  		AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {fields:'_id', insert:true}),
   		InvestorModel.fetchInvestor({user: userId}, {fields:'_id', insert:true}),
 		AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true, prohibited:false}, {field:'advisor'})])
   	.then(([advisor, investor, advice]) => {
@@ -855,7 +855,7 @@ module.exports.subscribeAdvice = function(args, res, next) {
   	let investorId;
   	let currentSubscriptionStatus;
 
-  	return Promise.all([AdvisorModel.fetchAdvisor({user: userId}, {fields:'_id', insert:true}),
+  	return Promise.all([AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {fields:'_id', insert:true}),
   			InvestorModel.fetchInvestor({user: userId}, {fields: '_id', insert:true}), 
   			AdviceModel.fetchAdvice({_id: adviceId, deleted: false, public: true, prohibited: false, contestOnly: false}, {subscribers:1, advisor:1})])
   	.then(([advisor, investor, advice]) => {

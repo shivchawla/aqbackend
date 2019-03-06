@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-05 20:02:35
+* @Last Modified time: 2019-03-06 13:49:11
 */
 
 'use strict';
@@ -1190,7 +1190,7 @@ function _computeTotalPnlStatsForAll(advisorId, date) {
 function _computeDailyPnlStats(advisorId, date, options) {
 
 	const category = _.get(options, 'category', "all");
-	
+
 	let yesterday = moment(date).subtract(1, 'days').toDate();
 
 	return exports.getPredictionsForDate(advisorId, date, {category})
@@ -1371,7 +1371,9 @@ module.exports.getTotalPnlStats = function(advisorId, date, category="all") {
 	});	
 };
 
-module.exports.getDailyPnlStats = function(advisorId, date, category="all") {
+module.exports.getDailyPnlStats = function(advisorId, date, options) {
+	const category = _.get(options, "category", "all");
+
 	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
 	.then(pnlStats => {
 		if (pnlStats) {
@@ -1381,18 +1383,18 @@ module.exports.getDailyPnlStats = function(advisorId, date, category="all") {
 				case "started" : return _.get(pnlStats, 'detail.daily.started', null); break;
 			}
 		} else {
-			return _computeDailyPnlStats(advisorId, date, category);
+			return _computeDailyPnlStats(advisorId, date, options);
 		}
 	});
 };
 
-module.exports.getPnlStatsForDate = function(advisorId, date, category="all") {
+module.exports.getPnlStatsForDate = function(advisorId, date, options) {
 	
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
 	return Promise.all([
-		exports.getDailyPnlStats(advisorId, date, category),
-		exports.getTotalPnlStats(advisorId, date, category)
+		exports.getDailyPnlStats(advisorId, date, options),
+		exports.getTotalPnlStats(advisorId, date, options)
 	])
 	.then(([dailyPnl, totalPnl]) => {
 		return {daily: dailyPnl, cumulative: totalPnl};
@@ -1491,7 +1493,7 @@ module.exports.getAllRealTradePredictions = function(advisorId, date, options) {
 }
 
 module.exports.getContestEntryForUser = function(userId) {
-	return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
+	return AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {fields: '_id'})
 	.then(advisor => {
 		if (advisor) {
 			return DailyContestEntryModel.fetchEntry({advisor:advisor._id}, {fields:'_id'})
@@ -1504,8 +1506,14 @@ module.exports.getContestEntryForUser = function(userId) {
 module.exports.updateAdvisorLatestPnlStats = function(advisorId, date){
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
-	return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
-	.then(activePredictions => {
+	return Promise.all([
+		exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false}),
+		AdvisorModel.fetchAdvisor({_id: advisorId}, {isMasterAdvisor})
+	])
+	.then(([activePredictions, advisor]) => {
+		
+		// const real = !_.get(advisor, 'isMasterAdvisor', true);
+
 		if (activePredictions.length > 0) {
 			return Promise.all([
 				_computeTotalPnlStatsForAll(advisorId, date),
@@ -1537,8 +1545,12 @@ module.exports.updateAllEntriesLatestPnlStats = function(date){
 };
 
 module.exports.updateAdvisorNetPnlStats = function(advisorId, date) {
-	return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
-	.then(activePredictions => {
+	return Promise.all([
+		exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false}),
+		AdvisorModel.fetchAdvisor({_id: advisorId}, {isMasterAdvisor})
+	])
+	.then(([activePredictions, advisor]) => {
+
 		if (activePredictions.length > 0) {
 			return _computeNetPnlStats(advisorId, date)
 			.then(netPnlStats => {
@@ -1577,7 +1589,7 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 		exports.getPredictionsForDate(advisorId, date, {category: "all", active: null}),
 		exports.getPredictionsForDate(advisorId, date, {category: "started", priceUpdate:false, active: null}),
 		exports.getPredictionsForDate(advisorId, date, {category: "ended", priceUpdate: false, active: null}),
-		AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account'})
+		AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account isMasterAdvisor'})
 	])
 	.then(([allPredictions, startedPredictions, endedPredictions, advisor]) => {
 		if (allPredictions.length > 0) {
@@ -1657,7 +1669,7 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 						numStartedPredictions: startedPredictions.length,
 						numEndedPredictions: endedPredictions.length
 					};
-			
+				
 					resolve(DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date));
 				})
 			})

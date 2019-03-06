@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-27 14:10:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-05 12:09:07
+* @Last Modified time: 2019-03-06 13:46:52
 */
 
 
@@ -227,7 +227,7 @@ DailyContestEntryPerformance.statics.updateEarningStats = function(query, date, 
 DailyContestEntryPerformance.statics.fetchDistinctPerformances = function(query, skip = 0, limit = 10) {
 	return new Promise((resolve, reject) => {
 		this.aggregate(
-			[	
+			[	 
 				{
 					$match: {'earnings': {$exists: true}}
 				},

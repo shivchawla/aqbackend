@@ -204,7 +204,7 @@ module.exports.updateContestEntry = function(args, res, next) {
 	var contestEntryFields = 'advisor portfolio name';
 
 	return Promise.all([
-		AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'}),
+		AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {fields: '_id'}),
 		ContestEntryModel.fetchEntry({_id: entryId, deleted: false}, {fields: contestEntryFields, populate: 'portfolio'})
 	])
 	.then(([advisor, oldContestEntry]) => {

@@ -1531,7 +1531,36 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Advisor"
- 
+
+  /advisor/{advisorId}/allocate:
+    post: 
+      tags:
+      - 'advisor'
+      summary: Provide allocation to the advisor
+      description: Allocate an advisor
+      operationId: allocateAdvisor
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: advisorId
+        in: path
+        type: string
+        required: true
+      - name: account
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/AllocationAccount'
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advisor"
+
   /advice/validate:
     post:
       tags:
@@ -3701,13 +3730,7 @@ paths:
         required: true
         description: "schema body"
         schema:
-          $ref: "#/definitions/DailyContestPredictions"
-      - name: operation
-        in: query
-        required: true
-        type: string
-        default: "insert"
-        enum: ["update", "insert"]
+          $ref: "#/definitions/StockPrediction"
       responses:
         200:
           description: OK
@@ -3746,6 +3769,11 @@ paths:
         required: false
         in: query
         description: advisorId of the user for which the prediction is to be made
+        type: string
+      - name: real
+        required: false
+        in: query
+        description: flag to fetch real trade predictions
         type: string
       responses:
         200:
@@ -3865,6 +3893,12 @@ paths:
         in: query
         description: advisorId of the user for which the prediction is to be made
         type: string
+      - name: real
+        required: false
+        in: query
+        description: flag for real/simulated predictions
+        type: boolean
+
       responses:
         200:
           description: OK
@@ -3919,6 +3953,11 @@ paths:
         in: query
         description: advisorId of the user for which the prediction is to be made
         type: string
+      - name: real
+        required: false
+        in: query
+        description: flag for real/simulated predictions
+        type: boolean
       responses:
         200:
           description: OK
@@ -3926,54 +3965,6 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
-  /dailycontest/nextstock:
-    get:
-      tags: 
-      - dailycontest
-      summary: get nextstock for possible prediction
-      description: get nextstock for possible prediction
-      operationId: getDailyContestNextStock
-      security: 
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: search
-        in: query
-        type: string
-        required: false
-        default: ""
-      - name: universe
-        in: query
-        type: string
-        required: false
-      - name: sector
-        in: query
-        type: string
-        required: false
-      - name: industry
-        in: query
-        type: string
-        required: false
-      - name: exclude
-        in: query
-        description: exlcude tickers
-        type: string
-        required: false
-      - name: populate
-        in: query
-        description: populate detail
-        type: boolean
-        required: false  
-      responses:
-        200:
-          description: OK
-        400:
-          description: 'Invalid Input'
-      x-swagger-router-controller: "DailyContest"
 
   /dailycontest/topstocks:
     get:
@@ -4122,6 +4113,11 @@ paths:
         type: number
         description: horizon for stats
         required: false
+      - name: real
+        required: false
+        in: query
+        description: flag to fetch real trade predictions
+        type: boolean
       responses:
         200:
           description: OK
@@ -4150,6 +4146,11 @@ paths:
         required: false
         type: string
         description: advisor id of the user for whom stats required
+      - name: real
+        required: false
+        in: query
+        description: flag for real/simulated predictions
+        type: boolean
       responses:
         200:
           description: OK
@@ -5015,15 +5016,14 @@ definitions:
       real:
         type: boolean
         default: false
-      
+    
 
-  DailyContestPredictions:
+  AllocationAccount:
     type: object
     required:
-      - predictions
+      - cash
     properties:
-      predictions:
-        type: array
-        items:
-          $ref: '#/definitions/StockPrediction'
+      cash:
+        type: number
+
 

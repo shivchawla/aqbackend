@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-19 15:57:21
+* @Last Modified time: 2019-03-06 13:51:42
 */
 
 'use strict';
@@ -69,7 +69,7 @@ function _formatInvestmentValue(value) {
 }
 
 function _computeDailyContestWinners(date) {
-	return DailyContestEntryModel.fetchDistinctAdvisors()
+	return DailyContestEntryModel.fetchDistinctAdvisors({isMasterAdvisor: true})
 	.then(allAdvisors => {
 		return Promise.mapSeries(allAdvisors, function(advisorId) {
 			
@@ -106,7 +106,7 @@ function _computeWeeklyContestWinners(date) {
 		var endOfLastWeek = DateHelper.getEndOfLastWeek(date);
 		var tradingDates = DateHelper.getTradingDates(endOfLastWeek, DateHelper.getDate(), false);
 
-		return DailyContestEntryModel.fetchDistinctAdvisors()
+		return DailyContestEntryModel.fetchDistinctAdvisors({isMasterAdvisor: true})
 		.then(allAdvisors => {
 			return Promise.mapSeries(allAdvisors, function(advisorId) {
 				
@@ -286,7 +286,7 @@ function _computeContestPredictionMetrics(date) {
 }
 
 module.exports.updateEarningStats = function(winners, date, category) {
-	return DailyContestEntryModel.fetchDistinctAdvisors({})
+	return DailyContestEntryModel.fetchDistinctAdvisors({isMasterAdvisor: true})
 	.then(allAdvisors => {
 		return Promise.mapSeries(allAdvisors, function(advisorId) {
 			let winAmount = 0;
@@ -598,7 +598,7 @@ module.exports.sendTemplateEmailToParticipants = function(emailType) {
 module.exports.sendSummaryDigest = function(date) {	
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date).toDate();
 
-	return DailyContestEntryModel.fetchDistinctAdvisors({})
+	return DailyContestEntryModel.fetchDistinctAdvisors({isMasterAdvisor: true})
 	.then(distinctAdvisors => {
 		let sent = false;
 		return Promise.mapSeries(distinctAdvisors, function(advisorId) {

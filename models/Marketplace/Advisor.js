@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-05 14:57:32
+* @Last Modified time: 2019-03-06 11:23:48
 */
 'use strict';
 
@@ -131,15 +131,20 @@ const Advisor = new Schema({
 
     latestAnalytics: AdvisorAnalytics,
 
-    //For simulated preditions
     account: Account,
+
+    isMasterAdvisor: {type:Boolean, default: false},
 
     //Real account for allocated users
     allocation: {
         startDate: Date,
         status: Boolean,
         endDate: Date,
-        account: Account
+        advisor: {
+            type: Schema.Types.ObjectId,
+            ref: this,
+            required: false
+        },
     },
 
 });
@@ -148,7 +153,7 @@ Advisor.index({
     'profile.companyName': 'text'
 });
 
-Advisor.index({user: 1}, {unique: true});
+Advisor.index({user: 1, masterAdvisor: 1}, {unique: true});
 
 Advisor.statics.saveAdvisor = function(advisorDetail) {
     const advisor = new this(advisorDetail);
@@ -299,6 +304,11 @@ Advisor.statics.updateApproval = function(query, latestApproval) {
 	const updates = {'$set':{approved: approvedStatus}, '$push':{approvalMessages: approvedMessage}};		
 
 	return this.findOneAndUpdate(query, updates);
+}
+
+
+Advisor.statics.updateAllocation = function(query, allocation) {
+    return this.findOneAndUpdate(query, {$set: {allocation}});
 }
 
 function getTime(d) {

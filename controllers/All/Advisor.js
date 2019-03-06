@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-03-07 16:09:16
+* @Last Modified time: 2019-03-06 13:55:13
 */
 
 'use strict';
@@ -10,6 +10,10 @@ const Advisor = require('../Marketplace/AdvisorService');
 
 module.exports.createAdvisor = function(req, res, next) {
     Advisor.createAdvisor(req.swagger.params, res, next);
+};
+
+module.exports.allocateAdvisor = function(req, res, next) {
+    Advisor.allocateAdvisor(req.swagger.params, res, next);
 };
 
 module.exports.getAdvisors = function(req, res, next) {

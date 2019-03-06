@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-05 20:02:56
+* @Last Modified time: 2019-03-06 13:47:56
 */
 
 'use strict';
@@ -51,7 +51,10 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 	const advisorId = _.get(args, 'advisorId.value', null);
 	const userEmail = _.get(args, 'user.email', null);
 	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
-	let advisorSelection = {user: userId};
+	const real = _.get(args, 'real.value', false);
+
+	let advisorSelection = {user: userId, isMasterAdvisor: !real};
+
 	if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
 		advisorSelection = {_id: advisorId};
 	}
@@ -60,7 +63,7 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 	.then(advisor => {
 		if (advisor) {
 			const advisorId = advisor._id.toString();
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category, active: null});
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category, real, active: null});
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} else {
@@ -81,7 +84,7 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 };
 
 /*
-* Admin API to get all active tradeable predictions
+* Admin API to get all active tradeable predictions (all or by advisor)
 */
 module.exports.getRealTradePredictions = (args, res, next) => {
 	const userEmail = _.get(args, 'user.email', null);
@@ -126,9 +129,13 @@ module.exports.getDailyContestPnlForDate = (args, res, next) => {
 	const advisorId = _.get(args, 'advisorId.value', null);
 	const userEmail = _.get(args, 'user.email', null);
 	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
-	let advisorSelection = {user: userId};
+
+	const real = _.get(args, 'real.value', false); 
+
+	let advisorSelection = {user: userId, isMasterAdvisor: !real};
+
 	if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
-		advisorSelection = {_id: advisorId};
+		advisorSelection = {_id: advisorId, isMasterAdvisor: !real};
 	}
 
 	return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id'})
@@ -136,7 +143,7 @@ module.exports.getDailyContestPnlForDate = (args, res, next) => {
 		if (advisor) {
 			const advisorId = advisor._id.toString();
 
-			return DailyContestEntryHelper.getPnlStatsForDate(advisorId, date, category);
+			return DailyContestEntryHelper.getPnlStatsForDate(advisorId, date, {real, category});
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} else {
@@ -169,9 +176,11 @@ module.exports.getDailyContestPortfolioStatsForDate = (args, res, next) => {
 	const advisorId = _.get(args, 'advisorId.value', null);
 	const userEmail = _.get(args, 'user.email', null);
 	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
-	let advisorSelection = {user: userId};
+	const real = _.get(args, 'real.value', false);
+
+	let advisorSelection = {user: userId, isMasterAdvisor: !real};
 	if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
-		advisorSelection = {_id: advisorId};
+		advisorSelection = {_id: advisorId, isMasterAdvisor: !real};
 	}
 
 	return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id'})
@@ -206,53 +215,6 @@ module.exports.getDailyContestPortfolioStatsForDate = (args, res, next) => {
 
 
 /*
-* Next availble stock without prediction
-*/
-module.exports.getDailyContestNextStock = function(args, res, next) {
-
-	let date = DailyContestEntryHelper.getValidStartDate();
-	
-	const search = _.get(args, 'search.value', null)
-	const sector = _.get(args, 'sector.value', null);
-	const industry = _.get(args, 'industry.value', null);
-	const universe = _.get(args, 'universe.value', "NIFTY_500");
-
-	const exclude = _.get(args, 'exclude.value', "").split(",").map(item => item.trim());
-	const populate = _.get(args, 'populate.value', false);
-
-	const userId = _.get(args, 'user._id', null);
-
-	return AdvisorModel.fetchAdvisor({user: userId}, {fields: '_id'})
-	.then(advisor => {
-		if (advisor) {
-			const advisorId = advisor._id.toString()
-
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate:false});
-		} else {
-			APIError.throwJsonError({message: "Not a valid user"});
-		} 
-	})
-	.then(activePredictions => {
-		var activeTickers = (activePredictions || []).map(item => _.get(item, 'position.security.ticker', ""));
-		
-		return SecurityHelper.getStockList(search, {universe, sector, industry, exclude: activeTickers.concat(exclude), limit:1})
-			.then(securities => {
-			return Promise.map(securities, function(security) {
-				return populate ? 
-					SecurityHelper.getStockLatestDetail(security).then(detail => {return Object.assign(security, detail)}) : 
-					security;
-			});
-		})
-	})
-	.then(possibleTickers => {
-		return res.status(200).send(possibleTickers);
-	})
-	.catch(err => {
-		return res.status(400).send({messge: err.message});	
-	})
-};
-
-/*
 * Update predictions for the contest
 */
 module.exports.updateDailyContestPredictions = (args, res, next) => {
@@ -261,10 +223,10 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	let advisorId = _.get(args, 'advisorId.value', null);
 	const userEmail = _.get(args, 'user.email', null);
 	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
-	const entryPredictions = args.body.value.predictions;
-	const action = args.operation.value;
+	const prediction = _.get(args, 'body.value', null);
 
 	let validStartDate = DailyContestEntryHelper.getValidStartDate();
+	const isRealPrediction = _.get(prediction, 'real', false);
 
 	return Promise.resolve()
 	.then(() => {
@@ -274,133 +236,124 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		// }
 	})
 	.then(() => {		
-		//Check if investment amount is either 10, 25, 50, 75 or 100K for unreal predictions
-		return Promise.map(entryPredictions.filter(item =>  {return !item.real;}).map(item => {return _.get(item, 'position.investment');}), function(investment) {
-			return [10, 25, 50, 75, 100].indexOf(Math.abs(investment)) !=- 1;
-		})
-		.then(validInvestments => {
-			var valid = true;
 
-			validInvestments.forEach(v => {
-				valid = valid && v;
-			});
+		if (!isRealPrediction) {
+			const investment = _.get(prediction, 'position.investment');
+			//Check if investment amount is either 10, 25, 50, 75 or 100K for unreal predictions
+			//
+			var valid = [10, 25, 50, 75, 100].indexOf(Math.abs(investment)) !=- 1;
 
 			if(!valid) {
-				APIError.throwJsonError({message: "Invalid investment value"});
+				APIError.throwJsonError({message: "Invalid investment value - Virtual Prediction"});
 			} else{
 				return true;
 			}
-		});
+		}
 
 	})
 	.then(() => {
-		return Promise.map(entryPredictions, function(prediction) {
-			return SecurityHelper.getStockLatestDetail(prediction.position.security)
-			.then(securityDetail => {
-				var latestPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
-				if (latestPrice != 0) {
+		
+		return SecurityHelper.getStockLatestDetail(prediction.position.security)
+		.then(securityDetail => {
+			var latestPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
+			if (latestPrice != 0) {
 
-					//Investment is modified downstream so can't be const
-					var investment = _.get(prediction, 'position.investment', 0);
-					const quantity = _.get(prediction, 'position.quantity', 0);
-					const isRealPrediction = _.get(prediction, 'real', false);
+				//Investment is modified downstream so can't be const
+				var investment = _.get(prediction, 'position.investment', 0);
+				const quantity = _.get(prediction, 'position.quantity', 0);
 
-					if (isRealPrediction && (investment != 0 || quantity <= 0)) {
-						APIError.throwJsonError({message: "Must provide zero investment and positive quantity (LONG) for real trades!!"})
-					}
-
-					const isConditional = _.get(prediction, "conditionalType", "NOW") == "NOW"
-					const avgPrice = _.get(prediction, 'position.avgPrice', 0);
-
-					investment = investment || (isConditional ? quantity.avgPrice : quantity*latestPrice);
-
-					//Mark the real investment at the latest price as well (execution price may be different)
-					//(now this could be not true but let's keep things for simple for now)
-					prediction.position.investment = investment
-
-					if (isRealPrediction && investment < 0) {
-						APIError.throwJsonError({message: "Only LONG prediction are allowed for real trades!!"})	
-					}
-					
-					if (isRealPrediction) {
-
-						if (isConditional && avgPrice > 0 && quantity*avgPrice > 50000) {
-							APIError.throwJsonError({message: "Effective investment in real trade must be less than 50K!!"})
-						}
-
-						if (!isConditional && latestPrice > 0 && quantity*latestPrice > 50000) {
-							APIError.throwJsonError({message: "Effective investment in real trade must be less than 50K!!"})
-						}
-					}
-
-					const target = prediction.target;
-					const stopLoss = _.get(prediction, 'stopLoss', 0);
-
-					if (stopLoss == 0) {
-						APIError.throwJsonError({message: "Stoploss must be non-zero"});
-					} else if (investment > 0 &&  (stopLoss > latestPrice || stopLoss > target)) {
-						APIError.throwJsonError({message: "Inaccurate Stoploss!! Must be lower than the call price"});
-					} else if (investment < 0 &&  (stopLoss < latestPrice || stopLoss < target)) {
-						APIError.throwJsonError({message: "Inaccurate Stoploss!! Must be higher than the call price"});
-					} 
-
-					if (investment > 0 && target < 1.015*latestPrice) {
-						APIError.throwJsonError({message:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% higher than call price`});
-					} else if (investment < 0 && target > 1.015*latestPrice) {
-						APIError.throwJsonError({message:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% lower than call price`});
-					}
-					return;
-				} else {
-					console.log("Create Prediction: Price not found");
-					return; 
+				if (isRealPrediction && (investment != 0 || quantity <= 0)) {
+					APIError.throwJsonError({message: "Must provide zero investment and positive quantity (LONG) for real trades!!"})
 				}
-			})
+
+				const isConditional = _.get(prediction, "conditionalType", "NOW") == "NOW"
+				const avgPrice = _.get(prediction, 'position.avgPrice', 0);
+
+				investment = investment || (isConditional ? quantity.avgPrice : quantity*latestPrice);
+
+				//Mark the real investment at the latest price as well (execution price may be different)
+				//(now this could be not true but let's keep things for simple for now)
+				prediction.position.investment = investment
+
+				if (isRealPrediction && investment < 0) {
+					APIError.throwJsonError({message: "Only LONG prediction are allowed for real trades!!"})	
+				}
+				
+				if (isRealPrediction) {
+
+					if (isConditional && avgPrice > 0 && quantity*avgPrice > 50000) {
+						APIError.throwJsonError({message: "Effective investment in real trade must be less than 50K!!"})
+					}
+
+					if (!isConditional && latestPrice > 0 && quantity*latestPrice > 50000) {
+						APIError.throwJsonError({message: "Effective investment in real trade must be less than 50K!!"})
+					}
+				}
+
+				const target = prediction.target;
+				const stopLoss = _.get(prediction, 'stopLoss', 0);
+
+				if (stopLoss == 0) {
+					APIError.throwJsonError({message: "Stoploss must be non-zero"});
+				} else if (investment > 0 &&  (stopLoss > latestPrice || stopLoss > target)) {
+					APIError.throwJsonError({message: "Inaccurate Stoploss!! Must be lower than the call price"});
+				} else if (investment < 0 &&  (stopLoss < latestPrice || stopLoss < target)) {
+					APIError.throwJsonError({message: "Inaccurate Stoploss!! Must be higher than the call price"});
+				} 
+
+				if (investment > 0 && target < 1.015*latestPrice) {
+					APIError.throwJsonError({message:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% higher than call price`});
+				} else if (investment < 0 && target > 1.015*latestPrice) {
+					APIError.throwJsonError({message:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% lower than call price`});
+				}
+				return;
+			} else {
+				console.log("Create Prediction: Price not found");
+				return; 
+			}
 		})
 	})
 	.then(() => {
-		let advisorSelection = {user: userId};
+		let masterAdvisorSelection = {user: userId,};
 		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
-			advisorSelection = {_id: advisorId};
+			masterAdvisorSelection = {_id: advisorId, isMasterAdvisor: !isRealPrediction};
 		}
-		return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id account allocation'})
+
+		let allocationAdvisorSelection = {user: userId, isMasterAdvisor: false};
+		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
+			allocationAdvisorSelection = {_id: advisorId, isMasterAdvisor: false};
+		}
+
+		return Promise.all([
+			AdvisorModel.fetchAdvisor(masterAdvisorSelection, {fields: '_id account allocation'}),
+			isRealPrediction ? AdvisorModel.fetchAdvisor(allocationAdvisorSelection, {fields: '_id account'}) : null
+		])
 	})
-	.then(advisor => {
-		if (advisor) {
-			advisorId = advisor._id.toString();
+	.then(([masterAdvisor, allocationAdvisor]) => {
+		if (masterAdvisor) {
+
+			masterAdvisorId = masterAdvisor._id.toString();
+
+			//Check if master and allocation advisor are valid and related (and allocation status is true)
+			if (isRealPrediction && !(allocationAdvisor && masterAdvisor.allocation.status && masterAdvisor.allocation.advisor.toString() == allocationAdvisor._id.toString())) {
+				APIError.throwJsonError("Not authorized to make real trades");
+			}
+
+			//Choose advisor based on prediction type (Assing advisorId)
+			var advisor = isRealPrediction ? allocationAdvisor : masterAdvisor;
+			advisorId = advisor._id;
 
 			var liquidCash = _.get(advisor, 'account.liquidCash', 0);
 
-			var investmentRequired = 0;
-
-			entryPredictions.forEach(item => {
-				investmentRequired += Math.abs(_.get(item, 'position.investment', 0));
-			});
+			var investmentRequired = Math.abs(_.get(item, 'position.investment', 0));
 
 			if (liquidCash < investmentRequired) {
-				APIError.throwJsonError({message: `Insufficient funds to create predictions!!`});
-			}
-
-			var realPredictions = entryPredictions.filter(item => item.real);
-
-			if (realPredictions.length > 0) {
-				var allocationStatus = _.get(advisor, 'allocation.status', false);
-				if (!allocationStatus) {
-					APIError.throwJsonError({message: `User not authorized to place real trades`});
-				}
-
-				var realLiquidCash = _.get(advisor, 'allocation.account.liquidCash', 0);
-				var realInvestmentRequired = 0;
-
-				//Real investment is an approximation (actual investment will be different based on markt entry price)
-				//The risk is currently borne by the company
-				realPredictions.forEach(item => {
-					realInvestmentRequired += Math.abs(_.get(item, 'position.investment', 0));
-				});
-
-				if (realLiquidCash < realInvestmentRequired) {
+				if (isRealPrediction) {
 					APIError.throwJsonError({message: `Insufficient funds to create real trades!!`});
+				} else {
+					APIError.throwJsonError({message: `Insufficient funds to create predictions!!`});	
 				}
-
+				
 			}
 			
 			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "all", priceUpdate: false, active: null});
@@ -419,52 +372,48 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				return !completeStatus; 
 		});
 
-		return Promise.map(entryPredictions, function(prediction) {
-			
-			var ticker = _.get(prediction, 'position.security.ticker', "");
-			var existingPredictionsInTicker = activePredictions.filter(item => {return item.position.security.ticker == ticker;});
-			var newPredictionsInTicker = entryPredictions.filter(item => {return item.position.security.ticker == ticker;});
+		var ticker = _.get(prediction, 'position.security.ticker', "");
+		var existingPredictionsInTicker = activePredictions.filter(item => {return item.position.security.ticker == ticker;});
+		var newPredictionsInTicker = prediction.position.security.ticker == ticker ? [prediction] : [];
 
-			if (existingPredictionsInTicker.length + newPredictionsInTicker.length > 3) {
-				APIError.throwJsonError({message: `Limit exceeded: Can't add more than 3 prediction for one stock (${ticker})`});
-			}
+		if (existingPredictionsInTicker.length + newPredictionsInTicker > 3 && !isRealPrediction) {
+			APIError.throwJsonError({message: `Limit exceeded: Can't add more than 3 prediction for one stock (${ticker})`});
+		}
 
-			var existingRealPredictionsInTicker = activePredictions.filter(item => {return item.position.security.ticker == ticker && item.real;});
-			var newRealPredictionsInTicker = entryPredictions.filter(item => {return item.position.security.ticker == ticker && item.real;});
+		if (existingPredictionsInTicker.length + newPredictionsInTicker.length > 1 && isRealPrediction) {
+			APIError.throwJsonError({message: `Limit exceeded: Can't add more than 1 real trade for one stock (${ticker})`});
+		}
 
-			if (existingRealPredictionsInTicker.length + newRealPredictionsInTicker.length > 1) {
-				APIError.throwJsonError({message: `Limit exceeded: Can't add more than 1 real trade for one stock (${ticker})`});
-			}
-
-			return; 
-		})
+		return; 
 	})
 	.then(() => {
-		return Promise.mapSeries(entryPredictions, function(item) {
-			if (DateHelper.compareDates(item.endDate, item.startDate) == 1) {
+		
+		if (DateHelper.compareDates(prediction.endDate, prediction.startDate) == 1) {
+			
+			prediction.startDate = validStartDate;
+			prediction.endDate = DateHelper.getMarketCloseDateTime(DateHelper.getNextNonHolidayWeekday(prediction.endDate, 0));
+			prediction.modified = 1;
+			prediction.nonMarketHoursFlag = DateHelper.isHoliday() || !DateHelper.isMarketTrading();
+			prediction.createdDate = new Date();
 				
-				item.startDate = validStartDate;
-				item.endDate = DateHelper.getMarketCloseDateTime(DateHelper.getNextNonHolidayWeekday(item.endDate, 0));
-				item.modified = 1;
-				item.nonMarketHoursFlag = DateHelper.isHoliday() || !DateHelper.isMarketTrading();
-				item.createdDate = new Date();
-					
-				var isConditional = item.conditionalType != "NOW" && item.position.avgPrice != 0; 
+			var isConditional = prediction.conditionalType != "NOW" && prediction.position.avgPrice != 0; 
 
-				//Set trigger
-				item = {...item, conditional:isConditional, triggered: {status: !isConditional}, conditionalPrice: isConditional ? item.position.avgPrice : 0, conditionalType: isConditional ? item.conditionalType : ""};
+			//Set trigger
+			prediction = {...prediction, conditional:isConditional, triggered: {status: !isConditional}, conditionalPrice: isConditional ? prediction.position.avgPrice : 0, conditionalType: isConditional ? prediction.conditionalType : ""};
 
-				return item;
+			return prediction;
 
-			} else {
-				console.log("Invalid prediction");
-				return null;
-			}
-		})
+		} else {
+			console.log("Invalid prediction");
+			return null;
+		}
 	})
-	.then(adjustedPredictions => {
-		adjustedPredictions = adjustedPredictions.filter(item => item);
-		return DailyContestEntryHelper.addPredictions(advisorId, adjustedPredictions, DateHelper.getMarketCloseDateTime(validStartDate)); 
+	.then(adjustedPrediction => {
+		if (adjustedPrediction) {
+			return DailyContestEntryHelper.addPredictions(advisorId, [adjustedPrediction], DateHelper.getMarketCloseDateTime(validStartDate)); 
+		} else {
+			APIError.throwJsonError({message: "Adjusted prediciton is NULL/invalid"});
+		}
 	})
 	.then(final => {
 		return res.status(200).send("Predictions updated successfully");
@@ -483,17 +432,32 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 	
 	Promise.resolve()
 	.then(() => {
-		let advisorSelection = {user: userId};
+		let advisorSelection = {user: userId, isMasterAdvisor: true};
 		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
 			advisorSelection = {_id: advisorId};
 		}
+
 		return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id'})	
 	})
 	.then(advisor => {
 		if (advisor) {
 			advisorId = advisor._id.toString();
 			var date = DateHelper.getMarketCloseDateTime();
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: null});
+
+			var allocationAdvisor = _.get(advisor, 'allocation.advisor', null);
+			return Promise.all([
+				DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: null}),
+				allocationAdvisor ? DailyContestEntryHelper.getPredictionsForDate(allocationAdvisor, date, {category: "all", priceUpdate: false, active: null}) : []
+			])
+			.then(([simulatedPredictions, realPredictions]) => {
+
+				//Populate advisorId (necessary to distinguish between real and simulated advisor)
+				simulatedPredictions = simulatedPredictions.map(item => {return {...item, advisorId};});
+				realPredictions = realPredictions.map(item => {return {...item, advisorId: allocationAdvisor};})
+
+				return simulatedPredictions.concat(realPredictions);
+			})
+
 		} else {
 			APIError.throwJsonError({message: "Not a valid user"});
 		}
@@ -513,11 +477,11 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 			prediction.status.trueDate = new Date();
 			prediction.status.date = DateHelper.getMarketCloseDateTime(new Date());
 
-			return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction)
+			return DailyContestEntryModel.updatePrediction({advisor: prediction.advisorId}, prediction)
 			.then(() => {
 				//Update the Account credit if prediction was never triggered (else handle it in helper)
 				if (!_.get(prediction,'triggered.status', true)) {
-					return AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction);
+					return AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction);
 				}
 			})
 
@@ -696,18 +660,20 @@ module.exports.getDailyContestStats = (args, res, next) => {
 	const advisor = _.get(args, 'advisor.value', null);
 	const userId = _.get(args, 'user._id', null);
 
+	const real = _.get(args, 'real.value', false);
+
 	return Promise.resolve()
 	.then(() => {
 		if (symbol && horizon) {
 
 			APIError.throwJsonError({message: "Only one of symbol/horizon parameter is allowed"})
 		} else {
-			let selection = {user: userId};
+			let advisorSelection = {user: userId, isMasterAdvisor: !real};
 			
 			if (advisor !== null && (advisor || '').trim().length > 0) {
-				selection = {_id: advisor.trim()};
+				advisorSelection = {_id: advisor.trim(), isMasterAdvisor: !real};
 			}
-			return AdvisorModel.fetchAdvisor({...selection}, {fields: '_id'})		
+			return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id'})		
 		}
 	})
 	.then(advisor => {
@@ -737,11 +703,12 @@ module.exports.getDailyContestPerformanceStats = (args, res, next) => {
 	
 	const advisor = _.get(args, 'advisor.value', null);
 	const userId = _.get(args, 'user._id', null);
+	const real = _.get(args, 'real.value', false);
 
-	let selection = {user: userId};
+	let selection = {user: userId, isMasterAdvisor: !real};
 
 	if (advisor !== null && (advisor || '').trim().length > 0) {
-		selection = {_id: advisor.trim()};
+		selection = {_id: advisor.trim(), isMasterAdvisor: !real};
 	}
 
 	return AdvisorModel.fetchAdvisor({...selection}, {fields: '_id'})		
