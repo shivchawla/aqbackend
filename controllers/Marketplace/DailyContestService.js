@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-06 16:44:07
+* @Last Modified time: 2019-03-06 16:51:41
 */
 
 'use strict';
@@ -333,8 +333,6 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	})
 	.then(([masterAdvisor, allocationAdvisor]) => {
 		if (masterAdvisor) {
-
-			masterAdvisorId = masterAdvisor._id.toString();
 
 			//Check if master and allocation advisor are valid and related (and allocation status is true)
 			if (isRealPrediction && !(allocationAdvisor && masterAdvisor.allocation.status && masterAdvisor.allocation.advisor.toString() == allocationAdvisor._id.toString())) {
