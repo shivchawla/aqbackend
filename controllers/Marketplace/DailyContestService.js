@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 11:09:58
+* @Last Modified time: 2019-03-07 13:02:52
 */
 
 'use strict';
@@ -65,7 +65,7 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 			advisorId = masterAdvisor._id.toString();
 			
 			if (real) {
-				if (_.get(masterAdvisor, 'allocation.status', true)) {
+				if (_.get(masterAdvisor, 'allocation.status', false)) {
 					advisorId = masterAdvisor.allocation.advisor;
 				} else {
 					APIError.throwJsonError({message: "No real predictions found/possible for this advisor"});
@@ -103,7 +103,7 @@ module.exports.getRealTradePredictions = (args, res, next) => {
 	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
 	const date = DateHelper.getMarketCloseDateTime(_dd);
 
-	const advisorId = _.get(args, 'advisorId.value', null);
+	let advisorId = _.get(args, 'advisorId.value', null);
 	const active = _.get(args, 'active.value', null);
 	const category = _.get(args, 'category.value', 'all');
 
@@ -111,12 +111,14 @@ module.exports.getRealTradePredictions = (args, res, next) => {
 	.then(() => {
 		if (isAdmin) {
 			return DailyContestEntryHelper.getAllRealTradePredictions(advisorId, date, {active, category});
-		} else {
+		}
+		else {
 			APIError.throwJsonError({message: "Not authorized!!"});
 		}
+			
 	})
-	.then(tradeablePredictions => {
-		return res.status(200).send(tradeablePredictions);
+	.then(realPredictions => {
+		return res.status(200).send(realPredictions);
 	})	
 	.catch(err => {
 		console.log(err);
@@ -147,13 +149,13 @@ module.exports.getDailyContestPnlForDate = (args, res, next) => {
 		advisorSelection = {_id: advisorId};
 	}
 
-	return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id'})
+	return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id allocation'})
 	.then(masterAdvisor => {
 		if (masterAdvisor) {
 			advisorId = masterAdvisor._id.toString();
 			
 			if (real) {
-				if (_.get(masterAdvisor, 'allocation.status', true)) {
+				if (_.get(masterAdvisor, 'allocation.status', false)) {
 					advisorId = masterAdvisor.allocation.advisor;
 				} else {
 					APIError.throwJsonError({message: "No real predictions found/possible for this advisor"});
@@ -200,14 +202,14 @@ module.exports.getDailyContestPortfolioStatsForDate = (args, res, next) => {
 		advisorSelection = {_id: advisorId};
 	}
 
-	return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id'})
+	return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id allocation'})
 	.then(masterAdvisor => {
 		if (masterAdvisor) {
 			
 			advisorId = masterAdvisor._id.toString();
 			
 			if (real) {
-				if (_.get(masterAdvisor, 'allocation.status', true)) {
+				if (_.get(masterAdvisor, 'allocation.status', false)) {
 					advisorId = masterAdvisor.allocation.advisor;
 				} else {
 					APIError.throwJsonError({message: "No real predictions found/possible for this advisor"});
@@ -359,11 +361,6 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	.then(([masterAdvisor, allocationAdvisor]) => {
 		if (masterAdvisor) {
 
-			// console.log(allocationAdvisor);
-			// console.log(masterAdvisor.allocation.status);
-			// console.log(masterAdvisor.allocation.advisor.toString());
-			// console.log(allocationAdvisor._id.toString());
-
 			//Check if master and allocation advisor are valid and related (and allocation status is true)
 			if (isRealPrediction && !(allocationAdvisor && masterAdvisor.allocation.status && masterAdvisor.allocation.advisor.toString() == allocationAdvisor._id.toString())) {
 				APIError.throwJsonError("Not authorized to make real trades");
@@ -467,7 +464,7 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 			advisorSelection = {_id: advisorId};
 		}
 
-		return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id'})	
+		return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id allocation'})	
 	})
 	.then(masterAdvisor => {
 		if (masterAdvisor) {
@@ -704,7 +701,8 @@ module.exports.getDailyContestStats = (args, res, next) => {
 			if (advisor !== null && (advisor || '').trim().length > 0) {
 				advisorSelection = {_id: advisor.trim()};
 			}
-			return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id'})		
+
+			return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id allocation'});		
 		}
 	})
 	.then(masterAdvisor => {
@@ -712,13 +710,13 @@ module.exports.getDailyContestStats = (args, res, next) => {
 			let advisorId = masterAdvisor._id.toString();
 			
 			if (real) {
-				if (_.get(masterAdvisor, 'allocation.status', true)) {
+				if (_.get(masterAdvisor, 'allocation.status', false)) {
 					advisorId = masterAdvisor.allocation.advisor;
 				} else {
 					APIError.throwJsonError({message: "No real predictions found/possible for this advisor"});
 				}
 			}
-			
+
 			switch(category) {
 				case "general" : return DailyContestEntryHelper.getDailyContestEntryPnlStats(advisorId, symbol, horizon); 
 				case "prediction" : return DailyContestEntryHelper.getDailyContestEntryPnlStats(advisorId, symbol, horizon); break;
@@ -751,13 +749,13 @@ module.exports.getDailyContestPerformanceStats = (args, res, next) => {
 		selection = {_id: advisor.trim()};
 	}
 
-	return AdvisorModel.fetchAdvisor({...selection}, {fields: '_id'})		
+	return AdvisorModel.fetchAdvisor({...selection}, {fields: '_id allocation'})		
 	.then(masterAdvisor => {
 		if (masterAdvisor) {
 			let advisorId = masterAdvisor._id.toString();
 			
 			if (real) {
-				if (_.get(masterAdvisor, 'allocation.status', true)) {
+				if (_.get(masterAdvisor, 'allocation.status', false)) {
 					advisorId = masterAdvisor.allocation.advisor;
 				} else {
 					APIError.throwJsonError({message: "No real predictions found/possible for this advisor"});

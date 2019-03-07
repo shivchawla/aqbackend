@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 10:39:07
+* @Last Modified time: 2019-03-07 13:40:16
 */
 
 'use strict';
@@ -1464,28 +1464,39 @@ module.exports.getAllRealTradePredictions = function(advisorId, date, options) {
 
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
-	return AdvisorHelper.fetchAdvisorsWithAllocation()
-	.then(realAdvisors => {
-		if (advisorId) {
-			var idx = realAdvisors.map(item => item._id.toString()).indexOf(advisorId);
-			
-			if (idx !=-1) {
-				realAdvisors = [realAdvisors[idx]];
-			} else {
-				APIError.throwJsonError({message: `No allocation for chosen advisor: ${advisorId}`});
-			}
-		}
+	return DailyContestEntryModel.fetchDistinctAdvisors()
+	.then(masterAdvisorIds => {
 
-		return Promise.mapSeries(realAdvisors, function(advisor) {
-			
-			advisorId = advisor._id
-			
-			return exports.getPredictionsForDate(advisorId, date, {category, active, priceUpdate: true, real: true})
-			.then(predictions => {
-				return predictions.map(item => {return {...item, advisor};})
+		if (!advisorId) {
+			return Promise.mapSeries(masterAdvisorIds, function(masterAdvisorId) {
+				return AdvisorModel.fetchAdvisor({_id: masterAdvisorId, isMasterAdvisor: true}, {fields: '_id allocation user'})
 			})
+		} else {
+			return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation user'})
+			.then(advisor => {
+				return [advisor];
+			})
+		}
+	})
+	.then(masterAdvisors => {
+		//Filter out nulls;
+		masterAdvisors  = masterAdvisors.filter(item => item);
 
-		});
+		if (masterAdvisors && masterAdvisors.length > 0) {
+
+			return Promise.mapSeries(masterAdvisors, function(masterAdvisor) {
+
+				if (_.get(masterAdvisor, 'allocation.advisor', null) && _.get(masterAdvisor, 'allocation.status', false)) {
+					
+					advisorId = masterAdvisor.allocation.advisor;
+
+					return exports.getPredictionsForDate(advisorId, date, {category, active, priceUpdate: true})
+					.then(predictions => {
+						return predictions.map(item => {return {...item, advisor: _.pick(masterAdvisor, ['_id', 'user'])};})
+					})
+				}	
+			})
+		} else {return []};
 	}) 
 	.then(allRealPredictionsByAdvisorId => {
 		return Array.prototype.concat.apply([], allRealPredictionsByAdvisorId);
