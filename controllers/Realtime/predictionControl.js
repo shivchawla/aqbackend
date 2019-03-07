@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 13:04:58
+* @Last Modified time: 2019-03-07 11:02:13
 */
 'use strict';
 const config = require('config');
@@ -42,23 +42,24 @@ function _sendPredictionUpdates(subscription) {
 	.then(() => {
 		category = subscription.category;
 		advisorId = subscription.advisorId;
+		masterAdvisorId = subscription.masterAdvisorId;
+		real = subscription.real
 		
 		var date = DateHelper.getCurrentDate();
 
 		if (advisorId) {
 			return Promise.all([
 				DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category, active: null}),
-				DailyContestEntryHelper.getPnlStatsForDate(advisorId, date, category),
+				DailyContestEntryHelper.getPnlStatsForDate(advisorId, date, {category}),
 				DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date)
 			]);
 		} else {
-			console.log("WS: Advisor Invalid");
-			return; 
+			APIError.throwJsonError({message: "WS: Advisor Invalid"});
 		}	
 			
 	})
 	.then(([predictions, pnlStats, portStats]) => {
-		return _sendWSResponse(subscription.response, {advisorId, category, predictions, pnlStats, portStats});
+		return _sendWSResponse(subscription.response, {advisorId: masterAdvisorId, real, category, predictions, pnlStats, portStats});
 	})
 	.catch(err => {
 		subscription.errorCount += 1;	
@@ -82,16 +83,17 @@ function _sendAllPredictionUpdates() {
 }
 
 function _handlePredictionSubscription(req, res) {
-	return new Promise(resolve => {
+	return new Promise((resolve, reject) => {
 		const userId = req.userId;
 		const advisorId = req.advisorId;
 		const category = req.category;
+		const real = _.get(req, 'real', false);
 
  		return UserModel.fetchUser({_id: userId}, {fields:'email'})
  		.then(user => {
  			const userEmail = _.get(user, 'email', null);
  			const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
-			let advisorSelection = {user: userId};
+			let advisorSelection = {user: userId, isMasterAdvisor: true};
 			if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
 				advisorSelection = {_id: advisorId};
 			}
@@ -100,16 +102,27 @@ function _handlePredictionSubscription(req, res) {
 		.then(advisor => {
 			if (advisor) {
 
-				var subscription = predictionSubscribers[userId];
 				let advisorId = advisor._id;
+				let masterAdvisorId = advisorId;
 
+				if (real && _.get(masterAdvisor, 'allocation.status', true)) {
+					advisorId = masterAdvisor.allocation.advisor;
+				} else {
+					APIError.throwJsonError({message: "No real subscription allowed/possible for this advisor"});
+				}
+
+				var subscription = predictionSubscribers[userId];
+				
 				if (subscription) {
 					predictionSubscribers[userId].response = res;
 					predictionSubscribers[userId].category = category;
 					predictionSubscribers[userId].advisorId = advisorId;
 					predictionSubscribers[userId].errorCount = 0;
+					predictionSubscribers[userId].masterAdvisorId = masterAdvisorId;
+					predictionSubscribers[userId].real = real;
+
 				} else {
-					predictionSubscribers[userId] = {response: res, category, advisorId: advisorId, errorCount: 0};
+					predictionSubscribers[userId] = {response: res, category, advisorId, masterAdvisorId, real, errorCount: 0};
 				}
 
 				//Send immediate response back to subscriber
@@ -119,7 +132,10 @@ function _handlePredictionSubscription(req, res) {
 				APIError.throwJsonError({message: "No advisor found. WS request can't be completed"});
 			}
 
-		});
+		})
+		.catch(err => {
+			reject(err);
+		})
 		
 	});
 }

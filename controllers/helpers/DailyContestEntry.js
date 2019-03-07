@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-06 13:49:11
+* @Last Modified time: 2019-03-07 10:39:07
 */
 
 'use strict';
@@ -1413,7 +1413,7 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 	const priceUpdate = _.get(options, 'priceUpdate', true);
 	
 	//TO match with flag triggered in DB (means prediction was active)
-	const fetchOptions = {active: _.get(options, 'active', true), real: _.get(options, 'real', null)};
+	const fetchOptions = {active: _.get(options, 'active', true)};
 
 	let updatedPredictions;
 	return Promise.resolve()

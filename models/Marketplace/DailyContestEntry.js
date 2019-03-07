@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-05 19:45:21
+* @Last Modified time: 2019-03-07 10:39:57
 */
 
 
@@ -208,13 +208,13 @@ DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, d
 	//Active/Real have 3 values (false, true, null)
 	//Null includes everything
 	var active = _.get(options, 'active', true); 
-	var real = _.get(options, 'real', null);
+	// var real = _.get(options, 'real', null);
 
 	return this.findOne({...query, date: date}, {predictions:1})
 	.then(contestEntry => {
 		if (contestEntry) {
 			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
-			return allPredictions.filter(item => {
+			return allPredictions.filter(item => item).filter(item => {
 				var _triggered = _.get(item, 'triggered.status', true);
 				var triggeredDate = _.get(item, 'triggered.date', null);
 
@@ -223,14 +223,14 @@ DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, d
 				var isActivePrediction = triggered;
 				var isInactivePrediction = !triggered;
 
-				var activeFilterSubset = active == null ? isActivePrediction || isInactivePrediction : 
+				return active == null ? isActivePrediction || isInactivePrediction : 
 					!active ? isInactivePrediction : isActivePrediction;
 
-				var isRealPrediction = _.get(item, 'real', false);
+				// var isRealPrediction = _.get(item, 'real', false);
 
-				return !real ? activeFilterSubset : 
-							real == true ? activeFilterSubset && isRealPrediction : 
-							activeFilterSubset && !isRealPrediction;
+				// return !real ? activeFilterSubset : 
+				// 			real ? activeFilterSubset && isRealPrediction : 
+				// 			activeFilterSubset && !isRealPrediction;
 
 			});
 		} else {
@@ -245,7 +245,7 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 	//Active/Real have 3 values (false, true, null)
 	//Null includes everything
 	var active = _.get(options, 'active', true); 
-	var real = _.get(options, 'real', null);
+	// var real = _.get(options, 'real', null);
 
 	return this.find({
 				...query, 
@@ -276,14 +276,14 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 					var isInactivePrediction = !triggered && (dateCondition ||
 						(manualExit && moment(item.status.date).isSame(moment(date))));
 
-					var activeFilterSubset  = active == null ? isActivePrediction || isInactivePrediction :
+					return active == null ? isActivePrediction || isInactivePrediction :
 						!active ? isInactivePrediction : isActivePrediction;
 
-					var isRealPrediction = _.get(item, 'real', false);
+					// var isRealPrediction = _.get(item, 'real', false);
 
-					return !real ? activeFilterSubset : 
-								real == true ? activeFilterSubset && isRealPrediction : 
-								activeFilterSubset && !isRealPrediction;
+					// return !real ? activeFilterSubset : 
+					// 			real ? activeFilterSubset && isRealPrediction : 
+					// 			activeFilterSubset && !isRealPrediction;
 
 
 				});
@@ -305,7 +305,7 @@ DailyContestEntry.statics.fetchEntryPredictionsOnDate = function(query, date, op
 	//Active/Real have 3 values (false, true, null)
 	//Null includes everything
 	var active = _.get(options, 'active', true); 
-	var real = _.get(options, 'real', null);
+	// var real = _.get(options, 'real', null);
 
 	return this.find({...query, date: {$lte: date},
 			'predictions.endDate': {$gte: date}}, {predictions: 1})
@@ -337,14 +337,15 @@ DailyContestEntry.statics.fetchEntryPredictionsOnDate = function(query, date, op
 					var isInactivePrediction = !triggered && dateCondition && 
 						(!manualExit || (manualExit && !moment(item.status.date).isBefore(moment(date))));
 
-					var activeFilterSubset = active == null ? isActivePrediction || isInactivePrediction :
+					return active == null ? isActivePrediction || isInactivePrediction :
 						!active ? isInactivePrediction : isActivePrediction;
 
-					var isRealPrediction = _.get(item, 'real', false);
+					// var isRealPrediction = _.get(item, 'real', false);
 
-					return !real ? activeFilterSubset : 
-								real == true ? activeFilterSubset && isRealPrediction : 
-								activeFilterSubset && !isRealPrediction;
+					// return !real ? activeFilterSubset : 
+					// 			real ? activeFilterSubset && isRealPrediction : 
+					// 			activeFilterSubset && !isRealPrediction;
+					
 
 				});
 			} else {
