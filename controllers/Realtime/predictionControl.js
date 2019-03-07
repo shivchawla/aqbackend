@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 15:22:19
+* @Last Modified time: 2019-03-07 17:49:37
 */
 'use strict';
 const config = require('config');
@@ -229,7 +229,7 @@ function _handleRealPredictionSubscription(req, res) {
 						return {masterAdvisor: masterAdvisor._id, allocationAdvisor: masterAdvisor.allocation.advisor}
 					}
 				})
-				,then(advisorMapList => {
+				.then(advisorMapList => {
 					//Filter out null
 					advisorMapList = advisorMapList.filter(item => item);
 
