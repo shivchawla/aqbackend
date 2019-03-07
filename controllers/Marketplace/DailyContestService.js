@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 13:02:52
+* @Last Modified time: 2019-03-07 17:02:46
 */
 
 'use strict';
@@ -81,6 +81,10 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 	})
 	.then(updatedPredictions => {
 		if (updatedPredictions) {
+			if (!isAdmin) {
+				updatedPredictions = updatedPredictions.map(item => {_.unset(item,'tradeActivity'); return item});
+			}
+
 			return res.status(200).send(updatedPredictions);
 		} else {
 			APIError.throwJsonError({message: `No contest entry found for ${date}`});
@@ -298,7 +302,8 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				const isConditional = _.get(prediction, "conditionalType", "NOW") == "NOW"
 				const avgPrice = _.get(prediction, 'position.avgPrice', 0);
 
-				investment = investment || (isConditional ? quantity.avgPrice : quantity*latestPrice);
+				//Computed investment must be divided by 1000 to match internal units
+				investment = investment || Math.round((isConditional ? quantity.avgPrice : quantity*latestPrice)/1000, 2);
 				
 				//Mark the real investment at the latest price as well (execution price may be different)
 				//(now this could be not true but let's keep things for simple for now)
@@ -450,6 +455,9 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	});
 };
 
+/*
+* Exit prediction for the contest (based on predictionId) - Can exit both real/simulated predictions
+*/
 module.exports.exitDailyContestPrediction = (args, res, next) => {
 	const userId = _.get(args, 'user._id', null);
 	const predictionId = _.get(args, 'predictionId.value', null);
@@ -526,6 +534,54 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 	.catch(err => {
 		return res.status(400).send(err.message);		
 	});
+};
+
+
+module.exports.addPredictionTradeActivity = (args, res, next) => {
+	const userId = _.get(args, 'user._id', null);
+	const predictionId = _.get(args, 'body.value.predictionId', null);
+	const advisorId = _.get(args, 'body.value.advisorId', null);
+	const tradeActivity = _.get(args, 'body.value.tradeActivity', null);
+	
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+
+	let allocationAdvisorId;
+	return Promise.resolve()
+	.then(() => {
+		if (!isAdmin) {
+			APIError.throwJsonError({message: "Not authorized to add trade activity"})
+		}
+
+		return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'})
+		.then(masterAdvisor => {
+			if (masterAdvisor && _.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
+				allocationAdvisorId = masterAdvisor.allocation.advisor;
+				return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
+			} else {
+				APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
+			}
+		})
+		
+	})
+	.then(prediction => {
+		if (prediction) {
+			if (prediction.tradeActivity) {
+				prediction.tradeActivity = prediction.tradeActivity.concat(tradeActivity);
+			} else {
+				prediction.tradeActivity = [tradeActivity];
+			}
+			return DailyContestEntryModel.updatePrediction({advisor: allocationAdvisorId}, prediction);	
+		} else {
+			APIError.throwJsonError({message: "Prediction not found"});
+		}
+	})
+	.then(updated => {
+		return res.status(200).send("Trade activity added successfully");
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);		
+	})
 };
 
 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:54:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-06 12:59:15
+* @Last Modified time: 2019-03-07 15:47:08
 */
 
 const DailyContest = require('../Marketplace/DailyContestService');
@@ -70,3 +70,8 @@ module.exports.exitDailyContestPrediction = (req, res, next) => {
 module.exports.getDailyContestOverallWinners = (req, res, next) => {
     DailyContest.getDailyContestOverallWinnersByEarnings(req.swagger.params, res, next);
 }
+
+module.exports.addPredictionTradeActivity = (req, res, next) => {
+    DailyContest.addPredictionTradeActivity(req.swagger.params, res, next);
+}
+

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 15:20:19
+* @Last Modified time: 2019-03-07 16:51:18
 */
 
 'use strict';
@@ -1453,6 +1453,46 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 			});
 		} else {
 			return updatedPredictionsWithLastPrice;
+		}
+	});
+};
+
+module.exports.getPredictionById = function(advisorId, predictionId, options) {
+	
+	const priceUpdate = _.get(options, 'priceUpdate', true);
+	
+	//TO match with flag triggered in DB (means prediction was active)
+	const fetchOptions = {active: _.get(options, 'active', null)};
+
+	let updatedPredictions;
+	let date;
+
+	return DailyContestEntryModel.fetchPredictionById({advisor: advisorId}, predictionId)
+	.then(prediction => {
+
+		if (prediction) {
+			date = pediction.status.date || prediction.endDate;
+
+			if(DateHelper.compareDates(date, DateHelper.getCurrentDate()) == 1) {
+				date  = DateHelper.getCurrentDate()
+			}
+			
+			return priceUpdate ? _computeUpdatedPredictions([prediction], date)[0] : prediction;
+		} else {
+			APIError.throwJsonError({message: "Prediction not found"});
+		}
+	})
+	.then(updatedPredictionWithLastPrice => {
+
+		//Update security latest detail
+		if (priceUpdate) {
+			return SecurityHelper.getStockDetail(prediction.position.security, date)
+			.then(securityDetail => {
+				var updatedPosition = {...updatedPredictionWithLastPrice.position, security: securityDetail};
+				return {...updatedPredictionWithLastPrice, position: updatedPosition};
+			})
+		} else {
+			return updatedPredictionWithLastPrice;
 		}
 	});
 };

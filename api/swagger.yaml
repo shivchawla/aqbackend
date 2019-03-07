@@ -3651,60 +3651,6 @@ paths:
       x-swagger-router-controller: "ContestEntry"  
 
 
-  # /dailycontest:
-  #   post:
-  #     tags: 
-  #     - dailycontest
-  #     summary: create a daily contest
-  #     description: create a daily contest
-  #     operationId: createDailyContest
-  #     security: 
-  #     - api_key: []
-  #     parameters:
-  #     - name: "aimsquant-token"
-  #       in: "header"
-  #       description: "auth token"
-  #       type: "string"
-  #       required: true
-  #     - name: body
-  #       in: body
-  #       required: true
-  #       schema:
-  #         $ref: '#/definitions/DailyContest'
-  #     responses:
-  #       200:
-  #         description: OK
-  #       400:
-  #         description: 'Invalid Input'
-  #     x-swagger-router-controller: "DailyContest"
-
-  #   get:
-  #     tags: 
-  #     - dailycontest
-  #     summary: get the daily contest by Id
-  #     description: get a daily contest
-  #     operationId: getDailyContest
-  #     security: 
-  #     - api_key: []
-  #     parameters:
-  #     - name: "aimsquant-token"
-  #       in: "header"
-  #       description: "auth token"
-  #       type: "string"
-  #       required: true
-  #     - name: date
-  #       in: query
-  #       type: string
-  #       format: date
-  #       description: date of contest
-  #       required: false
-  #     responses:
-  #       200:
-  #         description: OK
-  #       400:
-  #         description: 'Invalid Input'
-  #     x-swagger-router-controller: "DailyContest"=#
-
   /dailycontest/prediction:
     post:
       tags: 
@@ -3827,6 +3773,33 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
+  /dailycontest/tradeactivity:
+    post:
+      tags:
+      - dailycontest
+      summary: Add trade activity information for prediction
+      description: Add trade activity
+      operationId: addPredictionTradeActivity
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        description: trade activity body
+        required: true
+        schema:
+          $ref: "#/definitions/PredictionTradeActivity"
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
 
   /dailycontest/exitPrediction:
     post:
@@ -5025,5 +4998,49 @@ definitions:
     properties:
       cash:
         type: number
+
+
+  PredictionTradeActivity:
+    type: object
+    required:
+      - predictionId
+      - advisorId
+      - tradeActivity
+    properties:
+      predictionId:
+        type: string
+        format: uuid
+      advisorId: 
+        type: string
+        format: uuid
+      tradeActivity:
+        type: object
+        $ref: '#/definitions/TradeActivity'
+
+
+  TradeActivity:
+    type: object
+    required:
+      - orderId
+      - date
+      - category
+      - direction
+    properties:
+      orderId:
+        type: string
+      date:
+        type: string
+        format: date
+      category:
+        type: string
+        enum: ["OPEN", "CLOSE", "EXTEND", "REDUCE"]
+      direction:
+        type: string
+        enum: ["LONG", "SHORT"]
+      notes:
+        type: string
+
+
+
 
 

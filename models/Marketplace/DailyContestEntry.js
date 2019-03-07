@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 10:39:57
+* @Last Modified time: 2019-03-07 16:40:36
 */
 
 
@@ -155,6 +155,23 @@ DailyContestEntry.index({advisor: 1}, {unique: false});
 DailyContestEntry.statics.addEntryPredictions = function(query, predictions, options) {
 	return this.findOneAndUpdate(query, {$addToSet: {predictions: {$each: predictions}}}, options)
 };
+
+
+DailyContestEntry.statics.fetchPredictionById = function(query, predictionId) {
+	return this.findOne({...query, predictions:{$elemMatch: {_id: predictionId}}})
+	.then(contestEntry => {
+		if (contestEntry) {
+			var predictionIds = contestEntry.predictions.map(item => item._id.toString());
+
+			var idx = predictionIds.indexOf(predictionId);
+
+			if (idx != -1) {
+				return contestEntry.predictions[idx];
+			}
+
+		} 
+	})
+}
 
 DailyContestEntry.statics.fetchEntry = function(query, options) {
 	var q = this.findOne(query);
