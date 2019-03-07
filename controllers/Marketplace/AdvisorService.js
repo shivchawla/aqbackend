@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 20:12:05
+* @Last Modified time: 2019-03-07 20:17:04
 */
 
 'use strict';
@@ -54,7 +54,7 @@ module.exports.allocateAdvisor = function(args, res, next) {
     return Promise.resolve()
     .then(() => {
         if (isAdmin) {
-            return AdvisorModel.fetchAdvisor({_id:advisorId}, {fields:'user'})
+            return AdvisorModel.fetchAdvisor({_id:advisorId}, {fields:'user isMasterAdvisor'})
         } else {
             APIError.throwJsonError({message: "Not authorized to allocate!!"});
         }
