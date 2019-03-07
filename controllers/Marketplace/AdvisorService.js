@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 19:46:57
+* @Last Modified time: 2019-03-07 20:12:05
 */
 
 'use strict';
@@ -54,7 +54,7 @@ module.exports.allocateAdvisor = function(args, res, next) {
     return Promise.resolve()
     .then(() => {
         if (isAdmin) {
-            return AdvisorModel.fetchAdvisor({_id:advisorId}, {})
+            return AdvisorModel.fetchAdvisor({_id:advisorId}, {fields:'user'})
         } else {
             APIError.throwJsonError({message: "Not authorized to allocate!!"});
         }
@@ -62,10 +62,8 @@ module.exports.allocateAdvisor = function(args, res, next) {
     .then(advisor => {
         masterAdvisor = advisor;
 
-        let account = _.get(advisor, 'account', null);
-
         if(!advisor) {
-            APIError.throwJsonError({userId: userId, message:"Advisor not found"});
+            APIError.throwJsonError({advisor: advisorId, message:"Advisor not found"});
         }
     
         if (!advisor.isMasterAdvisor) {
@@ -84,9 +82,10 @@ module.exports.allocateAdvisor = function(args, res, next) {
              APIError.throwJsonError({message: "Invalid cash amount for allocation"});
         }
 
-        account = {...account.toObject(), liquidCash: cash, investment: 0};
+        //Initialize allocation account
+        var account = {cash: cash, liquidCash: cash, investment: 0};
 
-        return AdvisorModel.saveAdvisor({user:userId, isMasterAdvisor: false, account});
+        return AdvisorModel.saveAdvisor({user: masterAdvisor.user._id, isMasterAdvisor: false, account});
     })
     .then(allocatedAdvisor => {
         if(allocatedAdvisor) {
