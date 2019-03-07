@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-06 16:31:23
+* @Last Modified time: 2019-03-07 15:03:04
 */
 'use strict';
 
@@ -311,6 +311,11 @@ Advisor.statics.updateApproval = function(query, latestApproval) {
 Advisor.statics.updateAllocation = function(query, allocation) {
     return this.findOneAndUpdate(query, {$set: {allocation}});
 }
+
+Advisor.statics.fetchDistinctAdvisors = function(query) {
+    return this.distinct('_id', query);
+}
+
 
 function getTime(d) {
 	return d.getTime();

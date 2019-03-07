@@ -97,6 +97,13 @@ exports.handleAction = function(req, res) {
         return PredictionController.handlePredictionSubscription(req, res);
     }
     else if(req.action === 'unsubscribe-prediction') {
-        return PredictionController.handlePredictionUnSubscription(req, res);
+        return PredictionController.handlePredictionUnsubscription(req, res);
     }
+    else if(req.action === 'subscribe-real-prediction-all') {
+        return PredictionController.handleRealPredictionSubscription(req, res);
+    }
+    else if(req.action === 'unsubscribe-real-prediction-all') {
+        return PredictionController.handleRealPredictionUnsubscription(req, res);
+    }
+
 };

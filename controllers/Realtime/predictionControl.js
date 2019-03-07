@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 11:02:13
+* @Last Modified time: 2019-03-07 15:22:19
 */
 'use strict';
 const config = require('config');
@@ -82,6 +82,42 @@ function _sendAllPredictionUpdates() {
 	});
 }
 
+//User Advisor map and sends updates for all real predictions (sends bulk per advice)
+function _sendRealPredictionUpdates(subscription) {
+
+	return Promise.resolve()
+	.then(() => {
+		let advisorMapList = subscription.advisorMapList;
+
+		return Promise.map(advisorMapList, function(advisorMap) {
+
+			let category = subscription.category;
+			let advisorId = advisorMap.allocationAdvisor;
+			let masterAdvisorId = advisorMap.masterAdvisor;
+
+			var date = DateHelper.getCurrentDate();
+
+			return Promise.resolve()
+			.then(() => {
+				if (advisorId) {
+					return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category, active: null});
+				} else {
+					APIError.throwJsonError({message: "WS: Advisor Invalid"});
+				}
+			})
+			.then(predictions => {
+				return _sendWSResponse(subscription.response, {advisorId: masterAdvisorId, category, predictions});
+			})
+
+		})	
+			
+	})
+	.catch(err => {
+		subscription.errorCount += 1;	
+		console.log(err.message);
+	})
+}
+
 function _handlePredictionSubscription(req, res) {
 	return new Promise((resolve, reject) => {
 		const userId = req.userId;
@@ -140,11 +176,88 @@ function _handlePredictionSubscription(req, res) {
 	});
 }
 
-function _handlePredictionUnSubscription(req, res) {
+function _handlePredictionUnsubscription(req, res) {
 	const userId = req.userId;
-	const category = req.category;
-
 	delete predictionSubscribers[userId];	
+}
+
+function _handleRealPredictionUnsubscription(req, res) {
+	const userId = req.userId;
+	delete predictionSubscribers[userId];	
+}
+
+function _handleRealPredictionSubscription(req, res) {
+	return new Promise((resolve, reject) => {
+		const userId = req.userId;
+		const advisorId = req.advisorId;
+		const category = req.category;
+
+ 		return UserModel.fetchUser({_id: userId}, {fields:'email'})
+ 		.then(user => {
+ 			const userEmail = _.get(user, 'email', null);
+ 			const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+			
+			if (isAdmin) {
+				
+				return AdvisorModel.fetchDistinctAdvisors({isMasterAdvisor: true, 'allocation.status':true})
+				.then(masterAdvisorIds => {
+
+					if (!advisorId) {
+						return Promise.map(masterAdvisorIds, function(masterAdvisorId) {
+							return AdvisorModel.fetchAdvisor({_id: masterAdvisorId}, {fields: '_id allocation user isMasterAdvisor'})
+						})
+					} else {
+						return AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: '_id allocation user isMasterAdvisor'})
+						.then(advisor => {
+							return [advisor];
+						})
+					}
+				})
+			} else {
+				APIError.throwJsonError({message: "Not authorized to subscribe all real predictions"});
+			}
+		})
+		.then(masterAdvisors => {
+			//Filter out nulls;
+			masterAdvisors = masterAdvisors.filter(item => item).filter(item => item.isMasterAdvisor); 
+
+			if (masterAdvisors && masterAdvisors.length > 0) {
+
+				return Promise.map(masterAdvisors, function(masterAdvisor) {
+
+					if (_.get(masterAdvisor, 'allocation.advisor', null) && _.get(masterAdvisor, 'allocation.status', false)) {
+						return {masterAdvisor: masterAdvisor._id, allocationAdvisor: masterAdvisor.allocation.advisor}
+					}
+				})
+				,then(advisorMapList => {
+					//Filter out null
+					advisorMapList = advisorMapList.filter(item => item);
+
+					var subscription = predictionSubscribers[userId];
+				
+					if (subscription) {
+						predictionSubscribers[userId].response = res;
+						predictionSubscribers[userId].category = category;
+						predictionSubscribers[userId].advisorMapList = advisorMapList
+						predictionSubscribers[userId].errorCount = 0;
+
+					} else {
+						predictionSubscribers[userId] = {response: res, category, advisorMapList, errorCount: 0};
+					}
+
+					//Send immediate response back to subscriber
+					resolve(_sendRealPredictionUpdates(predictionSubscribers[userId]));
+				})
+			} else {
+				APIError.throwJsonError({message: "No allocation advisor found"})
+			}
+
+		})
+		.catch(err => {
+			reject(err);
+		})
+		
+	});
 }
 
 
@@ -154,14 +267,23 @@ module.exports.sendAllUpdates = function() {
 
 //Function to subscribe WS data from backend to UI
 module.exports.handlePredictionSubscription = function(req, res) {
-
 	return _handlePredictionSubscription(req, res);
-    
 };
 
 
 //Function to un-subscribe WS data from backend to UI
 module.exports.handlePredictionUnSubscription = function(req, res) {
-	return _handlePredictionUnSubscription(req, res);
-    
+	return _handlePredictionUnsubscription(req, res);
+};
+
+
+//Function to subscribe REAL predictions WS data from backend to UI
+module.exports.handleRealPredictionSubscription = function(req, res) {
+	return _handleRealPredictionSubscription(req, res);
+};
+
+
+//Function to un-subscribe WS data from backend to UI
+module.exports.handleRealPredictionUnsubscription = function(req, res) {
+	return _handleRealPredictionUnsubscription(req, res);
 };

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 13:50:13
+* @Last Modified time: 2019-03-07 15:20:19
 */
 
 'use strict';
@@ -1464,11 +1464,12 @@ module.exports.getAllRealTradePredictions = function(advisorId, date, options) {
 
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
-	return DailyContestEntryModel.fetchDistinctAdvisors()
+	//Fetch advisor Ids with allocation
+	return AdvisorModel.fetchDistinctAdvisors({isMasterAdvisor: true, 'allocation.status':true})
 	.then(masterAdvisorIds => {
 
 		if (!advisorId) {
-			return Promise.mapSeries(masterAdvisorIds, function(masterAdvisorId) {
+			return Promise.map(masterAdvisorIds, function(masterAdvisorId) {
 				return AdvisorModel.fetchAdvisor({_id: masterAdvisorId}, {fields: '_id allocation user isMasterAdvisor'})
 			})
 		} else {
@@ -1484,7 +1485,7 @@ module.exports.getAllRealTradePredictions = function(advisorId, date, options) {
 
 		if (masterAdvisors && masterAdvisors.length > 0) {
 
-			return Promise.mapSeries(masterAdvisors, function(masterAdvisor) {
+			return Promise.map(masterAdvisors, function(masterAdvisor) {
 
 				if (_.get(masterAdvisor, 'allocation.advisor', null) && _.get(masterAdvisor, 'allocation.status', false)) {
 					
