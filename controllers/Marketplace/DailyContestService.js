@@ -225,7 +225,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	let advisorId = _.get(args, 'advisorId.value', null);
 	const userEmail = _.get(args, 'user.email', null);
 	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
-	const prediction = _.get(args, 'body.value', null);
+	var prediction = _.get(args, 'body.value', null);
 
 	let validStartDate = DailyContestEntryHelper.getValidStartDate();
 	const isRealPrediction = _.get(prediction, 'real', false);
@@ -272,7 +272,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				const avgPrice = _.get(prediction, 'position.avgPrice', 0);
 
 				investment = investment || (isConditional ? quantity.avgPrice : quantity*latestPrice);
-
+				
 				//Mark the real investment at the latest price as well (execution price may be different)
 				//(now this could be not true but let's keep things for simple for now)
 				prediction.position.investment = investment
@@ -316,14 +316,14 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		})
 	})
 	.then(() => {
-		let masterAdvisorSelection = {user: userId,};
+		let masterAdvisorSelection = {user: userId, isMasterAdvisor: true};
 		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
-			masterAdvisorSelection = {_id: advisorId, isMasterAdvisor: !isRealPrediction};
+			masterAdvisorSelection = {_id: advisorId};
 		}
 
 		let allocationAdvisorSelection = {user: userId, isMasterAdvisor: false};
 		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
-			allocationAdvisorSelection = {_id: advisorId, isMasterAdvisor: false};
+			allocationAdvisorSelection = {_id: advisorId};
 		}
 
 		return Promise.all([
@@ -345,7 +345,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 			var liquidCash = _.get(advisor, 'account.liquidCash', 0);
 
-			var investmentRequired = Math.abs(_.get(item, 'position.investment', 0));
+			var investmentRequired = Math.abs(_.get(prediction, 'position.investment', 0));
 
 			if (liquidCash < investmentRequired) {
 				if (isRealPrediction) {

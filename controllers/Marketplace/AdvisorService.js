@@ -86,9 +86,7 @@ module.exports.allocateAdvisor = function(args, res, next) {
 
         account = {...account.toObject(), liquidCash: cash, investment: 0};
 
-        // return AdvisorModel.saveAdvisor({user:userId, isMasterAdvisor: false, account});
-        const updates = {isMasterAdvisor: false, account};
-        return AdvisorModel.updateAdvisor({_id: advisorId}, updates, {new: true});
+        return AdvisorModel.saveAdvisor({user:userId, isMasterAdvisor: false, account});
     })
     .then(allocatedAdvisor => {
         if(allocatedAdvisor) {
