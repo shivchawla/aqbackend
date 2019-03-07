@@ -1359,6 +1359,7 @@ paths:
         required: false
         default: -1
         description: sort criteria
+
       responses:
         200:
           description: "get advisors"
@@ -1401,6 +1402,41 @@ paths:
         required: true
         in: query
         default: 10
+        
+      responses:
+        200:
+          description: "get advisor"
+        400:
+          description: "Not Authorized"
+      x-swagger-router-controller: "Advisor"
+
+  /advisor/allocation:
+    get:
+      tags:
+      - advisor
+      summary: get advisor with allocation
+      description: get advisor with allocation
+      operationId: getAdvisorsWithAllocation
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: string
+        required: true
+      - name: skip
+        in: query
+        description: skip number of records
+        required: true
+        default: 0
+        type: number
+      - name: limit
+        type: number
+        required: true
+        in: query
+        default: 10
+        
       responses:
         200:
           description: "get advisor"

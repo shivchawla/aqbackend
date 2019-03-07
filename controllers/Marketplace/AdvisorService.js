@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-06 11:22:42
+* @Last Modified time: 2019-03-07 19:46:57
 */
 
 'use strict';
@@ -102,6 +102,51 @@ module.exports.allocateAdvisor = function(args, res, next) {
     .catch(err => {
         return res.status(400).send(err.message);
     });
+};
+
+module.exports.getAdvisorsWithAllocation = function(args, res, next) {
+    const userEmail = _.get(args, 'user.email', null);
+    const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;    
+    
+    const skip = _.get(args, 'skip.value', 0);
+    let limit = _.get(args, 'limit.value', 10);
+
+    if(limit = 0) {
+        limit = 100000; 
+    }
+
+    return Promise.resolve()
+    .then(() => {
+        if (isAdmin) {
+            return AdvisorModel.fetchDistinctAdvisors({isMasterAdvisor: true, 'allocation.status': true})
+        } else {
+            APIError.throwJsonError({message: "Not authorized"});
+        }
+    })
+    .then(masterAdvisorIds => {
+        if (masterAdvisorIds && masterAdvisorIds.length > 0) {
+            return Promise.map(masterAdvisorIds.slice(skip, skip+limit), function(masterAdvisorId) {
+                return AdvisorModel.fetchAdvisor({_id: masterAdvisorId}, {fields: '_id user allocation'})
+                .then(masterAdvisor => {
+                    if (_.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
+                        return AdvisorModel.fetchAdvisor({_id: masterAdvisor.allocation.advisor}, {fields: 'account'})
+                        .then(allocationAdvisor => {
+
+                            return {...masterAdvisor.toObject(), account: allocationAdvisor.account.toObject()};
+                        })
+                    }
+                })
+            })
+        } else {
+            return [];
+        }
+    })
+    .then(allocationAdvisors => {
+        return res.status(200).send(allocationAdvisors)
+    })
+    .catch(err => {
+        return res.status(400).send(err.message);
+    })
 };
 
 

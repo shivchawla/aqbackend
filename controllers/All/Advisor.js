@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-06 13:55:13
+* @Last Modified time: 2019-03-07 19:40:14
 */
 
 'use strict';
@@ -43,3 +43,8 @@ module.exports.approveAdvisor = function(req, res, next) {
 module.exports.fetchAdvisorByName = function(req, res, next) {
     Advisor.fetchAdvisorByName(req.swagger.params, res, next);
 };
+
+module.exports.getAdvisorsWithAllocation = function(req, res, next) {
+    Advisor.getAdvisorsWithAllocation(req.swagger.params, res, next);
+};
+
