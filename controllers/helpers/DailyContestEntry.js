@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 13:40:16
+* @Last Modified time: 2019-03-07 13:50:13
 */
 
 'use strict';
@@ -1469,10 +1469,10 @@ module.exports.getAllRealTradePredictions = function(advisorId, date, options) {
 
 		if (!advisorId) {
 			return Promise.mapSeries(masterAdvisorIds, function(masterAdvisorId) {
-				return AdvisorModel.fetchAdvisor({_id: masterAdvisorId, isMasterAdvisor: true}, {fields: '_id allocation user'})
+				return AdvisorModel.fetchAdvisor({_id: masterAdvisorId}, {fields: '_id allocation user isMasterAdvisor'})
 			})
 		} else {
-			return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation user'})
+			return AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: '_id allocation user isMasterAdvisor'})
 			.then(advisor => {
 				return [advisor];
 			})
@@ -1480,7 +1480,7 @@ module.exports.getAllRealTradePredictions = function(advisorId, date, options) {
 	})
 	.then(masterAdvisors => {
 		//Filter out nulls;
-		masterAdvisors  = masterAdvisors.filter(item => item);
+		masterAdvisors  = masterAdvisors.filter(item => item).filter(item => item.isMasterAdvisor); 
 
 		if (masterAdvisors && masterAdvisors.length > 0) {
 
