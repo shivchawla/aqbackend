@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 17:02:46
+* @Last Modified time: 2019-03-08 10:10:17
 */
 
 'use strict';
@@ -299,12 +299,12 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 					APIError.throwJsonError({message: "Must provide zero investment and positive quantity (LONG) for real trades!!"})
 				}
 
-				const isConditional = _.get(prediction, "conditionalType", "NOW") == "NOW"
+				const isConditional = _.get(prediction, "conditionalType", "NOW") != "NOW"
 				const avgPrice = _.get(prediction, 'position.avgPrice', 0);
 
 				//Computed investment must be divided by 1000 to match internal units
-				investment = investment || Math.round((isConditional ? quantity.avgPrice : quantity*latestPrice)/1000, 2);
-				
+				investment = investment || parseFloat(((isConditional ? quantity*avgPrice : quantity*latestPrice)/1000).toFixed(2));
+					
 				//Mark the real investment at the latest price as well (execution price may be different)
 				//(now this could be not true but let's keep things for simple for now)
 				prediction.position.investment = investment
@@ -353,29 +353,24 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			masterAdvisorSelection = {_id: advisorId};
 		}
 
-		let allocationAdvisorSelection = {user: userId, isMasterAdvisor: false};
-		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
-			allocationAdvisorSelection = {_id: advisorId};
-		}
-
-		return Promise.all([
-			AdvisorModel.fetchAdvisor(masterAdvisorSelection, {fields: '_id account allocation'}),
-			isRealPrediction ? AdvisorModel.fetchAdvisor(allocationAdvisorSelection, {fields: '_id account'}) : null
-		])
-	})
-	.then(([masterAdvisor, allocationAdvisor]) => {
-		if (masterAdvisor) {
-
-			//Check if master and allocation advisor are valid and related (and allocation status is true)
-			if (isRealPrediction && !(allocationAdvisor && masterAdvisor.allocation.status && masterAdvisor.allocation.advisor.toString() == allocationAdvisor._id.toString())) {
-				APIError.throwJsonError("Not authorized to make real trades");
+		return AdvisorModel.fetchAdvisor(masterAdvisorSelection, {fields: '_id account allocation'})
+		.then(masterAdvisor => {
+			if (isRealPrediction) {
+				if (_.get(masterAdvisor, 'allocation.status', true) && _.get(masterAdvisor, 'allocation.advisor', null)) {
+					return AdvisorModel.fetchAdvisor({_id: masterAdvisor.allocation.advisor}, {fields: '_id account'}) 
+				}
+			} else {
+				return masterAdvisor;
 			}
+		})
+	})
+	.then(effectiveAdvisor => {
+		if (effectiveAdvisor) {
 
 			//Choose advisor based on prediction type (Assing advisorId)
-			var advisor = isRealPrediction ? allocationAdvisor : masterAdvisor;
-			advisorId = advisor._id;
+			advisorId = effectiveAdvisor._id;
 
-			var liquidCash = _.get(advisor, 'account.liquidCash', 0);
+			var liquidCash = _.get(effectiveAdvisor, 'account.liquidCash', 0);
 
 			var investmentRequired = Math.abs(_.get(prediction, 'position.investment', 0));
 
@@ -390,7 +385,11 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			
 			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "all", priceUpdate: false, active: null});
 		} else {
-			APIError.throwJsonError({message: "Not a valid user"});
+			if(isRealPrediction) {
+				APIError.throwJsonError({message: "Not authorized to make real predictions"});
+			} else {
+				APIError.throwJsonError({message: "Not a valid user"});
+			}
 		}
 	})
 	.then(activePredictions => {
