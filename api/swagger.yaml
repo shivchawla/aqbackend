@@ -5057,24 +5057,32 @@ definitions:
   TradeActivity:
     type: object
     required:
-      - orderId
       - date
       - category
-      - direction
+      - tradeDirection
+      - tradeType
     properties:
-      orderId:
-        type: string
       date:
         type: string
         format: date
       category:
         type: string
-        enum: ["OPEN", "CLOSE", "EXTEND", "REDUCE"]
-      direction:
+        enum: ["TRADE", "ORDER"]
+      tradeDirection:
         type: string
-        enum: ["LONG", "SHORT"]
+        default: "BUY"
+        enum: ["BUY", "SELL"]
+      tradeType:
+        type: string
+        enum: ["OPEN", "CLOSE", "EXTEND", "REDUCE"]
+      brokerMessage:
+        type: object
+      automated:
+        type: boolean
+        default: false
       notes:
         type: string
+
 
 
 

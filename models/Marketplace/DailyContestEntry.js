@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 16:40:36
+* @Last Modified time: 2019-03-08 10:41:23
 */
 
 
@@ -45,11 +45,11 @@ const Prize = new Schema({
 
 const TradeActivity = new Schema({
 	date: Date,
-	action: {
-		type: String,
-		enum: ["OPEN", "CLOSE", "REDUCE"]
-	},
-	orderId: String,
+	category: String,
+	tradeType: String,
+	tradeDirection: String,
+	automated: Boolean,
+	brokerMessage: Schema.Types.Mixed,
 	notes: String		
 });
 
