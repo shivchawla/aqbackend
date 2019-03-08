@@ -2,21 +2,24 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-08 16:04:38
+* @Last Modified time: 2019-03-08 16:10:59
 */
 
 'use strict';
 const _ = require('lodash');
+const Promise = require('bluebird');
+const config = require('config');
+
 const UserModel = require('../../models/user');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
 const AdviceModel = require('../../models/Marketplace/Advice');
+
 const PortfolioHelper = require("../helpers/Portfolio");
 const AdviceHelper = require("../helpers/Advice");
 const HelperFunctions = require("../helpers");
 const APIError = require('../../utils/error');
-const Promise = require('bluebird');
-const config = require('config');
+const DailyContestEntryHelper = require("../helpers/DailyContestEntry");
 
 module.exports.createAdvisor = function(args, res, next) {
     const userId = args.user._id;
@@ -238,7 +241,10 @@ module.exports.getAdvisorsWithAllocation = function(args, res, next) {
                         return AdvisorModel.fetchAdvisor({_id: masterAdvisor.allocation.advisor}, {fields: 'account'})
                         .then(allocationAdvisor => {
 
-                            return {...masterAdvisor.toObject(), account: allocationAdvisor.account.toObject()};
+                            return DailyContestEntryHelper.getPortfolioStatsForDate(allocationAdvisor._id)
+                            .then(latestPortfolioStats => {
+                                return {...masterAdvisor.toObject(), account: allocationAdvisor.account.toObject(), portfolioStats: latestPortfolioStats};
+                            })
                         })
                     }
                 })
