@@ -1602,7 +1602,7 @@ paths:
       tags:
       - 'advisor'
       summary: Update allocation amount to the advisor
-      description: Update allocate an advisor
+      description: Update cash allocation of an advisor
       operationId: updateAdvisorAllocationAmount
       security:
       - api_key: []
@@ -1630,8 +1630,8 @@ paths:
     post:
       tags:
       - 'advisor'
-      summary: update allocation status to the advisor
-      description: Update allocate an advisor
+      summary: update allocation status to an advisor
+      description: Update allocation status of an advisor
       operationId: updateAdvisorAllocationStatus
       security:
       - api_key: []
@@ -1645,10 +1645,11 @@ paths:
         in: path
         type: string
         required: true
-      - name: status
-        in: query
-        type: boolean
+      - name: body
+        in: body
         required: true
+        schema:
+          $ref: '#/definitions/AllocationStatus'
       responses:
         200:
           description: OK
@@ -5145,9 +5146,23 @@ definitions:
     type: object
     required:
       - cash
+      - notes
     properties:
       cash:
         type: number
+      notes:
+        type: string
+
+  AllocationStatus:
+    type: object
+    required:
+      - status
+      - notes
+    properties:
+      status:
+        type: boolean
+      notes:
+        type: string
 
 
   PredictionTradeActivity:

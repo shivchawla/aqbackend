@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-08 13:46:05
+* @Last Modified time: 2019-03-08 18:55:18
 */
 
 'use strict';
@@ -442,7 +442,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	})
 	.then(adjustedPrediction => {
 		if (adjustedPrediction) {
-			return DailyContestEntryHelper.addPredictions(advisorId, [adjustedPrediction], DateHelper.getMarketCloseDateTime(validStartDate)); 
+			return DailyContestEntryHelper.addPredictions(advisorId, [adjustedPrediction], DateHelper.getMarketCloseDateTime(validStartDate))
 		} else {
 			APIError.throwJsonError({message: "Adjusted prediciton is NULL/invalid"});
 		}

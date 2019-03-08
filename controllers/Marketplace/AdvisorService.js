@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-08 16:10:59
+* @Last Modified time: 2019-03-08 18:37:16
 */
 
 'use strict';
@@ -50,11 +50,21 @@ module.exports.allocateAdvisor = function(args, res, next) {
     const userEmail = _.get(args, 'user.email', null);
     const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
     
-    // const account = _.get(args,'body.value.account', null);
-    const cash = _.get(args, 'body.value.cash', null);
+    const cash = _.get(args, 'body.value.cash', 0);
+    const notes = _.get(args, 'body.value.notes', "");
 
     let masterAdvisor;
     return Promise.resolve()
+    .then(() => {
+        if (!cash){
+            APIError.throwJsonError({message: "Invalid cash input"});
+        }
+
+        if (!notes) {
+            APIError.throwJsonError({message: "Provide a valid reason for allocation"});
+        }
+
+    })
     .then(() => {
         if (isAdmin) {
             return AdvisorModel.fetchAdvisor({_id:advisorId}, {fields:'user isMasterAdvisor allocation'})
@@ -77,22 +87,14 @@ module.exports.allocateAdvisor = function(args, res, next) {
             APIError.throwJsonError({message: "Allocation already present!! Use update API!"});
         }
 
-        if (!cash){
-            APIError.throwJsonError({message: "Invalid allocation input"});
-        }
-
-        if (cash == 0) {
-             APIError.throwJsonError({message: "Invalid cash amount for allocation"});
-        }
-
         //Initialize allocation account
-        var account = {cash: cash, liquidCash: cash, investment: 0, transactions: {cash, date: new Date()}};
+        var account = {cash: cash, liquidCash: cash, investment: 0, transactions: {cash, date: new Date(), notes}};
 
         return AdvisorModel.saveAdvisor({user: masterAdvisor.user._id, isMasterAdvisor: false, account});
     })
     .then(allocatationAdvisor => {
         if(allocatationAdvisor) {
-            const allocation = {startDate: new Date(), status: true, advisor: allocatationAdvisor._id};
+            const allocation = {startDate: new Date(), status: true, advisor: allocatationAdvisor._id, notes};
             return AdvisorModel.addAllocation({_id: masterAdvisor._id}, allocation);     
         } else {
             APIError.throwJsonError({userId: userId, message:"Internal error creating advisor", errorCode: 1203});
@@ -113,13 +115,24 @@ module.exports.updateAdvisorAllocationAmount = function(args, res, next) {
     const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
     
     //Incoming cash    
-    const cash = _.get(args, 'body.value.cash', null);
+    const cash = _.get(args, 'body.value.cash', 0);
+    const notes = _.get(args, 'body.value.notes', "");
 
     let masterAdvisor;
     return Promise.resolve()
     .then(() => {
+        if (!cash){
+            APIError.throwJsonError({message: "Invalid allocation input"});
+        }
+
+        if (notes == "") {
+             APIError.throwJsonError({message: "Proveide a valid reason/notes for the update"});   
+        }
+
+    })
+    .then(() => {
         if (isAdmin) {
-            return AdvisorModel.fetchAdvisor({_id:advisorId}, {fields:'user isMasterAdvisor'})
+            return AdvisorModel.fetchAdvisor({_id:advisorId}, {fields:'user isMasterAdvisor allocation'})
         } else {
             APIError.throwJsonError({message: "Not authorized to allocate!!"});
         }
@@ -134,31 +147,22 @@ module.exports.updateAdvisorAllocationAmount = function(args, res, next) {
             APIError.throwJsonError({message: "Not the master advisor! Operation not allowed"});
         }
 
-        if (!cash){
-            APIError.throwJsonError({message: "Invalid allocation input"});
-        }
-
-        if (cash == 0) {
-             APIError.throwJsonError({message: "Invalid cash amount for allocation"});
-        }
-
-        if (_.get(masterAdvisor, 'allocation.status', true) && _.get(masterAdvisor, 'allocation.advisor', null)) {
+        if (_.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
             return AdvisorModel.fetchAdvisor({_id: masterAdvisor.allocation.advisor}, {fields: '_id'});
-
         } else {
-            APIError.throwJsonError({message: "Advisor not authorized for real trades"})
+            APIError.throwJsonError({message: "Advisor not authorized an allocation! Can't update!"})
         }
         
     })
     .then(allocationAdvisor => {
         if(allocationAdvisor) {
-            return AdvisorModel.updateAllocationAmount({_id: allocationAdvisor._id}, cash);     
+            return AdvisorModel.updateAllocationAmount({_id: allocationAdvisor._id}, {cash, notes});     
         } else {
             APIError.throwJsonError({message: "No advisor found for allocation!!"});
         }
     })
-    .then(advisor => {
-        return res.status(200).send("Allocated successfully");
+    .then(updatedAdvisor => {
+        return res.status(200).send(_.pick(updatedAdvisor, ['account', 'user']));
     })
     .catch(err => {
         return res.status(400).send(err.message);
@@ -172,10 +176,17 @@ module.exports.updateAdvisorAllocationStatus = function(args, res, next) {
     const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
     
     //New Status    
-    const status = _.get(args, 'status.value', false);
+    const status = _.get(args, 'body.value.status', false);
+    const notes = _.get(args, 'body.value.notes', "");
 
     let masterAdvisor;
+
     return Promise.resolve()
+    .then(() => {
+        if (notes == "") {
+             APIError.throwJsonError({message: "Provide a valid reason/notes for the update"});   
+        }
+    })
     .then(() => {
         if (isAdmin) {
             return AdvisorModel.fetchAdvisor({_id:advisorId}, {fields:'user isMasterAdvisor allocation'})
@@ -201,11 +212,11 @@ module.exports.updateAdvisorAllocationStatus = function(args, res, next) {
             APIError.throwJsonError({message: "Current status is same as update status"});
         }
 
-        return AdvisorModel.updateAllocationStatus({_id: masterAdvisor._id}, status);
+        return AdvisorModel.updateAllocationStatus({_id: masterAdvisor._id}, {status, notes});
         
     })
-    .then(advisor => {
-        return res.status(200).send("Allocated successfully");
+    .then(updatedAdvisor => {
+        return res.status(200).send(_.pick(updatedAdvisor,['allocation', 'allocationHistory', '_id', 'user']));
     })
     .catch(err => {
         return res.status(400).send(err.message);
