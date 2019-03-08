@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-08 11:03:52
+* @Last Modified time: 2019-03-08 13:46:05
 */
 
 'use strict';
@@ -29,6 +29,7 @@ const DailyContestHelper = require('../helpers/DailyContest');
 const DailyContestStatsHelper = require('../helpers/DailyContestStats');
 const SecurityHelper = require('../helpers/Security');
 const AdvisorHelper = require('../helpers/Advisor');
+const PredictionRealtimeController = require('../Realtime/predictionControl');
 
 function _populateWinners(winners) {
 	return Promise.map(winners, function(winner) {
@@ -186,6 +187,7 @@ module.exports.getDailyContestPnlForDate = (args, res, next) => {
 	});
 };
 
+
 /* 
 * Get contest entry portfolio-stats for a date
 */
@@ -245,7 +247,6 @@ module.exports.getDailyContestPortfolioStatsForDate = (args, res, next) => {
 		return res.status(400).send(err.message);		
 	});
 };
-
 
 /*
 * Update predictions for the contest
@@ -514,10 +515,17 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 
 			return DailyContestEntryModel.updatePrediction({advisor: prediction.advisorId}, prediction)
 			.then(() => {
+
+				var isRealPrediction = _.get(prediction, 'real', false);
+				
 				//Update the Account credit if prediction was never triggered (else handle it in helper)
-				if (!_.get(prediction,'triggered.status', true)) {
-					return AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction);
-				}
+				var acccountUpdateRequired = !_.get(prediction,'triggered.status', true);
+
+				
+				return Promise.all([
+					acccountUpdateRequired ? AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction) : null,
+					isRealPrediction ? PredictionRealtimeController.sendAdminUpdates(prediction.advisorId, prediction._id) : null
+				]);	
 			})
 
 		} else {
@@ -536,6 +544,9 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 };
 
 
+/*
+* Add trade activity (not trade but information about trade)
+ */
 module.exports.addPredictionTradeActivity = (args, res, next) => {
 	const userId = _.get(args, 'user._id', null);
 	const predictionId = _.get(args, 'body.value.predictionId', null);
@@ -583,7 +594,9 @@ module.exports.addPredictionTradeActivity = (args, res, next) => {
 	})
 };
 
-
+/*
+* Place trade in prediction
+ */
 module.exports.placeTradeForPrediction = (args, res, next) => {
 	const userId = _.get(args, 'user._id', null);
 	const predictionId = _.get(args, 'body.value.predictionId', null);
@@ -616,6 +629,56 @@ module.exports.placeTradeForPrediction = (args, res, next) => {
 		//Write the trade logic here
 		
 		APIError.throwJsonError({message: "Not Implemented yet!!"})
+	})
+	.then(updated => {
+		return res.status(200).send("Trade activity added successfully");
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);		
+	})
+};
+
+
+/*
+* Update read status of prediction
+ */
+module.exports.updateReadStatusPrediction = (args, res, next) => {
+	const userId = _.get(args, 'user._id', null);
+	const predictionId = _.get(args, 'body.value.predictionId', null);
+	const advisorId = _.get(args, 'body.value.advisorId', null);
+	const readStatus = _.get(args, 'body.value.readStatus', null);
+	
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+
+	let allocationAdvisorId;
+
+	return Promise.resolve()
+	.then(() => {
+		if (!isAdmin) {
+			APIError.throwJsonError({message: "Not authorized to place trades"});
+		}
+
+		return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'})
+		.then(masterAdvisor => {
+			if (masterAdvisor && _.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
+				allocationAdvisorId = masterAdvisor.allocation.advisor;
+				return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
+			} else {
+				APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
+			}
+		})
+		
+	})
+	.then(prediction => {
+		if (prediction) {
+			
+			prediction.readStatus = readStatus;
+
+			return DailyContestEntryModel.updatePrediction({advisor: allocationAdvisorId}, prediction);	
+		} else {
+			APIError.throwJsonError({message: "Prediction not found"});
+		}
 	})
 	.then(updated => {
 		return res.status(200).send("Trade activity added successfully");

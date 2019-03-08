@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:54:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-08 10:58:17
+* @Last Modified time: 2019-03-08 13:28:30
 */
 
 const DailyContest = require('../Marketplace/DailyContestService');
@@ -79,3 +79,6 @@ module.exports.placeTradeForPrediction = (req, res, next) => {
     DailyContest.placeTradeForPrediction(req.swagger.params, res, next);
 }
 
+module.exports.updateReadStatusPrediction = (req, res, next) => {
+    DailyContest.updateReadStatusPrediction(req.swagger.params, res, next);
+}

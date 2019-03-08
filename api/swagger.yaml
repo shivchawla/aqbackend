@@ -1646,7 +1646,7 @@ paths:
         type: string
         required: true
       - name: status
-        in: path
+        in: query
         type: boolean
         required: true
       responses:
@@ -3922,6 +3922,34 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
+  /dailycontest/readstatus:
+    post:
+      tags:
+      - dailycontest
+      summary: Update read status of the prediction
+      description: update read status of prediction
+      operationId: updateReadStatusPrediction
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        description: read status
+        required: true
+        schema:
+          $ref: "#/definitions/ReadStatus"
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
 
   /dailycontest/exitPrediction:
     post:
@@ -5201,6 +5229,25 @@ definitions:
       direction: 
         type: string
         enum: ["BUY", "SELL"]
+
+
+  ReadStatus:
+    type: object
+    required:
+      - predictionId
+      - advisorId
+      - readStatus
+    properties:
+      predictionId:
+        type: string
+        format: uuid
+      advisorId: 
+        type: string
+        format: uuid
+      readStatus:
+        type: string
+        default: "UNREAD" 
+        enum: ["UNREAD", "READ/ACTED", "READ/NOT-ACTED"]
         
 
 

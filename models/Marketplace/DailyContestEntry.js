@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-08 11:14:35
+* @Last Modified time: 2019-03-08 13:34:14
 */
 
 
@@ -135,10 +135,9 @@ const Prediction = new Schema({
 
 	tradeActivity: [TradeActivity],
 
-	attendStatus: {
+	readStatus: {
 		type: String,
-		default: "UNREAD",	
-		enum: ["UNREAD", "READ/ACTED", "READ/NOT-ACTED"]
+		default: "UNREAD"
 	}
 });
 
@@ -151,6 +150,7 @@ const DailyContestEntry = new Schema({
 
 DailyContestEntry.index({advisor: 1, date:1}, {unique: true});
 DailyContestEntry.index({advisor: 1}, {unique: false});
+DailyContestEntry.index({advisor:1, 'predictions._id':1})
 
 
 /*Rules

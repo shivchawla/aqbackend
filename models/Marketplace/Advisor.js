@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-08 13:07:58
+* @Last Modified time: 2019-03-08 15:28:15
 */
 'use strict';
 
@@ -51,17 +51,6 @@ const Account = new Schema({
         date: Date
     }]
 });
-
-const Allocation = new Schema({
-    startDate: Date,
-    endDate: Date,
-    status: Boolean,
-    advisor: {
-        type: Schema.Types.ObjectId,
-        ref: Advisor,
-        required: false
-    },
-})
 
 const Advisor = new Schema({
    	user: {
@@ -152,9 +141,27 @@ const Advisor = new Schema({
     isMasterAdvisor: {type:Boolean, default: false},
 
     //Real account for allocated users
-    allocation: Allocation,
+    allocation: {
+        startDate: Date,
+        endDate: Date,
+        status: Boolean,
+        advisor: {
+            type: Schema.Types.ObjectId,
+            ref: this,
+            required: false
+        },
+    },
     
-    allocationHistory: [Allocation]
+    allocationHistory: [{
+        startDate: Date,
+        endDate: Date,
+        status: Boolean,
+        advisor: {
+            type: Schema.Types.ObjectId,
+            ref: this,
+            required: false
+        },
+    }]
 
 });
 

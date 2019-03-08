@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 17:49:37
+* @Last Modified time: 2019-03-08 15:07:00
 */
 'use strict';
 const config = require('config');
@@ -82,8 +82,22 @@ function _sendAllPredictionUpdates() {
 	});
 }
 
+function _sendAdminUpdatesForAdvisor(userId, advisorId) {
+	
+	var subscription = predictionSubscribers[userId];
+	if (subscription.errorCount > 5) {
+		console.log("Deleting subscriber from list. WS connection is invalid for 5th attmept")
+		delete predictionSubscribers[userId];
+		return;
+	} else {
+		return _se (subscription, advisorId);
+	}
+}
+
+
+
 //User Advisor map and sends updates for all real predictions (sends bulk per advice)
-function _sendRealPredictionUpdates(subscription) {
+function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId) {
 
 	return Promise.resolve()
 	.then(() => {
@@ -94,6 +108,11 @@ function _sendRealPredictionUpdates(subscription) {
 			let category = subscription.category;
 			let advisorId = advisorMap.allocationAdvisor;
 			let masterAdvisorId = advisorMap.masterAdvisor;
+
+			//Send Advisor specific updates
+			if (incomingAdvisorId && masterAdvisorId != incomingAdvisorId) {
+				return;
+			}
 
 			var date = DateHelper.getCurrentDate();
 
@@ -246,7 +265,7 @@ function _handleRealPredictionSubscription(req, res) {
 					}
 
 					//Send immediate response back to subscriber
-					resolve(_sendRealPredictionUpdates(predictionSubscribers[userId]));
+					resolve(_sendAdminRealPredictionUpdates(predictionSubscribers[userId]));
 				})
 			} else {
 				APIError.throwJsonError({message: "No allocation advisor found"})
@@ -264,6 +283,19 @@ function _handleRealPredictionSubscription(req, res) {
 module.exports.sendAllUpdates = function() {
 	return _sendAllPredictionUpdates();
 };
+
+module.exports.sendAdminUpdates = function(advisorId) {
+	return UserModel.fetchUser({email:{in: config.get('admin_user')}}, {fields:'_id'})
+	.then(adminUsers => {
+		return Promise.all(adminUsers, function(adminUser) {
+			var subcription = predictionSubscribers[adminUser._id];
+			if (subcription) {
+				return _sendAdminRealPredictionUpdates(subcription, advisorId);	
+			}
+		})
+	})
+};
+
 
 //Function to subscribe WS data from backend to UI
 module.exports.handlePredictionSubscription = function(req, res) {
@@ -287,3 +319,6 @@ module.exports.handleRealPredictionSubscription = function(req, res) {
 module.exports.handleRealPredictionUnsubscription = function(req, res) {
 	return _handleRealPredictionUnsubscription(req, res);
 };
+
+
+

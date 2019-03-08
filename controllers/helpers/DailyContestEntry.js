@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 16:51:18
+* @Last Modified time: 2019-03-08 15:13:34
 */
 
 'use strict';
@@ -22,6 +22,7 @@ const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEnt
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 
+const PredictionRealtimeController = require('../Realtime/predictionControl');
 
 function _getStopLossPrice(prediction) {
 
@@ -2051,11 +2052,14 @@ module.exports.addPredictions = function(advisorId, predictions, date) {
 	return DailyContestEntryModel.addEntryPredictions({advisor: advisorId, date: date}, predictions, {new:false, upsert: true, fields:'_id'})
 	.then(added => {
 		//Updating advisor account with new metrics
-		return AdvisorHelper.updateAdvisorAccountDebit(advisorId, predictions);
+		return Promise.all([
+			AdvisorHelper.updateAdvisorAccountDebit(advisorId, predictions),
+			predictions.filter(item => item.real).length > 0 ? 
+				PredictionRealtimeController.sendAdminUpdates(advisorId) : null
+		]);
 	})
-	.then(updatedAdvisor => {
+	.then(() => {
 		return exports.updateLatestPortfolioStatsForAdvisor(advisorId, date);
-
 	})
 };
 
