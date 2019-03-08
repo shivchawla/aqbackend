@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 15:03:04
+* @Last Modified time: 2019-03-08 13:07:58
 */
 'use strict';
 
@@ -44,8 +44,24 @@ const AdvisorAnalytics = new Schema({
 const Account = new Schema({
     cash: {type: Number, default: 1000},
     investment: {type: Number, default: 0},
-    liquidCash: {type: Number, default: 1000}
+    liquidCash: {type: Number, default: 1000},
+
+    transactions: [{
+        cash: Number,
+        date: Date
+    }]
 });
+
+const Allocation = new Schema({
+    startDate: Date,
+    endDate: Date,
+    status: Boolean,
+    advisor: {
+        type: Schema.Types.ObjectId,
+        ref: Advisor,
+        required: false
+    },
+})
 
 const Advisor = new Schema({
    	user: {
@@ -136,16 +152,9 @@ const Advisor = new Schema({
     isMasterAdvisor: {type:Boolean, default: false},
 
     //Real account for allocated users
-    allocation: {
-        startDate: Date,
-        status: Boolean,
-        endDate: Date,
-        advisor: {
-            type: Schema.Types.ObjectId,
-            ref: this,
-            required: false
-        },
-    },
+    allocation: Allocation,
+    
+    allocationHistory: [Allocation]
 
 });
 
@@ -307,15 +316,53 @@ Advisor.statics.updateApproval = function(query, latestApproval) {
 	return this.findOneAndUpdate(query, updates);
 }
 
-
-Advisor.statics.updateAllocation = function(query, allocation) {
+Advisor.statics.addAllocation = function(query, allocation) {
     return this.findOneAndUpdate(query, {$set: {allocation}});
+}
+
+Advisor.statics.updateAllocationStatus = function(query, allocationStatus) {
+    return this.findOne(query, {allocation: 1})
+    .then(advisor => {
+        if (advisor) {
+            var currentAllocation = _.get(advisor, 'allocation', null);
+            if (currentAllocation) {
+                var newAllocation = {...currentAllocation, startDate: new Date(), status: allocationStatus};
+                
+                //Terminate current allocation
+                currentAllocation = {...currentAllocation, endDate: new Date()};
+                
+                return this.findOneAndUpdate(query, {
+                    $set: {allocation: newAllocation}, 
+                    $push: {allocationHistory: currentAllocation}});
+            } 
+        }
+    });
+}
+
+Advisor.statics.updateAllocationAmount = function(query, cash) {
+    return this.findOne(query, {account: 1})
+    .then(advisor => {
+        if (advisor) {
+            var currentAccount = _.get(advisor, 'account', null);
+            if (currentAccount) {
+                
+                var currentCash = _.get(currentAccount, 'cash', 0);
+                var liquidCash = _.get(currentAccount, 'liquidCash', 0);
+                
+                var transactions = _.get(currentAccount, 'transactions', []);
+                transactions = transactions.push({cash, date: new Date()});
+                var newAccount = {...currentAccount, cash: currentCash + cash, liquidCash: liquidCash + cash, transactions};
+                
+                return this.findOneAndUpdate(query, {$set: {account: newAccount}});
+                    
+            } 
+        }
+    });
 }
 
 Advisor.statics.fetchDistinctAdvisors = function(query) {
     return this.distinct('_id', query);
 }
-
 
 function getTime(d) {
 	return d.getTime();

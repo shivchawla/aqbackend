@@ -1597,6 +1597,63 @@ paths:
           description: OK
       x-swagger-router-controller: "Advisor"
 
+  /advisor/{advisorId}/updatecash:
+    put:
+      tags:
+      - 'advisor'
+      summary: Update allocation amount to the advisor
+      description: Update allocate an advisor
+      operationId: updateAdvisorAllocationAmount
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: advisorId
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/AllocationAccount'
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advisor"
+
+  /advisor/{advisorId}/updatestatus:
+    post:
+      tags:
+      - 'advisor'
+      summary: update allocation status to the advisor
+      description: Update allocate an advisor
+      operationId: updateAdvisorAllocationStatus
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: advisorId
+        in: path
+        type: string
+        required: true
+      - name: status
+        in: path
+        type: boolean
+        required: true
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advisor"
+
   /advice/validate:
     post:
       tags:
@@ -3837,6 +3894,35 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
+  /dailycontest/trade:
+    post:
+      tags:
+      - dailycontest
+      summary: Place a trade in prediction
+      description: Place a trade for prediction
+      operationId: placeTradeForPrediction
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        description: trade activity body
+        required: true
+        schema:
+          $ref: "#/definitions/PredictionTrade"
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
+
   /dailycontest/exitPrediction:
     post:
       tags: 
@@ -5082,6 +5168,41 @@ definitions:
         default: false
       notes:
         type: string
+
+
+  PredictionTrade:
+    type: object
+    required:
+      - predictionId
+      - advisorId
+      - trade
+    properties:
+      predictionId:
+        type: string
+        format: uuid
+      advisorId: 
+        type: string
+        format: uuid
+      trade:
+        type: object
+        $ref: '#/definitions/Trade'
+
+  Trade:
+    type: object
+    required:
+      - ticker
+      - quantity
+      - direction 
+    properties:
+      ticker:
+        type: string
+      quantity:
+        type: number
+      direction: 
+        type: string
+        enum: ["BUY", "SELL"]
+        
+
 
 
 

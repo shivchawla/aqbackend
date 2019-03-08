@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-08 10:41:23
+* @Last Modified time: 2019-03-08 11:14:35
 */
 
 
@@ -133,7 +133,13 @@ const Prediction = new Schema({
 		default: false
 	},
 
-	tradeActivity: [TradeActivity]
+	tradeActivity: [TradeActivity],
+
+	attendStatus: {
+		type: String,
+		default: "UNREAD",	
+		enum: ["UNREAD", "READ/ACTED", "READ/NOT-ACTED"]
+	}
 });
 
 const DailyContestEntry = new Schema({  

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-08 10:10:17
+* @Last Modified time: 2019-03-08 11:03:52
 */
 
 'use strict';
@@ -574,6 +574,48 @@ module.exports.addPredictionTradeActivity = (args, res, next) => {
 		} else {
 			APIError.throwJsonError({message: "Prediction not found"});
 		}
+	})
+	.then(updated => {
+		return res.status(200).send("Trade activity added successfully");
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);		
+	})
+};
+
+
+module.exports.placeTradeForPrediction = (args, res, next) => {
+	const userId = _.get(args, 'user._id', null);
+	const predictionId = _.get(args, 'body.value.predictionId', null);
+	const advisorId = _.get(args, 'body.value.advisorId', null);
+	const trade = _.get(args, 'body.value.trade', null);
+	
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+
+	let allocationAdvisorId;
+
+	return Promise.resolve()
+	.then(() => {
+		if (!isAdmin) {
+			APIError.throwJsonError({message: "Not authorized to place trades"});
+		}
+
+		return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'})
+		.then(masterAdvisor => {
+			if (masterAdvisor && _.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
+				allocationAdvisorId = masterAdvisor.allocation.advisor;
+				return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
+			} else {
+				APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
+			}
+		})
+		
+	})
+	.then(prediction => {
+		//Write the trade logic here
+		
+		APIError.throwJsonError({message: "Not Implemented yet!!"})
 	})
 	.then(updated => {
 		return res.status(200).send("Trade activity added successfully");

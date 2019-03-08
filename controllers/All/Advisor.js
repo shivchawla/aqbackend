@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-07 19:40:14
+* @Last Modified time: 2019-03-08 12:48:53
 */
 
 'use strict';
@@ -14,6 +14,14 @@ module.exports.createAdvisor = function(req, res, next) {
 
 module.exports.allocateAdvisor = function(req, res, next) {
     Advisor.allocateAdvisor(req.swagger.params, res, next);
+};
+
+module.exports.updateAdvisorAllocationAmount = function(req, res, next) {
+    Advisor.updateAdvisorAllocationAmount(req.swagger.params, res, next);
+};
+
+module.exports.updateAdvisorAllocationStatus = function(req, res, next) {
+    Advisor.updateAdvisorAllocationStatus(req.swagger.params, res, next);
 };
 
 module.exports.getAdvisors = function(req, res, next) {
