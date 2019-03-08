@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-08 13:10:39
+* @Last Modified time: 2019-03-08 16:04:38
 */
 
 'use strict';
@@ -216,7 +216,7 @@ module.exports.getAdvisorsWithAllocation = function(args, res, next) {
     const skip = _.get(args, 'skip.value', 0);
     let limit = _.get(args, 'limit.value', 10);
 
-    if(limit = 0) {
+    if(limit == 0) {
         limit = 100000; 
     }
 
@@ -230,6 +230,7 @@ module.exports.getAdvisorsWithAllocation = function(args, res, next) {
     })
     .then(masterAdvisorIds => {
         if (masterAdvisorIds && masterAdvisorIds.length > 0) {
+          
             return Promise.map(masterAdvisorIds.slice(skip, skip+limit), function(masterAdvisorId) {
                 return AdvisorModel.fetchAdvisor({_id: masterAdvisorId}, {fields: '_id user allocation'})
                 .then(masterAdvisor => {
