@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-08 18:55:18
+* @Last Modified time: 2019-03-09 15:45:10
 */
 
 'use strict';
@@ -83,7 +83,12 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 	.then(updatedPredictions => {
 		if (updatedPredictions) {
 			if (!isAdmin) {
-				updatedPredictions = updatedPredictions.map(item => {_.unset(item,'tradeActivity'); return item});
+				updatedPredictions = updatedPredictions.map(item => {
+					_.unset(item,'tradeActivity'); 
+					_.unset(item,'readStatus'); 
+					_.unset(item,'adminModifications'); 
+					return item
+				});
 			}
 
 			return res.status(200).send(updatedPredictions);
@@ -513,15 +518,18 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 			prediction.status.trueDate = new Date();
 			prediction.status.date = DateHelper.getMarketCloseDateTime(new Date());
 
+			//Set the prediction status to unread 
+			var isRealPrediction = _.get(prediction, 'real', false);
+			if (isRealPrediction) {
+				prediction.readStatus = "UNREAD";
+			}
+
 			return DailyContestEntryModel.updatePrediction({advisor: prediction.advisorId}, prediction)
 			.then(() => {
 
-				var isRealPrediction = _.get(prediction, 'real', false);
-				
 				//Update the Account credit if prediction was never triggered (else handle it in helper)
 				var acccountUpdateRequired = !_.get(prediction,'triggered.status', true);
 
-				
 				return Promise.all([
 					acccountUpdateRequired ? AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction) : null,
 					isRealPrediction ? PredictionRealtimeController.sendAdminUpdates(prediction.advisorId, prediction._id) : null
@@ -656,7 +664,7 @@ module.exports.updateReadStatusPrediction = (args, res, next) => {
 	return Promise.resolve()
 	.then(() => {
 		if (!isAdmin) {
-			APIError.throwJsonError({message: "Not authorized to place trades"});
+			APIError.throwJsonError({message: "Not authorized to update read status"});
 		}
 
 		return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'})
@@ -687,6 +695,62 @@ module.exports.updateReadStatusPrediction = (args, res, next) => {
 		return res.status(400).send(err.message);		
 	})
 };
+
+module.exports.addAdminModificationsToPrediction = (args, res, next) => {
+	const userId = _.get(args, 'user._id', null);
+	const predictionId = _.get(args, 'body.value.predictionId', null);
+	const advisorId = _.get(args, 'body.value.advisorId', null);
+	const modification = _.get(args, 'body.value.modification', null);
+	
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+
+	let allocationAdvisorId;
+
+	return Promise.resolve()
+	.then(() => {
+		if (!isAdmin) {
+			APIError.throwJsonError({message: "Not authorized to add modification"});
+		}
+
+		if (!modification) {
+			APIError.throwJsonError({message: "Invalid modification"})
+		}
+
+		return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'})
+		.then(masterAdvisor => {
+			if (masterAdvisor && _.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
+				allocationAdvisorId = masterAdvisor.allocation.advisor;
+				return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
+			} else {
+				APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
+			}
+		})
+		
+	})
+	.then(prediction => {
+		if (prediction) {
+			
+			//Add modication to the arry with date 
+			if (prediction.adminModifications && prediction.adminModifications.length > 0) {
+				prediction.adminModifications.push({...modification, date: new Date()});
+			} else {
+				prediction.adminModifications = [{...modification, date: new Date()}];
+			}
+
+			return DailyContestEntryModel.updatePrediction({advisor: allocationAdvisorId}, prediction);	
+		} else {
+			APIError.throwJsonError({message: "Prediction not found"});
+		}
+	})
+	.then(updated => {
+		return res.status(200).send("Trade activity added successfully");
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);		
+	})
+};
+
 
 
 /*
