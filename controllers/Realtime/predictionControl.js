@@ -285,10 +285,10 @@ module.exports.sendAllUpdates = function() {
 };
 
 module.exports.sendAdminUpdates = function(advisorId) {
-	return UserModel.fetchUser({email:{in: config.get('admin_user')}}, {fields:'_id'})
+	return UserModel.fetchUsers({email:{$in: config.get('admin_user')}}, {fields:'_id'})
 	.then(adminUsers => {
 		return Promise.all(adminUsers, function(adminUser) {
-			var subcription = predictionSubscribers[adminUser._id];
+			var subcription = predictionSubscribers[adminUser._id.toString()];
 			if (subcription) {
 				return _sendAdminRealPredictionUpdates(subcription, advisorId);	
 			}
