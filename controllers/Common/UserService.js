@@ -457,7 +457,7 @@ module.exports.userGoogleLogin = function(args, res, next) {
         userDetails.token = token;
         
         return Promise.all([
-            InvestorModel.fetchInvestor({user:userDetails._id, isMasterAdvisor: true}, {insert:true}),
+            InvestorModel.fetchInvestor({user:userDetails._id}, {insert:true}),
             AdvisorModel.fetchAdvisor({user:userDetails._id, isMasterAdvisor: true}, {insert:true})
         ]);
     })
