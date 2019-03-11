@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-08 15:07:00
+* @Last Modified time: 2019-03-11 11:08:20
 */
 'use strict';
 const config = require('config');
@@ -90,10 +90,9 @@ function _sendAdminUpdatesForAdvisor(userId, advisorId) {
 		delete predictionSubscribers[userId];
 		return;
 	} else {
-		return _se (subscription, advisorId);
+		return _sendAdminRealPredictionUpdates(subscription, advisorId);
 	}
 }
-
 
 
 //User Advisor map and sends updates for all real predictions (sends bulk per advice)
@@ -119,7 +118,14 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId) {
 			return Promise.resolve()
 			.then(() => {
 				if (advisorId) {
-					return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category, active: null});
+					
+					return Promise.map([
+						DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category, active: null}),
+						AdvisorModel.fetchAdvisor({_id: masterAdvisorId}, {fields: '_id user'})
+					])
+					.then(([predictions, masterAdvisor]) => {
+						return predictions.map(item => {return {...item, advisor: _.pick(masterAdvisor, ['_id', 'user'])};})
+					})
 				} else {
 					APIError.throwJsonError({message: "WS: Advisor Invalid"});
 				}
@@ -285,10 +291,10 @@ module.exports.sendAllUpdates = function() {
 };
 
 module.exports.sendAdminUpdates = function(advisorId) {
-	return UserModel.fetchUser({email:{in: config.get('admin_user')}}, {fields:'_id'})
+	return UserModel.fetchUsers({email:{$in: config.get('admin_user')}}, {fields:'_id'})
 	.then(adminUsers => {
 		return Promise.all(adminUsers, function(adminUser) {
-			var subcription = predictionSubscribers[adminUser._id];
+			var subcription = predictionSubscribers[adminUser._id.toString()];
 			if (subcription) {
 				return _sendAdminRealPredictionUpdates(subcription, advisorId);	
 			}
