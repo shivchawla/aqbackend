@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-11 18:11:31
+* @Last Modified time: 2019-03-11 19:21:51
 */
 'use strict';
 const config = require('config');
@@ -294,7 +294,7 @@ module.exports.sendAllUpdates = function() {
 module.exports.sendAdminUpdates = function(advisorId) {
 	return UserModel.fetchUsers({email:{$in: config.get('admin_user')}}, {fields:'_id'})
 	.then(adminUsers => {
-		return Promise.all(adminUsers, function(adminUser) {
+		return Promise.map(adminUsers, function(adminUser) {
 			var subcription = predictionSubscribers[adminUser._id.toString()];
 			if (subcription) {
 				return _sendAdminRealPredictionUpdates(subcription, advisorId);	

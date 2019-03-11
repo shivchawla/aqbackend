@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:44:32
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-11 17:08:58
+* @Last Modified time: 2019-03-11 19:10:07
 */
 
 'use strict';
@@ -128,6 +128,11 @@ module.exports.getMasterAdvisor = function(advisorId) {
 	.then(allocationAdvisor => {
 		if (allocationAdvisor) {
 			return AdvisorModel.fetchAdvisor({user: allocationAdvisor.user._id, isMasterAdvisor: true}, {fields: '_id'})
+			.then(masterAdvisor => {
+				if (masterAdvisor) {
+					return masterAdvisor._id;
+				}
+			})
 		}
 	});
 };
