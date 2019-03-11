@@ -3822,6 +3822,34 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
+    put:
+      tags:
+      - dailycontest
+      summary: Update predicitons for admin modifications
+      description: Add modifications to real predictions (by admin)
+      operationId: addAdminModificationsToPrediction
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        description: admin modifications
+        required: true
+        schema:
+          $ref: "#/definitions/AdminModification"
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
+
   /dailycontest/realpredictions:
     get:
       tags: 
@@ -3949,8 +3977,7 @@ paths:
           description: OK
         400:
           description: 'Invalid Input'
-      x-swagger-router-controller: "DailyContest"
-
+      x-swagger-router-controller: "DailyContest"      
 
   /dailycontest/exitPrediction:
     post:
@@ -5265,9 +5292,18 @@ definitions:
         enum: ["UNREAD", "READ/ACTED", "READ/NOT-ACTED"]
         
 
-
-
-
-
-
-
+  AdminModification:
+    type: object
+    required:
+      - predictionId
+      - advisorId
+      - modification
+    properties:
+      predictionId:
+        type: string
+        format: uuid
+      advisorId: 
+        type: string
+        format: uuid
+      modification:
+        type: object
