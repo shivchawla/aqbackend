@@ -37,6 +37,8 @@ function _sendPredictionUpdates(subscription) {
 	
 	let advisorId;
 	let category;
+	let masterAdvisorId = null;
+	let real = false;
 
 	return Promise.resolve()
 	.then(() => {
@@ -118,10 +120,9 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId) {
 			return Promise.resolve()
 			.then(() => {
 				if (advisorId) {
-					
-					return Promise.map([
-						DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category, active: null}),
-						AdvisorModel.fetchAdvisor({_id: masterAdvisorId}, {fields: '_id user'})
+					return Promise.all([
+						DailyContestEntryHelper.getPredictionsForDate(advisorId.toString(), date, {category, active: null}),
+						AdvisorModel.fetchAdvisor({_id: masterAdvisorId.toString()}, {fields: '_id user'})
 					])
 					.then(([predictions, masterAdvisor]) => {
 						return predictions.map(item => {return {...item, advisor: _.pick(masterAdvisor, ['_id', 'user'])};})
