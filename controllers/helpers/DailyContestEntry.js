@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-11 17:01:25
+* @Last Modified time: 2019-03-11 17:06:00
 */
 
 'use strict';
@@ -2054,7 +2054,7 @@ module.exports.addPrediction = function(advisorId, prediction, date) {
 	
 	return Promise.all([
 		DailyContestEntryModel.addEntryPrediction({advisor: advisorId, date: date}, prediction, {new:false, upsert: true, fields:'_id'}),
-		isRealPrediction ? AdvisorHelper.getMasterAdvisorId(advisorId) : null
+		isRealPrediction ? AdvisorHelper.getMasterAdvisor(advisorId) : null
 	])
 	.then(([added, masterAdvisorId]) => {
 		//Updating advisor account with new metrics
