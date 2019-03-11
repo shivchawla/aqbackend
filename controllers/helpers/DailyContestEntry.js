@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-11 16:43:01
+* @Last Modified time: 2019-03-11 17:01:25
 */
 
 'use strict';
@@ -2053,7 +2053,7 @@ module.exports.addPrediction = function(advisorId, prediction, date) {
 	var isRealPrediction = _.get(prediction, 'real', false);
 	
 	return Promise.all([
-		DailyContestEntryModel.addEntryPredictions({advisor: advisorId, date: date}, predictions, {new:false, upsert: true, fields:'_id'}),
+		DailyContestEntryModel.addEntryPrediction({advisor: advisorId, date: date}, prediction, {new:false, upsert: true, fields:'_id'}),
 		isRealPrediction ? AdvisorHelper.getMasterAdvisorId(advisorId) : null
 	])
 	.then(([added, masterAdvisorId]) => {
