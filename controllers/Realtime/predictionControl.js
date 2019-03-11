@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-11 11:08:20
+* @Last Modified time: 2019-03-11 18:11:31
 */
 'use strict';
 const config = require('config');
@@ -111,7 +111,7 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId) {
 			let masterAdvisorId = advisorMap.masterAdvisor;
 
 			//Send Advisor specific updates
-			if (incomingAdvisorId && masterAdvisorId != incomingAdvisorId) {
+			if (incomingAdvisorId && masterAdvisorId.toString() != incomingAdvisorId.toString()) {
 				return;
 			}
 

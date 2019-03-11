@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-11 16:48:21
+* @Last Modified time: 2019-03-11 18:17:10
 */
 
 'use strict';
@@ -363,7 +363,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		return AdvisorModel.fetchAdvisor(masterAdvisorSelection, {fields: '_id account allocation'})
 		.then(masterAdvisor => {
 			if (isRealPrediction) {
-				if (_.get(masterAdvisor, 'allocation.status', true) && _.get(masterAdvisor, 'allocation.advisor', null)) {
+				if (_.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
 					return AdvisorModel.fetchAdvisor({_id: masterAdvisor.allocation.advisor}, {fields: '_id account'}) 
 				}
 			} else {
