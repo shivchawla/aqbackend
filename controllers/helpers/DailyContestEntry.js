@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-08 15:13:34
+* @Last Modified time: 2019-03-11 16:43:01
 */
 
 'use strict';
@@ -2048,14 +2048,20 @@ module.exports.checkForPredictionExpiry = function() {
 	}
 }
 
-module.exports.addPredictions = function(advisorId, predictions, date) {
-	return DailyContestEntryModel.addEntryPredictions({advisor: advisorId, date: date}, predictions, {new:false, upsert: true, fields:'_id'})
-	.then(added => {
+module.exports.addPrediction = function(advisorId, prediction, date) {
+	
+	var isRealPrediction = _.get(prediction, 'real', false);
+	
+	return Promise.all([
+		DailyContestEntryModel.addEntryPredictions({advisor: advisorId, date: date}, predictions, {new:false, upsert: true, fields:'_id'}),
+		isRealPrediction ? AdvisorHelper.getMasterAdvisorId(advisorId) : null
+	])
+	.then(([added, masterAdvisorId]) => {
 		//Updating advisor account with new metrics
 		return Promise.all([
-			AdvisorHelper.updateAdvisorAccountDebit(advisorId, predictions),
-			predictions.filter(item => item.real).length > 0 ? 
-				PredictionRealtimeController.sendAdminUpdates(advisorId) : null
+			AdvisorHelper.updateAdvisorAccountDebit(advisorId, [prediction]),
+			isRealPrediction && masterAdvisorId ? 
+				PredictionRealtimeController.sendAdminUpdates(masterAdvisorId) : null
 		]);
 	})
 	.then(() => {

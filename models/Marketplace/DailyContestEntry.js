@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-09 15:31:29
+* @Last Modified time: 2019-03-11 16:37:44
 */
 
 
@@ -160,10 +160,9 @@ DailyContestEntry.index({advisor:1, 'predictions._id':1})
 2. EntryItem = Stock/Target/Direction/StartDate/EndDate
 */
 
-DailyContestEntry.statics.addEntryPredictions = function(query, predictions, options) {
-	return this.findOneAndUpdate(query, {$addToSet: {predictions: {$each: predictions}}}, options)
+DailyContestEntry.statics.addEntryPrediction = function(query, prediction, options) {
+	return this.findOneAndUpdate(query, {$addToSet: {predictions: prediction}}, options)
 };
-
 
 DailyContestEntry.statics.fetchPredictionById = function(query, predictionId) {
 	return this.findOne({...query, predictions:{$elemMatch: {_id: predictionId}}})

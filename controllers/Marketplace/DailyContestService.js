@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-11 15:19:09
+* @Last Modified time: 2019-03-11 16:48:21
 */
 
 'use strict';
@@ -267,6 +267,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	let validStartDate = DailyContestEntryHelper.getValidStartDate();
 	const isRealPrediction = _.get(prediction, 'real', false);
 
+
 	return Promise.resolve()
 	.then(() => {
 		return ;
@@ -447,7 +448,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	})
 	.then(adjustedPrediction => {
 		if (adjustedPrediction) {
-			return DailyContestEntryHelper.addPredictions(advisorId, [adjustedPrediction], DateHelper.getMarketCloseDateTime(validStartDate))
+			return DailyContestEntryHelper.addPrediction(advisorId, adjustedPrediction, DateHelper.getMarketCloseDateTime(validStartDate))
 		} else {
 			APIError.throwJsonError({message: "Adjusted prediciton is NULL/invalid"});
 		}
@@ -470,6 +471,8 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 	let advisorId = _.get(args, 'advisorId.value', null);
 	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
 	
+	let masterAdvisorId;
+
 	Promise.resolve()
 	.then(() => {
 		let advisorSelection = {user: userId, isMasterAdvisor: true};
@@ -481,19 +484,20 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 	})
 	.then(masterAdvisor => {
 		if (masterAdvisor) {
-			advisorId = masterAdvisor._id.toString();
+			masterAdvisorId = masterAdvisor._id.toString();
+
 			var date = DateHelper.getMarketCloseDateTime();
 
 			var allocationAdvisorId = _.get(masterAdvisor, 'allocation.advisor', null);
 
 			return Promise.all([
-				DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: null}),
+				DailyContestEntryHelper.getPredictionsForDate(masterAdvisorId, date, {category: "all", priceUpdate: false, active: null}),
 				allocationAdvisorId ? DailyContestEntryHelper.getPredictionsForDate(allocationAdvisorId, date, {category: "all", priceUpdate: false, active: null}) : []
 			])
 			.then(([simulatedPredictions, realPredictions]) => {
 
 				//Populate advisorId (necessary to distinguish between real and simulated advisor)
-				simulatedPredictions = simulatedPredictions.map(item => {return {...item, advisorId};});
+				simulatedPredictions = simulatedPredictions.map(item => {return {...item, advisorId: masterAdvisorId};});
 				realPredictions = realPredictions.map(item => {return {...item, advisorId: allocationAdvisorId};})
 
 				return simulatedPredictions.concat(realPredictions);
@@ -524,15 +528,18 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 				prediction.readStatus = "UNREAD";
 			}
 
-			return DailyContestEntryModel.updatePrediction({advisor: prediction.advisorId}, prediction)
+			//What's the effective advisorId
+			advisorId = prediction.advisorId;
+
+			return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction)
 			.then(() => {
 
 				//Update the Account credit if prediction was never triggered (else handle it in helper)
 				var acccountUpdateRequired = !_.get(prediction,'triggered.status', true);
 
 				return Promise.all([
-					acccountUpdateRequired ? AdvisorHelper.updateAdvisorAccountCredit(prediction.advisorId, prediction) : null,
-					isRealPrediction ? PredictionRealtimeController.sendAdminUpdates(prediction.advisorId, prediction._id) : null
+					acccountUpdateRequired ? AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction) : null,
+					isRealPrediction ? PredictionRealtimeController.sendAdminUpdates(masterAdvisorId, prediction._id) : null
 				]);	
 			})
 
