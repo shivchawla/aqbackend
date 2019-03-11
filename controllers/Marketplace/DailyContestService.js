@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-09 15:45:10
+* @Last Modified time: 2019-03-11 15:19:09
 */
 
 'use strict';
@@ -488,7 +488,7 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 
 			return Promise.all([
 				DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: null}),
-				allocationAdvisor ? DailyContestEntryHelper.getPredictionsForDate(allocationAdvisorId, date, {category: "all", priceUpdate: false, active: null}) : []
+				allocationAdvisorId ? DailyContestEntryHelper.getPredictionsForDate(allocationAdvisorId, date, {category: "all", priceUpdate: false, active: null}) : []
 			])
 			.then(([simulatedPredictions, realPredictions]) => {
 
@@ -714,7 +714,7 @@ module.exports.addAdminModificationsToPrediction = (args, res, next) => {
 		}
 
 		if (!modification) {
-			APIError.throwJsonError({message: "Invalid modification"})
+			APIError.throwJsonError({message: "Invalid modification"});
 		}
 
 		return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'})
@@ -744,7 +744,7 @@ module.exports.addAdminModificationsToPrediction = (args, res, next) => {
 		}
 	})
 	.then(updated => {
-		return res.status(200).send("Trade activity added successfully");
+		return res.status(200).send("Admin modification added successfully");
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);		
