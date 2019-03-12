@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-21 19:48:47
+* @Last Modified time: 2019-03-12 13:52:44
 */
 
 'use strict';
@@ -234,9 +234,44 @@ function checkPredictionDuplicates() {
 	})
 }
 
+function fixCallPriceForPredictions(date) {
+
+	date = DateHelper.getMarketCloseDateTime(date);
+	console.log("Hello")
+	return DailyContestEntryModel.fetchDistinctAdvisors({'predictions.startDate': date})
+	.then(distinctAdvisors => {
+		console.log(distinctAdvisors);
+		
+		return Promise.mapSeries(distinctAdvisors, function(advisorId) {
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date)
+			.then(predictions => {
+				//Filter based on startdate
+				predictions = predictions.filter(item => {return moment(item.startDate).isSame(date);})
+
+				//Now for these predictions, re-populate the call price
+				return SecurityHelper.getStockDetail(prediction.position.security, date)
+				.then(securityDetail => {
+					console.log(securityDetail);
+
+					var closePrice = _.get(securityDetail, 'latestDetail.Close', 0);
+					if (closePrice != 0) {
+						prediction.position.avgPrice = closePrice;
+						return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
+					} else {
+						var ticker = prediction.position.security.ticker;
+						console.log(`Close price for ${ticker} on ${date} is ZERO!!! SKIPPING`);
+					}
+				})
+
+			})
+		})
+	});
+}
+
 if (config.get('jobsPort') === serverPort) {
 	//checkPredictionDuplicates();
-	//checkSumAdvisorAccount()
+	//checkSumAdvisorAccount();
+	fixCallPriceForPredictions("2019-03-11");
 }
 
 
