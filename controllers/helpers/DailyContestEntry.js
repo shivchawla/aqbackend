@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-11 17:06:00
+* @Last Modified time: 2019-03-12 11:08:41
 */
 
 'use strict';
@@ -1126,7 +1126,9 @@ function _computeUpdatedPredictions(predictions, date) {
 			})
 			.then(updatedPositions => {
 				if (updatedPositions) {
-					return Object.assign(prediction, {position: updatedPositions[0]});
+					//Incoming Juliq updated prediction doesn't have quantity information
+					//So merge the new and old position (to retain quantity info)
+					return {...prediction, position: {...prediction.position, ...updatedPositions[0]}};
 				} else {
 					return prediction;
 				}
