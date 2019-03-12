@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-12 11:08:41
+* @Last Modified time: 2019-03-12 15:41:08
 */
 
 'use strict';
@@ -1843,7 +1843,7 @@ module.exports.checkForPredictionTarget = function() {
 					 		item.position.lastPrice =  target;
 					 	}
 
-					 	var stopLossPrice = _getStopLossPrice(prediction);
+					 	var stopLossPrice = _getStopLossPrice(item);
 					 	var stopLossFailure = stopLossPrice != 0 && ((investment > 0 && lowPrice <= stopLossPrice) || (investment < 0 && highPrice >= stopLossPrice));	
 
 					 	if (stopLossFailure) {
