@@ -15,7 +15,7 @@ function _updateportfolio_EODprice(port, date::DateTime)
 
     if length(alltickers) > 0
         #fetch stock data and drop where all values are NaN
-        stock_value_52w = YRead.history_unadj(alltickers, "Close", :Day, 1, date, displaylogs=false, forwardfill=true)
+        stock_value_52w = YRead.history_unadj(alltickers, "Close", :Day, 1, date, strict=false, displaylogs=false, forwardfill=true)
 
         #Check if stock values are valid 
         if stock_value_52w != nothing 
