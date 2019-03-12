@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-25 18:12:12
+* @Last Modified time: 2019-03-12 16:31:08
 */
 
 
@@ -207,7 +207,7 @@ DailyContestEntry.statics.fetchEntryPredictionsStartedOnDate = function(query, d
 	.then(contestEntry => {
 		if (contestEntry) {
 			var allPredictions = contestEntry.predictions ? contestEntry.predictions.toObject() : [];
-			return allPredictions.filter(item => {
+			return allPredictions.filter(item => item).filter(item => {
 				var _triggered = _.get(item, 'triggered.status', true);
 				var triggeredDate = _.get(item, 'triggered.date', null);
 
