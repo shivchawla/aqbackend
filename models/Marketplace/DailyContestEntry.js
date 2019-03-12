@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-12 16:31:08
+* @Last Modified time: 2019-03-12 21:00:59
 */
 
 
@@ -266,10 +266,13 @@ DailyContestEntry.statics.fetchEntryPredictionsEndedOnDate = function(query, dat
 
 					var triggered = _triggered && (!triggeredDate || !moment(triggeredDate).isAfter(date));
 
-					var isActivePrediction = triggered && (dateCondition || 
+					//
+					//If not success and ended in time
+					//or success and ended before time
+					var isActivePrediction = triggered && ((!successFailureStatus && dateCondition) || 
 						(successFailureStatus && moment(item.status.date).isSame(moment(date))));
 
-					var isInactivePrediction = !triggered && (dateCondition ||
+					var isInactivePrediction = !triggered && ((!manualExit && dateCondition) ||
 						(manualExit && moment(item.status.date).isSame(moment(date))));
 
 					return active == null ? isActivePrediction || isInactivePrediction :
