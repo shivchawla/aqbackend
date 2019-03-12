@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-12 16:23:43
+* @Last Modified time: 2019-03-12 19:35:41
 */
 
 'use strict';
@@ -271,8 +271,13 @@ function fixCallPriceForPredictions(date) {
 if (config.get('jobsPort') === serverPort) {
 	//checkPredictionDuplicates();
 	//checkSumAdvisorAccount();
-	fixCallPriceForPredictions("2019-03-11");
+	//fixCallPriceForPredictions("2019-03-11");
 }
+
+
+
+
+
 
 
 
