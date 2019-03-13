@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-12 19:35:41
+* @Last Modified time: 2019-03-13 20:18:14
 */
 
 'use strict';
@@ -20,6 +20,7 @@ const WSHelper = require('./WSHelper');
 const SecurityHelper = require('./Security');
 const AdvisorHelper = require('./Advisor');
 const DailyContestEntryHelper = require('./DailyContestEntry');
+const DailyContestStatsHelper = require('./DailyContestStats');
 
 const UserModel = require('../../models/user');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
@@ -254,7 +255,11 @@ function fixCallPriceForPredictions(date) {
 
 						var closePrice = _.get(securityDetail, 'latestDetail.Close', 0);
 						if (closePrice != 0) {
+							
 							prediction.position.avgPrice = closePrice;
+							prediction.status.stopLoss = false;
+							prediction.position.lastPrice = 0;
+
 							return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
 						} else {
 							var ticker = prediction.position.security.ticker;
@@ -264,8 +269,27 @@ function fixCallPriceForPredictions(date) {
 				})
 
 			})
+			.then(() => {
+				var tradingDates = DateHelper.getTradingDates(date, DateHelper.getCurrentDate(), false)
+				return Promise.mapSeries(tradingDates, function(td) {
+					td = DateHelper.getMarketCloseDateTime(td);
+					return DailyContestEntryHelper.updateLatestPortfolioStatsForAdvisor(advisorId, td)
+					.then(() => {
+		                return DailyContestEntryHelper.updateAdvisorLatestPnlStats(advisorId, td);
+		            })
+		            .then(() => {
+		                return DailyContestEntryHelper.updateAdvisorNetPnlStats(advisorId, td);                       
+		            })
+	            })
+            })
 		})
-	});
+	})
+	.then(() => {
+		var nextDate = DateHelper.getNextNonHolidayWeekday(date);
+		if (DateHelper.compareDates(nextDate, DateHelper.getCurrentDate()) != 1) {
+			return DailyContestStatsHelper.updateContestStats(nextDate);
+		}
+	})
 }
 
 if (config.get('jobsPort') === serverPort) {
