@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-12 19:34:59
+* @Last Modified time: 2019-03-13 18:31:33
 */
 
 'use strict';
@@ -29,7 +29,7 @@ function _getStopLossPrice(prediction) {
 	var stopLossPrice = 0;
 	if (_.get(prediction, 'stopLossType', "") != "NOTIONAL") {
 		
-		var investment = prediction.investment;
+		var investment = prediction.position.investment;
 		var lossDirection = -1 * (investment > 0 ? 1 : -1);
 		stopLossPrice = (1 + lossDirection*Math.abs(_.get(prediction, 'stopLoss', 1))) * prediction.position.avgPrice;
 	
