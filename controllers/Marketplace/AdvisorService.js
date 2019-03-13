@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-25 16:53:52
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-11 18:28:20
+* @Last Modified time: 2019-03-13 16:37:15
 */
 
 'use strict';
@@ -558,7 +558,7 @@ module.exports.fetchAdvisorByName = function(args, res, next) {
     })
     .then(users => {
         return Promise.map(users, user => {
-            return AdvisorModel.fetchAdvisor({user: user._id, isMasterAdvisor: true}, {fields: '_id user'})
+            return AdvisorModel.fetchAdvisor({user: user._id, isMasterAdvisor: true}, {fields: '_id user allocation'})
             .then(advisor => {
                 return {...advisor.toObject()};
             })
