@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-11 18:17:10
+* @Last Modified time: 2019-03-13 18:04:04
 */
 
 'use strict';
@@ -433,7 +433,10 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			prediction.modified = 1;
 			prediction.nonMarketHoursFlag = DateHelper.isHoliday() || !DateHelper.isMarketTrading();
 			prediction.createdDate = new Date();
-				
+			
+			//Stop-loss type for old predictions was empty;
+			prediction.stopLossType = "NOTIONAL";
+
 			var isConditional = prediction.conditionalType != "NOW" && prediction.position.avgPrice != 0; 
 
 			//Set trigger

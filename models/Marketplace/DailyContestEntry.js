@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-12 19:34:40
+* @Last Modified time: 2019-03-13 18:01:18
 */
 
 
@@ -93,10 +93,7 @@ const Prediction = new Schema({
 		required: false,
 	},
 
-	stopLossType: {
-		type: String,
-		default: "NOTIONAL",
-	},
+	stopLossType: String,
 
 	createdDate: {
 		type: Date,
