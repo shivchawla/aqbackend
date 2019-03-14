@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-14 11:34:39
+* @Last Modified time: 2019-03-14 11:39:38
 */
 
 'use strict';
@@ -1158,9 +1158,6 @@ function _computeTotalPnlStats(advisorId, date, options) {
 			return  item;
 		});
 
-		// console.log("Total PnL");
-		// console.log(updatedPredictions);
-
 		//Total Pnl
 		return Promise.all([
 			_getPnlStats(updatedPredictions, date),
@@ -1360,7 +1357,7 @@ module.exports.getValidStartDate = function(date) {
 
 module.exports.getTotalPnlStats = function(advisorId, date, options) {
 	const category = _.get(options, "category", "all");
-	
+
 	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
 	.then(pnlStats => {
 		if (pnlStats) {
@@ -1371,7 +1368,7 @@ module.exports.getTotalPnlStats = function(advisorId, date, options) {
 				case "started" : return _.get(pnlStats, 'detail.cumulative.started', null); break;
 			}
 		} else {
-			return _computeTotalPnlStats(advisorId, date, category);
+			return _computeTotalPnlStats(advisorId, date, options);
 		}
 	});	
 };
