@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-11 19:21:51
+* @Last Modified time: 2019-03-14 15:18:41
 */
 'use strict';
 const config = require('config');
@@ -167,10 +167,12 @@ function _handlePredictionSubscription(req, res) {
 				let advisorId = advisor._id;
 				let masterAdvisorId = advisorId;
 
-				if (real && _.get(masterAdvisor, 'allocation.status', true)) {
-					advisorId = masterAdvisor.allocation.advisor;
-				} else {
-					APIError.throwJsonError({message: "No real subscription allowed/possible for this advisor"});
+				if (real) {
+					if (_.get(masterAdvisor, 'allocation.status', false)) {
+						advisorId = masterAdvisor.allocation.advisor;
+					} else {
+						APIError.throwJsonError({message: "No real predictions found/possible for this advisor"});
+					}
 				}
 
 				var subscription = predictionSubscribers[userId];
