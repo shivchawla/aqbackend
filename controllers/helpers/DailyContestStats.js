@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-06 13:51:42
+* @Last Modified time: 2019-03-14 20:21:38
 */
 
 'use strict';
@@ -68,10 +68,22 @@ function _formatInvestmentValue(value) {
 	}
 }
 
+function _getUniqueMasterAdvisorWithContestEntries() {
+	return Promise.all([
+		AdvisorModel.fetchDistinctAdvisors({isMasterAdvisor: true}),
+		DailyContestEntryModel.fetchDistinctAdvisors()
+	])
+	.then(([masterAdvisors, advisorsWithContestEntry]) => {
+		return _.intersection(masterAdvisors, advisorsWithContestEntry);	
+	})
+}
+
 function _computeDailyContestWinners(date) {
-	return DailyContestEntryModel.fetchDistinctAdvisors({isMasterAdvisor: true})
-	.then(allAdvisors => {
-		return Promise.mapSeries(allAdvisors, function(advisorId) {
+
+	return _getUniqueMasterAdvisorWithContestEntries()
+	.then(distinctAdvisors => {
+
+		return Promise.mapSeries(distinctAdvisors, function(advisorId) {
 			
             return Promise.all([
             	DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date),
@@ -106,9 +118,10 @@ function _computeWeeklyContestWinners(date) {
 		var endOfLastWeek = DateHelper.getEndOfLastWeek(date);
 		var tradingDates = DateHelper.getTradingDates(endOfLastWeek, DateHelper.getDate(), false);
 
-		return DailyContestEntryModel.fetchDistinctAdvisors({isMasterAdvisor: true})
-		.then(allAdvisors => {
-			return Promise.mapSeries(allAdvisors, function(advisorId) {
+		return _getUniqueMasterAdvisorWithContestEntries()
+		.then(distinctAdvisors => {
+
+			return Promise.mapSeries(distinctAdvisors, function(advisorId) {
 				
 				return Promise.all([
 					DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId}, date),
@@ -152,8 +165,9 @@ function _computeMonthlyPayout(date) {
 		
 		var endOfLastMonth = DateHelper.getEndOfLastMonth(date);
 
-		return DailyContestEntryModel.fetchDistinctAdvisors()
-		.then(allAdvisors => {
+		return _getUniqueMasterAdvisorWithContestEntries()
+		.then(distinctAdvisors => {
+			
 			return Promise.mapSeries(allAdvisors, function(advisorId) {
 				
 				return Promise.all([
@@ -238,10 +252,11 @@ function _updateMetrics (metrics, prediction) {
 }
 
 function _computeContestPredictionMetrics(date) {
-	return AdvisorModel.fetchAdvisors({}, {fields:'_id'})
-	.then(allAdvisors => {
+
+	return _getUniqueMasterAdvisorWithContestEntries()
+	.then(distinctAdvisors => {
 		
-		return Promise.mapSeries(allAdvisors, function(advisor) {
+		return Promise.mapSeries(distinctAdvisors, function(advisor) {
 			var advisorId = advisor._id;
 			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "started"})
 		})
@@ -286,9 +301,9 @@ function _computeContestPredictionMetrics(date) {
 }
 
 module.exports.updateEarningStats = function(winners, date, category) {
-	return DailyContestEntryModel.fetchDistinctAdvisors({isMasterAdvisor: true})
-	.then(allAdvisors => {
-		return Promise.mapSeries(allAdvisors, function(advisorId) {
+	return _getUniqueMasterAdvisorWithContestEntries()
+	.then(distinctAdvisors => {
+		return Promise.mapSeries(distinctAdvisors, function(advisorId) {
 			let winAmount = 0;
 
 			var idx = winners.map(item => item.advisor.toString()).indexOf(advisorId.toString());
@@ -466,7 +481,7 @@ function _getAdvisorLatestPerformance(advisorId) {
 }
 
 function _getContestAdvisors(options) {
-	return DailyContestEntryModel.fetchDistinctAdvisors({})
+	return _getUniqueMasterAdvisorWithContestEntries()
 	.then(distinctAdvisors => {
 		var successRateMin = _.get(options, 'winRatioMin', 0);
 		var successRateMax = _.get(options, 'winRatioMax', 1.0);
@@ -598,8 +613,9 @@ module.exports.sendTemplateEmailToParticipants = function(emailType) {
 module.exports.sendSummaryDigest = function(date) {	
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date).toDate();
 
-	return DailyContestEntryModel.fetchDistinctAdvisors({isMasterAdvisor: true})
+	return _getUniqueMasterAdvisorWithContestEntries()
 	.then(distinctAdvisors => {
+
 		let sent = false;
 		return Promise.mapSeries(distinctAdvisors, function(advisorId) {
 
@@ -718,10 +734,13 @@ module.exports.updateDailyContestOverallWinnersByEarnings = function(filePath = 
 		? filePath 
 		: `${path.dirname(require.main.filename)}/examples/winners.csv`;
 
-	Promise.all([
-		DailyContestEntryPerformanceModel.fetchDistinctPerformances({}),
-		UserModel.fetchUsers({email: {$in: config.get('winners_not_allowed')}}, {_id: 1})
-	])
+	return _getUniqueMasterAdvisorWithContestEntries()
+	.then(distinctAdvisors => {
+		return Promise.all([
+			DailyContestEntryPerformanceModel.fetchDistinctPerformances({advisor:{$in: distinctAdvisors}}),
+			UserModel.fetchUsers({email: {$in: config.get('winners_not_allowed')}}, {_id: 1})
+		])
+	})
 	.then(([performances, usersNotAllowed]) => {
 		return Promise.mapSeries(performances,  function(performance) {
 
