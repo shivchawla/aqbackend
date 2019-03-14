@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-14 20:21:38
+* @Last Modified time: 2019-03-14 20:39:08
 */
 
 'use strict';
@@ -74,7 +74,7 @@ function _getUniqueMasterAdvisorWithContestEntries() {
 		DailyContestEntryModel.fetchDistinctAdvisors()
 	])
 	.then(([masterAdvisors, advisorsWithContestEntry]) => {
-		return _.intersection(masterAdvisors, advisorsWithContestEntry);	
+		return _.intersection(masterAdvisors.map(item => item.toString()), advisorsWithContestEntry.map(item => item.toString()));	
 	})
 }
 
