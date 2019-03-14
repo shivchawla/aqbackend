@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-14 10:48:30
+* @Last Modified time: 2019-03-14 11:34:39
 */
 
 'use strict';
@@ -1358,7 +1358,9 @@ module.exports.getValidStartDate = function(date) {
 	return validStartDate;
 };
 
-module.exports.getTotalPnlStats = function(advisorId, date, category="all") {
+module.exports.getTotalPnlStats = function(advisorId, date, options) {
+	const category = _.get(options, "category", "all");
+	
 	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
 	.then(pnlStats => {
 		if (pnlStats) {
