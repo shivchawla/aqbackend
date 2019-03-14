@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-13 18:31:33
+* @Last Modified time: 2019-03-14 10:48:30
 */
 
 'use strict';
@@ -1561,14 +1561,9 @@ module.exports.getContestEntryForUser = function(userId) {
 module.exports.updateAdvisorLatestPnlStats = function(advisorId, date){
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
-	return Promise.all([
-		exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false}),
-		AdvisorModel.fetchAdvisor({_id: advisorId}, {isMasterAdvisor})
-	])
-	.then(([activePredictions, advisor]) => {
+	return	exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
+	.then(activePredictions => {
 		
-		// const real = !_.get(advisor, 'isMasterAdvisor', true);
-
 		if (activePredictions.length > 0) {
 			return Promise.all([
 				_computeTotalPnlStatsForAll(advisorId, date),
@@ -1600,11 +1595,8 @@ module.exports.updateAllEntriesLatestPnlStats = function(date){
 };
 
 module.exports.updateAdvisorNetPnlStats = function(advisorId, date) {
-	return Promise.all([
-		exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false}),
-		AdvisorModel.fetchAdvisor({_id: advisorId}, {isMasterAdvisor})
-	])
-	.then(([activePredictions, advisor]) => {
+	return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
+	.then(activePredictions => {
 
 		if (activePredictions.length > 0) {
 			return _computeNetPnlStats(advisorId, date)
