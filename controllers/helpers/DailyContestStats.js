@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-14 20:39:08
+* @Last Modified time: 2019-03-15 11:07:51
 */
 
 'use strict';
@@ -255,9 +255,7 @@ function _computeContestPredictionMetrics(date) {
 
 	return _getUniqueMasterAdvisorWithContestEntries()
 	.then(distinctAdvisors => {
-		
-		return Promise.mapSeries(distinctAdvisors, function(advisor) {
-			var advisorId = advisor._id;
+		return Promise.mapSeries(distinctAdvisors, function(advisorId) {
 			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category: "started"})
 		})
 		.then(predictionsByAdvisors => {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-14 11:39:38
+* @Last Modified time: 2019-03-15 10:45:09
 */
 
 'use strict';
@@ -2349,7 +2349,7 @@ module.exports.checkAdvisorInvestmentSum = function() {
 	.then(allAdvisors => {
 		return Promise.mapSeries(allAdvisors, function(advisorId) {
 			return Promise.all([
-				exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false}),
+				exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: null}),
 				AdvisorModel.fetchAdvisor({_id:advisorId}, {fields: 'account user'})
 			])
 			.then(([predictions, advisor]) => {
