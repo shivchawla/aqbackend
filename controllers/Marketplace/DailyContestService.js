@@ -18,6 +18,7 @@ const config = require('config');
 const sendEmail = require('../../email');
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
+const InteractiveBroker = require('../Realtime/interactiveBroker');
 
 const UserModel = require('../../models/user');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
@@ -1120,3 +1121,73 @@ module.exports.sendTemplateEmailToParticipants = function(args, res, next) {
     });
 };
 
+module.exports.placeOrder = function(args, res, next ) {
+	const userEmail = _.get(args, 'user.email', null);
+	const admins = config.get('admin_user');
+	const isAdmin = admins.indexOf(userEmail) !== -1;
+	
+	const predictionId = _.get(args, 'body.value.predictionId', null);
+	const advisorId = _.get(args, 'body.value.advisorId', null);
+	const order = _.get(args, 'body.value.order', {});
+	const stock = _.get(order, 'symbol', null);
+	const orderType = _.get(order, 'orderType', null);
+	const quantity = _.get(order, 'quantity', 0);
+	const price = _.get(order, 'price', 0);
+	const type = _.get(order, 'tradeDirection', 'BUY');
+	const stopLossPrice = _.get(order, 'stopLossPrice', 0);
+	const profitLimitPrice = _.get(order, 'profitLimitPrice', 0);
+
+	const orderParams = {stock, type, quantity, price, orderType, stopLossPrice, profitLimitPrice};
+	let allocationAdvisorId = null;
+	// The prediction instance that is required to update prediction
+	let requiredPrediction = null;
+	// Trade activities for required prediction
+	let tradeActivity = [];
+
+	Promise.resolve()
+	.then(() => {
+		if (isAdmin) {
+			return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'})
+		} else {
+			APIError.throwJsonError({message: "User not authorized to place orders"});
+		}
+	})
+	.then(masterAdvisor => {
+		const allocationStatus = _.get(masterAdvisor, 'allocation.status', false);
+		allocationAdvisorId = _.get(masterAdvisor, 'allocation.advisor', null);
+
+		if (masterAdvisor && allocationStatus && allocationAdvisorId) {
+			return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
+		} else {
+			APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
+		}
+	})
+	.then(prediction => {
+		tradeActivity = _.get(prediction, 'tradeActivity', []);
+		requiredPrediction = prediction;
+
+		const tradeActivityItem = {
+			date: new Date(),
+			category: 'TRADE',
+			tradeDirection: type,
+			tradeType: 'ORDER_PLACEMENT'
+		}
+		tradeActivity.push(tradeActivityItem);
+		requiredPrediction.tradeActivity = tradeActivity;
+
+		if (prediction) {
+			return InteractiveBroker.placeOrder(orderParams);
+		} else {
+			APIError.throwJsonError({message: "Prediction not found"});
+		}
+	})
+	.then(orderId => {
+		return DailyContestEntryModel.updatePrediction({advisor: allocationAdvisorId}, requiredPrediction);
+	})
+	.then(prediction => {
+		return res.status(200).send({message: 'Order Place Succesfully', prediction});
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
+}

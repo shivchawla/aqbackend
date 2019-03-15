@@ -86,3 +86,7 @@ module.exports.updateReadStatusPrediction = (req, res, next) => {
 module.exports.addAdminModificationsToPrediction = (req, res, next) => {
     DailyContest.addAdminModificationsToPrediction(req.swagger.params, res, next);
 }
+
+module.exports.placeOrder = (req, res, next) => {
+    DailyContest.placeOrder(req.swagger.params, res, next);
+}

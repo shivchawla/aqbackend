@@ -3951,6 +3951,34 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
+  /dailycontest/placeorder:
+    post:
+      tags:
+      - dailycontest
+      summary: Place a trade in prediction
+      description: Place a trade for prediction
+      operationId: placeOrder
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        description: order body
+        required: true
+        schema:
+          $ref: "#/definitions/PlaceOrder"
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
   /dailycontest/readstatus:
     post:
       tags:
@@ -5209,7 +5237,47 @@ definitions:
         type: object
         $ref: '#/definitions/TradeActivity'
 
-
+  PlaceOrder:
+    type: object
+    required:
+      - predictionId
+      - advisorId
+      - order
+    properties:
+      predictionId:
+        type: string
+        format: uuid
+      advisorId: 
+        type: string
+        format: uuid
+      order:
+        type: object
+        $ref: '#/definitions/Order'
+  
+  Order:
+    type: object
+    required: 
+      - symbol
+      - tradeDirection
+      - quantity
+    properties:
+      symbol:
+        type: string
+      orderType:
+        type: string
+        enum: ["bracket", "limit", "market", "stopLimit", "marketClose"]
+      quantity:
+        type: number
+      price:
+        type: number
+      tradeDirection:
+        type: string
+        enum: ["BUY", "SELL"]
+      stopLossPrice:
+        type: number
+      profitLimitPrice:
+        type: number
+  
   TradeActivity:
     type: object
     required:
