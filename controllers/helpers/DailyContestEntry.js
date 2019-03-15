@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-15 10:45:09
+* @Last Modified time: 2019-03-15 21:08:41
 */
 
 'use strict';
@@ -10,6 +10,7 @@ const _ = require('lodash');
 const Promise = require('bluebird');
 const moment = require('moment-timezone');
 const schedule = require('node-schedule');
+const config = require('config');
 
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
@@ -23,6 +24,27 @@ const DailyContestEntryPerformanceModel = require('../../models/Marketplace/Dail
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 
 const PredictionRealtimeController = require('../Realtime/predictionControl');
+
+const RedisUtils = require('../../utils/RedisUtils');
+
+const RECENT_ADVISORS_QUEUE = "recent_advisor_queue";
+
+var redisClient;
+
+function getRedisClient() {
+	if (!redisClient || !redisClient.connected) {
+		var redisPwd = config.get('node_redis_pass');
+
+		if (redisPwd != "") {
+        	redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});
+    	} else {
+    		redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'));
+    	}
+    }
+
+    return redisClient; 
+}
+
 
 function _getStopLossPrice(prediction) {
 
@@ -2041,6 +2063,64 @@ module.exports.checkForPredictionExpiry = function() {
 	}
 }
 
+function _fetchLatestRealtimeQuoteFromEODH(ticker) {
+	const realtimeQuoteUrl = eval('`'+config.get('realtime_EODH_quote_url') +'`');
+
+	return axios.get(realtimeQuoteUrl)
+	.then(response => {
+		if (response) {
+			return response.data;
+		}
+	})
+}
+
+module.exports.updateCallPriceForPredictionsFromEODH = function() {
+	let latestDate = DateHelper.getMarketCloseDateTime(exports.getValidStartDate());
+
+	let latestQuotes = {};
+	return RedisUtils.getRangeFromRedis(getRedisClient(), RECENT_ADVISORS_QUEUE, 0, -1)
+	.then(advisors => {
+		return Promise.mapSeries(advisors, function(advisorId) {
+
+			return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, latestDate)
+			.then(predictions => {
+				if (predictions && predictions.length > 0) {
+					
+					var filteredPredictions = predictions.filter(item => {
+						var callPrice = _.get(item, 'position.avgPrice', 0.0);
+						var isCreatedLastMinute = moment().startOf('minute').isSame(moment(item.startDate));
+						
+						return callPrice == 0 && isCreatedLastMinute;
+					});
+					
+					return Promise.mapSeries(filteredPredictions, function(prediction) {
+						var ticker = prediction.position.security.ticker;
+						return !(ticker in latestQuotes) ? _fetchLatestRealtimeQuoteFromEODH(ticker) : latestQuotes[ticker] 
+						.then(latestQuote => {
+
+							if (latestQuote) {
+
+								//Push the quote in dictionary
+								latestQuotes[ticker] = latestQuote
+								
+								if (moment.unix(latestQuote.timestamp).isSame(moment(prediction.startDate))) {
+									var updatedCallPrice = _.get(latestQuote, 'close', 0.0);
+									if (updatedCallPrice != 0) {
+										return DailyContestEntryModel.updatePredictionCallPrice({advisor: advisorId}, prediction, updatedCallPrice);
+									}
+								}
+							}
+						});
+					});	
+				}
+			});
+
+		});
+	})
+};
+
+
+
 module.exports.addPrediction = function(advisorId, prediction, date) {
 	
 	var isRealPrediction = _.get(prediction, 'real', false);
@@ -2052,6 +2132,7 @@ module.exports.addPrediction = function(advisorId, prediction, date) {
 	.then(([added, masterAdvisorId]) => {
 		//Updating advisor account with new metrics
 		return Promise.all([
+			DateHelper.isMarketTrading() ? RedisUtils.pushToRangeRedis(getRedisClient(), RECENT_ADVISORS_QUEUE, advisorId) : null,
 			AdvisorHelper.updateAdvisorAccountDebit(advisorId, [prediction]),
 			isRealPrediction && masterAdvisorId ? 
 				PredictionRealtimeController.sendAdminUpdates(masterAdvisorId) : null
