@@ -1,8 +1,22 @@
 'use strict';
 const _ = require('lodash');
 const ib = require('ib');
+const redis = require('redis');
+const config = require('config');
+
+const RedisUtils = require('../../utils/RedisUtils');
+const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 
 const ibPort = 4002;
+let redisClient;
+
+function getRedisClient() {
+	if (!redisClient || !redisClient.connected) {
+        redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: config.get('node_redis_pass')});
+    }
+
+    return redisClient; 
+}
 
 class InteractiveBroker {
     static connect() {
@@ -33,6 +47,21 @@ class InteractiveBroker {
                     .on('contractDetails', (orderId, contract) => {
                         resolve({orderId, contract});
                     });
+                })
+            } catch (err) {
+                reject(err);
+            }
+        })
+    }
+
+    static requestExecutionDetails() {
+        return new Promise((resolve, reject) => {
+            try {
+                const ibInstance = this.interactiveBroker;
+                this.getNextOrderId()
+                .then(orderId => {
+                    ibInstance.reqExecutions(orderId, {});
+                    resolve(true);
                 })
             } catch (err) {
                 reject(err);
@@ -100,6 +129,7 @@ class InteractiveBroker {
                 const ibInstance = self.interactiveBroker;
                 this.getNextOrderId()
                 .then(orderId => {
+                    console.log('Next Order Id', orderId);
                     // creating IB stock from the stock param passed
                     const ibStock = ibInstance.contract.stock(stock);
 
@@ -205,11 +235,9 @@ InteractiveBroker.connect();
  * Handling event 'orderStatus' when send from the IB gateway or IB TWS
  */
 InteractiveBroker.interactiveBroker.on('orderStatus', (orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld) => {
-    console.log('Event - orderStatus');
-    console.log('Order Id', orderId);
-    // console.log('filled', filled);
-    // console.log('remaining', remaining);
-    // console.log('avgFillPrice', avgFillPrice);
+    // console.log('Event - orderStatus', orderId, 'Filled', filled);
+    let predictionId = null;
+    let advisorId = null;
     /**
      * id: orderId
      * we will store a map in redis, something like this
@@ -217,47 +245,53 @@ InteractiveBroker.interactiveBroker.on('orderStatus', (orderId, status, filled, 
      * Using the orderId we will be able to get the required advisorId and predictionId, which we
      * will store in the 2 variables below accordingly
      */
-    // const predictionId = null;
-    // const advisorId = null;
-
-    // DailyContestEntryModel.fetchPredictionById({advisor: advisorId}, predictionId)
-    // .then(prediction => {
-    //     // Obtaining positions that are remaining in the prediction obtained from the db
-    //     const remainingPositions = _.get(prediction, 'trade.remaining', null);
-    //     const accumulated = _.get(prediction, 'accumulated', null);
-    //     const tradeActivityItem = {
-    //         category: 'ORDER_MODS', 
-    //         date: new Date(), 
-    //         tradeType,
-    //         tradeDirection,
-    //         automated: false,
-    //         notes: '',
-    //         brokerMessage: {
-    //             status, filled, remaining, avgFillPrice, permId,
-    //             parentId, lastFillPrice, clientId, whyHeld
-    //         }
-    //     };
-
-    //     /**
-    //      * If positions remaining is not 0 and if the remaining received is not same as 
-    //      * the old one received
-    //      */
-    //     if (remaining !== 0 && remainingPositions !== remaining) {
-    //         if (accumulated === null) {
-    //             accumulated = filled;
-    //         } else {
-    //             accumulated += filled;
-    //         }
-    //     }
-    //     prediction.trade = {
-    //         ...prediction.trade,
-    //         remaining: remaining,
-    //         accumulated
-    //     };
-    //     prediction.tradeActivity.push(tradeActivityItem);
-
-    //     return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
+    // Promise.resolve()
+    // .then(() => RedisUtils.getFromRedis(getRedisClient(), 'orderPredictions', `ib_order_${orderId}`))
+	// .then(orderData => {
+    //     orderData = JSON.parse(orderData);
+    //     advisorId = _.get(orderData, 'advisorId', null);
+    //     predictionId = _.get(orderData, 'predictionId', null);
     // })
+    // .then(() => DailyContestEntryModel.fetchPredictionById({advisor: advisorId}, predictionId))
+    // .then(prediction => {
+    //     console.log('Prediction', prediction);
+        // Obtaining positions that are remaining in the prediction obtained from the db
+        // const remainingPositions = _.get(prediction, 'trade.remaining', null);
+        // const accumulated = _.get(prediction, 'accumulated', null);
+        // const tradeActivityItem = {
+        //     category: 'ORDER_MODS', 
+        //     date: new Date(), 
+        //     tradeType,
+        //     tradeDirection,
+        //     automated: false,
+        //     notes: '',
+        //     brokerMessage: {
+        //         status, filled, remaining, avgFillPrice, permId,
+        //         parentId, lastFillPrice, clientId, whyHeld
+        //     }
+        // };
+
+        // /**
+        //  * If positions remaining is not 0 and if the remaining received is not same as 
+        //  * the old one received
+        //  */
+        // if (remaining !== 0 && remainingPositions !== remaining) {
+        //     if (accumulated === null) {
+        //         accumulated = filled;
+        //     } else {
+        //         accumulated += filled;
+        //     }
+        // }
+        // prediction.trade = {
+        //     ...prediction.trade,
+        //     remaining: remaining,
+        //     accumulated
+        // };
+        // prediction.tradeActivity.push(tradeActivityItem);
+
+        // return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
+    // })
+    // return;
     // .then(prediction => {
     //     if (prediction !== null) {
     //         console.log('Prediction Updated', prediction);
@@ -272,9 +306,10 @@ InteractiveBroker.interactiveBroker.on('orderStatus', (orderId, status, filled, 
  */
 InteractiveBroker.interactiveBroker.on('openOrder', (orderId, contract, order, orderState) => {
     const symbol = _.get(contract, 'symbol', '');
-    console.log('Event - openOrder');
-    console.log('Order Id', orderId, symbol);
-    console.log('Order ', order);
+    console.log('openOrder - ' + order);
+    // console.log('Event - openOrder');
+    // console.log('Order Id', orderId, symbol);
+    // console.log('Order ', order);
     // console.log('order', order);
     // console.log('orderState', orderState);
     /**
@@ -319,23 +354,98 @@ InteractiveBroker.interactiveBroker.on('openOrder', (orderId, contract, order, o
 /**
  * Handling event 'execDetails' when send from the IB gateway or IB TWS
  */
-InteractiveBroker.interactiveBroker.on('execDetails', (orderId, contract, order, orderState) => {
+InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, order, orderState) => {
+    const orderId = _.get(order, 'orderId', null);
+    const executionId = _.get(order, 'execId', null);
+    const cumulativeQuantity = _.get(order, 'cumQty', -1);
+    let executionDetailArray = [];
+    // let us assume the ordered quantity is 100, this should also be obtained from the redis kvp
+    let orderedQuantity = 0;
+
+    let orderInstance = null;
+    let orderPredictionId = null;
+    let orderAdvisorId = null;
+
     console.log('Event - execDetails');
     console.log('Order Id', orderId);
-    console.log('contract', contract);
-    console.log('order', order);
-    console.log('orderState', orderState);
-    /**
-     * id: orderId
-     * we will store a map in redis, something like this
-     * {orderId: {advisorId, predictionId}}
-     * Using the orderId we will be able to get the required advisorId and predictionId, which we
-     * will store in the 2 variables below accordingly
-     */
-    // const predictionId = null;
-    // const advisorId = null;
-});
+    console.log('execution Id', executionId);
 
-InteractiveBroker.interactiveBroker.on('nextValidId', orderId => {
-    console.log('Event - Order Id ', orderId);
-})
+    Promise.resolve()
+    .then(() => RedisUtils.getFromRedis(getRedisClient(), 'orderForPredictions', orderId))
+    .then(redisOrderInstance => {
+        console.log('------------Required Order Instance--------------', redisOrderInstance);
+        redisOrderInstance = JSON.parse(redisOrderInstance);
+        orderInstance = redisOrderInstance;
+        orderPredictionId = _.get(redisOrderInstance, 'predictionId', null);
+        orderAdvisorId = _.get(redisOrderInstance, 'advisorId', null);
+        orderedQuantity = _.get(redisOrderInstance, 'orderedQuantity', 0)
+
+        // execution detail for the particular order instance
+        // we check if the execution id already exists in the execution detail array
+        executionDetailArray = _.get(redisOrderInstance, 'executionDetail', []);
+        const isExecutionIdPresent = _.findIndex(executionDetailArray, executionDetailItem => executionDetailItem.executionId === executionId) > -1;
+
+        if (!isExecutionIdPresent) {
+            return RedisUtils.getFromRedis(getRedisClient(), 'ibPredictions', orderPredictionId);
+
+        } else {
+            return null;
+        }
+    })
+    .then(redisPredictionInstance => {
+        if (redisPredictionInstance !== null) {
+            redisPredictionInstance = JSON.parse(redisPredictionInstance);
+            const predictionOrders = _.get(redisPredictionInstance, 'orders', []);
+            const orderIndex = _.findIndex(predictionOrders, orderItem => orderItem.orderId === orderId);
+
+            if (cumulativeQuantity === orderedQuantity) {
+                // execution finished 
+                // execution detail should be saved in the database
+
+                // updating order for required prediction
+                if (orderIndex > -1) {
+                    predictionOrders[orderIndex] = {
+                        ...predictionOrders[orderIndex],
+                        activeStatus: false,
+                        completeStatus: true
+                    };
+                }
+                
+                // deleting order from orderForPredictions dictionary
+                return RedisUtils.deleteFromRedis(getRedisClient(), 'orderForPredictions', orderId);
+
+            } else {
+                // execution not completed yet
+                redisPredictionInstance.accumulated = cumulativeQuantity;
+                executionDetailArray.push({
+                    executionId, 
+                    ...order
+                });
+                orderInstance.executionDetail = executionDetailArray;
+                return Promise.all([
+                    RedisUtils.insertIntoRedis(
+                        getRedisClient(), 
+                        'orderForPredictions', 
+                        orderId, 
+                        JSON.stringify(orderInstance)
+                    )
+                    ,RedisUtils.insertIntoRedis(
+                        getRedisClient(), 
+                        'ibPredictions', 
+                        orderPredictionId, 
+                        JSON.stringify(redisPredictionInstance)
+                    )
+                ])
+            }
+        } else {
+            return null;
+        }
+    })
+    .then(response => {
+        if (response !== null) {
+            console.log('Successfully Updated');
+        } else {
+            console.log('Error or duplicate execution id')
+        }
+    });
+});

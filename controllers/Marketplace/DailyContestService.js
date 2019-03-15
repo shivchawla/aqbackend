@@ -8,6 +8,7 @@
 'use strict';
 const _ = require('lodash');
 const Promise = require('bluebird');
+var redis = require('redis');
 const schedule = require('node-schedule');
 const moment = require('moment-timezone');
 var path = require('path');
@@ -31,6 +32,17 @@ const DailyContestStatsHelper = require('../helpers/DailyContestStats');
 const SecurityHelper = require('../helpers/Security');
 const AdvisorHelper = require('../helpers/Advisor');
 const PredictionRealtimeController = require('../Realtime/predictionControl');
+const RedisUtils = require('../../utils/RedisUtils');
+
+let redisClient;
+
+function getRedisClient() {
+	if (!redisClient || !redisClient.connected) {
+        redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: config.get('node_redis_pass')});
+    }
+
+    return redisClient; 
+}
 
 function _populateWinners(winners) {
 	return Promise.map(winners, function(winner) {
@@ -1122,6 +1134,12 @@ module.exports.sendTemplateEmailToParticipants = function(args, res, next) {
 };
 
 module.exports.placeOrder = function(args, res, next ) {
+	// RedisUtils.getValue(getRedisClient(), 'ib_order_11')
+	// .then(data => {
+	// 	return res.status(200).send(JSON.stringify(data));
+	// })
+	// RedisUtils.deleteKey(getRedisClient(), 'ib_order_11')
+
 	const userEmail = _.get(args, 'user.email', null);
 	const admins = config.get('admin_user');
 	const isAdmin = admins.indexOf(userEmail) !== -1;
@@ -1139,13 +1157,10 @@ module.exports.placeOrder = function(args, res, next ) {
 
 	const orderParams = {stock, type, quantity, price, orderType, stopLossPrice, profitLimitPrice};
 	let allocationAdvisorId = null;
-	// The prediction instance that is required to update prediction
-	let requiredPrediction = null;
-	// Trade activities for required prediction
-	let tradeActivity = [];
 
 	Promise.resolve()
 	.then(() => {
+		// Check if user is admin only then all the other operations are permitted
 		if (isAdmin) {
 			return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'})
 		} else {
@@ -1155,7 +1170,8 @@ module.exports.placeOrder = function(args, res, next ) {
 	.then(masterAdvisor => {
 		const allocationStatus = _.get(masterAdvisor, 'allocation.status', false);
 		allocationAdvisorId = _.get(masterAdvisor, 'allocation.advisor', null);
-
+		
+		// We are checking if the user is allocated and is allowed for real predictions
 		if (masterAdvisor && allocationStatus && allocationAdvisorId) {
 			return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
 		} else {
@@ -1163,31 +1179,79 @@ module.exports.placeOrder = function(args, res, next ) {
 		}
 	})
 	.then(prediction => {
-		tradeActivity = _.get(prediction, 'tradeActivity', []);
-		requiredPrediction = prediction;
-
-		const tradeActivityItem = {
-			date: new Date(),
-			category: 'TRADE',
-			tradeDirection: type,
-			tradeType: 'ORDER_PLACEMENT'
-		}
-		tradeActivity.push(tradeActivityItem);
-		requiredPrediction.tradeActivity = tradeActivity;
-
 		if (prediction) {
-			return InteractiveBroker.placeOrder(orderParams);
+			// Placing the order in the market
+			// Getting the prediction instance from redis
+			return Promise.all([
+				InteractiveBroker.placeOrder(orderParams),
+				RedisUtils.getFromRedis(getRedisClient(), 'ibPredictions', predictionId),
+				// InteractiveBroker.requestExecutionDetails()
+			])
 		} else {
 			APIError.throwJsonError({message: "Prediction not found"});
 		}
 	})
-	.then(orderId => {
-		return DailyContestEntryModel.updatePrediction({advisor: allocationAdvisorId}, requiredPrediction);
-	})
-	.then(prediction => {
-		return res.status(200).send({message: 'Order Place Succesfully', prediction});
+	.then(([orderId, redisPredictionInstance]) => {
+		console.log('Order Id to be added ', orderId);
+		console.log('Original Instance', redisPredictionInstance);
+		// Converting prediction instance to object since it's stored as string in Redis
+		redisPredictionInstance = JSON.parse(redisPredictionInstance);
+		try {
+			// Storing in the orderForPredictions dictionary in Redis
+			RedisUtils.insertIntoRedis(
+				getRedisClient(), 
+				'orderForPredictions', 
+				orderId, 
+				JSON.stringify({
+					advisorId: allocationAdvisorId,
+					predictionId, // predictionId sent from the request body
+					executionDetail: [],
+					orderedQuantity: quantity
+				})
+			);
+
+			// Storing in ibPredictions dictionary
+			const orderInstance = {
+				orderId, // Current orderId after get the next valid order id
+				activeStatus: true,
+				completeStatus: false
+			};
+			if (redisPredictionInstance) {
+				// Prediction already present we have to modify the current prediction
+				// by ading the current orderId in the orders array
+				redisPredictionInstance.orders.push(orderInstance);
+
+				console.log('Modified Instance', redisPredictionInstance);
+				RedisUtils.insertIntoRedis(
+					getRedisClient(),
+					'ibPredictions',
+					predictionId,
+					JSON.stringify(redisPredictionInstance)
+				)
+			} else { 
+				// Prediction id was not present before we have to create a new one
+				RedisUtils.insertIntoRedis(
+					getRedisClient(), 
+					'ibPredictions', 
+					predictionId, 
+					JSON.stringify({
+						accumulated: null,
+						orders: [orderInstance]
+					}))
+			}
+		} catch (err) {
+			return res.status(400).send(err.message);
+		}
+
+		return res.status(200).send({message: 'Order Placed Succesfully'});
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);
 	})
 }
+
+RedisUtils.getFromRedis(getRedisClient(), 'orderForPredictions', 48)
+.then(data => {
+	data = JSON.parse(data);
+	console.log('Data ', data);
+})
