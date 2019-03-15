@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-03 15:48:33
+* @Last Modified time: 2019-03-15 12:53:28
 */
 'use strict';
 const config = require('config');
@@ -29,7 +29,13 @@ var redisClient;
 
 function getRedisClient() {
 	if (!redisClient || !redisClient.connected) {
-        redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: config.get('node_redis_pass')});
+		var redisPwd = config.get('node_redis_pass');
+
+		if (redisPwd != "") {
+        	redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});
+    	} else {
+    		redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'));
+    	}
     }
 
     return redisClient; 
@@ -780,7 +786,6 @@ module.exports.getStockList = function(search, options) {
 		]);
 	})
 	.then(([exactMatch, nearMatchTicker, nearMatchName, niftyExactMatch, niftyNearMatch]) => {
-
 
 		var securitiesExactMatch = exactMatch.map(item => item.toObject().security);
 		var securitiesNearMatchTicker = nearMatchTicker.map(item => item.toObject().security);
