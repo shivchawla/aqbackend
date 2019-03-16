@@ -2,12 +2,15 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-16 15:34:11
+* @Last Modified time: 2019-03-16 15:45:45
 */
 
 const redis = require('redis');
+const config = require('config');
+
 const RedisUtils = require('../../utils/RedisUtils');
 const PredictionRealtimeController = require('./predictionControl');
+const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 
 let redisClient;
 
@@ -73,7 +76,9 @@ module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderI
         
     })
     .then(() => {
-        PredictionRealtimeController.sendAdminUpdates(advisorId, predictionId);
+    	if (advisorId && predictionId) {
+        	PredictionRealtimeController.sendAdminUpdates(advisorId, predictionId);
+    	}
     })         
 };
 

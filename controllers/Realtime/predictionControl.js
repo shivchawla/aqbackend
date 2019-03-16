@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-16 15:35:26
+* @Last Modified time: 2019-03-16 15:44:13
 */
 'use strict';
 const config = require('config');
@@ -98,14 +98,14 @@ function _sendAdminUpdatesForAdvisor(userId, advisorId) {
 	}
 }
 
-function _getPredictionDetailForAdmin(advisorId, predictionId) {
+function _getPredictionDetailForAdmin(advisorId, masterAdvisorId, predictionId) {
 	
 	return Promise.resolve()
 	.then(() => {
 		if (predictionId) {
 			return Promise.all([
 				DailyContestEntryHelper.getPredictionById(advisorId, predictionId),
-				BrokerRedisController.getPredictionStatus(advisorId, predictionId)
+				BrokerRedisController.getPredictionStatus(masterAdvisorId, predictionId)
 			])
 			.then(([priceUpdatedPrediction, status]) => {
 				return [{...prediction, current: status}];
@@ -114,7 +114,7 @@ function _getPredictionDetailForAdmin(advisorId, predictionId) {
 			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category, active: null})
 			.then(predictions => {
 				return Promise.map(predictions, function(prediction) {
-					return BrokerRedisController.getPredictionOrderStatus(advisorId, prediction._id)
+					return BrokerRedisController.getPredictionOrderStatus(masterAdvisorId, prediction._id)
 					.then(orderStatus => {
 						return {...prediction, orderStatus};
 					})
@@ -149,7 +149,8 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId, incomi
 			.then(() => {
 				if (advisorId) {
 					return Promise.all([
-						_getPredictionDetailForAdmin(advisorId, incomingPredictionId),						
+						//need to pass masterAdvisorId because Redis keys all data by masterAdvisorId
+						_getPredictionDetailForAdmin(advisorId, masterAdvisorId, incomingPredictionId),						
 						AdvisorModel.fetchAdvisor({_id: masterAdvisorId}, {fields: '_id user'})
 					])
 					.then(([predictions, masterAdvisor]) => {

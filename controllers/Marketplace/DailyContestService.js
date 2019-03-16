@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-16 15:35:02
+* @Last Modified time: 2019-03-16 15:42:41
 */
 
 'use strict';
@@ -1129,7 +1129,7 @@ module.exports.placeOrderForPrediction = function(args, res, next ) {
 	.then(prediction => {
 		if (prediction) {
 			// Placing the order in the market
-			return InteractiveBroker.placeOrder({...orderParams, predictionId, allocationAdvisorId});
+			return InteractiveBroker.placeOrder({...orderParams, predictionId, advisorId});
 			
 		} else {
 			APIError.throwJsonError({message: "Prediction not found"});
