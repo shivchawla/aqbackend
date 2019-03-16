@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-13 18:04:04
+* @Last Modified time: 2019-03-16 11:44:01
 */
 
 'use strict';
@@ -32,17 +32,6 @@ const DailyContestStatsHelper = require('../helpers/DailyContestStats');
 const SecurityHelper = require('../helpers/Security');
 const AdvisorHelper = require('../helpers/Advisor');
 const PredictionRealtimeController = require('../Realtime/predictionControl');
-const RedisUtils = require('../../utils/RedisUtils');
-
-let redisClient;
-
-function getRedisClient() {
-	if (!redisClient || !redisClient.connected) {
-        redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: config.get('node_redis_pass')});
-    }
-
-    return redisClient; 
-}
 
 function _populateWinners(winners) {
 	return Promise.map(winners, function(winner) {
@@ -1133,13 +1122,8 @@ module.exports.sendTemplateEmailToParticipants = function(args, res, next) {
     });
 };
 
-module.exports.placeOrder = function(args, res, next ) {
-	// RedisUtils.getValue(getRedisClient(), 'ib_order_11')
-	// .then(data => {
-	// 	return res.status(200).send(JSON.stringify(data));
-	// })
-	// RedisUtils.deleteKey(getRedisClient(), 'ib_order_11')
-
+module.exports.placeOrderForPrediction = function(args, res, next ) {
+	
 	const userEmail = _.get(args, 'user.email', null);
 	const admins = config.get('admin_user');
 	const isAdmin = admins.indexOf(userEmail) !== -1;
@@ -1181,77 +1165,16 @@ module.exports.placeOrder = function(args, res, next ) {
 	.then(prediction => {
 		if (prediction) {
 			// Placing the order in the market
-			// Getting the prediction instance from redis
-			return Promise.all([
-				InteractiveBroker.placeOrder(orderParams),
-				RedisUtils.getFromRedis(getRedisClient(), 'ibPredictions', predictionId),
-				// InteractiveBroker.requestExecutionDetails()
-			])
+			return InteractiveBroker.placeOrder({...orderParams, predictionId, advisorId});
+			
 		} else {
 			APIError.throwJsonError({message: "Prediction not found"});
 		}
 	})
-	.then(([orderId, redisPredictionInstance]) => {
-		console.log('Order Id to be added ', orderId);
-		console.log('Original Instance', redisPredictionInstance);
-		// Converting prediction instance to object since it's stored as string in Redis
-		redisPredictionInstance = JSON.parse(redisPredictionInstance);
-		try {
-			// Storing in the orderForPredictions dictionary in Redis
-			RedisUtils.insertIntoRedis(
-				getRedisClient(), 
-				'orderForPredictions', 
-				orderId, 
-				JSON.stringify({
-					advisorId: allocationAdvisorId,
-					predictionId, // predictionId sent from the request body
-					executionDetail: [],
-					orderedQuantity: quantity
-				})
-			);
-
-			// Storing in ibPredictions dictionary
-			const orderInstance = {
-				orderId, // Current orderId after get the next valid order id
-				activeStatus: true,
-				completeStatus: false
-			};
-			if (redisPredictionInstance) {
-				// Prediction already present we have to modify the current prediction
-				// by ading the current orderId in the orders array
-				redisPredictionInstance.orders.push(orderInstance);
-
-				console.log('Modified Instance', redisPredictionInstance);
-				RedisUtils.insertIntoRedis(
-					getRedisClient(),
-					'ibPredictions',
-					predictionId,
-					JSON.stringify(redisPredictionInstance)
-				)
-			} else { 
-				// Prediction id was not present before we have to create a new one
-				RedisUtils.insertIntoRedis(
-					getRedisClient(), 
-					'ibPredictions', 
-					predictionId, 
-					JSON.stringify({
-						accumulated: null,
-						orders: [orderInstance]
-					}))
-			}
-		} catch (err) {
-			return res.status(400).send(err.message);
-		}
-
-		return res.status(200).send({message: 'Order Placed Succesfully'});
+	.then(success => {
+		return res.status(200).send("Order placed successfully");
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);
 	})
 }
-
-RedisUtils.getFromRedis(getRedisClient(), 'orderForPredictions', 48)
-.then(data => {
-	data = JSON.parse(data);
-	console.log('Data ', data);
-})

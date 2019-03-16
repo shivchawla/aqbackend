@@ -1,3 +1,4 @@
+
 'use strict';
 const _ = require('lodash');
 const ib = require('ib');
@@ -9,6 +10,9 @@ const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEnt
 
 const ibPort = 4002;
 let redisClient;
+
+const ORDER_STATUS_SET = "orderStatusSet";
+const PREDICTION_STATUS_SET = "predictionStatusSet";
 
 function getRedisClient() {
 	if (!redisClient || !redisClient.connected) {
@@ -24,7 +28,12 @@ class InteractiveBroker {
             try {
                 this.interactiveBroker.connect()
                 .on('connected', () => {
-                    resolve(true, 'Connected');
+                    this.getNextRequestId()
+                    .then(reqId => {
+                        //Request all executions in case of (re)connection
+                        this.interactiveBroker.requestExecutionDetails();
+                        resolve(true, 'Connected');
+                    })
                 })
                 .on('disconnected', () => {
                     console.log('Disconnected');
@@ -41,7 +50,7 @@ class InteractiveBroker {
             try {
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
-                this.getNextOrderId()
+                this.getNextRequestId()
                 .then(orderId => {
                     ibInstance.reqContractDetails(orderId, ibInstance.contract.stock(stock))
                     .on('contractDetails', (orderId, contract) => {
@@ -54,13 +63,13 @@ class InteractiveBroker {
         })
     }
 
-    static requestExecutionDetails() {
+    static requestExecutionDetails(filter = {}) {
         return new Promise((resolve, reject) => {
             try {
                 const ibInstance = this.interactiveBroker;
-                this.getNextOrderId()
-                .then(orderId => {
-                    ibInstance.reqExecutions(orderId, {});
+                this.getNextRequestId()
+                .then(reqId => {
+                    ibInstance.reqExecutions(reqId, filter);
                     resolve(true);
                 })
             } catch (err) {
@@ -69,20 +78,45 @@ class InteractiveBroker {
         })
     }
 
-    static getNextOrderId() {
+    static getNextRequestId(count = 1) {
         return new Promise((resolve, reject) => {
             try {
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
-                ibInstance.reqIds(-1)
-                .on('nextValidId', orderId => {
-                    resolve(orderId);
+                Promise.map(Array(count), function(_z) {
+                    ibInstance.reqIds(-1)
+                    .on('nextValidId', orderId => {
+                        return orderId;
+                    })
+                })
+                .then(reqIds => {
+                    return count == 1 ? reqIds[0] : reqIds; 
                 })
             }
             catch(err) {
                 reject(err);
             }
         })
+    }
+
+
+    static getCurrentTime() {
+        return new Promise((resolve, reject) => {
+            try {
+                // Getting the interactive broker instance
+                const ibInstance = this.interactiveBroker;
+                
+                ibInstance.reqCurrentTime()
+                .on('currentTime', time => {
+                    resolve(time); //Long value (milliseconds since epox)
+                })
+                
+            }
+            catch(err) {
+                reject(err);
+            }
+
+        });
     }
 
     /**
@@ -117,7 +151,9 @@ class InteractiveBroker {
             price = 0, 
             orderType = 'bracket',
             stopLossPrice = 0,
-            profitLimitPrice = 0
+            profitLimitPrice = 0,
+            predictionId = null,
+            advisorId = null,
     }) {
         const self = this;
 
@@ -127,42 +163,42 @@ class InteractiveBroker {
                 // for brackets use this https://interactivebrokers.github.io/tws-api/bracket_order.html
                 // Getting the interactive broker instance
                 const ibInstance = self.interactiveBroker;
-                this.getNextOrderId() /////#### WHAT IF MULTIPLE BRACKET ORDERS ARE PLACED SIMULATANEOUSLY
-                .then(orderId => {
+                let currentTime;
+
+                return Promise.all([
+                    this.getNextRequestId(orderType === 'bracket' ? 3 : 1),
+                    this.getCurrentTime()
+                ]) 
+                .then(([orderId, time]) => { //Array or value
+                    
+                    currentTime = moment.unix(time).format('YYYYMMDD HH:mm:ss')
+
                     console.log('Next Order Id', orderId);
                     // creating IB stock from the stock param passed
                     const ibStock = ibInstance.contract.stock(stock);
 
                     if (orderType === 'bracket') {
-                        const bracketOrderConfig = self.bracketOrder(orderId, type, quantity, price, profitLimitPrice, stopLossPrice);
-                        ibInstance.placeOrder(orderId, ibStock, bracketOrderConfig.parentOrder);
-                        ibInstance.placeOrder(orderId + 1, ibStock, bracketOrderConfig.profitOrder);
-                        ibInstance.placeOrder(orderId + 2, ibStock, bracketOrderConfig.stopLossOrder);
+                        const bracketOrderConfig = self.bracketOrder(orderId[0], type, quantity, price, profitLimitPrice, stopLossPrice);
+                        ibInstance.placeOrder(orderId[0], ibStock, bracketOrderConfig.parentOrder);
+                        ibInstance.placeOrder(orderId[1], ibStock, bracketOrderConfig.profitOrder);
+                        ibInstance.placeOrder(orderId[2], ibStock, bracketOrderConfig.stopLossOrder);
                         
-                        // Resolving all the orderId that are being used to place the orders
-                        resolve([orderId, orderId + 1, orderId + 2]);
                     } 
                     
                     else if (orderType === 'limit') {
                         const limitOrderConfig = ibInstance.order.limit(type, quantity, price);
                         ibInstance.placeOrder(orderId, ibStock, limitOrderConfig);
-
-                        resolve(orderId);
                     } 
                     
                     else if (orderType === 'market') {
                         console.log('Creating Market Order');
                         const marketOrderConfig = ibInstance.order.market(type, quantity);
                         ibInstance.placeOrder(orderId, ibStock, marketOrderConfig);
-
-                        resolve(orderId);
                     }
 
                     else if (orderType === 'stopLimit') {
                         const stopLimitOrderConfig = ibInstance.order.stopLimit(type, quantity, price);
                         ibInstance.placeOrder(orderId, ibStock, stopLimitOrderConfig);
-
-                        resolve(orderId);
                     }
 
                     else if (orderType === 'marketClose') {
@@ -173,9 +209,70 @@ class InteractiveBroker {
                     else {
                         reject('Invalid orderType')
                     }
+
+                    //To make sure that execution detail events are called, force request execution details for the placed orders
+                    this.requestExecutionDetails({symbol: stock, time: currentTime})
+                    
+                    //resolve the orderIds for downstream processing
+                    resolve(Array.isArray(orderId) ? orderId : [orderId])
                 });
             } catch (err) {
                 reject(err);
+            }
+        })
+        .then(orderIds => {
+            //Update redis if order was accompanied with prdictionId/advisorId values
+            if (advisorId && predictionId) {
+
+                let predictionStatusKey = `${predictionId}_${advisorId}`;
+                return RedisUtils.getFromRedis(getRedisClient(), PREDICTION_STATUS_SET, predictionStatusKey)
+                .then(redisPredictionInstance => {
+
+                    let predictionInstance = redisPredictionInstance ? JSON.parse(redisPredictionInstance) : null;
+                    
+                    return Promise.all([
+                        //P1
+                        Promise.map(orderIds, function(orderId) {
+                            const orderInstance = {
+                                orderId, // Current orderId after get the next valid order id
+                                activeStatus: true,
+                                completeStatus: false,
+                                brokerStatus: 'PendingSubmit'
+                            };
+
+                            if (predictionInstance) {
+                                predictionInstance.orders.push(orderInstance);
+                            } else {
+                                predictionInstance = {accumulated: 0, orders: [orderInstance]};
+                            }
+                        })
+                        .then(() => {
+                            RedisUtils.insertIntoRedis(
+                                getRedisClient(), 
+                                PREDICTION_STATUS_SET, 
+                                predictionStatusKey,
+                                predictionInstance
+                            ) 
+                        }),
+
+                        //P2
+                        Promise.map(orderIds, function(orderId) {
+                            // Storing in the orderForPredictions dictionary in Redis
+                            RedisUtils.insertIntoRedis(
+                                getRedisClient(), 
+                                ORDER_STATUS_SET, 
+                                orderId, 
+                                JSON.stringify({
+                                    advisorId,
+                                    predictionId, 
+                                    executionDetail: [],
+                                    orderedQuantity: quantity
+                                })
+                            );
+                        })
+                    ]);
+                    
+                })
             }
         })
     }
@@ -198,10 +295,8 @@ class InteractiveBroker {
             try {
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
-                ibInstance.reqAllOpenOrders()
-                .on('openOrder', (orderId, contract, order, orderState) => {
-                    resolve({orderId, contract, order, orderState});
-                })
+                ibInstance.reqAllOpenOrders();
+                resolve();
             } catch(err) {
                 reject(err);
             }
@@ -211,94 +306,64 @@ class InteractiveBroker {
 
 /**
  * Initializing interactive broker instance to the required config,
- * basic handling of erros and result
+ * basic handling of errors and result
  */
 InteractiveBroker.interactiveBroker = new ib({
     clientId: 1,
     host: '127.0.0.1',
     port: ibPort
 })
-.on('error', err => {
-    console.error(err);
-})
-.on('connected', () => {
-    console.log('Interactive Broker Connected');
-})
-.on('result', (event, args) => {
-});
 
-module.exports = InteractiveBroker;
-
+//Connest to IB server
 InteractiveBroker.connect();
+
 
 /**
  * Handling event 'orderStatus' when send from the IB gateway or IB TWS
  */
 InteractiveBroker.interactiveBroker.on('orderStatus', (orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld) => {
-    // console.log('Event - orderStatus', orderId, 'Filled', filled);
+    console.log('Event - orderStatus', status);
     let predictionId = null;
     let advisorId = null;
-    /**
-     * id: orderId
-     * we will store a map in redis, something like this
-     * {orderId: {advisorId, predictionId}}
-     * Using the orderId we will be able to get the required advisorId and predictionId, which we
-     * will store in the 2 variables below accordingly
-     */
-    // Promise.resolve()
-    // .then(() => RedisUtils.getFromRedis(getRedisClient(), 'orderPredictions', `ib_order_${orderId}`))
-	// .then(orderData => {
-    //     orderData = JSON.parse(orderData);
-    //     advisorId = _.get(orderData, 'advisorId', null);
-    //     predictionId = _.get(orderData, 'predictionId', null);
-    // })
-    // .then(() => DailyContestEntryModel.fetchPredictionById({advisor: advisorId}, predictionId))
-    // .then(prediction => {
-    //     console.log('Prediction', prediction);
-        // Obtaining positions that are remaining in the prediction obtained from the db
-        // const remainingPositions = _.get(prediction, 'trade.remaining', null);
-        // const accumulated = _.get(prediction, 'accumulated', null);
-        // const tradeActivityItem = {
-        //     category: 'ORDER_MODS', 
-        //     date: new Date(), 
-        //     tradeType,
-        //     tradeDirection,
-        //     automated: false,
-        //     notes: '',
-        //     brokerMessage: {
-        //         status, filled, remaining, avgFillPrice, permId,
-        //         parentId, lastFillPrice, clientId, whyHeld
-        //     }
-        // };
 
-        // /**
-        //  * If positions remaining is not 0 and if the remaining received is not same as 
-        //  * the old one received
-        //  */
-        // if (remaining !== 0 && remainingPositions !== remaining) {
-        //     if (accumulated === null) {
-        //         accumulated = filled;
-        //     } else {
-        //         accumulated += filled;
-        //     }
-        // }
-        // prediction.trade = {
-        //     ...prediction.trade,
-        //     remaining: remaining,
-        //     accumulated
-        // };
-        // prediction.tradeActivity.push(tradeActivityItem);
+    return RedisUtils.getFromRedis(getRedisClient(), ORDER_STATUS_SET, orderId)
+    .then(redisOrderInstance => {
+        if (!redisOrderInstance) {
+            console.log("No prediction info found for order")
+            return;
+        }
 
-        // return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
-    // })
-    // return;
-    // .then(prediction => {
-    //     if (prediction !== null) {
-    //         console.log('Prediction Updated', prediction);
-    //     } else {
-    //         console.log('Prediction Ended');
-    //     }
-    // })
+        var orderInstance = JSON.parse(redisOrderInstance);
+        
+        predictionId = _.get(orderInstance, 'predictionId', null);
+        advisorId = _.get(orderInstance, 'advisorId', null);
+
+        let predictionStatusKey = `${advisorId}_${predictionId}`;
+
+        if (predictionId && advisorId) {
+            return RedisUtils.getFromRedis(getRedisClient(), PREDICTION_STATUS_SET, predictionStatusKey)
+            .then(redisPredictionInstance => {
+                if (redisPredictionInstance) {
+                    var predictionInstance = JSON.parse(redisPredictionInstance);
+
+                    const predictionOrders = _.get(predictionInstance, 'orders', []);
+                    const orderIdx = _.findIndex(predictionOrders, orderItem => orderItem.orderId === orderId);
+
+                    if (orderIdx != -1) {
+                        predictionInstance.orders[orderIdx].brokerStatus = status;
+
+                        //Update the broker status on order status message;
+                        return RedisUtils.insertIntoRedis(
+                            getRedisClient(), 
+                            PREDICTION_STATUS_SET,
+                            predictionStatusKey, 
+                            JSON.stringify(predictionInstance)
+                        );
+                    }
+                }
+            })
+        }
+    })
 });
 
 /**
@@ -371,7 +436,7 @@ InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, exec
     console.log('execution Id', executionId);
 
     Promise.resolve()
-    .then(() => RedisUtils.getFromRedis(getRedisClient(), 'orderToPredictionSet', orderId))
+    .then(() => RedisUtils.getFromRedis(getRedisClient(), ORDER_STATUS_SET, orderId))
     .then(redisOrderInstance => {
         if (!redisOrderInstance) {
             console.log("No prediction info found for order")
@@ -383,6 +448,8 @@ InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, exec
         
         predictionId = _.get(orderInstance, 'predictionId', null);
         advisorId = _.get(orderInstance, 'advisorId', null);
+
+        let predictionStatusKey = `${advisorId}_${predictionId}`;
         
         var orderedQuantity = _.get(orderInstance, 'orderedQuantity', 0)
 
@@ -408,7 +475,7 @@ InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, exec
             
                     return RedisUtils.insertIntoRedis(
                                 getRedisClient(), 
-                                'orderToPredictionSet', 
+                                ORDER_STATUS_SET,
                                 orderId, 
                                 JSON.stringify(orderInstance)
                             )
@@ -417,7 +484,7 @@ InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, exec
                 }
             })
             .then(executionDetailUpdated => {
-                return RedisUtils.getFromRedis(getRedisClient(), 'predictionDetailSet', `${predictionId}_${advisorId}`);
+                return RedisUtils.getFromRedis(getRedisClient(), PREDICTION_STATUS_SET, predictionStatusKey);
             })
 
         } else {
@@ -447,8 +514,8 @@ InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, exec
 
             return RedisUtils.insertIntoRedis(
                         getRedisClient(), 
-                        'predictionDetailSet', 
-                        `${predictionId}_${advisorId}`, 
+                        PREDICTION_STATUS_SET,
+                        predictionStatusKey, 
                         JSON.stringify(predictionInstance)
                     )
 
@@ -464,3 +531,5 @@ InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, exec
         }
     });
 });
+
+module.exports = InteractiveBroker;
