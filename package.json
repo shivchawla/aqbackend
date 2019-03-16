@@ -24,6 +24,7 @@
     "express-ws": "^2.0.0",
     "fast-csv": "^2.4.1",
     "google-auth-library": "^1.6.1",
+    "ib": "^0.2.7",
     "jade": "^1.11.0",
     "js-yaml": "^3.3.0",
     "jsonwebtoken": "^7.1.7",

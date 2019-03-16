@@ -127,7 +127,7 @@ class InteractiveBroker {
                 // for brackets use this https://interactivebrokers.github.io/tws-api/bracket_order.html
                 // Getting the interactive broker instance
                 const ibInstance = self.interactiveBroker;
-                this.getNextOrderId()
+                this.getNextOrderId() /////#### WHAT IF MULTIPLE BRACKET ORDERS ARE PLACED SIMULATANEOUSLY
                 .then(orderId => {
                     console.log('Next Order Id', orderId);
                     // creating IB stock from the stock param passed
@@ -354,39 +354,71 @@ InteractiveBroker.interactiveBroker.on('openOrder', (orderId, contract, order, o
 /**
  * Handling event 'execDetails' when send from the IB gateway or IB TWS
  */
-InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, order, orderState) => {
-    const orderId = _.get(order, 'orderId', null);
-    const executionId = _.get(order, 'execId', null);
-    const cumulativeQuantity = _.get(order, 'cumQty', -1);
-    let executionDetailArray = [];
-    // let us assume the ordered quantity is 100, this should also be obtained from the redis kvp
-    let orderedQuantity = 0;
+InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, execution, orderState) => {
+    const orderId = _.get(execution, 'orderId', null);
+    const executionId = _.get(execution, 'execId', null);
+    const cumulativeQuantity = _.get(execution, 'cumQty', 0);
+    const direction = _.get(execution, "side", "BOT") == "BOT" ? 1 : -1
+    const fillQuantity = _.get(execution, 'shares', 0) * direction;
 
-    let orderInstance = null;
-    let orderPredictionId = null;
-    let orderAdvisorId = null;
+    let predictionId = null;
+    let advisorId = null;
+
+    let executionCompleted = false
 
     console.log('Event - execDetails');
     console.log('Order Id', orderId);
     console.log('execution Id', executionId);
 
     Promise.resolve()
-    .then(() => RedisUtils.getFromRedis(getRedisClient(), 'orderForPredictions', orderId))
+    .then(() => RedisUtils.getFromRedis(getRedisClient(), 'orderToPredictionSet', orderId))
     .then(redisOrderInstance => {
+        if (!redisOrderInstance) {
+            console.log("No prediction info found for order")
+            return;
+        }
+
         console.log('------------Required Order Instance--------------', redisOrderInstance);
-        redisOrderInstance = JSON.parse(redisOrderInstance);
-        orderInstance = redisOrderInstance;
-        orderPredictionId = _.get(redisOrderInstance, 'predictionId', null);
-        orderAdvisorId = _.get(redisOrderInstance, 'advisorId', null);
-        orderedQuantity = _.get(redisOrderInstance, 'orderedQuantity', 0)
+        var orderInstance = JSON.parse(redisOrderInstance);
+        
+        predictionId = _.get(orderInstance, 'predictionId', null);
+        advisorId = _.get(orderInstance, 'advisorId', null);
+        
+        var orderedQuantity = _.get(orderInstance, 'orderedQuantity', 0)
+
+        //Update "is execution is COMPLETE" flag
+        executionCompleted = orderedQuantity == cumulativeQuantity
 
         // execution detail for the particular order instance
         // we check if the execution id already exists in the execution detail array
-        executionDetailArray = _.get(redisOrderInstance, 'executionDetail', []);
+        var executionDetailArray = _.get(orderInstance, 'executionDetail', []);
         const isExecutionIdPresent = _.findIndex(executionDetailArray, executionDetailItem => executionDetailItem.executionId === executionId) > -1;
 
         if (!isExecutionIdPresent) {
-            return RedisUtils.getFromRedis(getRedisClient(), 'ibPredictions', orderPredictionId);
+            executionDetailArray.push({
+                executionId, 
+                ...order
+            });
+            
+            orderInstance.executionDetail = executionDetailArray;
+            return Promise.resolve()
+            .then(() => {
+                //Save to redis if execution is incomplete otherwise to DB
+                if (!executionCompleted) {
+            
+                    return RedisUtils.insertIntoRedis(
+                                getRedisClient(), 
+                                'orderToPredictionSet', 
+                                orderId, 
+                                JSON.stringify(orderInstance)
+                            )
+                } else {
+                    //SAVE to DB
+                }
+            })
+            .then(executionDetailUpdated => {
+                return RedisUtils.getFromRedis(getRedisClient(), 'predictionDetailSet', `${predictionId}_${advisorId}`);
+            })
 
         } else {
             return null;
@@ -394,49 +426,32 @@ InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, orde
     })
     .then(redisPredictionInstance => {
         if (redisPredictionInstance !== null) {
-            redisPredictionInstance = JSON.parse(redisPredictionInstance);
-            const predictionOrders = _.get(redisPredictionInstance, 'orders', []);
+            var predictionInstance = JSON.parse(redisPredictionInstance);
+            const predictionOrders = _.get(predictionInstance, 'orders', []);
             const orderIndex = _.findIndex(predictionOrders, orderItem => orderItem.orderId === orderId);
 
-            if (cumulativeQuantity === orderedQuantity) {
-                // execution finished 
-                // execution detail should be saved in the database
+            const accumulatedQuantity = _.get(predictionInstance, 'accumulated', 0);
+            //Update the accumulated quantity
+            predictionInstance.accumulated = accumulatedQuantity + fillQuantity
 
-                // updating order for required prediction
-                if (orderIndex > -1) {
-                    predictionOrders[orderIndex] = {
-                        ...predictionOrders[orderIndex],
-                        activeStatus: false,
-                        completeStatus: true
-                    };
-                }
-                
-                // deleting order from orderForPredictions dictionary
-                return RedisUtils.deleteFromRedis(getRedisClient(), 'orderForPredictions', orderId);
+            //Updating the ative/complete status for required prediction
+            if (executionCompleted && orderIndex > -1) {
+                predictionOrders[orderIndex] = {
+                    ...predictionOrders[orderIndex],
+                    activeStatus: false,
+                    completeStatus: true
+                };
 
-            } else {
-                // execution not completed yet
-                redisPredictionInstance.accumulated = cumulativeQuantity;
-                executionDetailArray.push({
-                    executionId, 
-                    ...order
-                });
-                orderInstance.executionDetail = executionDetailArray;
-                return Promise.all([
-                    RedisUtils.insertIntoRedis(
-                        getRedisClient(), 
-                        'orderForPredictions', 
-                        orderId, 
-                        JSON.stringify(orderInstance)
-                    )
-                    ,RedisUtils.insertIntoRedis(
-                        getRedisClient(), 
-                        'ibPredictions', 
-                        orderPredictionId, 
-                        JSON.stringify(redisPredictionInstance)
-                    )
-                ])
+                predictionInstance.orders = predictionOrders;
             }
+
+            return RedisUtils.insertIntoRedis(
+                        getRedisClient(), 
+                        'predictionDetailSet', 
+                        `${predictionId}_${advisorId}`, 
+                        JSON.stringify(predictionInstance)
+                    )
+
         } else {
             return null;
         }
