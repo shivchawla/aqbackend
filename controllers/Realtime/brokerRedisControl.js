@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-16 15:45:45
+* @Last Modified time: 2019-03-16 17:06:09
 */
 
 const redis = require('redis');
@@ -47,6 +47,7 @@ module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderI
                 } else {
                     predictionInstance = {accumulated: 0, orders: [orderInstance]};
                 }
+
             })
             .then(() => {
                 RedisUtils.insertIntoRedis(
@@ -67,7 +68,7 @@ module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderI
                     JSON.stringify({
                         advisorId,
                         predictionId, 
-                        executionDetail: [],
+                        tradeActivity: [],
                         orderedQuantity: quantity
                     })
                 );
@@ -134,13 +135,22 @@ module.exports.updateOrderStatus = function(orderId, status) {
 module.exports.updateOrderExecution = function(orderId, execution) {
 	let predictionId = null;
     let advisorId = null;
-    let executionCompleted = false
+    let executionCompleted = false;
 
     const executionId = _.get(execution, 'execId', null);
     const cumulativeQuantity = _.get(execution, 'cumQty', 0);
     const direction = _.get(execution, "side", "BOT") == "BOT" ? 1 : -1
     const fillQuantity = _.get(execution, 'shares', 0) * direction;
+    const avgPrice = _.get(execution, 'avgFillPrice', 0.0);
 
+    const tradeActivity = {
+        date: new Date(), 
+        direction: direction == 1 ? "BUY" : "SELL",
+        quantity: fillQuantity,
+        price: avgPrice,
+        automated: true
+    };
+            
     RedisUtils.getFromRedis(getRedisClient(), ORDER_STATUS_SET, orderId)
     .then(redisOrderInstance => {
         if (!redisOrderInstance) {
@@ -161,36 +171,37 @@ module.exports.updateOrderExecution = function(orderId, execution) {
         //Update "is execution is COMPLETE" flag
         executionCompleted = orderedQuantity == cumulativeQuantity
 
-        // execution detail for the particular order instance
-        // we check if the execution id already exists in the execution detail array
-        var executionDetailArray = _.get(orderInstance, 'executionDetail', []);
-        const isExecutionIdPresent = _.findIndex(executionDetailArray, executionDetailItem => executionDetailItem.execId === executionId) > -1;
+        // tradeActivity for the particular order instance
+        // we check if the execution id already exists in the trade Activity Array
+        var tradeActivityArray = _.get(orderInstance, 'tradeActivity', []);
+        const isExecutionIdPresent = _.findIndex(tradeActivityArray, tradeActivityItem => tradeActivityItem.brokerMessage.execId === executionId) > -1;
 
         if (!isExecutionIdPresent) {
-            executionDetailArray.push(execution);
-            orderInstance.executionDetail = executionDetailArray;
+        	tradeActivity = {...tradeActivity, brokerMessage: execution};
+            tradeActivityArray.push(tradeActivity);
+            orderInstance.tradeActivity = tradeActivityArray
 
-            return Promise.resolve()
-            .then(() => {
-                //Save to redis if execution is incomplete otherwise to DB
-                if (!executionCompleted) {
-            
-                    return RedisUtils.insertIntoRedis(
-                        getRedisClient(), 
-                        ORDER_STATUS_SET,
-                        orderId, 
-                        JSON.stringify(orderInstance)
-                    );
+            Promise.all([
+            	//P1 (Save trade Activity to DB)
+            	DailyContestEntryModel.addTradeActivityForPrediction({advisor: advisorId}, predictionId, tradeActivity),
+            	
+            	//P2
+            	Promise.resolve()
+            	.then(() => {
+	                if (!executionCompleted) {
+	                    return RedisUtils.insertIntoRedis(
+	                        getRedisClient(), 
+	                        ORDER_STATUS_SET,
+	                        orderId, 
+	                        JSON.stringify(orderInstance)
+	                    );
 
-                } else {
-                	//Add complete execution details for the order to the DB and delete from Redis
-                    DailyContestEntryModel.addExecutionDetailToPrediction({advisor: advisorId}, predictionId, executionDetail)
-                    .then(added => {
+	                } else {
                     	RedisUtils.deleteFromRedis(getRedisClient(), ORDER_STATUS_SET, orderId);
-                    })
-                }
-            })
-            .then(executionDetailUpdated => {
+	                }
+	            })
+            ])
+            .then(() => {
                 return RedisUtils.getFromRedis(getRedisClient(), PREDICTION_STATUS_SET, predictionStatusKey);
             })
 
@@ -249,6 +260,7 @@ module.exports.getPredictionStatus = function(advisorId, predictionId) {
         }
     })
 };
+
 
 
 

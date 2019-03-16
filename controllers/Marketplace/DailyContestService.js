@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-16 15:42:41
+* @Last Modified time: 2019-03-16 16:54:15
 */
 
 'use strict';
@@ -595,24 +595,12 @@ module.exports.addPredictionTradeActivity = (args, res, next) => {
 		.then(masterAdvisor => {
 			if (masterAdvisor && _.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
 				allocationAdvisorId = masterAdvisor.allocation.advisor;
-				return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
+				return DailyContestEntryModel.addTradeActivityForPrediction({advisor: allocationAdvisorId}, predictionId, tradeActivity);
 			} else {
 				APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
 			}
 		})
 		
-	})
-	.then(prediction => {
-		if (prediction) {
-			if (prediction.tradeActivity) {
-				prediction.tradeActivity = prediction.tradeActivity.concat(tradeActivity);
-			} else {
-				prediction.tradeActivity = [tradeActivity];
-			}
-			return DailyContestEntryModel.updatePrediction({advisor: allocationAdvisorId}, prediction);	
-		} else {
-			APIError.throwJsonError({message: "Prediction not found"});
-		}
 	})
 	.then(updated => {
 		return res.status(200).send("Trade activity added successfully");
@@ -647,25 +635,15 @@ module.exports.updateReadStatusPrediction = (args, res, next) => {
 		.then(masterAdvisor => {
 			if (masterAdvisor && _.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
 				allocationAdvisorId = masterAdvisor.allocation.advisor;
-				return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
+				return DailyContestEntryModel.updateReadStatus({advisor: allocationAdvisorId}, predictionId, readStatus);
 			} else {
 				APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
 			}
 		})
 		
 	})
-	.then(prediction => {
-		if (prediction) {
-			
-			prediction.readStatus = readStatus;
-
-			return DailyContestEntryModel.updatePrediction({advisor: allocationAdvisorId}, prediction);	
-		} else {
-			APIError.throwJsonError({message: "Prediction not found"});
-		}
-	})
 	.then(updated => {
-		return res.status(200).send("Trade activity added successfully");
+		return res.status(200).send("Read status updated successfully");
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);		

@@ -3923,33 +3923,6 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
-  /dailycontest/trade:
-    post:
-      tags:
-      - dailycontest
-      summary: Place a trade in prediction
-      description: Place a trade for prediction
-      operationId: placeTradeForPrediction
-      security: 
-      - api_key: []
-      parameters:
-      - name: "aimsquant-token"
-        in: "header"
-        description: "auth token"
-        type: "string"
-        required: true
-      - name: body
-        in: body
-        description: trade activity body
-        required: true
-        schema:
-          $ref: "#/definitions/PredictionTrade"
-      responses:
-        200:
-          description: OK
-        400:
-          description: 'Invalid Input'
-      x-swagger-router-controller: "DailyContest"
 
   /dailycontest/placeorder:
     post:
@@ -3957,7 +3930,7 @@ paths:
       - dailycontest
       summary: Place a trade in prediction
       description: Place a trade for prediction
-      operationId: placeOrder
+      operationId: placeOrderForPrediction
       security: 
       - api_key: []
       parameters:
@@ -5282,63 +5255,28 @@ definitions:
     type: object
     required:
       - date
-      - category
-      - tradeDirection
-      - tradeType
+      - direction
+      - quantity
+      - price
     properties:
       date:
         type: string
         format: date
-      category:
-        type: string
-        enum: ["TRADE", "ORDER"]
-      tradeDirection:
+      direction:
         type: string
         default: "BUY"
         enum: ["BUY", "SELL"]
-      tradeType:
-        type: string
-        enum: ["OPEN", "CLOSE", "EXTEND", "REDUCE"]
-      brokerMessage:
+      quantity:
+        type: number
+      price:
+        type: number
+      brokermessage:
         type: object
       automated:
         type: boolean
         default: false
       notes:
         type: string
-
-
-  PredictionTrade:
-    type: object
-    required:
-      - predictionId
-      - advisorId
-      - trade
-    properties:
-      predictionId:
-        type: string
-        format: uuid
-      advisorId: 
-        type: string
-        format: uuid
-      trade:
-        type: object
-        $ref: '#/definitions/Trade'
-
-  Trade:
-    type: object
-    required:
-      - ticker
-      - quantity
-      - direction 
-    properties:
-      ticker:
-        type: string
-      quantity:
-        type: number
-      direction: 
-        type: string
-        enum: ["BUY", "SELL"]
 
 
   ReadStatus:

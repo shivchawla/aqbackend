@@ -2,11 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-<<<<<<< HEAD
-* @Last Modified time: 2019-03-16 14:57:18
-=======
-* @Last Modified time: 2019-03-12 21:00:59
->>>>>>> release
+* @Last Modified time: 2019-03-16 17:07:17
 */
 
 
@@ -49,9 +45,9 @@ const Prize = new Schema({
 
 const TradeActivity = new Schema({
 	date: Date,
-	category: String,
-	tradeType: String,
-	tradeDirection: String,
+	direction: String,
+	quantty: Number,
+	price: Number,
 	automated: Boolean,
 	brokerMessage: Schema.Types.Mixed,
 	notes: String		
@@ -142,8 +138,6 @@ const Prediction = new Schema({
 	},
 
 	adminModifications: [Schema.Types.Mixed],
-
-	executionDetail: [Schema.Types.Mixed],
 });
 
 const DailyContestEntry = new Schema({  
@@ -403,7 +397,6 @@ DailyContestEntry.statics.updatePredictionCallPrice = function(query, prediction
 	return this.updateOne({...query, ...q}, updates);	
 };
 
-
 //THIS IS IN USE
 DailyContestEntry.statics.updatePrediction = function(query, updatedPrediction) {
 	var q = {predictions:{$elemMatch:{'position.security.ticker': updatedPrediction.position.security.ticker, 
@@ -421,9 +414,13 @@ DailyContestEntry.statics.updatePrediction = function(query, updatedPrediction) 
 	
 };
 
+DailyContestEntry.statics.updateReadStatus = function(query, predictionId, readStatus) {
+	var updates = {$set: {'predictions.$.readStatus': readStatus}};
+	return this.updateOne({...query, predictions:{$elemMatch: {_id: predictionId}}}, updates);
+};
 
-DailyContestEntry.statics.addExecutionDetailToPrediction = function(query, predictionId, executionDetailArray) {
-	var updates = {$addToSet: {'predictions.$.executionDetail':{$each: executionDetailArray}}};
+DailyContestEntry.statics.addTradeActivityForPrediction = function(query, predictionId, tradeActivity) {
+	var updates = {$addToSet: {'predictions.$.tradeActivity': tradeActivity}};
 	return this.updateOne({...query, predictions:{$elemMatch: {_id: predictionId}}}, updates);
 };
 
