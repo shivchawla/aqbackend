@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-15 23:13:34
+* @Last Modified time: 2019-03-16 21:00:28
 */
 'use strict';
 const config = require('config');
@@ -163,51 +163,55 @@ function _computeStockIntradayHistory(security, date) {
     });
 }
 
-function _getRealtimeQuotesFromEODH(allTickers) {
+module.exports.getNifty500Constituents = function() {
+	const fname = path.resolve(path.join(__dirname, `../../documents/universe/ind_nifty500list.csv`));
+	return _getRawStockList(fname);
+}
+
+//Functions to update in redis the latest quote date for multiple tickers from EODH
+module.exports.updateRealtimeQuotesFromEODH = function(allTickers) {
+	var activeTradingDate = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0));
+
 	if (allTickers.length > 0) {
 		var ticker = `${allTickers[0]}.NSE`;
 		var otherTickers = allTickers.slice(1).map(item => `${item}.NSE`);
 
 		const realtimeQuoteUrl = eval('`'+config.get('realtime_EODH_quote_url') +'`');
 
-		console.log()
 		return axios.get(realtimeQuoteUrl)
 		.then(response => {
 			if (response && response.data) {
-				return _saveRealtimeQuotesFromEODH(response.data);;
+				return response.data;
 			}
 		})
+		.then(quotesData => {
+			if (quotesData) {
+				quotesData = Array.isArray(quotesData) ? quotesData : [quotesData];
 
+				return Promise.map(quotesData, function(quoteData) { 
+
+					var ticker = quoteData.code.split('.')[0];
+					var key = `RtData_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${ticker}`;
+					
+					var updatedQuote = { 
+						//Using this NSE format (end of minute wit ms = 0)
+						date: moment.unix(quoteData.timestamp).utc().subtract(1, 'minute').endOf('minute').format("YYYY-MM-DDTHH:mm:ss.000[Z]"),
+						intOpen: quoteData.open,
+						intHigh: quoteData.high,
+						intLow: quoteData.low,
+						intClose: quoteData.close,
+						intVolume: quoteData.volume,
+						change: quoteData.change,
+						pClose: quoteData.previousClose
+					};
+
+					return RedisUtils.addSetDataToRedis(getRedisClient(), key, JSON.stringify(updatedQuote))
+				});
+			}
+		})
 	}
 }
 
-//This function can be a part of seprate node process
-function _saveRealtimeQuotesFromEODH(quotesData) {
-	var activeTradingDate = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0));
-	
-	quotesData = Array.isArray(quotesData) ? quotesData : [quotesData];
-
-	return Promise.map(quotesData, function(quoteData) { 
-
-		var ticker = quoteData.code.split('.')[0];
-		var key = `RtData_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${ticker}`;
-		
-		var updatedQuote = { 
-			//Using this NSE format (end of minute wit ms = 0)
-			date: moment.unix(quoteData.timestamp).utc().subtract(1, 'minute').endOf('minute').format("YYYY-MM-DDTHH:mm:ss.000[Z]"),
-			intOpen: quoteData.open,
-			intHigh: quoteData.high,
-			intLow: quoteData.low,
-			intClose: quoteData.close,
-			intVolume: quoteData.volume,
-			change: quoteData.change,
-			pClose: quoteData.previousClose
-		};
-
-		return RedisUtils.addSetDataToRedis(getRedisClient(), key, JSON.stringify(updatedQuote))
-	});
-		
-}
 
 function _computeStockRealtimeHistoricalDetail(security, minute) {
 	return new Promise((resolve, reject) => {
