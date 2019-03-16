@@ -7,6 +7,8 @@
 
 const redis = require('redis');
 const config = require('config');
+const _ = require('lodash');
+const Promise = require('bluebird');
 
 const RedisUtils = require('../../utils/RedisUtils');
 const PredictionRealtimeController = require('./predictionControl');
@@ -25,11 +27,10 @@ function getRedisClient() {
     return redisClient; 
 }
 
-module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderIds) {
-	let predictionStatusKey = `${predictionId}_${advisorId}`;
+module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderIds, quantity) {
+	let predictionStatusKey = `${advisorId}_${predictionId}`;
     return RedisUtils.getFromRedis(getRedisClient(), PREDICTION_STATUS_SET, predictionStatusKey)
     .then(redisPredictionInstance => {
-
         let predictionInstance = redisPredictionInstance ? JSON.parse(redisPredictionInstance) : null;
         
         return Promise.all([
@@ -50,18 +51,18 @@ module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderI
 
             })
             .then(() => {
-                RedisUtils.insertIntoRedis(
+                return RedisUtils.insertIntoRedis(
                     getRedisClient(), 
                     PREDICTION_STATUS_SET, 
                     predictionStatusKey,
-                    predictionInstance
+                    JSON.stringify(predictionInstance)
                 ) 
             }),
 
             //P2
             Promise.map(orderIds, function(orderId) {
                 // Storing in the orderForPredictions dictionary in Redis
-                RedisUtils.insertIntoRedis(
+                return RedisUtils.insertIntoRedis(
                     getRedisClient(), 
                     ORDER_STATUS_SET, 
                     orderId, 
@@ -80,7 +81,7 @@ module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderI
     	if (advisorId && predictionId) {
         	PredictionRealtimeController.sendAdminUpdates(advisorId, predictionId);
     	}
-    })         
+    })    
 };
 
 module.exports.updateOrderStatus = function(orderId, status) {
@@ -93,7 +94,6 @@ module.exports.updateOrderStatus = function(orderId, status) {
             console.log("No prediction info found for order")
             return;
         }
-
         var orderInstance = JSON.parse(redisOrderInstance);
         
         predictionId = _.get(orderInstance, 'predictionId', null);
@@ -133,6 +133,7 @@ module.exports.updateOrderStatus = function(orderId, status) {
 };
 
 module.exports.updateOrderExecution = function(orderId, execution) {
+    console.log('Execution ', execution);
 	let predictionId = null;
     let advisorId = null;
     let executionCompleted = false;
@@ -210,7 +211,7 @@ module.exports.updateOrderExecution = function(orderId, execution) {
         }
     })
     .then(redisPredictionInstance => {
-        if (redisPredictionInstance !== null) {
+        if (redisPredictionInstance) {
             var predictionInstance = JSON.parse(redisPredictionInstance);
             const predictionOrders = _.get(predictionInstance, 'orders', []);
             const orderIndex = _.findIndex(predictionOrders, orderItem => orderItem.orderId === orderId);
@@ -249,11 +250,15 @@ module.exports.updateOrderExecution = function(orderId, execution) {
 };
 
 module.exports.getPredictionStatus = function(advisorId, predictionId) {
+    console.log("AdvisoId", advisorId);
+    console.log("Prediciton", predictionId);
+    
 	let predictionStatusKey = `${advisorId}_${predictionId}`;
 
 	return RedisUtils.getFromRedis(getRedisClient(), PREDICTION_STATUS_SET, predictionStatusKey)
 	.then(redisPredictionInstance => {
-		if (redisPredictionInstance !== null) {
+		if (redisPredictionInstance) {
+            console.log(redisPredictionInstance);
             return JSON.parse(redisPredictionInstance);
         } else {
             return null;

@@ -138,6 +138,14 @@ module.exports.getRealTradePredictions = (args, res, next) => {
 			
 	})
 	.then(realPredictions => {
+		return Promise.map(realPredictions, function(prediction) {
+			return BrokerRedisController.getPredictionStatus(prediction.advisor._id, prediction._id)
+			.then(status => {
+				return {...prediction, current: status};
+			})
+		});
+	})
+	.then(realPredictions => {
 		return res.status(200).send(realPredictions);
 	})	
 	.catch(err => {
@@ -1083,6 +1091,7 @@ module.exports.placeOrderForPrediction = function(args, res, next ) {
 
 	const orderParams = {stock, type, quantity, price, orderType, stopLossPrice, profitLimitPrice};
 	let allocationAdvisorId = null;
+	console.log('Placed order for prediction');
 
 	Promise.resolve()
 	.then(() => {
@@ -1106,6 +1115,7 @@ module.exports.placeOrderForPrediction = function(args, res, next ) {
 	})
 	.then(prediction => {
 		if (prediction) {
+			console.log('Order will be placed now');
 			// Placing the order in the market
 			return InteractiveBroker.placeOrder({...orderParams, predictionId, advisorId});
 			

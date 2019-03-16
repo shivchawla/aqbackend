@@ -3,6 +3,8 @@
 const _ = require('lodash');
 const ib = require('ib');
 const config = require('config');
+const Promise = require('bluebird');
+const moment = require('moment');
 
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const BrokerRedisController = require('./brokerRedisControl');
@@ -15,10 +17,11 @@ class InteractiveBroker {
             try {
                 this.interactiveBroker.connect()
                 .on('connected', () => {
+                    console.log('Connected to interactive broker');
                     this.getNextRequestId()
                     .then(reqId => {
                         //Request all executions in case of (re)connection
-                        this.interactiveBroker.requestExecutionDetails();
+                        this.interactiveBroker.reqExecutions(reqId, {});
                         resolve(true, 'Connected');
                     })
                 })
@@ -38,10 +41,10 @@ class InteractiveBroker {
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
                 this.getNextRequestId()
-                .then(orderId => {
-                    ibInstance.reqContractDetails(orderId, ibInstance.contract.stock(stock))
-                    .on('contractDetails', (orderId, contract) => {
-                        resolve({orderId, contract});
+                .then(reqId => {
+                    ibInstance.reqContractDetails(reqId, ibInstance.contract.stock(stock))
+                    .on('contractDetails', (reqId, contract) => {
+                        resolve({reqId, contract});
                     });
                 })
             } catch (err) {
@@ -71,13 +74,18 @@ class InteractiveBroker {
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
                 Promise.map(Array(count), function(_z) {
-                    ibInstance.reqIds(-1)
-                    .on('nextValidId', orderId => {
-                        return orderId;
+                    return new Promise((resolve, reject) => {
+                        console.log('Count', count);
+                        ibInstance.reqIds(-1)
+                        .on('nextValidId', orderId => {
+                            console.log('Order Id', orderId);
+                            resolve(orderId);
+                        })
                     })
                 })
                 .then(reqIds => {
-                    return count == 1 ? reqIds[0] : reqIds; 
+                    console.log('Request Ids', reqIds);
+                    resolve(count == 1 ? reqIds[0] : reqIds); 
                 })
             }
             catch(err) {
@@ -204,13 +212,14 @@ class InteractiveBroker {
                     resolve(Array.isArray(orderId) ? orderId : [orderId])
                 });
             } catch (err) {
+                console.log('Err', err);
                 reject(err);
             }
         })
         .then(orderIds => {
             //Update redis if order was accompanied with prdictionId/advisorId values
             if (advisorId && predictionId) {
-                return BrokerRedisController.addOrdersForPredictions(advisorId, predictionId, orderIds);
+                return BrokerRedisController.addOrdersForPrediction(advisorId, predictionId, orderIds, quantity);
             }
         })
     }
