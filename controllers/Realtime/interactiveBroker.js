@@ -2,25 +2,12 @@
 'use strict';
 const _ = require('lodash');
 const ib = require('ib');
-const redis = require('redis');
 const config = require('config');
 
-const RedisUtils = require('../../utils/RedisUtils');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
+const BrokerRedisController = require('./brokerRedisControl');
 
 const ibPort = 4002;
-let redisClient;
-
-const ORDER_STATUS_SET = "orderStatusSet";
-const PREDICTION_STATUS_SET = "predictionStatusSet";
-
-function getRedisClient() {
-	if (!redisClient || !redisClient.connected) {
-        redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: config.get('node_redis_pass')});
-    }
-
-    return redisClient; 
-}
 
 class InteractiveBroker {
     static connect() {
@@ -223,56 +210,7 @@ class InteractiveBroker {
         .then(orderIds => {
             //Update redis if order was accompanied with prdictionId/advisorId values
             if (advisorId && predictionId) {
-
-                let predictionStatusKey = `${predictionId}_${advisorId}`;
-                return RedisUtils.getFromRedis(getRedisClient(), PREDICTION_STATUS_SET, predictionStatusKey)
-                .then(redisPredictionInstance => {
-
-                    let predictionInstance = redisPredictionInstance ? JSON.parse(redisPredictionInstance) : null;
-                    
-                    return Promise.all([
-                        //P1
-                        Promise.map(orderIds, function(orderId) {
-                            const orderInstance = {
-                                orderId, // Current orderId after get the next valid order id
-                                activeStatus: true,
-                                completeStatus: false,
-                                brokerStatus: 'PendingSubmit'
-                            };
-
-                            if (predictionInstance) {
-                                predictionInstance.orders.push(orderInstance);
-                            } else {
-                                predictionInstance = {accumulated: 0, orders: [orderInstance]};
-                            }
-                        })
-                        .then(() => {
-                            RedisUtils.insertIntoRedis(
-                                getRedisClient(), 
-                                PREDICTION_STATUS_SET, 
-                                predictionStatusKey,
-                                predictionInstance
-                            ) 
-                        }),
-
-                        //P2
-                        Promise.map(orderIds, function(orderId) {
-                            // Storing in the orderForPredictions dictionary in Redis
-                            RedisUtils.insertIntoRedis(
-                                getRedisClient(), 
-                                ORDER_STATUS_SET, 
-                                orderId, 
-                                JSON.stringify({
-                                    advisorId,
-                                    predictionId, 
-                                    executionDetail: [],
-                                    orderedQuantity: quantity
-                                })
-                            );
-                        })
-                    ]);
-                    
-                })
+                return BrokerRedisController.addOrdersForPredictions(advisorId, predictionId, orderIds);
             }
         })
     }
@@ -323,47 +261,7 @@ InteractiveBroker.connect();
  */
 InteractiveBroker.interactiveBroker.on('orderStatus', (orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld) => {
     console.log('Event - orderStatus', status);
-    let predictionId = null;
-    let advisorId = null;
-
-    return RedisUtils.getFromRedis(getRedisClient(), ORDER_STATUS_SET, orderId)
-    .then(redisOrderInstance => {
-        if (!redisOrderInstance) {
-            console.log("No prediction info found for order")
-            return;
-        }
-
-        var orderInstance = JSON.parse(redisOrderInstance);
-        
-        predictionId = _.get(orderInstance, 'predictionId', null);
-        advisorId = _.get(orderInstance, 'advisorId', null);
-
-        let predictionStatusKey = `${advisorId}_${predictionId}`;
-
-        if (predictionId && advisorId) {
-            return RedisUtils.getFromRedis(getRedisClient(), PREDICTION_STATUS_SET, predictionStatusKey)
-            .then(redisPredictionInstance => {
-                if (redisPredictionInstance) {
-                    var predictionInstance = JSON.parse(redisPredictionInstance);
-
-                    const predictionOrders = _.get(predictionInstance, 'orders', []);
-                    const orderIdx = _.findIndex(predictionOrders, orderItem => orderItem.orderId === orderId);
-
-                    if (orderIdx != -1) {
-                        predictionInstance.orders[orderIdx].brokerStatus = status;
-
-                        //Update the broker status on order status message;
-                        return RedisUtils.insertIntoRedis(
-                            getRedisClient(), 
-                            PREDICTION_STATUS_SET,
-                            predictionStatusKey, 
-                            JSON.stringify(predictionInstance)
-                        );
-                    }
-                }
-            })
-        }
-    })
+    BrokerRedisController.updateOrderStatus(orderId, status)
 });
 
 /**
@@ -420,116 +318,12 @@ InteractiveBroker.interactiveBroker.on('openOrder', (orderId, contract, order, o
  * Handling event 'execDetails' when send from the IB gateway or IB TWS
  */
 InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, execution, orderState) => {
-    const orderId = _.get(execution, 'orderId', null);
-    const executionId = _.get(execution, 'execId', null);
-    const cumulativeQuantity = _.get(execution, 'cumQty', 0);
-    const direction = _.get(execution, "side", "BOT") == "BOT" ? 1 : -1
-    const fillQuantity = _.get(execution, 'shares', 0) * direction;
-
-    let predictionId = null;
-    let advisorId = null;
-
-    let executionCompleted = false
-
     console.log('Event - execDetails');
-    console.log('Order Id', orderId);
-    console.log('execution Id', executionId);
-
-    Promise.resolve()
-    .then(() => RedisUtils.getFromRedis(getRedisClient(), ORDER_STATUS_SET, orderId))
-    .then(redisOrderInstance => {
-        if (!redisOrderInstance) {
-            console.log("No prediction info found for order")
-            return;
-        }
-
-        console.log('------------Required Order Instance--------------', redisOrderInstance);
-        var orderInstance = JSON.parse(redisOrderInstance);
-        
-        predictionId = _.get(orderInstance, 'predictionId', null);
-        advisorId = _.get(orderInstance, 'advisorId', null);
-
-        let predictionStatusKey = `${advisorId}_${predictionId}`;
-        
-        var orderedQuantity = _.get(orderInstance, 'orderedQuantity', 0)
-
-        //Update "is execution is COMPLETE" flag
-        executionCompleted = orderedQuantity == cumulativeQuantity
-
-        // execution detail for the particular order instance
-        // we check if the execution id already exists in the execution detail array
-        var executionDetailArray = _.get(orderInstance, 'executionDetail', []);
-        const isExecutionIdPresent = _.findIndex(executionDetailArray, executionDetailItem => executionDetailItem.executionId === executionId) > -1;
-
-        if (!isExecutionIdPresent) {
-            executionDetailArray.push({
-                executionId, 
-                ...order
-            });
-            
-            orderInstance.executionDetail = executionDetailArray;
-            return Promise.resolve()
-            .then(() => {
-                //Save to redis if execution is incomplete otherwise to DB
-                if (!executionCompleted) {
-            
-                    return RedisUtils.insertIntoRedis(
-                                getRedisClient(), 
-                                ORDER_STATUS_SET,
-                                orderId, 
-                                JSON.stringify(orderInstance)
-                            )
-                } else {
-                    //SAVE to DB
-                }
-            })
-            .then(executionDetailUpdated => {
-                return RedisUtils.getFromRedis(getRedisClient(), PREDICTION_STATUS_SET, predictionStatusKey);
-            })
-
-        } else {
-            return null;
-        }
-    })
-    .then(redisPredictionInstance => {
-        if (redisPredictionInstance !== null) {
-            var predictionInstance = JSON.parse(redisPredictionInstance);
-            const predictionOrders = _.get(predictionInstance, 'orders', []);
-            const orderIndex = _.findIndex(predictionOrders, orderItem => orderItem.orderId === orderId);
-
-            const accumulatedQuantity = _.get(predictionInstance, 'accumulated', 0);
-            //Update the accumulated quantity
-            predictionInstance.accumulated = accumulatedQuantity + fillQuantity
-
-            //Updating the ative/complete status for required prediction
-            if (executionCompleted && orderIndex > -1) {
-                predictionOrders[orderIndex] = {
-                    ...predictionOrders[orderIndex],
-                    activeStatus: false,
-                    completeStatus: true
-                };
-
-                predictionInstance.orders = predictionOrders;
-            }
-
-            return RedisUtils.insertIntoRedis(
-                        getRedisClient(), 
-                        PREDICTION_STATUS_SET,
-                        predictionStatusKey, 
-                        JSON.stringify(predictionInstance)
-                    )
-
-        } else {
-            return null;
-        }
-    })
-    .then(response => {
-        if (response !== null) {
-            console.log('Successfully Updated');
-        } else {
-            console.log('Error or duplicate execution id')
-        }
-    });
+    const orderId = _.get(execution, 'orderId', null);
+    BrokerRedisController.updateOrderExecution(orderId, execution);
 });
 
 module.exports = InteractiveBroker;
+
+
+

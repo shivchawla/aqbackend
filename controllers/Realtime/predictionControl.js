@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-11 19:21:51
+* @Last Modified time: 2019-03-16 15:35:26
 */
 'use strict';
 const config = require('config');
@@ -17,6 +17,8 @@ const APIError = require('../../utils/error');
 
 const DateHelper = require('../../utils/Date');
 const DailyContestEntryHelper = require('../helpers/DailyContestEntry')
+
+const BrokerRedisController = require('./brokerRedisControl');
 
 const predictionSubscribers = {};
 
@@ -96,9 +98,35 @@ function _sendAdminUpdatesForAdvisor(userId, advisorId) {
 	}
 }
 
+function _getPredictionDetailForAdmin(advisorId, predictionId) {
+	
+	return Promise.resolve()
+	.then(() => {
+		if (predictionId) {
+			return Promise.all([
+				DailyContestEntryHelper.getPredictionById(advisorId, predictionId),
+				BrokerRedisController.getPredictionStatus(advisorId, predictionId)
+			])
+			.then(([priceUpdatedPrediction, status]) => {
+				return [{...prediction, current: status}];
+			})
+		} else {
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category, active: null})
+			.then(predictions => {
+				return Promise.map(predictions, function(prediction) {
+					return BrokerRedisController.getPredictionOrderStatus(advisorId, prediction._id)
+					.then(orderStatus => {
+						return {...prediction, orderStatus};
+					})
+				});
+			});
+		}
+	});	
+}
+
 
 //User Advisor map and sends updates for all real predictions (sends bulk per advice)
-function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId) {
+function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId, incomingPredictionId) {
 
 	return Promise.resolve()
 	.then(() => {
@@ -111,7 +139,7 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId) {
 			let masterAdvisorId = advisorMap.masterAdvisor;
 
 			//Send Advisor specific updates
-			if (incomingAdvisorId && masterAdvisorId.toString() != incomingAdvisorId.toString()) {
+			if (incomingAdvisorId && masterAdvisorId != incomingAdvisorId) {
 				return;
 			}
 
@@ -121,8 +149,8 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId) {
 			.then(() => {
 				if (advisorId) {
 					return Promise.all([
-						DailyContestEntryHelper.getPredictionsForDate(advisorId.toString(), date, {category, active: null}),
-						AdvisorModel.fetchAdvisor({_id: masterAdvisorId.toString()}, {fields: '_id user'})
+						_getPredictionDetailForAdmin(advisorId, incomingPredictionId),						
+						AdvisorModel.fetchAdvisor({_id: masterAdvisorId}, {fields: '_id user'})
 					])
 					.then(([predictions, masterAdvisor]) => {
 						return predictions.map(item => {return {...item, advisor: _.pick(masterAdvisor, ['_id', 'user'])};})
@@ -252,7 +280,7 @@ function _handleRealPredictionSubscription(req, res) {
 				return Promise.map(masterAdvisors, function(masterAdvisor) {
 
 					if (_.get(masterAdvisor, 'allocation.advisor', null) && _.get(masterAdvisor, 'allocation.status', false)) {
-						return {masterAdvisor: masterAdvisor._id, allocationAdvisor: masterAdvisor.allocation.advisor}
+						return {masterAdvisor: masterAdvisor._id.toString(), allocationAdvisor: masterAdvisor.allocation.advisor.toString()}
 					}
 				})
 				.then(advisorMapList => {
@@ -291,13 +319,13 @@ module.exports.sendAllUpdates = function() {
 	return _sendAllPredictionUpdates();
 };
 
-module.exports.sendAdminUpdates = function(advisorId) {
+module.exports.sendAdminUpdates = function(advisorId, predictionId) {
 	return UserModel.fetchUsers({email:{$in: config.get('admin_user')}}, {fields:'_id'})
 	.then(adminUsers => {
 		return Promise.map(adminUsers, function(adminUser) {
 			var subcription = predictionSubscribers[adminUser._id.toString()];
 			if (subcription) {
-				return _sendAdminRealPredictionUpdates(subcription, advisorId);	
+				return _sendAdminRealPredictionUpdates(subcription, advisorId, predictionId);	
 			}
 		})
 	})

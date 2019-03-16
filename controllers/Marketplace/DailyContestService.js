@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-16 11:44:01
+* @Last Modified time: 2019-03-16 15:35:02
 */
 
 'use strict';
@@ -32,6 +32,7 @@ const DailyContestStatsHelper = require('../helpers/DailyContestStats');
 const SecurityHelper = require('../helpers/Security');
 const AdvisorHelper = require('../helpers/Advisor');
 const PredictionRealtimeController = require('../Realtime/predictionControl');
+const BrokerRedisController = require('../Realtime/brokerRedisControl');
 
 function _populateWinners(winners) {
 	return Promise.map(winners, function(winner) {
@@ -90,6 +91,13 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 					_.unset(item,'readStatus'); 
 					_.unset(item,'adminModifications'); 
 					return item
+				});
+			} else {
+				return Promise.map(updatedPredictions, function(prediction) {
+					return BrokerRedisController.getPredictionStatus(advisorId, prediction._id)
+					.then(status => {
+						return {...prediction, current: status};
+					})
 				});
 			}
 
@@ -614,50 +622,6 @@ module.exports.addPredictionTradeActivity = (args, res, next) => {
 	})
 };
 
-/*
-* Place trade in prediction
- */
-module.exports.placeTradeForPrediction = (args, res, next) => {
-	const userId = _.get(args, 'user._id', null);
-	const predictionId = _.get(args, 'body.value.predictionId', null);
-	const advisorId = _.get(args, 'body.value.advisorId', null);
-	const trade = _.get(args, 'body.value.trade', null);
-	
-	const userEmail = _.get(args, 'user.email', null);
-	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
-
-	let allocationAdvisorId;
-
-	return Promise.resolve()
-	.then(() => {
-		if (!isAdmin) {
-			APIError.throwJsonError({message: "Not authorized to place trades"});
-		}
-
-		return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'})
-		.then(masterAdvisor => {
-			if (masterAdvisor && _.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
-				allocationAdvisorId = masterAdvisor.allocation.advisor;
-				return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
-			} else {
-				APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
-			}
-		})
-		
-	})
-	.then(prediction => {
-		//Write the trade logic here
-		
-		APIError.throwJsonError({message: "Not Implemented yet!!"})
-	})
-	.then(updated => {
-		return res.status(200).send("Trade activity added successfully");
-	})
-	.catch(err => {
-		return res.status(400).send(err.message);		
-	})
-};
-
 
 /*
 * Update read status of prediction
@@ -1165,7 +1129,7 @@ module.exports.placeOrderForPrediction = function(args, res, next ) {
 	.then(prediction => {
 		if (prediction) {
 			// Placing the order in the market
-			return InteractiveBroker.placeOrder({...orderParams, predictionId, advisorId});
+			return InteractiveBroker.placeOrder({...orderParams, predictionId, allocationAdvisorId});
 			
 		} else {
 			APIError.throwJsonError({message: "Prediction not found"});

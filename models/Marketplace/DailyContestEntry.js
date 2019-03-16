@@ -3,7 +3,7 @@
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
 <<<<<<< HEAD
-* @Last Modified time: 2019-03-13 18:01:18
+* @Last Modified time: 2019-03-16 14:57:18
 =======
 * @Last Modified time: 2019-03-12 21:00:59
 >>>>>>> release
@@ -142,6 +142,8 @@ const Prediction = new Schema({
 	},
 
 	adminModifications: [Schema.Types.Mixed],
+
+	executionDetail: [Schema.Types.Mixed],
 });
 
 const DailyContestEntry = new Schema({  
@@ -418,6 +420,13 @@ DailyContestEntry.statics.updatePrediction = function(query, updatedPrediction) 
 	return this.updateOne({...query, ...q}, updates);
 	
 };
+
+
+DailyContestEntry.statics.addExecutionDetailToPrediction = function(query, predictionId, executionDetailArray) {
+	var updates = {$addToSet: {'predictions.$.executionDetail':{$each: executionDetailArray}}};
+	return this.updateOne({...query, predictions:{$elemMatch: {_id: predictionId}}}, updates);
+};
+
 
 const DailyContestEntryModel = mongoose.model('DailyContestEntry', DailyContestEntry);
 module.exports = DailyContestEntryModel;
