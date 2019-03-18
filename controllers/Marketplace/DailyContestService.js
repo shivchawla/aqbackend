@@ -92,6 +92,8 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 					_.unset(item,'adminModifications'); 
 					return item
 				});
+
+				return updatedPredictions;
 			} else {
 				return Promise.map(updatedPredictions, function(prediction) {
 					return BrokerRedisController.getPredictionStatus(advisorId, prediction._id)
@@ -100,11 +102,12 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 					})
 				});
 			}
-
-			return res.status(200).send(updatedPredictions);
 		} else {
 			APIError.throwJsonError({message: `No contest entry found for ${date}`});
 		}
+	})
+	.then(predictions => {
+		return res.status(200).send(predictions);
 	})
 	.catch(err => {
 		console.log(err);
