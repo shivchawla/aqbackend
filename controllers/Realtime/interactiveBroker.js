@@ -155,17 +155,17 @@ class InteractiveBroker {
                 .then(([orderId, time]) => { //Array or value
                     
                     currentTime = moment.unix(time).format('YYYYMMDD HH:mm:ss')
-
-                    console.log('Next Order Id', orderId);
+                                        
                     // creating IB stock from the stock param passed
                     const ibStock = ibInstance.contract.stock(stock);
 
                     if (orderType === 'bracket') {
                         var parentId = orderId;
-                        var profitOrderId = orderId--;
-                        var stopLossOrderId = orderId--;
+
+                        var profitOrderId = parentId-1;
+                        var stopLossOrderId = parentId-2;
                         const bracketOrderConfig = self.bracketOrder(type, quantity, price, profitLimitPrice, stopLossPrice);
-                        
+
                         ibInstance.placeOrder(parentId, ibStock, bracketOrderConfig.parentOrder)
                         ibInstance.placeOrder(profitOrderId, ibStock, {...bracketOrderConfig.profitOrder, parentId})
                         ibInstance.placeOrder(stopLossOrderId, ibStock, {...bracketOrderConfig.stopLossOrder, parentId});    
