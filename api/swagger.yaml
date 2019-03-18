@@ -5263,7 +5263,7 @@ definitions:
       - advisorId
     properties:
       orderId:
-        type: string
+        type: number
       advisorId:
         type: string
         format: uuid
