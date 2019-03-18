@@ -216,12 +216,15 @@ function _handlePredictionSubscription(req, res) {
 				}
 
 				//Send immediate response back to subscriber
-				resolve(_sendPredictionUpdates(predictionSubscribers[userId]));
+				return _sendPredictionUpdates(predictionSubscribers[userId]);
 			
 			} else {
 				APIError.throwJsonError({message: "No advisor found. WS request can't be completed"});
 			}
 
+		})
+		.then(prediction => {
+			resolve(prediction);
 		})
 		.catch(err => {
 			reject(err);
@@ -300,12 +303,15 @@ function _handleRealPredictionSubscription(req, res) {
 					}
 
 					//Send immediate response back to subscriber
-					resolve(_sendAdminRealPredictionUpdates(predictionSubscribers[userId]));
+					return _sendAdminRealPredictionUpdates(predictionSubscribers[userId]);
 				})
 			} else {
 				APIError.throwJsonError({message: "No allocation advisor found"})
 			}
 
+		})
+		.then((predictionSubscribers) => {
+			resolve(predictionSubscribers);
 		})
 		.catch(err => {
 			reject(err);
