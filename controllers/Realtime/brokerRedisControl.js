@@ -42,7 +42,7 @@ module.exports.getValidId = function(increment) {
 
     return new Promise((resolve, reject) => {
         RedisUtils.incValue(getRedisClient(), "ValidId", increment)
-        .the(reqId => {
+        .then(reqId => {
             var reqIds = Array(increment);
 
             lastId = reqId;
@@ -52,7 +52,7 @@ module.exports.getValidId = function(increment) {
             }
 
             return Promise.mapSeries(reqIds, function(id) {
-                return RedisUtils.getFormRedis(getRedisClient(), ORDER_STATUS_SET, id)
+                return RedisUtils.getFromRedis(getRedisClient(), ORDER_STATUS_SET, id)
                 .then(redisOrderInstance => {
                     if (redisOrderInstance) {
                         throw new Error(`ReqId: ${id} in use`);
