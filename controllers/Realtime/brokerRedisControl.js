@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-17 00:30:21
+* @Last Modified time: 2019-03-18 09:52:34
 */
 
 const redis = require('redis');
@@ -37,8 +37,39 @@ module.exports.setValidId = function(validId) {
     return RedisUtils.insertKeyValue(getRedisClient(), "ValidId", validId)
 }
 
-module.exports.getValidId = function(validId, increment) {
-    return RedisUtils.incValue(getRedisClient(), "ValidId", increment);
+module.exports.getValidId = function(increment) {
+    let reqId;
+
+    return new Promise((resolve, reject) => {
+        RedisUtils.incValue(getRedisClient(), "ValidId", increment)
+        .the(reqId => {
+            var reqIds = Array(increment);
+
+            lastId = reqId;
+
+            for(var i=0;i<increment;i++) {
+                reqIds[i] = lastId--; 
+            }
+
+            return Promise.mapSeries(reqIds, function(id) {
+                return RedisUtils.getFormRedis(getRedisClient(), ORDER_STATUS_SET, id)
+                .then(redisOrderInstance => {
+                    if (redisOrderInstance) {
+                        throw new Error(`ReqId: ${id} in use`);
+                    }
+                })
+            })
+            .then(() => {
+                resolve(reqId);
+            })
+
+        })
+        .catch(err => {
+            console.log(err.message);
+            //In case of error, re-launch the requst to fetch Id
+            resolve(exports.getValidId(increment));
+        })
+    });
 }
 
 module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderIds, quantity) {
