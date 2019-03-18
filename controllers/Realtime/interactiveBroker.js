@@ -222,8 +222,13 @@ class InteractiveBroker {
             try {
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
-                ibInstance.cancelOrder(orderId);
-                resolve(orderId);
+                ibInstance.cancelOrder(orderId)
+                .on('orderStatus', () => {
+                    resolve(orderId);
+                })
+                .on('error', (err, data) => {
+                    reject(err);
+                })
             } catch(err) {
                 reject(err);
             }
