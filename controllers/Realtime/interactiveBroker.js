@@ -164,11 +164,11 @@ class InteractiveBroker {
                         var parentId = orderId;
                         var profitOrderId = orderId--;
                         var stopLossOrderId = orderId--;
-                        const bracketOrderConfig = self.bracketOrder(orderId, type, quantity, price, profitLimitPrice, stopLossPrice);
-
+                        const bracketOrderConfig = self.bracketOrder(type, quantity, price, profitLimitPrice, stopLossPrice);
+                        
                         ibInstance.placeOrder(parentId, ibStock, bracketOrderConfig.parentOrder)
-                        ibInstance.placeOrder(profitOrderId, {...bracketOrderConfig.profitOrder, parentId})
-                        ibInstance.placeOrder(stopLossOrderId, {...bracketOrderConfig.stopLossOrder, parentId});    
+                        ibInstance.placeOrder(profitOrderId, ibStock, {...bracketOrderConfig.profitOrder, parentId})
+                        ibInstance.placeOrder(stopLossOrderId, ibStock, {...bracketOrderConfig.stopLossOrder, parentId});    
                         
                         resolve([parentId, profitOrderId, stopLossOrderId]);
                     } 
