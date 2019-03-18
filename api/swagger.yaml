@@ -3952,6 +3952,35 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
+  /dailycontest/cancelorder:
+    post:
+      tags:
+      - dailycontest
+      summary: Cancel a trade in prediction
+      description: Cancel a trade in prediction
+      operationId: cancelOrderForPrediction
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        required: true
+        in: body
+        description: cancel order body
+        schema:
+          $ref: '#/definitions/CancelOrder'
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
+
   /dailycontest/readstatus:
     post:
       tags:
@@ -5226,6 +5255,18 @@ definitions:
       order:
         type: object
         $ref: '#/definitions/Order'
+
+  CancelOrder:
+    type: object
+    required:
+      - orderId
+      - advisorId
+    properties:
+      orderId:
+        type: string
+      advisorId:
+        type: string
+        format: uuid
   
   Order:
     type: object
