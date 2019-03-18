@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-16 17:07:17
+* @Last Modified time: 2019-03-18 18:33:05
 */
 
 
@@ -51,6 +51,13 @@ const TradeActivity = new Schema({
 	automated: Boolean,
 	brokerMessage: Schema.Types.Mixed,
 	notes: String		
+});
+
+const OrderActivity = new Schema({
+	date: Date,
+	automated: Boolean,
+	brokerMessage: Schema.Types.Mixed,
+	orderId: String,
 });
 
 const Prediction = new Schema({
@@ -131,6 +138,8 @@ const Prediction = new Schema({
 	},
 
 	tradeActivity: [TradeActivity],
+
+	orderActivity: [OrderActivity],
 
 	readStatus: {
 		type: String,
@@ -421,6 +430,11 @@ DailyContestEntry.statics.updateReadStatus = function(query, predictionId, readS
 
 DailyContestEntry.statics.addTradeActivityForPrediction = function(query, predictionId, tradeActivity) {
 	var updates = {$addToSet: {'predictions.$.tradeActivity': tradeActivity}};
+	return this.updateOne({...query, predictions:{$elemMatch: {_id: predictionId}}}, updates);
+};
+
+DailyContestEntry.statics.addOrderActivityForPrediction = function(query, predictionId, orderActivity) {
+	var updates = {$addToSet: {'predictions.$.orderActivity': orderActivity}};
 	return this.updateOne({...query, predictions:{$elemMatch: {_id: predictionId}}}, updates);
 };
 

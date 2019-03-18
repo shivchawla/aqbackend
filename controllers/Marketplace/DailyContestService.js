@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-16 16:54:15
+* @Last Modified time: 2019-03-18 18:34:04
 */
 
 'use strict';
@@ -87,7 +87,8 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 		if (updatedPredictions) {
 			if (!isAdmin) {
 				updatedPredictions = updatedPredictions.map(item => {
-					_.unset(item,'tradeActivity'); 
+					_.unset(item,'tradeActivity');
+					_.unset(item,'orderActivity'); 
 					_.unset(item,'readStatus'); 
 					_.unset(item,'adminModifications'); 
 					return item

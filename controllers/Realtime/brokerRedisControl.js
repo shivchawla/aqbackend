@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-18 16:53:38
+* @Last Modified time: 2019-03-18 18:32:03
 */
 
 const redis = require('redis');
@@ -83,7 +83,7 @@ module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderI
                     orderId, // Current orderId after get the next valid order id
                     activeStatus: true,
                     completeStatus: false,
-                    brokerStatus: 'PendingSubmit'
+                    brokerStatus: 'PendingSubmit',
                 };
 
                 if (predictionInstance) {
@@ -113,6 +113,7 @@ module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderI
                         advisorId,
                         predictionId, 
                         tradeActivity: [],
+                        orderActivity: [],
                         orderedQuantity: quantity
                     })
                 );
@@ -127,7 +128,7 @@ module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderI
     })    
 };
 
-module.exports.updateOrderStatus = function(orderId, status) {
+module.exports.updateOrderStatus = function(orderId, statusEvent) {
 	let predictionId = null;
     let advisorId = null;
 
@@ -137,11 +138,48 @@ module.exports.updateOrderStatus = function(orderId, status) {
             console.log("No prediction info found for order")
             return;
         }
-        var orderInstance = JSON.parse(redisOrderInstance);
         
+        var orderInstance = JSON.parse(redisOrderInstance);
+
+        //Get predictionId/advisorId
         predictionId = _.get(orderInstance, 'predictionId', null);
         advisorId = _.get(orderInstance, 'advisorId', null);
 
+        //Add order activity
+        var orderActivityArray = _.get(orderInstance, 'orderActivity', []);
+        
+        if (orderActivityArray.length > 0) {
+            var lastBrokerStatus = _.get(orderActivityArray.slice(-1)[0], 'status', '');
+            var latestBrokerStatus = _.get(statusEvent, 'status', '');
+            
+            if (lastBrokerStatus != latestBrokerStatus) {
+                const orderActivity = {
+                    date: new Date(),
+                    orderId,
+                    automated: true,
+                    brokerMessage: statusEvent,
+                };
+
+                orderActivityArray.push(orderActivity);
+                orderInstance.orderActivity = orderActivityArray;
+            
+                if (latestBrokerStatus != 'Filled') {
+                    //Add order activity 
+                    return RedisUtils.insertIntoRedis(
+                        getRedisClient(), 
+                        ORDER_STATUS_SET,
+                        orderId, 
+                        JSON.stringify(orderInstance)
+                    )
+                } else {
+                    //Save to DB
+                    return DailyContestEntryModel.addOrderActivityForPrediction({advisor: advisorId}, predictionId, orderActivity);
+                }
+            }
+        }
+        
+    })
+    .then(() => {
         let predictionStatusKey = `${advisorId}_${predictionId}`;
 
         if (predictionId && advisorId) {
@@ -153,7 +191,11 @@ module.exports.updateOrderStatus = function(orderId, status) {
                     const predictionOrders = _.get(predictionInstance, 'orders', []);
                     const orderIdx = _.findIndex(predictionOrders, orderItem => orderItem.orderId === orderId);
 
-                    if (orderIdx != -1) {
+                    const status = _.get(statusEvent, 'status', '');
+
+                    if (orderIdx != -1 && status!="") {
+                        // const lastBrokerStatus =  predictionInstance.orders[orderIdx].brokerStatus;
+
                         predictionInstance.orders[orderIdx].brokerStatus = status;
 
                         if (status == 'Cancelled' || status == "Inactive") {
@@ -164,6 +206,10 @@ module.exports.updateOrderStatus = function(orderId, status) {
                              predictionInstance.orders[orderIdx].activeStatus = false;
                              predictionInstance.orders[orderIdx].completeStatus = true;   
                         }
+
+                        // if (lastBrokerStatus != status) {
+                        //     predictionInstance.orders[orderIdx].brokerMessage.push(eventStatus);
+                        // }
 
                         //Update the broker status on order status message;
                         return RedisUtils.insertIntoRedis(
@@ -253,8 +299,10 @@ module.exports.updateOrderExecution = function(orderId, execution) {
 	            })
             ])
             .then(() => {
-                return RedisUtils.getFromRedis(getRedisClient(), PREDICTION_STATUS_SET, predictionStatusKey);
-            })
+                //Delete this after 1 minute
+                setTimeout(function() {
+                    RedisUtils.getFromRedis(getRedisClient(), PREDICTION_STATUS_SET, predictionStatusKey)}, 60000);
+            });
 
         } else {
             return null;
