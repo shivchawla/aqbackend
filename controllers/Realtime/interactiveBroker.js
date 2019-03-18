@@ -6,28 +6,31 @@ const config = require('config');
 const Promise = require('bluebird');
 const moment = require('moment');
 
-const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const BrokerRedisController = require('./brokerRedisControl');
-
 const ibPort = 4002;
 
 class InteractiveBroker {
     static connect() {
         return new Promise((resolve, reject) => {
             try {
-                this.interactiveBroker.connect()
+                const ibInstance = this.interactiveBroker;
+                
+                ibInstance.connect()
                 .on('connected', () => {
                     console.log('Connected to interactive broker');
-                    this.getNextRequestId()
-                    .then(reqId => {
-                        //Request all executions in case of (re)connection
-                        this.interactiveBroker.reqExecutions(reqId, {});
-                        resolve(true, 'Connected');
-                    })
+                    resolve(true)
                 })
                 .on('disconnected', () => {
                     console.log('Disconnected');
                     this.interactiveBroker.connect();
+                })
+                .on('nextValidId', (reqId)  => {
+                    console.log('Next Valid Id:', reqId);
+                    return BrokerRedisController.setValidId(reqId)
+                    .then(() => {
+                        ibInstance.reqExecutions(reqId, {});
+                    })
+
                 })
             } catch(err) {
                 reject(err);
@@ -68,25 +71,10 @@ class InteractiveBroker {
         })
     }
 
-    static getNextRequestId(count = 1) {
+    static getNextRequestId() {
         return new Promise((resolve, reject) => {
             try {
-                // Getting the interactive broker instance
-                const ibInstance = this.interactiveBroker;
-                Promise.map(Array(count), function(_z) {
-                    return new Promise((resolve, reject) => {
-                        console.log('Count', count);
-                        ibInstance.reqIds(-1)
-                        .on('nextValidId', orderId => {
-                            console.log('Order Id', orderId);
-                            resolve(orderId);
-                        })
-                    })
-                })
-                .then(reqIds => {
-                    console.log('Request Ids', reqIds);
-                    resolve(count == 1 ? reqIds[0] : reqIds); 
-                })
+                resolve(BrokerRedisController.getValidId());
             }
             catch(err) {
                 reject(err);
@@ -117,7 +105,7 @@ class InteractiveBroker {
     /**
      * Check to see how parentId will be passed
      */
-    static bracketOrder(parentOrderId, action = 'BUY', quantity = 0, limitPrice = 0, takeProfitLimitPrice = 0, stopLossPrice) {
+    static bracketOrder(action = 'BUY', quantity = 0, limitPrice = 0, takeProfitLimitPrice = 0, stopLossPrice) {
         /**
          * How do I pass orderId and parentOrderId to order.limit, since in the ib module it is not being passed
          */
@@ -130,7 +118,7 @@ class InteractiveBroker {
 
         // Action used for stopLossOrderConfig
         const stopLossAction = action === 'BUY' ? 'SELL' : action;
-        const stopLossOrderConfig = ibInstance.order.stop(stopLossAction, quantity, stopLossPrice, true, parentOrderId);
+        const stopLossOrderConfig = ibInstance.order.stop(stopLossAction, quantity, stopLossPrice, true);
 
         return {
             parentOrder: parentOrderConfig,
@@ -161,7 +149,7 @@ class InteractiveBroker {
                 let currentTime;
 
                 return Promise.all([
-                    this.getNextRequestId(orderType === 'bracket' ? 3 : 1),
+                    BrokerRedisController.getValidId(type == "bracket" ? 3 : 1),
                     this.getCurrentTime()
                 ]) 
                 .then(([orderId, time]) => { //Array or value
@@ -173,11 +161,16 @@ class InteractiveBroker {
                     const ibStock = ibInstance.contract.stock(stock);
 
                     if (orderType === 'bracket') {
-                        const bracketOrderConfig = self.bracketOrder(orderId[0], type, quantity, price, profitLimitPrice, stopLossPrice);
-                        ibInstance.placeOrder(orderId[0], ibStock, bracketOrderConfig.parentOrder);
-                        ibInstance.placeOrder(orderId[1], ibStock, bracketOrderConfig.profitOrder);
-                        ibInstance.placeOrder(orderId[2], ibStock, bracketOrderConfig.stopLossOrder);
+                        var parentId = orderId;
+                        var profitOrderId = orderId--;
+                        var stopLossOrderId = orderId--;
+                        const bracketOrderConfig = self.bracketOrder(orderId, type, quantity, price, profitLimitPrice, stopLossPrice);
+
+                        ibInstance.placeOrder(parentId, ibStock, bracketOrderConfig.parentOrder)
+                        ibInstance.placeOrder(profitOrderId, {...bracketOrderConfig.profitOrder, parentId})
+                        ibInstance.placeOrder(stopLossOrderId, {...bracketOrderConfig.stopLossOrder, parentId});    
                         
+                        resolve([parentId, profitOrderId, stopLossOrderId]);
                     } 
                     
                     else if (orderType === 'limit') {
@@ -262,7 +255,27 @@ InteractiveBroker.interactiveBroker = new ib({
 })
 
 //Connest to IB server
-InteractiveBroker.connect();
+InteractiveBroker.connect()
+
+// setTimeout(function() {
+//     InteractiveBroker.interactiveBroker.reqIds(1)
+//     .on('nextValidId', orderId => {
+//         console.log("Seting Valid Id ", orderId);
+//         BrokerRedisController.setValidId(orderId);
+//     })
+// }, 1000);
+
+
+// setTimeout(function() {
+//     console.log("in setTimeout(function() {}, 10);");
+//     for (var i=0; i< 10; i++) {
+//         InteractiveBroker.interactiveBroker.reqIds(1);
+//     }}, 500);
+
+// InteractiveBroker.interactiveBroker.on('nextValidId', orderId  => {
+//     console.log('Order Id', orderId);
+//     BrokerRedisController.setValidId(orderId);
+// })
 
 
 /**

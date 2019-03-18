@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-16 17:06:09
+* @Last Modified time: 2019-03-17 00:30:21
 */
 
 const redis = require('redis');
@@ -21,10 +21,24 @@ const PREDICTION_STATUS_SET = "predictionStatusSet";
 
 function getRedisClient() {
 	if (!redisClient || !redisClient.connected) {
-        redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: config.get('node_redis_pass')});
+        var redisPwd = config.get('node_redis_pass');
+
+        if (redisPwd !="") {
+            redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});
+        } else {
+            redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'));
+        }
     }
 
     return redisClient; 
+}
+
+module.exports.setValidId = function(validId) {
+    return RedisUtils.insertKeyValue(getRedisClient(), "ValidId", validId)
+}
+
+module.exports.getValidId = function(validId, increment) {
+    return RedisUtils.incValue(getRedisClient(), "ValidId", increment);
 }
 
 module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderIds, quantity) {
