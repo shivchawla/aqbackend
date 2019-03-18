@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-04-25 16:09:37
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-25 10:26:47
+* @Last Modified time: 2019-03-18 10:58:23
 */
 'use strict';
 var redis = require('redis');
@@ -17,7 +17,13 @@ var redisClient;
 
 function getRedisClient() {
     if (!redisClient || !redisClient.connected) {
-        redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: config.get('node_redis_pass')});  
+        let redisPwd = config.get('node_redis_pass');
+        if (redisPwd != "") {
+            redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});  
+        } else {
+            redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'));  
+        }
+
         RedisUtils.insertKeyValue(redisClient, `numFailedRequests-${serverPort}`, 0);    
     }
 

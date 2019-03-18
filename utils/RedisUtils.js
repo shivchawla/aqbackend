@@ -5,6 +5,7 @@ const Promise = require('bluebird');
 Promise.promisifyAll(redis.RedisClient.prototype);
 Promise.promisifyAll(redis.Multi.prototype);
 
+
 function getAllFromRedis(client, masterKey) {
     return client.hgetallAsync(masterKey);
 }
@@ -65,6 +66,7 @@ function subscribe(client, channel) {
 function unsubscribe(client, channel) {
     client.unsubscribe(channel);    
 }
+
 
 module.exports = {
     getFromRedis,

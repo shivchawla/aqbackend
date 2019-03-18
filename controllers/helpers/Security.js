@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-03 15:48:33
+* @Last Modified time: 2019-03-18 10:56:42
 */
 'use strict';
 const config = require('config');
@@ -24,12 +24,17 @@ const DateHelper = require('../../utils/Date');
 const WSHelper = require('./WSHelper');
 const RedisUtils = require('../../utils/RedisUtils');
 
-
 var redisClient;
 
 function getRedisClient() {
 	if (!redisClient || !redisClient.connected) {
-        redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: config.get('node_redis_pass')});
+		let redisPwd = config.get('node_redis_pass');
+		
+		if (redisPwd != "") {
+        	redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});
+        } else {
+        	redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'));
+        }
     }
 
     return redisClient; 
