@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-18 16:52:25
+* @Last Modified time: 2019-03-18 16:53:38
 */
 
 const redis = require('redis');
@@ -156,11 +156,11 @@ module.exports.updateOrderStatus = function(orderId, status) {
                     if (orderIdx != -1) {
                         predictionInstance.orders[orderIdx].brokerStatus = status;
 
-                        if (status = 'Cancelled' || status = "Inactive") {
+                        if (status == 'Cancelled' || status == "Inactive") {
                             predictionInstance.orders[orderIdx].activeStatus = false;
                         }
 
-                        if (status = 'Filled') {
+                        if (status == 'Filled') {
                              predictionInstance.orders[orderIdx].activeStatus = false;
                              predictionInstance.orders[orderIdx].completeStatus = true;   
                         }
