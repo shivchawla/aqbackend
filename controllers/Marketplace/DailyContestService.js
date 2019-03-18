@@ -1133,3 +1133,30 @@ module.exports.placeOrderForPrediction = function(args, res, next ) {
 		return res.status(400).send(err.message);
 	})
 }
+
+module.exports.cancelOrderForPrediction = function(args, res, next ) {
+	const userEmail = _.get(args, 'user.email', null);
+	const admins = config.get('admin_user');
+	const isAdmin = admins.indexOf(userEmail) !== -1;
+	const orderId = _.get(args, 'body.value.orderId', null);
+	const advisorId = _.get(args, 'body.value.advisorId', null);
+
+	Promise.resolve()
+	.then(() => {
+		// Check if user is admin only then all the other operations are permitted
+		if (isAdmin) {
+			return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'});
+		} else {
+			APIError.throwJsonError({message: "User not authorized to cancel orders"});
+		}
+	})
+	.then(() => {
+		return InteractiveBroker.cancelOrder(Number(orderId));
+	})
+	.then(() => {
+		return res.status(200).send("Order cancelled successfully"); 
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
+}

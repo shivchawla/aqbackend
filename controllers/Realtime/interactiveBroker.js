@@ -292,48 +292,6 @@ InteractiveBroker.interactiveBroker.on('orderStatus', (orderId, status, filled, 
 InteractiveBroker.interactiveBroker.on('openOrder', (orderId, contract, order, orderState) => {
     const symbol = _.get(contract, 'symbol', '');
     console.log('openOrder - ' + order);
-    // console.log('Event - openOrder');
-    // console.log('Order Id', orderId, symbol);
-    // console.log('Order ', order);
-    // console.log('order', order);
-    // console.log('orderState', orderState);
-    /**
-     * id: orderId
-     * we will store a map in redis, something like this
-     * {orderId: {advisorId, predictionId}}
-     * Using the orderId we will be able to get the required advisorId and predictionId, which we
-     * will store in the 2 variables below accordingly
-     */
-    // const predictionId = null;
-    // const advisorId = null;
-    // DailyContestEntryModel.fetchPredictionById({advisor: advisorId}, predictionId)
-    // .then(prediction => {
-    //     /**
-    //      * The activity item that will be pushed the trade activity array for each prediction
-    //      */
-    //     const tradeActivityItem = {
-    //         category: 'ORDER_MODS', 
-    //         date: new Date(), 
-    //         tradeType,
-    //         tradeDirection,
-    //         automated: false,
-    //         notes: '',
-    //         brokerMessage: {
-    //             ...order,
-    //             orderState
-    //         }
-    //     };
-    //     prediction.tradeActivity.push(tradeActivityItem);
-
-    //     return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
-    // })
-    // .then(prediction => {
-    //     if (prediction !== null) {
-    //         console.log('Prediction Updated', prediction);
-    //     } else {
-    //         console.log('Prediction Ended');
-    //     }
-    // })
 });
 
 /**
