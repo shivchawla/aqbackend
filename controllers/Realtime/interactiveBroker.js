@@ -158,17 +158,16 @@ class InteractiveBroker {
               
                 BrokerRedisController.getValidId(type == "bracket" ? 3 : 1)
                 .then(orderId => {
-                    
                     // currentTime = moment.unix(time).format('YYYYMMDD HH:mm:ss')
 
                     // creating IB stock from the stock param passed
                     const ibStock = ibInstance.contract.stock(stock);
 
                     if (orderType === 'bracket') {
-                        var parentId = orderId;
+                        var parentId = orderId - 2;
 
-                        var profitOrderId = parentId-1;
-                        var stopLossOrderId = parentId-2;
+                        var profitOrderId = parentId+1;
+                        var stopLossOrderId = parentId+2;
                         const bracketOrderConfig = self.bracketOrder(type, quantity, price, profitLimitPrice, stopLossPrice);
 
                         ibInstance.placeOrder(parentId, ibStock, {...bracketOrderConfig.parentOrder, tif})
@@ -186,7 +185,7 @@ class InteractiveBroker {
                     
                     else if (orderType === 'market') {
                         const marketOrderConfig = ibInstance.order.market(type, quantity);
-                        ibInstance.placeOrder(orderId, ibStock, {...marketOrderConfig, tif});
+                        ibInstance.placeOrder(orderId, ibStock, marketOrderConfig);
                         resolve([orderId]);
                     }
 
@@ -275,9 +274,9 @@ InteractiveBroker.connect()
  * Handling event 'orderStatus' when send from the IB gateway or IB TWS
  */
 InteractiveBroker.interactiveBroker.on('orderStatus', (orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld) => {
-    console.log('Event - orderStatus', status);
+    console.log('Event - orderStatus', status, orderId);
 
-    const event = {orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld};
+    const statusEvent = {orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld};
     BrokerRedisController.updateOrderStatus(orderId, statusEvent);
 });
 

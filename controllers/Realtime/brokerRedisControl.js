@@ -231,7 +231,7 @@ module.exports.updateOrderExecution = function(orderId, execution) {
     const fillQuantity = _.get(execution, 'shares', 0) * direction;
     const avgPrice = _.get(execution, 'avgFillPrice', 0.0);
 
-    const tradeActivity = {
+    let tradeActivity = {
         date: new Date(), 
         direction: direction == 1 ? "BUY" : "SELL",
         quantity: fillQuantity,

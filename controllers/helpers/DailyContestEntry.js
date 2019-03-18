@@ -1488,8 +1488,8 @@ module.exports.getPredictionById = function(advisorId, predictionId, options) {
 	})
 	.then(updatedPredictionsWithLastPrice => {
 
-		console.log("By Id:")
-		console.log(updatedPredictionsWithLastPrice);
+		// console.log("By Id:")
+		// console.log(updatedPredictionsWithLastPrice);
 
 		//Update security latest detail
 		if (priceUpdate) {
