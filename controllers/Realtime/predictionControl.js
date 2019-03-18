@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-18 15:47:45
+* @Last Modified time: 2019-03-18 19:17:14
 */
 'use strict';
 const config = require('config');
@@ -105,18 +105,28 @@ function _getPredictionDetailForAdmin(advisorId, category, masterAdvisorId, pred
 		if (predictionId) {
 			return Promise.all([
 				DailyContestEntryHelper.getPredictionById(advisorId, predictionId),
-				BrokerRedisController.getPredictionStatus(masterAdvisorId, predictionId)
+				BrokerRedisController.getPredictionStatus(masterAdvisorId, predictionId),
+				BrokerRedisController.getPredictionActivity(masterAdvisorId, predictionId)
 			])
-			.then(([priceUpdatedPrediction, status]) => {
+			.then(([prediction, status, activity]) => {
 				
-				return [{...priceUpdatedPrediction, current: status}];
+				prediction.tradeActivity = prediction.tradeActivity.concat(_.get(activity, 'tradeActivity', []));
+				prediction.orderActivity = prediction.orderActivity.concat(_.get(activity, 'orderActivity', []));
+
+				return [{...prediction, current: status}];
 			})
 		} else {
 			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category, active: null})
 			.then(predictions => {
 				return Promise.map(predictions, function(prediction) {
-					return BrokerRedisController.getPredictionStatus(masterAdvisorId, prediction._id)
-					.then(status => {
+					return Promise.all([
+						BrokerRedisController.getPredictionStatus(masterAdvisorId, prediction._id),
+						BrokerRedisController.getPredictionActivity(masterAdvisorId, prediction._id)
+					])
+					.then(([status, activity]) => {
+						prediction.tradeActivity = prediction.tradeActivity.concat(_.get(activity, 'tradeActivity', []));
+						prediction.orderActivity = prediction.orderActivity.concat(_.get(activity, 'orderActivity', []));
+
 						return {...prediction, current: status};
 					})
 				});

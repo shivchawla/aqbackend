@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-18 18:32:03
+* @Last Modified time: 2019-03-18 19:22:39
 */
 
 const redis = require('redis');
@@ -162,19 +162,14 @@ module.exports.updateOrderStatus = function(orderId, statusEvent) {
 
                 orderActivityArray.push(orderActivity);
                 orderInstance.orderActivity = orderActivityArray;
-            
-                if (latestBrokerStatus != 'Filled') {
-                    //Add order activity 
-                    return RedisUtils.insertIntoRedis(
-                        getRedisClient(), 
-                        ORDER_STATUS_SET,
-                        orderId, 
-                        JSON.stringify(orderInstance)
-                    )
-                } else {
-                    //Save to DB
-                    return DailyContestEntryModel.addOrderActivityForPrediction({advisor: advisorId}, predictionId, orderActivity);
-                }
+               
+                //Add order activity 
+                return RedisUtils.insertIntoRedis(
+                    getRedisClient(), 
+                    ORDER_STATUS_SET,
+                    orderId, 
+                    JSON.stringify(orderInstance)
+                )
             }
         }
         
@@ -206,10 +201,6 @@ module.exports.updateOrderStatus = function(orderId, statusEvent) {
                              predictionInstance.orders[orderIdx].activeStatus = false;
                              predictionInstance.orders[orderIdx].completeStatus = true;   
                         }
-
-                        // if (lastBrokerStatus != status) {
-                        //     predictionInstance.orders[orderIdx].brokerMessage.push(eventStatus);
-                        // }
 
                         //Update the broker status on order status message;
                         return RedisUtils.insertIntoRedis(
@@ -278,30 +269,19 @@ module.exports.updateOrderExecution = function(orderId, execution) {
             tradeActivityArray.push(tradeActivity);
             orderInstance.tradeActivity = tradeActivityArray
 
-            Promise.all([
-            	//P1 (Save trade Activity to DB)
-            	DailyContestEntryModel.addTradeActivityForPrediction({advisor: advisorId}, predictionId, tradeActivity),
-            	
-            	//P2
-            	Promise.resolve()
-            	.then(() => {
-	                if (!executionCompleted) {
-	                    return RedisUtils.insertIntoRedis(
-	                        getRedisClient(), 
-	                        ORDER_STATUS_SET,
-	                        orderId, 
-	                        JSON.stringify(orderInstance)
-	                    );
-
-	                } else {
-                    	RedisUtils.deleteFromRedis(getRedisClient(), ORDER_STATUS_SET, orderId);
-	                }
-	            })
-            ])
+            return RedisUtils.insertIntoRedis(
+                getRedisClient(), 
+                ORDER_STATUS_SET,
+                orderId, 
+                JSON.stringify(orderInstance)
+            )
             .then(() => {
-                //Delete this after 1 minute
-                setTimeout(function() {
-                    RedisUtils.getFromRedis(getRedisClient(), PREDICTION_STATUS_SET, predictionStatusKey)}, 60000);
+                if (executionCompleted) {
+                    return _saveTradeActivityToDb(advisorId, predictionId, orderId);
+                }
+            })
+            .then(() => {
+                RedisUtils.getFromRedis(getRedisClient(), PREDICTION_STATUS_SET, predictionStatusKey);
             });
 
         } else {
@@ -330,11 +310,11 @@ module.exports.updateOrderExecution = function(orderId, execution) {
             }
 
             return RedisUtils.insertIntoRedis(
-                        getRedisClient(), 
-                        PREDICTION_STATUS_SET,
-                        predictionStatusKey, 
-                        JSON.stringify(predictionInstance)
-                    )
+                getRedisClient(), 
+                PREDICTION_STATUS_SET,
+                predictionStatusKey, 
+                JSON.stringify(predictionInstance)
+            );
 
         } else {
             return null;
@@ -360,6 +340,62 @@ module.exports.getPredictionStatus = function(advisorId, predictionId) {
     })
 };
 
+
+module.exports.getPredictionActivity = function(advisorId, predictionId) {
+    let predictionStatusKey = `${advisorId}_${predictionId}`;
+
+    return RedisUtils.getFromRedis(getRedisClient(), PREDICTION_STATUS_SET, predictionStatusKey)
+    .then(redisPredictionInstance => {
+        if (redisPredictionInstance) {
+            var predictionInstance = JSON.parse(redisPredictionInstance);
+
+            var orderIds = _.get(predictionInstance, 'orders', []).map(item => item.orderId);
+
+            return Promise.map(orderIds, function(orderId) {
+                return RedisUtils.getFromRedis(getRedisClient(), ORDER_STATUS_SET, orderId)
+                .then(redisOrderInstance => {
+                    if (redisOrderInstance){
+                        var orderInstance = JSON.parse(redisOrderInstance);
+
+                        var tradeActivity = _.get(orderInstance, 'tradeActivity', []);
+                        var orderActivity = _.get(orderInstance, 'orderActivity', []);
+
+                        return {tradeActivity, orderActivity};
+                    }
+                })
+            });
+
+        } else {
+            return null;
+        }
+    })
+};
+
+
+function _saveTradeActivityToDb(orderId) {
+    setTimeout(function() {
+        return RedisUtils.getFromRedis(getRedisClient(), ORDER_STATUS_SET, orderId)
+        .then(redisOrderInstance => {
+            if (redisOrderInstance){
+                var orderInstance = JSON.parse(redisOrderInstance);
+
+                var advisorId = _.get(orderInstance, 'advisorId', null);
+                var predictionId = _.get(orderInstance, 'predictionId', null);
+
+                var tradeActivity = _.get(orderInstance, 'tradeActivity', []);
+                var orderActivity = _.get(orderInstance, 'orderActivity', []);
+
+                return Promise.all([
+                    DailyContestEntryModel.addOrderActivityForPrediction({advisor: advisorId}, predictionId, orderActivity),
+                    DailyContestEntryModel.addTradeActivityForPrediction({advisor: advisorId}, predictionId, tradeActivity)
+                ]);
+            }
+        })
+        .then(() => {
+            return RedisUtils.deleteFromRedis(getRedisClient, ORDER_STATUS_SET, orderId);
+        })
+    }, 60000);
+}
 
 
 
