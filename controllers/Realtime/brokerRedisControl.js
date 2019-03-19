@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-19 13:35:37
+* @Last Modified time: 2019-03-19 14:54:50
 */
 
 const redis = require('redis');
@@ -325,14 +325,14 @@ function _processOrderStatusEvent(orderStatusDetails) {
         if (lastBrokerStatus != status || orderActivityArray.length == 0) {
             
             orderActivityArray.push(orderActivity);
-            orderInstance.orderActivity = orderActivityArray;
+            orderExecutionDetailsInstance.orderActivity = orderActivityArray;
            
             //Add order activity 
             return RedisUtils.insertIntoRedis(
                 getRedisClient(), 
                 ORDER_EXECUTION_DETAILS_SET,
                 orderId, 
-                JSON.stringify(orderInstance)
+                JSON.stringify(orderExecutionDetailsInstance)
             )
         }
 
@@ -437,13 +437,13 @@ function _processOrderExecutionEvent(executionDetails) {
         if (!isExecutionIdPresent) {
         	tradeActivity = {...tradeActivity, brokerMessage: executionDetails};
             tradeActivityArray.push(tradeActivity);
-            orderInstance.tradeActivity = tradeActivityArray
+            orderExecutionDetailsInstance.tradeActivity = tradeActivityArray
 
             return RedisUtils.insertIntoRedis(
                 getRedisClient(), 
                 ORDER_EXECUTION_DETAILS_SET,
                 orderId, 
-                JSON.stringify(orderInstance)
+                JSON.stringify(orderExecutionDetailsInstance)
             )
             .then(() => {
                 if (executionCompleted) {
