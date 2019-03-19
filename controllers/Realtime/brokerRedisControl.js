@@ -532,14 +532,20 @@ module.exports.getPredictionActivity = function(advisorId, predictionId) {
                 .then(redisOrderExecutionDetailsInstance => {
                     if (redisOrderExecutionDetailsInstance){
                         var orderExecutionDetailsInstance = JSON.parse(redisOrderExecutionDetailsInstance);
-
                         var tradeActivity = _.get(orderExecutionDetailsInstance, 'tradeActivity', []);
                         var orderActivity = _.get(orderExecutionDetailsInstance, 'orderActivity', []);
 
                         return {tradeActivity, orderActivity};
                     }
                 })
-            });
+            })
+            .then(data => {
+                const tradeActivity = Array.prototype.concat.apply([], data.map(dataItem => dataItem.tradeActivity));
+                const orderActivity = Array.prototype.concat.apply([], data.map(dataItem => dataItem.orderActivity));
+                const requiredData = {tradeActivity, orderActivity};
+
+                return requiredData;
+            })
 
         } else {
             return null;

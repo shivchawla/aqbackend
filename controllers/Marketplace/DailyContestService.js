@@ -143,8 +143,15 @@ module.exports.getRealTradePredictions = (args, res, next) => {
 	})
 	.then(realPredictions => {
 		return Promise.map(realPredictions, function(prediction) {
-			return BrokerRedisController.getPredictionStatus(prediction.advisor._id, prediction._id)
-			.then(status => {
+			return Promise.all([
+				BrokerRedisController.getPredictionStatus(prediction.advisor._id, prediction._id),
+				BrokerRedisController.getPredictionActivity(prediction.advisor._id, prediction._id)
+			])
+			.then(([status, activity]) => {
+				prediction.tradeActivity = prediction.tradeActivity.concat(_.get(activity, 'tradeActivity', []));
+				prediction.orderActivity = prediction.orderActivity.concat(_.get(activity, 'orderActivity', []));
+				prediction.activity = activity
+
 				return {...prediction, current: status};
 			})
 		});
