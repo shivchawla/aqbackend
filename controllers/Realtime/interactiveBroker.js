@@ -7,7 +7,8 @@ const Promise = require('bluebird');
 const moment = require('moment');
 
 const BrokerRedisController = require('./brokerRedisControl');
-const ibPort = 4002;
+
+let isConnected = false;
 
 class InteractiveBroker {
     static connect() {
@@ -17,10 +18,12 @@ class InteractiveBroker {
                 
                 ibInstance.connect()
                 .on('connected', () => {
+                    isConnected = true
                     console.log('Connected to interactive broker');
                     resolve(true)
                 })
                 .on('disconnected', () => {
+                    isConnected = false;
                     console.log('Disconnected');
                     setTimeout(function() {
                         console.log("Reconnecting");
@@ -147,81 +150,90 @@ class InteractiveBroker {
             advisorId = null,
     }) {
         const self = this;
-
         let currentTime;
-        return new Promise((resolve, reject) => {
-            try {
-                // There should be orderTypes 
-                // for brackets use this https://interactivebrokers.github.io/tws-api/bracket_order.html
-                // Getting the interactive broker instance
-                const ibInstance = self.interactiveBroker;
-              
-                BrokerRedisController.getValidId(type == "bracket" ? 3 : 1)
-                .then(orderId => {
-                    // currentTime = moment.unix(time).format('YYYYMMDD HH:mm:ss')
-
-                    // creating IB stock from the stock param passed
-                    const ibStock = ibInstance.contract.stock(stock);
-
-                    if (orderType === 'bracket') {
-                        var parentId = orderId - 2;
-
-                        var profitOrderId = parentId+1;
-                        var stopLossOrderId = parentId+2;
-                        const bracketOrderConfig = self.bracketOrder(type, quantity, price, profitLimitPrice, stopLossPrice);
-
-                        ibInstance.placeOrder(parentId, ibStock, {...bracketOrderConfig.parentOrder, tif})
-                        ibInstance.placeOrder(profitOrderId, ibStock, {...bracketOrderConfig.profitOrder, parentId, tif})
-                        ibInstance.placeOrder(stopLossOrderId, ibStock, {...bracketOrderConfig.stopLossOrder, parentId, tif});    
-                        
-                        resolve([parentId, profitOrderId, stopLossOrderId]);
-                    } 
-                    
-                    else if (orderType === 'limit') {
-                        const limitOrderConfig = ibInstance.order.limit(type, quantity, price);
-                        ibInstance.placeOrder(orderId, ibStock, {...limitOrderConfig, tif});
-                        resolve([orderId]);
-                    } 
-                    
-                    else if (orderType === 'market') {
-                        const marketOrderConfig = ibInstance.order.market(type, quantity);
-                        ibInstance.placeOrder(orderId, ibStock, marketOrderConfig);
-                        resolve([orderId]);
-                    }
-
-                    else if (orderType === 'stopLimit') {
-                        const stopLimitOrderConfig = ibInstance.order.stopLimit(type, quantity, price);
-                        ibInstance.placeOrder(orderId, ibStock, {...stopLimitOrderConfig, tif});
-                        resolve([orderId]);
-                    }
-
-                    else if (orderType === 'marketClose') {
-                        const marketCloseOrderConfig = ibInstance.order.marketClose(type, quantity);
-                        ibInstance.placeOrder(orderId, ibStock, {...marketCloseOrderConfig, tif});
-                        resolve([orderId]);
-                    }
-                    
-                    else {
-                        reject('Invalid orderType')
-                    }
-                   
-                });
-            } catch (err) {
-                console.log('Err', err);
-                reject(err);
+            
+        // There should be orderTypes 
+        // for brackets use this https://interactivebrokers.github.io/tws-api/bracket_order.html
+        // Getting the interactive broker instance
+        
+        return Promise.resolve()
+        .then(() => {
+            if (isConnected) {
+                return BrokerRedisController.getValidId(orderType == "bracket" ? 3 : 1)
+            } else {
+                throw new Error("Not connected");
             }
+        })
+        .then(orderId => { 
+            console.log("OrderId", orderId);
+            let orderIds;
+
+            if (orderType == 'bracket') {
+                orderIds = [orderId - 2, orderId - 1, orderId];
+            } else {
+                orderIds = [orderId];
+            }
+            
+            return BrokerRedisController.addOrdersForPrediction(advisorId, predictionId, orderIds)
+            .then(() => {
+                console.log("OrderIds:", orderIds);
+                return orderIds;
+            })
         })
         .then(orderIds => {
-            //Update redis if order was accompanied with prdictionId/advisorId values
-            if (advisorId && predictionId) {
-                return BrokerRedisController.addOrdersForPrediction(advisorId, predictionId, orderIds, quantity)
-                .then(added => {
-                    //To make sure that execution detail events are called, force request execution details for the placed orders
-                    this.requestExecutionDetails({symbol: stock});
-                })
+            const ibInstance = self.interactiveBroker;
+
+            // creating IB stock from the stock param passed
+            const ibStock = ibInstance.contract.stock(stock);
+
+            if (orderType === 'bracket') {
+                var parentId = orderIds[0];
+                var profitOrderId = orderIds[1];
+                var stopLossOrderId = orderIds[2];
+
+                console.log("WTF");
+                const bracketOrderConfig = self.bracketOrder(type, quantity, price, profitLimitPrice, stopLossPrice);
+
+                return Promise.all([
+                    ibInstance.placeOrder(parentId, ibStock, {...bracketOrderConfig.parentOrder, tif}),
+                    ibInstance.placeOrder(profitOrderId, ibStock, {...bracketOrderConfig.profitOrder, parentId, tif}),
+                    ibInstance.placeOrder(stopLossOrderId, ibStock, {...bracketOrderConfig.stopLossOrder, parentId, tif})
+                ]);   
+            } 
+            
+            else if (orderType === 'limit') {
+                const limitOrderConfig = ibInstance.order.limit(type, quantity, price);
+                ibInstance.placeOrder(orderIds[0], ibStock, {...limitOrderConfig, tif});
+            } 
+            
+            else if (orderType === 'market') {
+                const marketOrderConfig = ibInstance.order.market(type, quantity);
+                ibInstance.placeOrder(orderIds[0], ibStock, {...marketOrderConfig, tif});
             }
+
+            else if (orderType === 'stopLimit') {
+                const stopLimitOrderConfig = ibInstance.order.stopLimit(type, quantity, price);
+                ibInstance.placeOrder(orderIds[0], ibStock, {...stopLimitOrderConfig, tif});
+            }
+
+            else if (orderType === 'marketClose') {
+                const marketCloseOrderConfig = ibInstance.order.marketClose(type, quantity);
+                ibInstance.placeOrder(orderIds[0], ibStock, {...marketCloseOrderConfig, tif});
+            }
+            
+            else {
+                throw new Error('Invalid orderType');
+            }
+           
         })
-        
+        .then(() => {
+            console.log("ahaah");
+            //To make sure that execution detail events are called, force request execution details for the placed orders
+            return this.requestExecutionDetails({symbol: stock});
+        })
+        .catch (err => {
+            console.log(err.message);
+        })
     }
 
     static cancelOrder(orderId) {
@@ -230,9 +242,6 @@ class InteractiveBroker {
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
                 ibInstance.cancelOrder(orderId)
-                .on('orderStatus', () => {
-                    resolve(orderId);
-                })
                 .on('error', (err, data) => {
                     reject(err);
                 })
@@ -274,10 +283,13 @@ InteractiveBroker.connect()
  * Handling event 'orderStatus' when send from the IB gateway or IB TWS
  */
 InteractiveBroker.interactiveBroker.on('orderStatus', (orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld) => {
-    console.log('Event - orderStatus', status, orderId);
+    // console.log('Event - orderStatus', status);
+    console.log("OrderStatus: ", orderId);
 
-    const statusEvent = {orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld};
-    BrokerRedisController.updateOrderStatus(orderId, statusEvent);
+    const orderStatusEvent = {orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld};
+    // BrokerRedisController.updateOrderStatus(orderId, statusEvent);
+    // 
+    BrokerRedisController.addInteractiveBrokerEvent(orderStatusEvent, 'orderStatus');
 });
 
 /**
@@ -285,16 +297,23 @@ InteractiveBroker.interactiveBroker.on('orderStatus', (orderId, status, filled, 
  */
 InteractiveBroker.interactiveBroker.on('openOrder', (orderId, contract, order, orderState) => {
     const symbol = _.get(contract, 'symbol', '');
-    console.log('openOrder - ' + order);
+    // console.log('openOrder');
+    // console.log(order);
+    console.log("OpenOrder: ", orderId);
+
+    BrokerRedisController.addInteractiveBrokerEvent({orderId, order, orderState}, 'openOrder');
+
+    // BrokerRedisController.updateOpenOrder(orderId, {order, orderState});
 });
 
 /**
  * Handling event 'execDetails' when send from the IB gateway or IB TWS
  */
 InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, execution, orderState) => {
-    console.log('Event - execDetails');
+    // console.log('Event - execDetails');
     const orderId = _.get(execution, 'orderId', null);
-    BrokerRedisController.updateOrderExecution(orderId, execution);
+    console.log("ExecDetails: ", orderId);
+    BrokerRedisController.addInteractiveBrokerEvent({orderId, execution, orderState}, 'execDetails');
 });
 
 module.exports = InteractiveBroker;

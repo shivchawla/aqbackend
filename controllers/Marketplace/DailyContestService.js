@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-18 18:34:04
+* @Last Modified time: 2019-03-18 23:01:06
 */
 
 'use strict';
@@ -1085,7 +1085,7 @@ module.exports.placeOrderForPrediction = function(args, res, next ) {
 	const predictionId = _.get(args, 'body.value.predictionId', null);
 	const advisorId = _.get(args, 'body.value.advisorId', null);
 	const order = _.get(args, 'body.value.order', {});
-	const stock = _.get(order, 'symbol', null);
+	const stock = "NVDA"; //_.get(order, 'symbol', null);
 	const orderType = _.get(order, 'orderType', null);
 	const quantity = _.get(order, 'quantity', 0);
 	const price = _.get(order, 'price', 0);
