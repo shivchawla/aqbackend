@@ -257,9 +257,15 @@ function _processOpenOrderEvent(openOrderDetails) {
 
         if (redisOrderStatusByPrediction) {
             orderStatusByPrediction = JSON.parse(redisOrderStatusByPrediction);
-
+            const orderIdx = _.findIndex(orderStatusByPrediction.orders, orderItem => {
+                return orderItem.orderId === orderId
+            });
+            if (orderIdx > -1) {
+                orderStatusByPrediction.orders[orderIdx] = openOrderInstance;
+            } else {
+                orderStatusByPrediction.orders.push(openOrderInstance);
+            }
             // console.log("Adding order to list of orders for prediction");
-            orderStatusByPrediction.orders.push(openOrderInstance);
         } else {
             orderStatusByPrediction = {accumulated:0, orders: [openOrderInstance]};   
         }
@@ -392,8 +398,8 @@ function _processOrderExecutionEvent(executionDetails) {
     const executionId = _.get(executionDetails, 'execution.execId', null);
     const cumulativeQuantity = _.get(executionDetails, 'execution.cumQty', 0);
     const direction = _.get(executionDetails, "execution.side", "BOT") == "BOT" ? 1 : -1
-    const fillQuantity = _.get(executionDetails, 'execution.shares', 0) * direction;
-    const avgPrice = _.get(executionDetails, 'execution.avgFillPrice', 0.0);
+    const fillQuantity = _.get(executionDetails, 'execution.shares', 0);
+    const avgPrice = _.get(executionDetails, 'execution.avgPrice', 0.0);
     const brokerStatus = _.get(executionDetails, 'orderState.status', '');
 
     const orderId = _.get(executionDetails, 'orderId', null);
