@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-13 18:04:04
+* @Last Modified time: 2019-03-19 20:09:01
 */
 
 'use strict';
@@ -411,8 +411,9 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		}
 	})
 	.then(([activePredictions, portfolioStats]) => {
-		const portfolioInvestment = _.get(portfolioStats, 'investment', 0);
-		const tenPercentagePortfolioInvestment = 0.1 * portfolioInvestment;
+		const portfolioValue = _.get(portfolioStats, 'netTotal', 0);
+		const tenPercentagePortfolioValue = 0.105 * portfolioValue;
+
 		activePredictions = activePredictions.filter(item => {
 			var completeStatus = _.get(item, 'status.profitTarget', false) ||  
 				_.get(item, 'status.stopLoss', false) ||  
@@ -432,7 +433,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		}));
 		netInvestmentForTicker = netInvestmentForTicker + investmentInput;
 		
-		if (netInvestmentForTicker >= tenPercentagePortfolioInvestment) {
+		if (netInvestmentForTicker > tenPercentagePortfolioValue) {
 			APIError.throwJsonError({message: `Limit exceeded: Can't invest more than 10% of your portfolio in a single stock. Stock (${ticker})`});
 		}
 
