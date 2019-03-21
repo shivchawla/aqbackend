@@ -60,6 +60,19 @@ const OrderActivity = new Schema({
 	orderId: String,
 });
 
+const AdminActivity = new Schema({
+	date: {
+		type: Date,
+		default: new Date()
+	},
+	message: String,
+	activityType: {
+		type: String,
+		enum:['ORDER', 'SKIP', 'CANCEL'],
+	},
+	obj: Schema.Types.Mixed
+});
+
 const Prediction = new Schema({
 	position: {
 		type: DollarPosition,
@@ -140,6 +153,13 @@ const Prediction = new Schema({
 	tradeActivity: [TradeActivity],
 
 	orderActivity: [OrderActivity],
+
+	adminActivity: [AdminActivity],
+
+	skippedByAdmin: {
+		type: Boolean,
+		default: false
+	},
 
 	readStatus: {
 		type: String,
@@ -428,6 +448,11 @@ DailyContestEntry.statics.updateReadStatus = function(query, predictionId, readS
 	return this.updateOne({...query, predictions:{$elemMatch: {_id: predictionId}}}, updates);
 };
 
+DailyContestEntry.statics.updateSkipStatus = function(query, predictionId, skipStatus) {
+	var updates = {$set: {'predictions.$.skippedByAdmin': skipStatus}};
+	return this.updateOne({...query, predictions:{$elemMatch: {_id: predictionId}}}, updates);
+}
+
 DailyContestEntry.statics.addTradeActivityForPrediction = function(query, predictionId, tradeActivity) {
 	var updates = {$addToSet: {'predictions.$.tradeActivity': tradeActivity}};
 	return this.updateOne({...query, predictions:{$elemMatch: {_id: predictionId}}}, updates);
@@ -438,6 +463,11 @@ DailyContestEntry.statics.addOrderActivityForPrediction = function(query, predic
 	return this.updateOne({...query, predictions:{$elemMatch: {_id: predictionId}}}, updates);
 };
 
+DailyContestEntry.statics.addAdminActivityForPrediction = function(query, predictionId, adminActivity) {
+	console.log('Admin Activity will be added');
+	var updates = {$addToSet: {'predictions.$.adminActivity': adminActivity}};
+	return this.updateOne({...query, predictions:{$elemMatch: {_id: predictionId}}}, updates);
+}
 
 const DailyContestEntryModel = mongoose.model('DailyContestEntry', DailyContestEntry);
 module.exports = DailyContestEntryModel;

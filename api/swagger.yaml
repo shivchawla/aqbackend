@@ -4008,6 +4008,34 @@ paths:
         400:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"      
+    
+  /dailycontest/skipPrediction:
+    post:
+      tags:
+      - dailycontest
+      summary: set skippedByAdmin flag to flag
+      description: Skips a prediction
+      operationId: updateSkipStatusPrediction
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        description: read status
+        required: true
+        schema:
+          $ref: "#/definitions/SkipStatus"
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"   
 
   /dailycontest/exitPrediction:
     post:
@@ -5255,18 +5283,26 @@ definitions:
       order:
         type: object
         $ref: '#/definitions/Order'
+      message:
+        type: string
 
   CancelOrder:
     type: object
     required:
       - orderId
       - advisorId
+      - predictionId
     properties:
       orderId:
         type: number
       advisorId:
         type: string
         format: uuid
+      predictionId:
+        type: string
+        format: uuid
+      message:
+        type: string
   
   Order:
     type: object
@@ -5337,6 +5373,20 @@ definitions:
         type: string
         default: "UNREAD" 
         enum: ["UNREAD", "READ/ACTED", "READ/NOT-ACTED"]
+    
+  SkipStatus:
+    type: object
+    required:
+      - predictionId
+      - advisorId
+    properties:
+      predictionId:
+        type: string
+        format: uuid
+      advisorId:
+        type: string
+        format: uuid
+
         
 
   AdminModification:
