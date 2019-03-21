@@ -184,7 +184,7 @@ class InteractiveBroker {
             const ibInstance = self.interactiveBroker;
 
             // creating IB stock from the stock param passed
-            const ibStock = ibInstance.contract.stock(stock);
+            const ibStock = ibInstance.contract.stock(stock, 'NSE', 'INR');
 
             if (orderType === 'bracket') {
                 var parentId = orderIds[0];

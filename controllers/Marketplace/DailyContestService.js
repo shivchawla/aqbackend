@@ -698,6 +698,18 @@ module.exports.updateSkipStatusPrediction = (args, res, next) => {
 		}
 	})
 	.then(() => {
+		const adminActivity = {
+			message: 'Order Skipped',
+			activityType: 'SKIP',
+			obj: {}
+		};
+
+		return Promise.all([
+			DailyContestEntryModel.addAdminActivityForPrediction({advisor: allocationAdvisorId}, predictionId, adminActivity),
+			DailyContestEntryModel.updateReadStatus({advisor: allocationAdvisorId}, predictionId, true)
+		]);
+	})
+	.then(() => {
 		return res.status(200).send('Success');
 	})
 	.catch(err => {
@@ -1237,6 +1249,7 @@ module.exports.cancelOrderForPrediction = function(args, res, next ) {
 		return res.status(200).send("Order cancelled successfully"); 
 	})
 	.catch(err => {
+		console.log('Error', err);
 		return res.status(400).send(err.message);
 	})
 }
