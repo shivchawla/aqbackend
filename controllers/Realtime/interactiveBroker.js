@@ -115,12 +115,24 @@ class InteractiveBroker {
     /**
      * Check to see how parentId will be passed
      */
-    static bracketOrder(action = 'BUY', quantity = 0, limitPrice = 0, takeProfitLimitPrice = 0, stopLossPrice) {
+    static bracketOrder(
+            action = 'BUY', 
+            quantity = 0, 
+            limitPrice = 0, 
+            takeProfitLimitPrice = 0, 
+            stopLossPrice,
+            bracketFirstOrderType = 'LIMIT'
+    ) {
         /**
          * How do I pass orderId and parentOrderId to order.limit, since in the ib module it is not being passed
          */
         const ibInstance = this.interactiveBroker;
-        const parentOrderConfig = ibInstance.order.limit(action, quantity, limitPrice, false);
+        let parentOrderConfig = null;
+        if (bracketFirstOrderType.toUpperCase() === 'MARKET') {
+            parentOrderConfig = ibInstance.order.market(action, quantity);
+        } else {
+            parentOrderConfig = ibInstance.order.limit(action, quantity, limitPrice, false);
+        }
 
         // Action used for takeProfitOrderConfig
         const takeProfitAction = action === 'BUY' ? 'SELL' : action;
@@ -148,6 +160,7 @@ class InteractiveBroker {
             tif="GTC",
             predictionId = null,
             advisorId = null,
+            bracketFirstOrderType = 'LIMIT'
     }) {
         const self = this;
         let currentTime;
@@ -192,7 +205,7 @@ class InteractiveBroker {
                 var stopLossOrderId = orderIds[2];
 
                 console.log("WTF");
-                const bracketOrderConfig = self.bracketOrder(type, quantity, price, profitLimitPrice, stopLossPrice);
+                const bracketOrderConfig = self.bracketOrder(type, quantity, price, profitLimitPrice, stopLossPrice, bracketFirstOrderType);
 
                 return Promise.all([
                     ibInstance.placeOrder(parentId, ibStock, {...bracketOrderConfig.parentOrder, tif}),

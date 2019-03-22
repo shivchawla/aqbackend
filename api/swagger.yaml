@@ -5323,6 +5323,9 @@ definitions:
       tradeDirection:
         type: string
         enum: ["BUY", "SELL"]
+      bracketFirstOrderType:
+        type: string
+        enum: ["LIMIT", "MARKET"]
       stopLossPrice:
         type: number
       profitLimitPrice:

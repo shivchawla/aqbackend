@@ -1141,6 +1141,7 @@ module.exports.placeOrderForPrediction = function(args, res, next ) {
 	const advisorId = _.get(args, 'body.value.advisorId', null);
 	const message = _.get(args, 'body.value.message', '');
 	const order = _.get(args, 'body.value.order', {});
+	const bracketFirstOrderType = _.get(order, 'bracketFirstOrderType', 'LIMIT');
 	const stock = _.get(order, 'symbol', null);
 	const orderType = _.get(order, 'orderType', null);
 	const quantity = _.get(order, 'quantity', 0);
@@ -1193,7 +1194,7 @@ module.exports.placeOrderForPrediction = function(args, res, next ) {
 			// Placing the order in the market
 			// Adding admin activity to the prediction
 			return Promise.all([
-				InteractiveBroker.placeOrder({...orderParams, predictionId, advisorId}),
+				InteractiveBroker.placeOrder({...orderParams, predictionId, advisorId, bracketFirstOrderType}),
 				DailyContestEntryModel.addAdminActivityForPrediction({advisor: allocationAdvisorId}, predictionId, adminActivity),
 				DailyContestEntryModel.updateReadStatus({advisor: allocationAdvisorId}, predictionId, true)
 			])

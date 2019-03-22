@@ -19,7 +19,7 @@ function insertIntoRedis(client, masterKey, key, data) {
 }
 
 function deleteFromRedis(client, masterKey, key) {
-    return client.hdel(masterKey, key);
+    return client.hdelAsync(masterKey, key);
 }
 
 function getRangeFromRedis(client, key, fIdx, lIdx) {
