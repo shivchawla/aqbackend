@@ -2,8 +2,9 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-16 21:00:28
+* @Last Modified time: 2019-03-22 10:14:39
 */
+
 'use strict';
 const config = require('config');
 const Promise = require('bluebird');
@@ -212,6 +213,17 @@ module.exports.updateRealtimeQuotesFromEODH = function(allTickers) {
 	}
 }
 
+module.exports.getRealtimeQuoteFromEODH = function(ticker) {
+	var otherTickers = '';
+	const realtimeQuoteUrl = eval('`'+config.get('realtime_EODH_quote_url') +'`');
+
+	return axios.get(realtimeQuoteUrl)
+	.then(response => {
+		if (response) {
+			return response.data;
+		}
+	})
+}
 
 function _computeStockRealtimeHistoricalDetail(security, minute) {
 	return new Promise((resolve, reject) => {

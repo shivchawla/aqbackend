@@ -51,15 +51,15 @@ function getValue(client, key) {
 }
 
 function insertKeyValue(client, key, data) {
-    client.setAsync(key, data);
+    return client.setAsync(key, data);
 }
 
 function deleteKey(client, key) {
-    client.delAsync(key);
+    return client.delAsync(key);
 }
 
 function incValue(client, key, increment) {
-    client.incrbyAsync(key, increment);
+    return client.incrbyAsync(key, increment);
 }
 
 function subscribe(client, channel) {

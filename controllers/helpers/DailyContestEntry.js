@@ -2,7 +2,8 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-15 21:08:41
+* @Last Modified time: 2019-03-22 14:30:00
+
 */
 
 'use strict';
@@ -11,6 +12,8 @@ const Promise = require('bluebird');
 const moment = require('moment-timezone');
 const schedule = require('node-schedule');
 const config = require('config');
+const redis = require('redis');
+const axios = require('axios');
 
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
@@ -1358,7 +1361,7 @@ module.exports.getValidStartDate = function(date) {
 	}
 	//While trading
 	else if (DateHelper.isMarketTrading()) {
-        validStartDate = moment().startOf('minute');
+        validStartDate = moment().add(1, 'minute').startOf('minute');
 	}  
 	//After market close - get close of that day 
 	//5:30 PM Friday
@@ -2063,62 +2066,91 @@ module.exports.checkForPredictionExpiry = function() {
 	}
 }
 
-function _fetchLatestRealtimeQuoteFromEODH(ticker) {
-	const realtimeQuoteUrl = eval('`'+config.get('realtime_EODH_quote_url') +'`');
-
-	return axios.get(realtimeQuoteUrl)
-	.then(response => {
-		if (response) {
-			return response.data;
-		}
-	})
-}
-
 module.exports.updateCallPriceForPredictionsFromEODH = function() {
 	let latestDate = DateHelper.getMarketCloseDateTime(exports.getValidStartDate());
 
+	var currentTime = moment().startOf('minute').toISOString();
+
+	var queueName = `${RECENT_ADVISORS_QUEUE}_${currentTime}`;
+
 	let latestQuotes = {};
-	return RedisUtils.getRangeFromRedis(getRedisClient(), RECENT_ADVISORS_QUEUE, 0, -1)
+	return RedisUtils.getSetDataFromRedis(getRedisClient(), queueName)
 	.then(advisors => {
-		return Promise.mapSeries(advisors, function(advisorId) {
+		if (advisors && advisors.length > 0) {
+			console.log(`Retrieved from queue:`);
+			console.log(queueName);
 
-			return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, latestDate)
-			.then(predictions => {
-				if (predictions && predictions.length > 0) {
-					
-					var filteredPredictions = predictions.filter(item => {
-						var callPrice = _.get(item, 'position.avgPrice', 0.0);
-						var isCreatedLastMinute = moment().startOf('minute').isSame(moment(item.startDate));
+			return Promise.mapSeries(advisors, function(advisorId) {
+				
+				return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, latestDate)
+				.then(predictions => {
+					if (predictions && predictions.length > 0) {
 						
-						return callPrice == 0 && isCreatedLastMinute;
-					});
-					
-					return Promise.mapSeries(filteredPredictions, function(prediction) {
-						var ticker = prediction.position.security.ticker;
-						return !(ticker in latestQuotes) ? _fetchLatestRealtimeQuoteFromEODH(ticker) : latestQuotes[ticker] 
-						.then(latestQuote => {
+						var filteredPredictions = predictions.filter(item => {
+							var callPrice = _.get(item, 'position.avgPrice', 0.0);
+							var isCreatedLastMinute = moment().startOf('minute').isSame(moment(item.startDate));
+							
+							return callPrice == 0 && isCreatedLastMinute;
+						});
 
-							if (latestQuote) {
+						// console.log("Last minute Predictions");
+						// console.log(filteredPredictions);
+						
+						return Promise.map(filteredPredictions, function(prediction) {
+							var ticker = prediction.position.security.ticker;
 
-								//Push the quote in dictionary
-								latestQuotes[ticker] = latestQuote
-								
-								if (moment.unix(latestQuote.timestamp).isSame(moment(prediction.startDate))) {
-									var updatedCallPrice = _.get(latestQuote, 'close', 0.0);
-									if (updatedCallPrice != 0) {
-										return DailyContestEntryModel.updatePredictionCallPrice({advisor: advisorId}, prediction, updatedCallPrice);
+							return Promise.resolve()
+							.then(() => {
+								if (ticker in latestQuotes) {
+									return latestQuotes[ticker]; 
+								} else {
+									return SecurityHelper.getRealtimeQuoteFromEODH(`${ticker}.NSE`); 
+								}
+							})
+							.then(latestQuote => {
+
+								console.log(`Received Quote Time: ${moment.utc().toISOString()}`);
+									
+								if (latestQuote) {
+
+									//Push the quote in dictionary
+									latestQuotes[ticker] = latestQuote
+
+									console.log("Latest Quote")
+									console.log(latestQuote);
+									
+									console.log(`Quote timestamp: ${moment.unix(latestQuote.timestamp).toISOString()}`);
+									// console.log(moment.unix(latestQuote.timestamp).add(1, 'minute').startOf('minute').toISOString());
+
+									var quoteTime = moment.unix(latestQuote.timestamp).subtract(1, 'millisecond').add(1, 'minute').startOf('minute').toISOString();
+									console.log(`Adjusted Quote Time By Minute: ${quoteTime}`);
+
+									console.log(`Prediction StartDate: ${prediction.startDate.toISOString()}`);
+
+									if (moment(quoteTime).isSame(moment(prediction.startDate))) {
+										var updatedCallPrice = _.get(latestQuote, 'close', 0.0);
+										if (updatedCallPrice != 0) {
+											console.log(`Updating Call Price-- WOHOO!!!!   ${updatedCallPrice}`);
+											return DailyContestEntryModel.updatePredictionCallPrice({advisor: advisorId}, prediction, updatedCallPrice);
+										}
 									}
 								}
-							}
-						});
-					});	
-				}
+							})
+							.catch(err => {
+								console.log("WTF");
+								console.log(err);
+							})
+						});	
+					}
+				});
+
 			});
-
-		});
+		}
 	})
+	// .then(() => {
+	// 	return RedisUtils.deleteKey(getRedisClient(), queueName);
+	// })
 };
-
 
 
 module.exports.addPrediction = function(advisorId, prediction, date) {
@@ -2131,8 +2163,13 @@ module.exports.addPrediction = function(advisorId, prediction, date) {
 	])
 	.then(([added, masterAdvisorId]) => {
 		//Updating advisor account with new metrics
+		
+		var queueName = `${RECENT_ADVISORS_QUEUE}_${prediction.startDate.toISOString()}`;
+		console.log("Pushing To Queue");
+		console.log(queueName);
+
 		return Promise.all([
-			DateHelper.isMarketTrading() ? RedisUtils.pushToRangeRedis(getRedisClient(), RECENT_ADVISORS_QUEUE, advisorId) : null,
+			DateHelper.isMarketTrading() ? RedisUtils.addSetDataToRedis(getRedisClient(), queueName, advisorId.toString()) : null,
 			AdvisorHelper.updateAdvisorAccountDebit(advisorId, [prediction]),
 			isRealPrediction && masterAdvisorId ? 
 				PredictionRealtimeController.sendAdminUpdates(masterAdvisorId) : null

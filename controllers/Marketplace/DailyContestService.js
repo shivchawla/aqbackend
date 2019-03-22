@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-13 18:04:04
+* @Last Modified time: 2019-03-22 10:10:49
 */
 
 'use strict';
@@ -293,9 +293,12 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	})
 	.then(() => {
 		
-		return SecurityHelper.getStockLatestDetail(prediction.position.security)
-		.then(securityDetail => {
-			var latestPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
+		return Promise.all([
+			SecurityHelper.getStockLatestDetail(prediction.position.security),
+			SecurityHelper.getRealtimeQuoteFromEODH(`${prediction.position.security.ticker}.NSE`)
+		])
+		.then(([securityDetail, realTimeQuote]) => {
+			var latestPrice = _.get(realTimeQuote, 'close', 0) || _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
 			if (latestPrice != 0) {
 
 				//Investment is modified downstream so can't be const
