@@ -9,25 +9,21 @@
 const _ = require('lodash');
 const Promise = require('bluebird');
 var redis = require('redis');
-const schedule = require('node-schedule');
-const moment = require('moment-timezone');
 var path = require('path');
 var fs = require('fs');
 var csv = require('fast-csv');
 
 const config = require('config');
-const sendEmail = require('../../email');
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
 const InteractiveBroker = require('../Realtime/interactiveBroker');
+const ibTickers = require('../../documents/ibTickers.json');
 
-const UserModel = require('../../models/user');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryHelper = require('../helpers/DailyContestEntry');
-const DailyContestHelper = require('../helpers/DailyContest');
 const DailyContestStatsHelper = require('../helpers/DailyContestStats');
 const SecurityHelper = require('../helpers/Security');
 const AdvisorHelper = require('../helpers/Advisor');
@@ -1142,7 +1138,7 @@ module.exports.placeOrderForPrediction = function(args, res, next ) {
 	const message = _.get(args, 'body.value.message', '');
 	const order = _.get(args, 'body.value.order', {});
 	const bracketFirstOrderType = _.get(order, 'bracketFirstOrderType', 'LIMIT');
-	const stock = _.get(order, 'symbol', null);
+	let stock = _.get(order, 'symbol', null);
 	const orderType = _.get(order, 'orderType', null);
 	const quantity = _.get(order, 'quantity', 0);
 	const price = _.get(order, 'price', 0);
@@ -1152,7 +1148,10 @@ module.exports.placeOrderForPrediction = function(args, res, next ) {
 
 	const orderParams = {stock, type, quantity, price, orderType, stopLossPrice, profitLimitPrice};
 	let allocationAdvisorId = null;
-	console.log('Placed order for prediction');
+	const ibSymbol = ibTickers[stock];
+	if (ibSymbol) {
+		stock = ibSymbol;
+	}
 
 	Promise.resolve()
 	.then(() => {
