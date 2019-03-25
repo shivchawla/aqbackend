@@ -2,8 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-22 14:30:00
-
+* @Last Modified time: 2019-03-25 16:58:55
 */
 
 'use strict';
@@ -2093,9 +2092,6 @@ module.exports.updateCallPriceForPredictionsFromEODH = function() {
 							return callPrice == 0 && isCreatedLastMinute;
 						});
 
-						// console.log("Last minute Predictions");
-						// console.log(filteredPredictions);
-						
 						return Promise.map(filteredPredictions, function(prediction) {
 							var ticker = prediction.position.security.ticker;
 
@@ -2109,28 +2105,29 @@ module.exports.updateCallPriceForPredictionsFromEODH = function() {
 							})
 							.then(latestQuote => {
 
-								console.log(`Received Quote Time: ${moment.utc().toISOString()}`);
+								// console.log(`Received Quote Time: ${moment.utc().toISOString()}`);
 									
 								if (latestQuote) {
 
 									//Push the quote in dictionary
 									latestQuotes[ticker] = latestQuote
 
-									console.log("Latest Quote")
-									console.log(latestQuote);
+									// console.log("Latest Quote")
+									// console.log(latestQuote);
 									
-									console.log(`Quote timestamp: ${moment.unix(latestQuote.timestamp).toISOString()}`);
-									// console.log(moment.unix(latestQuote.timestamp).add(1, 'minute').startOf('minute').toISOString());
+									// console.log(`Quote timestamp: ${moment.unix(latestQuote.timestamp).toISOString()}`);
+									var quoteTime = moment.unix(latestQuote.timestamp).add(1, 'millisecond').startOf('minute').toISOString();
+									// console.log(`Adjusted Quote Time By Minute: ${quoteTime}`);
 
-									var quoteTime = moment.unix(latestQuote.timestamp).subtract(1, 'millisecond').add(1, 'minute').startOf('minute').toISOString();
-									console.log(`Adjusted Quote Time By Minute: ${quoteTime}`);
+									// console.log(`Prediction StartDate: ${prediction.startDate.toISOString()}`);
 
-									console.log(`Prediction StartDate: ${prediction.startDate.toISOString()}`);
 
+									//How to handle cases where last Quote time (for low volume stocks) is before last EOD minute
+									//Should we update the call price with the value or wait or time series logic 	
 									if (moment(quoteTime).isSame(moment(prediction.startDate))) {
 										var updatedCallPrice = _.get(latestQuote, 'close', 0.0);
 										if (updatedCallPrice != 0) {
-											console.log(`Updating Call Price-- WOHOO!!!!   ${updatedCallPrice}`);
+											// console.log(`Updating Call Price-- WOHOO!!!!   ${updatedCallPrice}`);
 											return DailyContestEntryModel.updatePredictionCallPrice({advisor: advisorId}, prediction, updatedCallPrice);
 										}
 									}
