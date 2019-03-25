@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-19 14:54:50
+* @Last Modified time: 2019-03-25 13:16:40
 */
 
 const redis = require('redis');
@@ -23,6 +23,7 @@ let redisClient;
 
 const ORDER_EXECUTION_DETAILS_SET = "orderExecutionDetailSet";
 const ORDER_STATUS_BY_PREDICTION_SET = "orderStatusByPredictionSet";
+const ORDER_PROCESSING_COMPLETED = "orderProcessingCompleted";
 
 const IB_EVENTS = "interactiveBrokerEvents";
 
@@ -183,12 +184,21 @@ function _processOpenOrderEvent(openOrderDetails) {
     return Promise.resolve()
     .then(() => {
         if (orderId) {
-            return RedisUtils.getFromRedis(getRedisClient(), TEMP_ORDER_TO_PREDICTION_SET, orderId)        
+            return Promise.all([
+                RedisUtils.getFromRedis(getRedisClient(), TEMP_ORDER_TO_PREDICTION_SET, orderId),
+                RedisUtils.getFromRedis(getRedisClient(), ORDER_PROCESSING_COMPLETED, orderId),
+                RedisUtils.getFromRedis(getRedisClient(), ORDER_EXECUTION_DETAILS_SET, orderId)
+            ])                
         } else {
             throw new Error("Error while processiing open order: Invalid OrderId");
         }
     })
-    .then(redisOrderToPredictionKey => {
+    .then(([redisOrderToPredictionKey, alreadyProcessedFlag, redisOrderExecutionDetailsInstance]) => {
+
+        if (alreadyProcessedFlag) {
+            throw new Error("Order has alrady been processed competely!!!");
+        }
+
         if (redisOrderToPredictionKey) {
             var orderToPredictionKey = JSON.parse(redisOrderToPredictionKey);
 
@@ -223,18 +233,38 @@ function _processOpenOrderEvent(openOrderDetails) {
                 activityType: 'openOrder'
             };
 
-            return RedisUtils.insertIntoRedis(
-                getRedisClient(), 
-                ORDER_EXECUTION_DETAILS_SET,
-                orderId, 
-                JSON.stringify({
-                    advisorId,
-                    predictionId, 
-                    tradeActivity: [],
-                    orderActivity: [orderActivity],
-                    orderedQuantity: quantity
-                })
-            )
+            return Promise.resolve()
+            .then(() => {
+                if (redisOrderExecutionDetailsInstance) {
+                    console.log("Order is already present in ORDER_EXECUTION_DETAILS_SET!! Appending Open Order info!!");
+                    
+                    var orderExecutionDetailsInstance = JSON.parse(redisOrderExecutionDetailsInstance);
+
+                    orderExecutionDetailsInstance.orderActivity.push(orderActivity);
+
+                    return RedisUtils.insertIntoRedis(
+                        getRedisClient(), 
+                        ORDER_EXECUTION_DETAILS_SET,
+                        orderId, 
+                        JSON.stringify(orderExecutionDetailsInstance)
+                    );
+
+                } else {
+                    console.log(`Initializing order: ${orderId} in ORDER_EXECUTION_DETAILS_SET`);
+                    return RedisUtils.insertIntoRedis(
+                        getRedisClient(), 
+                        ORDER_EXECUTION_DETAILS_SET,
+                        orderId, 
+                        JSON.stringify({
+                            advisorId,
+                            predictionId, 
+                            tradeActivity: [],
+                            orderActivity: [orderActivity],
+                            orderedQuantity: quantity
+                        })
+                    );
+                }    
+            })
             .then(() => {
                 return RedisUtils.getFromRedis(
                     getRedisClient(), 
@@ -297,8 +327,15 @@ function _processOrderStatusEvent(orderStatusDetails) {
 
     const orderId = _.get(orderStatusDetails, 'orderId', null);
 
-	return RedisUtils.getFromRedis(getRedisClient(), ORDER_EXECUTION_DETAILS_SET, orderId)
-    .then(redisOrderExecutionDetailsInstance => {
+	return Promise.all([
+        RedisUtils.getFromRedis(getRedisClient(), ORDER_EXECUTION_DETAILS_SET, orderId),
+        RedisUtils.getFromRedis(getRedisClient(), ORDER_PROCESSING_COMPLETED, orderId)
+    ])
+    .then(([redisOrderExecutionDetailsInstance, alreadyProcessedFlag]) => {
+        if (alreadyProcessedFlag) {
+            throw new Error("Order already processed completed!!");
+        }
+
         if (!redisOrderExecutionDetailsInstance) {
             console.log(`No prediction info found for order: ${orderId}`);
             return;
@@ -415,8 +452,16 @@ function _processOrderExecutionEvent(executionDetails) {
 
     let orderStatusByPredictionKey;
             
-    return RedisUtils.getFromRedis(getRedisClient(), ORDER_EXECUTION_DETAILS_SET, orderId)
-    .then(redisOrderExecutionDetailsInstance => {
+    return Promise.all([
+        RedisUtils.getFromRedis(getRedisClient(), ORDER_EXECUTION_DETAILS_SET, orderId),
+        RedisUtils.getFromRedis(getRedisClient(), ORDER_PROCESSING_COMPLETED, orderId)
+    ])
+    .then(([redisOrderExecutionDetailsInstance, alreadyProcessedFlag]) => {
+
+        if (alreadyProcessedFlag) {
+            throw new Error("Order already processed completely");
+        }
+
         if (!redisOrderExecutionDetailsInstance) {
             console.log(`No execution detaisl found for order: ${orderId}`);
             return;
@@ -445,6 +490,10 @@ function _processOrderExecutionEvent(executionDetails) {
         	tradeActivity = {...tradeActivity, brokerMessage: executionDetails.execution};
             tradeActivityArray.push(tradeActivity);
             orderExecutionDetailsInstance.tradeActivity = tradeActivityArray;
+
+            console.log(`Adding trade activity: ${orderId}`);
+            console.log("Trade Activity");
+            console.log(tradeActivityArray);
 
             return RedisUtils.insertIntoRedis(
                 getRedisClient(), 
@@ -492,7 +541,7 @@ function _processOrderExecutionEvent(executionDetails) {
 
             return RedisUtils.insertIntoRedis(
                 getRedisClient(), 
-                ORDER_STATUS_BY_PREDICTION_SET,
+                ORDER_EXECUTION_DETAILS_SET,
                 orderStatusByPredictionKey, 
                 JSON.stringify(orderStatusByPredictionInstance)
             );
@@ -503,7 +552,7 @@ function _processOrderExecutionEvent(executionDetails) {
     })
     .then(() => {
         if(advisorId && predictionId) {
-            PredictionRealtimeController.sendAdminUpdates(advisorId, predictionId);
+            return PredictionRealtimeController.sendAdminUpdates(advisorId, predictionId);
         }
     })
     .catch(err => {
@@ -580,7 +629,10 @@ function _saveTradeActivityToDb(orderId) {
             }
         })
         .then(() => {
-            return RedisUtils.deleteFromRedis(getRedisClient(), ORDER_EXECUTION_DETAILS_SET, orderId);
+            return Promise.all([
+                RedisUtils.insertIntoRedis(getRedisClient(), ORDER_PROCESSING_COMPLETED, orderId, "1"),
+                RedisUtils.deleteFromRedis(getRedisClient(), ORDER_EXECUTION_DETAILS_SET, orderId)
+            ])
         })
     }, 60000);
 }
