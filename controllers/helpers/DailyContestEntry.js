@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-25 19:14:21
+* @Last Modified time: 2019-03-25 20:32:14
 */
 
 'use strict';
@@ -1032,7 +1032,7 @@ function _updatePredictionForTrueCallPrice(prediction) {
 	.then(([intradaySecurityDetail, eodSecurityDetail]) => {
 		
 		if (isAfterMarket) {
-			prediction.position.avgPrice = _.get(eodSecurityDetail, 'latestDetailRT.current', 0) || 			
+			prediction.position.avgPrice = _.get(eodSecurityDetail, 'latestDetailRT.close', 0) || 			
 											_.get(eodSecurityDetail, 'latestDetail.Close', 0);
 		} else {
 
@@ -1061,7 +1061,7 @@ function _updatePredictionForCallPrice(prediction) {
 	.then(([intradaySecurityDetail, eodSecurityDetail]) => {
 		
 		if (_.get(prediction,'nonMarketHoursFlag', false)) {
-			var lastPrice = _.get(eodSecurityDetail, 'latestDetailRT.current', 0) ||
+			var lastPrice = _.get(eodSecurityDetail, 'latestDetailRT.close', 0) ||
 			    _.get(eodSecurityDetail, 'latestDetailRT.close', 0) ||  
 			    _.get(eodSecurityDetail, 'latestDetail.Close', 0);
 
@@ -1078,7 +1078,7 @@ function _updatePredictionForCallPrice(prediction) {
 			}
 
 			var lastPrice = trueLastPrice ||
-			    _.get(eodSecurityDetail, 'latestDetailRT.current', 0) ||
+			    _.get(eodSecurityDetail, 'latestDetailRT.close', 0) ||
 			    _.get(eodSecurityDetail, 'latestDetailRT.close', 0); 
 
 			prediction.position.avgPrice = lastPrice;
@@ -1147,7 +1147,9 @@ function _computeUpdatedPredictions(predictions, date) {
 						//But if price is not available, then move to next step and return current price
 						return [updatedCallPricePrediction.position];	
 					} else {
-						return _updatePositionsForPrice(_partialUpdatedPositions, date);
+						//Why use Julia here at all.
+						return _partialUpdatedPositions;
+						//return _updatePositionsForPrice(_partialUpdatedPositions, date);
 					}
 				})
 				.then(updatedPositions => {
@@ -1315,7 +1317,7 @@ function _computeNetPnlStats(advisorId, date) {
 	});
 }
 
-function _getDistinctPredictionTickersForAdvisors(date, options={}) {
+module.exports.getDistinctPredictionTickersForAdvisors = function(date, options={}) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 	
 	var advisorsByTicker = {};
@@ -1723,7 +1725,7 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 						//This adjust just the 
 						return SecurityHelper.getStockLatestDetail(item.position.security)
 						.then(securityDetail => {
-							lastPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || 
+							lastPrice = _.get(securityDetail, 'latestDetailRT.close', 0) || 
 								_.get(securityDetail, 'latestDetailRT.close') || 
 								_.get(securityDetail, 'latestDetail.Close', 0);
 
@@ -2027,7 +2029,7 @@ module.exports.checkForPredictionExpiry = function() {
 						if (expiring && lastPrice == 0) {
 							return SecurityHelper.getStockLatestDetail(item.position.security)
 							.then(securityDetail => {
-								item.position.lastPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || 
+								item.position.lastPrice = _.get(securityDetail, 'latestDetailRT.close', 0) || 
 									_.get(securityDetail, 'latestDetailRT.close') || 
 									_.get(securityDetail, 'latestDetail.Close', 0);
 
@@ -2122,13 +2124,13 @@ module.exports.updateCallPriceForPredictionsFromEODH = function() {
 									// console.log(latestQuote);
 									
 									// console.log(`Quote timestamp: ${moment.unix(latestQuote.timestamp).toISOString()}`);
-									var quoteTime = moment.unix(latestQuote.timestamp).add(1, 'millisecond').startOf('minute').toISOString();
+									// var quoteTime = moment.unix(latestQuote.timestamp).add(1, 'millisecond').startOf('minute').toISOString();
 									// console.log(`Adjusted Quote Time By Minute: ${quoteTime}`);
 									// console.log(`Prediction StartDate: ${prediction.startDate.toISOString()}`);
 
 									//How to handle cases where last Quote time (for low volume stocks) is before last EOD minute
 									//Should we update the call price with the value or wait or time series logic 	
-									if (moment(quoteTime).isSame(moment(prediction.startDate))) {
+									if (moment(latestQuote.timestamp).isSame(moment(prediction.startDate))) {
 										var updatedCallPrice = _.get(latestQuote, 'close', 0.0);
 										if (updatedCallPrice != 0) {
 											// console.log(`Updating Call Price-- WOHOO!!!!   ${updatedCallPrice}`);
@@ -2353,7 +2355,7 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 	
 	//can be simplified to tickers * (advisor-predictons)
-	return _getDistinctPredictionTickersForAdvisors(date)
+	return exports.getDistinctPredictionTickersForAdvisors(date)
 	.then(allAdvisorsByTickers => {
 		var allTickers = Object.keys(allAdvisorsByTickers);
 
@@ -2518,7 +2520,7 @@ module.exports.checkPredictionTriggers = function(date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
 	//Active flag will fetch prediction that are inactive (not triggered yet)
-	return _getDistinctPredictionTickersForAdvisors(date, {active: false})
+	return exports.getDistinctPredictionTickersForAdvisors(date, {active: false})
 	.then(allAdvisorsByTickers => {
 		var allTickers = Object.keys(allAdvisorsByTickers);
 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-25 19:15:07
+* @Last Modified time: 2019-03-25 20:46:45
 */
 
 'use strict';
@@ -96,12 +96,13 @@ function _computeStockPriceHistory(security, field) {
     });
 };
 
-function _computeStockLatestDetail(security, type) {
+
+function _computeStockLatestEODDetail(security) {
 	return new Promise((resolve, reject) => {
 
 		var msg = JSON.stringify({action:"compute_stock_price_latest", 
             						security: security,
-            						ptype: type ? type : "EOD"});
+            						ptype: "EOD"});
 
 		WSHelper.handleMktRequest(msg, resolve, reject);
 
@@ -163,6 +164,18 @@ function _computeStockIntradayHistory(security, date) {
     });
 }
 
+
+function _computeStockLatestRTDetail(security) {
+	return _computeStockIntradayHistory(security, DateHelper.getMarketCloseDateTime())
+	.then(intradayHistory => {
+		if (intradayHistory) {
+			return intradayHistory.slice(-1)[0];
+		} else {
+			return exports.getRealtimeQuoteFromEODH(security.ticker);
+		}
+	})
+}
+
 module.exports.getNifty500Constituents = function() {
 	const fname = path.resolve(path.join(__dirname, `../../documents/universe/ind_nifty500list.csv`));
 	return _getRawStockList(fname);
@@ -219,7 +232,11 @@ module.exports.getRealtimeQuoteFromEODH = function(ticker) {
 	return axios.get(realtimeQuoteUrl)
 	.then(response => {
 		if (response) {
-			return response.data;
+			var quoteData = response.data;
+			//Change the timesamp format
+			quoteData.timestamp = moment.unix(quoteData.timestamp).add(1, 'millisecond').startOf('minute').toISOString();
+			
+			return quoteData;
 		}
 	})
 }
@@ -543,7 +560,7 @@ module.exports.getStockLatestDetailByType = function(security, type) {
 			var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
 			if(update) {
 				return Promise.all([
-					_computeStockLatestDetail(security, type),
+					type = "EOD" ? _computeStockLatestEODDetail(security) : _computeStockLatestRTDetail(security),
 					_getSecurityDetail(security)
 				])
 				.then(([performanceDetail, securityDetail]) => {
@@ -641,6 +658,8 @@ module.exports.getRealTimeStockHistoricalDetail = function(security, minute) {
 	});
 };
 
+//With EODH, this needs modification as EODH quote can't be used for high/low/volume etc.
+//As quote is the latest price (with other atricutes being cumulative rather than interval)...OOPS!!
 module.exports.getStockIntradayHistory = function(security, date) {
 	return new Promise(resolve => {
 		var query = {'security.ticker': security.ticker,
