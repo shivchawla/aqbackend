@@ -144,7 +144,7 @@ class InteractiveBroker {
         const ibInstance = this.interactiveBroker;
         let parentOrderConfig = null;
         if (bracketFirstOrderType.toUpperCase() === 'MARKET') {
-            parentOrderConfig = ibInstance.order.market(action, quantity);
+            parentOrderConfig = ibInstance.order.market(action, quantity, false);
         } else {
             parentOrderConfig = ibInstance.order.limit(action, quantity, limitPrice, false);
         }

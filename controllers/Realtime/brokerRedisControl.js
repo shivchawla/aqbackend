@@ -126,9 +126,11 @@ function _processIBEvents() {
            
             try { 
                 ibEvent = JSON.parse(redisIBEvent);
-                console.log('Redis Ib Event', redisIBEvent);
+                // console.log('Redis Ib Event', redisIBEvent);
 
                 var eventType = _.get(ibEvent, 'eventType', '');
+                console.log('Event Type ', eventType);
+
                 if(eventType == '') {
                     throw new Error("Invalid eventType");
                 }
@@ -167,7 +169,8 @@ function _processIBEvents() {
         return _processIBEvents();
     })
     .catch(err => {
-        console.log(err.message);
+        // EVENT_PROCESS_FLAG = false;
+        console.log('Error 171 --------------------------->', err.message);
     });
 }
 
@@ -236,10 +239,28 @@ function _processOpenOrderEvent(openOrderDetails) {
             return Promise.resolve()
             .then(() => {
                 if (redisOrderExecutionDetailsInstance) {
-                    console.log("Order is already present in ORDER_EXECUTION_DETAILS_SET!! Appending Open Order info!!");
-                    
                     var orderExecutionDetailsInstance = JSON.parse(redisOrderExecutionDetailsInstance);
-
+                    console.log('From IB brokerMessage');
+                    console.log('orderExecutionDetailsInstance ----------->', orderExecutionDetailsInstance);
+                    let openOrderActivities = _.get(orderExecutionDetailsInstance, 'orderActivity', [])
+                        .filter(orderActivityItem => {
+                            return (
+                                orderActivityItem.activityType === 'openOrder' && 
+                                _.isEqual(openOrderDetails.orderState, orderActivityItem.brokerMessage.orderState)
+                            );
+                        })
+                    console.log('openOrderActivities ----->', openOrderActivities);
+                    console.log('I Order State ----------> ', openOrderDetails.orderState);
+                    console.log('O Order State ----------> ', openOrderActivities[0].brokerMessage.orderState);
+                    console.log('Equals ---> ',_.isEqual(openOrderDetails.orderState, openOrderActivities[0].brokerMessage.orderState));                    
+                    console.log("Order is already present in ORDER_EXECUTION_DETAILS_SET!! Appending Open Order info!!");
+                                        // Deep comparing with all the openOrder activities. If there exists an openOrder activity
+                    // with the same brokerMessage, then throw an error
+                    if (openOrderActivities.length > 0) {
+                        console.log('Duplicate Broker Message ------------------->', openOrderDetails);
+                        throw new Error('Skipping openOrder event');
+                    }
+                    
                     orderExecutionDetailsInstance.orderActivity.push(orderActivity);
 
                     return RedisUtils.insertIntoRedis(
@@ -437,6 +458,7 @@ function _processOrderExecutionEvent(executionDetails) {
     const cumulativeQuantity = _.get(executionDetails, 'execution.cumQty', 0);
     const direction = _.get(executionDetails, "execution.side", "BOT") == "BOT" ? 1 : -1
     const fillQuantity = Number(_.get(executionDetails, 'execution.shares', 0));
+    // console.log('Fill Quantity -------> ', fillQuantity);
     const avgPrice = _.get(executionDetails, 'execution.avgPrice', 0.0);
     const brokerStatus = _.get(executionDetails, 'orderState.status', '');
 
@@ -491,9 +513,9 @@ function _processOrderExecutionEvent(executionDetails) {
             tradeActivityArray.push(tradeActivity);
             orderExecutionDetailsInstance.tradeActivity = tradeActivityArray;
 
-            console.log(`Adding trade activity: ${orderId}`);
-            console.log("Trade Activity");
-            console.log(tradeActivityArray);
+            // console.log(`Adding trade activity: ${orderId}`);
+            // console.log("Trade Activity");
+            // console.log(tradeActivityArray);
 
             return RedisUtils.insertIntoRedis(
                 getRedisClient(), 
@@ -524,7 +546,10 @@ function _processOrderExecutionEvent(executionDetails) {
             const accumulatedQuantity = _.get(orderStatusByPredictionInstance, 'accumulated', 0);
             
             //Update the accumulated quantity
-            orderStatusByPredictionInstance.accumulated = accumulatedQuantity + fillQuantity
+            orderStatusByPredictionInstance.accumulated = accumulatedQuantity + (direction * fillQuantity);
+            // console.log('accumulatedQuantity --------->', accumulatedQuantity);
+            // console.log('cumulativeQuantity --------->', cumulativeQuantity);
+            // console.log('orderStatusByPredictionInstance.accumulated --------->', orderStatusByPredictionInstance.accumulated);
 
             //Updating the ative/complete status for required prediction
             if (orderIndex > -1) {
@@ -541,7 +566,7 @@ function _processOrderExecutionEvent(executionDetails) {
 
             return RedisUtils.insertIntoRedis(
                 getRedisClient(), 
-                ORDER_EXECUTION_DETAILS_SET,
+                ORDER_STATUS_BY_PREDICTION_SET,
                 orderStatusByPredictionKey, 
                 JSON.stringify(orderStatusByPredictionInstance)
             );
