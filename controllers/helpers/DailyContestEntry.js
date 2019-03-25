@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-25 16:58:55
+* @Last Modified time: 2019-03-25 18:51:51
 */
 
 'use strict';
@@ -2076,8 +2076,8 @@ module.exports.updateCallPriceForPredictionsFromEODH = function() {
 	return RedisUtils.getSetDataFromRedis(getRedisClient(), queueName)
 	.then(advisors => {
 		if (advisors && advisors.length > 0) {
-			console.log(`Retrieved from queue:`);
-			console.log(queueName);
+			// console.log(`Retrieved from queue:`);
+			// console.log(queueName);
 
 			return Promise.mapSeries(advisors, function(advisorId) {
 				
@@ -2118,9 +2118,7 @@ module.exports.updateCallPriceForPredictionsFromEODH = function() {
 									// console.log(`Quote timestamp: ${moment.unix(latestQuote.timestamp).toISOString()}`);
 									var quoteTime = moment.unix(latestQuote.timestamp).add(1, 'millisecond').startOf('minute').toISOString();
 									// console.log(`Adjusted Quote Time By Minute: ${quoteTime}`);
-
 									// console.log(`Prediction StartDate: ${prediction.startDate.toISOString()}`);
-
 
 									//How to handle cases where last Quote time (for low volume stocks) is before last EOD minute
 									//Should we update the call price with the value or wait or time series logic 	
@@ -2134,8 +2132,8 @@ module.exports.updateCallPriceForPredictionsFromEODH = function() {
 								}
 							})
 							.catch(err => {
-								console.log("WTF");
-								console.log(err);
+								// console.log("WTF");
+								console.log(`Error while updating call prce (EODH): ${err.message}`);
 							})
 						});	
 					}
@@ -2144,9 +2142,9 @@ module.exports.updateCallPriceForPredictionsFromEODH = function() {
 			});
 		}
 	})
-	// .then(() => {
-	// 	return RedisUtils.deleteKey(getRedisClient(), queueName);
-	// })
+	.then(() => {
+		return RedisUtils.deleteKey(getRedisClient(), queueName);
+	})
 };
 
 
