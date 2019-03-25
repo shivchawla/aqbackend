@@ -31,10 +31,11 @@ class InteractiveBroker {
                 })
                 .on('nextValidId', (reqId)  => {
                     console.log('Next Valid Id:', reqId);
-                    return BrokerRedisController.setValidId(reqId)
-                    .then(() => {
-                        ibInstance.reqExecutions(reqId, {});
-                    })
+                    // return BrokerRedisController.setValidId(reqId)
+                    // .then(() => {
+                    //     ibInstance.reqExecutions(reqId, {});
+                    // })
+                    return this.setNextValidId(reqId);
 
                 })
                 .on('error', (err) => {
@@ -43,6 +44,20 @@ class InteractiveBroker {
             } catch(err) {
                 reject(err);
             }
+        })
+    }
+
+    static setNextValidId(reqId) {
+        return BrokerRedisController.setValidId(reqId)
+        .then(() => {
+            const ibInstance = this.interactiveBroker;
+
+            return (
+                Promise.all([
+                    ibInstance.reqExecutions(reqId, {}),
+                    ibInstance.reqAllOpenOrders()
+                ])
+            );
         })
     }
 
@@ -297,7 +312,7 @@ InteractiveBroker.connect()
  */
 InteractiveBroker.interactiveBroker.on('orderStatus', (orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld) => {
     // console.log('Event - orderStatus', status);
-    console.log("OrderStatus: ", orderId);
+    // console.log("OrderStatus: ", orderId);
 
     const orderStatusEvent = {orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld};
     // BrokerRedisController.updateOrderStatus(orderId, statusEvent);
@@ -312,7 +327,7 @@ InteractiveBroker.interactiveBroker.on('openOrder', (orderId, contract, order, o
     const symbol = _.get(contract, 'symbol', '');
     // console.log('openOrder');
     // console.log(order);
-    console.log("OpenOrder: ", orderId);
+    // console.log("OpenOrder: ", orderId);
 
     BrokerRedisController.addInteractiveBrokerEvent({orderId, order, orderState}, 'openOrder');
 
@@ -325,7 +340,7 @@ InteractiveBroker.interactiveBroker.on('openOrder', (orderId, contract, order, o
 InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, execution, orderState) => {
     // console.log('Event - execDetails');
     const orderId = _.get(execution, 'orderId', null);
-    console.log("ExecDetails: ", orderId);
+    // console.log("ExecDetails: ", orderId);
     BrokerRedisController.addInteractiveBrokerEvent({orderId, execution, orderState}, 'execDetails');
 });
 

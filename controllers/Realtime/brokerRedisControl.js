@@ -125,6 +125,7 @@ function _processIBEvents() {
            
             try { 
                 ibEvent = JSON.parse(redisIBEvent);
+                console.log('Redis Ib Event', redisIBEvent);
 
                 var eventType = _.get(ibEvent, 'eventType', '');
                 if(eventType == '') {
@@ -332,7 +333,7 @@ function _processOrderStatusEvent(orderStatusDetails) {
             
             orderActivityArray.push(orderActivity);
             orderExecutionDetailsInstance.orderActivity = orderActivityArray;
-           
+            
             //Add order activity 
             return RedisUtils.insertIntoRedis(
                 getRedisClient(), 
@@ -366,7 +367,7 @@ function _processOrderStatusEvent(orderStatusDetails) {
 
                         if (status == 'Filled') {
                              orderStatusByPrediction.orders[orderIdx].activeStatus = false;
-                             orderStatusByPrediction.orders[orderIdx].completeStatus = true;   
+                             orderStatusByPrediction.orders[orderIdx].completeStatus = true;  
                         }
 
                         //Update the broker status on order status message;
@@ -398,7 +399,7 @@ function _processOrderExecutionEvent(executionDetails) {
     const executionId = _.get(executionDetails, 'execution.execId', null);
     const cumulativeQuantity = _.get(executionDetails, 'execution.cumQty', 0);
     const direction = _.get(executionDetails, "execution.side", "BOT") == "BOT" ? 1 : -1
-    const fillQuantity = _.get(executionDetails, 'execution.shares', 0);
+    const fillQuantity = Number(_.get(executionDetails, 'execution.shares', 0));
     const avgPrice = _.get(executionDetails, 'execution.avgPrice', 0.0);
     const brokerStatus = _.get(executionDetails, 'orderState.status', '');
 
@@ -441,9 +442,9 @@ function _processOrderExecutionEvent(executionDetails) {
         const isExecutionIdPresent = _.findIndex(tradeActivityArray, tradeActivityItem => tradeActivityItem.brokerMessage.execId === executionId) > -1;
 
         if (!isExecutionIdPresent) {
-        	tradeActivity = {...tradeActivity, brokerMessage: executionDetails};
+        	tradeActivity = {...tradeActivity, brokerMessage: executionDetails.execution};
             tradeActivityArray.push(tradeActivity);
-            orderExecutionDetailsInstance.tradeActivity = tradeActivityArray
+            orderExecutionDetailsInstance.tradeActivity = tradeActivityArray;
 
             return RedisUtils.insertIntoRedis(
                 getRedisClient(), 
@@ -491,7 +492,7 @@ function _processOrderExecutionEvent(executionDetails) {
 
             return RedisUtils.insertIntoRedis(
                 getRedisClient(), 
-                PREDICTION_STATUS_SET,
+                ORDER_STATUS_BY_PREDICTION_SET,
                 orderStatusByPredictionKey, 
                 JSON.stringify(orderStatusByPredictionInstance)
             );
@@ -579,7 +580,7 @@ function _saveTradeActivityToDb(orderId) {
             }
         })
         .then(() => {
-            return RedisUtils.deleteFromRedis(getRedisClient, ORDER_EXECUTION_DETAILS_SET, orderId);
+            return RedisUtils.deleteFromRedis(getRedisClient(), ORDER_EXECUTION_DETAILS_SET, orderId);
         })
     }, 60000);
 }
