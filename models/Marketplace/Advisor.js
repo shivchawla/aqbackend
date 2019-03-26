@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-08 18:12:02
+* @Last Modified time: 2019-03-26 17:08:12
 */
 'use strict';
 
@@ -379,8 +379,8 @@ Advisor.statics.updateAllocationAmount = function(query, updates) {
     });
 }
 
-Advisor.statics.fetchDistinctAdvisors = function(query) {
-    return this.distinct('_id', query);
+Advisor.statics.fetchDistinctAdvisors = function(query, disabled = false) {
+    return this.distinct('_id', {...query, disabled});
 }
 
 function getTime(d) {
