@@ -43,6 +43,11 @@ const User = new Schema({
         required: true
     },
 
+    disabled: {
+        type: Boolean,
+        default: false,
+    },
+
     emailpreference: {
         daily_performance_digest: {
             type: Boolean,

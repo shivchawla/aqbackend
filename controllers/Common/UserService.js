@@ -64,7 +64,8 @@ exports.userlogin = function(args, res, next) {
     let userDetails;
 
     UserModel.fetchUser({
-        email: user.email
+        email: user.email,
+        disabled: false,
     })
     .then(userM => {
         if(!userM){
@@ -238,7 +239,7 @@ exports.updateToken = function(args, res, next) {
         } else {
             return UserModel.fetchUser({
                 _id: decoded._id,
-                email: userEmail});
+                email: userEmail, disabled: false});
         }
     })
     .then(user => {
@@ -294,20 +295,30 @@ exports.verifyCaptchaToken = function(args, res, next) {
 exports.sendInfoEmail = function (args, res, next) {
     const user = args.user;
  
-    UserModel.fetchUser({email:'shivchawla2001@gmail.com'})
+    return UserModel.fetchUser({email:'shivchawla2001@gmail.com'})
     .then(adminUser => {
        if(adminUser._id.toString() == user._id.toString()) {
-             return UserModel.fetchUsers({},{firstName:1, lastName:1 , email:1}) 
+             return true;  
         } else {
              throw new Error("Not Authorized");
         }
      })
-    .then(users => {
-        var details = args.body.value;
-        details.receivers = users;
+    .then(proceed => {
+        return UserModel.countUsers({disabled: false})
+        .then(count => {
+            var nSlices = Math.ceil(count/sliceSize);
 
-        sendEmail.sendInfoEmail(details);
-        return res.status(200).send("Emails sent successfully");    
+            return Promise.mapSeries(Array(nSlices), function(d, index) {
+                return UserModel.fetchUsers({disabled: false}, {firstName:1, lastName:1 , email:1, code:1, emailpreference: 1}, {skip: index*sliceSize, limit:sliceSize})
+                .then(users => {        
+                    var details = args.body.value;
+                    details.receivers = users;
+
+                    sendEmail.sendInfoEmail(details);
+                    return res.status(200).send("Emails sent successfully");
+                })
+            })
+        })    
      })
      .catch(err => {
          return res.status(400).send(err.message);
@@ -323,7 +334,7 @@ exports.sendTemplateEmail = function (args, res, next) {
     Promise.resolve()
     .then(() => {
         if (userId) { 
-            return UserModel.fetchUsers({email:{'$in': config.get('admin_user')}}, {_id:1});
+            return UserModel.fetchUsers({email:{'$in': config.get('admin_user')}, disabled: false}, {_id:1});
         } else {
             return [];
         }
@@ -343,7 +354,7 @@ exports.sendTemplateEmail = function (args, res, next) {
             var nSlices = Math.ceil(count/sliceSize);
 
             return Promise.mapSeries(Array(nSlices), function(d, index) {
-                return UserModel.fetchUsers({}, {firstName:1, lastName:1 , email:1, code:1, emailpreference: 1}, {skip: index*sliceSize, limit:sliceSize})
+                return UserModel.fetchUsers({disabled: false}, {firstName:1, lastName:1 , email:1, code:1, emailpreference: 1}, {skip: index*sliceSize, limit:sliceSize})
                 .then(users => {        
                     return Promise.map(users, function(user) {
                         const code = user.code;
@@ -381,7 +392,7 @@ module.exports.unsubscribeEmail = function(args, res, next) {
     Promise.resolve()
     .then(() => {
         if (email && code) {
-            return UserModel.fetchUser({email: email, code: code})
+            return UserModel.fetchUser({email: email, code: code, disabled: false})
         } else {
             APIError.throwJsonError({message: "Invalid user"});
         }
@@ -427,7 +438,7 @@ module.exports.userGoogleLogin = function(args, res, next) {
         googleUserDetails.userLastName = _.get(payload, 'family_name', null);
         googleUserDetails.userPicture = _.get(payload, 'picture', null);
 
-        return UserModel.fetchUser({email: googleUserDetails.userEmail})
+        return UserModel.fetchUser({email: googleUserDetails.userEmail, disabled: false})
     })
     .then(userM => {
         if (!userM) {
