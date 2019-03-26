@@ -2,7 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2018-04-25 16:09:37
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-18 10:58:23
+<<<<<<< HEAD
+* @Last Modified time: 2019-03-25 19:16:41
+=======
+* @Last Modified time: 2019-03-15 12:03:13
+>>>>>>> New-Minute-Data
 */
 'use strict';
 var redis = require('redis');
@@ -17,6 +21,7 @@ var redisClient;
 
 function getRedisClient() {
     if (!redisClient || !redisClient.connected) {
+
         let redisPwd = config.get('node_redis_pass');
         if (redisPwd != "") {
             redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});  

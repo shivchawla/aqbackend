@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-18 23:01:06
+* @Last Modified time: 2019-03-25 19:10:40
 */
 
 'use strict';
@@ -83,12 +83,15 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 		if (updatedPredictions) {
 			if (!isAdmin) {
 				updatedPredictions = updatedPredictions.map(item => {
-					_.unset(item,'tradeActivity');
-					_.unset(item,'orderActivity'); 
-					_.unset(item,'readStatus'); 
-					_.unset(item,'adminModifications');
-					_.unset(item,'adminActivity');
-					return item
+					_.unset(item, 'tradeActivity');
+					_.unset(item, 'orderActivity');
+					_.unset(item, 'adminActivity');
+					_.unset(item, 'skippedByAdmin'); 
+					_.unset(item, 'readStatus'); 
+					_.unset(item, 'adminModifications'); 
+					
+					return item;
+
 				});
 
 				return updatedPredictions;
@@ -320,9 +323,12 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	})
 	.then(() => {
 		
-		return SecurityHelper.getStockLatestDetail(prediction.position.security)
-		.then(securityDetail => {
-			var latestPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
+		return Promise.all([
+			SecurityHelper.getStockLatestDetail(prediction.position.security),
+			SecurityHelper.getRealtimeQuoteFromEODH(`${prediction.position.security.ticker}.NSE`)
+		])
+		.then(([securityDetail, realTimeQuote]) => {
+			var latestPrice = _.get(realTimeQuote, 'close', 0) || _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
 			if (latestPrice != 0) {
 
 				//Investment is modified downstream so can't be const

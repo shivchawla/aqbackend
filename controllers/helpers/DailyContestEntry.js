@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-18 15:34:38
+* @Last Modified time: 2019-03-25 19:14:21
 */
 
 'use strict';
@@ -10,6 +10,9 @@ const _ = require('lodash');
 const Promise = require('bluebird');
 const moment = require('moment-timezone');
 const schedule = require('node-schedule');
+const config = require('config');
+const redis = require('redis');
+const axios = require('axios');
 
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
@@ -23,6 +26,27 @@ const DailyContestEntryPerformanceModel = require('../../models/Marketplace/Dail
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 
 const PredictionRealtimeController = require('../Realtime/predictionControl');
+
+const RedisUtils = require('../../utils/RedisUtils');
+
+const RECENT_ADVISORS_QUEUE = "recent_advisor_queue";
+
+var redisClient;
+
+function getRedisClient() {
+	if (!redisClient || !redisClient.connected) {
+		var redisPwd = config.get('node_redis_pass');
+
+		if (redisPwd != "") {
+        	redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});
+    	} else {
+    		redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'));
+    	}
+    }
+
+    return redisClient; 
+}
+
 
 function _getStopLossPrice(prediction) {
 
@@ -1335,7 +1359,7 @@ module.exports.getValidStartDate = function(date) {
 	}
 	//While trading
 	else if (DateHelper.isMarketTrading()) {
-        validStartDate = moment().startOf('minute');
+        validStartDate = moment().add(1, 'minute').startOf('minute');
 	}  
 	//After market close - get close of that day 
 	//5:30 PM Friday
@@ -1354,7 +1378,9 @@ module.exports.getValidStartDate = function(date) {
 	return validStartDate;
 };
 
-module.exports.getTotalPnlStats = function(advisorId, date, category="all") {
+module.exports.getTotalPnlStats = function(advisorId, date, options) {
+	const category = _.get(options, "category", "all");
+
 	return DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date)
 	.then(pnlStats => {
 		if (pnlStats) {
@@ -1365,7 +1391,7 @@ module.exports.getTotalPnlStats = function(advisorId, date, category="all") {
 				case "started" : return _.get(pnlStats, 'detail.cumulative.started', null); break;
 			}
 		} else {
-			return _computeTotalPnlStats(advisorId, date, category);
+			return _computeTotalPnlStats(advisorId, date, options);
 		}
 	});	
 };
@@ -2045,6 +2071,89 @@ module.exports.checkForPredictionExpiry = function() {
 	}
 }
 
+module.exports.updateCallPriceForPredictionsFromEODH = function() {
+	let latestDate = DateHelper.getMarketCloseDateTime(exports.getValidStartDate());
+
+	var currentTime = moment().startOf('minute').toISOString();
+
+	var queueName = `${RECENT_ADVISORS_QUEUE}_${currentTime}`;
+
+	let latestQuotes = {};
+	return RedisUtils.getSetDataFromRedis(getRedisClient(), queueName)
+	.then(advisors => {
+		if (advisors && advisors.length > 0) {
+			// console.log(`Retrieved from queue:`);
+			// console.log(queueName);
+
+			return Promise.mapSeries(advisors, function(advisorId) {
+				
+				return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, latestDate)
+				.then(predictions => {
+					if (predictions && predictions.length > 0) {
+						
+						var filteredPredictions = predictions.filter(item => {
+							var callPrice = _.get(item, 'position.avgPrice', 0.0);
+							var isCreatedLastMinute = moment().startOf('minute').isSame(moment(item.startDate));
+							
+							return callPrice == 0 && isCreatedLastMinute;
+						});
+
+						return Promise.map(filteredPredictions, function(prediction) {
+							var ticker = prediction.position.security.ticker;
+
+							return Promise.resolve()
+							.then(() => {
+								if (ticker in latestQuotes) {
+									return latestQuotes[ticker]; 
+								} else {
+									return SecurityHelper.getRealtimeQuoteFromEODH(`${ticker}.NSE`); 
+								}
+							})
+							.then(latestQuote => {
+
+								// console.log(`Received Quote Time: ${moment.utc().toISOString()}`);
+									
+								if (latestQuote) {
+
+									//Push the quote in dictionary
+									latestQuotes[ticker] = latestQuote
+
+									// console.log("Latest Quote")
+									// console.log(latestQuote);
+									
+									// console.log(`Quote timestamp: ${moment.unix(latestQuote.timestamp).toISOString()}`);
+									var quoteTime = moment.unix(latestQuote.timestamp).add(1, 'millisecond').startOf('minute').toISOString();
+									// console.log(`Adjusted Quote Time By Minute: ${quoteTime}`);
+									// console.log(`Prediction StartDate: ${prediction.startDate.toISOString()}`);
+
+									//How to handle cases where last Quote time (for low volume stocks) is before last EOD minute
+									//Should we update the call price with the value or wait or time series logic 	
+									if (moment(quoteTime).isSame(moment(prediction.startDate))) {
+										var updatedCallPrice = _.get(latestQuote, 'close', 0.0);
+										if (updatedCallPrice != 0) {
+											// console.log(`Updating Call Price-- WOHOO!!!!   ${updatedCallPrice}`);
+											return DailyContestEntryModel.updatePredictionCallPrice({advisor: advisorId}, prediction, updatedCallPrice);
+										}
+									}
+								}
+							})
+							.catch(err => {
+								// console.log("WTF");
+								console.log(`Error while updating call prce (EODH): ${err.message}`);
+							})
+						});	
+					}
+				});
+
+			});
+		}
+	})
+	.then(() => {
+		return RedisUtils.deleteKey(getRedisClient(), queueName);
+	})
+};
+
+
 module.exports.addPrediction = function(advisorId, prediction, date) {
 	
 	var isRealPrediction = _.get(prediction, 'real', false);
@@ -2055,7 +2164,13 @@ module.exports.addPrediction = function(advisorId, prediction, date) {
 	])
 	.then(([added, masterAdvisorId]) => {
 		//Updating advisor account with new metrics
+		
+		var queueName = `${RECENT_ADVISORS_QUEUE}_${prediction.startDate.toISOString()}`;
+		// console.log("Pushing To Queue");
+		// console.log(queueName);
+
 		return Promise.all([
+			DateHelper.isMarketTrading() ? RedisUtils.addSetDataToRedis(getRedisClient(), queueName, advisorId.toString()) : null,
 			AdvisorHelper.updateAdvisorAccountDebit(advisorId, [prediction]),
 			isRealPrediction && masterAdvisorId ? 
 				PredictionRealtimeController.sendAdminUpdates(masterAdvisorId) : null
@@ -2353,7 +2468,7 @@ module.exports.checkAdvisorInvestmentSum = function() {
 	.then(allAdvisors => {
 		return Promise.mapSeries(allAdvisors, function(advisorId) {
 			return Promise.all([
-				exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false}),
+				exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: null}),
 				AdvisorModel.fetchAdvisor({_id:advisorId}, {fields: 'account user'})
 			])
 			.then(([predictions, advisor]) => {

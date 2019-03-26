@@ -38,6 +38,10 @@ function getSetDataFromRedis(client, key) {
     return client.smembersAsync(key);
 }
 
+function addSetDataToRedis(client, key, value) {
+    return client.saddAsync(key, value);
+}
+
 function setDataExpiry(client, key, time_in_sec) {
     return client.expire(key, time_in_sec);
 }
@@ -80,6 +84,7 @@ module.exports = {
     getAllFromRedis,
     getRangeFromRedis,
     getSetDataFromRedis,
+    addSetDataToRedis,
     pushToRangeRedis,
     popFromRangeRedis,
     subscribe,
