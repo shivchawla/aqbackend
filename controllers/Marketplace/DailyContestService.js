@@ -1225,9 +1225,10 @@ module.exports.modifyOrderForPrediction = function(args, res, next ) {
 	const isAdmin = admins.indexOf(userEmail) !== -1;
 	
 	const advisorId = _.get(args, 'body.value.advisorId', null);
+	const predictionId = _.get(args, 'body.value.predictionId', null);
 	const message = _.get(args, 'body.value.message', '');
-	const order = _.get(args, 'body.value.order', {});
-	let stock = _.get(order, 'symbol', null);
+	const order = _.get(args, 'body.value', {});
+	let stock = _.get(order, 'stock', null);
 	const orderType = _.get(order, 'orderType', null);
 	const quantity = _.get(order, 'quantity', 0);
 	const price = _.get(order, 'price', 0);

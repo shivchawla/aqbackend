@@ -332,22 +332,22 @@ class InteractiveBroker {
                 throw new Error("Not connected");
             }
 
-            if (orderType === 'limit') {
+            if (orderType === 'LMT') {
                 const limitOrderConfig = ibInstance.order.limit(type, quantity, price);
                 ibInstance.placeOrder(orderId, ibStock, {...limitOrderConfig, tif});
             } 
             
-            else if (orderType === 'market') {
+            else if (orderType === 'MKT') {
                 const marketOrderConfig = ibInstance.order.market(type, quantity);
                 ibInstance.placeOrder(orderId, ibStock, {...marketOrderConfig, tif});
             }
 
-            else if (orderType === 'stopLimit') {
+            else if (orderType === 'STP') {
                 const stopLimitOrderConfig = ibInstance.order.stopLimit(type, quantity, price);
                 ibInstance.placeOrder(orderId, ibStock, {...stopLimitOrderConfig, tif});
             }
 
-            else if (orderType === 'marketClose') {
+            else if (orderType === 'MOC') {
                 const marketCloseOrderConfig = ibInstance.order.marketClose(type, quantity);
                 ibInstance.placeOrder(orderId, ibStock, {...marketCloseOrderConfig, tif});
             }

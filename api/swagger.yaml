@@ -3951,7 +3951,7 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
   
-  /dailycontest/modifyOrder:
+  /dailycontest/modifyorder:
     post:
       tags:
       - dailycontest
@@ -5316,13 +5316,14 @@ definitions:
   ModifyOrder:
     type: object
     required:
+      - advisorId
       - orderId
       - stock
       - tradeDirection
       - quantity
       - price
       - orderType
-      - tif
+      - predictionId
     properties:
       orderId:
         type: number
@@ -5338,6 +5339,12 @@ definitions:
         type: string
       tif:
         type: string
+      advisorId: 
+        type: string
+        format: uuid
+      predictionId: 
+        type: string
+        format: uuid
 
 
   CancelOrder:
