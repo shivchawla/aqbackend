@@ -98,3 +98,7 @@ module.exports.cancelOrderForPrediction = (req, res, next) => {
 module.exports.updateSkipStatusPrediction = (req, res, next) => {
     DailyContest.updateSkipStatusPrediction(req.swagger.params, res, next);
 }
+
+module.exports.getHistoricalDataForStock = (req, res, next) => {
+    DailyContest.getHistoricalDataForStock(req.swagger.params, res, next);
+}

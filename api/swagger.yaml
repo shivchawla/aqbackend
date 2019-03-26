@@ -3923,7 +3923,6 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
-
   /dailycontest/placeorder:
     post:
       tags:
@@ -3945,6 +3944,34 @@ paths:
         required: true
         schema:
           $ref: "#/definitions/PlaceOrder"
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+  
+  /dailycontest/modifyOrder:
+    post:
+      tags:
+      - dailycontest
+      summary: Modify order for prediction
+      description: Modify order for prediction
+      operationId: modifyOrderForPrediction
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        description: order body
+        required: true
+        schema:
+          $ref: "#/definitions/ModifyOrder"
       responses:
         200:
           description: OK
@@ -5285,6 +5312,33 @@ definitions:
         $ref: '#/definitions/Order'
       message:
         type: string
+      
+  ModifyOrder:
+    type: object
+    required:
+      - orderId
+      - stock
+      - tradeDirection
+      - quantity
+      - price
+      - orderType
+      - tif
+    properties:
+      orderId:
+        type: number
+      stock:
+        type: string
+      tradeDirection:
+        type: string
+      quantity:
+        type: number
+      price:
+        type: number
+      orderType:
+        type: string
+      tif:
+        type: string
+
 
   CancelOrder:
     type: object

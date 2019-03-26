@@ -129,7 +129,7 @@ function _processIBEvents() {
                 // console.log('Redis Ib Event', redisIBEvent);
 
                 var eventType = _.get(ibEvent, 'eventType', '');
-                console.log('Event Type ', eventType);
+                // console.log('Event Type ', eventType);
 
                 if(eventType == '') {
                     throw new Error("Invalid eventType");
@@ -138,7 +138,7 @@ function _processIBEvents() {
                 var eventDetails = _.get(ibEvent, 'eventDetails', {});
 
                 const orderId = _.get(eventDetails, 'orderId', null);
-                console.log(`About to process: ${eventType} for ${orderId}`);
+                // console.log(`About to process: ${eventType} for ${orderId}`);
 
                 if (eventType == 'orderStatus') {
                     return _processOrderStatusEvent(eventDetails);
@@ -240,24 +240,27 @@ function _processOpenOrderEvent(openOrderDetails) {
             .then(() => {
                 if (redisOrderExecutionDetailsInstance) {
                     var orderExecutionDetailsInstance = JSON.parse(redisOrderExecutionDetailsInstance);
-                    console.log('From IB brokerMessage');
-                    console.log('orderExecutionDetailsInstance ----------->', orderExecutionDetailsInstance);
+                    // console.log('From IB brokerMessage');
+                    // console.log('orderExecutionDetailsInstance ----------->', orderExecutionDetailsInstance);
                     let openOrderActivities = _.get(orderExecutionDetailsInstance, 'orderActivity', [])
                         .filter(orderActivityItem => {
                             return (
                                 orderActivityItem.activityType === 'openOrder' && 
-                                _.isEqual(openOrderDetails.orderState, orderActivityItem.brokerMessage.orderState)
+                                _.isEqual(
+                                    _.get(openOrderDetails, 'orderState.status', null), 
+                                    _.get(orderActivityItem, 'brokerMessage.orderState.status', null)
+                                )
                             );
                         })
-                    console.log('openOrderActivities ----->', openOrderActivities);
-                    console.log('I Order State ----------> ', openOrderDetails.orderState);
-                    console.log('O Order State ----------> ', openOrderActivities[0].brokerMessage.orderState);
-                    console.log('Equals ---> ',_.isEqual(openOrderDetails.orderState, openOrderActivities[0].brokerMessage.orderState));                    
-                    console.log("Order is already present in ORDER_EXECUTION_DETAILS_SET!! Appending Open Order info!!");
-                                        // Deep comparing with all the openOrder activities. If there exists an openOrder activity
+                    // console.log('openOrderActivities ----->', openOrderActivities);
+                    // console.log('I Order State ----------> ', openOrderDetails.orderState);
+                    // console.log("Order is already present in ORDER_EXECUTION_DETAILS_SET!! Appending Open Order info!!");
+                    // Deep comparing with all the openOrder activities. If there exists an openOrder activity
                     // with the same brokerMessage, then throw an error
                     if (openOrderActivities.length > 0) {
-                        console.log('Duplicate Broker Message ------------------->', openOrderDetails);
+                        // console.log('O Order State ----------> ', openOrderActivities[0].brokerMessage.orderState);
+                        // console.log('Equals ---> ',_.isEqual(openOrderDetails.orderState, openOrderActivities[0].brokerMessage.orderState));      
+                        // console.log('Duplicate Broker Message ------------------->');
                         throw new Error('Skipping openOrder event');
                     }
                     
@@ -271,7 +274,7 @@ function _processOpenOrderEvent(openOrderDetails) {
                     );
 
                 } else {
-                    console.log(`Initializing order: ${orderId} in ORDER_EXECUTION_DETAILS_SET`);
+                    // console.log(`Initializing order: ${orderId} in ORDER_EXECUTION_DETAILS_SET`);
                     return RedisUtils.insertIntoRedis(
                         getRedisClient(), 
                         ORDER_EXECUTION_DETAILS_SET,
@@ -300,8 +303,8 @@ function _processOpenOrderEvent(openOrderDetails) {
         
         const openOrderInstance = {
             orderId, // Current orderId after get the next valid order id
-            activeStatus: true,
-            completeStatus: false,
+            activeStatus: status != 'Filled',
+            completeStatus: status == 'Filled',
             brokerStatus: status,
             accQuantity: 0,
             totalQuantity: quantity,
@@ -313,7 +316,9 @@ function _processOpenOrderEvent(openOrderDetails) {
                 return orderItem.orderId === orderId
             });
             if (orderIdx > -1) {
-                orderStatusByPrediction.orders[orderIdx] = openOrderInstance;
+                if (orderStatusByPrediction.orders[orderIdx].brokerStatus != 'Filled') {
+                    orderStatusByPrediction.orders[orderIdx] = openOrderInstance;
+                }
             } else {
                 orderStatusByPrediction.orders.push(openOrderInstance);
             }
@@ -379,9 +384,37 @@ function _processOrderStatusEvent(orderStatusDetails) {
             activityType: 'orderStatus'
         };
 
+        let orderStatusActvities = []
+        try {
+            orderStatusActvities = _.get(orderExecutionDetailsInstance, 'orderActivity', [])
+                .filter(orderActivityItem => {
+                    return (
+                        orderActivityItem.activityType === 'orderStatus' && 
+                        _.isEqual(
+                            orderStatusDetails, 
+                            _.get(orderActivityItem, 'brokerMessage', {})
+                        )
+                    );
+                });
+
+            // console.log('orderStatusActivities ----->', orderStatusActvities);
+            // console.log('I Order Status ----------> ', orderStatusDetails.status);
+            // console.log("Order is already present in ORDER_EXECUTION_DETAILS_SET!! Appending Open Order info!!");
+            // Deep comparing with all the openOrder activities. If there exists an openOrder activity
+            // with the same brokerMessage, then throw an error
+            if (orderStatusActvities.length > 0) {
+                // console.log('O Order Status ----------> ', orderStatusActvities[0].brokerMessage.status);
+                // console.log('Equals ---> ',_.isEqual(orderStatusDetails, orderStatusActvities[0].brokerMessage))
+                // console.log('Duplicate For Order Status Broker Message ------------------->');
+                throw new Error('Skipping orderStatus event');
+            }
+        } catch (err) {
+            console.log('Error Order Status ', err);
+        }
+        
         //Add order activity
         var orderActivityArray = _.get(orderExecutionDetailsInstance, 'orderActivity', []);
-        
+
         let lastBrokerStatus        
         if (orderActivityArray.length > 0) {
             lastBrokerStatus = _.get(orderActivityArray.slice(-1)[0], 'status', '');
@@ -417,16 +450,19 @@ function _processOrderStatusEvent(orderStatusDetails) {
                     if (orderIdx != -1 && status!="") {
                         
                         // console.log(`Updating order status for orders: ${status}`);
-                        orderStatusByPrediction.orders[orderIdx].brokerStatus = status;
-
-                        if (status == 'Cancelled' || status == "Inactive") {
-                            orderStatusByPrediction.orders[orderIdx].activeStatus = false;
+                        if (orderStatusByPrediction.orders[orderIdx].brokerStatus != 'Filled') {
+                            orderStatusByPrediction.orders[orderIdx].brokerStatus = status;
+                            
+                            if (status == 'Cancelled' || status == "Inactive") {
+                                orderStatusByPrediction.orders[orderIdx].activeStatus = false;
+                            }
+                        
                         }
 
-                        if (status == 'Filled') {
-                             orderStatusByPrediction.orders[orderIdx].activeStatus = false;
-                             orderStatusByPrediction.orders[orderIdx].completeStatus = true;  
-                        }
+                        // if (status == 'Filled') {
+                        //      orderStatusByPrediction.orders[orderIdx].activeStatus = false;
+                        //      orderStatusByPrediction.orders[orderIdx].completeStatus = true;  
+                        // }
 
                         //Update the broker status on order status message;
                         return RedisUtils.insertIntoRedis(
@@ -460,7 +496,9 @@ function _processOrderExecutionEvent(executionDetails) {
     const fillQuantity = Number(_.get(executionDetails, 'execution.shares', 0));
     // console.log('Fill Quantity -------> ', fillQuantity);
     const avgPrice = _.get(executionDetails, 'execution.avgPrice', 0.0);
-    const brokerStatus = _.get(executionDetails, 'orderState.status', '');
+    // const brokerStatus = _.get(executionDetails, 'orderState.status', '');
+
+    // console.log('Execution Details ======> ', executionDetails);
 
     const orderId = _.get(executionDetails, 'orderId', null);
 
@@ -501,7 +539,11 @@ function _processOrderExecutionEvent(executionDetails) {
         var orderedQuantity = _.get(orderExecutionDetailsInstance, 'orderedQuantity', 0)
 
         //Update "is execution is COMPLETE" flag
-        executionCompleted = orderedQuantity == cumulativeQuantity
+        executionCompleted = orderedQuantity == cumulativeQuantity;
+        // console.log('Execution Completed ===>', executionCompleted);
+        // console.log('Ordered Quantity ===>', orderedQuantity);
+        // console.log('Cumulative Quantity ===>', cumulativeQuantity);
+
 
         // tradeActivity for the particular order instance
         // we check if the execution id already exists in the trade Activity Array
@@ -533,6 +575,7 @@ function _processOrderExecutionEvent(executionDetails) {
             });
 
         } else {
+            throw new Error('Execution Id already exists');
             return null;
         }
     })
@@ -552,24 +595,28 @@ function _processOrderExecutionEvent(executionDetails) {
             // console.log('orderStatusByPredictionInstance.accumulated --------->', orderStatusByPredictionInstance.accumulated);
 
             //Updating the ative/complete status for required prediction
+            // console.log('Required Order Index for prediction order is ========>', orderIndex)
             if (orderIndex > -1) {
+                // console.log(`Prediction order for index ${orderIndex} will be updated ========>`);
                 predictionOrders[orderIndex] = {
                     ...predictionOrders[orderIndex],
                     activeStatus: !executionCompleted,
                     completeStatus: executionCompleted,
-                    brokerStatus,
+                    brokerStatus: executionCompleted ? "Filled" : predictionOrders[orderIndex].brokerStatus,
                     accQuantity: cumulativeQuantity,
                 };
 
-                orderStatusByPredictionInstance.orders = predictionOrders;
-            }
+                // console.log('Updated Prediction Orders ======>', predictionOrders[orderIndex]);
 
-            return RedisUtils.insertIntoRedis(
-                getRedisClient(), 
-                ORDER_STATUS_BY_PREDICTION_SET,
-                orderStatusByPredictionKey, 
-                JSON.stringify(orderStatusByPredictionInstance)
-            );
+                orderStatusByPredictionInstance.orders = predictionOrders;
+
+                return RedisUtils.insertIntoRedis(
+                    getRedisClient(), 
+                    ORDER_STATUS_BY_PREDICTION_SET,
+                    orderStatusByPredictionKey, 
+                    JSON.stringify(orderStatusByPredictionInstance)
+                );
+            }
 
         } else {
             return null;

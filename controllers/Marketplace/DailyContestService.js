@@ -1146,12 +1146,14 @@ module.exports.placeOrderForPrediction = function(args, res, next ) {
 	const stopLossPrice = _.get(order, 'stopLossPrice', 0);
 	const profitLimitPrice = _.get(order, 'profitLimitPrice', 0);
 
-	const orderParams = {stock, type, quantity, price, orderType, stopLossPrice, profitLimitPrice};
 	let allocationAdvisorId = null;
+
 	const ibSymbol = ibTickers[stock];
-	if (ibSymbol) {
+	if (ibSymbol !== undefined) {
 		stock = ibSymbol;
 	}
+
+	const orderParams = {stock, type, quantity, price, orderType, stopLossPrice, profitLimitPrice};
 
 	Promise.resolve()
 	.then(() => {
@@ -1211,6 +1213,81 @@ module.exports.placeOrderForPrediction = function(args, res, next ) {
 	})
 }
 
+module.exports.modifyOrderForPrediction = function(args, res, next ) {
+	const userEmail = _.get(args, 'user.email', null);
+	const admins = config.get('admin_user');
+	const isAdmin = admins.indexOf(userEmail) !== -1;
+	
+	const advisorId = _.get(args, 'body.value.advisorId', null);
+	const message = _.get(args, 'body.value.message', '');
+	const order = _.get(args, 'body.value.order', {});
+	let stock = _.get(order, 'symbol', null);
+	const orderType = _.get(order, 'orderType', null);
+	const quantity = _.get(order, 'quantity', 0);
+	const price = _.get(order, 'price', 0);
+	const type = _.get(order, 'tradeDirection', 'BUY');
+	const orderId = _.get(order, 'orderId', null);
+	const tif = _.get(order, 'tif', 'GTC');
+
+	let allocationAdvisorId = null;
+
+	const ibSymbol = ibTickers[stock];
+	if (ibSymbol !== undefined) {
+		stock = ibSymbol;
+	}
+
+	const orderParams = {orderId, tif, stock, type, quantity, price, orderType};
+
+	Promise.resolve()
+	.then(() => {
+		// Check if user is admin only then all the other operations are permitted
+		if (isAdmin) {
+			return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'})
+		} else {
+			APIError.throwJsonError({message: "User not authorized to place orders"});
+		}
+	})
+	.then(masterAdvisor => {
+		const allocationStatus = _.get(masterAdvisor, 'allocation.status', false);
+		allocationAdvisorId = _.get(masterAdvisor, 'allocation.advisor', null);
+		
+		// We are checking if the user is allocated and is allowed for real predictions
+		if (masterAdvisor && allocationStatus && allocationAdvisorId) {
+			return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
+		} else {
+			APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
+		}
+	})
+	.then(prediction => {
+		if (prediction) {
+			// Creating the admin activity, admin activity will always be added as soon as the user
+			// places an order
+			const adminActivity = {
+				message,
+				activityType: 'MODIFY ORDER',
+				obj: orderParams
+			};
+
+			// Placing the order in the market
+			// Adding admin activity to the prediction
+			return Promise.all([
+				InteractiveBroker.modifyOrder(orderParams),
+				DailyContestEntryModel.addAdminActivityForPrediction({advisor: allocationAdvisorId}, predictionId, adminActivity),
+			])
+			
+		} else {
+			APIError.throwJsonError({message: "Prediction not found"});
+		}
+	})
+	.then(([success]) => {
+		return res.status(200).send("Order placed successfully");
+	})
+	.catch(err => {
+		console.log('Error ', err);
+		return res.status(400).send(err.message);
+	})
+}
+
 module.exports.cancelOrderForPrediction = function(args, res, next ) {
 	const userEmail = _.get(args, 'user.email', null);
 	const admins = config.get('admin_user');
@@ -1252,4 +1329,19 @@ module.exports.cancelOrderForPrediction = function(args, res, next ) {
 		console.log('Error', err);
 		return res.status(400).send(err.message);
 	})
+}
+
+module.exports.getHistoricalDataForStock = function(args, res, next) {
+	const symbol = _.get(args, 'symbol.value', '');
+	
+	Promise.resolve()
+	.then(() => {
+		return InteractiveBroker.requireHistoricalData(symbol)
+	})
+	.then(historicalData => {
+		return res.status(200).send(historicalData);
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	});
 }

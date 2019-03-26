@@ -8,6 +8,8 @@ const moment = require('moment');
 
 const BrokerRedisController = require('./brokerRedisControl');
 
+const ibTickers = require('../../documents/ibTickers.json');
+
 let isConnected = false;
 
 class InteractiveBroker {
@@ -77,6 +79,53 @@ class InteractiveBroker {
                 reject(err);
             }
         })
+    }
+
+    static requireHistoricalData(stock) {
+        return new Promise((resolve, reject) => {
+            try {
+                let requestId = null;
+                let historicalData = [];
+
+                // Getting the interactive broker instance
+                const ibInstance = this.interactiveBroker;
+                this.getNextRequestId()
+                .then(reqId => {
+                    requestId = reqId;
+                    stock = this.getRequiredSymbol(stock);
+
+                    const contract = ibInstance.contract.stock(stock, 'NSE', 'INR');
+                    // const queryTime = moment().format('YYYYMMDD hh:mm:ss');
+
+                    ibInstance.reqHistoricalData(reqId, contract, '', '1 D', '1 min', 'TRADES', 1, 1, false)
+                    .on('historicalData', (reqId, date, open, high, low, close) => {
+                        if (reqId === requestId) {
+                            const hasFinised = date.indexOf('finished') > -1;
+                            if (hasFinised) {
+                                resolve(historicalData);
+                            } else {
+                                historicalData.push({reqId, date, open, high, low, close});
+                            }
+                        }
+                    })
+                    .on('error', err => {
+                        console.log(err);
+                    })
+                })
+            } catch (err) {
+                reject(err);
+            }
+        })
+    }
+
+    static getRequiredSymbol(symbol) {
+        const ibSymbol = ibTickers[symbol];
+
+        if (ibSymbol) {
+            return ibSymbol;
+        }
+
+        return symbol;
     }
 
     static requestExecutionDetails(filter = {}) {
@@ -178,7 +227,6 @@ class InteractiveBroker {
             bracketFirstOrderType = 'LIMIT'
     }) {
         const self = this;
-        let currentTime;
             
         // There should be orderTypes 
         // for brackets use this https://interactivebrokers.github.io/tws-api/bracket_order.html
@@ -264,6 +312,55 @@ class InteractiveBroker {
         })
     }
 
+    static modifyOrder({
+        orderId,
+        stock, 
+        type = 'BUY', 
+        quantity = 0, 
+        price = 0, 
+        orderType = 'market',
+        tif="GTC",
+    }) {
+        const ibInstance = this.interactiveBroker;
+
+        // creating IB stock from the stock param passed
+        const ibStock = ibInstance.contract.stock(stock, 'NSE', 'INR');
+
+        return Promise.resolve()
+        .then(() => {
+            if (!isConnected) {
+                throw new Error("Not connected");
+            }
+
+            if (orderType === 'limit') {
+                const limitOrderConfig = ibInstance.order.limit(type, quantity, price);
+                ibInstance.placeOrder(orderId, ibStock, {...limitOrderConfig, tif});
+            } 
+            
+            else if (orderType === 'market') {
+                const marketOrderConfig = ibInstance.order.market(type, quantity);
+                ibInstance.placeOrder(orderId, ibStock, {...marketOrderConfig, tif});
+            }
+
+            else if (orderType === 'stopLimit') {
+                const stopLimitOrderConfig = ibInstance.order.stopLimit(type, quantity, price);
+                ibInstance.placeOrder(orderId, ibStock, {...stopLimitOrderConfig, tif});
+            }
+
+            else if (orderType === 'marketClose') {
+                const marketCloseOrderConfig = ibInstance.order.marketClose(type, quantity);
+                ibInstance.placeOrder(orderId, ibStock, {...marketCloseOrderConfig, tif});
+            }
+            
+            else {
+                throw new Error('Invalid orderType');
+            }
+        })
+        .catch (err => {
+            console.log(err.message);
+        })
+    }
+
     static cancelOrder(orderId) {
         return new Promise((resolve, reject) => {
             try {
@@ -312,7 +409,7 @@ InteractiveBroker.connect()
  */
 InteractiveBroker.interactiveBroker.on('orderStatus', (orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld) => {
     // console.log('Event - orderStatus', status);
-    // console.log("OrderStatus: ", orderId);
+    console.log("Event - OrderStatus: ", orderId);
 
     const orderStatusEvent = {orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld};
     // BrokerRedisController.updateOrderStatus(orderId, statusEvent);
@@ -327,7 +424,7 @@ InteractiveBroker.interactiveBroker.on('openOrder', (orderId, contract, order, o
     const symbol = _.get(contract, 'symbol', '');
     // console.log('openOrder');
     // console.log(order);
-    // console.log("OpenOrder: ", orderId);
+    console.log("Event - OpenOrder: ", orderId);
 
     BrokerRedisController.addInteractiveBrokerEvent({orderId, order, orderState}, 'openOrder');
 
@@ -337,11 +434,11 @@ InteractiveBroker.interactiveBroker.on('openOrder', (orderId, contract, order, o
 /**
  * Handling event 'execDetails' when send from the IB gateway or IB TWS
  */
-InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, execution, orderState) => {
-    // console.log('Event - execDetails');
+InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, execution) => {
+    console.log('Event - execDetails');
     const orderId = _.get(execution, 'orderId', null);
     // console.log("ExecDetails: ", orderId);
-    BrokerRedisController.addInteractiveBrokerEvent({orderId, execution, orderState}, 'execDetails');
+    BrokerRedisController.addInteractiveBrokerEvent({orderId, execution}, 'execDetails');
 });
 
 module.exports = InteractiveBroker;
