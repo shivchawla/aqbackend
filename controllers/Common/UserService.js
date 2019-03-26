@@ -330,27 +330,38 @@ exports.sendTemplateEmail = function (args, res, next) {
     })
     .then(admins => {
         if (userId && admins && admins.map(item => item._id.toString()).indexOf(userId.toString()) !=-1) {
-            return UserModel.fetchUsers({}, {firstName:1, lastName:1 , email:1, code:1, emailpreference: 1}) 
+            return true;
         } else {
             throw new Error("Not Authorized");
         }
     })
-    .then(allUsers => {
-        return Promise.mapSeries(allUsers, function(user) {
-            
-            const code = user.code;
-            const type = "marketing_digest";
-            const email = user.email;
-            const sendDigest = _.get(user, `emailpreference.${type}`, true);        
-            const unsubscribeUrl = eval('`'+config.get('request_unsubscribe_url') +'`');
+    .then(canProceed => {
+        var sliceSize = 10;
 
-            const substitutions = {unsubscribeUrl};
+        return UserModel.countUsers({})
+        .then(count => {
+            var nSlices = Math.ceil(count/sliceSize);
 
-            if (sendDigest) {
-                return sendEmail.sendTemplateEmail(templateId, substitutions, user, sender);
-            } else {
-                return;
-            }
+            return Promise.mapSeries(Array(nSlices), function(d, index) {
+                return UserModel.fetchUsers({}, {firstName:1, lastName:1 , email:1, code:1, emailpreference: 1}, {skip: index*sliceSize, limit:sliceSize})
+                .then(users => {        
+                    return Promise.map(users, function(user) {
+                        const code = user.code;
+                        const type = "marketing_digest";
+                        const email = user.email;
+                        const sendDigest = _.get(user, `emailpreference.${type}`, true);        
+                        const unsubscribeUrl = eval('`'+config.get('request_unsubscribe_url') +'`');
+
+                        const substitutions = {unsubscribeUrl};
+
+                        if (sendDigest) {
+                            return sendEmail.sendTemplateEmail(templateId, substitutions, user, sender);
+                        } else {
+                            return;
+                        }
+                    })
+                })
+            })
         })
     })
     .then(sent => {
