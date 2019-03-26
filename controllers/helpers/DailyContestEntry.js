@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-15 10:45:09
+* @Last Modified time: 2019-03-26 10:29:56
 */
 
 'use strict';
@@ -2234,7 +2234,7 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 	
 	//can be simplified to tickers * (advisor-predictons)
-	return _getDistinctPredictionTickersForAdvisors(date)
+	return _getDistinctPredictionTickersForAdvisors(date, {active: null})
 	.then(allAdvisorsByTickers => {
 		var allTickers = Object.keys(allAdvisorsByTickers);
 
@@ -2244,7 +2244,7 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 				var advisorsForThisTicker = _.uniq(allAdvisorsByTickers[ticker]);
 
 				return Promise.mapSeries(advisorsForThisTicker, function(advisorId){
-					return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
+					return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: null})
 					.then(predictions => {
 						return Promise.mapSeries(predictions, function(prediction){
 							var pTicker = _.get(prediction, 'position.security.ticker', "");
