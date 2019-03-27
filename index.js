@@ -30,9 +30,9 @@ const spec = fs.readFileSync('./api/swagger.yaml', 'utf8');
 const swaggerDoc = jsyaml.safeLoad(spec);
 
 if (process.env.NODE_ENV === 'staging') {
-   swaggerDoc.host = 'stagingapi.aimsquant.com';
+   swaggerDoc.host = 'stagingapi.adviceqube.com';
 } else if (process.env.NODE_ENV === 'development') {
-   swaggerDoc.host = 'developapi.aimsquant.com';
+   swaggerDoc.host = 'developapi.adviceqube.com';
 }
 
 // Initialize the Swagger middleware
