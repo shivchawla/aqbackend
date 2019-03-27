@@ -2,7 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-25 20:25:56
+<<<<<<< Updated upstream
+* @Last Modified time: 2019-03-27 12:25:37
+=======
+* @Last Modified time: 2019-03-27 12:15:24
+>>>>>>> Stashed changes
 */
 'use strict';
 const config = require('config');
@@ -20,6 +24,16 @@ const DailyContestEntryHelper = require('../helpers/DailyContestEntry')
 const BrokerRedisController = require('./brokerRedisControl');
 const predictionSubscribers = {};
 
+const marketOpenDateTimeHour = DateHelper.getMarketOpenDateTime().get('hour');
+const marketCloseDateTimeHour = DateHelper.getMarketCloseDateTime().get('hour');
+const scheduleUpdateUsingEODH = `${config.get(`20 * ${marketOpenDateTimeHour-1}-${marketCloseDateTimeHour+1} * * 1-5`;
+
+schedule.scheduleJob(scheduleUpdateUsingEODH, function() {
+	Promise.all([
+		exports.sendAdminUpdates(),
+		exports.sendAllUpdates()
+	]);
+});
 
 /*
 * Sends the data using WS connection

@@ -2,8 +2,9 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 13:05:39
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-25 20:42:07
+* @Last Modified time: 2019-03-27 12:37:15
 */
+
 'use strict';
 const config = require('config');
 const schedule = require('node-schedule');
@@ -21,24 +22,18 @@ const MktPlaceController = require('./mktPlaceControl.js');
 const PredictionController = require('./predictionControl.js');
 
 //Reload data as soon as (2s delay) server starts
-setTimeout(function(){reloadData();}, 2000);
+// setTimeout(function(){reloadData();}, 2000);
 
 //Run when seconds = 10
-const marketOpenDateTimeHour = DateHelper.getMarketOpenDateTime().get('hour');
-const marketCloseDateTimeHour = DateHelper.getMarketCloseDateTime().get('hour');
-const scheduleDownloadRTData = `${config.get('nse_delayinseconds')+10} * ${marketOpenDateTimeHour-1}-${marketCloseDateTimeHour+1} * * 1-5`;
+// const marketOpenDateTimeHour = DateHelper.getMarketOpenDateTime().get('hour');
+// const marketCloseDateTimeHour = DateHelper.getMarketCloseDateTime().get('hour');
+// const scheduleDownloadRTData = `${config.get('nse_delayinseconds')+10} * ${marketOpenDateTimeHour-1}-${marketCloseDateTimeHour+1} * * 1-5`;
 
 // schedule.scheduleJob(scheduleDownloadRTData, function() {
-// 		processLatestFiles();
+// 	processLatestFiles();
 // });
-// 
 
-schedule.scheduleJob(scheduleDownloadRTData, function() {
-	processEODHRealtimeData();
-});
-
-
-//Reload data before ranking calculation
+// //Reload data before ranking calculation
 // schedule.scheduleJob(`*/49 5-13 * * 1-5`, function() {
 //     reloadData();
 // });
@@ -295,24 +290,4 @@ function processLatestFiles() {
 		console.log("Error downloading Realtime Data")
 		console.log(err.message);
 	});
-}
-
-
-//Function to get/update latest realtime quote data from 
-function processEODHRealtimeData() {
-	return DailyContestEntryHelper.getDistinctPredictionTickersForAdvisors()
-	.then(advisorsByTickers => {
-		var uniqueTickers = Object.keys(advisorsByTickers);
-		
-		const slizeSize = 10;
-		var numSlices = Math.ceil(uniqueTickers.length/slizeSize);	
-
-		return Promise.map(Array(numSlices), function(value, index) {
-			var tickers = uniqueTickers.slice(index*slizeSize, (index+1)*slizeSize);
-			return SecurityHelper.updateRealtimeQuotesFromEODH(tickers)
-		})
-	})
-	.then(() => {
-		return _sendAllUpdates();
-	})
 }

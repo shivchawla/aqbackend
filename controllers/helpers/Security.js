@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-25 20:46:45
+* @Last Modified time: 2019-03-27 13:32:55
 */
 
 'use strict';
@@ -25,6 +25,7 @@ const WebSocket = require('ws');
 const DateHelper = require('../../utils/Date');
 const WSHelper = require('./WSHelper');
 const RedisUtils = require('../../utils/RedisUtils');
+const InteractiveBroker = require('../Realtime/interactiveBroker');
 
 var redisClient;
 
@@ -138,23 +139,36 @@ function _computeStockIntradayHistory_OLD(security, date) {
 function _computeStockIntradayHistory(security, date) {
 	//Fetches from redis
 	return new Promise((resolve, reject) => {
-		
+		//First fethc from IB
+
 		var activeTradingDate = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0));
-		var key = `RtData_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${security.ticker}`;
-		
-		return RedisUtils.getSetDataFromRedis(getRedisClient(), key)
-		.then(reply => {
-			resolve(
-				reply.map(item => {
-					var pItem = JSON.parse(item); 
-					 return {datetime: pItem.date, 
-                            close: pItem.intClose, 
-                            open: pItem.intOpen, 
-                            high: pItem.intHigh, 
-                            low: pItem.intLow};
-				})
-				.sort((a,b) => {return moment(a.datetime).isBefore(b.datetime) ? -1 : 1;})
-			);
+		var redisSetKey = `RtData_IB_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${security.ticker}`;
+		var nextMarketOpen = DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday(date));
+
+		return InteractiveBroker.requestIntradayHistoricalData(security.ticker)
+		.then(data => {
+
+			//Update the time Z format
+			data = data.map(item => {
+				return {...item, datetime: DateHelper.convertIndianTimeInLocalTz(item.datetime).endOf('minute').set({milliscond:0}).toISOString()}
+			});
+
+			let redisData = data.map(item => {
+				return JSON.stringify(item);
+			});
+
+			//Update the data in redis
+			return Promise.mapSeries(redisData, function(eachData) {
+				return RedisUtils.addSetDataToRedis(key, eachData)
+			})
+			.then(() => {	
+				//Set key expiry			  
+				return RedisUtils.expireKeyInRedis(redisSetKey, Math.floor(nextMarketOpen.valueOf()/1000));
+			})
+			.then(() => {
+				resolve(data.sort((a,b) => {return moment(a.datetime).isBefore(b.datetime) ? -1 : 1;}));
+			})
+
 		})
 		.catch(err => {
 			console.log(err);
@@ -166,14 +180,16 @@ function _computeStockIntradayHistory(security, date) {
 
 
 function _computeStockLatestRTDetail(security) {
-	return _computeStockIntradayHistory(security, DateHelper.getMarketCloseDateTime())
-	.then(intradayHistory => {
-		if (intradayHistory) {
-			return intradayHistory.slice(-1)[0];
-		} else {
-			return exports.getRealtimeQuoteFromEODH(security.ticker);
-		}
-	})
+	return exports.getRealtimeQuoteFromEODH(security.ticker);
+
+	// return _computeStockIntradayHistory(security, DateHelper.getMarketCloseDateTime())
+	// .then(intradayHistory => {
+	// 	if (intradayHistory) {
+	// 		return intradayHistory.slice(-1)[0];
+	// 	} else {
+			
+	// 	}
+	// })
 }
 
 module.exports.getNifty500Constituents = function() {

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-25 20:32:14
+* @Last Modified time: 2019-03-27 12:30:48
 */
 
 'use strict';
@@ -1467,19 +1467,20 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 			return [];
 		}
 	})
-	.then(updatedPredictionsWithLastPrice => {
+	.then(partiallyUpdatedPredictionsWith => {
 
 		//Update security latest detail
 		if (priceUpdate) {
-			return Promise.map(updatedPredictionsWithLastPrice, function(prediction) {
+			return Promise.map(partiallyUpdatedPredictionsWith, function(prediction) {
 				return SecurityHelper.getStockDetail(prediction.position.security, date)
 				.then(securityDetail => {
-					var updatedPosition = Object.assign(prediction.position, {security: securityDetail});
+					let lastPrice = prediction.lastPrice || _.get(securityDetail, 'latestDetailRT.close', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
+					var updatedPosition = Object.assign(prediction.position, {lastPrice, security: securityDetail});
 					return Object.assign(prediction, {position: updatedPosition});
 				})
 			});
 		} else {
-			return updatedPredictionsWithLastPrice;
+			return partiallyUpdatedPredictionsWith;
 		}
 	});
 };
@@ -1726,7 +1727,6 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 						return SecurityHelper.getStockLatestDetail(item.position.security)
 						.then(securityDetail => {
 							lastPrice = _.get(securityDetail, 'latestDetailRT.close', 0) || 
-								_.get(securityDetail, 'latestDetailRT.close') || 
 								_.get(securityDetail, 'latestDetail.Close', 0);
 
 							var cashGenerated = avgPrice > 0 && lastPrice > 0 ? (lastPrice/avgPrice)*investment : investment;
@@ -2030,7 +2030,6 @@ module.exports.checkForPredictionExpiry = function() {
 							return SecurityHelper.getStockLatestDetail(item.position.security)
 							.then(securityDetail => {
 								item.position.lastPrice = _.get(securityDetail, 'latestDetailRT.close', 0) || 
-									_.get(securityDetail, 'latestDetailRT.close') || 
 									_.get(securityDetail, 'latestDetail.Close', 0);
 
 								item.status.expired = true;

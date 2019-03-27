@@ -81,7 +81,7 @@ class InteractiveBroker {
         })
     }
 
-    static requireHistoricalData(stock) {
+    static requestIntradayHistoricalData(stock) {
         return new Promise((resolve, reject) => {
             try {
                 let requestId = null;
@@ -98,13 +98,13 @@ class InteractiveBroker {
                     // const queryTime = moment().format('YYYYMMDD hh:mm:ss');
 
                     ibInstance.reqHistoricalData(reqId, contract, '', '1 D', '1 min', 'TRADES', 1, 1, false)
-                    .on('historicalData', (reqId, date, open, high, low, close) => {
+                    .on('historicalData', (reqId, datetime, open, high, low, close, volume) => {
                         if (reqId === requestId) {
                             const hasFinised = date.indexOf('finished') > -1;
                             if (hasFinised) {
                                 resolve(historicalData);
                             } else {
-                                historicalData.push({reqId, date, open, high, low, close});
+                                historicalData.push({datetime, open, high, low, close, volume});
                             }
                         }
                     })
