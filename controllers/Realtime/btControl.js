@@ -56,7 +56,12 @@ function finalOutputChannel(backtestId) {
 
 function getRedisClient() {
     if (!redisClient || !redisClient.connected) {
-        redisClient = redis.createClient(config.get('julia_redis_port'), config.get('julia_redis_host'), {password: config.get('julia_redis_pass')});
+        let redisPwd = config.get('julia_redis_pass');
+        if (redisPwd != "") {
+            redisClient = redis.createClient(config.get('julia_redis_port'), config.get('julia_redis_host'), {password: redisPwd});
+        } else {
+            redisClient = redis.createClient(config.get('julia_redis_port'), config.get('julia_redis_host'));
+        }
     } 
 
     return redisClient;

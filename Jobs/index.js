@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-02-25 11:38:53
+* @Last Modified time: 2019-03-22 10:17:51
 */
 
 'use strict';
@@ -15,6 +15,8 @@ const DailyContestStatsHelper = require('../controllers/helpers/DailyContestStat
 const DailyContestEntryHelper = require('../controllers/helpers/DailyContestEntry');
 const AdhocJobs = require('../controllers/helpers/AdhocJobs');
 const FormatJobs = require('../controllers/helpers/FormatDataJobs');
+// const EODHJobs = require('./downloadEODH');
+
 const DateHelper = require('../utils/Date');
 
 const schedule = require('node-schedule');
@@ -100,8 +102,6 @@ if (config.get('jobsPort') === serverPort) {
 		}
 	});
 
-
-
 	const scheduleUpdateCallPrice = `*/5 ${DateHelper.getMarketOpenHour() - 1}-${DateHelper.getMarketCloseHour() + 1} * * 1-5`;
 	schedule.scheduleJob(scheduleUpdateCallPrice, function() { 
 		if (!DateHelper.isHoliday()) {
@@ -111,6 +111,17 @@ if (config.get('jobsPort') === serverPort) {
 	    	})
     	}
 	});
+
+	const scheduleUpdateCallPriceEODH = `20 */1 ${DateHelper.getMarketOpenHour() - 1}-${DateHelper.getMarketCloseHour() + 1} * * 1-5`;
+	schedule.scheduleJob(scheduleUpdateCallPriceEODH, function() { 
+		if (!DateHelper.isHoliday()) {
+	    	DailyContestEntryHelper.updateCallPriceForPredictionsFromEODH()
+	    	.then(() => {
+	    		DailyContestEntryHelper.checkPredictionTriggers();
+	    	})
+    	}
+	});
+	
 
 }
 

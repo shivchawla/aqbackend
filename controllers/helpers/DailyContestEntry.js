@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-15 10:45:09
+* @Last Modified time: 2019-03-25 19:14:21
 */
 
 'use strict';
@@ -10,6 +10,9 @@ const _ = require('lodash');
 const Promise = require('bluebird');
 const moment = require('moment-timezone');
 const schedule = require('node-schedule');
+const config = require('config');
+const redis = require('redis');
+const axios = require('axios');
 
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
@@ -23,6 +26,27 @@ const DailyContestEntryPerformanceModel = require('../../models/Marketplace/Dail
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 
 const PredictionRealtimeController = require('../Realtime/predictionControl');
+
+const RedisUtils = require('../../utils/RedisUtils');
+
+const RECENT_ADVISORS_QUEUE = "recent_advisor_queue";
+
+var redisClient;
+
+function getRedisClient() {
+	if (!redisClient || !redisClient.connected) {
+		var redisPwd = config.get('node_redis_pass');
+
+		if (redisPwd != "") {
+        	redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});
+    	} else {
+    		redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'));
+    	}
+    }
+
+    return redisClient; 
+}
+
 
 function _getStopLossPrice(prediction) {
 
@@ -1084,57 +1108,62 @@ function _updatePositionsForPrice(positions, date, type) {
 
 function _computeUpdatedPredictions(predictions, date) {
 	
-	return predictions.length > 0 ? 	
-		Promise.map(predictions, function(prediction) {
-			var callPrice = _.get(prediction, 'position.avgPrice', 0.0);
-			
-			return Promise.resolve(callPrice == 0 ? _updatePredictionForCallPrice(prediction) : prediction)
-			.then(updatedCallPricePrediction => {
-				var _partialUpdatedPositions = updatedCallPricePrediction ? [updatedCallPricePrediction.position] : [prediction.position];
+	return Promise.resolve()
+	.then(() => {
+		if (predictions.length > 0) {  	
+			return Promise.map(predictions, function(prediction) {
+				var callPrice = _.get(prediction, 'position.avgPrice', 0.0);
 				
-				//Check whether the predcition needs any price update
-				//Based on success status
-				var success = _.get(prediction, 'status.profitTarget', false) && moment(date).isSame(moment(prediction.status.date));
-				var failure = _.get(prediction, 'status.stopLoss', false) && moment(date).isSame(moment(prediction.status.date));
-				var manualExit = _.get(prediction, 'status.manualExit', false) && moment(date).isSame(moment(prediction.status.date));
-				var lastPrice = _.get(prediction, 'position.lastPrice', 0);
+				return Promise.resolve(callPrice == 0 ? _updatePredictionForCallPrice(prediction) : prediction)
+				.then(updatedCallPricePrediction => {
+					var _partialUpdatedPositions = updatedCallPricePrediction ? [updatedCallPricePrediction.position] : [prediction.position];
+					
+					//Check whether the predcition needs any price update
+					//Based on success status
+					var success = _.get(prediction, 'status.profitTarget', false) && moment(date).isSame(moment(prediction.status.date));
+					var failure = _.get(prediction, 'status.stopLoss', false) && moment(date).isSame(moment(prediction.status.date));
+					var manualExit = _.get(prediction, 'status.manualExit', false) && moment(date).isSame(moment(prediction.status.date));
+					var lastPrice = _.get(prediction, 'position.lastPrice', 0);
 
-				var expired = _.get(prediction, 'status.expired', false) || moment(_.get(prediction, 'endDate', null)).isBefore(moment());
-				var endedInTime = expired && moment(date).isSame(moment(prediction.endDate));
+					var expired = _.get(prediction, 'status.expired', false) || moment(_.get(prediction, 'endDate', null)).isBefore(moment());
+					var endedInTime = expired && moment(date).isSame(moment(prediction.endDate));
 
-				if (success) {
+					if (success) {
+						
+						updatedCallPricePrediction.position.lastPrice = updatedCallPricePrediction.target;
+						return [updatedCallPricePrediction.position];
 					
-					updatedCallPricePrediction.position.lastPrice = updatedCallPricePrediction.target;
-					return [updatedCallPricePrediction.position];
-				
-				} else if (failure) {
+					} else if (failure) {
+						
+						//Find stop loss price based on stop-loss type
+						var stopLossPrice = _getStopLossPrice(updatedCallPricePrediction);
+						updatedCallPricePrediction.position.lastPrice = stopLossPrice;
+						
+						return [updatedCallPricePrediction.position];
 					
-					//Find stop loss price based on stop-loss type
-					var stopLossPrice = _getStopLossPrice(updatedCallPricePrediction);
-					updatedCallPricePrediction.position.lastPrice = stopLossPrice;
-					
-					return [updatedCallPricePrediction.position];
-				
-				} else if((manualExit || endedInTime) && lastPrice) {
-					//On manual exit the price is already populated at the time of exit (DELAYED)
-					//Last Price is populated via job
-					//But if price is not available, then move to next step and return current price
-					return [updatedCallPricePrediction.position];	
-				} else {
-					return _updatePositionsForPrice(_partialUpdatedPositions, date);
-				}
+					} else if((manualExit || endedInTime) && lastPrice) {
+						//On manual exit the price is already populated at the time of exit (DELAYED)
+						//Last Price is populated via job
+						//But if price is not available, then move to next step and return current price
+						return [updatedCallPricePrediction.position];	
+					} else {
+						return _updatePositionsForPrice(_partialUpdatedPositions, date);
+					}
+				})
+				.then(updatedPositions => {
+					if (updatedPositions) {
+						//Incoming Juliq updated prediction doesn't have quantity information
+						//So merge the new and old position (to retain quantity info)
+						return {...prediction, position: {...prediction.position, ...updatedPositions[0]}};
+					} else {
+						return prediction;
+					}
+				});
 			})
-			.then(updatedPositions => {
-				if (updatedPositions) {
-					//Incoming Juliq updated prediction doesn't have quantity information
-					//So merge the new and old position (to retain quantity info)
-					return {...prediction, position: {...prediction.position, ...updatedPositions[0]}};
-				} else {
-					return prediction;
-				}
-			});
-		})
-	: predictions;
+		} else {
+			return predictions;
+		}
+	});
 };
 
 function _computeTotalPnlStats(advisorId, date, options) {
@@ -1196,9 +1225,6 @@ function _computeDailyPnlStats(advisorId, date, options) {
 	return exports.getPredictionsForDate(advisorId, date, {category})
 	.then(updatedPredictions => {
 
-		// console.log("While computing pnl");
-		// console.log(updatedPredictions);
-			
 		//BUT THE updated predictions have Call price as of beginning of prediction
 		//For Daily change, we need daily changes
 		return Promise.map(updatedPredictions, function(prediction) {
@@ -1237,9 +1263,6 @@ function _computeDailyPnlStats(advisorId, date, options) {
 
 				return  item;
 			});
-
-			// console.log("What's the updated");
-			// console.log(updatedPredictions);
 
 			//Total Pnl
 			return _getPnlStats(updatedPredictions);
@@ -1336,7 +1359,7 @@ module.exports.getValidStartDate = function(date) {
 	}
 	//While trading
 	else if (DateHelper.isMarketTrading()) {
-        validStartDate = moment().startOf('minute');
+        validStartDate = moment().add(1, 'minute').startOf('minute');
 	}  
 	//After market close - get close of that day 
 	//5:30 PM Friday
@@ -1468,34 +1491,45 @@ module.exports.getPredictionById = function(advisorId, predictionId, options) {
 
 	let updatedPredictions;
 	let date;
+	let security;
 
 	return DailyContestEntryModel.fetchPredictionById({advisor: advisorId}, predictionId)
 	.then(prediction => {
-
+		
 		if (prediction) {
-			date = pediction.status.date || prediction.endDate;
+			prediction = prediction.toObject();
+
+			date = prediction.status.date || prediction.endDate;
+
+			security = prediction.position.security;
 
 			if(DateHelper.compareDates(date, DateHelper.getCurrentDate()) == 1) {
 				date  = DateHelper.getCurrentDate()
 			}
 			
-			return priceUpdate ? _computeUpdatedPredictions([prediction], date)[0] : prediction;
+			return priceUpdate ? _computeUpdatedPredictions([prediction], date) : [prediction];
 		} else {
 			APIError.throwJsonError({message: "Prediction not found"});
 		}
 	})
-	.then(updatedPredictionWithLastPrice => {
+	.then(updatedPredictionsWithLastPrice => {
+
+		// console.log("By Id:")
+		// console.log(updatedPredictionsWithLastPrice);
 
 		//Update security latest detail
 		if (priceUpdate) {
-			return SecurityHelper.getStockDetail(prediction.position.security, date)
+			return SecurityHelper.getStockDetail(security, date)
 			.then(securityDetail => {
-				var updatedPosition = {...updatedPredictionWithLastPrice.position, security: securityDetail};
-				return {...updatedPredictionWithLastPrice, position: updatedPosition};
+				var updatedPosition = {...updatedPredictionsWithLastPrice[0].position, security: securityDetail};
+				return {...updatedPredictionsWithLastPrice[0], position: updatedPosition};
 			})
 		} else {
-			return updatedPredictionWithLastPrice;
+			return updatedPredictionsWithLastPrice[0];
 		}
+	})
+	.catch(err => { 
+		console.log(err);
 	});
 };
 
@@ -1703,10 +1737,6 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 					var grossTotal = grossEquity + cash;
 					var netTotal = netEquity + cash;
 					var advisorAccount = advisor ? _.get(advisor.toObject(), 'account', {}) : {};
-
-					// console.log(`Equity: ${netEquity}`);
-					// console.log(`Cash: ${cash}`);
-					// console.log(`Account: ${advisorAccount}`);
 
 					const updates = {
 						...advisorAccount, cash,
@@ -2041,6 +2071,89 @@ module.exports.checkForPredictionExpiry = function() {
 	}
 }
 
+module.exports.updateCallPriceForPredictionsFromEODH = function() {
+	let latestDate = DateHelper.getMarketCloseDateTime(exports.getValidStartDate());
+
+	var currentTime = moment().startOf('minute').toISOString();
+
+	var queueName = `${RECENT_ADVISORS_QUEUE}_${currentTime}`;
+
+	let latestQuotes = {};
+	return RedisUtils.getSetDataFromRedis(getRedisClient(), queueName)
+	.then(advisors => {
+		if (advisors && advisors.length > 0) {
+			// console.log(`Retrieved from queue:`);
+			// console.log(queueName);
+
+			return Promise.mapSeries(advisors, function(advisorId) {
+				
+				return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, latestDate)
+				.then(predictions => {
+					if (predictions && predictions.length > 0) {
+						
+						var filteredPredictions = predictions.filter(item => {
+							var callPrice = _.get(item, 'position.avgPrice', 0.0);
+							var isCreatedLastMinute = moment().startOf('minute').isSame(moment(item.startDate));
+							
+							return callPrice == 0 && isCreatedLastMinute;
+						});
+
+						return Promise.map(filteredPredictions, function(prediction) {
+							var ticker = prediction.position.security.ticker;
+
+							return Promise.resolve()
+							.then(() => {
+								if (ticker in latestQuotes) {
+									return latestQuotes[ticker]; 
+								} else {
+									return SecurityHelper.getRealtimeQuoteFromEODH(`${ticker}.NSE`); 
+								}
+							})
+							.then(latestQuote => {
+
+								// console.log(`Received Quote Time: ${moment.utc().toISOString()}`);
+									
+								if (latestQuote) {
+
+									//Push the quote in dictionary
+									latestQuotes[ticker] = latestQuote
+
+									// console.log("Latest Quote")
+									// console.log(latestQuote);
+									
+									// console.log(`Quote timestamp: ${moment.unix(latestQuote.timestamp).toISOString()}`);
+									var quoteTime = moment.unix(latestQuote.timestamp).add(1, 'millisecond').startOf('minute').toISOString();
+									// console.log(`Adjusted Quote Time By Minute: ${quoteTime}`);
+									// console.log(`Prediction StartDate: ${prediction.startDate.toISOString()}`);
+
+									//How to handle cases where last Quote time (for low volume stocks) is before last EOD minute
+									//Should we update the call price with the value or wait or time series logic 	
+									if (moment(quoteTime).isSame(moment(prediction.startDate))) {
+										var updatedCallPrice = _.get(latestQuote, 'close', 0.0);
+										if (updatedCallPrice != 0) {
+											// console.log(`Updating Call Price-- WOHOO!!!!   ${updatedCallPrice}`);
+											return DailyContestEntryModel.updatePredictionCallPrice({advisor: advisorId}, prediction, updatedCallPrice);
+										}
+									}
+								}
+							})
+							.catch(err => {
+								// console.log("WTF");
+								console.log(`Error while updating call prce (EODH): ${err.message}`);
+							})
+						});	
+					}
+				});
+
+			});
+		}
+	})
+	.then(() => {
+		return RedisUtils.deleteKey(getRedisClient(), queueName);
+	})
+};
+
+
 module.exports.addPrediction = function(advisorId, prediction, date) {
 	
 	var isRealPrediction = _.get(prediction, 'real', false);
@@ -2051,7 +2164,13 @@ module.exports.addPrediction = function(advisorId, prediction, date) {
 	])
 	.then(([added, masterAdvisorId]) => {
 		//Updating advisor account with new metrics
+		
+		var queueName = `${RECENT_ADVISORS_QUEUE}_${prediction.startDate.toISOString()}`;
+		// console.log("Pushing To Queue");
+		// console.log(queueName);
+
 		return Promise.all([
+			DateHelper.isMarketTrading() ? RedisUtils.addSetDataToRedis(getRedisClient(), queueName, advisorId.toString()) : null,
 			AdvisorHelper.updateAdvisorAccountDebit(advisorId, [prediction]),
 			isRealPrediction && masterAdvisorId ? 
 				PredictionRealtimeController.sendAdminUpdates(masterAdvisorId) : null

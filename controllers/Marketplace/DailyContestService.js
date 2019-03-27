@@ -2,34 +2,33 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-13 18:04:04
+* @Last Modified time: 2019-03-25 19:10:40
 */
 
 'use strict';
 const _ = require('lodash');
 const Promise = require('bluebird');
-const schedule = require('node-schedule');
-const moment = require('moment-timezone');
+var redis = require('redis');
 var path = require('path');
 var fs = require('fs');
 var csv = require('fast-csv');
 
 const config = require('config');
-const sendEmail = require('../../email');
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
+const InteractiveBroker = require('../Realtime/interactiveBroker');
+const ibTickers = require('../../documents/ibTickers.json');
 
-const UserModel = require('../../models/user');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryHelper = require('../helpers/DailyContestEntry');
-const DailyContestHelper = require('../helpers/DailyContest');
 const DailyContestStatsHelper = require('../helpers/DailyContestStats');
 const SecurityHelper = require('../helpers/Security');
 const AdvisorHelper = require('../helpers/Advisor');
 const PredictionRealtimeController = require('../Realtime/predictionControl');
+const BrokerRedisController = require('../Realtime/brokerRedisControl');
 
 function _populateWinners(winners) {
 	return Promise.map(winners, function(winner) {
@@ -84,17 +83,32 @@ module.exports.getDailyContestPredictions = (args, res, next) => {
 		if (updatedPredictions) {
 			if (!isAdmin) {
 				updatedPredictions = updatedPredictions.map(item => {
-					_.unset(item,'tradeActivity'); 
-					_.unset(item,'readStatus'); 
-					_.unset(item,'adminModifications'); 
-					return item
+					_.unset(item, 'tradeActivity');
+					_.unset(item, 'orderActivity');
+					_.unset(item, 'adminActivity');
+					_.unset(item, 'skippedByAdmin'); 
+					_.unset(item, 'readStatus'); 
+					_.unset(item, 'adminModifications'); 
+					
+					return item;
+
+				});
+
+				return updatedPredictions;
+			} else {
+				return Promise.map(updatedPredictions, function(prediction) {
+					return BrokerRedisController.getPredictionStatus(advisorId, prediction._id)
+					.then(status => {
+						return {...prediction, current: status};
+					})
 				});
 			}
-
-			return res.status(200).send(updatedPredictions);
 		} else {
 			APIError.throwJsonError({message: `No contest entry found for ${date}`});
 		}
+	})
+	.then(predictions => {
+		return res.status(200).send(predictions);
 	})
 	.catch(err => {
 		console.log(err);
@@ -126,6 +140,22 @@ module.exports.getRealTradePredictions = (args, res, next) => {
 			APIError.throwJsonError({message: "Not authorized!!"});
 		}
 			
+	})
+	.then(realPredictions => {
+		return Promise.map(realPredictions, function(prediction) {
+			console.log('Prediction', prediction.tradeActivity);
+			return Promise.all([
+				BrokerRedisController.getPredictionStatus(prediction.advisor._id, prediction._id),
+				BrokerRedisController.getPredictionActivity(prediction.advisor._id, prediction._id)
+			])
+			.then(([status, activity]) => {
+				prediction.tradeActivity = prediction.tradeActivity.concat(_.get(activity, 'tradeActivity', []));
+				prediction.orderActivity = prediction.orderActivity.concat(_.get(activity, 'orderActivity', []));
+				prediction.activity = activity
+
+				return {...prediction, current: status};
+			})
+		});
 	})
 	.then(realPredictions => {
 		return res.status(200).send(realPredictions);
@@ -293,9 +323,12 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	})
 	.then(() => {
 		
-		return SecurityHelper.getStockLatestDetail(prediction.position.security)
-		.then(securityDetail => {
-			var latestPrice = _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
+		return Promise.all([
+			SecurityHelper.getStockLatestDetail(prediction.position.security),
+			SecurityHelper.getRealtimeQuoteFromEODH(`${prediction.position.security.ticker}.NSE`)
+		])
+		.then(([securityDetail, realTimeQuote]) => {
+			var latestPrice = _.get(realTimeQuote, 'close', 0) || _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
 			if (latestPrice != 0) {
 
 				//Investment is modified downstream so can't be const
@@ -565,7 +598,7 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 /*
 * Add trade activity (not trade but information about trade)
  */
-module.exports.addPredictionTradeActivity = (args, res, next) => {
+module.exports.addPredictionOrderActivity = (args, res, next) => {
 	const userId = _.get(args, 'user._id', null);
 	const predictionId = _.get(args, 'body.value.predictionId', null);
 	const advisorId = _.get(args, 'body.value.advisorId', null);
@@ -585,68 +618,12 @@ module.exports.addPredictionTradeActivity = (args, res, next) => {
 		.then(masterAdvisor => {
 			if (masterAdvisor && _.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
 				allocationAdvisorId = masterAdvisor.allocation.advisor;
-				return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
+				return DailyContestEntryModel.addTradeActivityForPrediction({advisor: allocationAdvisorId}, predictionId, tradeActivity);
 			} else {
 				APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
 			}
 		})
 		
-	})
-	.then(prediction => {
-		if (prediction) {
-			if (prediction.tradeActivity) {
-				prediction.tradeActivity = prediction.tradeActivity.concat(tradeActivity);
-			} else {
-				prediction.tradeActivity = [tradeActivity];
-			}
-			return DailyContestEntryModel.updatePrediction({advisor: allocationAdvisorId}, prediction);	
-		} else {
-			APIError.throwJsonError({message: "Prediction not found"});
-		}
-	})
-	.then(updated => {
-		return res.status(200).send("Trade activity added successfully");
-	})
-	.catch(err => {
-		return res.status(400).send(err.message);		
-	})
-};
-
-/*
-* Place trade in prediction
- */
-module.exports.placeTradeForPrediction = (args, res, next) => {
-	const userId = _.get(args, 'user._id', null);
-	const predictionId = _.get(args, 'body.value.predictionId', null);
-	const advisorId = _.get(args, 'body.value.advisorId', null);
-	const trade = _.get(args, 'body.value.trade', null);
-	
-	const userEmail = _.get(args, 'user.email', null);
-	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
-
-	let allocationAdvisorId;
-
-	return Promise.resolve()
-	.then(() => {
-		if (!isAdmin) {
-			APIError.throwJsonError({message: "Not authorized to place trades"});
-		}
-
-		return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'})
-		.then(masterAdvisor => {
-			if (masterAdvisor && _.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
-				allocationAdvisorId = masterAdvisor.allocation.advisor;
-				return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
-			} else {
-				APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
-			}
-		})
-		
-	})
-	.then(prediction => {
-		//Write the trade logic here
-		
-		APIError.throwJsonError({message: "Not Implemented yet!!"})
 	})
 	.then(updated => {
 		return res.status(200).send("Trade activity added successfully");
@@ -681,30 +658,66 @@ module.exports.updateReadStatusPrediction = (args, res, next) => {
 		.then(masterAdvisor => {
 			if (masterAdvisor && _.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
 				allocationAdvisorId = masterAdvisor.allocation.advisor;
-				return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
+				return DailyContestEntryModel.updateReadStatus({advisor: allocationAdvisorId}, predictionId, readStatus);
 			} else {
 				APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
 			}
 		})
 		
 	})
-	.then(prediction => {
-		if (prediction) {
-			
-			prediction.readStatus = readStatus;
-
-			return DailyContestEntryModel.updatePrediction({advisor: allocationAdvisorId}, prediction);	
-		} else {
-			APIError.throwJsonError({message: "Prediction not found"});
-		}
-	})
 	.then(updated => {
-		return res.status(200).send("Trade activity added successfully");
+		return res.status(200).send("Read status updated successfully");
 	})
 	.catch(err => {
 		return res.status(400).send(err.message);		
 	})
 };
+
+module.exports.updateSkipStatusPrediction = (args, res, next) => {
+	const predictionId = _.get(args, 'body.value.predictionId', null);
+	const advisorId = _.get(args, 'body.value.advisorId', null);
+
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+
+	let allocationAdvisorId;
+
+	return Promise.resolve()
+	.then(() => {
+		if (!isAdmin) {
+			APIError.throwJsonError({message: 'Not authorized to skip prediction'});
+		}
+
+		return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'})
+	})
+	.then(masterAdvisor => {
+		if (masterAdvisor && _.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
+			allocationAdvisorId = masterAdvisor.allocation.advisor;
+
+			return DailyContestEntryModel.updateSkipStatus({advisor: allocationAdvisorId}, predictionId, true);
+		} else {
+			APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
+		}
+	})
+	.then(() => {
+		const adminActivity = {
+			message: 'Order Skipped',
+			activityType: 'SKIP',
+			obj: {}
+		};
+
+		return Promise.all([
+			DailyContestEntryModel.addAdminActivityForPrediction({advisor: allocationAdvisorId}, predictionId, adminActivity),
+			DailyContestEntryModel.updateReadStatus({advisor: allocationAdvisorId}, predictionId, true)
+		]);
+	})
+	.then(() => {
+		return res.status(200).send('Success');
+	})
+	.catch(err => {
+		console.log('Error', err);
+	})
+}
 
 module.exports.addAdminModificationsToPrediction = (args, res, next) => {
 	const userId = _.get(args, 'user._id', null);
@@ -1120,3 +1133,222 @@ module.exports.sendTemplateEmailToParticipants = function(args, res, next) {
     });
 };
 
+module.exports.placeOrderForPrediction = function(args, res, next ) {
+	
+	const userEmail = _.get(args, 'user.email', null);
+	const admins = config.get('admin_user');
+	const isAdmin = admins.indexOf(userEmail) !== -1;
+	
+	const predictionId = _.get(args, 'body.value.predictionId', null);
+	const advisorId = _.get(args, 'body.value.advisorId', null);
+	const message = _.get(args, 'body.value.message', '');
+	const order = _.get(args, 'body.value.order', {});
+	const bracketFirstOrderType = _.get(order, 'bracketFirstOrderType', 'LIMIT');
+	let stock = _.get(order, 'symbol', null);
+	const orderType = _.get(order, 'orderType', null);
+	const quantity = _.get(order, 'quantity', 0);
+	const price = _.get(order, 'price', 0);
+	const type = _.get(order, 'tradeDirection', 'BUY');
+	const stopLossPrice = _.get(order, 'stopLossPrice', 0);
+	const profitLimitPrice = _.get(order, 'profitLimitPrice', 0);
+
+	let allocationAdvisorId = null;
+
+	const ibSymbol = ibTickers[stock];
+	if (ibSymbol !== undefined) {
+		stock = ibSymbol;
+	}
+
+	const orderParams = {stock, type, quantity, price, orderType, stopLossPrice, profitLimitPrice};
+
+	Promise.resolve()
+	.then(() => {
+		// Check if user is admin only then all the other operations are permitted
+		if (isAdmin) {
+			return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'})
+		} else {
+			APIError.throwJsonError({message: "User not authorized to place orders"});
+		}
+	})
+	.then(masterAdvisor => {
+		const allocationStatus = _.get(masterAdvisor, 'allocation.status', false);
+		allocationAdvisorId = _.get(masterAdvisor, 'allocation.advisor', null);
+		
+		// We are checking if the user is allocated and is allowed for real predictions
+		if (masterAdvisor && allocationStatus && allocationAdvisorId) {
+			return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
+		} else {
+			APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
+		}
+	})
+	.then(prediction => {
+		if (prediction) {
+			// Creating the admin activity, admin activity will always be added as soon as the user
+			// places an order
+			const adminActivity = {
+				message,
+				activityType: 'ORDER',
+				obj: {
+					orderType,
+					price,
+					profitLimitPrice,
+					quantity,
+					stopLossPrice,
+					tradeDirection: type,
+				}
+			};
+
+			// Placing the order in the market
+			// Adding admin activity to the prediction
+			return Promise.all([
+				InteractiveBroker.placeOrder({...orderParams, predictionId, advisorId, bracketFirstOrderType}),
+				DailyContestEntryModel.addAdminActivityForPrediction({advisor: allocationAdvisorId}, predictionId, adminActivity),
+				DailyContestEntryModel.updateReadStatus({advisor: allocationAdvisorId}, predictionId, true)
+			])
+			
+		} else {
+			APIError.throwJsonError({message: "Prediction not found"});
+		}
+	})
+	.then(([success]) => {
+		return res.status(200).send("Order placed successfully");
+	})
+	.catch(err => {
+		console.log('Error ', err);
+		return res.status(400).send(err.message);
+	})
+}
+
+module.exports.modifyOrderForPrediction = function(args, res, next ) {
+	const userEmail = _.get(args, 'user.email', null);
+	const admins = config.get('admin_user');
+	const isAdmin = admins.indexOf(userEmail) !== -1;
+	
+	const advisorId = _.get(args, 'body.value.advisorId', null);
+	const predictionId = _.get(args, 'body.value.predictionId', null);
+	const message = _.get(args, 'body.value.message', '');
+	const order = _.get(args, 'body.value', {});
+	let stock = _.get(order, 'stock', null);
+	const orderType = _.get(order, 'orderType', null);
+	const quantity = _.get(order, 'quantity', 0);
+	const price = _.get(order, 'price', 0);
+	const type = _.get(order, 'tradeDirection', 'BUY');
+	const orderId = _.get(order, 'orderId', null);
+	const tif = _.get(order, 'tif', 'GTC');
+
+	let allocationAdvisorId = null;
+
+	const ibSymbol = ibTickers[stock];
+	if (ibSymbol !== undefined) {
+		stock = ibSymbol;
+	}
+
+	const orderParams = {orderId, tif, stock, type, quantity, price, orderType};
+
+	Promise.resolve()
+	.then(() => {
+		// Check if user is admin only then all the other operations are permitted
+		if (isAdmin) {
+			return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'})
+		} else {
+			APIError.throwJsonError({message: "User not authorized to place orders"});
+		}
+	})
+	.then(masterAdvisor => {
+		const allocationStatus = _.get(masterAdvisor, 'allocation.status', false);
+		allocationAdvisorId = _.get(masterAdvisor, 'allocation.advisor', null);
+		
+		// We are checking if the user is allocated and is allowed for real predictions
+		if (masterAdvisor && allocationStatus && allocationAdvisorId) {
+			return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
+		} else {
+			APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
+		}
+	})
+	.then(prediction => {
+		if (prediction) {
+			// Creating the admin activity, admin activity will always be added as soon as the user
+			// places an order
+			const adminActivity = {
+				message,
+				activityType: 'MODIFY ORDER',
+				obj: orderParams
+			};
+
+			// Placing the order in the market
+			// Adding admin activity to the prediction
+			return Promise.all([
+				InteractiveBroker.modifyOrder(orderParams),
+				DailyContestEntryModel.addAdminActivityForPrediction({advisor: allocationAdvisorId}, predictionId, adminActivity),
+			])
+			
+		} else {
+			APIError.throwJsonError({message: "Prediction not found"});
+		}
+	})
+	.then(([success]) => {
+		return res.status(200).send("Order placed successfully");
+	})
+	.catch(err => {
+		console.log('Error ', err);
+		return res.status(400).send(err.message);
+	})
+}
+
+module.exports.cancelOrderForPrediction = function(args, res, next ) {
+	const userEmail = _.get(args, 'user.email', null);
+	const admins = config.get('admin_user');
+	const isAdmin = admins.indexOf(userEmail) !== -1;
+	const orderId = _.get(args, 'body.value.orderId', null);
+	const advisorId = _.get(args, 'body.value.advisorId', null);
+	const predictionId = _.get(args, 'body.value.predictionId', null);
+	const message = _.get(args, 'body.value.messaage', null);
+	let allocationAdvisorId = null;
+
+	Promise.resolve()
+	.then(() => {
+		// Check if user is admin only then all the other operations are permitted
+		if (isAdmin) {
+			return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'});
+		} else {
+			APIError.throwJsonError({message: "User not authorized to cancel orders"});
+		}
+	})
+	.then(masterAdvisor => {
+		allocationAdvisorId = _.get(masterAdvisor, 'allocation.advisor', null);
+		const adminActivity = {
+			message,
+			activityType: 'CANCEL',
+			obj: {
+				orderId
+			}
+		};
+		
+		return Promise.all([
+			InteractiveBroker.cancelOrder(Number(orderId)),
+			DailyContestEntryModel.addAdminActivityForPrediction({advisor: allocationAdvisorId}, predictionId, adminActivity)
+		]);
+	})
+	.then(() => {
+		return res.status(200).send("Order cancelled successfully"); 
+	})
+	.catch(err => {
+		console.log('Error', err);
+		return res.status(400).send(err.message);
+	})
+}
+
+module.exports.getHistoricalDataForStock = function(args, res, next) {
+	const symbol = _.get(args, 'symbol.value', '');
+	
+	Promise.resolve()
+	.then(() => {
+		return InteractiveBroker.requireHistoricalData(symbol)
+	})
+	.then(historicalData => {
+		return res.status(200).send(historicalData);
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	});
+}

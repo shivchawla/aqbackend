@@ -2,11 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-<<<<<<< HEAD
-* @Last Modified time: 2019-03-13 18:01:18
-=======
-* @Last Modified time: 2019-03-12 21:00:59
->>>>>>> release
+* @Last Modified time: 2019-03-18 18:33:05
 */
 
 
@@ -49,12 +45,32 @@ const Prize = new Schema({
 
 const TradeActivity = new Schema({
 	date: Date,
-	category: String,
-	tradeType: String,
-	tradeDirection: String,
+	direction: String,
+	quantty: Number,
+	price: Number,
 	automated: Boolean,
 	brokerMessage: Schema.Types.Mixed,
 	notes: String		
+});
+
+const OrderActivity = new Schema({
+	date: Date,
+	automated: Boolean,
+	brokerMessage: Schema.Types.Mixed,
+	orderId: String,
+});
+
+const AdminActivity = new Schema({
+	date: {
+		type: Date,
+		default: new Date()
+	},
+	message: String,
+	activityType: {
+		type: String,
+		enum:['ORDER', 'SKIP', 'CANCEL'],
+	},
+	obj: Schema.Types.Mixed
 });
 
 const Prediction = new Schema({
@@ -135,6 +151,15 @@ const Prediction = new Schema({
 	},
 
 	tradeActivity: [TradeActivity],
+
+	orderActivity: [OrderActivity],
+
+	adminActivity: [AdminActivity],
+
+	skippedByAdmin: {
+		type: Boolean,
+		default: false
+	},
 
 	readStatus: {
 		type: String,
@@ -401,7 +426,6 @@ DailyContestEntry.statics.updatePredictionCallPrice = function(query, prediction
 	return this.updateOne({...query, ...q}, updates);	
 };
 
-
 //THIS IS IN USE
 DailyContestEntry.statics.updatePrediction = function(query, updatedPrediction) {
 	var q = {predictions:{$elemMatch:{'position.security.ticker': updatedPrediction.position.security.ticker, 
@@ -418,6 +442,32 @@ DailyContestEntry.statics.updatePrediction = function(query, updatedPrediction) 
 	return this.updateOne({...query, ...q}, updates);
 	
 };
+
+DailyContestEntry.statics.updateReadStatus = function(query, predictionId, readStatus) {
+	var updates = {$set: {'predictions.$.readStatus': readStatus}};
+	return this.updateOne({...query, predictions:{$elemMatch: {_id: predictionId}}}, updates);
+};
+
+DailyContestEntry.statics.updateSkipStatus = function(query, predictionId, skipStatus) {
+	var updates = {$set: {'predictions.$.skippedByAdmin': skipStatus}};
+	return this.updateOne({...query, predictions:{$elemMatch: {_id: predictionId}}}, updates);
+}
+
+DailyContestEntry.statics.addTradeActivityForPrediction = function(query, predictionId, tradeActivity) {
+	var updates = {$addToSet: {'predictions.$.tradeActivity': tradeActivity}};
+	return this.updateOne({...query, predictions:{$elemMatch: {_id: predictionId}}}, updates);
+};
+
+DailyContestEntry.statics.addOrderActivityForPrediction = function(query, predictionId, orderActivity) {
+	var updates = {$addToSet: {'predictions.$.orderActivity': orderActivity}};
+	return this.updateOne({...query, predictions:{$elemMatch: {_id: predictionId}}}, updates);
+};
+
+DailyContestEntry.statics.addAdminActivityForPrediction = function(query, predictionId, adminActivity) {
+	console.log('Admin Activity will be added');
+	var updates = {$addToSet: {'predictions.$.adminActivity': adminActivity}};
+	return this.updateOne({...query, predictions:{$elemMatch: {_id: predictionId}}}, updates);
+}
 
 const DailyContestEntryModel = mongoose.model('DailyContestEntry', DailyContestEntry);
 module.exports = DailyContestEntryModel;

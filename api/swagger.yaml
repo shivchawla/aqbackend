@@ -3923,13 +3923,13 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
-  /dailycontest/trade:
+  /dailycontest/placeorder:
     post:
       tags:
       - dailycontest
       summary: Place a trade in prediction
       description: Place a trade for prediction
-      operationId: placeTradeForPrediction
+      operationId: placeOrderForPrediction
       security: 
       - api_key: []
       parameters:
@@ -3940,16 +3940,73 @@ paths:
         required: true
       - name: body
         in: body
-        description: trade activity body
+        description: order body
         required: true
         schema:
-          $ref: "#/definitions/PredictionTrade"
+          $ref: "#/definitions/PlaceOrder"
       responses:
         200:
           description: OK
         400:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
+  
+  /dailycontest/modifyorder:
+    post:
+      tags:
+      - dailycontest
+      summary: Modify order for prediction
+      description: Modify order for prediction
+      operationId: modifyOrderForPrediction
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        description: order body
+        required: true
+        schema:
+          $ref: "#/definitions/ModifyOrder"
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
+  /dailycontest/cancelorder:
+    post:
+      tags:
+      - dailycontest
+      summary: Cancel a trade in prediction
+      description: Cancel a trade in prediction
+      operationId: cancelOrderForPrediction
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        required: true
+        in: body
+        description: cancel order body
+        schema:
+          $ref: '#/definitions/CancelOrder'
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
 
   /dailycontest/readstatus:
     post:
@@ -3978,6 +4035,34 @@ paths:
         400:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"      
+    
+  /dailycontest/skipPrediction:
+    post:
+      tags:
+      - dailycontest
+      summary: set skippedByAdmin flag to flag
+      description: Skips a prediction
+      operationId: updateSkipStatusPrediction
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        description: read status
+        required: true
+        schema:
+          $ref: "#/definitions/SkipStatus"
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"   
 
   /dailycontest/exitPrediction:
     post:
@@ -5209,43 +5294,12 @@ definitions:
         type: object
         $ref: '#/definitions/TradeActivity'
 
-
-  TradeActivity:
-    type: object
-    required:
-      - date
-      - category
-      - tradeDirection
-      - tradeType
-    properties:
-      date:
-        type: string
-        format: date
-      category:
-        type: string
-        enum: ["TRADE", "ORDER"]
-      tradeDirection:
-        type: string
-        default: "BUY"
-        enum: ["BUY", "SELL"]
-      tradeType:
-        type: string
-        enum: ["OPEN", "CLOSE", "EXTEND", "REDUCE"]
-      brokerMessage:
-        type: object
-      automated:
-        type: boolean
-        default: false
-      notes:
-        type: string
-
-
-  PredictionTrade:
+  PlaceOrder:
     type: object
     required:
       - predictionId
       - advisorId
-      - trade
+      - order
     properties:
       predictionId:
         type: string
@@ -5253,24 +5307,117 @@ definitions:
       advisorId: 
         type: string
         format: uuid
-      trade:
+      order:
         type: object
-        $ref: '#/definitions/Trade'
-
-  Trade:
+        $ref: '#/definitions/Order'
+      message:
+        type: string
+      
+  ModifyOrder:
     type: object
     required:
-      - ticker
+      - advisorId
+      - orderId
+      - stock
+      - tradeDirection
       - quantity
-      - direction 
+      - price
+      - orderType
+      - predictionId
     properties:
-      ticker:
+      orderId:
+        type: number
+      stock:
+        type: string
+      tradeDirection:
         type: string
       quantity:
         type: number
-      direction: 
+      price:
+        type: number
+      orderType:
+        type: string
+      tif:
+        type: string
+      advisorId: 
+        type: string
+        format: uuid
+      predictionId: 
+        type: string
+        format: uuid
+
+
+  CancelOrder:
+    type: object
+    required:
+      - orderId
+      - advisorId
+      - predictionId
+    properties:
+      orderId:
+        type: number
+      advisorId:
+        type: string
+        format: uuid
+      predictionId:
+        type: string
+        format: uuid
+      message:
+        type: string
+  
+  Order:
+    type: object
+    required: 
+      - symbol
+      - tradeDirection
+      - quantity
+    properties:
+      symbol:
+        type: string
+      orderType:
+        type: string
+        enum: ["bracket", "limit", "market", "stopLimit", "marketClose"]
+      quantity:
+        type: number
+      price:
+        type: number
+      tradeDirection:
         type: string
         enum: ["BUY", "SELL"]
+      bracketFirstOrderType:
+        type: string
+        enum: ["LIMIT", "MARKET"]
+      stopLossPrice:
+        type: number
+      profitLimitPrice:
+        type: number
+  
+  TradeActivity:
+    type: object
+    required:
+      - date
+      - direction
+      - quantity
+      - price
+    properties:
+      date:
+        type: string
+        format: date
+      direction:
+        type: string
+        default: "BUY"
+        enum: ["BUY", "SELL"]
+      quantity:
+        type: number
+      price:
+        type: number
+      brokermessage:
+        type: object
+      automated:
+        type: boolean
+        default: false
+      notes:
+        type: string
 
 
   ReadStatus:
@@ -5290,6 +5437,20 @@ definitions:
         type: string
         default: "UNREAD" 
         enum: ["UNREAD", "READ/ACTED", "READ/NOT-ACTED"]
+    
+  SkipStatus:
+    type: object
+    required:
+      - predictionId
+      - advisorId
+    properties:
+      predictionId:
+        type: string
+        format: uuid
+      advisorId:
+        type: string
+        format: uuid
+
         
 
   AdminModification:

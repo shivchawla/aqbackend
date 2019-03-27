@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:54:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-11 16:17:02
+* @Last Modified time: 2019-03-16 17:02:48
 */
 
 const DailyContest = require('../Marketplace/DailyContestService');
@@ -85,4 +85,24 @@ module.exports.updateReadStatusPrediction = (req, res, next) => {
 
 module.exports.addAdminModificationsToPrediction = (req, res, next) => {
     DailyContest.addAdminModificationsToPrediction(req.swagger.params, res, next);
+}
+
+module.exports.placeOrderForPrediction = (req, res, next) => {
+    DailyContest.placeOrderForPrediction(req.swagger.params, res, next);
+}
+
+module.exports.cancelOrderForPrediction = (req, res, next) => {
+    DailyContest.cancelOrderForPrediction(req.swagger.params, res, next);
+}
+
+module.exports.updateSkipStatusPrediction = (req, res, next) => {
+    DailyContest.updateSkipStatusPrediction(req.swagger.params, res, next);
+}
+
+module.exports.getHistoricalDataForStock = (req, res, next) => {
+    DailyContest.getHistoricalDataForStock(req.swagger.params, res, next);
+}
+
+module.exports.modifyOrderForPrediction = (req, res, next) => {
+    DailyContest.modifyOrderForPrediction(req.swagger.params, res, next);
 }

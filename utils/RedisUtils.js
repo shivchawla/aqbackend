@@ -5,6 +5,7 @@ const Promise = require('bluebird');
 Promise.promisifyAll(redis.RedisClient.prototype);
 Promise.promisifyAll(redis.Multi.prototype);
 
+
 function getAllFromRedis(client, masterKey) {
     return client.hgetallAsync(masterKey);
 }
@@ -37,6 +38,10 @@ function getSetDataFromRedis(client, key) {
     return client.smembersAsync(key);
 }
 
+function addSetDataToRedis(client, key, value) {
+    return client.saddAsync(key, value);
+}
+
 function setDataExpiry(client, key, time_in_sec) {
     return client.expire(key, time_in_sec);
 }
@@ -47,15 +52,15 @@ function getValue(client, key) {
 }
 
 function insertKeyValue(client, key, data) {
-    client.setAsync(key, data);
+    return client.setAsync(key, data);
 }
 
 function deleteKey(client, key) {
-    client.delAsync(key);
+    return client.delAsync(key);
 }
 
-function incValue(client, key, increment) {
-    client.incrbyAsync(key, increment);
+function incValue(client, key, increment=1) {
+    return client.incrbyAsync(key, increment);
 }
 
 function subscribe(client, channel) {
@@ -65,6 +70,7 @@ function subscribe(client, channel) {
 function unsubscribe(client, channel) {
     client.unsubscribe(channel);    
 }
+
 
 module.exports = {
     getFromRedis,
@@ -78,6 +84,7 @@ module.exports = {
     getAllFromRedis,
     getRangeFromRedis,
     getSetDataFromRedis,
+    addSetDataToRedis,
     pushToRangeRedis,
     popFromRangeRedis,
     subscribe,

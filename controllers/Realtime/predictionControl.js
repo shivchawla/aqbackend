@@ -2,7 +2,11 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
+<<<<<<< HEAD
+* @Last Modified time: 2019-03-18 19:17:14
+=======
 * @Last Modified time: 2019-03-14 15:18:41
+>>>>>>> New-Minute-Data
 */
 'use strict';
 const config = require('config');
@@ -17,7 +21,7 @@ const APIError = require('../../utils/error');
 
 const DateHelper = require('../../utils/Date');
 const DailyContestEntryHelper = require('../helpers/DailyContestEntry')
-
+const BrokerRedisController = require('./brokerRedisControl');
 const predictionSubscribers = {};
 
 /*
@@ -96,9 +100,48 @@ function _sendAdminUpdatesForAdvisor(userId, advisorId) {
 	}
 }
 
+function _getPredictionDetailForAdmin(advisorId, category, masterAdvisorId, predictionId) {
+	
+	var date = DateHelper.getCurrentDate();
+
+	return Promise.resolve()
+	.then(() => {
+		if (predictionId) {
+			return Promise.all([
+				DailyContestEntryHelper.getPredictionById(advisorId, predictionId),
+				BrokerRedisController.getPredictionStatus(masterAdvisorId, predictionId),
+				BrokerRedisController.getPredictionActivity(masterAdvisorId, predictionId)
+			])
+			.then(([prediction, status, activity]) => {
+				
+				prediction.tradeActivity = prediction.tradeActivity.concat(_.get(activity, 'tradeActivity', []));
+				prediction.orderActivity = prediction.orderActivity.concat(_.get(activity, 'orderActivity', []));
+
+				return [{...prediction, current: status}];
+			})
+		} else {
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {category, active: null})
+			.then(predictions => {
+				return Promise.map(predictions, function(prediction) {
+					return Promise.all([
+						BrokerRedisController.getPredictionStatus(masterAdvisorId, prediction._id),
+						BrokerRedisController.getPredictionActivity(masterAdvisorId, prediction._id)
+					])
+					.then(([status, activity]) => {
+						prediction.tradeActivity = prediction.tradeActivity.concat(_.get(activity, 'tradeActivity', []));
+						prediction.orderActivity = prediction.orderActivity.concat(_.get(activity, 'orderActivity', []));
+
+						return {...prediction, current: status};
+					})
+				});
+			});
+		}
+	});	
+}
+
 
 //User Advisor map and sends updates for all real predictions (sends bulk per advice)
-function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId) {
+function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId, incomingPredictionId) {
 
 	return Promise.resolve()
 	.then(() => {
@@ -111,18 +154,17 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId) {
 			let masterAdvisorId = advisorMap.masterAdvisor;
 
 			//Send Advisor specific updates
-			if (incomingAdvisorId && masterAdvisorId.toString() != incomingAdvisorId.toString()) {
+			if (incomingAdvisorId && masterAdvisorId != incomingAdvisorId) {
 				return;
 			}
-
-			var date = DateHelper.getCurrentDate();
 
 			return Promise.resolve()
 			.then(() => {
 				if (advisorId) {
 					return Promise.all([
-						DailyContestEntryHelper.getPredictionsForDate(advisorId.toString(), date, {category, active: null}),
-						AdvisorModel.fetchAdvisor({_id: masterAdvisorId.toString()}, {fields: '_id user'})
+						//need to pass masterAdvisorId because Redis keys all data by masterAdvisorId
+						_getPredictionDetailForAdmin(advisorId, category, masterAdvisorId, incomingPredictionId),						
+						AdvisorModel.fetchAdvisor({_id: masterAdvisorId}, {fields: '_id user'})
 					])
 					.then(([predictions, masterAdvisor]) => {
 						return predictions.map(item => {return {...item, advisor: _.pick(masterAdvisor, ['_id', 'user'])};})
@@ -190,12 +232,15 @@ function _handlePredictionSubscription(req, res) {
 				}
 
 				//Send immediate response back to subscriber
-				resolve(_sendPredictionUpdates(predictionSubscribers[userId]));
+				return _sendPredictionUpdates(predictionSubscribers[userId]);
 			
 			} else {
 				APIError.throwJsonError({message: "No advisor found. WS request can't be completed"});
 			}
 
+		})
+		.then(prediction => {
+			resolve(prediction);
 		})
 		.catch(err => {
 			reject(err);
@@ -254,7 +299,7 @@ function _handleRealPredictionSubscription(req, res) {
 				return Promise.map(masterAdvisors, function(masterAdvisor) {
 
 					if (_.get(masterAdvisor, 'allocation.advisor', null) && _.get(masterAdvisor, 'allocation.status', false)) {
-						return {masterAdvisor: masterAdvisor._id, allocationAdvisor: masterAdvisor.allocation.advisor}
+						return {masterAdvisor: masterAdvisor._id.toString(), allocationAdvisor: masterAdvisor.allocation.advisor.toString()}
 					}
 				})
 				.then(advisorMapList => {
@@ -274,12 +319,15 @@ function _handleRealPredictionSubscription(req, res) {
 					}
 
 					//Send immediate response back to subscriber
-					resolve(_sendAdminRealPredictionUpdates(predictionSubscribers[userId]));
+					return _sendAdminRealPredictionUpdates(predictionSubscribers[userId]);
 				})
 			} else {
 				APIError.throwJsonError({message: "No allocation advisor found"})
 			}
 
+		})
+		.then((predictionSubscribers) => {
+			resolve(predictionSubscribers);
 		})
 		.catch(err => {
 			reject(err);
@@ -293,13 +341,13 @@ module.exports.sendAllUpdates = function() {
 	return _sendAllPredictionUpdates();
 };
 
-module.exports.sendAdminUpdates = function(advisorId) {
+module.exports.sendAdminUpdates = function(advisorId, predictionId) {
 	return UserModel.fetchUsers({email:{$in: config.get('admin_user')}}, {fields:'_id'})
 	.then(adminUsers => {
 		return Promise.map(adminUsers, function(adminUser) {
 			var subcription = predictionSubscribers[adminUser._id.toString()];
 			if (subcription) {
-				return _sendAdminRealPredictionUpdates(subcription, advisorId);	
+				return _sendAdminRealPredictionUpdates(subcription, advisorId, predictionId);	
 			}
 		})
 	})

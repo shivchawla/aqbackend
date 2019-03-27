@@ -83,8 +83,8 @@
     "node_redis_port":13472,
     "node_redis_host":"127.0.0.1",
     
-    "julia_redis_port":13472,
     "julia_redis_host":"94.23.0.139",
+    "julia_redis_port":13472,
     "julia_redis_pass":"2d17e4712e29b43b28eaab2b5b1ebd2e3e48b07beb4efaaaffb07e81cbfe87b1",
 
     "max_num_julia_process_user": 1,
@@ -119,5 +119,11 @@
     "ft_second":0,
     "ft_minute":0,
     "ft_hour":7,
-    "ft_port":13000
+    "ft_port":13000,
+
+    "ib_host": "127.0.0.1",
+    "ib_port": 4002,
+
+    "realtime_EODH_quote_url":"https://eodhistoricaldata.com/api/real-time/${ticker}.NSE?api_token=5b87e1823a5034.40596433&fmt=json&s=${otherTickers}"
+
 }
