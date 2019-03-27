@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-27 17:12:40
+* @Last Modified time: 2019-03-27 19:35:51
 */
 
 'use strict';
@@ -110,6 +110,9 @@ function _computeStockLatestEODDetail(security) {
     });
 };
 
+/*
+* Function to get latest EOD price for security
+*/
 function _computeStockEODDetail(security, date) {
 	return new Promise((resolve, reject) => {
 
@@ -137,18 +140,16 @@ function _computeStockIntradayHistory_OLD(security, date) {
 
 
 function _computeStockIntradayHistory(security, date) {
-	//Fetches from redis
+	
 	return new Promise((resolve, reject) => {
-		//First fethc from IB
 
 		var activeTradingDate = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0));
 		var redisSetKey = `RtData_IB_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${security.ticker}`;
 		var nextMarketOpen = DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday(date));
 
+		//Get compelete data from IB
 		return InteractiveBroker.requestIntradayHistoricalData(security.ticker)
 		.then(data => {
-
-			// console.log(data);
 
 			//Update the time Z format
 			data = data.map(item => {
@@ -181,8 +182,33 @@ function _computeStockIntradayHistory(security, date) {
 }
 
 
+/*
+* Function to get latest RT price for security
+*/
 function _computeStockLatestRTDetail(security) {
-	return exports.getRealtimeQuoteFromEODH(security.ticker);
+	return RedisUtils.getFromRedis(getRedisClient(), `latestQuote-${security.ticker}`)
+	.then(lastQuote => {
+		if (lastQuote) {
+			return JSON.parse(lastQuote);
+		} else {
+			return exports.getRealtimeQuoteFromEODH(security.ticker);	
+		}
+	});
+}
+
+
+/*
+* Function to get latest EOD or RT price for security
+*/
+function _computeStockLatestDetail(security, type) {
+	return Promise.resolve()
+	.then(() => {
+		if(type == "EOD") {
+			return _computeStockLatestEODDetail(security); 
+		} else {
+			return _computeStockLatestRTDetail(security);
+		}
+	});
 }
 
 module.exports.getNifty500Constituents = function() {
@@ -191,6 +217,7 @@ module.exports.getNifty500Constituents = function() {
 }
 
 //Functions to update in redis the latest quote date for multiple tickers from EODH
+//THis is NOT IN USE as keeping track of cumulative (non-interval quotes ) is not very useful
 module.exports.updateRealtimeQuotesFromEODH = function(allTickers) {
 	var activeTradingDate = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0));
 
@@ -238,18 +265,37 @@ module.exports.getRealtimeQuoteFromEODH = function(ticker) {
 	var otherTickers = '';
 	const realtimeQuoteUrl = eval('`'+config.get('realtime_EODH_quote_url') +'`');
 
-	// console.log(`EODH URL: ${realtimeQuoteUrl}`);
-
 	return axios.get(realtimeQuoteUrl)
 	.then(response => {
 		if (response) {
-			// console.log("EODH", response.data);
-
 			var quoteData = response.data;
-			//Change the timesamp format
+			
+			//Change the timestamp format to end of minute
 			quoteData.timestamp = moment.unix(quoteData.timestamp).add(1, 'millisecond').startOf('minute').toISOString();
 			
 			return quoteData;
+		}
+	})
+	.then(latestQuote => {
+		//Update in redis
+		if (latestQuote) {
+			return RedisUtils.insertIntoRedis(getRedisClient(), `latestQuote-${ticker}`, JSON.stringify(latestQuote))
+			.then(() => {
+				//Expire the real time quote
+				let whenToExpire;
+
+				if (DateHelper.isMarketTrading()) {
+					whenToExpire = Math.floor(moment().endOf('minute').valueOf()/1000);
+				} else {
+					whenToExpire = Math.floor(DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday()).valueOf()/1000);
+				}
+				
+				return RedisUtils.expireKeyInRedis(getRedisClient(), `latestQuote-${ticker}`, whenToExpire);	
+			})
+			.then(() => {
+				//return after updating redis
+				return latestQuote;
+			})
 		}
 	})
 	.catch(err => {
@@ -581,7 +627,7 @@ module.exports.getStockLatestDetailByType = function(security, type) {
 			var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
 			if(update) {
 				return Promise.all([
-					Promise.resolve().then(t => {if(type == "EOD") {return _computeStockLatestEODDetail(security) } else {return _computeStockLatestRTDetail(security)}}),
+					_computeStockLatestDetail(security, type),
 					_getSecurityDetail(security)
 				])
 				.then(([performanceDetail, securityDetail]) => {
@@ -670,6 +716,7 @@ module.exports.getStockDetail = function(security, date) {
 	});
 };
 
+//NOT IN USE
 module.exports.getRealTimeStockHistoricalDetail = function(security, minute) {
 	return new Promise(resolve => {
 		var query = {'security.ticker': security.ticker,
@@ -692,8 +739,9 @@ module.exports.getRealTimeStockHistoricalDetail = function(security, minute) {
 	});
 };
 
-//With EODH, this needs modification as EODH quote can't be used for high/low/volume etc.
-//As quote is the latest price (with other atricutes being cumulative rather than interval)...OOPS!!
+/*
+* Function to get intraday history of stock (fetch from IB if not available)
+*/
 module.exports.getStockIntradayHistory = function(security, date) {
 	return new Promise(resolve => {
 		var query = {'security.ticker': security.ticker,
