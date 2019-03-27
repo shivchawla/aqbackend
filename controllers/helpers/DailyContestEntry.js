@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-27 12:30:48
+* @Last Modified time: 2019-03-27 17:18:55
 */
 
 'use strict';
@@ -1062,7 +1062,6 @@ function _updatePredictionForCallPrice(prediction) {
 		
 		if (_.get(prediction,'nonMarketHoursFlag', false)) {
 			var lastPrice = _.get(eodSecurityDetail, 'latestDetailRT.close', 0) ||
-			    _.get(eodSecurityDetail, 'latestDetailRT.close', 0) ||  
 			    _.get(eodSecurityDetail, 'latestDetail.Close', 0);
 
 			prediction.position.avgPrice = lastPrice;
@@ -1078,7 +1077,6 @@ function _updatePredictionForCallPrice(prediction) {
 			}
 
 			var lastPrice = trueLastPrice ||
-			    _.get(eodSecurityDetail, 'latestDetailRT.close', 0) ||
 			    _.get(eodSecurityDetail, 'latestDetailRT.close', 0); 
 
 			prediction.position.avgPrice = lastPrice;
@@ -1476,6 +1474,8 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 				.then(securityDetail => {
 					let lastPrice = prediction.lastPrice || _.get(securityDetail, 'latestDetailRT.close', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
 					var updatedPosition = Object.assign(prediction.position, {lastPrice, security: securityDetail});
+					// console.log(updatedPosition);
+					
 					return Object.assign(prediction, {position: updatedPosition});
 				})
 			});

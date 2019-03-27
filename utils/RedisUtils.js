@@ -46,6 +46,10 @@ function setDataExpiry(client, key, time_in_sec) {
     return client.expire(key, time_in_sec);
 }
 
+function expireKeyInRedis(client, key, dt) {
+    return client.expireat(key, dt);
+}
+
 // For a single key set
 function getValue(client, key) {
     return client.getAsync(key);
@@ -77,6 +81,7 @@ module.exports = {
     insertIntoRedis,
     deleteFromRedis,
     setDataExpiry,
+    expireKeyInRedis,
     getValue,
     insertKeyValue,
     deleteKey,

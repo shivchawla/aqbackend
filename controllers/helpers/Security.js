@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-27 13:32:55
+* @Last Modified time: 2019-03-27 17:12:40
 */
 
 'use strict';
@@ -148,9 +148,11 @@ function _computeStockIntradayHistory(security, date) {
 		return InteractiveBroker.requestIntradayHistoricalData(security.ticker)
 		.then(data => {
 
+			// console.log(data);
+
 			//Update the time Z format
 			data = data.map(item => {
-				return {...item, datetime: DateHelper.convertIndianTimeInLocalTz(item.datetime).endOf('minute').set({milliscond:0}).toISOString()}
+				return {...item, datetime: DateHelper.convertIndianTimeInLocalTz(item.datetime, 'yyyymmdd HH:mm:ss').endOf('minute').set({millisecond:0}).toISOString()}
 			});
 
 			let redisData = data.map(item => {
@@ -159,11 +161,11 @@ function _computeStockIntradayHistory(security, date) {
 
 			//Update the data in redis
 			return Promise.mapSeries(redisData, function(eachData) {
-				return RedisUtils.addSetDataToRedis(key, eachData)
+				return RedisUtils.addSetDataToRedis(getRedisClient(), redisSetKey, eachData)
 			})
 			.then(() => {	
 				//Set key expiry			  
-				return RedisUtils.expireKeyInRedis(redisSetKey, Math.floor(nextMarketOpen.valueOf()/1000));
+				return RedisUtils.expireKeyInRedis(getRedisClient(), redisSetKey, Math.floor(nextMarketOpen.valueOf()/1000));
 			})
 			.then(() => {
 				resolve(data.sort((a,b) => {return moment(a.datetime).isBefore(b.datetime) ? -1 : 1;}));
@@ -181,15 +183,6 @@ function _computeStockIntradayHistory(security, date) {
 
 function _computeStockLatestRTDetail(security) {
 	return exports.getRealtimeQuoteFromEODH(security.ticker);
-
-	// return _computeStockIntradayHistory(security, DateHelper.getMarketCloseDateTime())
-	// .then(intradayHistory => {
-	// 	if (intradayHistory) {
-	// 		return intradayHistory.slice(-1)[0];
-	// 	} else {
-			
-	// 	}
-	// })
 }
 
 module.exports.getNifty500Constituents = function() {
@@ -245,15 +238,22 @@ module.exports.getRealtimeQuoteFromEODH = function(ticker) {
 	var otherTickers = '';
 	const realtimeQuoteUrl = eval('`'+config.get('realtime_EODH_quote_url') +'`');
 
+	// console.log(`EODH URL: ${realtimeQuoteUrl}`);
+
 	return axios.get(realtimeQuoteUrl)
 	.then(response => {
 		if (response) {
+			// console.log("EODH", response.data);
+
 			var quoteData = response.data;
 			//Change the timesamp format
 			quoteData.timestamp = moment.unix(quoteData.timestamp).add(1, 'millisecond').startOf('minute').toISOString();
 			
 			return quoteData;
 		}
+	})
+	.catch(err => {
+		console.log(err);
 	})
 }
 
@@ -562,6 +562,11 @@ module.exports.getStockStaticPerformance = function(security) {
 };
 
 module.exports.getStockLatestDetailByType = function(security, type) {
+
+	// console.log("WTF");
+	// console.log(security);
+	// console.log(type);
+
 	return new Promise(resolve => {
 		var query = {'security.ticker': security.ticker,
 						'security.exchange': security.exchange ? security.exchange : "NSE",
@@ -576,17 +581,19 @@ module.exports.getStockLatestDetailByType = function(security, type) {
 			var update = securityPerformance ? _checkIfStockLatestDetailUpdateRequired(securityPerformance.latestDetail) : true;
 			if(update) {
 				return Promise.all([
-					type = "EOD" ? _computeStockLatestEODDetail(security) : _computeStockLatestRTDetail(security),
+					Promise.resolve().then(t => {if(type == "EOD") {return _computeStockLatestEODDetail(security) } else {return _computeStockLatestRTDetail(security)}}),
 					_getSecurityDetail(security)
 				])
 				.then(([performanceDetail, securityDetail]) => {
 					if (type == "EOD") {
 						return SecurityPerformanceModel.updateLatestDetail(query, performanceDetail)
 						.then(performance => {
-							var performanceObj =performance.toObject();
+							var performanceObj = performance.toObject();
 							resolve(Object.assign(performanceObj.security, {latestDetail: performanceObj.latestDetail.values}));
 						});
 					} else {
+						// console.log(`Type: ${type}`);
+						// console.log("RT", performanceDetail);
 						security.detail = securityDetail;
 						resolve(Object.assign({}, security, {latestDetail: performanceDetail}));
 					}
@@ -632,8 +639,13 @@ module.exports.getStockLatestDetail = function(security) {
 		exports.getStockLatestDetailByType(security, "RT")
 	])
 	.then(([detailEOD, detailRT]) => {
+		// console.log("TUT");
+		// console.log('Detail EOD', detailEOD);
+		// console.log('Detail RT', detailRT);
+
 		var rtLatestDetail = _.get(detailRT, 'latestDetail', {});
 		var x = Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
+
 
 		return x;
 	});
@@ -647,7 +659,13 @@ module.exports.getStockDetail = function(security, date) {
 		isToday ? exports.getStockLatestDetailByType(security, "RT") : null
 	])
 	.then(([detailEOD, detailRT]) => {
+		// console.log("KUK");
+		// console.log('Detail EOD', detailEOD);
+		// console.log('Detail RT', detailRT);
+
 		var rtLatestDetail = _.get(detailRT, 'latestDetail', {});
+
+		
 		return Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
 	});
 };
