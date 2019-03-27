@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-27 17:18:55
+* @Last Modified time: 2019-03-27 20:07:09
 */
 
 'use strict';
@@ -1475,7 +1475,7 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 					let lastPrice = prediction.lastPrice || _.get(securityDetail, 'latestDetailRT.close', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
 					var updatedPosition = Object.assign(prediction.position, {lastPrice, security: securityDetail});
 					// console.log(updatedPosition);
-					
+
 					return Object.assign(prediction, {position: updatedPosition});
 				})
 			});
@@ -2083,9 +2083,7 @@ module.exports.updateCallPriceForPredictionsFromEODH = function() {
 	return RedisUtils.getSetDataFromRedis(getRedisClient(), queueName)
 	.then(advisors => {
 		if (advisors && advisors.length > 0) {
-			// console.log(`Retrieved from queue:`);
-			// console.log(queueName);
-
+			
 			return Promise.mapSeries(advisors, function(advisorId) {
 				
 				return DailyContestEntryModel.fetchEntryPredictionsStartedOnDate({advisor: advisorId}, latestDate)
@@ -2112,34 +2110,27 @@ module.exports.updateCallPriceForPredictionsFromEODH = function() {
 							})
 							.then(latestQuote => {
 
-								// console.log(`Received Quote Time: ${moment.utc().toISOString()}`);
-									
 								if (latestQuote) {
 
 									//Push the quote in dictionary
 									latestQuotes[ticker] = latestQuote
 
-									// console.log("Latest Quote")
-									// console.log(latestQuote);
+									//This is tricky logic
+									//It is based in te fact* tht EODh realtime quote is from the last minute (based on timstamp)
+									//Te time convention(timestamp) from EODH could be weird.
+									//This change needs some monitoring 
 									
-									// console.log(`Quote timestamp: ${moment.unix(latestQuote.timestamp).toISOString()}`);
-									// var quoteTime = moment.unix(latestQuote.timestamp).add(1, 'millisecond').startOf('minute').toISOString();
-									// console.log(`Adjusted Quote Time By Minute: ${quoteTime}`);
-									// console.log(`Prediction StartDate: ${prediction.startDate.toISOString()}`);
-
 									//How to handle cases where last Quote time (for low volume stocks) is before last EOD minute
 									//Should we update the call price with the value or wait or time series logic 	
 									if (moment(latestQuote.timestamp).isSame(moment(prediction.startDate))) {
 										var updatedCallPrice = _.get(latestQuote, 'close', 0.0);
 										if (updatedCallPrice != 0) {
-											// console.log(`Updating Call Price-- WOHOO!!!!   ${updatedCallPrice}`);
 											return DailyContestEntryModel.updatePredictionCallPrice({advisor: advisorId}, prediction, updatedCallPrice);
 										}
 									}
 								}
 							})
 							.catch(err => {
-								// console.log("WTF");
 								console.log(`Error while updating call prce (EODH): ${err.message}`);
 							})
 						});	
@@ -2167,9 +2158,7 @@ module.exports.addPrediction = function(advisorId, prediction, date) {
 		//Updating advisor account with new metrics
 		
 		var queueName = `${RECENT_ADVISORS_QUEUE}_${prediction.startDate.toISOString()}`;
-		// console.log("Pushing To Queue");
-		// console.log(queueName);
-
+		
 		return Promise.all([
 			DateHelper.isMarketTrading() ? RedisUtils.addSetDataToRedis(getRedisClient(), queueName, advisorId.toString()) : null,
 			AdvisorHelper.updateAdvisorAccountDebit(advisorId, [prediction]),
