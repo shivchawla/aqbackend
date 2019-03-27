@@ -100,7 +100,7 @@ class InteractiveBroker {
                     ibInstance.reqHistoricalData(reqId, contract, '', '1 D', '1 min', 'TRADES', 1, 1, false)
                     .on('historicalData', (reqId, datetime, open, high, low, close, volume) => {
                         if (reqId === requestId) {
-                            const hasFinised = date.indexOf('finished') > -1;
+                            const hasFinised = datetime.indexOf('finished') > -1;
                             if (hasFinised) {
                                 resolve(historicalData);
                             } else {
