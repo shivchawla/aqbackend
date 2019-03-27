@@ -2,11 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-<<<<<<< HEAD
-* @Last Modified time: 2019-03-18 19:17:14
-=======
-* @Last Modified time: 2019-03-14 15:18:41
->>>>>>> New-Minute-Data
+* @Last Modified time: 2019-03-25 20:25:56
 */
 'use strict';
 const config = require('config');
@@ -23,6 +19,7 @@ const DateHelper = require('../../utils/Date');
 const DailyContestEntryHelper = require('../helpers/DailyContestEntry')
 const BrokerRedisController = require('./brokerRedisControl');
 const predictionSubscribers = {};
+
 
 /*
 * Sends the data using WS connection
@@ -88,6 +85,8 @@ function _sendAllPredictionUpdates() {
 	});
 }
 
+
+//ADMIN RELATED UPDATES.....
 function _sendAdminUpdatesForAdvisor(userId, advisorId) {
 	
 	var subscription = predictionSubscribers[userId];
@@ -139,7 +138,6 @@ function _getPredictionDetailForAdmin(advisorId, category, masterAdvisorId, pred
 	});	
 }
 
-
 //User Advisor map and sends updates for all real predictions (sends bulk per advice)
 function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId, incomingPredictionId) {
 
@@ -186,6 +184,25 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId, incomi
 	})
 }
 
+function _sendAllAdminRealPredictionsUpdates() {
+	var subscribers = Object.keys(predictionSubscribers);
+	
+	return Promise.mapSeries(subscribers, function(subscriberId) {
+		var subscription = predictionSubscribers[subscriberId];
+		if (subscription.errorCount > 5) {
+			console.log("Deleting subscriber from list. WS connection is invalid for 5th attmept")
+			delete predictionSubscribers[subscriberId];
+			return;
+		} else {
+			return _sendAdminRealPredictionUpdates(subscription);
+		}
+	});
+}
+
+/////////
+
+
+//Handle simulated predictions (one advisor)
 function _handlePredictionSubscription(req, res) {
 	return new Promise((resolve, reject) => {
 		const userId = req.userId;
@@ -254,6 +271,7 @@ function _handlePredictionUnsubscription(req, res) {
 	delete predictionSubscribers[userId];	
 }
 
+//Handle real predictions (for admin -- handle multiple advisors)
 function _handleRealPredictionUnsubscription(req, res) {
 	const userId = req.userId;
 	delete predictionSubscribers[userId];	
