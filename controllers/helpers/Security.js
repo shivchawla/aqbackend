@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-27 19:35:51
+* @Last Modified time: 2019-03-27 20:24:25
 */
 
 'use strict';
@@ -186,7 +186,7 @@ function _computeStockIntradayHistory(security, date) {
 * Function to get latest RT price for security
 */
 function _computeStockLatestRTDetail(security) {
-	return RedisUtils.getFromRedis(getRedisClient(), `latestQuote-${security.ticker}`)
+	return RedisUtils.getValue(getRedisClient(), `latestQuote-${security.ticker}`)
 	.then(lastQuote => {
 		if (lastQuote) {
 			return JSON.parse(lastQuote);
@@ -287,6 +287,7 @@ module.exports.getRealtimeQuoteFromEODH = function(ticker) {
 				if (DateHelper.isMarketTrading()) {
 					whenToExpire = Math.floor(moment().endOf('minute').valueOf()/1000);
 				} else {
+					console.log(`Timestamp of latest/last quote for ${latestQuote.code} is ${latestQuote.timestamp}`);
 					whenToExpire = Math.floor(DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday()).valueOf()/1000);
 				}
 				
