@@ -109,6 +109,7 @@ class InteractiveBroker {
                         }
                     })
                     .on('error', err => {
+                        resolve([]);
                         console.log(err);
                     })
                 })
