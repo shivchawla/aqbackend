@@ -213,7 +213,7 @@ function _handlePredictionSubscription(req, res) {
 		const real = _.get(req, 'real', false);
 		const subscriberId = _.get(req, 'subscriberId', "");
 
-		if (subscriberId != "") {
+		if (subscriberId === "") {
 			APIError.throwJsonError("Must provide subscriberId for subscription/unsubscription");
 		}
 
@@ -338,9 +338,14 @@ function _handleRealPredictionSubscription(req, res) {
 					
 					var subscriptionIdx = _.get(predictionSubscribers, userId, []).findIndex(item => {return item.subscriberId == subscriberId});
 					
-					let subscription = {response: res, category, advisorMapList, errorCount, subscriberId, admin: true};
+					let subscription = {response: res, category, advisorMapList, errorCount: 0, subscriberId, admin: true};
 					if (subscriptionIdx == -1) {
-						predictionSubscribers[userId].push(subscription)
+						if (userId in predictionSubscribers) {
+							predictionSubscribers[userId].push(subscription)
+						} else {
+							predictionSubscribers[userId] = [subscription];
+						}
+						
 					} else {
 						predictionSubscribers[userId][subscriptionIdx] = subscription;
 					}
