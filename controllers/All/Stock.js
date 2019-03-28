@@ -20,3 +20,6 @@ module.exports.getStockDetailBenchmark = function(req, res, next) {
     Stock.getStockDetailBenchmark(req.swagger.params, res, next);
 };
 
+module.exports.getStockCategories = function(req, res, next) {
+    Stock.getStockCategories(req.swagger.params, res, next);
+};

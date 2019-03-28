@@ -15,6 +15,8 @@ const DateHelper = require('../../utils/Date');
 const _ = require('lodash');
 const moment = require('moment');
 
+const {stockCategories} = require('../../constants/stockCategories');
+
 function updateStockWeight(query) {
 	return SecurityPerformanceModel.fetchSecurityPerformance(query, {fields: 'weight'})
 	.then(sp => {
@@ -120,6 +122,34 @@ module.exports.getStocks = function(args, res, next) {
 	});
 	 
 };
+
+module.exports.getStockCategories = function(args, res, next) {	
+	return Promise.map(stockCategories, stockCategory => {
+		const stocksInCategory = _.get(stockCategory, 'stocks', []);
+		return Promise.map(stocksInCategory, stock => {
+			const security = {
+				ticker: stock,
+				exchange: 'NSE',
+				securityType: 'EQ',
+				country: 'IN'
+			};
+
+			return SecurityHelper.getStockLatestDetail(security);
+		})
+		.then(latestDetailStocks => {
+			return {
+				category: stockCategory.category,
+				stocks: latestDetailStocks
+			}
+		})
+	})
+	.then(detailCategories => {
+		return res.status(200).send(detailCategories);
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	});
+}
 
 module.exports.getStockDetailBenchmark = function(args, res, next) {
 	const ticker = args.ticker.value;

@@ -2820,6 +2820,28 @@ paths:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Stock"
 
+  /stock/categories:
+    get:
+      tags:
+      - stock
+      summary: get stock categories
+      description: get stock categories
+      operationId: getStockCategories
+      security: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: false
+      responses:
+        200:
+          description: "get list of stock categories"
+        400:
+          description: "Not Authorized"
+      x-swagger-router-controller: "Stock"
+        
+
   /stock:
     get:
       tags:
