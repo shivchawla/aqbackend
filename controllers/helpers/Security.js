@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-28 10:50:42
+* @Last Modified time: 2019-03-28 10:55:11
 */
 
 'use strict';
@@ -153,10 +153,7 @@ function _computeStockIntradayHistory(security, date) {
 
 			//Update the time Z format
 			data = data.map(item => {
-				console.log("Original Time: ", item.datetime);
 				const convertedTime = DateHelper.convertIndianTimeInLocalTz(item.datetime, 'yyyymmdd HH:mm:ss').endOf('minute').set({millisecond:0}).toISOString();
-				console.log("Converted Time: ", convertedTime);
-				
 				return {...item, datetime: convertedTime};
 			});
 
