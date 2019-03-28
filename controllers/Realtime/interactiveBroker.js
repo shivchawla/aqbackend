@@ -507,10 +507,15 @@ if (config.get('node_ib_port') === serverPort && config.get('ib_connect_flag')) 
         BrokerRedisController.addInteractiveBrokerEvent({orderId, execution}, 'execDetails');
     });
 
+
+    //Process IB events only when market is open (only on single port)
+    schedule.scheduleJob("*/1 * * * 1-5", function() {
+        if (DateHelper.isMarketTrading()) {
+            BrokerRedisController.processIBEvents();
+        }
+    });
+
 }
 
-
 module.exports = InteractiveBroker;
-
-
 

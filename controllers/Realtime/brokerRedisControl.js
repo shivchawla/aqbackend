@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-28 23:16:51
+* @Last Modified time: 2019-03-29 00:07:09
 */
 
 const redis = require('redis');
@@ -10,12 +10,7 @@ const config = require('config');
 const _ = require('lodash');
 const Promise = require('bluebird');
 const schedule = require('node-schedule');
-
 const DateHelper = require('../../utils/Date');
-
-schedule.scheduleJob("*/1 * * * *", function() {
-    _processIBEvents();
-});
 
 const RedisUtils = require('../../utils/RedisUtils');
 const PredictionRealtimeController = require('./predictionControl');
@@ -107,11 +102,75 @@ module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderI
 module.exports.addInteractiveBrokerEvent = function(eventDetails, eventType) {
     return RedisUtils.pushToRangeRedis(getRedisClient(), IB_EVENTS, JSON.stringify({eventType, eventDetails}))
     .then(() => {
-        _processIBEvents();
+        exports.processIBEvents();
     })
 };
 
-function _processIBEvents() {
+module.exports.getPredictionStatus = function(advisorId, predictionId) {
+	let orderStatusByPredictionKey = `${advisorId}_${predictionId}`;
+
+    return RedisUtils.getFromRedis(getRedisClient(), ORDER_STATUS_BY_PREDICTION_SET, orderStatusByPredictionKey)
+    .then(redisOrderStatusByPredictionInstance => {
+        if (redisOrderStatusByPredictionInstance) {
+            var orderStatusByPredictionInstance = JSON.parse(redisOrderStatusByPredictionInstance);
+
+            return orderStatusByPredictionInstance;
+        }
+    });
+};
+
+module.exports.getPredictionActivity = function(advisorId, predictionId) {
+    let orderStatusByPredictionKey = `${advisorId}_${predictionId}`;
+
+    return RedisUtils.getFromRedis(getRedisClient(), ORDER_STATUS_BY_PREDICTION_SET, orderStatusByPredictionKey)
+    .then(redisOrderStatusByPredictionInstance => {
+        if (redisOrderStatusByPredictionInstance) {
+            var orderStatusByPredictionInstance = JSON.parse(redisOrderStatusByPredictionInstance);
+            
+            var orderIds = orderStatusByPredictionInstance.orders.map(item => item.orderId);
+
+            return Promise.map(orderIds, function(orderId) {
+                return RedisUtils.getFromRedis(getRedisClient(), ORDER_EXECUTION_DETAILS_SET, orderId)
+                .then(redisOrderExecutionDetailsInstance => {
+                    if (redisOrderExecutionDetailsInstance){
+                        var orderExecutionDetailsInstance = JSON.parse(redisOrderExecutionDetailsInstance);
+                        var tradeActivity = _.get(orderExecutionDetailsInstance, 'tradeActivity', []);
+                        var orderActivity = _.get(orderExecutionDetailsInstance, 'orderActivity', []);
+
+                        return {tradeActivity, orderActivity};
+                    }
+                })
+            })
+            .then(data => {
+                const tradeActivity = Array.prototype.concat.apply([], data.map(dataItem => dataItem.tradeActivity));
+                const orderActivity = Array.prototype.concat.apply([], data.map(dataItem => dataItem.orderActivity));
+                const requiredData = {tradeActivity, orderActivity};
+
+                return requiredData;
+            })
+
+        } else {
+            return null;
+        }
+    })
+};
+
+module.exports.addLatestBarData = function(ticker, latestBarData) {
+    const convertedTime = DateHelper.convertIndianTimeInLocalTz(latestBarData.datetime, 'yyyymmdd HH:mm:ss').endOf('minute').set({millisecond:0}).toISOString();
+    latestBarData = {...latestBarData, datetime: convertedTime};
+
+    //Update the data in redis
+    var redisSetKey = `RtData_IB_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${ticker}`;
+    var nextMarketOpen = DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday());
+
+    return RedisUtils.addSetDataToRedis(getRedisClient(), redisSetKey, JSON.stringify(latestBarData))
+    .then(() => {    
+        //Set key expiry              
+        return RedisUtils.expireKeyInRedis(getRedisClient(), redisSetKey, Math.floor(nextMarketOpen.valueOf()/1000));
+    })
+};
+
+module.exports.processIBEvents = function() {
     
     let ibEvent;
     return  Promise.resolve()
@@ -168,16 +227,16 @@ function _processIBEvents() {
     .then(() => {
         //Re-process after ending
         EVENT_PROCESS_FLAG = false;
-        return _processIBEvents();
+        return exports.processIBEvents();
     })
     .catch(err => {
         // EVENT_PROCESS_FLAG = false;
         console.log('Error 171 --------------------------->', err.message);
     });
-}
+};
 
 function _processOpenOrderEvent(openOrderDetails) {
-	
+    
     let advisorId = null;
     let predictionId = null;
     let quantity;
@@ -338,9 +397,9 @@ function _processOpenOrderEvent(openOrderDetails) {
 
     })
     .then(() => {
-    	if (advisorId && predictionId) {
-        	return PredictionRealtimeController.sendAdminUpdates(advisorId, predictionId);
-    	}
+        if (advisorId && predictionId) {
+            return PredictionRealtimeController.sendAdminUpdates(advisorId, predictionId);
+        }
     }) 
     .catch(err => {
         console.log(`Open order error - ${err.message}`);
@@ -348,14 +407,14 @@ function _processOpenOrderEvent(openOrderDetails) {
 };
 
 function _processOrderStatusEvent(orderStatusDetails) {
-	let predictionId = null;
+    let predictionId = null;
     let advisorId = null;
 
     let status;
 
     const orderId = _.get(orderStatusDetails, 'orderId', null);
 
-	return Promise.all([
+    return Promise.all([
         RedisUtils.getFromRedis(getRedisClient(), ORDER_EXECUTION_DETAILS_SET, orderId),
         RedisUtils.getFromRedis(getRedisClient(), ORDER_PROCESSING_COMPLETED, orderId)
     ])
@@ -488,7 +547,7 @@ function _processOrderStatusEvent(orderStatusDetails) {
 
 function _processOrderExecutionEvent(executionDetails) {
     // console.log('Execution ', executionDetails);
-	let predictionId = null;
+    let predictionId = null;
     let advisorId = null;
     let executionCompleted = false;
 
@@ -553,7 +612,7 @@ function _processOrderExecutionEvent(executionDetails) {
         const isExecutionIdPresent = _.findIndex(tradeActivityArray, tradeActivityItem => tradeActivityItem.brokerMessage.execId === executionId) > -1;
 
         if (!isExecutionIdPresent) {
-        	tradeActivity = {...tradeActivity, brokerMessage: executionDetails.execution};
+            tradeActivity = {...tradeActivity, brokerMessage: executionDetails.execution};
             tradeActivityArray.push(tradeActivity);
             orderExecutionDetailsInstance.tradeActivity = tradeActivityArray;
 
@@ -631,70 +690,6 @@ function _processOrderExecutionEvent(executionDetails) {
     })
     .catch(err => {
         console.log(`Open execution error - ${err.message}`);
-    })
-};
-
-module.exports.getPredictionStatus = function(advisorId, predictionId) {
-	let orderStatusByPredictionKey = `${advisorId}_${predictionId}`;
-
-    return RedisUtils.getFromRedis(getRedisClient(), ORDER_STATUS_BY_PREDICTION_SET, orderStatusByPredictionKey)
-    .then(redisOrderStatusByPredictionInstance => {
-        if (redisOrderStatusByPredictionInstance) {
-            var orderStatusByPredictionInstance = JSON.parse(redisOrderStatusByPredictionInstance);
-
-            return orderStatusByPredictionInstance;
-        }
-    });
-};
-
-module.exports.getPredictionActivity = function(advisorId, predictionId) {
-    let orderStatusByPredictionKey = `${advisorId}_${predictionId}`;
-
-    return RedisUtils.getFromRedis(getRedisClient(), ORDER_STATUS_BY_PREDICTION_SET, orderStatusByPredictionKey)
-    .then(redisOrderStatusByPredictionInstance => {
-        if (redisOrderStatusByPredictionInstance) {
-            var orderStatusByPredictionInstance = JSON.parse(redisOrderStatusByPredictionInstance);
-            
-            var orderIds = orderStatusByPredictionInstance.orders.map(item => item.orderId);
-
-            return Promise.map(orderIds, function(orderId) {
-                return RedisUtils.getFromRedis(getRedisClient(), ORDER_EXECUTION_DETAILS_SET, orderId)
-                .then(redisOrderExecutionDetailsInstance => {
-                    if (redisOrderExecutionDetailsInstance){
-                        var orderExecutionDetailsInstance = JSON.parse(redisOrderExecutionDetailsInstance);
-                        var tradeActivity = _.get(orderExecutionDetailsInstance, 'tradeActivity', []);
-                        var orderActivity = _.get(orderExecutionDetailsInstance, 'orderActivity', []);
-
-                        return {tradeActivity, orderActivity};
-                    }
-                })
-            })
-            .then(data => {
-                const tradeActivity = Array.prototype.concat.apply([], data.map(dataItem => dataItem.tradeActivity));
-                const orderActivity = Array.prototype.concat.apply([], data.map(dataItem => dataItem.orderActivity));
-                const requiredData = {tradeActivity, orderActivity};
-
-                return requiredData;
-            })
-
-        } else {
-            return null;
-        }
-    })
-};
-
-module.exports.addLatestBarData = function(ticker, latestBarData) {
-    const convertedTime = DateHelper.convertIndianTimeInLocalTz(latestBarData.datetime, 'yyyymmdd HH:mm:ss').endOf('minute').set({millisecond:0}).toISOString();
-    latestBarData = {...latestBarData, datetime: convertedTime};
-
-    //Update the data in redis
-    var redisSetKey = `RtData_IB_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${ticker}`;
-    var nextMarketOpen = DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday());
-
-    return RedisUtils.addSetDataToRedis(getRedisClient(), redisSetKey, JSON.stringify(latestBarData))
-    .then(() => {    
-        //Set key expiry              
-        return RedisUtils.expireKeyInRedis(getRedisClient(), redisSetKey, Math.floor(nextMarketOpen.valueOf()/1000));
     })
 };
 
