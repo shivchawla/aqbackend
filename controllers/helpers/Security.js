@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-28 10:55:11
+* @Last Modified time: 2019-03-28 22:45:21
 */
 
 'use strict';
@@ -218,7 +218,6 @@ module.exports.getNifty500Constituents = function() {
 }
 
 //Functions to update in redis the latest quote date for multiple tickers from EODH
-//THis is NOT IN USE as keeping track of cumulative (non-interval quotes ) is not very useful
 module.exports.updateRealtimeQuotesFromEODH = function(allTickers) {
 	var activeTradingDate = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0));
 
@@ -241,21 +240,21 @@ module.exports.updateRealtimeQuotesFromEODH = function(allTickers) {
 				return Promise.map(quotesData, function(quoteData) { 
 
 					var ticker = quoteData.code.split('.')[0];
-					var key = `RtData_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${ticker}`;
-					
-					var updatedQuote = { 
-						//Using this NSE format (end of minute wit ms = 0)
-						date: moment.unix(quoteData.timestamp).utc().subtract(1, 'minute').endOf('minute').format("YYYY-MM-DDTHH:mm:ss.000[Z]"),
-						intOpen: quoteData.open,
-						intHigh: quoteData.high,
-						intLow: quoteData.low,
-						intClose: quoteData.close,
-						intVolume: quoteData.volume,
-						change: quoteData.change,
-						pClose: quoteData.previousClose
-					};
 
-					return RedisUtils.addSetDataToRedis(getRedisClient(), key, JSON.stringify(updatedQuote))
+					return RedisUtils.insertKeyValue(getRedisClient(), `latestQuote-${ticker}`, JSON.stringify(latestQuote))
+					.then(() => {
+						//Expire the real time quote
+						let whenToExpire;
+
+						if (DateHelper.isMarketTrading()) {
+							whenToExpire = Math.floor(moment().endOf('minute').valueOf()/1000);
+						} else {
+							console.log(`Timestamp of latest/last quote for ${latestQuote.code} is ${latestQuote.timestamp}`);
+							whenToExpire = Math.floor(DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday()).valueOf()/1000);
+						}
+						
+						return RedisUtils.expireKeyInRedis(getRedisClient(), `latestQuote-${ticker}`, whenToExpire);	
+					})
 				});
 			}
 		})
@@ -264,6 +263,9 @@ module.exports.updateRealtimeQuotesFromEODH = function(allTickers) {
 
 module.exports.getRealtimeQuoteFromEODH = function(ticker) {
 	var otherTickers = '';
+	
+	ticker = `${ticker}.NSE`;
+
 	const realtimeQuoteUrl = eval('`'+config.get('realtime_EODH_quote_url') +'`');
 
 	return axios.get(realtimeQuoteUrl)
@@ -280,6 +282,10 @@ module.exports.getRealtimeQuoteFromEODH = function(ticker) {
 	.then(latestQuote => {
 		//Update in redis
 		if (latestQuote) {
+
+			//Get the original ticker back
+			ticker = quoteData.code.split('.')[0];
+			
 			return RedisUtils.insertKeyValue(getRedisClient(), `latestQuote-${ticker}`, JSON.stringify(latestQuote))
 			.then(() => {
 				//Expire the real time quote
@@ -707,13 +713,7 @@ module.exports.getStockDetail = function(security, date) {
 		isToday ? exports.getStockLatestDetailByType(security, "RT") : null
 	])
 	.then(([detailEOD, detailRT]) => {
-		// console.log("KUK");
-		// console.log('Detail EOD', detailEOD);
-		// console.log('Detail RT', detailRT);
-
 		var rtLatestDetail = _.get(detailRT, 'latestDetail', {});
-
-		
 		return Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
 	});
 };

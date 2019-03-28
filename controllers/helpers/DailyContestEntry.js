@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-27 20:07:09
+* @Last Modified time: 2019-03-28 22:45:38
 */
 
 'use strict';
@@ -2105,7 +2105,7 @@ module.exports.updateCallPriceForPredictionsFromEODH = function() {
 								if (ticker in latestQuotes) {
 									return latestQuotes[ticker]; 
 								} else {
-									return SecurityHelper.getRealtimeQuoteFromEODH(`${ticker}.NSE`); 
+									return SecurityHelper.getRealtimeQuoteFromEODH(ticker); 
 								}
 							})
 							.then(latestQuote => {
