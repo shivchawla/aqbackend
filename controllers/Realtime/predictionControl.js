@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-27 12:25:37
+* @Last Modified time: 2019-03-28 13:28:50
 */
 'use strict';
 const config = require('config');
@@ -25,10 +25,7 @@ const marketCloseDateTimeHour = DateHelper.getMarketCloseDateTime().get('hour');
 const scheduleUpdateUsingEODH = `20 * ${marketOpenDateTimeHour-1}-${marketCloseDateTimeHour+1} * * 1-5`;
 
 schedule.scheduleJob(scheduleUpdateUsingEODH, function() {
-	Promise.all([
-		exports.sendAdminUpdates(),
-		exports.sendAllUpdates()
-	]);
+	exports.sendAllUpdates()
 });
 
 /*
@@ -81,33 +78,46 @@ function _sendPredictionUpdates(subscription) {
 }
 
 function _sendAllPredictionUpdates() {
-	var subscribers = Object.keys(predictionSubscribers);
+	var uniqueSubscriptionUsers = Object.keys(predictionSubscribers);
 	
-	return Promise.mapSeries(subscribers, function(subscriberId) {
-		var subscription = predictionSubscribers[subscriberId];
-		if (subscription.errorCount > 5) {
-			console.log("Deleting subscriber from list. WS connection is invalid for 5th attmept")
-			delete predictionSubscribers[subscriberId];
-			return;
-		} else {
-			return _sendPredictionUpdates(subscription);
-		}
-	});
+	return Promise.mapSeries(uniqueSubscriptionUsers, function(userId) {
+		var subscriptionArray = _.get(predictionSubscribers, userId, []);
+		return Promise.map(subscriptionArray, function(subscription, index) {
+			
+			if (subscription && subscription.errorCount > 5) {
+				console.log("Deleting subscriber from list. WS connection is invalid for 5th attmept")
+				predictionSubscribers[userId][index] = null;
+				return;
+			} else {
+				return subscription.admin ? _sendAdminRealPredictionUpdates(subscription) : _sendPredictionUpdates(subscription);
+			}
+		})
+		.then(() => {
+			//Remove the null subscriptions for the user
+			predictionSubscribers[userId] = predictionSubscribers[userId].filter(item => item);
+		})
+	})
 }
-
 
 //ADMIN RELATED UPDATES.....
-function _sendAdminUpdatesForAdvisor(userId, advisorId) {
+////NOT IN USE
+// function _sendAdminUpdatesForAdvisor(userId, advisorId) {
 	
-	var subscription = predictionSubscribers[userId];
-	if (subscription.errorCount > 5) {
-		console.log("Deleting subscriber from list. WS connection is invalid for 5th attmept")
-		delete predictionSubscribers[userId];
-		return;
-	} else {
-		return _sendAdminRealPredictionUpdates(subscription, advisorId);
-	}
-}
+// 	var subscriptionArray = _.get(predictionSubscribers, userId, []);
+// 	var adminSubscriptionIdx = subcriptionArray.findIndex(item => {return item.admin});
+// 	var subscription = adminSubscriptionIdx !=-1 ? subscriptionArray[adminSubscriptionIdx] : null;
+
+// 	if (!subscription) {
+// 		console.log("Invalid admin subscription")
+// 	}
+// 	else if(subscription.errorCount > 5) {
+// 		console.log("Deleting subscriber from list. WS connection is invalid for 5th attmept")
+// 		predictionSubscribers[userId][adminSubscriptionIdx] = null;
+// 		return;
+// 	} else {
+// 		return _sendAdminRealPredictionUpdates(subscription, advisorId);
+// 	}
+// }
 
 function _getPredictionDetailForAdmin(advisorId, category, masterAdvisorId, predictionId) {
 	
@@ -194,24 +204,6 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId, incomi
 	})
 }
 
-function _sendAllAdminRealPredictionsUpdates() {
-	var subscribers = Object.keys(predictionSubscribers);
-	
-	return Promise.mapSeries(subscribers, function(subscriberId) {
-		var subscription = predictionSubscribers[subscriberId];
-		if (subscription.errorCount > 5) {
-			console.log("Deleting subscriber from list. WS connection is invalid for 5th attmept")
-			delete predictionSubscribers[subscriberId];
-			return;
-		} else {
-			return _sendAdminRealPredictionUpdates(subscription);
-		}
-	});
-}
-
-/////////
-
-
 //Handle simulated predictions (one advisor)
 function _handlePredictionSubscription(req, res) {
 	return new Promise((resolve, reject) => {
@@ -219,6 +211,11 @@ function _handlePredictionSubscription(req, res) {
 		const advisorId = req.advisorId;
 		const category = req.category;
 		const real = _.get(req, 'real', false);
+		const subscriberId = _.get(req, 'subscriberId', "");
+
+		if (subscriberId != "") {
+			APIError.throwJsonError("Must provide subscriberId for subscription/unsubscription");
+		}
 
  		return UserModel.fetchUser({_id: userId}, {fields:'email'})
  		.then(user => {
@@ -244,22 +241,17 @@ function _handlePredictionSubscription(req, res) {
 					}
 				}
 
-				var subscription = predictionSubscribers[userId];
-				
-				if (subscription) {
-					predictionSubscribers[userId].response = res;
-					predictionSubscribers[userId].category = category;
-					predictionSubscribers[userId].advisorId = advisorId;
-					predictionSubscribers[userId].errorCount = 0;
-					predictionSubscribers[userId].masterAdvisorId = masterAdvisorId;
-					predictionSubscribers[userId].real = real;
+				var subscriptionIdx = _.get(predictionSubscribers, userId, []).findIndex(item => {return item.subscriberId == subscriberId});
 
+				let subscription = {response: res, category, advisorId, masterAdvisorId, real, errorCount: 0, subscriberId};
+				if (subscriptionIdx !=-1) {
+					predictionSubscribers[userId][subscriptionIdx] = subscription;
 				} else {
-					predictionSubscribers[userId] = {response: res, category, advisorId, masterAdvisorId, real, errorCount: 0};
+					predictionSubscribers[userId].push(subscription); 
 				}
 
 				//Send immediate response back to subscriber
-				return _sendPredictionUpdates(predictionSubscribers[userId]);
+				return _sendPredictionUpdates(subscription);
 			
 			} else {
 				APIError.throwJsonError({message: "No advisor found. WS request can't be completed"});
@@ -278,13 +270,20 @@ function _handlePredictionSubscription(req, res) {
 
 function _handlePredictionUnsubscription(req, res) {
 	const userId = req.userId;
-	delete predictionSubscribers[userId];	
-}
+	const subscriberId = req.subscriberId;
+	var subscriptionArray = _.get(predictionSubscribers, userId, [])
 
-//Handle real predictions (for admin -- handle multiple advisors)
-function _handleRealPredictionUnsubscription(req, res) {
-	const userId = req.userId;
-	delete predictionSubscribers[userId];	
+	if (subscriptionArray && subscriptionArray.length > 0) {
+		var subscriptionIdx = subscriptionArray.findIndex(item => {return item.subscriberId == subscriberId});
+		subscriptionArray[subscriptionIdx] = null;
+		subscriptionArray = subscriptionArray.filter(item => item);		 
+
+		if (subscriptionArray.length > 0) {
+			predictionSubscribers[userId] = subscriptionArray
+		} else {
+			delete predictionSubscribers[userId];
+		}
+	}	
 }
 
 function _handleRealPredictionSubscription(req, res) {
@@ -292,6 +291,7 @@ function _handleRealPredictionSubscription(req, res) {
 		const userId = req.userId;
 		const advisorId = req.advisorId;
 		const category = req.category;
+		const subscriberId = req.subscriberId;
 
  		return UserModel.fetchUser({_id: userId}, {fields:'email'})
  		.then(user => {
@@ -334,20 +334,19 @@ function _handleRealPredictionSubscription(req, res) {
 					//Filter out null
 					advisorMapList = advisorMapList.filter(item => item);
 
-					var subscription = predictionSubscribers[userId];
-				
-					if (subscription) {
-						predictionSubscribers[userId].response = res;
-						predictionSubscribers[userId].category = category;
-						predictionSubscribers[userId].advisorMapList = advisorMapList
-						predictionSubscribers[userId].errorCount = 0;
-
+					// var subscriptionArray = predictionSubscribers[userId];
+					
+					var subscriptionIdx = _.get(predictionSubscribers, userId, []).findIndex(item => {return item.subscriberId == subscriberId});
+					
+					let subscription = {response: res, category, advisorMapList, errorCount, subscriberId, admin: true};
+					if (subscriptionIdx == -1) {
+						predictionSubscribers[userId].push(subscription)
 					} else {
-						predictionSubscribers[userId] = {response: res, category, advisorMapList, errorCount: 0};
+						predictionSubscribers[userId][subscriptionIdx] = subscription;
 					}
 
 					//Send immediate response back to subscriber
-					return _sendAdminRealPredictionUpdates(predictionSubscribers[userId]);
+					return _sendAdminRealPredictionUpdates(subscription);
 				})
 			} else {
 				APIError.throwJsonError({message: "No allocation advisor found"})
@@ -364,7 +363,6 @@ function _handleRealPredictionSubscription(req, res) {
 	});
 }
 
-
 module.exports.sendAllUpdates = function() {
 	return _sendAllPredictionUpdates();
 };
@@ -373,14 +371,16 @@ module.exports.sendAdminUpdates = function(advisorId, predictionId) {
 	return UserModel.fetchUsers({email:{$in: config.get('admin_user')}}, {fields:'_id'})
 	.then(adminUsers => {
 		return Promise.map(adminUsers, function(adminUser) {
-			var subcription = predictionSubscribers[adminUser._id.toString()];
-			if (subcription) {
-				return _sendAdminRealPredictionUpdates(subcription, advisorId, predictionId);	
+			var subcriptionArray = _.get(predictionSubscribers, adminUser._id.toString(), []).filter(item => {return item && item.admin;});
+			
+			if (subscriptionArray && subcriptionArray.length > 0) {
+				return Promise.map(subcriptionArray, function(subscrption) {
+					return _sendAdminRealPredictionUpdates(subcription, advisorId, predictionId);	
+				})
 			}
 		})
 	})
 };
-
 
 //Function to subscribe WS data from backend to UI
 module.exports.handlePredictionSubscription = function(req, res) {
@@ -402,7 +402,7 @@ module.exports.handleRealPredictionSubscription = function(req, res) {
 
 //Function to un-subscribe WS data from backend to UI
 module.exports.handleRealPredictionUnsubscription = function(req, res) {
-	return _handleRealPredictionUnsubscription(req, res);
+	return _handlePredictionUnsubscription(req, res);
 };
 
 
