@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-27 20:24:25
+* @Last Modified time: 2019-03-28 10:50:42
 */
 
 'use strict';
@@ -153,7 +153,11 @@ function _computeStockIntradayHistory(security, date) {
 
 			//Update the time Z format
 			data = data.map(item => {
-				return {...item, datetime: DateHelper.convertIndianTimeInLocalTz(item.datetime, 'yyyymmdd HH:mm:ss').endOf('minute').set({millisecond:0}).toISOString()}
+				console.log("Original Time: ", item.datetime);
+				const convertedTime = DateHelper.convertIndianTimeInLocalTz(item.datetime, 'yyyymmdd HH:mm:ss').endOf('minute').set({millisecond:0}).toISOString();
+				console.log("Converted Time: ", convertedTime);
+				
+				return {...item, datetime: convertedTime};
 			});
 
 			let redisData = data.map(item => {
@@ -279,7 +283,7 @@ module.exports.getRealtimeQuoteFromEODH = function(ticker) {
 	.then(latestQuote => {
 		//Update in redis
 		if (latestQuote) {
-			return RedisUtils.insertIntoRedis(getRedisClient(), `latestQuote-${ticker}`, JSON.stringify(latestQuote))
+			return RedisUtils.insertKeyValue(getRedisClient(), `latestQuote-${ticker}`, JSON.stringify(latestQuote))
 			.then(() => {
 				//Expire the real time quote
 				let whenToExpire;
