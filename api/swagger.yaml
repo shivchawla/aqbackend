@@ -5376,7 +5376,7 @@ definitions:
         type: string
       orderType:
         type: string
-        enum: ["bracket", "limit", "market", "stopLimit", "marketClose"]
+        enum: ["bracket", "limit", "market", "stopLimit", "marketClose", "marketIfTouched"]
       quantity:
         type: number
       price:

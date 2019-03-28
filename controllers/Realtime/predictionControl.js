@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-28 14:26:50
+* @Last Modified time: 2019-03-28 21:59:45
 */
 'use strict';
 const config = require('config');
@@ -213,7 +213,7 @@ function _handlePredictionSubscription(req, res) {
 		const real = _.get(req, 'real', false);
 		const subscriberId = _.get(req, 'subscriberId', "");
 
-		if (subscriberId == "") {
+		if (subscriberId === "") {
 			APIError.throwJsonError("Must provide subscriberId for subscription/unsubscription");
 		}
 
@@ -337,15 +337,13 @@ function _handleRealPredictionSubscription(req, res) {
 				.then(advisorMapList => {
 					//Filter out null
 					advisorMapList = advisorMapList.filter(item => item);
-
-					// var subscriptionArray = predictionSubscribers[userId];
 					
 					var subscriptionIdx = _.get(predictionSubscribers, userId, []).findIndex(item => {return item.subscriberId == subscriberId});
 					
-					let subscription = {response: res, category, advisorMapList, errorCount : 0, subscriberId, admin: true};
+					let subscription = {response: res, category, advisorMapList, errorCount: 0, subscriberId, admin: true};
 					if (subscriptionIdx == -1) {
 						if (userId in predictionSubscribers) {
-							predictionSubscribers[userId].push(subscription);	
+							predictionSubscribers[userId].push(subscription)
 						} else {
 							predictionSubscribers[userId] = [subscription];
 						}

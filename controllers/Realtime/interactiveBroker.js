@@ -7,6 +7,7 @@ const Promise = require('bluebird');
 const moment = require('moment');
 
 const BrokerRedisController = require('./brokerRedisControl');
+const DateHelper = require('../../utils/Date');
 
 const ibTickers = require('../../documents/ibTickers.json');
 
@@ -294,8 +295,21 @@ class InteractiveBroker {
             }
 
             else if (orderType === 'marketClose') {
-                const marketCloseOrderConfig = ibInstance.order.marketClose(type, quantity);
+                let goodAfterTime = DateHelper.getMarketCloseDateTime().subtract(5, 'minutes').format('YYYYMMDD HH:mm:ss');
+                let marketCloseOrderConfig = ibInstance.order.market(type, quantity, true, goodAfterTime);
                 ibInstance.placeOrder(orderIds[0], ibStock, {...marketCloseOrderConfig, tif});
+            }
+
+            else if (orderType === 'marketIfTouched') {
+                let marketIfTouchedOrderConfig = ibInstance.order.market(type, quantity);
+                marketIfTouchedOrderConfig = {
+                    ...marketIfTouchedOrderConfig,
+                    orderType: 'MIT',
+                    totalQuantity: quantity,
+                    auxPrice: price,
+                    tif
+                };
+                ibInstance.placeOrder(orderIds[0], ibStock, marketIfTouchedOrderConfig);
             }
             
             else {
