@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-25 13:16:40
+* @Last Modified time: 2019-03-28 23:16:51
 */
 
 const redis = require('redis');
@@ -10,6 +10,8 @@ const config = require('config');
 const _ = require('lodash');
 const Promise = require('bluebird');
 const schedule = require('node-schedule');
+
+const DateHelper = require('../../utils/Date');
 
 schedule.scheduleJob("*/1 * * * *", function() {
     _processIBEvents();
@@ -678,6 +680,21 @@ module.exports.getPredictionActivity = function(advisorId, predictionId) {
         } else {
             return null;
         }
+    })
+};
+
+module.exports.addLatestBarData = function(ticker, latestBarData) {
+    const convertedTime = DateHelper.convertIndianTimeInLocalTz(latestBarData.datetime, 'yyyymmdd HH:mm:ss').endOf('minute').set({millisecond:0}).toISOString();
+    latestBarData = {...latestBarData, datetime: convertedTime};
+
+    //Update the data in redis
+    var redisSetKey = `RtData_IB_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${ticker}`;
+    var nextMarketOpen = DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday());
+
+    return RedisUtils.addSetDataToRedis(getRedisClient(), redisSetKey, JSON.stringify(latestBarData))
+    .then(() => {    
+        //Set key expiry              
+        return RedisUtils.expireKeyInRedis(getRedisClient(), redisSetKey, Math.floor(nextMarketOpen.valueOf()/1000));
     })
 };
 

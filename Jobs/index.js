@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-28 22:07:07
+* @Last Modified time: 2019-03-28 22:56:31
 */
 
 'use strict';
@@ -110,6 +110,17 @@ if (config.get('jobsPort') === serverPort) {
 	    	})
     	}
 	});
+
+	const scheduleUpdateCallPriceEODH = `20 */1 ${DateHelper.getMarketOpenHour() - 1}-${DateHelper.getMarketCloseHour() + 1} * * 1-5`;
+	schedule.scheduleJob(scheduleUpdateCallPriceEODH, function() { 
+		if (!DateHelper.isHoliday()) {
+	    	DailyContestEntryHelper.updateCallPriceForPredictionsFromEODH()
+	    	.then(() => {
+	    		DailyContestEntryHelper.checkPredictionTriggers();
+	    	})
+    	}
+	});
+	
 
 }
 

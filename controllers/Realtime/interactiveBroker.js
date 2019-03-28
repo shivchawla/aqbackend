@@ -4,12 +4,13 @@ const _ = require('lodash');
 const ib = require('ib');
 const config = require('config');
 const Promise = require('bluebird');
-const moment = require('moment');
+const serverPort = require('../../index').serverPort;
 
 const BrokerRedisController = require('./brokerRedisControl');
 const DateHelper = require('../../utils/Date');
 
 const ibTickers = require('../../documents/ibTickers.json');
+const indices = require('../../documents/indices.json');
 
 let isConnected = false;
 
@@ -34,11 +35,13 @@ class InteractiveBroker {
                 })
                 .on('nextValidId', (reqId)  => {
                     console.log('Next Valid Id:', reqId);
-                    // return BrokerRedisController.setValidId(reqId)
-                    // .then(() => {
-                    //     ibInstance.reqExecutions(reqId, {});
-                    // })
-                    return this.setNextValidId(reqId);
+                    return this.setNextValidId(reqId)
+                    .then(() => {
+                        return Promise.all([
+                            this.getExecutionsAndOpenOrders(),
+                            this.getIntradayStreamDataForIndices()
+                        ])
+                    })
 
                 })
                 .on('error', (err) => {
@@ -52,16 +55,25 @@ class InteractiveBroker {
 
     static setNextValidId(reqId) {
         return BrokerRedisController.setValidId(reqId)
-        .then(() => {
+    }
+
+    static getExecutionsAndOpenOrders() {
+        BrokerRedisController.getNextRequestId()
+        .then(reqId => {
             const ibInstance = this.interactiveBroker;
 
-            return (
-                Promise.all([
-                    ibInstance.reqExecutions(reqId, {}),
-                    ibInstance.reqAllOpenOrders()
-                ])
-            );
+            return  Promise.all([
+                ibInstance.reqExecutions(reqId, {}),
+                ibInstance.reqAllOpenOrders()
+            ]);
         })
+    }
+
+     static getIntradayStreamDataForIndices() {
+        const ticker = Object.keys(indices);
+        return Promise.map(tickers, function(ticker) {
+            this.requestIntradayStreamData(ticker);
+        });
     }
 
     static requireContractDetails(stock) {
@@ -96,7 +108,6 @@ class InteractiveBroker {
                     stock = this.getRequiredSymbol(stock);
 
                     const contract = ibInstance.contract.stock(stock, 'NSE', 'INR');
-                    // const queryTime = moment().format('YYYYMMDD hh:mm:ss');
 
                     ibInstance.reqHistoricalData(reqId, contract, '', '1 D', '1 min', 'TRADES', 1, 1, false)
                     .on('historicalData', (reqId, datetime, open, high, low, close, volume) => {
@@ -118,6 +129,45 @@ class InteractiveBroker {
                 reject(err);
             }
         })
+    }
+
+     static requestIntradayStreamData(stock, index = true) {
+        try {
+            let requestId = null;
+
+            // Getting the interactive broker instance
+            const ibInstance = this.interactiveBroker;
+            this.getNextRequestId()
+            .then(reqId => {
+                requestId = reqId;
+                
+                let ibTicker = this.getRequiredSymbol(stock);
+
+                let contract;
+                if (index) {
+                    contract = ibInstance.contract.stock(ibTicker, 'NSE', 'INR');
+                } else {
+                    contract = ibInstance.contract.ind(ibTicker, 'NSE', 'INR');    
+                }
+
+                ibInstance.reqHistoricalData(reqId, contract, '', '1 D', '1 min', 'TRADES', 1, 1, true)
+                .on('historicalData', (reqId, datetime, open, high, low, close, volume) => {
+                    if (reqId === requestId) {
+                        BrokerRedisController.addLatestBarData(stock, {datetime, open, high, low, close, volume});
+                    }
+                })
+                .on('historicalDataUpdate', (reqId, datetime, open, high, low, close, volume) => {
+                    if (reqId === requestId) {
+                        BrokerRedisController.addLatestBarData(stock, {datetime, open, high, low, close, volume});                           
+                    }
+                })
+                .on('error', err => {
+                    console.log(err);
+                })
+            })
+        } catch (err) {
+            reject(err);
+        }
     }
 
     static getRequiredSymbol(symbol) {
@@ -405,56 +455,60 @@ class InteractiveBroker {
     }
 }
 
-/**
- * Initializing interactive broker instance to the required config,
- * basic handling of errors and result
- */
-InteractiveBroker.interactiveBroker = new ib({
-    clientId: 0,
-    host: config.get('ib_host'),
-    port: config.get('ib_port')
-})
+if (config.get('node_ib_port') === serverPort && config.get('ib_connect_flag')) {
 
-//Connest to IB server
-InteractiveBroker.connect()
+    /**
+     * Initializing interactive broker instance to the required config,
+     * basic handling of errors and result
+     */
+    InteractiveBroker.interactiveBroker = new ib({
+        clientId: 0,
+        host: config.get('ib_tws_host'),
+        port: config.get('ib_tws_port')
+    })
 
+    //Connest to IB server
+    InteractiveBroker.connect()
 
-/**
- * Handling event 'orderStatus' when send from the IB gateway or IB TWS
- */
-InteractiveBroker.interactiveBroker.on('orderStatus', (orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld) => {
-    // console.log('Event - orderStatus', status);
-    console.log("Event - OrderStatus: ", orderId);
+    /**
+     * Handling event 'orderStatus' when send from the IB gateway or IB TWS
+     */
+    InteractiveBroker.interactiveBroker.on('orderStatus', (orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld) => {
+        // console.log('Event - orderStatus', status);
+        console.log("Event - OrderStatus: ", orderId);
 
-    const orderStatusEvent = {orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld};
-    // BrokerRedisController.updateOrderStatus(orderId, statusEvent);
-    // 
-    BrokerRedisController.addInteractiveBrokerEvent(orderStatusEvent, 'orderStatus');
-});
+        const orderStatusEvent = {orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld};
+        // BrokerRedisController.updateOrderStatus(orderId, statusEvent);
+        // 
+        BrokerRedisController.addInteractiveBrokerEvent(orderStatusEvent, 'orderStatus');
+    });
 
-/**
- * Handling event 'orderStatus' when send from the IB gateway or IB TWS
- */
-InteractiveBroker.interactiveBroker.on('openOrder', (orderId, contract, order, orderState) => {
-    const symbol = _.get(contract, 'symbol', '');
-    // console.log('openOrder');
-    // console.log(order);
-    console.log("Event - OpenOrder: ", orderId);
+    /**
+     * Handling event 'orderStatus' when send from the IB gateway or IB TWS
+     */
+    InteractiveBroker.interactiveBroker.on('openOrder', (orderId, contract, order, orderState) => {
+        const symbol = _.get(contract, 'symbol', '');
+        // console.log('openOrder');
+        // console.log(order);
+        console.log("Event - OpenOrder: ", orderId);
 
-    BrokerRedisController.addInteractiveBrokerEvent({orderId, order, orderState}, 'openOrder');
+        BrokerRedisController.addInteractiveBrokerEvent({orderId, order, orderState}, 'openOrder');
 
-    // BrokerRedisController.updateOpenOrder(orderId, {order, orderState});
-});
+        // BrokerRedisController.updateOpenOrder(orderId, {order, orderState});
+    });
 
-/**
- * Handling event 'execDetails' when send from the IB gateway or IB TWS
- */
-InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, execution) => {
-    console.log('Event - execDetails');
-    const orderId = _.get(execution, 'orderId', null);
-    // console.log("ExecDetails: ", orderId);
-    BrokerRedisController.addInteractiveBrokerEvent({orderId, execution}, 'execDetails');
-});
+    /**
+     * Handling event 'execDetails' when send from the IB gateway or IB TWS
+     */
+    InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, execution) => {
+        console.log('Event - execDetails');
+        const orderId = _.get(execution, 'orderId', null);
+        // console.log("ExecDetails: ", orderId);
+        BrokerRedisController.addInteractiveBrokerEvent({orderId, execution}, 'execDetails');
+    });
+
+}
+
 
 module.exports = InteractiveBroker;
 
