@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-29 15:02:02
+* @Last Modified time: 2019-03-30 01:33:16
 */
 'use strict';
 const config = require('config');
@@ -140,7 +140,7 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId, incomi
 
 	return Promise.resolve()
 	.then(() => {
-		let advisorMapList = subscription.advisorMapList;
+		let advisorMapList = subscription.advisorMapList || [];
 
 		return Promise.map(advisorMapList, function(advisorMap) {
 
@@ -177,6 +177,7 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId, incomi
 	})
 	.catch(err => {
 		subscription.errorCount += 1;	
+		console.log(err);
 		console.log(err.message);
 	})
 }

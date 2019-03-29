@@ -15,6 +15,16 @@ const indices = require('../../documents/indices.json');
 
 let isConnected = false;
 
+let promises = {};
+
+function initializeCallback(reqId, resolve, reject) {
+    promises[reqId] = {resolve, reject};
+}
+
+function deleteCallback(reqId) {
+    delete promises[reqId]; 
+}
+
 class InteractiveBroker {
     static connect() {
         return new Promise((resolve, reject) => {
@@ -40,10 +50,6 @@ class InteractiveBroker {
                     .then(() => {
                         return this.getExecutionsAndOpenOrders();
                     })
-
-                })
-                .on('error', (err) => {
-                    console.log(err.message);
                 })
             } catch(err) {
                 reject(err);
@@ -70,28 +76,27 @@ class InteractiveBroker {
     static requireContractDetails(stock) {
         const self = this;
         return new Promise((resolve, reject) => {
-            try {
+            self.getNextRequestId()
+            .then(reqId => {
                 // Getting the interactive broker instance
                 const ibInstance = self.interactiveBroker;
-                self.getNextRequestId()
-                .then(reqId => {
-                    ibInstance.reqContractDetails(reqId, ibInstance.contract.stock(stock))
-                    .on('contractDetails', (reqId, contract) => {
-                        resolve({reqId, contract});
-                    });
-                })
-            } catch (err) {
-                reject(err.message);
-            }
+                ibInstance.reqContractDetails(reqId, ibInstance.contract.index(stock, "INR", "NSE"))
+                .on('contractDetails', (reqId, contract) => {
+                    resolve({reqId, contract});
+                });
+            })
+            .catch(err => {
+                reject(err.message);    
+            })
         })
     }
 
     static requestIntradayHistoricalData(stock, options = {}) {
         return new Promise((resolve, reject) => {
-            try {
-                let requestId = null;
-                let historicalData = [];
-
+          
+            this.getNextRequestId()
+            .then(reqId => {
+                
                 let duration = _.get(options, 'duration', '1 D');
                 let index = _.get(options, 'index', false);
 
@@ -99,36 +104,25 @@ class InteractiveBroker {
                 const ibInstance = this.interactiveBroker;
                 let contract;
 
-                this.getNextRequestId()
-                .then(reqId => {
-                    requestId = reqId;
-                    var ibTicker = this.getRequiredSymbol(stock);
-                                        
-                    if (index) {
-                        contract = ibInstance.contract.index(ibTicker, 'INR', 'NSE');
-                    } else {
-                        contract = ibInstance.contract.stock(ibTicker, 'NSE', 'INR');
-                    }
+                var ibTicker = this.getRequiredSymbol(stock);
+                                    
+                if (index) {
+                    contract = ibInstance.contract.index(`${ibTicker}@NSE`, 'INR', 'NSE');
+                    // delete contract.exchange;
+                    // delete contract.currency;
 
-                    ibInstance.reqHistoricalData(reqId, contract, '', duration, '1 min', 'TRADES', 1, 1, false)
-                    .on('historicalData', (reqId, datetime, open, high, low, close, volume) => {
-                        if (reqId === requestId) {
-                            const hasFinised = datetime.indexOf('finished') > -1;
-                            if (hasFinised) {
-                                resolve(historicalData);
-                            } else {
-                                historicalData.push({datetime, open, high, low, close, volume});
-                            }
-                        }
-                    })
-                    .on('error', err => {
-                        console.log(err.message);
-                        resolve([]);
-                    })
-                })
-            } catch (err) {
+                } else {
+                    contract = ibInstance.contract.stock(ibTicker, 'NSE', 'INR');
+                }
+
+                initializeCallback(reqId, resolve, reject);
+                ibInstance.reqHistoricalData(reqId, contract, '', duration, '1 min', 'TRADES', 1, 1, false)
+
+            })
+            .catch(err => {
+                deleteCallback(reqId);
                 reject(err);
-            }
+            })
         })
     }
 
@@ -178,7 +172,6 @@ class InteractiveBroker {
 
                 ibInstance.reqCurrentTime()
                 .on('currentTime', time => {
-                    console.log("NEVER COMES");
                     resolve(time); //Long value (milliseconds since epox)
                 })
                 
@@ -227,6 +220,14 @@ class InteractiveBroker {
         }
     }
 
+    static placeOrderInternal(orderId, contract, config) {
+        return new Promise((resolve, reject) => {
+            initializeCallback(orderId, resolve, reject);
+            const ibInstance = self.interactiveBroker;
+            ibInstance.placeOrder(orderId, contract, config)
+        });
+    }
+
     static placeOrder({
             stock, 
             type = 'BUY', 
@@ -240,103 +241,127 @@ class InteractiveBroker {
             advisorId = null,
             bracketFirstOrderType = 'LIMIT'
     }) {
-        const self = this;
-            
-        // There should be orderTypes 
-        // for brackets use this https://interactivebrokers.github.io/tws-api/bracket_order.html
-        // Getting the interactive broker instance
-        
-        return Promise.resolve()
-        .then(() => {
-            if (isConnected) {
-                return BrokerRedisController.getValidId(orderType == "bracket" ? 3 : 1)
-            } else {
-                throw new Error("Not connected");
-            }
-        })
-        .then(orderId => { 
-            console.log("OrderId", orderId);
-            let orderIds;
 
-            if (orderType == 'bracket') {
-                orderIds = [orderId - 2, orderId - 1, orderId];
-            } else {
-                orderIds = [orderId];
-            }
+        return new Promise((resolve, reject) => {
+            const self = this;
+                
+            // There should be orderTypes 
+            // for brackets use this https://interactivebrokers.github.io/tws-api/bracket_order.html
+            // Getting the interactive broker instance
             
-            return BrokerRedisController.addOrdersForPrediction(advisorId, predictionId, orderIds)
+            return Promise.resolve()
             .then(() => {
-                console.log("OrderIds:", orderIds);
-                return orderIds;
+                if (isConnected) {
+                    return BrokerRedisController.getValidId(orderType == "bracket" ? 3 : 1)
+                } else {
+                    throw new Error("Not connected");
+                }
             })
-        })
-        .then(orderIds => {
-            const ibInstance = self.interactiveBroker;
+            .then(orderId => { 
 
-            // creating IB stock from the stock param passed
-            const ibStock = ibInstance.contract.stock(stock, 'NSE', 'INR');
+                let orderIds;
 
-            if (orderType === 'bracket') {
-                var parentId = orderIds[0];
-                var profitOrderId = orderIds[1];
-                var stopLossOrderId = orderIds[2];
+                if (orderType == 'bracket') {
+                    orderIds = [orderId - 2, orderId - 1, orderId];
+                } else {
+                    orderIds = [orderId];
+                }
+                
+                return BrokerRedisController.addOrdersForPrediction(advisorId, predictionId, orderIds)
+                .then(() => {
+                    return orderIds;
+                })
+            })
+            .then(orderIds => {
+                const ibInstance = self.interactiveBroker;
 
-                console.log("WTF");
-                const bracketOrderConfig = self.bracketOrder(type, quantity, price, profitLimitPrice, stopLossPrice, bracketFirstOrderType);
+                // creating IB stock from the stock param passed
+                const ibStock = ibInstance.contract.stock(stock, 'NSE', 'INR');
 
-                return Promise.all([
-                    ibInstance.placeOrder(parentId, ibStock, {...bracketOrderConfig.parentOrder, tif}),
-                    ibInstance.placeOrder(profitOrderId, ibStock, {...bracketOrderConfig.profitOrder, parentId, tif}),
-                    ibInstance.placeOrder(stopLossOrderId, ibStock, {...bracketOrderConfig.stopLossOrder, parentId, tif})
-                ]);   
-            } 
-            
-            else if (orderType === 'limit') {
-                const limitOrderConfig = ibInstance.order.limit(type, quantity, price);
-                ibInstance.placeOrder(orderIds[0], ibStock, {...limitOrderConfig, tif});
-            } 
-            
-            else if (orderType === 'market') {
-                const marketOrderConfig = ibInstance.order.market(type, quantity);
-                ibInstance.placeOrder(orderIds[0], ibStock, {...marketOrderConfig, tif});
-            }
+                if (orderType === 'bracket') {
+                    var parentId = orderIds[0];
+                    var profitOrderId = orderIds[1];
+                    var stopLossOrderId = orderIds[2];
 
-            else if (orderType === 'stopLimit') {
-                const stopLimitOrderConfig = ibInstance.order.stopLimit(type, quantity, price);
-                ibInstance.placeOrder(orderIds[0], ibStock, {...stopLimitOrderConfig, tif});
-            }
+                    const bracketOrderConfig = self.bracketOrder(type, quantity, price, profitLimitPrice, stopLossPrice, bracketFirstOrderType);
 
-            else if (orderType === 'marketClose') {
-                let goodAfterTime = DateHelper.convertLocaTimeToIndiaTz(DateHelper.getMarketCloseDateTime().subtract(5, 'minutes')).format('YYYYMMDD HH:mm:ss');
-                let marketCloseOrderConfig = ibInstance.order.market(type, quantity, true, goodAfterTime);
-                ibInstance.placeOrder(orderIds[0], ibStock, {...marketCloseOrderConfig, tif});
-            }
+                    return Promise((resolve, reject) => {
+                        return Promise.all([
+                            this.placeOrderInternal(parentId, ibStock, {...bracketOrderConfig.parentOrder, tif}),
+                            this.placeOrderInternal(profitOrderId, ibStock, {...bracketOrderConfig.profitOrder, parentId, tif}),
+                            this.placeOrderInternal(stopLossOrderId, ibStock, {...bracketOrderConfig.stopLossOrder, parentId, tif})
+                        ])
+                        .then(() => {
+                            //if call orders are successful
+                            resolve(true);
+                        })
+                        .catch(err => {
+                            console.log("Error in one of the legs of bracket orders");
+                            console.log("Cancelling all legs");
 
-            else if (orderType === 'marketIfTouched') {
-                let marketIfTouchedOrderConfig = ibInstance.order.market(type, quantity);
-                marketIfTouchedOrderConfig = {
-                    ...marketIfTouchedOrderConfig,
-                    orderType: 'MIT',
-                    totalQuantity: quantity,
-                    auxPrice: price,
-                    tif
-                };
-                ibInstance.placeOrder(orderIds[0], ibStock, marketIfTouchedOrderConfig);
-            }
-            
-            else {
-                throw new Error('Invalid orderType');
-            }
-           
-        })
-        .then(() => {
-            console.log("ahaah");
-            //To make sure that execution detail events are called, force request execution details for the placed orders
-            return this.requestExecutionDetails({symbol: stock});
-        })
-        .catch (err => {
-            console.log(err.message);
-        })
+                            //What to do when place order fails
+                            return Promise.map(orderIds, function(orderId) {
+                                return this.cancelOrder(orderId);
+                            })
+                            .then(() => {
+                                reject(err);
+                            })
+                        })
+                    })
+                } 
+                
+                else if (orderType === 'limit') {
+                    const limitOrderConfig = ibInstance.order.limit(type, quantity, price);
+                    this.placeOrderInternal(orderIds[0], ibStock, {...limitOrderConfig, tif});
+                } 
+                
+                else if (orderType === 'market') {
+                    const marketOrderConfig = ibInstance.order.market(type, quantity);
+                    this.placeOrderInternal(orderIds[0], ibStock, {...marketOrderConfig, tif});
+                }
+
+                else if (orderType === 'stopLimit') {
+                    const stopLimitOrderConfig = ibInstance.order.stopLimit(type, quantity, price);
+                    this.placeOrderInternal(orderIds[0], ibStock, {...stopLimitOrderConfig, tif});
+                }
+
+                else if (orderType === 'marketClose') {
+                    let goodAfterTime = DateHelper.convertLocaTimeToIndiaTz(DateHelper.getMarketCloseDateTime().subtract(5, 'minutes')).format('YYYYMMDD HH:mm:ss');
+                    let marketCloseOrderConfig = ibInstance.order.market(type, quantity, true, goodAfterTime);
+                    this.placeOrderInternal(orderIds[0], ibStock, {...marketCloseOrderConfig, tif});
+                }
+
+                else if (orderType === 'marketIfTouched') {
+                    let marketIfTouchedOrderConfig = ibInstance.order.market(type, quantity);
+                    marketIfTouchedOrderConfig = {
+                        ...marketIfTouchedOrderConfig,
+                        orderType: 'MIT',
+                        totalQuantity: quantity,
+                        auxPrice: price,
+                        tif
+                    };
+
+                    this.placeOrderInternal(orderIds[0], ibStock, marketIfTouchedOrderConfig);
+                }
+                
+                else {
+                    throw new Error('Invalid orderType');
+                }
+               
+            })
+            .then(() => {
+                //To make sure that execution detail events are called, force request execution details for the placed orders
+                return this.requestExecutionDetails({symbol: stock});
+            })
+            .then(() => {
+                //All order were successful
+                resolve(true);
+            })
+            .catch(err => {
+                reject(err);
+                console.log(err.message);
+            })
+        });
     }
 
     static modifyOrder({
@@ -348,55 +373,61 @@ class InteractiveBroker {
         orderType = 'market',
         tif="GTC",
     }) {
-        const ibInstance = this.interactiveBroker;
 
-        // creating IB stock from the stock param passed
-        const ibStock = ibInstance.contract.stock(stock, 'NSE', 'INR');
+        return new Promise((resolve, reject) => {
+            Promise.resolve()
+            .then(() => {
 
-        return Promise.resolve()
-        .then(() => {
-            if (!isConnected) {
-                throw new Error("Not connected");
-            }
+                const ibInstance = this.interactiveBroker;
 
-            if (orderType === 'LMT') {
-                const limitOrderConfig = ibInstance.order.limit(type, quantity, price);
-                ibInstance.placeOrder(orderId, ibStock, {...limitOrderConfig, tif});
-            } 
-            
-            else if (orderType === 'MKT') {
-                const marketOrderConfig = ibInstance.order.market(type, quantity);
-                ibInstance.placeOrder(orderId, ibStock, {...marketOrderConfig, tif});
-            }
+                // creating IB stock from the stock param passed
+                const ibStock = ibInstance.contract.stock(stock, 'NSE', 'INR');
 
-            else if (orderType === 'STP') {
-                const stopLimitOrderConfig = ibInstance.order.stopLimit(type, quantity, price);
-                ibInstance.placeOrder(orderId, ibStock, {...stopLimitOrderConfig, tif});
-            }
+                if (!isConnected) {
+                    throw new Error("Not connected");
+                }
 
-            else if (orderType === 'MOC') {
-                const marketCloseOrderConfig = ibInstance.order.marketClose(type, quantity);
-                ibInstance.placeOrder(orderId, ibStock, {...marketCloseOrderConfig, tif});
-            }
-            
-            else {
-                throw new Error('Invalid orderType');
-            }
-        })
-        .catch (err => {
-            console.log(err.message);
-        })
+                if (orderType === 'LMT') {
+                    const limitOrderConfig = ibInstance.order.limit(type, quantity, price);
+                    this.placeOrderInternal(orderId, ibStock, {...limitOrderConfig, tif});
+                } 
+                
+                else if (orderType === 'MKT') {
+                    const marketOrderConfig = ibInstance.order.market(type, quantity);
+                    this.placeOrderInternal(orderId, ibStock, {...marketOrderConfig, tif});
+                }
+
+                else if (orderType === 'STP') {
+                    const stopLimitOrderConfig = ibInstance.order.stopLimit(type, quantity, price);
+                    this.placeOrderInternal(orderId, ibStock, {...stopLimitOrderConfig, tif});
+                }
+
+                else if (orderType === 'MOC') {
+                    const marketCloseOrderConfig = ibInstance.order.marketClose(type, quantity);
+                    this.placeOrderInternal(orderId, ibStock, {...marketCloseOrderConfig, tif});
+                }
+                
+                else {
+                    throw new Error('Invalid orderType');
+                }
+            })
+            .then(() => {
+                resolve(true);
+            })
+            .catch (err => {
+                console.log(err.message);
+                reject(err);
+            })
+        });
     }
 
     static cancelOrder(orderId) {
         return new Promise((resolve, reject) => {
             try {
+                initalizeCallBack(orderId, resolve, reject);
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
                 ibInstance.cancelOrder(orderId)
-                .on('error', (err, data) => {
-                    reject(err);
-                })
             } catch(err) {
                 reject(err);
             }
@@ -408,14 +439,17 @@ class InteractiveBroker {
             try {
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
-                ibInstance.reqAllOpenOrders();
-                resolve();
+                ibInstance.reqAllOpenOrders()
+                .then(() => {
+                    resolve();    
+                })
             } catch(err) {
                 reject(err);
             }
         })
     }
 }
+
 
 if (config.get('node_ib_port') === serverPort && config.get('ib_connect_flag')) {
 
@@ -431,50 +465,76 @@ if (config.get('node_ib_port') === serverPort && config.get('ib_connect_flag')) 
 
     //Connest to IB server
     InteractiveBroker.connect()
-    InteractiveBroker.requireContractDetails('CNX100');
 
     /**
      * Handling event 'orderStatus' when send from the IB gateway or IB TWS
      */
     InteractiveBroker.interactiveBroker.on('orderStatus', (orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld) => {
-        // console.log('Event - orderStatus', status);
         console.log("Event - OrderStatus: ", orderId);
 
         const orderStatusEvent = {orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld};
-        // BrokerRedisController.updateOrderStatus(orderId, statusEvent);
-        // 
-        BrokerRedisController.addInteractiveBrokerEvent(orderStatusEvent, 'orderStatus');
+        return BrokerRedisController.addInteractiveBrokerEvent(orderStatusEvent, 'orderStatus');
     });
 
     /**
      * Handling event 'orderStatus' when send from the IB gateway or IB TWS
      */
     InteractiveBroker.interactiveBroker.on('openOrder', (orderId, contract, order, orderState) => {
-        const symbol = _.get(contract, 'symbol', '');
-        // console.log('openOrder');
-        // console.log(order);
         console.log("Event - OpenOrder: ", orderId);
 
-        BrokerRedisController.addInteractiveBrokerEvent({orderId, order, orderState}, 'openOrder');
-
-        // BrokerRedisController.updateOpenOrder(orderId, {order, orderState});
+        return BrokerRedisController.addInteractiveBrokerEvent({orderId, order, orderState}, 'openOrder')
+        .then(() => {
+            var resolve = _.get(promises, `${orderId}.resolve`, null);
+            if (resolve) {
+                delete promises[reqId];
+                resolve({orderId, contract, order, orderState});
+            }
+        })
     });
 
     /**
      * Handling event 'execDetails' when send from the IB gateway or IB TWS
      */
     InteractiveBroker.interactiveBroker.on('execDetails', (requestId, contract, execution) => {
-        console.log('Event - execDetails');
+        console.log('Event - execDetails: ', requestId);
         const orderId = _.get(execution, 'orderId', null);
-        // console.log("ExecDetails: ", orderId);
-        BrokerRedisController.addInteractiveBrokerEvent({orderId, execution}, 'execDetails');
+        return BrokerRedisController.addInteractiveBrokerEvent({orderId, execution}, 'execDetails');
     });
 
+
+    InteractiveBroker.interactiveBroker.on('historicalData', (reqId, datetime, open, high, low, close, volume) => {
+        const hasFinised = datetime.indexOf('finished') > -1;
+        if (hasFinised) {
+            return BrokerRedisController.getHistoricalData(reqId)
+            .then(historicalData => {
+                var resolve = _.get(promises, `${reqId}.resolve`, null);
+                console.log(`Resolving: ${reqId}`);
+                if (resolve) {
+                    delete promises[reqId];
+                    resolve(historicalData);
+                } 
+            });
+        } else {
+            return BrokerRedisController.addHistoricalData(reqId, {datetime, open, high, low, close, volume});
+        }
+    });
+    
+    InteractiveBroker.interactiveBroker.on('error', (errMsg, data) => {
+        const reqId = _.get(data, 'id', null);
+        if (reqId) {
+            var reject = _.get(promises, `${reqId}.reject`, null);
+            if(reject) {
+                delete promises[reqId];
+                reject(new Error(errMsg));
+            }
+        }
+
+    });
 
     //Process IB events only when market is open (only on single port)
     schedule.scheduleJob("*/1 * * * 1-5", function() {
         if (DateHelper.isMarketTrading()) {
-            BrokerRedisController.processIBEvents();
+            return BrokerRedisController.processIBEvents();
         }
     });
 

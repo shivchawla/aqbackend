@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-29 14:40:40
+* @Last Modified time: 2019-03-30 01:37:34
 */
 
 'use strict';
@@ -335,7 +335,7 @@ function _handleWatchlistSubscription(req, res) {
 	})
 	.then(watchlist => {
 		if(watchlist && watchlist.securities) {
-			return Promise.mapSeries(watchlist.securities, function(security){
+			return Promise.mapSeries(watchlist.securities, function(security) {
 				var ticker = security.ticker;
 				if (!_.get(subscribers, `stock.${ticker}`, null)) {
 					_.set(subscribers, `stock.${ticker}`, {})
@@ -417,12 +417,13 @@ function _sendWSResponse(res, data, category, typeId) {
 * Sends the data based on type (filters the data (for summary) if required)
 */
 function _onDataUpdate(typeId, data, category) {
-	var subscribedUsers = subscribers[category][typeId];
+	var subscribedUsers = _.get(subscribers, `${category}.${typeId}`, {});
 	
 	return Promise.map(Object.keys(subscribedUsers), function(userId) {
-		
-		return Promise.map(subscribedUsers[userId], function(subscriberId) {
-			var subscription = subscribedUsers[userId][subscriberId];
+		var subscribers = _.get(subscribedUsers, userId ,{});
+
+		return Promise.map(Object.keys(subscribers), function(subscriberId) {
+			var subscription = subscribers[subscriberId];
 			
 			if (subscription && subscription.errorCount < 5) {
 				var res = subscription.response;
@@ -624,10 +625,10 @@ function _sendUpdatedSingleStockOnNewData(ticker, subscriberList) {
 * Sends only ALL STOCK updates to all subscribers
 */
 function _sendUpdatedStocksOnNewData() {
-	var subscribedStocks = subscribers["stock"];
+	var subscribedStocks = _.get(subscribers, "stock", {});
 	return new Promise(resolve => {
 		return Promise.mapSeries(Object.keys(subscribedStocks), function(ticker) {
-			var stockSubscribers = subscribedStocks[ticker];
+			var stockSubscribers = _.get(subscribedStocks, ticker, {});
 			return Promise.map(Object.keys(stockSubscribers), function(userId) {
 				return _sendUpdatedSingleStockOnNewData(ticker, stockSubscribers[userId])	
 			})

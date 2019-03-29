@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-29 00:07:09
+* @Last Modified time: 2019-03-29 22:57:23
 */
 
 const redis = require('redis');
@@ -10,6 +10,7 @@ const config = require('config');
 const _ = require('lodash');
 const Promise = require('bluebird');
 const schedule = require('node-schedule');
+const moment = require('moment');
 const DateHelper = require('../../utils/Date');
 
 const RedisUtils = require('../../utils/RedisUtils');
@@ -102,7 +103,7 @@ module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderI
 module.exports.addInteractiveBrokerEvent = function(eventDetails, eventType) {
     return RedisUtils.pushToRangeRedis(getRedisClient(), IB_EVENTS, JSON.stringify({eventType, eventDetails}))
     .then(() => {
-        exports.processIBEvents();
+        return exports.processIBEvents();
     })
 };
 
@@ -234,6 +235,26 @@ module.exports.processIBEvents = function() {
         console.log('Error 171 --------------------------->', err.message);
     });
 };
+
+
+module.exports.addHistoricalData = function(reqId, data) {
+    RedisUtils.addSetDataToRedis(getRedisClient(), `historicalData-${reqId}`, JSON.stringify(data));
+}
+
+module.exports.getHistoricalData = function(reqId, data) {
+    let redisSetKey = `historicalData-${reqId}`;
+    return RedisUtils.getSetDataFromRedis(getRedisClient(), redisSetKey)
+    .then(data => {
+        return Promise.all([
+            Promise.resolve(data.map(item => {return JSON.parse(item)})),
+            RedisUtils.expireKeyInRedis(getRedisClient(), redisSetKey, Math.floor(moment().valueOf()/1000))
+        ])
+    })
+    .then(([data,]) => {
+        return data;
+    })
+}
+
 
 function _processOpenOrderEvent(openOrderDetails) {
     
