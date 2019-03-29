@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-27 14:42:55
+* @Last Modified time: 2019-03-29 14:47:27
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -32,6 +32,14 @@ module.exports.convertIndianTimeInLocalTz = function(dt, format) {
 		return moment.tz(dt, format, indiaTimeZone).tz(localTimeZone);
 	} else {
 		return moment.tz(dt, indiaTimeZone).tz(localTimeZone);
+	}
+}
+
+module.exports.convertLocaTimeToIndiaTz = function(dt, format) {
+	if (format) {
+		return moment.tz(dt, format).tz(indiaTimeZone);
+	} else {
+		return moment.tz(dt).tz(indiaTimeZone);
 	}
 }
 

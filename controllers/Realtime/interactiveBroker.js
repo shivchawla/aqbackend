@@ -307,7 +307,7 @@ class InteractiveBroker {
             }
 
             else if (orderType === 'marketClose') {
-                let goodAfterTime = DateHelper.getMarketCloseDateTime().subtract(5, 'minutes').format('YYYYMMDD HH:mm:ss');
+                let goodAfterTime = DateHelper.convertLocaTimeToIndiaTz(DateHelper.getMarketCloseDateTime().subtract(5, 'minutes')).format('YYYYMMDD HH:mm:ss');
                 let marketCloseOrderConfig = ibInstance.order.market(type, quantity, true, goodAfterTime);
                 ibInstance.placeOrder(orderIds[0], ibStock, {...marketCloseOrderConfig, tif});
             }

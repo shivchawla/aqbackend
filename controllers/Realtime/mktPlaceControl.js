@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-29 11:32:50
+* @Last Modified time: 2019-03-29 14:40:40
 */
 
 'use strict';
@@ -629,9 +629,6 @@ function _sendUpdatedStocksOnNewData() {
 		return Promise.mapSeries(Object.keys(subscribedStocks), function(ticker) {
 			var stockSubscribers = subscribedStocks[ticker];
 			return Promise.map(Object.keys(stockSubscribers), function(userId) {
-
-				console.log("Hols");
-
 				return _sendUpdatedSingleStockOnNewData(ticker, stockSubscribers[userId])	
 			})
 			
