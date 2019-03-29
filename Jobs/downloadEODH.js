@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 19:09:29
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-28 22:50:34
+* @Last Modified time: 2019-03-29 11:48:13
 */
 
 'use strict';
@@ -11,6 +11,7 @@ const config = require('config');
 const moment = require('moment-timezone');
 const path = require('path');
 const Promise = require('bluebird');
+const _ = require('lodash');
 
 const DateHelper = require('../utils/Date');
 const serverPort = require('../index').serverPort;
@@ -18,6 +19,8 @@ const serverPort = require('../index').serverPort;
 const DailyContestEntryHelper = require('../controllers/helpers/DailyContestEntry');
 const DailyContestEntryModel = require('../models/Marketplace/DailyContestEntry');
 const PredictionRealtimeController = require('../controllers/Realtime/predictionControl');
+const MktPlaceController = require('../controllers/Realtime/mktPlaceControl');
+
 const SecurityHelper = require('../controllers/helpers/Security');
 
 //Fucntion to fetch latest quote data from EODH for active predictions
@@ -30,7 +33,7 @@ function downnloadEODHRealtimeForActivePredictions() {
 		return Promise.mapSeries(advisors, function(advisorId) {
 			return DailyContestEntryHelper.getPredictionsForDate(advisorId, currentDate, {category: "all", priceUpdate:false, active: null})
 			.then(predictions => {
-				return prediction.map(item => {
+				return predictions.map(item => {
 					return {...item, advisorId: advisorId};
 				});
 			});
@@ -83,7 +86,10 @@ if (config.get('jobsPort') === serverPort) {
 			    		DailyContestEntryHelper.updateCallPriceForPredictionsFromEODH()
 		    		})
 			    	.then(() => {
-			    		PredictionRealtimeController.sendAllUpdates();
+			    		Promise.all([
+			    			MktPlaceController.sendAllUpdates(),
+			    			PredictionRealtimeController.sendAllUpdates()
+		    			])
 			    	})
 
 		    	}

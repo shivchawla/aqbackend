@@ -55,7 +55,7 @@ class InteractiveBroker {
     }
 
     static getExecutionsAndOpenOrders() {
-        BrokerRedisController.getNextRequestId()
+        return this.getNextRequestId()
         .then(reqId => {
             const ibInstance = this.interactiveBroker;
 
@@ -104,7 +104,7 @@ class InteractiveBroker {
                     let contract;
                     
                     if (index) {
-                        contract = ibInstance.contract.ind(ibTicker, 'NSE', 'INR');
+                        contract = ibInstance.contract.index(ibTicker, 'INR', 'NSE');
                     } else {
                         contract = ibInstance.contract.stock(ibTicker, 'NSE', 'INR');
                     }

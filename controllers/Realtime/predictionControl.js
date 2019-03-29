@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-28 22:28:28
+* @Last Modified time: 2019-03-29 11:46:39
 */
 'use strict';
 const config = require('config');
@@ -73,12 +73,14 @@ function _sendAllPredictionUpdates() {
 	var uniqueSubscriptionUsers = Object.keys(predictionSubscribers);
 	
 	return Promise.mapSeries(uniqueSubscriptionUsers, function(userId) {
-		var subscriptionArray = _.get(predictionSubscribers, userId, []);
-		return Promise.map(subscriptionArray, function(subscription, index) {
+		var subscriptions = _.get(predictionSubscribers, userId, {});
+		return Promise.map(Object.keys(subscriptions), function(subscriberId) {
+			
+			let subscription = subscriptions[subscriberId];
 			
 			if (subscription && subscription.errorCount > 5) {
 				console.log("Deleting subscriber from list. WS connection is invalid for 5th attmept")
-				predictionSubscribers[userId][index] = null;
+				delete predictionSubscribers[userId][subscriberId];
 				return;
 			} else {
 				return subscription.admin ? _sendAdminRealPredictionUpdates(subscription) : _sendPredictionUpdates(subscription);
@@ -86,30 +88,13 @@ function _sendAllPredictionUpdates() {
 		})
 		.then(() => {
 			//Remove the null subscriptions for the user
-			predictionSubscribers[userId] = predictionSubscribers[userId].filter(item => item);
+			if (Object.keys(_.get(predictionSubscribers, userId, {})).length == 0) {
+				delete predictionSubscribers[userId];
+			} 
 		})
 	})
 }
 
-//ADMIN RELATED UPDATES.....
-////NOT IN USE
-// function _sendAdminUpdatesForAdvisor(userId, advisorId) {
-	
-// 	var subscriptionArray = _.get(predictionSubscribers, userId, []);
-// 	var adminSubscriptionIdx = subcriptionArray.findIndex(item => {return item.admin});
-// 	var subscription = adminSubscriptionIdx !=-1 ? subscriptionArray[adminSubscriptionIdx] : null;
-
-// 	if (!subscription) {
-// 		console.log("Invalid admin subscription")
-// 	}
-// 	else if(subscription.errorCount > 5) {
-// 		console.log("Deleting subscriber from list. WS connection is invalid for 5th attmept")
-// 		predictionSubscribers[userId][adminSubscriptionIdx] = null;
-// 		return;
-// 	} else {
-// 		return _sendAdminRealPredictionUpdates(subscription, advisorId);
-// 	}
-// }
 
 function _getPredictionDetailForAdmin(advisorId, category, masterAdvisorId, predictionId) {
 	
@@ -233,18 +218,8 @@ function _handlePredictionSubscription(req, res) {
 					}
 				}
 
-				var subscriptionIdx = _.get(predictionSubscribers, userId, []).findIndex(item => {return item.subscriberId == subscriberId});
-
 				let subscription = {response: res, category, advisorId, masterAdvisorId, real, errorCount: 0, subscriberId};
-				if (subscriptionIdx !=-1) {
-					predictionSubscribers[userId][subscriptionIdx] = subscription;
-				} else {
-					if (userId in predictionSubscribers) {
-						predictionSubscribers[userId].push(subscription); 	
-					} else {
-						predictionSubscribers[userId] = [subscription]; 
-					}
-				}
+				_.set(predictionSubscribers, `${userId}.${subscriberId}`, subscription);
 
 				//Send immediate response back to subscriber
 				return _sendPredictionUpdates(subscription);
@@ -267,18 +242,16 @@ function _handlePredictionSubscription(req, res) {
 function _handlePredictionUnsubscription(req, res) {
 	const userId = req.userId;
 	const subscriberId = req.subscriberId;
-	var subscriptionArray = _.get(predictionSubscribers, userId, [])
+	
+	var subscription = _.get(predictionSubscribers, `${userId}.${subscriberId}`, null);
 
-	if (subscriptionArray && subscriptionArray.length > 0) {
-		var subscriptionIdx = subscriptionArray.findIndex(item => {return item.subscriberId == subscriberId});
-		subscriptionArray[subscriptionIdx] = null;
-		subscriptionArray = subscriptionArray.filter(item => item);		 
+	if (subscription) {
+		delete predictionSubscribers[userId][subscriberId];
 
-		if (subscriptionArray.length > 0) {
-			predictionSubscribers[userId] = subscriptionArray
-		} else {
+		if (Object.keys(_.get(predictionSubscribers, userId, {})).length == 0) {
 			delete predictionSubscribers[userId];
 		}
+		
 	}	
 }
 
@@ -330,19 +303,8 @@ function _handleRealPredictionSubscription(req, res) {
 					//Filter out null
 					advisorMapList = advisorMapList.filter(item => item);
 					
-					var subscriptionIdx = _.get(predictionSubscribers, userId, []).findIndex(item => {return item.subscriberId == subscriberId});
-					
 					let subscription = {response: res, category, advisorMapList, errorCount: 0, subscriberId, admin: true};
-					if (subscriptionIdx == -1) {
-						if (userId in predictionSubscribers) {
-							predictionSubscribers[userId].push(subscription)
-						} else {
-							predictionSubscribers[userId] = [subscription];
-						}
-						
-					} else {
-						predictionSubscribers[userId][subscriptionIdx] = subscription;
-					}
+					_.set(predictionSubscribers, `${userId}.${subscriberId}`, subscription);
 
 					//Send immediate response back to subscriber
 					return _sendAdminRealPredictionUpdates(subscription);

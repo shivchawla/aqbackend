@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-01-15 15:30:36
+* @Last Modified time: 2019-03-29 11:32:50
 */
 
 'use strict';
@@ -106,14 +106,13 @@ function _handleAdviceUnsubscription(req, res) {
 	return new Promise(resolve => {
 		const adviceId = req.adviceId;
 		const userId = req.userId;
-		if (subscribers["advice"] && subscribers["advice"][adviceId]) {
-			delete subscribers["advice"][adviceId][userId];
+		const subscriberId = req.subscriberId;
+
+		if (_.get(subscribers, `advice.${adviceId}.${userId}.${subscriberId}`, null)) {
+			delete subscribers["advice"][adviceId][userId][subscriberId];
 		}
 
-		if (subscribers["advice"] && 
-			subscribers["advice"][adviceId] &&
-			Object.keys(subscribers["advice"][adviceId]).length == 0) {
-			
+		if (Object.keys(_.get(subscribers, `advice.${adviceId}`, {})).length == 0) {
 			delete subscribers["advice"][adviceId];
 		}
 
@@ -129,13 +128,17 @@ function _handlePortfolioUnsubscription(req, res) {
 	return new Promise(resolve => {
 		const portfolioId = req.portfolioId;
 		const userId = req.userId;
-		if (subscribers["portfolio"] && subscribers["portfolio"][portfolioId]) {
+		const subscriberId = req.subscriberId;
+
+		if ( _.get(subscribers, `portfolio.${portfolioId}.${userId}.${subscriberId}`, null)) {
+			delete subscribers["portfolio"][portfolioId][userId][subscriberId];
+		}
+
+		if (Object.keys(_.get(subscribers, `portfolio.${portfolioId}.${userId}`, {})).length == 0) {
 			delete subscribers["portfolio"][portfolioId][userId];
 		}
 
-		if (subscribers["portfolio"] && 
-			subscribers["portfolio"][portfolioId] && 
-			Object.keys(subscribers["portfolio"][portfolioId]).length == 0) {
+		if (Object.keys(_.get(subscribers, `portfolio.${portfolioId}`, {})).length == 0) {
 			delete subscribers["portfolio"][portfolioId];
 		}
 
@@ -152,25 +155,27 @@ function _handleStockUnsubscription(req, res) {
 	return new Promise(resolve => {
 		const ticker = req.ticker;
 		const userId = req.userId;
+		const subscriberId = req.subscriberId;
 
 		if (!subscribers["stock"][ticker]) {
 			subscribers["stock"][ticker] = {};
 		}
 
-		var stockSubscribers = subscribers["stock"][ticker];
+		var subscription = _.get(subscribers, `stock.${ticker}.${userId}.${subscriberId}`, null)
 
-		if (stockSubscribers) {
-			var subscription = stockSubscribers[userId];
+		if (subscription) {
 
-			if (subscription) {
-				if (subscription.stock && !subscription.watchlistId) {
-					delete stockSubscribers[userId]
-				} else {
-					delete stockSubscribers[userId].stock;
-				}
+			if (subscription.stock && !subscription.watchlistId) {
+				delete subscribers["stock"][ticker][userId][subscriberId]
+			} else {
+				delete subscribers["stock"][ticker][userId][subscriberId].stock
 			}
 
-			if (Object.keys(stockSubscribers).length == 0) {
+			if (Object.keys(_.get(subscribers, `stock.${ticker}.${userId}`, {})) == 0) {
+				delete subscribers["stock"][ticker][userId];
+			}
+
+			if (Object.keys(_.get(subscribers, `stock.${ticker}`, {})).length = 0) {
 				delete subscribers["stock"][ticker]; 
 			}
 		}
@@ -187,6 +192,7 @@ function _handleWatchlistUnsubscription(req, res) {
 	const watchlistId = req.watchlistId;
 	const advisorId = req.advisorId;
 	const userId = req.userId;
+	const subscriberId = req.subscriberId;
 
 	return UserModel.fetchUser({_id: userId}, {fields:'email'})
 	.then(user => {
@@ -207,20 +213,23 @@ function _handleWatchlistUnsubscription(req, res) {
 		if(watchlist && watchlist.securities) {
 			watchlist.securities.forEach(security => {
 				var ticker = security.ticker;
-				var stockSubscribers = subscribers["stock"][ticker];
+				
+				var subscription = _.get(subscribers, `stock.${ticker}.${userId}.${subscriberId}`, null);
 
-				if (stockSubscribers) {
-					var subscription = stockSubscribers[userId];
-					if (subscription) {
-						if (!subscription.stock && subscription.watchlistId) {
-							delete stockSubscribers[userId]
-						} else {
-							delete stockSubscribers[userId].watchlistId;
-						}
+				if (subscription) {
+					
+					if (!subscription.stock && subscription.watchlistId) {
+						delete subscribers["stock"][ticker][userId][subscriberId];
+					} else {
+						delete subscribers["stock"][ticker][userId][subscriberId].watchlistId;
+					}
 
-						if (Object.keys(stockSubscribers).length == 0) {
-							delete subscribers["stock"][ticker]; 
-						}
+					if (Object.keys(_.get(subscribers, `stock.${ticker}.${userId}`, {})) == 0) {
+						delete subscribers["stock"][ticker][userId];
+					}
+
+					if (Object.keys(_.get(subscribers, `stock.${ticker}`, {})).length = 0) {
+						delete subscribers["stock"][ticker]; 
 					}
 				}
 			});
@@ -235,12 +244,11 @@ function _handleWatchlistUnsubscription(req, res) {
 function _handleAdviceSubscription(req, res) {
 	const adviceId = req.adviceId;
 	const userId = req.userId;
+	const subscriberId = req.subscriberId;
 
-	if (!subscribers["advice"][adviceId]) {
-		subscribers["advice"][adviceId] = {};
+	if (!_.get(subscribers,`advice.${adviceId}`, null)) {
+		_.set(subscribers, `advice.${adviceId}`, {})
 	}
-
-	var adviceSubscribers = subscribers["advice"][adviceId];
 
 	//first check is user if authorized to view advice (detail or summary)
 	return Promise.all([
@@ -249,9 +257,9 @@ function _handleAdviceSubscription(req, res) {
 	])
 	.then(([detailAuthorization, summaryAuthorization]) => {
 		if (detailAuthorization) {
-			adviceSubscribers[userId] = {detail: true, response: res};
+			_.set(subscribers, `advice.${adviceId}.${userId}.${subscriberId}`, {detail: true, response: res, errorCount: 0});
 		} else if (summaryAuthorization) {
-		 	adviceSubscribers[userId] = {detail: false, response: res};
+			_.set(subscribers, `advice.${adviceId}.${userId}.${subscriberId}`, {detail: false, response: res, errorCount: 0});
 		} else {
 			APIError.jsonError({message: "Not Authorized to view advice"});
 		}
@@ -272,18 +280,21 @@ function _handleAdviceSubscription(req, res) {
 function _handlePortfolioSubscription(req, res) {
 	const portfolioId = req.portfolioId;
 	const userId = req.userId;
+	const subscriberId = req.subscriberId;
+
 	const detail = req.detail ? req.detail : false;
-	if (!subscribers["portfolio"][portfolioId]) {
-		subscribers["portfolio"][portfolioId] = {};
+	
+	if (!_.get(subscribers,`portfolio.${portfolioId}`, null)) {
+		_.set(subscribers, `portfolio.${portfolioId}`, {})
 	}
 
-	var portfolioSubscribers = subscribers["portfolio"][portfolioId];
 
 	//first check is user if authorized to view advice (detail or summary)
 	return InvestorModel.fetchInvestor({user: userId}, {fields: 'portfolios'})
 	.then(investor => {
 		if (investor && investor.portfolios && investor.portfolios.map(item => item.toString()).indexOf(portfolioId) !=- 1) {
-			portfolioSubscribers[userId] = {detail: detail , response: res};
+			_.set(subscribers, `portfolio.${portfolioId}.${userId}.${subscriberId}`, {detail: detail , response: res, errorCount: 0});
+
 		} else {
 			APIError.throwJsonError({message: "Not Authorized to view portfolio"});
 		}
@@ -305,6 +316,7 @@ function _handleWatchlistSubscription(req, res) {
 	const watchlistId = req.watchlistId;
 	const advisorId = req.advisorId;
 	const userId = req.userId;
+	const subscriberId = req.subscriberId;
 
 	return UserModel.fetchUser({_id: userId}, {fields:'email'})
 	.then(user => {
@@ -325,21 +337,21 @@ function _handleWatchlistSubscription(req, res) {
 		if(watchlist && watchlist.securities) {
 			return Promise.mapSeries(watchlist.securities, function(security){
 				var ticker = security.ticker;
-				if (!subscribers["stock"][ticker]) {
-					subscribers["stock"][ticker] = {};
+				if (_.get(subscribers, `stock.${ticker}`, null)) {
+					_.set(subscribers, `stock.${ticker}`, {})
 				}
 
-				var subscription = subscribers["stock"][ticker][userId];
+				var subscription = _.get(subscribers, `stock.${ticker}.${userId}.${subscriberId}`, null);
 
 				if (subscription) {
-					subscribers["stock"][ticker][userId].response = res;
-					subscribers["stock"][ticker][userId].watchlistId = watchlistId;					
+					subscribers["stock"][ticker][userId][subscriberId].response = res;
+					subscribers["stock"][ticker][userId][subscriberId].watchlistId = watchlistId;					
 				} else {
-					subscribers["stock"][ticker][userId] = {response: res, watchlistId: watchlistId};
+					_.set(subscribers, `stock.${ticker}.${userId}.${subscriberId}`, {response: res, watchlistId: watchlistId, errorCount: 0});
 				}
 
 				//Send immediate response back to subscriber
-				return _sendUpdatedSingleStockOnNewData(ticker, [subscribers["stock"][ticker][userId]]);	
+				return _sendUpdatedSingleStockOnNewData(ticker, [subscribers["stock"][ticker][userId][subscriberId]]);	
 			})
 			.then(([]) => {
 				return true;
@@ -360,22 +372,23 @@ function _handleStockSubscription(req, res) {
 	return new Promise(resolve => {
 		const ticker = req.ticker;
 		const userId = req.userId;
-		if (!subscribers["stock"][ticker]) {
-			subscribers["stock"][ticker] = {};
+		const subscriberId = req.subscriberId;
+
+		if (_.get(subscribers, `stock.${ticker}`, null)) {
+			_.set(subscribers, `stock.${ticker}`, {})
 		}
 
-		var stockSubscribers = subscribers["stock"][ticker];
-		var subscription = stockSubscribers[userId];
+		var subscription = _.get(subscribers, `stock.${ticker}.${userId}.${subscriberId}`, null)
 
 		if (subscription) {
-			stockSubscribers[userId].response = res;
-			stockSubscribers[userId].stock = true;		
+			subscribers["stock"][ticker][userId][subscriberId].response = res;
+			subscribers["stock"][ticker][userId][subscriberId].stock = true;
 		} else {
-			stockSubscribers[userId] = {response: res, stock: true};
+			_.set(subscribers, `stock.${ticker}.${userId}.${subscriberId}`, {response: res, stock: true, errorCount: 0});
 		}
 
 		//Send immediate response back to subscriber
-		resolve(_sendUpdatedSingleStockOnNewData(ticker, [stockSubscribers[userId]]));
+		resolve(_sendUpdatedSingleStockOnNewData(ticker, [subscribers["stock"][ticker][userId][subscriberId]]));
 	});
 }
 
@@ -396,8 +409,8 @@ function _sendWSResponse(res, data, category, typeId) {
 
 		return res.send(msg);
 	} else {
-		return; 
-		//APIError.throwJsonError({message: "Websocket is not OPEN"});
+		// return; 
+		APIError.throwJsonError({message: "Websocket is not OPEN"});
 	}
 }
 
@@ -408,23 +421,31 @@ function _onDataUpdate(typeId, data, category) {
 	var subscribedUsers = subscribers[category][typeId];
 	
 	return Promise.map(Object.keys(subscribedUsers), function(userId) {
-		var subscription = subscribedUsers[userId];
+		
+		return Promise.map(subscribedUsers[userId], function(subscriberId) {
+			var subscription = subscribedUsers[userId][subscriberId];
+			
+			if (subscription && subscription.errorCount < 5) {
+				var res = subscription.response;
+				var detail = subscription.detail;
 
-		var res = subscription.response;
-		var detail = subscription.detail;
-
-		return new Promise(resolve => {
-			try{
-				if (detail ) {
-					resolve(_sendWSResponse(res, data, category, typeId));
-				} else {
-					resolve(_sendWSResponse(res, _filterData(data, category), category, typeId));
-				}
-			} catch(err) {
-				console.log(err.message);
-				resolve(true);
+				return new Promise(resolve => {
+					try{
+						if (detail ) {
+							resolve(_sendWSResponse(res, data, category, typeId));
+						} else {
+							resolve(_sendWSResponse(res, _filterData(data, category), category, typeId));
+						}
+					} catch(err) {
+						console.log(err.message);
+						subscription.errorCount += 1;
+						resolve(true);
+					}
+				});
+			} else {
+				subscribers[category][typeId][userId][subscriberId] = null;
 			}
-		});
+		})
 	});
 }
 
@@ -608,7 +629,10 @@ function _sendUpdatedStocksOnNewData() {
 	return new Promise(resolve => {
 		return Promise.mapSeries(Object.keys(subscribedStocks), function(ticker) {
 			var stockSubscribers = subscribedStocks[ticker];
-			return _sendUpdatedSingleStockOnNewData(ticker, stockSubscribers)
+			return Promise.map(stockSubscribers, function(userId) {
+				return _sendUpdatedSingleStockOnNewData(ticker, stockSubscribers[userId])	
+			})
+			
 		})
 		.then(x => {
 			resolve(true);

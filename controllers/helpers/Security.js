@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-29 09:43:50
+* @Last Modified time: 2019-03-29 10:30:13
 */
 
 'use strict';
@@ -334,7 +334,7 @@ module.exports.getRealtimeQuoteFromEODH = function(ticker) {
 		if (latestQuote) {
 
 			//Get the original ticker back
-			ticker = quoteData.code.split('.')[0];
+			ticker = latestQuote.code.split('.')[0];
 			
 			return _updateLatestQuoteInRedis(ticker, latestQuote)
 			.then(() => {
