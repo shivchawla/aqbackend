@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-29 14:39:05
+* @Last Modified time: 2019-03-29 15:02:02
 */
 'use strict';
 const config = require('config');
@@ -336,7 +336,7 @@ module.exports.sendAdminUpdates = function(advisorId, predictionId) {
 			return Promise.map(Object.keys(_.get(predictionSubscribers, adminUserId , {})), function(subscribedId) {
 				
 				let subscription = 	predictionSubscribers[adminUserId][subscribedId];
-				return _sendAdminRealPredictionUpdates(subcription, advisorId, predictionId);	
+				return _sendAdminRealPredictionUpdates(subscription, advisorId, predictionId);	
 			});
 		})
 	})
