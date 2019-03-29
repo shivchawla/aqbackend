@@ -4,6 +4,7 @@ const _ = require('lodash');
 const ib = require('ib');
 const config = require('config');
 const Promise = require('bluebird');
+const schedule = require('node-schedule');
 const serverPort = require('../../index').serverPort;
 
 const BrokerRedisController = require('./brokerRedisControl');
@@ -67,11 +68,12 @@ class InteractiveBroker {
     }
 
     static requireContractDetails(stock) {
+        const self = this;
         return new Promise((resolve, reject) => {
             try {
                 // Getting the interactive broker instance
-                const ibInstance = this.interactiveBroker;
-                this.getNextRequestId()
+                const ibInstance = self.interactiveBroker;
+                self.getNextRequestId()
                 .then(reqId => {
                     ibInstance.reqContractDetails(reqId, ibInstance.contract.stock(stock))
                     .on('contractDetails', (reqId, contract) => {
@@ -79,7 +81,7 @@ class InteractiveBroker {
                     });
                 })
             } catch (err) {
-                reject(err);
+                reject(err.message);
             }
         })
     }
@@ -95,14 +97,13 @@ class InteractiveBroker {
 
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
-               
+                let contract;
+
                 this.getNextRequestId()
                 .then(reqId => {
                     requestId = reqId;
                     var ibTicker = this.getRequiredSymbol(stock);
-                    
-                    let contract;
-                    
+                                        
                     if (index) {
                         contract = ibInstance.contract.index(ibTicker, 'INR', 'NSE');
                     } else {
@@ -121,8 +122,8 @@ class InteractiveBroker {
                         }
                     })
                     .on('error', err => {
+                        console.log(err.message);
                         resolve([]);
-                        console.log(err);
                     })
                 })
             } catch (err) {
@@ -430,6 +431,7 @@ if (config.get('node_ib_port') === serverPort && config.get('ib_connect_flag')) 
 
     //Connest to IB server
     InteractiveBroker.connect()
+    InteractiveBroker.requireContractDetails('CNX100');
 
     /**
      * Handling event 'orderStatus' when send from the IB gateway or IB TWS
@@ -479,4 +481,3 @@ if (config.get('node_ib_port') === serverPort && config.get('ib_connect_flag')) 
 }
 
 module.exports = InteractiveBroker;
-

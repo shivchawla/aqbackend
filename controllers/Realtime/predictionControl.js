@@ -185,7 +185,7 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId, incomi
 function _handlePredictionSubscription(req, res) {
 	return new Promise((resolve, reject) => {
 		const userId = req.userId;
-		const advisorId = req.advisorId;
+		let advisorId = req.advisorId;
 		const category = req.category;
 		const real = _.get(req, 'real', false);
 		const subscriberId = _.get(req, 'subscriberId', "");
@@ -202,14 +202,13 @@ function _handlePredictionSubscription(req, res) {
 			if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
 				advisorSelection = {_id: advisorId};
 			}
- 			return AdvisorModel.fetchAdvisor(advisorSelection, {fields:'_id'});	
+ 			return AdvisorModel.fetchAdvisor(advisorSelection, {fields:'_id allocation'});	
  		})
-		.then(advisor => {
-			if (advisor) {
+		.then(masterAdvisor => {
+			if (masterAdvisor) {
 
-				let advisorId = advisor._id;
-				let masterAdvisorId = advisorId;
-
+				// let advisorId = advisor._id;
+				let masterAdvisorId = masterAdvisor._id;
 				if (real) {
 					if (_.get(masterAdvisor, 'allocation.status', false)) {
 						advisorId = masterAdvisor.allocation.advisor;

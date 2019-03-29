@@ -337,7 +337,7 @@ function _handleWatchlistSubscription(req, res) {
 		if(watchlist && watchlist.securities) {
 			return Promise.mapSeries(watchlist.securities, function(security){
 				var ticker = security.ticker;
-				if (_.get(subscribers, `stock.${ticker}`, null)) {
+				if (!_.get(subscribers, `stock.${ticker}`, null)) {
 					_.set(subscribers, `stock.${ticker}`, {})
 				}
 
@@ -349,9 +349,8 @@ function _handleWatchlistSubscription(req, res) {
 				} else {
 					_.set(subscribers, `stock.${ticker}.${userId}.${subscriberId}`, {response: res, watchlistId: watchlistId, errorCount: 0});
 				}
-
 				//Send immediate response back to subscriber
-				return _sendUpdatedSingleStockOnNewData(ticker, [subscribers["stock"][ticker][userId][subscriberId]]);	
+				return _sendUpdatedSingleStockOnNewData(ticker, subscribers["stock"][ticker][userId]);	
 			})
 			.then(([]) => {
 				return true;
@@ -374,7 +373,7 @@ function _handleStockSubscription(req, res) {
 		const userId = req.userId;
 		const subscriberId = req.subscriberId;
 
-		if (_.get(subscribers, `stock.${ticker}`, null)) {
+		if (!_.get(subscribers, `stock.${ticker}`, null)) {
 			_.set(subscribers, `stock.${ticker}`, {})
 		}
 
@@ -388,7 +387,7 @@ function _handleStockSubscription(req, res) {
 		}
 
 		//Send immediate response back to subscriber
-		resolve(_sendUpdatedSingleStockOnNewData(ticker, [subscribers["stock"][ticker][userId][subscriberId]]));
+		resolve(_sendUpdatedSingleStockOnNewData(ticker, subscribers["stock"][ticker][userId]));
 	});
 }
 
@@ -443,7 +442,7 @@ function _onDataUpdate(typeId, data, category) {
 					}
 				});
 			} else {
-				subscribers[category][typeId][userId][subscriberId] = null;
+				delete subscribers[category][typeId][userId][subscriberId];
 			}
 		})
 	});
@@ -629,7 +628,10 @@ function _sendUpdatedStocksOnNewData() {
 	return new Promise(resolve => {
 		return Promise.mapSeries(Object.keys(subscribedStocks), function(ticker) {
 			var stockSubscribers = subscribedStocks[ticker];
-			return Promise.map(stockSubscribers, function(userId) {
+			return Promise.map(Object.keys(stockSubscribers), function(userId) {
+
+				console.log("Hols");
+
 				return _sendUpdatedSingleStockOnNewData(ticker, stockSubscribers[userId])	
 			})
 			
