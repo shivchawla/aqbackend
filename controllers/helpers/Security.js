@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-28 22:45:21
+* @Last Modified time: 2019-03-29 09:43:50
 */
 
 'use strict';
@@ -148,12 +148,14 @@ function _computeStockIntradayHistory(security, date) {
 		var nextMarketOpen = DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday(date));
 
 		//Get compelete data from IB
-		return InteractiveBroker.requestIntradayHistoricalData(security.ticker)
+		var isIndex = security.ticker.includes("NIFTY");
+
+		return InteractiveBroker.requestIntradayHistoricalData(security.ticker, {index: isIndex})
 		.then(data => {
 
 			//Update the time Z format
 			data = data.map(item => {
-				const convertedTime = DateHelper.convertIndianTimeInLocalTz(item.datetime, 'yyyymmdd HH:mm:ss').endOf('minute').set({millisecond:0}).toISOString();
+				const convertedTime = DateHelper.convertIndianTimeInLocalTz(item.datetime, 'yyyymmdd HH:mm:ss').add(1,'minute').startOf('minute').toISOString();
 				return {...item, datetime: convertedTime};
 			});
 
@@ -192,7 +194,12 @@ function _computeStockLatestRTDetail(security) {
 		if (lastQuote) {
 			return JSON.parse(lastQuote);
 		} else {
-			return exports.getRealtimeQuoteFromEODH(security.ticker);	
+			var isIndex = security.ticker.includes("NIFTY");
+			if (isIndex) {
+				return exports.getRealtimeQuoteFromIB(security.ticker, true);
+			} else {
+				return exports.getRealtimeQuoteFromEODH(security.ticker);	
+			}
 		}
 	});
 }
@@ -261,6 +268,49 @@ module.exports.updateRealtimeQuotesFromEODH = function(allTickers) {
 	}
 }
 
+function _updateLatestQuoteInRedis(ticker, latestQuote) {
+	return RedisUtils.insertKeyValue(getRedisClient(), `latestQuote-${ticker}`, JSON.stringify(latestQuote))
+	.then(() => {
+		//Expire the real time quote
+		let whenToExpire;
+
+		if (DateHelper.isMarketTrading()) {
+			whenToExpire = Math.floor(moment().endOf('minute').valueOf()/1000);
+		} else {
+			console.log(`Timestamp of latest/last quote for ${latestQuote.code} is ${latestQuote.timestamp}`);
+			whenToExpire = Math.floor(DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday()).valueOf()/1000);
+		}
+		
+		return RedisUtils.expireKeyInRedis(getRedisClient(), `latestQuote-${ticker}`, whenToExpire);	
+	})
+}
+
+
+module.exports.getRealtimeQuoteFromIB = function(ticker, isIndex = false) {
+	return Promise.resolve()
+	.then(() => {
+		return InteractiveBroker.requestIntradayHistoricalData(ticker, {duration: '60 s', index: isIndex})	
+	})
+	.then(quotesData => {
+		if (quotesData && quotesData.length > 0) {
+			quotesData = quotesData.map(item => {
+				const convertedTime = DateHelper.convertIndianTimeInLocalTz(item.datetime, 'yyyymmdd HH:mm:ss').add(1, 'minute').startOf('minute').toISOString();
+				return {...item, datetime: convertedTime};
+			}).sort((a,b) => { return moment(a.datetime).isAfter(a.datetime) ? -1 : 1;});
+
+			var latestQuote = quotesData[0];
+
+			return _updateLatestQuoteInRedis(ticker, latestQuote)
+			.then(() => {
+				return latestQuote
+			})
+		} 
+	})
+	.catch(err => {
+		console.log(err);
+	})
+}
+
 module.exports.getRealtimeQuoteFromEODH = function(ticker) {
 	var otherTickers = '';
 	
@@ -286,20 +336,7 @@ module.exports.getRealtimeQuoteFromEODH = function(ticker) {
 			//Get the original ticker back
 			ticker = quoteData.code.split('.')[0];
 			
-			return RedisUtils.insertKeyValue(getRedisClient(), `latestQuote-${ticker}`, JSON.stringify(latestQuote))
-			.then(() => {
-				//Expire the real time quote
-				let whenToExpire;
-
-				if (DateHelper.isMarketTrading()) {
-					whenToExpire = Math.floor(moment().endOf('minute').valueOf()/1000);
-				} else {
-					console.log(`Timestamp of latest/last quote for ${latestQuote.code} is ${latestQuote.timestamp}`);
-					whenToExpire = Math.floor(DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday()).valueOf()/1000);
-				}
-				
-				return RedisUtils.expireKeyInRedis(getRedisClient(), `latestQuote-${ticker}`, whenToExpire);	
-			})
+			return _updateLatestQuoteInRedis(ticker, latestQuote)
 			.then(() => {
 				//return after updating redis
 				return latestQuote;

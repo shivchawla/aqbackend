@@ -37,10 +37,7 @@ class InteractiveBroker {
                     console.log('Next Valid Id:', reqId);
                     return this.setNextValidId(reqId)
                     .then(() => {
-                        return Promise.all([
-                            this.getExecutionsAndOpenOrders(),
-                            this.getIntradayStreamDataForIndices()
-                        ])
+                        return this.getExecutionsAndOpenOrders();
                     })
 
                 })
@@ -69,13 +66,6 @@ class InteractiveBroker {
         })
     }
 
-     static getIntradayStreamDataForIndices() {
-        const ticker = Object.keys(indices);
-        return Promise.map(tickers, function(ticker) {
-            this.requestIntradayStreamData(ticker);
-        });
-    }
-
     static requireContractDetails(stock) {
         return new Promise((resolve, reject) => {
             try {
@@ -94,22 +84,32 @@ class InteractiveBroker {
         })
     }
 
-    static requestIntradayHistoricalData(stock) {
+    static requestIntradayHistoricalData(stock, options = {}) {
         return new Promise((resolve, reject) => {
             try {
                 let requestId = null;
                 let historicalData = [];
 
+                let duration = _.get(options, 'duration', '1 D');
+                let index = _.get(options, 'index', false);
+
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
+               
                 this.getNextRequestId()
                 .then(reqId => {
                     requestId = reqId;
-                    stock = this.getRequiredSymbol(stock);
+                    var ibTicker = this.getRequiredSymbol(stock);
+                    
+                    let contract;
+                    
+                    if (index) {
+                        contract = ibInstance.contract.ind(ibTicker, 'NSE', 'INR');
+                    } else {
+                        contract = ibInstance.contract.stock(ibTicker, 'NSE', 'INR');
+                    }
 
-                    const contract = ibInstance.contract.stock(stock, 'NSE', 'INR');
-
-                    ibInstance.reqHistoricalData(reqId, contract, '', '1 D', '1 min', 'TRADES', 1, 1, false)
+                    ibInstance.reqHistoricalData(reqId, contract, '', duration, '1 min', 'TRADES', 1, 1, false)
                     .on('historicalData', (reqId, datetime, open, high, low, close, volume) => {
                         if (reqId === requestId) {
                             const hasFinised = datetime.indexOf('finished') > -1;
@@ -129,45 +129,6 @@ class InteractiveBroker {
                 reject(err);
             }
         })
-    }
-
-     static requestIntradayStreamData(stock, index = true) {
-        try {
-            let requestId = null;
-
-            // Getting the interactive broker instance
-            const ibInstance = this.interactiveBroker;
-            this.getNextRequestId()
-            .then(reqId => {
-                requestId = reqId;
-                
-                let ibTicker = this.getRequiredSymbol(stock);
-
-                let contract;
-                if (index) {
-                    contract = ibInstance.contract.stock(ibTicker, 'NSE', 'INR');
-                } else {
-                    contract = ibInstance.contract.ind(ibTicker, 'NSE', 'INR');    
-                }
-
-                ibInstance.reqHistoricalData(reqId, contract, '', '1 D', '1 min', 'TRADES', 1, 1, true)
-                .on('historicalData', (reqId, datetime, open, high, low, close, volume) => {
-                    if (reqId === requestId) {
-                        BrokerRedisController.addLatestBarData(stock, {datetime, open, high, low, close, volume});
-                    }
-                })
-                .on('historicalDataUpdate', (reqId, datetime, open, high, low, close, volume) => {
-                    if (reqId === requestId) {
-                        BrokerRedisController.addLatestBarData(stock, {datetime, open, high, low, close, volume});                           
-                    }
-                })
-                .on('error', err => {
-                    console.log(err);
-                })
-            })
-        } catch (err) {
-            reject(err);
-        }
     }
 
     static getRequiredSymbol(symbol) {
