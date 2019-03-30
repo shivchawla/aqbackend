@@ -84,7 +84,9 @@ module.exports.getStockDetail = function(args, res, next) {
 			return SecurityHelper.getStockRollingPerformance(security);
 		} else if (field == "latestDetail") {
 			return SecurityHelper.getStockLatestDetail(security);	
-		} 
+		} else if (field == "fundamentalData") {
+			return SecurityHelper.getStockFundamentalData(security)
+		}
 	})
 	.then(output => {
 		return res.status(200).send(output);

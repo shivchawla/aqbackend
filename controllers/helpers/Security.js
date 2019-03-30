@@ -21,6 +21,7 @@ const niftyIndices = require('../../documents/indices.json');
 
 const SecurityPerformanceModel = require('../../models/Marketplace/SecurityPerformance');
 const SecurityIntradayHistoryModel = require('../../models/Marketplace/SecurityIntradayHistory');
+const SecurityFundamentalDataModel = require('../../models/Marketplace/SecurityFundamentalData');
 const APIError = require('../../utils/error');
 const WebSocket = require('ws'); 
 
@@ -404,6 +405,26 @@ function _checkIfStockLatestDetailUpdateRequired(detail) {
     return false;
 }
 
+function _checkIfStockDetailFundamentalDataUpdateRequired(security) {
+	var query = {'security.ticker': security.ticker,
+						'security.exchange': security.exchange ? security.exchange : "NSE",
+						'security.securityType': security.securityType ? security.securityType : "EQ",
+						'security.country': security.country ? security.country : "IN"};
+	SecurityFundamentalDataModel.fetchFundamentalData(query)
+	.then(fundamentalData => {
+		const updateDateRequired = !fundamentalData;
+		if (updateDateRequired) {
+			return true
+		} else {
+			return false
+		}
+	})
+	.catch(err => {
+		console.log('Error: _checkIfStockDetailFundamentalDataUpdateRequired ', err.message);
+	})
+	
+}
+
 function _getSecurityDetail(security) {
 	return new Promise((resolve, reject) => {
 
@@ -693,6 +714,64 @@ module.exports.getStockRollingPerformance = function(security) {
 		} else {
 			return securityPerformance.toObject();
 		}
+	})
+}
+
+module.exports.getStockFundamentalData = function(security) {
+	var query = {'security.ticker': security.ticker,
+		'security.exchange': security.exchange,
+		'security.securityType': security.securityType,
+		'security.country': security.country
+	};
+	
+	return SecurityFundamentalDataModel.fetchFundamentalData(query)
+	.then(fundamentalData => {
+		console.log('FD DB ', fundamentalData);
+		var update = fundamentalData 
+			? _checkIfStockDetailFundamentalDataUpdateRequired(security)
+			: true;
+		if (update) {
+			console.log('Fundamental Data Update Required')
+			return exports.updateFundamentalDataFromEODH(security);
+		} else {
+			console.log('Fundamental Data Update is not required');
+			return fundamentalData
+		}
+	})
+	.catch(err => {
+		console.log('Error: getStockFundamentalData', err.message);
+		throw(err);
+	})
+}
+
+module.exports.updateFundamentalDataFromEODH = function(security) {
+	const ticker = security.ticker;
+	const fundamentalDataUrl = `https://eodhistoricaldata.com/api/fundamentals/${ticker}.NSE?api_token=5b87e1823a5034.40596433`;
+
+	return axios.get(fundamentalDataUrl)
+	.then(response => {
+		if (response && response.data) {
+			console.log('Response Data ', response.data);
+			return response.data;
+		}
+	})
+	.then(fundamentalData => {
+		const query = {'security.ticker': security.ticker,
+			'security.exchange': security.exchange,
+			'security.securityType': security.securityType,
+			'security.country': security.country
+		};
+		const requiredFundamentalData = {
+			updatedDate: new Date(),
+			detail: fundamentalData
+		}
+
+		return SecurityFundamentalDataModel.saveSecurityFundamentalData({security, fundamentalData: requiredFundamentalData})
+	})
+	.then(fundamentalData => fundamentalData)
+	.catch(err => {
+		console.log('Error: updateFundamentalDataFromEODH ', err.message);
+		throw(err);
 	})
 }
 
