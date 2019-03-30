@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-27 12:02:03
+* @Last Modified time: 2019-03-28 22:56:31
 */
 
 'use strict';
@@ -15,7 +15,7 @@ const DailyContestStatsHelper = require('../controllers/helpers/DailyContestStat
 const DailyContestEntryHelper = require('../controllers/helpers/DailyContestEntry');
 const AdhocJobs = require('../controllers/helpers/AdhocJobs');
 const FormatJobs = require('../controllers/helpers/FormatDataJobs');
-
+const EODHJobs = require('./downloadEODH');
 const DateHelper = require('../utils/Date');
 
 const schedule = require('node-schedule');

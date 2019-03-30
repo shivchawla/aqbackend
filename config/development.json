@@ -121,8 +121,10 @@
     "ft_hour":7,
     "ft_port":13000,
 
-    "ib_host": "127.0.0.1",
-    "ib_port": 4002,
+    "ib_connect_flag": false,
+    "ib_tws_host": "207.180.248.10",
+    "ib_tws_port": 4002,
+    "node_ib_port": 5001,
 
     "realtime_EODH_quote_url":"https://eodhistoricaldata.com/api/real-time/${ticker}.NSE?api_token=5b87e1823a5034.40596433&fmt=json&s=${otherTickers}"
 

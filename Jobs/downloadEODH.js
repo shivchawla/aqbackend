@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 19:09:29
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-16 21:03:31
+* @Last Modified time: 2019-03-29 11:48:13
 */
 
 'use strict';
@@ -11,12 +11,15 @@ const config = require('config');
 const moment = require('moment-timezone');
 const path = require('path');
 const Promise = require('bluebird');
+const _ = require('lodash');
 
 const DateHelper = require('../utils/Date');
 const serverPort = require('../index').serverPort;
 
 const DailyContestEntryHelper = require('../controllers/helpers/DailyContestEntry');
 const DailyContestEntryModel = require('../models/Marketplace/DailyContestEntry');
+const PredictionRealtimeController = require('../controllers/Realtime/predictionControl');
+const MktPlaceController = require('../controllers/Realtime/mktPlaceControl');
 
 const SecurityHelper = require('../controllers/helpers/Security');
 
@@ -30,7 +33,7 @@ function downnloadEODHRealtimeForActivePredictions() {
 		return Promise.mapSeries(advisors, function(advisorId) {
 			return DailyContestEntryHelper.getPredictionsForDate(advisorId, currentDate, {category: "all", priceUpdate:false, active: null})
 			.then(predictions => {
-				return prediction.map(item => {
+				return predictions.map(item => {
 					return {...item, advisorId: advisorId};
 				});
 			});
@@ -45,8 +48,8 @@ function downnloadEODHRealtimeForActivePredictions() {
 		var batchSize = 10;
 		var numBatches = Math.ceil(uniqueTickers.length / 10);
 
-		return Promise.mapSeries(Array(numBatches), function(index, batch) {
-			return SecurityHelper.getRealtimeQuotesFromEODH(uniqueTickers.slice(index*batchSize, (index+1)*batchSize));
+		return Promise.map(Array(numBatches), function(index, batch) {
+			return SecurityHelper.updateRealtimeQuotesFromEODH(uniqueTickers.slice(index*batchSize, (index+1)*batchSize));
 		})		
 
 	});
@@ -72,14 +75,28 @@ function downloadEODHRealtimeForNifty500Stocks() {
 
 if (config.get('jobsPort') === serverPort) {
 	
-	const startEODHDownloadTime = DateHelper.getMarketOpenDateTime()
-	const endEODHDownloadTime = DateHelper.getMarketCloseDateTime()
-	
-	//10th sec of every 5 minutes for all weekdays (hours and minute are takend care by start and end time)
-	const scheduleEODHDownloadRule = `10 */5 * * * 1-5`;
-	schedule.scheduleJob(scheduleEODHDownloadRule, function() { 
-		if (!DateHelper.isHoliday() && moment().isAfter(startEODHDownloadTime) && moment().isBefore(endEODHDownloadTime)) {
-			downloadEODHRealtimeForNifty500Stocks();
-		}
+	const scheduleUpdateCallPriceEODH = `20 */1 ${DateHelper.getMarketOpenHour()}-${DateHelper.getMarketCloseHour()} * * 1-5`;
+	schedule.scheduleJob(scheduleUpdateCallPriceEODH, function() { 
+		if (!DateHelper.isHoliday()) {
+			Promise.resolve()
+			.then(() => {
+				if (DateHelper.isMarketTrading(0, -1)) {
+					downnloadEODHRealtimeForActivePredictions()
+					.then(() => {
+			    		DailyContestEntryHelper.updateCallPriceForPredictionsFromEODH()
+		    		})
+			    	.then(() => {
+			    		Promise.all([
+			    			MktPlaceController.sendAllUpdates(),
+			    			PredictionRealtimeController.sendAllUpdates()
+		    			])
+					})
+					.catch(err => {
+						console.log("scheduleUpdateCallPriceEODH: ", err.message);
+					})
+		    	}
+	    	})
+    	}
 	});
+	
 }  	

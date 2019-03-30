@@ -99,7 +99,6 @@
     "admin_followers":["shivchawla2001@gmail.com","saru.sreyo@gmail.com"],
     "dummy_advisors":[],
 
-
     "nse_private_key": "nse_15min_token",
     "nse_host":"121.241.2.65",
     "nse_port":6010,
@@ -112,5 +111,12 @@
     "ft_second":0,
     "ft_minute":0,
     "ft_hour":7,
-    "ft_port":13001
+    "ft_port":13001,
+
+    "ib_connect_flag": false,
+    "ib_tws_host": "207.180.248.10",
+    "ib_tws_port": 4002,
+    "node_ib_port": 7001,
+
+    "realtime_EODH_quote_url":"https://eodhistoricaldata.com/api/real-time/${ticker}.NSE?api_token=5b87e1823a5034.40596433&fmt=json&s=${otherTickers}"
 }

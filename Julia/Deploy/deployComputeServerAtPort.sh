@@ -1,7 +1,7 @@
 # @Author: Shiv Chawla
 # @Date:   2019-02-12 16:16:44
 # @Last Modified by:   Shiv Chawla
-# @Last Modified time: 2019-02-23 15:15:58
+# @Last Modified time: 2019-03-06 20:09:01
 
 #!/bin/bash
 user="$1"
@@ -23,17 +23,14 @@ cp /home/admin/$env/raftaar /home/$user/ -R
 cp /home/admin/$env/aqbackend/Julia /home/$user/ -R
 
 chown -R $user /home/$user/raftaar
-chown -R $user /home/$user/yojak
 chown -R $user /home/$user/Julia
 chown -R $user /home/$user/.julia
 
 chgrp -R $user /home/$user/raftaar
-chgrp -R $user /home/$user/yojak
 chgrp -R $user /home/$user/Julia
 chgrp -R $user /home/$user/.julia
 
 chmod -R u=rx /home/$user/raftaar
-chmod -R u=rx /home/$user/yojak
 chmod -R u=rx /home/$user/Julia
 chmod -R u=rwx /home/$user/.julia
 
