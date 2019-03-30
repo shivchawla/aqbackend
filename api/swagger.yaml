@@ -5450,6 +5450,8 @@ definitions:
       advisorId:
         type: string
         format: uuid
+      message:
+        type: string
 
         
 
