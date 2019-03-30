@@ -676,6 +676,7 @@ module.exports.updateReadStatusPrediction = (args, res, next) => {
 module.exports.updateSkipStatusPrediction = (args, res, next) => {
 	const predictionId = _.get(args, 'body.value.predictionId', null);
 	const advisorId = _.get(args, 'body.value.advisorId', null);
+	const skippedMessage =_.get(args, 'body.value.message', 'Order skipped by admin');
 
 	const userEmail = _.get(args, 'user.email', null);
 	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
@@ -701,7 +702,7 @@ module.exports.updateSkipStatusPrediction = (args, res, next) => {
 	})
 	.then(() => {
 		const adminActivity = {
-			message: 'Order Skipped',
+			message: skippedMessage,
 			activityType: 'SKIP',
 			obj: {}
 		};
