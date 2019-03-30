@@ -193,8 +193,6 @@ function _handleWatchlistUnsubscription(req, res) {
 	const advisorId = req.advisorId;
 	const userId = req.userId;
 	const subscriberId = req.subscriberId;
-	console.log('_handleWatchlistUnsubscription called', subscriberId);
-	console.log('_handleWatchlistUnsubscription called', watchlistId);
 
 	return UserModel.fetchUser({_id: userId}, {fields:'email'})
 	.then(user => {
@@ -219,7 +217,6 @@ function _handleWatchlistUnsubscription(req, res) {
 				var subscription = _.get(subscribers, `stock.${ticker}.${userId}.${subscriberId}`, null);
 
 				if (subscription) {
-					console.log('Subscription ', subscription);
 					if (!subscription.stock && subscription.watchlistId) {
 						delete subscribers["stock"][ticker][userId][subscriberId];
 					} else {
@@ -234,7 +231,6 @@ function _handleWatchlistUnsubscription(req, res) {
 						delete subscribers["stock"][ticker]; 
 					}
 				}
-				console.log('Modified Subscription Array ', subscribers);
 			});
 		}
 	})
@@ -354,11 +350,7 @@ function _handleWatchlistSubscription(req, res) {
 					subscribers["stock"][ticker][userId][subscriberId].watchlistId = watchlistId;					
 				} else {
 					_.set(subscribers, `stock.${ticker}.${userId}.${subscriberId}`, {response: res, watchlistId: watchlistId, errorCount: 0});
-				}
-
-				console.log("Subscribed User", Object.keys(subscribers["stock"][ticker]));
-				console.log("Actual subscribers", Object.keys(subscribers["stock"][ticker][userId]));
-				
+				}				
 				//Send immediate response back to subscriber
 				return _sendUpdatedSingleStockOnNewData(ticker, subscribers["stock"][ticker][userId]);	
 			})
