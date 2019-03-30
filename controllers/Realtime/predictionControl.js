@@ -23,13 +23,15 @@ const predictionSubscribers = {};
 /*
 * Sends the data using WS connection
 */
-function _sendWSResponse(res, data) {
+function _sendWSResponse(subscription, data) {
+	let res = subscription.response;
+
 	if (res && res.readyState === WebSocket.OPEN) {
 		var msg = JSON.stringify(data)
 		return res.send(msg);
 	} else {
-		return;
-		//throw new Error("Websocket is not OPEN");
+		subscription.errorCount += 1;
+		APIError.throwJsonError({message: "Websocket is not OPEN"});
 	}
 }
 
@@ -61,11 +63,7 @@ function _sendPredictionUpdates(subscription) {
 			
 	})
 	.then(([predictions, pnlStats, portStats]) => {
-		return _sendWSResponse(subscription.response, {advisorId: masterAdvisorId, real, category, predictions, pnlStats, portStats});
-	})
-	.catch(err => {
-		subscription.errorCount += 1;	
-		console.log(err.message);
+		return _sendWSResponse(subscription, {advisorId: masterAdvisorId, real, category, predictions, pnlStats, portStats});
 	})
 }
 
@@ -92,6 +90,10 @@ function _sendAllPredictionUpdates() {
 				delete predictionSubscribers[userId];
 			} 
 		})
+	})
+	.catch(err => {
+		console.log("Error. _sendAllPredictionUpdates: ", err.message);
+		throw(err);
 	})
 }
 
@@ -169,17 +171,11 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId, incomi
 				}
 			})
 			.then(predictions => {
-				return _sendWSResponse(subscription.response, {advisorId: masterAdvisorId, category, predictions});
+				return _sendWSResponse(subscription, {advisorId: masterAdvisorId, category, predictions});
 			})
 
 		})	
-			
-	})
-	.catch(err => {
-		subscription.errorCount += 1;	
-		console.log(err);
-		console.log(err.message);
-	})
+	});
 }
 
 //Handle simulated predictions (one advisor)
@@ -225,9 +221,8 @@ function _handlePredictionSubscription(req, res) {
 				return _sendPredictionUpdates(subscription);
 			
 			} else {
-				APIError.throwJsonError({message: "No advisor found. WS request can't be completed"});
+				APIError.throwJsonError("No advisor found. WS request can't be completed");
 			}
-
 		})
 		.then(prediction => {
 			resolve(prediction);
@@ -340,6 +335,10 @@ module.exports.sendAdminUpdates = function(advisorId, predictionId) {
 				return _sendAdminRealPredictionUpdates(subscription, advisorId, predictionId);	
 			});
 		})
+	})
+	.catch(err => {
+		console.log("Error: sendAdminUpdates: ", err.message);
+		throw(err);
 	})
 };
 

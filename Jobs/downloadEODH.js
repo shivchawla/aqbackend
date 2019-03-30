@@ -90,8 +90,10 @@ if (config.get('jobsPort') === serverPort) {
 			    			MktPlaceController.sendAllUpdates(),
 			    			PredictionRealtimeController.sendAllUpdates()
 		    			])
-			    	})
-
+					})
+					.catch(err => {
+						console.log("scheduleUpdateCallPriceEODH: ", err.message);
+					})
 		    	}
 	    	})
     	}

@@ -193,6 +193,8 @@ function _handleWatchlistUnsubscription(req, res) {
 	const advisorId = req.advisorId;
 	const userId = req.userId;
 	const subscriberId = req.subscriberId;
+	console.log('_handleWatchlistUnsubscription called', subscriberId);
+	console.log('_handleWatchlistUnsubscription called', watchlistId);
 
 	return UserModel.fetchUser({_id: userId}, {fields:'email'})
 	.then(user => {
@@ -217,7 +219,7 @@ function _handleWatchlistUnsubscription(req, res) {
 				var subscription = _.get(subscribers, `stock.${ticker}.${userId}.${subscriberId}`, null);
 
 				if (subscription) {
-					
+					console.log('Subscription ', subscription);
 					if (!subscription.stock && subscription.watchlistId) {
 						delete subscribers["stock"][ticker][userId][subscriberId];
 					} else {
@@ -232,9 +234,13 @@ function _handleWatchlistUnsubscription(req, res) {
 						delete subscribers["stock"][ticker]; 
 					}
 				}
+				console.log('Modified Subscription Array ', subscribers);
 			});
 		}
-	});
+	})
+	.catch(err => {
+		console.log('Error. _handleWatchlistUnsubscription ', err.message);
+	})
 }
 
 /*
@@ -349,6 +355,10 @@ function _handleWatchlistSubscription(req, res) {
 				} else {
 					_.set(subscribers, `stock.${ticker}.${userId}.${subscriberId}`, {response: res, watchlistId: watchlistId, errorCount: 0});
 				}
+
+				console.log("Subscribed User", Object.keys(subscribers["stock"][ticker]));
+				console.log("Actual subscribers", Object.keys(subscribers["stock"][ticker][userId]));
+				
 				//Send immediate response back to subscriber
 				return _sendUpdatedSingleStockOnNewData(ticker, subscribers["stock"][ticker][userId]);	
 			})
@@ -359,6 +369,9 @@ function _handleWatchlistSubscription(req, res) {
 			console.log("Invalid watchlist or no securities in watchlist");
 			return true;
 		}
+	})
+	.catch(err => {
+		console.log('_handleWatchlistSubscription Error --> ', err.message);
 	})
 		
 }
@@ -395,58 +408,58 @@ function _handleStockSubscription(req, res) {
 /*
 * Sends the data using WS connection
 */
-function _sendWSResponse(res, data, category, typeId) {
-	if (res && res.readyState === WebSocket.OPEN) {
-		var msg = JSON.stringify({
-				type: category,
-				portfolioId: category == "portfolio" ? typeId : null,
-				adviceId: category == "advice" ? typeId : null,
-				ticker: category == "stock" ? typeId : category == "watchlist" ? data.ticker : null,
-				watchlistId: category == "watchlist" ? typeId : null,
-				output: data,
-				date: null});
+function _sendWSResponse(subscription, data, category, typeId) {
+	return new Promise(resolve => {
+		try {
+			let res = subscription.response;
 
-		return res.send(msg);
-	} else {
-		// return; 
-		APIError.throwJsonError({message: "Websocket is not OPEN"});
-	}
+			if (res && res.readyState === WebSocket.OPEN) {
+				var msg = JSON.stringify({
+						type: category,
+						portfolioId: category == "portfolio" ? typeId : null,
+						adviceId: category == "advice" ? typeId : null,
+						ticker: category == "stock" ? typeId : category == "watchlist" ? data.ticker : null,
+						watchlistId: category == "watchlist" ? typeId : null,
+						output: data,
+						date: null});
+
+				resolve(res.send(msg));
+			} else {
+				APIError.throwJsonError("Websocket is not OPEN");
+			}
+		} catch (err) {
+				subscription.errorCount += 1;
+				resolve();
+		}
+	})
 }
 
 /*
 * Sends the data based on type (filters the data (for summary) if required)
 */
 function _onDataUpdate(typeId, data, category) {
-	var subscribedUsers = _.get(subscribers, `${category}.${typeId}`, {});
-	
-	return Promise.map(Object.keys(subscribedUsers), function(userId) {
-		var subscribers = _.get(subscribedUsers, userId ,{});
+		var subscribedUsers = _.get(subscribers, `${category}.${typeId}`, {});
+		
+		return Promise.map(Object.keys(subscribedUsers), function(userId) {
+			var subscribers = _.get(subscribedUsers, userId ,{});
 
-		return Promise.map(Object.keys(subscribers), function(subscriberId) {
-			var subscription = subscribers[subscriberId];
-			
-			if (subscription && subscription.errorCount < 5) {
-				var res = subscription.response;
-				var detail = subscription.detail;
+			return Promise.map(Object.keys(subscribers), function(subscriberId) {
+				var subscription = subscribers[subscriberId];
+				
+				if (subscription && subscription.errorCount < 5) {
+					var res = subscription.response;
+					var detail = subscription.detail;
 
-				return new Promise(resolve => {
-					try{
 						if (detail ) {
-							resolve(_sendWSResponse(res, data, category, typeId));
+							return _sendWSResponse(subscription, data, category, typeId);
 						} else {
-							resolve(_sendWSResponse(res, _filterData(data, category), category, typeId));
+							return _sendWSResponse(subscription, _filterData(data, category), category, typeId);
 						}
-					} catch(err) {
-						console.log(err.message);
-						subscription.errorCount += 1;
-						resolve(true);
-					}
-				});
-			} else {
-				delete subscribers[category][typeId][userId][subscriberId];
-			}
-		})
-	});
+				} else {
+						delete subscribers[category][typeId][userId][subscriberId];
+				}
+			})
+		});
 }
 
 /*
@@ -538,7 +551,8 @@ module.exports.sendAllUpdates = function() {
 		_sendUpdatedPortfoliosOnNewData(),
 		_sendUpdatedAdvicesOnNewData(),
 		_sendUpdatedStocksOnNewData()
-	]);
+	])
+
 }
 
 /*
@@ -610,11 +624,11 @@ function _sendUpdatedSingleStockOnNewData(ticker, subscriberList) {
 			if (subscription && subscription.response) {
 				var res = subscription.response;
 				if (subscription.stock) {
-					return _sendWSResponse(res, stockData, "stock", ticker);
+					return _sendWSResponse(subscription, stockData, "stock", ticker);
 				}
 
 				if (subscription.watchlistId) {
-					return _sendWSResponse(res, Object.assign({ticker: ticker}, stockData), "watchlist", subscription.watchlistId);
+					return _sendWSResponse(subscription, Object.assign({ticker: ticker}, stockData), "watchlist", subscription.watchlistId);
 				}
 			}
 		});
