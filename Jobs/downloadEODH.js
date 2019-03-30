@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 19:09:29
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-29 11:48:13
+* @Last Modified time: 2019-03-30 18:20:15
 */
 
 'use strict';
@@ -81,7 +81,10 @@ if (config.get('jobsPort') === serverPort) {
 			Promise.resolve()
 			.then(() => {
 				if (DateHelper.isMarketTrading(0, -1)) {
-					downnloadEODHRealtimeForActivePredictions()
+					Promise.all([
+						SecurityHelper.updateIndexRealtimeQuotesFromNifty(),
+						downnloadEODHRealtimeForActivePredictions()
+					])
 					.then(() => {
 			    		DailyContestEntryHelper.updateCallPriceForPredictionsFromEODH()
 		    		})

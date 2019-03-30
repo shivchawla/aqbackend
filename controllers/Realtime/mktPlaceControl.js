@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-24 13:43:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-30 01:37:34
+* @Last Modified time: 2019-03-30 18:17:28
 */
 
 'use strict';
@@ -21,6 +21,8 @@ const AdviceModel = require("../../models/Marketplace/Advice");
 const WatchlistModel = require("../../models/Marketplace/Watchlist");
 const UserModel = require('../../models/user');
 const APIError = require('../../utils/error');
+
+const MAX_ERROR_COUNT = 5;
 
 var isBusy = {};
 
@@ -350,7 +352,8 @@ function _handleWatchlistSubscription(req, res) {
 					subscribers["stock"][ticker][userId][subscriberId].watchlistId = watchlistId;					
 				} else {
 					_.set(subscribers, `stock.${ticker}.${userId}.${subscriberId}`, {response: res, watchlistId: watchlistId, errorCount: 0});
-				}				
+				}
+
 				//Send immediate response back to subscriber
 				return _sendUpdatedSingleStockOnNewData(ticker, subscribers["stock"][ticker][userId]);	
 			})
@@ -438,7 +441,7 @@ function _onDataUpdate(typeId, data, category) {
 			return Promise.map(Object.keys(subscribers), function(subscriberId) {
 				var subscription = subscribers[subscriberId];
 				
-				if (subscription && subscription.errorCount < 5) {
+				if (subscription && subscription.errorCount < MAX_ERROR_COUNT) {
 					var res = subscription.response;
 					var detail = subscription.detail;
 

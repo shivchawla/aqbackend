@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-30 01:33:16
+* @Last Modified time: 2019-03-30 17:59:49
 */
 'use strict';
 const config = require('config');
@@ -19,6 +19,8 @@ const DateHelper = require('../../utils/Date');
 const DailyContestEntryHelper = require('../helpers/DailyContestEntry')
 const BrokerRedisController = require('./brokerRedisControl');
 const predictionSubscribers = {};
+
+const MAX_ERRO_COUNT = 5;
 
 /*
 * Sends the data using WS connection
@@ -76,8 +78,8 @@ function _sendAllPredictionUpdates() {
 			
 			let subscription = subscriptions[subscriberId];
 			
-			if (subscription && subscription.errorCount > 5) {
-				console.log("Deleting subscriber from list. WS connection is invalid for 5th attmept")
+			if (subscription && subscription.errorCount > MAX_ERROR_COUNT) {
+				console.log("Deleting subscriber from list. WS connection is invalid for ${MAX_ERROR_COUNT} attmept")
 				delete predictionSubscribers[userId][subscriberId];
 				return;
 			} else {
