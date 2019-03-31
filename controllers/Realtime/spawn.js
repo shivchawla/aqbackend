@@ -7,6 +7,7 @@ const ForwardTestController = require('./ftControl.js');
 const MarketDataController = require('./marketDataControl.js');
 const MarketPlaceController = require('./mktPlaceControl.js');
 const PredictionController = require('./predictionControl.js');
+const RedisIpc = require('./RedisIpc');
 
 const UserModel = require('../../models/user');
 const APIError = require('../../utils/error');
@@ -105,5 +106,4 @@ exports.handleAction = function(req, res) {
     else if(req.action === 'unsubscribe-real-prediction-all') {
         return PredictionController.handleRealPredictionUnsubscription(req, res);
     }
-
 };

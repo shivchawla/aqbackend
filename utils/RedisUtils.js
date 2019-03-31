@@ -75,6 +75,10 @@ function unsubscribe(client, channel) {
     client.unsubscribe(channel);    
 }
 
+function publish(client, channel, message) {
+    client.publish(channel, message);
+}
+
 
 module.exports = {
     getFromRedis,
@@ -93,7 +97,8 @@ module.exports = {
     pushToRangeRedis,
     popFromRangeRedis,
     subscribe,
-    unsubscribe
+    unsubscribe,
+    publish
 }
 
 /*exports.getFromRedis = getFromRedis;

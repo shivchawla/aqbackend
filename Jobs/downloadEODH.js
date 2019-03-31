@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 19:09:29
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-30 18:20:15
+* @Last Modified time: 2019-04-01 00:28:23
 */
 
 'use strict';
@@ -12,6 +12,7 @@ const moment = require('moment-timezone');
 const path = require('path');
 const Promise = require('bluebird');
 const _ = require('lodash');
+const redis = require('redis');
 
 const DateHelper = require('../utils/Date');
 const serverPort = require('../index').serverPort;
@@ -20,8 +21,24 @@ const DailyContestEntryHelper = require('../controllers/helpers/DailyContestEntr
 const DailyContestEntryModel = require('../models/Marketplace/DailyContestEntry');
 const PredictionRealtimeController = require('../controllers/Realtime/predictionControl');
 const MktPlaceController = require('../controllers/Realtime/mktPlaceControl');
-
 const SecurityHelper = require('../controllers/helpers/Security');
+const RedisUtils = require('../utils/RedisUtils');
+
+var redisClient;
+
+function getRedisClient() {
+	if (!redisClient || !redisClient.connected) {
+		var redisPwd = config.get('node_redis_pass');
+
+		if (redisPwd != "") {
+        	redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});
+    	} else {
+    		redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'));
+    	}
+    }
+
+    return redisClient; 
+}
 
 //Fucntion to fetch latest quote data from EODH for active predictions
 function downnloadEODHRealtimeForActivePredictions() {
@@ -89,10 +106,7 @@ if (config.get('jobsPort') === serverPort) {
 			    		DailyContestEntryHelper.updateCallPriceForPredictionsFromEODH()
 		    		})
 			    	.then(() => {
-			    		Promise.all([
-			    			MktPlaceController.sendAllUpdates(),
-			    			PredictionRealtimeController.sendAllUpdates()
-		    			])
+			    		RedisUtils.publish(getRedisClient(), 'sendRealtimeUpdates', 1)
 					})
 					.catch(err => {
 						console.log("scheduleUpdateCallPriceEODH: ", err.message);
