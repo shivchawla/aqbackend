@@ -153,5 +153,12 @@
     "ft_second":0,
     "ft_minute":58,
     "ft_hour":9,
-   "ft_port":3004
+    "ft_port":3004,
+
+    "ib_connect_flag": false,
+    "ib_tws_host": "207.180.248.10",
+    "ib_tws_port": 4002,
+    "node_ib_port": 3002,
+
+    "realtime_EODH_quote_url":"https://eodhistoricaldata.com/api/real-time/${ticker}.NSE?api_token=5b87e1823a5034.40596433&fmt=json&s=${otherTickers}"
 }
