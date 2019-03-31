@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-15 12:53:28
+* @Last Modified time: 2019-03-31 23:21:32
 */
 'use strict';
 const config = require('config');
@@ -844,7 +844,10 @@ module.exports.updateStockList = function() {
 					return _getSecurityDetail(sec)
 					.then(securityDetail => {
 						const updates = {'security.detail' : securityDetail};
-						resolve(SecurityPerformanceModel.updateSecurityPerformance(query, updates));
+						return SecurityPerformanceModel.updateSecurityPerformance(query, updates)
+						.then(() => {
+							resolve();
+						})
 					})
 					.catch(err => {
 						console.log(err);
