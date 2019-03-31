@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-30 18:19:37
+* @Last Modified time: 2019-04-01 00:20:49
 */
 
 'use strict';
@@ -1144,7 +1144,10 @@ module.exports.updateStockList = function() {
 					return _getSecurityDetail(sec)
 					.then(securityDetail => {
 						const updates = {'security.detail' : securityDetail};
-						resolve(SecurityPerformanceModel.updateSecurityPerformance(query, updates));
+						return SecurityPerformanceModel.updateSecurityPerformance(query, updates)
+						.then(() => {
+							resolve();
+						})
 					})
 					.catch(err => {
 						console.log(err);

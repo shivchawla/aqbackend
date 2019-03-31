@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-28 22:45:38
+* @Last Modified time: 2019-04-01 00:20:11
 */
 
 'use strict';
@@ -2353,7 +2353,7 @@ module.exports.updatePredictionsForIntervalPrice = function(date) {
 				var advisorsForThisTicker = _.uniq(allAdvisorsByTickers[ticker]);
 
 				return Promise.mapSeries(advisorsForThisTicker, function(advisorId){
-					return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
+					return exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: null})
 					.then(predictions => {
 						return Promise.mapSeries(predictions, function(prediction){
 							var pTicker = _.get(prediction, 'position.security.ticker', "");

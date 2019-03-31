@@ -30,7 +30,7 @@ module.exports = function(req, next) {
         else if (decodedToken.exp*1000 <= Date.now()) {
             throw new Error('Token expired');
         } else {
-            return UserModel.fetchUser({_id: decodedToken._id, jwtId: decodedToken.jti}, {fields: 'firstName lastName email'})
+            return UserModel.fetchUser({_id: decodedToken._id, jwtId: decodedToken.jti, disabled: false}, {fields: 'firstName lastName email'})
         }
     })
     .then(user => {

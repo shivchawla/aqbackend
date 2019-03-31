@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-25 19:10:40
+* @Last Modified time: 2019-04-01 00:19:25
 */
 
 'use strict';
@@ -287,7 +287,8 @@ module.exports.getDailyContestPortfolioStatsForDate = (args, res, next) => {
 * Update predictions for the contest
 */
 module.exports.updateDailyContestPredictions = (args, res, next) => {
-	
+	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
+
 	const userId = _.get(args, 'user._id', null);
 	let advisorId = _.get(args, 'advisorId.value', null);
 	const userEmail = _.get(args, 'user.email', null);
@@ -296,10 +297,17 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 	let validStartDate = DailyContestEntryHelper.getValidStartDate();
 	const isRealPrediction = _.get(prediction, 'real', false);
-
+	const conditionalType = _.get(prediction, 'conditionalType', 'NOW');
+	const isConditional = conditionalType.toUpperCase() !== 'NOW';
+	// Investment obtained from the frontend
+	let investmentInput = 0;
 
 	return Promise.resolve()
 	.then(() => {
+		// Conditional items are only allowed during market open hours
+		if (!isConditional && !DateHelper.isMarketTrading()) {
+			APIError.throwJsonError({message: 'Market is closed! Only conditional predictions allowed'});
+		}
 		return ;
 		// if (!DateHelper.isMarketTrading(15, 15) && entryPredictions.filter(item => item.real).length > 0) {
 		//  	APIError.throwJsonError({message: "Market is closed!! Real trades are allowed only between 9:30 AM to 3:15 PM!!"})
@@ -344,7 +352,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 				//Computed investment must be divided by 1000 to match internal units
 				investment = investment || parseFloat(((isConditional ? quantity*avgPrice : quantity*latestPrice)/1000).toFixed(2));
-					
+				investmentInput = investment;
 				//Mark the real investment at the latest price as well (execution price may be different)
 				//(now this could be not true but let's keep things for simple for now)
 				prediction.position.investment = investment
@@ -422,8 +430,11 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				}
 				
 			}
-			
-			return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "all", priceUpdate: false, active: null});
+			return Promise.all([
+				DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "all", priceUpdate: false, active: null}),
+				DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date)
+			])
+			// return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "all", priceUpdate: false, active: null});
 		} else {
 			if(isRealPrediction) {
 				APIError.throwJsonError({message: "Not authorized to make real predictions"});
@@ -432,7 +443,9 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			}
 		}
 	})
-	.then(activePredictions => {
+	.then(([activePredictions, portfolioStats]) => {
+		const portfolioValue = _.get(portfolioStats, 'netTotal', 0);
+		const tenPercentagePortfolioValue = 0.105 * portfolioValue;
 
 		activePredictions = activePredictions.filter(item => {
 			var completeStatus = _.get(item, 'status.profitTarget', false) ||  
@@ -446,6 +459,16 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		var ticker = _.get(prediction, 'position.security.ticker', "");
 		var existingPredictionsInTicker = activePredictions.filter(item => {return item.position.security.ticker == ticker;});
 		var newPredictionsInTicker = prediction.position.security.ticker == ticker ? [prediction] : [];
+
+		let netInvestmentForTicker = _.sum(existingPredictionsInTicker.map(activePrediction => {
+			const predictionInvestment = _.get(activePrediction, 'position.investment', 0);
+			return predictionInvestment;		
+		}));
+		netInvestmentForTicker = netInvestmentForTicker + investmentInput;
+		
+		if (netInvestmentForTicker > tenPercentagePortfolioValue) {
+			APIError.throwJsonError({message: `Limit exceeded: Can't invest more than 10% of your portfolio in a single stock. Stock (${ticker})`});
+		}
 
 		if (existingPredictionsInTicker.length + newPredictionsInTicker > 3 && !isRealPrediction) {
 			APIError.throwJsonError({message: `Limit exceeded: Can't add more than 3 prediction for one stock (${ticker})`});
