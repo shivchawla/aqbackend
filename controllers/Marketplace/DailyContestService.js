@@ -466,7 +466,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		}));
 		netInvestmentForTicker = netInvestmentForTicker + investmentInput;
 		
-		if (netInvestmentForTicker > tenPercentagePortfolioValue) {
+		if (tenPercentagePortfolioValue !== 0 &&  netInvestmentForTicker > tenPercentagePortfolioValue) {
 			APIError.throwJsonError({message: `Limit exceeded: Can't invest more than 10% of your portfolio in a single stock. Stock (${ticker})`});
 		}
 

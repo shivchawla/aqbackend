@@ -73,19 +73,25 @@ class InteractiveBroker {
         })
     }
 
-    static requireContractDetails(stock) {
+    static requireContractDetails(stock, index = false) {
         const self = this;
+        let requestId = null;
+
         return new Promise((resolve, reject) => {
             self.getNextRequestId()
             .then(reqId => {
+                requestId = reqId;
+
                 // Getting the interactive broker instance
                 const ibInstance = self.interactiveBroker;
-                ibInstance.reqContractDetails(reqId, ibInstance.contract.index(stock, "INR", "NSE"))
-                .on('contractDetails', (reqId, contract) => {
-                    resolve({reqId, contract});
-                });
+                const contract = index 
+                    ?   ibInstance.contract.index(stock, "INR", "NSE")
+                    :   ibInstance.contract.stock(stock, "NSE", "INR");
+                initializeCallback(reqId, resolve, reject);
+                ibInstance.reqContractDetails(reqId, contract)
             })
             .catch(err => {
+                deleteCallback(requestId);
                 reject(err.message);    
             })
         })
@@ -515,6 +521,14 @@ InteractiveBroker.interactiveBroker.on('historicalData', (reqId, datetime, open,
         });
     } else {
         return BrokerRedisController.addHistoricalData(reqId, {datetime, open, high, low, close, volume});
+    }
+});
+
+InteractiveBroker.interactiveBroker.on('contractDetails', (reqId, contract) => {
+    var resolve = _.get(promises, `${reqId}.resolve`, null);
+    if (resolve) {
+        delete promises[reqId];
+        resolve(contract);
     }
 });
 
