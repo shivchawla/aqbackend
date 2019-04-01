@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 13:14:18
+* @Last Modified time: 2019-04-01 14:00:03
 */
 
 const redis = require('redis');
@@ -46,6 +46,10 @@ function getRedisClient() {
 
     return redisClient; 
 }
+
+module.exports.updateOrderToClientMap = function(orderId, clientId) {
+    return RedisUtils.addSetDataToRedis(getRedisClient(), `clientToOrderMap_${clientId}_${process.env.NODE_ENV}`, orderId);
+};
 
 module.exports.setValidId = function(validId) {
     return RedisUtils.insertKeyValue(getRedisClient(), ValidIdKey, validId)
@@ -164,7 +168,7 @@ module.exports.addLatestBarData = function(ticker, latestBarData) {
     latestBarData = {...latestBarData, datetime: convertedTime};
 
     //Update the data in redis
-    var redisSetKey = `RtData_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${ticker}`;
+    var redisSetKey = `RtData_IB_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${ticker}`;
     var nextMarketOpen = DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday());
 
     return RedisUtils.addSetDataToRedis(getRedisClient(), redisSetKey, JSON.stringify(latestBarData))

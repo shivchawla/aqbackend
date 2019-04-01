@@ -110,15 +110,13 @@ class InteractiveBroker {
                 var ibTicker = this.getRequiredSymbol(stock);
                                     
                 if (index) {
-                    contract = ibInstance.contract.index(`${ibTicker}@NSE`, 'INR', 'NSE');
-                    // delete contract.exchange;
-                    // delete contract.currency;
-
+                    contract = ibInstance.contract.index(ibTicker, 'INR', 'NSE');
                 } else {
                     contract = ibInstance.contract.stock(ibTicker, 'NSE', 'INR');
                 }
 
                 initializeCallback(reqId, resolve, reject);
+                
                 ibInstance.reqHistoricalData(reqId, contract, '', duration, '1 min', 'TRADES', 1, 1, false)
 
             })
@@ -228,6 +226,9 @@ class InteractiveBroker {
             initializeCallback(orderId, resolve, reject);
             const ibInstance = self.interactiveBroker;
             ibInstance.placeOrder(orderId, contract, config)
+            .then(() => {
+                RedisBrokerController.updateOrderToClientMap(orderId, serverPort);
+            })
         });
     }
 
@@ -442,7 +443,7 @@ class InteractiveBroker {
             try {
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
-                ibInstance.reqAllOpenOrders()
+                ibInstance.reqOpenOrders()
                 .then(() => {
                     resolve();    
                 })
