@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 00:20:11
+* @Last Modified time: 2019-04-01 15:00:51
 */
 
 'use strict';
@@ -1123,7 +1123,7 @@ function _computeUpdatedPredictions(predictions, date) {
 					var manualExit = _.get(prediction, 'status.manualExit', false) && moment(date).isSame(moment(prediction.status.date));
 					var lastPrice = _.get(prediction, 'position.lastPrice', 0);
 
-					var expired = _.get(prediction, 'status.expired', false) || moment(_.get(prediction, 'endDate', null)).isBefore(moment());
+					var expired = _.get(prediction, 'status.expired', false) || moment(_.get(prediction, 'endDate', null)).isBefore(moment.utc());
 					var endedInTime = expired && moment(date).isSame(moment(prediction.endDate));
 
 					if (success) {
@@ -1359,16 +1359,16 @@ module.exports.getValidStartDate = function(date) {
 	}
 	//While trading
 	else if (DateHelper.isMarketTrading()) {
-        validStartDate = moment().add(1, 'minute').startOf('minute');
+        validStartDate = moment.utc().add(1, 'minute').startOf('minute');
 	}  
 	//After market close - get close of that day 
 	//5:30 PM Friday
-	else if (moment().isAfter(DateHelper.getMarketCloseDateTime())) {
+	else if (moment.utc().isAfter(DateHelper.getMarketCloseDateTime())) {
 		validStartDate = latestTradingDateIncludingToday;
 	} 
 	//Before market open - get close of last day 
 	//5:30AM Friday
-	else if (moment().isBefore(DateHelper.getMarketOpenDateTime())) {
+	else if (moment.utc().isBefore(DateHelper.getMarketOpenDateTime())) {
 		validStartDate = latestTradingDateExcludingToday;
 	} else {
 		console.log("Start Date can be erroneous!!")
@@ -1449,7 +1449,7 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 		//Because active is a super set of ending that day and ending after the day
 		//**** IF used before market close *****
 		var isToday = DateHelper.compareDates(DateHelper.getCurrentDate(), DateHelper.getDate(date)) == 0;
-		var useEndedPredictions = !isToday || (isToday && moment().isAfter(moment(DateHelper.getMarketCloseDateTime(date))));
+		var useEndedPredictions = !isToday || (isToday && moment.utc().isAfter(moment(DateHelper.getMarketCloseDateTime(date))));
 		
 		switch(category) {
 			case "all": return DailyContestEntryModel.fetchEntryPredictionsOnDate({advisor: advisorId}, date, fetchOptions); break;
@@ -2007,7 +2007,7 @@ module.exports.checkForPredictionExpiry = function() {
 	//Add 30 minutes before because we have DELAYED data 
 	//let the price target job at 4PM run (to incorporte all data till 3:45)
 	//Only then run the expiry job (AND NOT AT 3:3O PM)  
-	if (moment().isAfter(date.add(30, 'minutes'))) {
+	if (moment.utc().isAfter(date.add(30, 'minutes'))) {
 		
 		return DailyContestEntryModel.fetchDistinctAdvisors()
 		.then(advisors => {
@@ -2021,7 +2021,7 @@ module.exports.checkForPredictionExpiry = function() {
 						var manualExitStatus = _.get(item, 'status.manualExit', false);
 
 						var lastPrice = _.get(item, 'position.lastPrice', 0);
-						var endedInTime = moment(_.get(item, 'endDate', null)).isBefore(moment());
+						var endedInTime = moment(_.get(item, 'endDate', null)).isBefore(moment.utc());
 						var expiredStatus = _.get(item, 'status.expired', false);
 
 						var expiring = !profitTargetStatus && !stopLossStatus && !manualExitStatus && endedInTime && !expiredStatus;
@@ -2075,7 +2075,7 @@ module.exports.checkForPredictionExpiry = function() {
 module.exports.updateCallPriceForPredictionsFromEODH = function() {
 	let latestDate = DateHelper.getMarketCloseDateTime(exports.getValidStartDate());
 
-	var currentTime = moment().startOf('minute').toISOString();
+	var currentTime = moment.utc().startOf('minute').toISOString();
 
 	var queueName = `${RECENT_ADVISORS_QUEUE}_${currentTime}`;
 
@@ -2092,7 +2092,7 @@ module.exports.updateCallPriceForPredictionsFromEODH = function() {
 						
 						var filteredPredictions = predictions.filter(item => {
 							var callPrice = _.get(item, 'position.avgPrice', 0.0);
-							var isCreatedLastMinute = moment().startOf('minute').isSame(moment(item.startDate));
+							var isCreatedLastMinute = moment.utc().startOf('minute').isSame(moment(item.startDate));
 							
 							return callPrice == 0 && isCreatedLastMinute;
 						});
