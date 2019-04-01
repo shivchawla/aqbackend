@@ -94,9 +94,12 @@ class InteractiveBroker {
     static requestIntradayHistoricalData(stock, options = {}) {
         return new Promise((resolve, reject) => {
           
+            let requestId; 
             this.getNextRequestId()
             .then(reqId => {
                 
+                requestId = reqId;
+
                 let duration = _.get(options, 'duration', '1 D');
                 let index = _.get(options, 'index', false);
 
@@ -120,7 +123,7 @@ class InteractiveBroker {
 
             })
             .catch(err => {
-                deleteCallback(reqId);
+                deleteCallback(requestId);
                 reject(err);
             })
         })

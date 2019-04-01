@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-30 17:59:49
+* @Last Modified time: 2019-04-01 10:27:22
 */
 'use strict';
 const config = require('config');
@@ -20,7 +20,7 @@ const DailyContestEntryHelper = require('../helpers/DailyContestEntry')
 const BrokerRedisController = require('./brokerRedisControl');
 const predictionSubscribers = {};
 
-const MAX_ERRO_COUNT = 5;
+const MAX_ERROR_COUNT = 5;
 
 /*
 * Sends the data using WS connection
