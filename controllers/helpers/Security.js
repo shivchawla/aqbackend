@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 02:07:47
+* @Last Modified time: 2019-04-01 10:14:40
 */
 
 'use strict';
@@ -583,7 +583,7 @@ module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 
 								return Promise.all([
 									RedisUtils.insertKeyValue(getRedisClient(), `latestQuote-${ticker}`, JSON.stringify(latestQuote)),
-									RedisUtils.addSetDataToRedis(getRedisClient(), `redisSetKey`, JSON.stringify(latestQuote)),
+									RedisUtils.addSetDataToRedis(getRedisClient(), redisSetKey, JSON.stringify(latestQuote)),
 								])
 								.then(() => {
 									//Expire the real time quote
