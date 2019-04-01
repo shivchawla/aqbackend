@@ -176,8 +176,7 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId, incomi
 						AdvisorModel.fetchAdvisor({_id: masterAdvisorId}, {fields: '_id user'}),
 						DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date)
 					])
-					.then(([predictionsDetails, masterAdvisor, portfolioStats]) => {
-						const predictions = _.get(predictionsDetails, 'predictions', []);
+					.then(([predictions, masterAdvisor, portfolioStats]) => {
 						portfolioStats = portfolioStats;
 						
 						return predictions.map(item => {return {...item, advisor: _.pick(masterAdvisor, ['_id', 'user'])};})
