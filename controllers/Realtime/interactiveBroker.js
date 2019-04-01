@@ -101,7 +101,7 @@ class InteractiveBroker {
                 requestId = reqId;
 
                 let duration = _.get(options, 'duration', '1 D');
-                let index = _.get(options, 'index', false);
+                let isIndex = _.get(options, 'isIndex', false);
 
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
@@ -109,14 +109,13 @@ class InteractiveBroker {
 
                 var ibTicker = this.getRequiredSymbol(stock);
                                     
-                if (index) {
+                if (isIndex) {
                     contract = ibInstance.contract.index(ibTicker, 'INR', 'NSE');
                 } else {
                     contract = ibInstance.contract.stock(ibTicker, 'NSE', 'INR');
                 }
 
                 initializeCallback(reqId, resolve, reject);
-                
                 ibInstance.reqHistoricalData(reqId, contract, '', duration, '1 min', 'TRADES', 1, 1, false)
 
             })

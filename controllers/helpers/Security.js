@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 13:59:23
+* @Last Modified time: 2019-04-01 14:14:37
 */
 
 'use strict';
@@ -549,7 +549,6 @@ module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 
 				return axios.get(niftyUrl)
 				.then(response => {
-
 					if (response && response.data && response.data.data) {
 						let quotesData = response.data.data
 						quotesData = Array.isArray(quotesData) ? quotesData : [quotesData];
@@ -579,7 +578,7 @@ module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 								_.unset(latestQuote, 'timeVal');
 								_.unset(latestQuote, 'last');
 
-								return RedisUtils.insertKeyValue(getRedisClient(), `latestQuote-${ticker}`, JSON.stringify(latestQuote)),
+								return RedisUtils.insertKeyValue(getRedisClient(), `latestQuote-${ticker}`, JSON.stringify(latestQuote))
 								.then(() => {
 									//Expire the real time quote
 									let whenToExpireRTQuote;
