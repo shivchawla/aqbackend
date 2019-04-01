@@ -508,7 +508,6 @@ InteractiveBroker.interactiveBroker.on('historicalData', (reqId, datetime, open,
         return BrokerRedisController.getHistoricalData(reqId)
         .then(historicalData => {
             var resolve = _.get(promises, `${reqId}.resolve`, null);
-            console.log(`Resolving: ${reqId}`);
             if (resolve) {
                 delete promises[reqId];
                 resolve(historicalData);
