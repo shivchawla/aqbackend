@@ -68,7 +68,7 @@ class InteractiveBroker {
 
             return  Promise.all([
                 ibInstance.reqExecutions(reqId, {}),
-                ibInstance.reqAllOpenOrders()
+                ibInstance.reqOpenOrders()
             ]);
         })
     }
