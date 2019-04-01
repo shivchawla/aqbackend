@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 10:14:40
+* @Last Modified time: 2019-04-01 14:14:37
 */
 
 'use strict';
@@ -147,14 +147,14 @@ function _computeStockIntradayHistory(security, date) {
 	return new Promise((resolve, reject) => {
 
 		var activeTradingDate = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0));
-		var redisSetKey = `RtData_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${security.ticker}`;
+		var redisSetKey = `RtData_IB_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${security.ticker}`;
 		var nextMarketOpen = DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday(date));
 
 		//Get compelete data from IB
 		// Can't fetch index data from IB (contact customer support)
-		// var isIndex = security.ticker.includes("NIFTY");
+		var isIndex = security.ticker.includes("NIFTY");
 
-		return InteractiveBroker.requestIntradayHistoricalData(security.ticker)
+		return InteractiveBroker.requestIntradayHistoricalData(security.ticker, {isIndex})
 		.then(data => {
 
 			//Update the time Z format
@@ -549,7 +549,6 @@ module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 
 				return axios.get(niftyUrl)
 				.then(response => {
-
 					if (response && response.data && response.data.data) {
 						let quotesData = response.data.data
 						quotesData = Array.isArray(quotesData) ? quotesData : [quotesData];
@@ -579,12 +578,7 @@ module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 								_.unset(latestQuote, 'timeVal');
 								_.unset(latestQuote, 'last');
 
-								var redisSetKey = `RtData_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${ticker}`;
-
-								return Promise.all([
-									RedisUtils.insertKeyValue(getRedisClient(), `latestQuote-${ticker}`, JSON.stringify(latestQuote)),
-									RedisUtils.addSetDataToRedis(getRedisClient(), redisSetKey, JSON.stringify(latestQuote)),
-								])
+								return RedisUtils.insertKeyValue(getRedisClient(), `latestQuote-${ticker}`, JSON.stringify(latestQuote))
 								.then(() => {
 									//Expire the real time quote
 									let whenToExpireRTQuote;
@@ -596,10 +590,8 @@ module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 										whenToExpireRTQuote = Math.floor(DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday()).valueOf()/1000);
 									}
 									
-									return Promise.all([
-										RedisUtils.expireKeyInRedis(getRedisClient(), `latestQuote-${ticker}`, whenToExpireRTQuote),
-										RedisUtils.expireKeyInRedis(getRedisClient(), redisSetKey, Math.floor(nextMarketOpen.valueOf()/1000))
-									]);	
+									return RedisUtils.expireKeyInRedis(getRedisClient(), `latestQuote-${ticker}`, whenToExpireRTQuote);
+										
 								})
 							}
 						});

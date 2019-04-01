@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-04-01 00:30:02
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 13:13:19
+* @Last Modified time: 2019-04-01 14:32:47
 */
 
 'use strict';
@@ -51,14 +51,14 @@ function manageSubscriptions() {
 
 	redisSubscriber.on("message", function(channel, message) {
         if(channel == `sendRealtimeUpdates_${process.env.NODE_ENV}`) {     
-			Promise.all([
+			return Promise.all([
 				MktPlaceController.sendAllUpdates(),
 				PredictionRealtimeController.sendAllUpdates()
 			]);       
         }
 
-        if (channel == `processIBEvents_${process.env.NODE_ENV}`) {
-        	BrokerRedisController.processIBEvents();
+        else if (channel == `processIBEvents_${process.env.NODE_ENV}`) {
+        	return BrokerRedisController.processIBEvents();
         }
 
     });

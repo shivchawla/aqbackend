@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 10:27:22
+* @Last Modified time: 2019-04-01 14:31:24
 */
 'use strict';
 const config = require('config');
@@ -83,7 +83,14 @@ function _sendAllPredictionUpdates() {
 				delete predictionSubscribers[userId][subscriberId];
 				return;
 			} else {
-				return subscription.admin ? _sendAdminRealPredictionUpdates(subscription) : _sendPredictionUpdates(subscription);
+				return Promise.resolve().
+				then(() => {
+					if (subscription.admin) {
+						return _sendAdminRealPredictionUpdates(subscription);
+					} else {
+						return _sendPredictionUpdates(subscription);
+					}
+				})
 			}
 		})
 		.then(() => {

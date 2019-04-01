@@ -107,7 +107,7 @@ class InteractiveBroker {
                 requestId = reqId;
 
                 let duration = _.get(options, 'duration', '1 D');
-                let index = _.get(options, 'index', false);
+                let isIndex = _.get(options, 'isIndex', false);
 
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
@@ -115,11 +115,8 @@ class InteractiveBroker {
 
                 var ibTicker = this.getRequiredSymbol(stock);
                                     
-                if (index) {
-                    contract = ibInstance.contract.index(`${ibTicker}`, 'INR', 'NSE');
-                    // delete contract.exchange;
-                    // delete contract.currency;
-
+                if (isIndex) {
+                    contract = ibInstance.contract.index(ibTicker, 'INR', 'NSE');
                 } else {
                     contract = ibInstance.contract.stock(ibTicker, 'NSE', 'INR');
                 }
@@ -234,6 +231,9 @@ class InteractiveBroker {
             initializeCallback(orderId, resolve, reject);
             const ibInstance = self.interactiveBroker;
             ibInstance.placeOrder(orderId, contract, config)
+            .then(() => {
+                RedisBrokerController.updateOrderToClientMap(orderId, serverPort);
+            })
         });
     }
 
@@ -448,7 +448,7 @@ class InteractiveBroker {
             try {
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
-                ibInstance.reqAllOpenOrders()
+                ibInstance.reqOpenOrders()
                 .then(() => {
                     resolve();    
                 })
@@ -514,7 +514,6 @@ InteractiveBroker.interactiveBroker.on('historicalData', (reqId, datetime, open,
         return BrokerRedisController.getHistoricalData(reqId)
         .then(historicalData => {
             var resolve = _.get(promises, `${reqId}.resolve`, null);
-            console.log(`Resolving: ${reqId}`);
             if (resolve) {
                 delete promises[reqId];
                 resolve(historicalData);
