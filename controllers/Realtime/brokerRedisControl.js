@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-29 22:57:23
+* @Last Modified time: 2019-04-01 12:55:40
 */
 
 const redis = require('redis');
@@ -103,7 +103,7 @@ module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderI
 module.exports.addInteractiveBrokerEvent = function(eventDetails, eventType) {
     return RedisUtils.pushToRangeRedis(getRedisClient(), IB_EVENTS, JSON.stringify({eventType, eventDetails}))
     .then(() => {
-        return exports.processIBEvents();
+        return RedisUtils.publish(getRedisClient(), 'processIBEvents', 1);
     })
 };
 

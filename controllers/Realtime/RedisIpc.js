@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-04-01 00:30:02
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 00:47:51
+* @Last Modified time: 2019-04-01 12:37:05
 */
 
 'use strict';
@@ -11,8 +11,11 @@ const Promise = require('bluebird');
 const _ = require('lodash');
 const redis = require('redis');
 
+const serverPort = require('../../index').serverPort;
+
 const PredictionRealtimeController = require('./predictionControl');
 const MktPlaceController = require('./mktPlaceControl');
+const BrokerRedisController = require('./brokerRedisControl');
 
 const RedisUtils = require('../../utils/RedisUtils');
 
@@ -39,6 +42,11 @@ function manageSubscriptions() {
 	redisSubscriber.on('ready', function() {
 		//Subscribe to real time update (ready message)
 		RedisUtils.subscribe(redisSubscriber, "sendRealtimeUpdates");
+
+		if (config.get('node_ib_event_port') == serverPort) {
+			RedisUtils.subscribe(redisSubscriber, "processIBEvents");	
+		}		
+
 	});
 
 	redisSubscriber.on("message", function(channel, message) {
@@ -48,8 +56,20 @@ function manageSubscriptions() {
 				PredictionRealtimeController.sendAllUpdates()
 			]);       
         }
+
+        if (channel == "processIBEvents") {
+        	BrokerRedisController.processIBEvents();
+        }
+
     });
+
 }
 
 manageSubscriptions();
+
+
+
+
+
+
 
