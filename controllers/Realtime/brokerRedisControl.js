@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 12:55:40
+* @Last Modified time: 2019-04-01 13:06:43
 */
 
 const redis = require('redis');
@@ -19,16 +19,16 @@ const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEnt
 
 let redisClient;
 
-const ORDER_EXECUTION_DETAILS_SET = "orderExecutionDetailSet";
-const ORDER_STATUS_BY_PREDICTION_SET = "orderStatusByPredictionSet";
-const ORDER_PROCESSING_COMPLETED = "orderProcessingCompleted";
+const ORDER_EXECUTION_DETAILS_SET = `orderExecutionDetailSet_${process.env.NODE_ENV}`;
+const ORDER_STATUS_BY_PREDICTION_SET = `orderStatusByPredictionSet_${process.env.NODE_ENV}`;
+const ORDER_PROCESSING_COMPLETED = `orderProcessingCompleted_${process.env.NODE_ENV}`;
 
-const IB_EVENTS = "interactiveBrokerEvents";
+const IB_EVENTS = `interactiveBrokerEvents_${process.env.NODE_ENV}`;
 
 let EVENT_PROCESS_FLAG = false;
 
 //Temporary hash to send order submitted from the program (may or may not hit IB servers)
-const TEMP_ORDER_TO_PREDICTION_SET = "orderToPredictionSet";
+const TEMP_ORDER_TO_PREDICTION_SET = `orderToPredictionSet_${process.env.NODE_ENV}`;
 
 function getRedisClient() {
 	if (!redisClient || !redisClient.connected) {
