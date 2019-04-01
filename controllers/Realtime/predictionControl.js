@@ -133,7 +133,7 @@ function _getPredictionDetailForAdmin(advisorId, category, masterAdvisorId, pred
 
 						return {...prediction, current: status};
 					})
-				});
+				})
 			});
 		}
 	});	
@@ -151,6 +151,7 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId, incomi
 			let category = subscription.category;
 			let advisorId = advisorMap.allocationAdvisor;
 			let masterAdvisorId = advisorMap.masterAdvisor;
+			let portfolioStats = {};
 
 			//Send Advisor specific updates
 			if (incomingAdvisorId && masterAdvisorId != incomingAdvisorId) {
@@ -159,13 +160,19 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId, incomi
 
 			return Promise.resolve()
 			.then(() => {
+				var date = DateHelper.getCurrentDate();
+
 				if (advisorId) {
 					return Promise.all([
 						//need to pass masterAdvisorId because Redis keys all data by masterAdvisorId
-						_getPredictionDetailForAdmin(advisorId, category, masterAdvisorId, incomingPredictionId),						
-						AdvisorModel.fetchAdvisor({_id: masterAdvisorId}, {fields: '_id user'})
+						_getPredictionDetailForAdmin(advisorId, category, masterAdvisorId, incomingPredictionId),					
+						AdvisorModel.fetchAdvisor({_id: masterAdvisorId}, {fields: '_id user'}),
+						DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date)
 					])
-					.then(([predictions, masterAdvisor]) => {
+					.then(([predictionsDetails, masterAdvisor, portfolioStats]) => {
+						const predictions = _.get(predictionsDetails, 'predictions', []);
+						portfolioStats = portfolioStats;
+						
 						return predictions.map(item => {return {...item, advisor: _.pick(masterAdvisor, ['_id', 'user'])};})
 					})
 				} else {
@@ -173,7 +180,7 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId, incomi
 				}
 			})
 			.then(predictions => {
-				return _sendWSResponse(subscription, {advisorId: masterAdvisorId, category, predictions});
+				return _sendWSResponse(subscription, {advisorId: masterAdvisorId, category, predictions, portfolioStats});
 			})
 
 		})	
