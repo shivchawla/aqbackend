@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 19:09:29
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 00:28:23
+* @Last Modified time: 2019-04-01 13:14:46
 */
 
 'use strict';
@@ -106,7 +106,7 @@ if (config.get('jobsPort') === serverPort) {
 			    		DailyContestEntryHelper.updateCallPriceForPredictionsFromEODH()
 		    		})
 			    	.then(() => {
-			    		RedisUtils.publish(getRedisClient(), 'sendRealtimeUpdates', 1)
+			    		RedisUtils.publish(getRedisClient(), `sendRealtimeUpdates_${process.env.NODE_ENV}`, 1)
 					})
 					.catch(err => {
 						console.log("scheduleUpdateCallPriceEODH: ", err.message);

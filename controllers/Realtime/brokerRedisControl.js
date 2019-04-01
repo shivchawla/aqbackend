@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 13:06:43
+* @Last Modified time: 2019-04-01 13:14:18
 */
 
 const redis = require('redis');
@@ -27,6 +27,9 @@ const IB_EVENTS = `interactiveBrokerEvents_${process.env.NODE_ENV}`;
 
 let EVENT_PROCESS_FLAG = false;
 
+const ValidIdKey = `ValidId_${process.env.NODE_ENV}`;
+const processIBEventsChannel = `processIBEvents_${process.env.NODE_ENV}`;
+
 //Temporary hash to send order submitted from the program (may or may not hit IB servers)
 const TEMP_ORDER_TO_PREDICTION_SET = `orderToPredictionSet_${process.env.NODE_ENV}`;
 
@@ -45,14 +48,14 @@ function getRedisClient() {
 }
 
 module.exports.setValidId = function(validId) {
-    return RedisUtils.insertKeyValue(getRedisClient(), "ValidId", validId)
+    return RedisUtils.insertKeyValue(getRedisClient(), ValidIdKey, validId)
 };
 
 module.exports.getValidId = function(increment=1) {
     let reqId;
 
     return new Promise((resolve, reject) => {
-        RedisUtils.incValue(getRedisClient(), "ValidId", increment)
+        RedisUtils.incValue(getRedisClient(), ValidIdKey, increment)
         .then(validId => {
             reqId = validId;
 
@@ -103,7 +106,7 @@ module.exports.addOrdersForPrediction = function(advisorId, predictionId, orderI
 module.exports.addInteractiveBrokerEvent = function(eventDetails, eventType) {
     return RedisUtils.pushToRangeRedis(getRedisClient(), IB_EVENTS, JSON.stringify({eventType, eventDetails}))
     .then(() => {
-        return RedisUtils.publish(getRedisClient(), 'processIBEvents', 1);
+        return RedisUtils.publish(getRedisClient(), processIBEventsChannel, 1);
     })
 };
 
@@ -161,7 +164,7 @@ module.exports.addLatestBarData = function(ticker, latestBarData) {
     latestBarData = {...latestBarData, datetime: convertedTime};
 
     //Update the data in redis
-    var redisSetKey = `RtData_IB_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${ticker}`;
+    var redisSetKey = `RtData_${activeTradingDate.utc().format("YYYY-MM-DDTHH:mm:ss[Z]")}_${ticker}`;
     var nextMarketOpen = DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday());
 
     return RedisUtils.addSetDataToRedis(getRedisClient(), redisSetKey, JSON.stringify(latestBarData))
@@ -238,11 +241,11 @@ module.exports.processIBEvents = function() {
 
 
 module.exports.addHistoricalData = function(reqId, data) {
-    RedisUtils.addSetDataToRedis(getRedisClient(), `historicalData-${reqId}`, JSON.stringify(data));
+    RedisUtils.addSetDataToRedis(getRedisClient(), `historicalData-${reqId}_${process.env.NODE_ENV}`, JSON.stringify(data));
 }
 
 module.exports.getHistoricalData = function(reqId, data) {
-    let redisSetKey = `historicalData-${reqId}`;
+    let redisSetKey = `historicalData-${reqId}_${process.env.NODE_ENV}`;
     return RedisUtils.getSetDataFromRedis(getRedisClient(), redisSetKey)
     .then(data => {
         return Promise.all([

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-04-01 00:30:02
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 12:37:05
+* @Last Modified time: 2019-04-01 13:13:19
 */
 
 'use strict';
@@ -41,23 +41,23 @@ function manageSubscriptions() {
 
 	redisSubscriber.on('ready', function() {
 		//Subscribe to real time update (ready message)
-		RedisUtils.subscribe(redisSubscriber, "sendRealtimeUpdates");
+		RedisUtils.subscribe(redisSubscriber, `sendRealtimeUpdates_${process.env.NODE_ENV}`);
 
 		if (config.get('node_ib_event_port') == serverPort) {
-			RedisUtils.subscribe(redisSubscriber, "processIBEvents");	
+			RedisUtils.subscribe(redisSubscriber, `processIBEvents_${process.env.NODE_ENV}`);	
 		}		
 
 	});
 
 	redisSubscriber.on("message", function(channel, message) {
-        if(channel == "sendRealtimeUpdates") {     
+        if(channel == `sendRealtimeUpdates_${process.env.NODE_ENV}`) {     
 			Promise.all([
 				MktPlaceController.sendAllUpdates(),
 				PredictionRealtimeController.sendAllUpdates()
 			]);       
         }
 
-        if (channel == "processIBEvents") {
+        if (channel == `processIBEvents_${process.env.NODE_ENV}`) {
         	BrokerRedisController.processIBEvents();
         }
 
