@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-02 10:38:42
+* @Last Modified time: 2019-04-02 23:38:40
 */
 
 'use strict';
@@ -1112,10 +1112,29 @@ function _computeUpdatedPredictions(predictions, date) {
 			return Promise.map(predictions, function(prediction) {
 				var callPrice = _.get(prediction, 'position.avgPrice', 0.0);
 				
-				return Promise.resolve(callPrice == 0 ? _updatePredictionForCallPrice(prediction) : prediction)
+				return Promise.resolve()
+				.then(() => {
+
+					//Update average price only if start date is same as today
+					if (callPrice == 0 && moment(DateHelper.getMarketCloseDateTime(prediction.startDate)).isSame(DateHelper.getMarketCloseDateTime())) {
+						return new Promise(resolve => {
+							return _updatePredictionForCallPrice(prediction)
+							.then(upadatedPrediction => {
+								resolve(upadatedPrediction);
+							})
+							.catch(err => {
+								//In case of error, return the default predictions
+								resolve(prediction);
+							})
+						})
+					} else {
+						return	prediction;
+					}
+				})
 				.then(updatedCallPricePrediction => {
 					var _partialUpdatedPositions = updatedCallPricePrediction ? [updatedCallPricePrediction.position] : [prediction.position];
 					
+
 					//Check whether the predcition needs any price update
 					//Based on success status
 					var success = _.get(prediction, 'status.profitTarget', false) && moment(date).isSame(moment(prediction.status.date));
@@ -1158,7 +1177,8 @@ function _computeUpdatedPredictions(predictions, date) {
 					} else {
 						return prediction;
 					}
-				});
+				})
+				
 			})
 		} else {
 			return predictions;
@@ -1472,10 +1492,8 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 			return Promise.map(partiallyUpdatedPredictionsWith, function(prediction) {
 				return SecurityHelper.getStockDetail(prediction.position.security, date)
 				.then(securityDetail => {
-					let lastPrice = prediction.lastPrice || _.get(securityDetail, 'latestDetailRT.close', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
+					let lastPrice = prediction.position.lastPrice || _.get(securityDetail, 'latestDetailRT.close', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
 					var updatedPosition = Object.assign(prediction.position, {lastPrice, security: securityDetail});
-					// console.log(updatedPosition);
-
 					return Object.assign(prediction, {position: updatedPosition});
 				})
 			});
