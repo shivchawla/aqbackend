@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 00:19:25
+* @Last Modified time: 2019-04-02 10:39:13
 */
 
 'use strict';
@@ -352,7 +352,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		
 		return Promise.all([
 			SecurityHelper.getStockLatestDetail(prediction.position.security),
-			SecurityHelper.getRealtimeQuoteFromEODH(`${prediction.position.security.ticker}.NSE`)
+			SecurityHelper.getRealtimeQuote(`${prediction.position.security.ticker}`)
 		])
 		.then(([securityDetail, realTimeQuote]) => {
 			var latestPrice = _.get(realTimeQuote, 'close', 0) || _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);

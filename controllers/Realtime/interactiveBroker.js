@@ -27,34 +27,13 @@ function deleteCallback(reqId) {
 
 class InteractiveBroker {
     static connect() {
-        return new Promise((resolve, reject) => {
-            try {
-                const ibInstance = this.interactiveBroker;
-                
-                ibInstance.connect()
-                .on('connected', () => {
-                    isConnected = true
-                    console.log('Connected to interactive broker');
-                    resolve(true)
-                })
-                .on('disconnected', () => {
-                    isConnected = false;
-                    console.log('Disconnected');
-                    setTimeout(function() {
-                        console.log("Reconnecting");
-                        InteractiveBroker.interactiveBroker.connect()}, 5000);
-                })
-                .on('nextValidId', (reqId)  => {
-                    console.log('Next Valid Id:', reqId);
-                    return this.setNextValidId(reqId)
-                    .then(() => {
-                        return this.getExecutionsAndOpenOrders();
-                    })
-                })
-            } catch(err) {
-                reject(err);
-            }
-        })
+        try {
+            const ibInstance = this.interactiveBroker;   
+            ibInstance.connect()
+         
+        } catch(err) {
+            console.log(err.message);
+        }
     }
 
     static setNextValidId(reqId) {
@@ -543,6 +522,29 @@ InteractiveBroker.interactiveBroker.on('error', (errMsg, data) => {
     }
 
 });
+
+
+InteractiveBroker.interactiveBroker.on('connected', () => {
+    isConnected = true
+    console.log('Connected to interactive broker');
+})
+
+InteractiveBroker.interactiveBroker.on('disconnected', () => {
+    isConnected = false;
+    console.log('Disconnected');
+    setTimeout(function() {
+        console.log("Reconnecting");
+        InteractiveBroker.connect()}, 5000);
+})
+
+InteractiveBroker.interactiveBroker.on('nextValidId', (reqId)  => {
+    console.log('Next Valid Id:', reqId);
+    return InteractiveBroker.setNextValidId(reqId)
+    .then(() => {
+        return InteractiveBroker.getExecutionsAndOpenOrders();
+    })
+})
+
 
 if (config.get('node_ib_event_port') == serverPort) {
     //Process IB events only when market is open (only on single port)

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 14:14:37
+* @Last Modified time: 2019-04-02 12:12:05
 */
 
 'use strict';
@@ -197,16 +197,43 @@ function _computeStockLatestRTDetail(security) {
 		if (lastQuote) {
 			return JSON.parse(lastQuote);
 		} else {
-			var isIndex = security.ticker.includes("NIFTY");
-
-			if (isIndex) {
-				return exports.getRealtimeQuoteFromNiftyIndices(security.ticker);
-			} else {
-				return exports.getRealtimeQuoteFromEODH(security.ticker);	
-			}
+			return exports.getRealtimeQuote(security.ticker);
 		}
 	});
 }
+
+
+module.exports.getRealtimeQuote = function(ticker) {
+	return new Promise(resolve => {
+		var isIndex = ticker.includes("NIFTY");
+
+		Promise.resolve()
+		.then(() => {
+			if (isIndex) {
+				return exports.getRealtimeQuoteFromNiftyIndices(ticker);
+			} else {
+				return exports.getRealtimeQuoteFromEODH(ticker);	
+			}
+		})
+		.then(latestQuote => {
+			resolve(latestQuote);
+		})
+		.catch(err => {
+			console.log(`Error getting quote from EODH/Nifty Indices: ${err.message}`);
+			console.log(`Fetching data from IB: ${ticker}`);
+			return exports.getRealtimeQuoteFromIB(ticker, isIndex)
+			.then(ibQuote => {
+				console.log("Received IB Quotes");
+				resolve(ibQuote);
+			})
+			.catch(err => {
+				console.log("Ib backfill is not working either");
+				resolve({})
+			})
+
+		})
+	})
+};
 
 /*
 * Function to get latest EOD or RT price for security
@@ -617,9 +644,12 @@ module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 module.exports.getRealtimeQuoteFromIB = function(ticker, isIndex = false) {
 	return Promise.resolve()
 	.then(() => {
-		return InteractiveBroker.requestIntradayHistoricalData(ticker, {duration: '60 s', index: isIndex})	
+		return Promise.all([
+			InteractiveBroker.requestIntradayHistoricalData(ticker, {duration: '60 s', isIndex}),
+			exports.getStockLatestDetailByType({ticker}, "EOD")
+		])	
 	})
-	.then(quotesData => {
+	.then(([quotesData, securityDetail]) => {
 		if (quotesData && quotesData.length > 0) {
 			quotesData = quotesData.map(item => {
 				const convertedTime = DateHelper.convertIndianTimeInLocalTz(item.datetime, 'yyyymmdd HH:mm:ss').add(1, 'minute').startOf('minute').toISOString();
@@ -628,14 +658,17 @@ module.exports.getRealtimeQuoteFromIB = function(ticker, isIndex = false) {
 
 			var latestQuote = quotesData[0];
 
+			let ibClose = _.get(latestQuote, 'close', 0.0);
+			let pClose = _.get(securityDetail, 'latestDetail.Close', 0.0);
+			let change = ibClose - pClose;
+			let change_p = pClose > 0 ? change/pClose : 0.0;
+			latestQuote = {...latestQuote, previousClose: pClose, change, change_p};
+
 			return _updateLatestQuoteInRedis(ticker, latestQuote)
 			.then(() => {
 				return latestQuote
 			})
 		} 
-	})
-	.catch(err => {
-		console.log(err);
 	})
 }
 
@@ -650,6 +683,7 @@ module.exports.getRealtimeQuoteFromNiftyIndices = function(ticker) {
 }
 
 module.exports.getRealtimeQuoteFromEODH = function(ticker) {
+	
 	var otherTickers = '';
 	
 	ticker = `${ticker}.NSE`;
@@ -680,9 +714,6 @@ module.exports.getRealtimeQuoteFromEODH = function(ticker) {
 				return latestQuote;
 			})
 		}
-	})
-	.catch(err => {
-		console.log(err);
 	})
 }
 

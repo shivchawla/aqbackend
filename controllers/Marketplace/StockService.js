@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2018-12-10 18:21:53
+* @Last Modified time: 2019-04-02 12:16:28
 */
 
 'use strict';
@@ -107,9 +107,14 @@ module.exports.getStocks = function(args, res, next) {
 	return SecurityHelper.getStockList(search, {universe, sector, industry, exclude, skip, limit})
 	.then(securities => {
 		return Promise.map(securities, function(security) {
-			return populate ? 
-				SecurityHelper.getStockLatestDetail(security).then(detail => {return Object.assign(security, detail)}) : 
-				security;
+			return Promise.resolve()
+			.then(()=> {
+				if (populate) {
+					return SecurityHelper.getStockLatestDetail(security).then(detail => {return Object.assign(security, detail)}); 	
+				} else {
+					return security;
+				}
+			}) 
 		});
 	})
 	.then(output => {
