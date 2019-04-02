@@ -43,8 +43,8 @@ function _populateWinners(winners, userId) {
 			const funnyLastName = funnyName[1] || 'Yo';
 			const shouldShowFunnyName = userId === advisorUserId;
 
-			const requiredFirstName = shouldShowFunnyName ? funnyFirstName : _.get(user, 'firstName', '')
-			const requiredLastName = shouldShowFunnyName ? funnyLastName : _.get(user, 'lastName', '');
+			const requiredFirstName = shouldShowFunnyName ? funnyFirstName : _.get(requiredUser, 'firstName', '')
+			const requiredLastName = shouldShowFunnyName ? funnyLastName : _.get(requiredUser, 'lastName', '');
 
 			requiredUser = {
 				...requiredUser,
