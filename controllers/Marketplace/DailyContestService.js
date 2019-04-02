@@ -29,12 +29,30 @@ const SecurityHelper = require('../helpers/Security');
 const AdvisorHelper = require('../helpers/Advisor');
 const PredictionRealtimeController = require('../Realtime/predictionControl');
 const BrokerRedisController = require('../Realtime/brokerRedisControl');
+const funnyNames = require('../../constants/funnyNames');
 
-function _populateWinners(winners) {
-	return Promise.map(winners, function(winner) {
+function _populateWinners(winners, userId) {
+	return Promise.map(winners, function(winner, index) {
 		return AdvisorModel.fetchAdvisor({_id: winner.advisor}, {fields: 'user'})
 		.then(populatedAdvisor => {
-			return {...winner.toObject(), user: populatedAdvisor.user.toObject()};
+			let requiredUser = populatedAdvisor.user.toObject();
+			const advisorUserId = _.get(requiredUser, '_id', null);
+
+			const funnyName = funnyNames[index].split(' ');
+			const funnyFirstName = funnyName[0] || 'Funny';
+			const funnyLastName = funnyName[1] || 'Yo';
+			const shouldShowFunnyName = userId === advisorUserId;
+
+			const requiredFirstName = shouldShowFunnyName ? funnyFirstName : _.get(user, 'firstName', '')
+			const requiredLastName = shouldShowFunnyName ? funnyLastName : _.get(user, 'lastName', '');
+
+			requiredUser = {
+				...requiredUser,
+				firstName: requiredFirstName,
+				lastName: requiredLastName
+			}
+
+			return {...winner.toObject(), user: requiredUser};
 		})
 	})
 }
@@ -806,20 +824,21 @@ module.exports.addAdminModificationsToPrediction = (args, res, next) => {
 module.exports.getDailyContestWinners = (args, res, next) => {
 	const _d = _.get(args, 'date.value', '');
 	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
-	
+	const userId = args.user._id;	
 	const date = DateHelper.getMarketCloseDateTime(_dd);
 
 	return DailyContestStatsModel.fetchContestStats(date, {fields:'dailyWinners weeklyWinners'})
 	.then(statsForDate => {
 		return Promise.all([
-			_populateWinners(statsForDate.dailyWinners || []),
-			_populateWinners(statsForDate.weeklyWinners || [])
+			_populateWinners(statsForDate.dailyWinners || [], userId),
+			_populateWinners(statsForDate.weeklyWinners || [], userId)
 		]);
 	})
 	.then(([populatedDailyWinners, populatedWeeklyWinners]) => {
 		return res.status(200).send({dailyWinners: populatedDailyWinners, weeklyWinners: populatedWeeklyWinners});
 	})
 	.catch(err => {
+		console.log('Error ', err.message);
 		return res.status(400).send({message: err.message});	
 	})
 };
