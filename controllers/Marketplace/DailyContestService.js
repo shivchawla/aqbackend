@@ -36,12 +36,16 @@ function _populateWinners(winners, userId) {
 		return AdvisorModel.fetchAdvisor({_id: winner.advisor}, {fields: 'user'})
 		.then(populatedAdvisor => {
 			let requiredUser = populatedAdvisor.user.toObject();
+			console.log('Required User ', requiredUser);
 			const advisorUserId = _.get(requiredUser, '_id', null);
 
 			const funnyName = funnyNames[index].split(' ');
 			const funnyFirstName = funnyName[0] || 'Funny';
 			const funnyLastName = funnyName[1] || 'Yo';
 			const shouldShowFunnyName = userId === advisorUserId;
+
+			console.log('Winners ', advisorUserId);
+			console.log('User ', userId);
 
 			const requiredFirstName = shouldShowFunnyName ? funnyFirstName : _.get(requiredUser, 'firstName', '')
 			const requiredLastName = shouldShowFunnyName ? funnyLastName : _.get(requiredUser, 'lastName', '');
