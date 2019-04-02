@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-02 12:12:05
+* @Last Modified time: 2019-04-02 23:53:57
 */
 
 'use strict';
@@ -154,30 +154,39 @@ function _computeStockIntradayHistory(security, date) {
 		// Can't fetch index data from IB (contact customer support)
 		var isIndex = security.ticker.includes("NIFTY");
 
-		return InteractiveBroker.requestIntradayHistoricalData(security.ticker, {isIndex})
+		Promise.resolve()
+		.then(() => {
+			if (DateHelper.isMarketTrading(1, -5)) {
+				return InteractiveBroker.requestIntradayHistoricalData(security.ticker, {isIndex})
+			} else {
+				return [];
+			}
+		})
 		.then(data => {
 
-			//Update the time Z format
-			data = data.map(item => {
-				const convertedTime = DateHelper.convertIndianTimeInLocalTz(item.datetime, 'yyyymmdd HH:mm:ss').add(1,'minute').startOf('minute').toISOString();
-				return {...item, datetime: convertedTime};
-			});
+			if (data.length > 0) {
+				//Update the time Z format
+				data = data.map(item => {
+					const convertedTime = DateHelper.convertIndianTimeInLocalTz(item.datetime, 'yyyymmdd HH:mm:ss').add(1,'minute').startOf('minute').toISOString();
+					return {...item, datetime: convertedTime};
+				})
 
-			let redisData = data.map(item => {
-				return JSON.stringify(item);
-			});
+				let redisData = data.map(item => {
+					return JSON.stringify(item);
+				});
 
-			//Update the data in redis
-			return Promise.mapSeries(redisData, function(eachData) {
-				return RedisUtils.addSetDataToRedis(getRedisClient(), redisSetKey, eachData)
-			})
-			.then(() => {	
-				//Set key expiry			  
-				return RedisUtils.expireKeyInRedis(getRedisClient(), redisSetKey, Math.floor(nextMarketOpen.valueOf()/1000));
-			})
-			.then(() => {
-				resolve(data.sort((a,b) => {return moment(a.datetime).isBefore(b.datetime) ? -1 : 1;}));
-			})
+				//Update the data in redis
+				return Promise.mapSeries(redisData, function(eachData) {
+					return RedisUtils.addSetDataToRedis(getRedisClient(), redisSetKey, eachData)
+				})
+				.then(() => {	
+					//Set key expiry			  
+					return RedisUtils.expireKeyInRedis(getRedisClient(), redisSetKey, Math.floor(nextMarketOpen.valueOf()/1000));
+				})
+				.then(() => {
+					resolve(data.sort((a,b) => {return moment(a.datetime).isBefore(b.datetime) ? -1 : 1;}));
+				})
+			} else {resolve([]);}
 
 		})
 		.catch(err => {
@@ -210,7 +219,7 @@ module.exports.getRealtimeQuote = function(ticker) {
 		Promise.resolve()
 		.then(() => {
 			if (isIndex) {
-				return exports.getRealtimeQuoteFromNiftyIndices(ticker);
+				return exports.getRealtimeQuoteFromIB(ticker, isIndex);
 			} else {
 				return exports.getRealtimeQuoteFromEODH(ticker);	
 			}
@@ -865,7 +874,7 @@ module.exports.getStockLatestDetail = function(security) {
 
 module.exports.getStockDetail = function(security, date) {
 	var isToday = DateHelper.compareDates(date, DateHelper.getCurrentDate()) == 0;
-	
+
 	return Promise.all([
 		isToday ? exports.getStockLatestDetailByType(security, "EOD") : exports.getStockDetailEOD(security, date),  
 		isToday ? exports.getStockLatestDetailByType(security, "RT") : null
