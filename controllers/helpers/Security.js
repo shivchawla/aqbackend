@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-02 23:36:36
+* @Last Modified time: 2019-04-02 23:53:57
 */
 
 'use strict';
@@ -161,7 +161,7 @@ function _computeStockIntradayHistory(security, date) {
 			} else {
 				return [];
 			}
-		}
+		})
 		.then(data => {
 
 			if (data.length > 0) {
