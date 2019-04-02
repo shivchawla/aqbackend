@@ -520,14 +520,14 @@ InteractiveBroker.interactiveBroker.on('disconnected', () => {
     console.log('Disconnected');
     setTimeout(function() {
         console.log("Reconnecting");
-        InteractiveBroker.interactiveBroker.connect()}, 5000);
+        InteractiveBroker.connect()}, 5000);
 })
 
 InteractiveBroker.interactiveBroker.on('nextValidId', (reqId)  => {
     console.log('Next Valid Id:', reqId);
-    return InteractiveBroker.interactiveBroker.setNextValidId(reqId)
+    return InteractiveBroker.setNextValidId(reqId)
     .then(() => {
-        return InteractiveBroker.interactiveBroker.getExecutionsAndOpenOrders();
+        return InteractiveBroker.getExecutionsAndOpenOrders();
     })
 })
 
