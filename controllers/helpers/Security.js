@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 14:14:37
+* @Last Modified time: 2019-04-02 10:38:13
 */
 
 'use strict';
@@ -197,16 +197,49 @@ function _computeStockLatestRTDetail(security) {
 		if (lastQuote) {
 			return JSON.parse(lastQuote);
 		} else {
-			var isIndex = security.ticker.includes("NIFTY");
+			return exports.getRealtimeQuote(ticker);
+		}
+	});
+}
 
+
+module.exports.getRealtimeQuote = function(ticker) {
+	return Promise(resolve => {
+		var isIndex = security.ticker.includes("NIFTY");
+
+		Promise.resolve()
+		.then(() => {
 			if (isIndex) {
 				return exports.getRealtimeQuoteFromNiftyIndices(security.ticker);
 			} else {
 				return exports.getRealtimeQuoteFromEODH(security.ticker);	
 			}
-		}
-	});
-}
+		})
+		.then(latestQuote => {
+			resolve(latestQuote)
+		})
+		.catch(err => {
+			console.log(`Error getting quote from EODH/Nofty Indices: ${err.message}`);
+			console.log("Fetching data from IB");
+			return Promise.all([
+				exports.getRealtimeQuoteFromIB(ticker, isIndex),
+				exports.getStockLatestDetailByType(ticker, "EOD")
+			])
+			.then(([ibQuote, eodDetail]) => {
+				let ibClose = _.get(ibQuote, 'close', 0.0);
+				let pClose = _.get(eodDetail, 'Close', 0.0);
+				let change = ibClose - pClose;
+				let change_p = pClose > 0 ? change/pClose : 0.0;
+				resolve({...ibQuote, previousCloseL pClose, change, change_p});
+			})
+			.catch(err => {
+				console.log("Ib backfill is not working either");
+				resolve({})
+			})
+
+		})
+	}
+};
 
 /*
 * Function to get latest EOD or RT price for security
@@ -650,6 +683,7 @@ module.exports.getRealtimeQuoteFromNiftyIndices = function(ticker) {
 }
 
 module.exports.getRealtimeQuoteFromEODH = function(ticker) {
+	
 	var otherTickers = '';
 	
 	ticker = `${ticker}.NSE`;

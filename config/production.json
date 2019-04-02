@@ -155,7 +155,7 @@
     "ft_hour":9,
     "ft_port":3004,
 
-    "ib_connect_flag": false,
+    "ib_connect_flag": true,
     "ib_tws_host": "207.180.248.10",
     "ib_tws_port": 4002,
     "node_ib_event_port": 3002,
