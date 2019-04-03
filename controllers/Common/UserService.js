@@ -107,8 +107,13 @@ exports.userlogin = function(args, res, next) {
     .then(([investor, advisor]) => {
         const email = _.get(userDetails, 'email', null);
         const isAdmin = config.get('admin_user').indexOf(email) !== -1;
+        const allowedInvestments = _.get(advisor, 'allocation.allowedInvestments', []);
+        const maxInvestment = _.get(advisor, 'allocation.maxInvestment', 50);
+
         userDetails.investor = investor._id;
         userDetails.advisor = advisor._id;
+        userDetails.allowedInvestments = allowedInvestments;
+        userDetails.maxInvestment = maxInvestment;
 
         if (_.get(advisor, 'allocation.status', false)) {
             userDetails.allocationAdvisor = advisor.allocation.advisor;
