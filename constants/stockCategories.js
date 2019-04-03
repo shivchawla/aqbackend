@@ -9,7 +9,7 @@ module.exports.stockCategories = [
     },
     {
         category: 'Low Return Stocks',
-        stocks: ['ONGC', 'VEDL', 'MARUTI', 'MINDTREE']
+        stocks: ['ONGC', 'INFY', 'MARUTI', 'MINDTREE']
     },
     {
         category: 'Least Volatile Stocks',
@@ -21,7 +21,7 @@ module.exports.stockCategories = [
     },
     {
         category: 'Low Alpha Stocks',
-        stocks: ['LTI', 'HCL', 'ASIANPAINT', 'ADANIPORTS']
+        stocks: ['LTI', 'HCLTECH', 'ASIANPAINT', 'ADANIPORTS']
     },
     {
         category: 'High Beta Stocks',
