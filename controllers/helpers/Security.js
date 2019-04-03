@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-03 19:19:17
+* @Last Modified time: 2019-04-03 19:24:08
 */
 
 'use strict';
@@ -570,14 +570,14 @@ module.exports.updateRealtimeQuotesFromEODH = function(allTickers) {
 	}
 }
 
-var downloadedPromises = [];
+var downloadPromises = [];
 
 //Functions to update in redis the latest quote date for multiple tickers from EODH
 module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 
 	return new Promise((resolve, reject) => {
 		
-		downloadedPromises.push({resolve, reject});
+		downloadPromises.push({resolve, reject});
 		
 		//Add a timeout to reject incase, it's not resolved yet;
 		setTimeout(function() {
