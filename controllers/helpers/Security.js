@@ -726,15 +726,12 @@ module.exports.getStockFundamentalData = function(security) {
 	
 	return SecurityFundamentalDataModel.fetchFundamentalData(query)
 	.then(fundamentalData => {
-		console.log('FD DB ', fundamentalData);
 		var update = fundamentalData 
 			? _checkIfStockDetailFundamentalDataUpdateRequired(security)
 			: true;
 		if (update) {
-			console.log('Fundamental Data Update Required')
 			return exports.updateFundamentalDataFromEODH(security);
 		} else {
-			console.log('Fundamental Data Update is not required');
 			return fundamentalData
 		}
 	})
