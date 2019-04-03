@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-03 19:15:06
+* @Last Modified time: 2019-04-03 19:19:17
 */
 
 'use strict';
@@ -581,7 +581,7 @@ module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 		
 		//Add a timeout to reject incase, it's not resolved yet;
 		setTimeout(function() {
-			reject(throw new Error("Nifty Indices download timed out!!"))
+			reject(new Error("Nifty Indices download timed out!!"))
 		}, 5000);
 
 		var activeTradingDate = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0));
@@ -673,7 +673,7 @@ module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 module.exports.getRealtimeQuoteFromIB = function(ticker, isIndex = false) {
 	return new Promise((resolve, reject) => {
 
-		setTimeout(function(){reject(throw new Error("IB quote timed out"))}, 5000);
+		setTimeout(function(){reject(new Error("IB quote timed out"))}, 5000);
 
 		Promise.resolve()
 		.then(() => {
@@ -725,7 +725,7 @@ module.exports.getRealtimeQuoteFromEODH = function(ticker) {
 		var otherTickers = '';
 		
 		//Add a timeout to EODH call in case EODh servers are down
-		setTimeout(function() {reject(throw new Error("EODH quote timed out"))}, 5000);
+		setTimeout(function() {reject(new Error("EODH quote timed out"))}, 5000);
 
 		ticker = `${ticker}.NSE`;
 
