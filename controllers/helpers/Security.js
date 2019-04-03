@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-03 19:33:58
+* @Last Modified time: 2019-04-03 20:16:48
 */
 
 'use strict';
@@ -32,6 +32,9 @@ const RedisUtils = require('../../utils/RedisUtils');
 const InteractiveBroker = require('../Realtime/interactiveBroker');
 
 var redisClient;
+var redisNiftyDownloadSubscriber;
+
+var downloadPromises = [];
 
 function getRedisClient() {
 	if (!redisClient || !redisClient.connected) {
@@ -46,6 +49,43 @@ function getRedisClient() {
 
     return redisClient; 
 }
+
+const downloadingNiftyIndicesFinishedChannel = `downloadingNiftyIndicesFinished_${process.env.NODE_ENV}`;
+const downloadingNiftyIndicesErrorChannel = `downloadingNiftyIndicesError_${process.env.NODE_ENV}`;
+
+
+/*
+* Setup subscriber to handle download finish/error messgae and resolve all pending promises
+*/
+
+if (!redisNiftyDownloadSubscriber || !redisNiftyDownloadSubscriber.connected) {
+	var redisPwd = config.get('node_redis_pass');
+
+	if (redisPwd != "") {
+    	redisNiftyDownloadSubscriber = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});
+	} else {
+		redisNiftyDownloadSubscriber = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'));
+	}
+}
+
+redisNiftyDownloadSubscriber.on('ready', function() {
+	RedisUtils.subscribe(redisNiftyDownloadSubscriber, downloadingNiftyIndicesFinishedChannel);
+	RedisUtils.subscribe(redisNiftyDownloadSubscriber, downloadingNiftyIndicesErrorChannel);
+}); 
+
+redisNiftyDownloadSubscriber.on('message', function(channel, message) {
+	if (channel == downloadingNiftyIndicesFinishedChannel) {
+		return Promise.mapSeries(downloadPromises.splice(0, downloadPromises.length), function(dp) {
+			dp.resolve();
+		})
+	}
+
+	if (channel == downloadingNiftyIndicesErrorChannel) {
+		return Promise.mapSeries(downloadPromises.splice(0, downloadPromises.length), function(dp) {
+			dp.reject(JSON.parse(message));
+		})
+	}
+}); 
 
 function _getRawStockList(fname) {
 	return new Promise(resolve => {
@@ -570,8 +610,6 @@ module.exports.updateRealtimeQuotesFromEODH = function(allTickers) {
 	}
 }
 
-var downloadPromises = [];
-
 //Functions to update in redis the latest quote date for multiple tickers from EODH
 module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 
@@ -633,19 +671,14 @@ module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 				.then(() => {
 					return RedisUtils.incValue(getRedisClient(), "downloadingNiftyIndices", -1)
 					.then(() => {
-						return Promise.map(downloadPromises.splice(0, downloadPromises.length), function(dp) {
-							dp.resolve();
-						})
+						RedisUtils.publish(getRedisClient(), downloadingNiftyIndicesFinishedChannel, 1);
 					})
-
 				})
 				.catch(err => {
 					console.log(err);
 					return RedisUtils.incValue(getRedisClient(), "downloadingNiftyIndices", -1)
 					.then(() => {
-						return Promise.map(downloadPromises.splice(0, downloadPromises.length), function(dp) {
-							dp.reject(err);
-						});
+						RedisUtils.publish(getRedisClient(), downloadingNiftyIndicesErrorChannel, JSON.stringify(err));
 					})
 				})
 			} else {
