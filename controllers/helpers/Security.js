@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-03 20:16:48
+* @Last Modified time: 2019-04-03 20:33:00
 */
 
 'use strict';
@@ -52,12 +52,11 @@ function getRedisClient() {
 
 const downloadingNiftyIndicesFinishedChannel = `downloadingNiftyIndicesFinished_${process.env.NODE_ENV}`;
 const downloadingNiftyIndicesErrorChannel = `downloadingNiftyIndicesError_${process.env.NODE_ENV}`;
-
+const downloadingNiftyIndicesCount = `downloadingNiftyIndices_${process.env.NODE_ENV}`;
 
 /*
 * Setup subscriber to handle download finish/error messgae and resolve all pending promises
 */
-
 if (!redisNiftyDownloadSubscriber || !redisNiftyDownloadSubscriber.connected) {
 	var redisPwd = config.get('node_redis_pass');
 
@@ -627,7 +626,7 @@ module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 
 		var niftyUrl = 'http://iislliveblob.niftyindices.com/jsonfiles/LiveIndicesWatch.json';
 		
-		return RedisUtils.incValue(getRedisClient(), "downloadingNiftyIndices", 1)
+		return RedisUtils.incValue(getRedisClient(), downloadingNiftyIndicesCount, 1)
 		.then(_niftyIndicesDownloading => {
 			
 			if (JSON.parse(_niftyIndicesDownloading) == 1) {
@@ -669,20 +668,20 @@ module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 					}
 				})
 				.then(() => {
-					return RedisUtils.incValue(getRedisClient(), "downloadingNiftyIndices", -1)
+					return RedisUtils.incValue(getRedisClient(), downloadingNiftyIndicesCount, -1)
 					.then(() => {
 						RedisUtils.publish(getRedisClient(), downloadingNiftyIndicesFinishedChannel, 1);
 					})
 				})
 				.catch(err => {
 					console.log(err);
-					return RedisUtils.incValue(getRedisClient(), "downloadingNiftyIndices", -1)
+					return RedisUtils.incValue(getRedisClient(), downloadingNiftyIndicesCount, -1)
 					.then(() => {
 						RedisUtils.publish(getRedisClient(), downloadingNiftyIndicesErrorChannel, JSON.stringify(err));
 					})
 				})
 			} else {
-				return RedisUtils.incValue(getRedisClient(), "downloadingNiftyIndices", -1);
+				return RedisUtils.incValue(getRedisClient(), downloadingNiftyIndicesCount, -1);
 			}
 		})
 	})
