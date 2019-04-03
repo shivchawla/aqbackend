@@ -1620,7 +1620,7 @@ paths:
         in: body
         required: true
         schema:
-          $ref: '#/definitions/AllocationAccount'
+          $ref: '#/definitions/UpdateCash'
       responses:
         200:
           description: OK
@@ -5255,6 +5255,26 @@ definitions:
     
 
   AllocationAccount:
+    type: object
+    required:
+      - cash
+      - notes
+      - maxInvestment
+    properties:
+      cash:
+        type: number
+      notes:
+        type: string
+      maxInvestment:
+        type: number
+        default: 50
+      allowedInvestments:
+        type: array
+        default: [10, 25, 50]
+        items: 
+          type: number
+
+  UpdateCash:
     type: object
     required:
       - cash

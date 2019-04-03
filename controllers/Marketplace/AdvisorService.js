@@ -52,6 +52,8 @@ module.exports.allocateAdvisor = function(args, res, next) {
     
     const cash = _.get(args, 'body.value.cash', 0);
     const notes = _.get(args, 'body.value.notes', "");
+    const allowedInvestments = _.get(args, 'body.value.allowedInvestments', []);
+    const maxInvestment = _.get(args, 'body.value.maxInvestment', 50);
 
     let masterAdvisor;
     return Promise.resolve()
@@ -94,7 +96,13 @@ module.exports.allocateAdvisor = function(args, res, next) {
     })
     .then(allocatationAdvisor => {
         if(allocatationAdvisor) {
-            const allocation = {startDate: new Date(), status: true, advisor: allocatationAdvisor._id, notes};
+            const allocation = {
+                startDate: new Date(), 
+                status: true, 
+                advisor: allocatationAdvisor._id, notes,
+                allowedInvestments,
+                maxInvestment
+            };
             return AdvisorModel.addAllocation({_id: masterAdvisor._id}, allocation);     
         } else {
             APIError.throwJsonError({userId: userId, message:"Internal error creating advisor", errorCode: 1203});

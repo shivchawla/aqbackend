@@ -321,6 +321,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	const userEmail = _.get(args, 'user.email', null);
 	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
 	var prediction = _.get(args, 'body.value', null);
+	let investment, quantity, latestPrice, avgPrice;
 
 	let validStartDate = DailyContestEntryHelper.getValidStartDate();
 	const isRealPrediction = _.get(prediction, 'real', false);
@@ -343,7 +344,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	.then(() => {		
 
 		if (!isRealPrediction) {
-			const investment = _.get(prediction, 'position.investment');
+			investment = _.get(prediction, 'position.investment');
 			//Check if investment amount is either 10, 25, 50, 75 or 100K for unreal predictions
 			//
 			var valid = [10, 25, 50, 75, 100].indexOf(Math.abs(investment)) !=- 1;
@@ -363,19 +364,19 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			SecurityHelper.getRealtimeQuote(`${prediction.position.security.ticker}`)
 		])
 		.then(([securityDetail, realTimeQuote]) => {
-			var latestPrice = _.get(realTimeQuote, 'close', 0) || _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
+			latestPrice = _.get(realTimeQuote, 'close', 0) || _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
 			if (latestPrice != 0) {
 
 				//Investment is modified downstream so can't be const
-				var investment = _.get(prediction, 'position.investment', 0);
-				const quantity = _.get(prediction, 'position.quantity', 0);
+				investment = _.get(prediction, 'position.investment', 0);
+				quantity = _.get(prediction, 'position.quantity', 0);
 
 				if (isRealPrediction && (investment != 0 || quantity <= 0)) {
 					APIError.throwJsonError({message: "Must provide zero investment and positive quantity (LONG) for real trades!!"})
 				}
 
 				const isConditional = _.get(prediction, "conditionalType", "NOW") != "NOW"
-				const avgPrice = _.get(prediction, 'position.avgPrice', 0);
+				avgPrice = _.get(prediction, 'position.avgPrice', 0);
 
 				//Computed investment must be divided by 1000 to match internal units
 				investment = investment || parseFloat(((isConditional ? quantity*avgPrice : quantity*latestPrice)/1000).toFixed(2));
@@ -388,17 +389,6 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 					APIError.throwJsonError({message: "Only LONG prediction are allowed for real trades!!"})	
 				}
 				
-				if (isRealPrediction) {
-
-					if (isConditional && avgPrice > 0 && quantity*avgPrice > 50000) {
-						APIError.throwJsonError({message: "Effective investment in real trade must be less than 50K!!"})
-					}
-
-					if (!isConditional && latestPrice > 0 && quantity*latestPrice > 50000) {
-						APIError.throwJsonError({message: "Effective investment in real trade must be less than 50K!!"})
-					}
-				}
-
 				const target = prediction.target;
 				const stopLoss = _.get(prediction, 'stopLoss', 0);
 
@@ -431,6 +421,17 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		return AdvisorModel.fetchAdvisor(masterAdvisorSelection, {fields: '_id account allocation'})
 		.then(masterAdvisor => {
 			if (isRealPrediction) {
+				// Checking if investment is not greater than the maxInvestment
+				const maxInvestment = _.get(masterAdvisor, 'allocation.maxInvestment', 50) * 1000;
+
+				if (isConditional && avgPrice > 0 && quantity * avgPrice > maxInvestment) {
+					APIError.throwJsonError({message: `Effective investment in real trade must be less than ${maxInvestment}!!`})
+				}
+
+				if (!isConditional && latestPrice > 0 && quantity * latestPrice > maxInvestment) {
+					APIError.throwJsonError({message: `Effective investment in real trade must be less than ${maxInvestment}!!`})
+				}
+
 				if (_.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
 					return AdvisorModel.fetchAdvisor({_id: masterAdvisor.allocation.advisor}, {fields: '_id account'}) 
 				}

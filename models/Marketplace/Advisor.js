@@ -151,7 +151,9 @@ const Advisor = new Schema({
             ref: this,
             required: false
         },
-        notes: String
+        notes: String,
+        allowedInvestments: Array,
+        maxInvestment: Number
     },
     
     allocationHistory: [{
