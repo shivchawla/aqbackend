@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 14:31:24
+* @Last Modified time: 2019-04-03 11:08:10
 */
 'use strict';
 const config = require('config');
@@ -221,6 +221,8 @@ function _handlePredictionSubscription(req, res) {
 					} else {
 						APIError.throwJsonError({message: "No real predictions found/possible for this advisor"});
 					}
+				} else {
+					advisorId = masterAdvisorId;
 				}
 
 				let subscription = {response: res, category, advisorId, masterAdvisorId, real, errorCount: 0, subscriberId};

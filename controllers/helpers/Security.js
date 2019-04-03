@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-02 23:53:57
+* @Last Modified time: 2019-04-03 17:27:28
 */
 
 'use strict';
@@ -186,7 +186,16 @@ function _computeStockIntradayHistory(security, date) {
 				.then(() => {
 					resolve(data.sort((a,b) => {return moment(a.datetime).isBefore(b.datetime) ? -1 : 1;}));
 				})
-			} else {resolve([]);}
+			} else {
+				return RedisUtils.getSetDataFromRedis(getRedisClient(), redisSetKey)
+				.then(redisSetData => {
+					if (!redisSetData) {
+						resolve([]);
+					} else {
+						resolve(redisSetData.map(item =>  JSON.parse(item)).sort((a,b) => {return moment(a.datetime).isBefore(b.datetime) ? -1 : 1}));
+					}
+				})
+			}
 
 		})
 		.catch(err => {
@@ -219,7 +228,7 @@ module.exports.getRealtimeQuote = function(ticker) {
 		Promise.resolve()
 		.then(() => {
 			if (isIndex) {
-				return exports.getRealtimeQuoteFromIB(ticker, isIndex);
+				return exports.getRealtimeQuoteFromNiftyIndices(ticker);
 			} else {
 				return exports.getRealtimeQuoteFromEODH(ticker);	
 			}
@@ -236,6 +245,7 @@ module.exports.getRealtimeQuote = function(ticker) {
 				resolve(ibQuote);
 			})
 			.catch(err => {
+				console.log(err.message);
 				console.log("Ib backfill is not working either");
 				resolve({})
 			})
@@ -482,6 +492,7 @@ function _getIntradayHistory(security, date) {
 		if (updateRequired) {
 			return _computeStockIntradayHistory(security, date)
 			.then(intradayHistory => {
+
 				return SecurityIntradayHistoryModel.updateHistory(query, intradayHistory, {upsert: true, new: true});
 			})
 		} else {
@@ -559,19 +570,19 @@ module.exports.updateRealtimeQuotesFromEODH = function(allTickers) {
 	}
 }
 
+var downloadedPromises = [];
 
 //Functions to update in redis the latest quote date for multiple tickers from EODH
 module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 
 	return new Promise((resolve, reject) => {
 		
-		downloadEmitter.on('finished', () => {
-	  		resolve();
-		});
-
-		downloadEmitter.on('error', (err) => {
-	  		reject(err);
-		});
+		downloadedPromises.push({resolve, reject});
+		
+		//Add a timeout to reject incase, it's not resolved yet;
+		setTimeout(function() {
+			reject("Nifty Indices download timed out!!")
+		}, 5000);
 
 		var activeTradingDate = DateHelper.getMarketCloseDateTime(DateHelper.getPreviousNonHolidayWeekday(null, 0));
 		var nextMarketOpen = DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday());
@@ -634,16 +645,25 @@ module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 					}
 				})
 				.then(() => {
-					RedisUtils.incValue(getRedisClient(), "downloadingNiftyIndices", -1);
-					downloadEmitter.emit('finished');
+					return RedisUtils.incValue(getRedisClient(), "downloadingNiftyIndices", -1)
+					.then(() => {
+						return Promise.map(downloadPromises.splice(0, downloadPromises.length), function(dp) {
+							dp.resolve();
+						})
+					})
+
 				})
 				.catch(err => {
-					RedisUtils.incValue(getRedisClient(), "downloadingNiftyIndices", -1);
-					downloadEmitter.emit('error', err);
 					console.log(err);
+					return RedisUtils.incValue(getRedisClient(), "downloadingNiftyIndices", -1)
+					.then(() => {
+						return Promise.map(downloadPromises.splice(0, downloadPromises.length), function(dp) {
+							dp.reject(err);
+						});
+					})
 				})
 			} else {
-				RedisUtils.incValue(getRedisClient(), "downloadingNiftyIndices", -1);
+				return RedisUtils.incValue(getRedisClient(), "downloadingNiftyIndices", -1);
 			}
 		})
 	})
@@ -651,34 +671,42 @@ module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 
 //IB can be used for stocks BUT NOT FOR INDEX
 module.exports.getRealtimeQuoteFromIB = function(ticker, isIndex = false) {
-	return Promise.resolve()
-	.then(() => {
-		return Promise.all([
-			InteractiveBroker.requestIntradayHistoricalData(ticker, {duration: '60 s', isIndex}),
-			exports.getStockLatestDetailByType({ticker}, "EOD")
-		])	
-	})
-	.then(([quotesData, securityDetail]) => {
-		if (quotesData && quotesData.length > 0) {
-			quotesData = quotesData.map(item => {
-				const convertedTime = DateHelper.convertIndianTimeInLocalTz(item.datetime, 'yyyymmdd HH:mm:ss').add(1, 'minute').startOf('minute').toISOString();
-				return {...item, datetime: convertedTime};
-			}).sort((a,b) => { return moment(a.datetime).isAfter(a.datetime) ? -1 : 1;});
+	return new Promise((resolve, reject) => {
 
-			var latestQuote = quotesData[0];
+		setTimeout(function(){reject("IB timed out")}, 5000);
 
-			let ibClose = _.get(latestQuote, 'close', 0.0);
-			let pClose = _.get(securityDetail, 'latestDetail.Close', 0.0);
-			let change = ibClose - pClose;
-			let change_p = pClose > 0 ? change/pClose : 0.0;
-			latestQuote = {...latestQuote, previousClose: pClose, change, change_p};
+		Promise.resolve()
+		.then(() => {
+			return Promise.all([
+				InteractiveBroker.requestIntradayHistoricalData(ticker, {duration: '60 s', isIndex}),
+				exports.getStockLatestDetailByType({ticker}, "EOD")
+			])	
+		})
+		.then(([quotesData, securityDetail]) => {
+			if (quotesData && quotesData.length > 0) {
+				quotesData = quotesData.map(item => {
+					const convertedTime = DateHelper.convertIndianTimeInLocalTz(item.datetime, 'yyyymmdd HH:mm:ss').add(1, 'minute').startOf('minute').toISOString();
+					return {...item, datetime: convertedTime};
+				}).sort((a,b) => { return moment(a.datetime).isAfter(a.datetime) ? -1 : 1;});
 
-			return _updateLatestQuoteInRedis(ticker, latestQuote)
-			.then(() => {
-				return latestQuote
-			})
-		} 
-	})
+				var latestQuote = quotesData[0];
+
+				let ibClose = _.get(latestQuote, 'close', 0.0);
+				let pClose = _.get(securityDetail, 'latestDetail.Close', 0.0);
+				let change = ibClose - pClose;
+				let change_p = pClose > 0 ? change/pClose : 0.0;
+				latestQuote = {...latestQuote, previousClose: pClose, change, change_p};
+
+				return _updateLatestQuoteInRedis(ticker, latestQuote)
+				.then(() => {
+					resolve(latestQuote)
+				})
+			} 
+		})
+		.catch(err => {
+			reject(err);
+		})
+	})	
 }
 
 module.exports.getRealtimeQuoteFromNiftyIndices = function(ticker) {
@@ -693,36 +721,44 @@ module.exports.getRealtimeQuoteFromNiftyIndices = function(ticker) {
 
 module.exports.getRealtimeQuoteFromEODH = function(ticker) {
 	
-	var otherTickers = '';
-	
-	ticker = `${ticker}.NSE`;
+	return new Promise((resolve, reject) => {
+		var otherTickers = '';
+		
+		//Add a timeout to EODH call in case EODh servers are down
+		setTimeout(function() {reject("EODH Timed out")}, 5000);
 
-	const realtimeQuoteUrl = eval('`'+config.get('realtime_EODH_quote_url') +'`');
+		ticker = `${ticker}.NSE`;
 
-	return axios.get(realtimeQuoteUrl)
-	.then(response => {
-		if (response) {
-			var quoteData = response.data;
-			
-			//Change the timestamp format to end of minute
-			quoteData.timestamp = moment.unix(quoteData.timestamp).add(1, 'millisecond').startOf('minute').toISOString();
-			
-			return quoteData;
-		}
-	})
-	.then(latestQuote => {
-		//Update in redis
-		if (latestQuote) {
+		const realtimeQuoteUrl = eval('`'+config.get('realtime_EODH_quote_url') +'`');
 
-			//Get the original ticker back
-			ticker = latestQuote.code.split('.')[0];
-			
-			return _updateLatestQuoteInRedis(ticker, latestQuote)
-			.then(() => {
-				//return after updating redis
-				return latestQuote;
-			})
-		}
+		return axios.get(realtimeQuoteUrl)
+		.then(response => {
+			if (response) {
+				var quoteData = response.data;
+				
+				//Change the timestamp format to end of minute
+				quoteData.timestamp = moment.unix(quoteData.timestamp).add(1, 'millisecond').startOf('minute').toISOString();
+				
+				return quoteData;
+			}
+		})
+		.then(latestQuote => {
+			//Update in redis
+			if (latestQuote) {
+
+				//Get the original ticker back
+				ticker = latestQuote.code.split('.')[0];
+				
+				return _updateLatestQuoteInRedis(ticker, latestQuote)
+				.then(() => {
+					//return after updating redis
+					resolve(latestQuote)
+				});
+			}
+		})
+		.catch(err => {
+			reject(err);
+		})
 	})
 }
 
