@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-03 19:24:08
+* @Last Modified time: 2019-04-03 19:33:58
 */
 
 'use strict';
@@ -513,7 +513,7 @@ function _updateLatestQuoteInRedis(ticker, latestQuote) {
 		if (DateHelper.isMarketTrading()) {
 			whenToExpire = Math.floor(moment().endOf('minute').valueOf()/1000);
 		} else {
-			console.log(`Timestamp of latest/last quote for ${latestQuote.code} is ${latestQuote.timestamp}`);
+			console.log(`Timestamp of latest/last quote for ${ticker} is ${latestQuote.datetime}`);
 			whenToExpire = Math.floor(DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday()).valueOf()/1000);
 		}
 		
@@ -625,21 +625,7 @@ module.exports.updateIndexRealtimeQuotesFromNifty = function() {
 								_.unset(latestQuote, 'timeVal');
 								_.unset(latestQuote, 'last');
 
-								return RedisUtils.insertKeyValue(getRedisClient(), `latestQuote-${ticker}`, JSON.stringify(latestQuote))
-								.then(() => {
-									//Expire the real time quote
-									let whenToExpireRTQuote;
-
-									if (DateHelper.isMarketTrading()) {
-										whenToExpireRTQuote = Math.floor(moment().endOf('minute').valueOf()/1000);
-									} else {
-										console.log(`Timestamp of latest/last quote for ${ticker} is ${latestQuote.datetime}`);
-										whenToExpireRTQuote = Math.floor(DateHelper.getMarketOpenDateTime(DateHelper.getNextNonHolidayWeekday()).valueOf()/1000);
-									}
-									
-									return RedisUtils.expireKeyInRedis(getRedisClient(), `latestQuote-${ticker}`, whenToExpireRTQuote);
-										
-								})
+								return _updateLatestQuoteInRedis(ticker, latestQuote);
 							}
 						});
 					}
@@ -737,8 +723,9 @@ module.exports.getRealtimeQuoteFromEODH = function(ticker) {
 				var quoteData = response.data;
 				
 				//Change the timestamp format to end of minute
-				quoteData.timestamp = moment.unix(quoteData.timestamp).add(1, 'millisecond').startOf('minute').toISOString();
-				
+				quoteData.datetime = moment.unix(quoteData.timestamp).add(1, 'millisecond').startOf('minute').toISOString();
+				delete quoteDate.timestamp;
+
 				return quoteData;
 			}
 		})
