@@ -1060,7 +1060,7 @@ function _updatePredictionForCallPrice(prediction) {
 		SecurityHelper.getStockDetail(prediction.position.security, _getEffectiveStartDate(prediction))
 	])
 	.then(([intradaySecurityDetail, eodSecurityDetail]) => {
-		
+
 		if (_.get(prediction,'nonMarketHoursFlag', false)) {
 			var lastPrice = _.get(eodSecurityDetail, 'latestDetailRT.close', 0) ||
 			    _.get(eodSecurityDetail, 'latestDetail.Close', 0);
@@ -1783,7 +1783,11 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 						numEndedPredictions: endedPredictions.length
 					};
 				
-					resolve(DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date));
+					// resolve(DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date));
+					DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date)
+					.then(data => {
+						resolve(data);
+					})
 				})
 			})
 		} else {
@@ -2191,7 +2195,7 @@ module.exports.addPrediction = function(advisorId, prediction, date) {
 	])
 	.then(([added, masterAdvisorId]) => {
 		//Updating advisor account with new metrics
-		
+
 		var queueName = `${RECENT_ADVISORS_QUEUE}_${prediction.startDate.toISOString()}`;
 		
 		return Promise.all([
@@ -2202,7 +2206,8 @@ module.exports.addPrediction = function(advisorId, prediction, date) {
 		]);
 	})
 	.then(() => {
-		return exports.updateLatestPortfolioStatsForAdvisor(advisorId, date);
+		exports.updateLatestPortfolioStatsForAdvisor(advisorId, date);
+		return true;
 	})
 };
 

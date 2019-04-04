@@ -199,6 +199,9 @@ function _computeStockIntradayHistory(security, date) {
 		Promise.resolve()
 		.then(() => {
 			if (DateHelper.isMarketTrading(1, -5)) {
+				
+				setTimeout(function() {reject(new Error("Ib timed out"))}, 2000);
+
 				return InteractiveBroker.requestIntradayHistoricalData(security.ticker, {isIndex})
 			} else {
 				return [];
@@ -534,7 +537,7 @@ function _getIntradayHistory(security, date) {
 		if (updateRequired) {
 			return _computeStockIntradayHistory(security, date)
 			.then(intradayHistory => {
-
+				
 				return SecurityIntradayHistoryModel.updateHistory(query, intradayHistory, {upsert: true, new: true});
 			})
 		} else {
