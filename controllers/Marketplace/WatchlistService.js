@@ -6,13 +6,6 @@ const config = require('config');
 const APIError = require('../../utils/error');
 const SecurityHelper = require("../helpers/Security");
 
-_shortableSecurities = [];
-
-SecurityHelper.getShortableUniverse()
-.then(shortableUniverse => {
-	_shortableSecurities = shortableUniverse;
-})
-
 function _checkIfValidSecurity(security) {
 	return SecurityHelper.validateSecurity(security);
 }
@@ -21,15 +14,15 @@ function _populateWatchlistDetail(watchlist) {
 	return Promise.map(watchlist.securities, function(security) {
 		return Promise.all([
 			SecurityHelper.getStockLatestDetailByType(security, "RT"),
-			SecurityHelper.getStockLatestDetailByType(security, "EOD")
+			SecurityHelper.getStockLatestDetailByType(security, "EOD"),
+			SecurityHelper.isShortable(security),
+			SecurityHelper.isTradeable(security)
 		])
-		.then(([detailRT, detailEOD]) => {
+		.then(([detailRT, detailEOD, shortable, real]) => {
 
 			var eodLatestDetail = _.get(detailEOD, 'latestDetail', {}); 
 			var rtLatestDetail = _.get(detailRT, 'latestDetail', {});
-			var shortable = _shortableSecurities.indexOf(security.ticker) != -1;
-			
-			return Object.assign(security, {realtime: rtLatestDetail, eod: eodLatestDetail, shortable});
+			return Object.assign(security, {realtime: rtLatestDetail, eod: eodLatestDetail, shortable, real});
 		})
 	})
 	.then(detailForWatchlist => {
