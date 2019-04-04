@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 18:29:28
+* @Last Modified time: 2019-04-04 21:48:37
 */
 
 'use strict';
@@ -1446,6 +1446,9 @@ module.exports.getPnlStatsForDate = function(advisorId, date, options) {
 	});
 };
 
+/*
+* Get latest portfolio stats on demand (if not available, compute!!) (Generally computed via a job)
+*/
 module.exports.getPortfolioStatsForDate = function(advisorId, date) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 	return DailyContestEntryPerformanceModel.fetchLatestPortfolioStats({advisor: advisorId}, date);
@@ -2185,30 +2188,27 @@ module.exports.updateCallPriceForPredictionsFromEODH = function() {
 };
 
 
-module.exports.addPrediction = function(advisorId, prediction, date) {
+module.exports.addPrediction = function(advisorId, prediction, date, masterAdvisorId, userId) {
+	return new Promise(resolve => {
 	
-	var isRealPrediction = _.get(prediction, 'real', false);
-	
-	return Promise.all([
-		DailyContestEntryModel.addEntryPrediction({advisor: advisorId, date: date}, prediction, {new:false, upsert: true, fields:'_id'}),
-		isRealPrediction ? AdvisorHelper.getMasterAdvisor(advisorId) : null
-	])
-	.then(([added, masterAdvisorId]) => {
-		//Updating advisor account with new metrics
-
-		var queueName = `${RECENT_ADVISORS_QUEUE}_${prediction.startDate.toISOString()}`;
+		let queueName = `${RECENT_ADVISORS_QUEUE}_${prediction.startDate.toISOString()}`;
 		
-		return Promise.all([
+		Promise.all([
+			DailyContestEntryModel.addEntryPrediction({advisor: advisorId, date: date}, prediction, {new:false, upsert: true, fields:'_id'}),
 			DateHelper.isMarketTrading() ? RedisUtils.addSetDataToRedis(getRedisClient(), queueName, advisorId.toString()) : null,
 			AdvisorHelper.updateAdvisorAccountDebit(advisorId, [prediction]),
-			isRealPrediction && masterAdvisorId ? 
-				PredictionRealtimeController.sendAdminUpdates(masterAdvisorId) : null
-		]);
-	})
-	.then(() => {
-		exports.updateLatestPortfolioStatsForAdvisor(advisorId, date);
-		return true;
-	})
+		])
+		.then(() => {
+			//Run this async and move on 
+			exports.updateLatestPortfolioStatsForAdvisor(advisorId, date)
+			.then(() => {
+				//Publish that a new prediction has been added (to send updates to linked User/Admin)
+				return RedisUtils.publish(getRedisClient(), `predictionAdded_${process.env.NODE_ENV}`, JSON.stringify({advisorId: masterAdvisorId, userId}));
+			})
+
+			resolve();
+		});
+	});
 };
 
 module.exports.updateCallPriceForPredictions = function() {

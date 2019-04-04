@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 10:38:39
+* @Last Modified time: 2019-04-04 21:13:05
 */
 'use strict';
 const config = require('config');
@@ -83,43 +83,46 @@ function _sendPredictionUpdates(subscription) {
 	})
 }
 
+function _sendUserUpdates(userId) {
+	var subscriptions = _.get(predictionSubscribers, userId, {});
+	return Promise.map(Object.keys(subscriptions), function(subscriberId) {
+		
+		let subscription = subscriptions[subscriberId];
+		
+		if (subscription && subscription.errorCount > MAX_ERROR_COUNT) {
+			console.log("Deleting subscriber from list. WS connection is invalid for ${MAX_ERROR_COUNT} attmept")
+			delete predictionSubscribers[userId][subscriberId];
+			return;
+		} else {
+			return Promise.resolve().
+			then(() => {
+				if (subscription.admin) {
+					return _sendAdminRealPredictionUpdates(subscription);
+				} else {
+					return _sendPredictionUpdates(subscription);
+				}
+			})
+		}
+	})
+	.then(() => {
+		//Remove the null subscriptions for the user
+		if (Object.keys(_.get(predictionSubscribers, userId, {})).length == 0) {
+			delete predictionSubscribers[userId];
+		} 
+	})
+}
+
 function _sendAllPredictionUpdates() {
 	var uniqueSubscriptionUsers = Object.keys(predictionSubscribers);
 	
 	return Promise.mapSeries(uniqueSubscriptionUsers, function(userId) {
-		var subscriptions = _.get(predictionSubscribers, userId, {});
-		return Promise.map(Object.keys(subscriptions), function(subscriberId) {
-			
-			let subscription = subscriptions[subscriberId];
-			
-			if (subscription && subscription.errorCount > MAX_ERROR_COUNT) {
-				console.log("Deleting subscriber from list. WS connection is invalid for ${MAX_ERROR_COUNT} attmept")
-				delete predictionSubscribers[userId][subscriberId];
-				return;
-			} else {
-				return Promise.resolve().
-				then(() => {
-					if (subscription.admin) {
-						return _sendAdminRealPredictionUpdates(subscription);
-					} else {
-						return _sendPredictionUpdates(subscription);
-					}
-				})
-			}
-		})
-		.then(() => {
-			//Remove the null subscriptions for the user
-			if (Object.keys(_.get(predictionSubscribers, userId, {})).length == 0) {
-				delete predictionSubscribers[userId];
-			} 
-		})
+		return _sendUserUpdates(userId);
 	})
 	.catch(err => {
 		console.log("Error. _sendAllPredictionUpdates: ", err.message);
 		throw(err);
 	})
 }
-
 
 function _getPredictionDetailForAdmin(advisorId, category, masterAdvisorId, predictionId) {
 	
@@ -174,8 +177,7 @@ function _getPredictionDetailForAdmin(advisorId, category, masterAdvisorId, pred
 				return prediction;
 			}
 		});
-	})
-
+	});
 }
 
 //User Advisor map and sends updates for all real predictions (sends bulk per advice)
@@ -372,6 +374,21 @@ module.exports.sendAllUpdates = function() {
 	return _sendAllPredictionUpdates();
 };
 
+
+/*
+* Send updates to specific user
+ */
+module.exports.sendUserUpdates = function(userId) {
+	return _sendUserUpdates(userId)
+	.catch(err => {
+		console.log("Error. sendUserUpdates: ", err.message);
+		throw(err);
+	})
+};
+
+/*
+* Send updates to admin (optional advisorId and predictionId)
+ */
 module.exports.sendAdminUpdates = function(advisorId, predictionId) {
 	return UserModel.fetchUsers({email:{$in: config.get('admin_user')}}, {fields:'_id'})
 	.then(adminUsers => {

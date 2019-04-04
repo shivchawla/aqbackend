@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 12:15:58
+* @Last Modified time: 2019-04-04 21:51:04
 */
 
 'use strict';
@@ -30,6 +30,7 @@ const AdvisorHelper = require('../helpers/Advisor');
 const PredictionRealtimeController = require('../Realtime/predictionControl');
 const BrokerRedisController = require('../Realtime/brokerRedisControl');
 const funnyNames = require('../../constants/funnyNames');
+
 
 function _populateWinners(winners, user) {
 	const userId = _.get(user, '_id', null);
@@ -308,11 +309,15 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	let investment, quantity, latestPrice, avgPrice;
 
 	let validStartDate = DailyContestEntryHelper.getValidStartDate();
-	const isRealPrediction = _.get(prediction, 'real', false);
+	
 	const conditionalType = _.get(prediction, 'conditionalType', 'NOW');
 	const isConditional = conditionalType.toUpperCase() !== 'NOW';
+	
 	// Investment obtained from the frontend
 	let investmentInput = 0;
+
+	const isRealPrediction = _.get(prediction, 'real', false);
+	let masterAdvisorId; 
 
 	return Promise.resolve()
 	.then(() => {
@@ -320,10 +325,10 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		if (!isConditional && !DateHelper.isMarketTrading()) {
 			APIError.throwJsonError({message: 'Market is closed! Only conditional predictions allowed'});
 		}
-		return ;
-		// if (!DateHelper.isMarketTrading(15, 15) && entryPredictions.filter(item => item.real).length > 0) {
-		//  	APIError.throwJsonError({message: "Market is closed!! Real trades are allowed only between 9:30 AM to 3:15 PM!!"})
-		// }
+		
+		if (process.env.NODE_ENV == 'production' && !DateHelper.isMarketTrading(15, 15) && entryPredictions.filter(item => item.real).length > 0) {
+		 	APIError.throwJsonError({message: "Market is closed!! Real trades are allowed only between 9:30 AM to 3:15 PM!!"})
+		}
 	})
 	.then(() => {		
 
@@ -404,6 +409,10 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 		return AdvisorModel.fetchAdvisor(masterAdvisorSelection, {fields: '_id account allocation'})
 		.then(masterAdvisor => {
+
+			//Get master advisor id (used later when sending updates)
+			masterAdvisorId = masterAdvisor._id.toString();
+
 			if (isRealPrediction) {
 				// Checking if investment is not greater than the maxInvestment
 				const maxInvestment = _.get(masterAdvisor, 'allocation.maxInvestment', 50) * 1000;
@@ -442,11 +451,13 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				}
 				
 			}
+
 			return Promise.all([
 				DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "all", priceUpdate: false, active: null}),
-				DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date)
-			])
-			// return DailyContestEntryHelper.getPredictionsForDate(advisorId, validStartDate, {category: "all", priceUpdate: false, active: null});
+				DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date),
+				AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account'})
+			]);
+			
 		} else {
 			if(isRealPrediction) {
 				APIError.throwJsonError({message: "Not authorized to make real predictions"});
@@ -455,9 +466,11 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			}
 		}
 	})
-	.then(([activePredictions, portfolioStats]) => {
-		const portfolioValue = _.get(portfolioStats, 'netTotal', 0);
-		const tenPercentagePortfolioValue = 0.105 * portfolioValue;
+	.then(([activePredictions, portfolioStats, advisor]) => {
+		const portfolioValue = _.get(portfolioStats, 'netTotal', 0) || 
+				(_.get(advisor, 'account.liquidCash', 0) + _.get(advisor, 'account.investment', 0));
+
+		const tenPercentagePortfolioValue = 0.1005 * portfolioValue;
 
 		activePredictions = activePredictions.filter(item => {
 			var completeStatus = _.get(item, 'status.profitTarget', false) ||  
@@ -476,6 +489,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			const predictionInvestment = _.get(activePrediction, 'position.investment', 0);
 			return predictionInvestment;		
 		}));
+
 		netInvestmentForTicker = netInvestmentForTicker + investmentInput;
 		
 		if (tenPercentagePortfolioValue !== 0 &&  netInvestmentForTicker > tenPercentagePortfolioValue) {
@@ -519,12 +533,12 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	})
 	.then(adjustedPrediction => {
 		if (adjustedPrediction) {
-			return DailyContestEntryHelper.addPrediction(advisorId, adjustedPrediction, DateHelper.getMarketCloseDateTime(validStartDate))
+			return DailyContestEntryHelper.addPrediction(advisorId, adjustedPrediction, DateHelper.getMarketCloseDateTime(validStartDate), masterAdvisorId, userId)
 		} else {
 			APIError.throwJsonError({message: "Adjusted prediciton is NULL/invalid"});
 		}
 	})
-	.then(final => {
+	.then(() => {
 		return res.status(200).send("Predictions updated successfully");
 	})
 	.catch(err => {

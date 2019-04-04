@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-04-01 00:30:02
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 14:32:47
+* @Last Modified time: 2019-04-04 21:49:54
 */
 
 'use strict';
@@ -45,7 +45,9 @@ function manageSubscriptions() {
 
 		if (config.get('node_ib_event_port') == serverPort) {
 			RedisUtils.subscribe(redisSubscriber, `processIBEvents_${process.env.NODE_ENV}`);	
-		}		
+		}
+
+		RedisUtils.subscribe(redisSubscriber, `predictionAdded_${process.env.NODE_ENV}`);
 
 	});
 
@@ -55,6 +57,16 @@ function manageSubscriptions() {
 				MktPlaceController.sendAllUpdates(),
 				PredictionRealtimeController.sendAllUpdates()
 			]);       
+        }
+
+        else if(channel == `predictionAdded_${process.env.NODE_ENV}`) {     
+			var advisorId = _.get(JSON.parse(message), 'advisorId', null);
+			var userId = _.get(JSON.parse(message), 'userId', null);
+
+			return Promise.all([
+				advisorId ? PredictionRealtimeController.sendAdminUpdates(advisorId) : null,
+				userId ? PredictionRealtimeController.sendUserUpdates(userId) : null
+			]);			
         }
 
         else if (channel == `processIBEvents_${process.env.NODE_ENV}`) {
