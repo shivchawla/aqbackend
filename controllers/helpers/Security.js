@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 10:50:36
+* @Last Modified time: 2019-04-04 13:16:49
 */
 
 'use strict';
@@ -35,6 +35,9 @@ var redisClient;
 var redisNiftyDownloadSubscriber;
 
 var downloadPromises = [];
+
+let shortableSecurities = [];
+let notAllowedForTradeSecurities = Object.values(niftyIndices);
 
 function getRedisClient() {
 	if (!redisClient || !redisClient.connected) {
@@ -1073,6 +1076,11 @@ module.exports.getShortableUniverse = function() {
 	return _getRawStockList(fname_shortable);
 }
 
+module.exports.getNonTradeableUniverse = function() {
+	const fname_nontradeable = path.resolve(path.join(__dirname, `../../documents/universe/ind_nifty500list_nontradeable.csv`));
+	return _getRawStockList(fname_nontradeable);
+};
+
 module.exports.getStockList = function(search, options) {
 	const universe = options.universe;
 	const sector = options.sector;
@@ -1288,3 +1296,20 @@ module.exports.updateIntradayHistory = function(ticker, snapShot) {
 		return ;
 	}
 };
+
+module.exports.isShortable = function(security) {
+	return shortableSecurities.indexOf(security.ticker) != -1;
+};
+
+module.exports.isTradeable = function(security) {
+	return notAllowedForTradeSecurities.indeOf(security.ticker) == -1;
+};
+
+return Promise.all([
+	exports.getShortableUniverse(),
+	exports.getNonTradeableUniverse()
+])
+.then(([shortableUniverse, nonTradeableUniverse])  => {
+	shortableSecurities = shortableUniverse;
+	notAllowedForTradeSecurities.concat(nonTradeableUniverse);
+})

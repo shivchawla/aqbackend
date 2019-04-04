@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-02 12:16:28
+* @Last Modified time: 2019-04-04 13:06:28
 */
 
 'use strict';
@@ -14,6 +14,7 @@ const APIError = require('../../utils/error');
 const DateHelper = require('../../utils/Date');
 const _ = require('lodash');
 const moment = require('moment');
+const niftyIndicesMap = require('../../documents/indices.json');
 
 function updateStockWeight(query) {
 	return SecurityPerformanceModel.fetchSecurityPerformance(query, {fields: 'weight'})
@@ -107,10 +108,13 @@ module.exports.getStocks = function(args, res, next) {
 	return SecurityHelper.getStockList(search, {universe, sector, industry, exclude, skip, limit})
 	.then(securities => {
 		return Promise.map(securities, function(security) {
-			return Promise.resolve()
-			.then(()=> {
+			return Promise.all([
+				SecurityHelper.isShortable(security),
+				SecurityHelper.isTradeable(security)
+			])
+			.then(([shortable, real])=> {
 				if (populate) {
-					return SecurityHelper.getStockLatestDetail(security).then(detail => {return Object.assign(security, detail)}); 	
+					return SecurityHelper.getStockLatestDetail(security).then(detail => {return {security: {...security, shortable, real}, detail}}); 	
 				} else {
 					return security;
 				}
@@ -128,29 +132,9 @@ module.exports.getStocks = function(args, res, next) {
 
 module.exports.getStockDetailBenchmark = function(args, res, next) {
 	const ticker = args.ticker.value;
+	const indices = Object.values(niftyIndicesMap);
 
-	if (["NIFTY_50", 
-    "NIFTY_100",
-    "NIFTY_200",
-    "NIFTY_500",
-    "NIFTY_MIDCAP_50",
-    "NIFTY_AUTO",
-    "NIFTY_BANK",
-    "NIFTY_FIN_SERVICE",
-    "NIFTY_FMCG",
-    "NIFTY_IT",
-    "NIFTY_MEDIA",
-    "NIFTY_METAL",
-    "NIFTY_PHARMA",
-    "NIFTY_PSU_BANK",
-    "NIFTY_REALTY",
-    "NIFTY_COMMODITIES",
-    "NIFTY_CPSE",
-    "NIFTY_ENERGY",
-    "NIFTY_INFRA",
-    "NIFTY_MNC",
-    "NIFTY_SERV_SECTOR",
-    "NIFTY_CONSUMPTION"].indexOf(ticker) !=-1) {
+	if (indices.indexOf(ticker) !=-1) {
     	return exports.getStockDetail(args, res, next);
     } else {
     	return res.status(400).send(`Invalid benchmark ticker: ${ticker}`);
