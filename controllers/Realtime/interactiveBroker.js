@@ -448,8 +448,10 @@ InteractiveBroker.interactiveBroker = new ib({
     port: config.get('ib_tws_port')
 })
 
-//Connest to IB server
-InteractiveBroker.connect()
+if (config.get('ib_connect_flag')) {
+    //Connest to IB server
+    InteractiveBroker.connect()
+}
 
 /**
  * Handling event 'orderStatus' when send from the IB gateway or IB TWS

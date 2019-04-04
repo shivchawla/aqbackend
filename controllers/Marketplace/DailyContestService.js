@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-02 10:39:13
+* @Last Modified time: 2019-04-04 11:00:09
 */
 
 'use strict';
@@ -45,7 +45,7 @@ function _populateWinners(winners, user) {
 			const funnyName = funnyNames[index].split(' ');
 			const funnyFirstName = funnyName[0] || 'Funny';
 			const funnyLastName = funnyName[1] || 'Yo';
-			const shouldNotShowFunnyName = userId === advisorUserId || isAdmin;
+			const shouldNotShowFunnyName = true; //userId === advisorUserId || isAdmin;
 
 			const requiredFirstName = shouldNotShowFunnyName ? _.get(requiredUser, 'firstName', '') : funnyFirstName
 			const requiredLastName = shouldNotShowFunnyName ? _.get(requiredUser, 'lastName', '') : funnyLastName;
@@ -170,17 +170,20 @@ module.exports.getRealTradePredictions = (args, res, next) => {
 	})
 	.then(realPredictions => {
 		return Promise.map(realPredictions, function(prediction) {
-			console.log('Prediction', prediction.tradeActivity);
+			var ticker = _.get(prediction, 'position.security.ticker', '');
+
 			return Promise.all([
+				DailyContestEntryHelper.getDailyContestEntryPnlStats(advisorId, ticker),
+				DailyContestEntryHelper.getDailyContestEntryPnlStats(masterAdvisorId, ticker),
 				BrokerRedisController.getPredictionStatus(prediction.advisor._id, prediction._id),
 				BrokerRedisController.getPredictionActivity(prediction.advisor._id, prediction._id)
 			])
-			.then(([status, activity]) => {
+			.then(([tickerRealPnlStats, tickerSimulatedPnlStats, status, activity]) => {
 				prediction.tradeActivity = prediction.tradeActivity.concat(_.get(activity, 'tradeActivity', []));
 				prediction.orderActivity = prediction.orderActivity.concat(_.get(activity, 'orderActivity', []));
 				prediction.activity = activity
 
-				return {...prediction, current: status};
+				return {...prediction, current: status, tickerRealPnlStats, simulatedPnlStats: tickerSimulatedPnlStats};
 			})
 		});
 	})
@@ -344,7 +347,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	.then(() => {		
 
 		if (!isRealPrediction) {
-			investment = _.get(prediction, 'position.investment');
+			investment = _.get(prediction, 'position.investment', 0);
 			//Check if investment amount is either 10, 25, 50, 75 or 100K for unreal predictions
 			//
 			var valid = [10, 25, 50, 75, 100].indexOf(Math.abs(investment)) !=- 1;

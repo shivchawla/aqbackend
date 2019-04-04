@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-03 20:33:00
+* @Last Modified time: 2019-04-04 10:50:36
 */
 
 'use strict';
@@ -756,7 +756,7 @@ module.exports.getRealtimeQuoteFromEODH = function(ticker) {
 				
 				//Change the timestamp format to end of minute
 				quoteData.datetime = moment.unix(quoteData.timestamp).add(1, 'millisecond').startOf('minute').toISOString();
-				delete quoteDate.timestamp;
+				delete quoteData.timestamp;
 
 				return quoteData;
 			}

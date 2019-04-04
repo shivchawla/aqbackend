@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-03 11:08:10
+* @Last Modified time: 2019-04-04 10:38:39
 */
 'use strict';
 const config = require('config');
@@ -65,6 +65,20 @@ function _sendPredictionUpdates(subscription) {
 			
 	})
 	.then(([predictions, pnlStats, portStats]) => {
+
+		//Unset a few attributes before sending the WS response to normal user
+		predictions = predictions.map(item => {
+			_.unset(item, 'tradeActivity');
+			_.unset(item, 'orderActivity');
+			_.unset(item, 'adminActivity');
+			_.unset(item, 'skippedByAdmin'); 
+			_.unset(item, 'readStatus'); 
+			_.unset(item, 'adminModifications'); 
+			
+			return item;
+
+		});
+
 		return _sendWSResponse(subscription, {advisorId: masterAdvisorId, real, category, predictions, pnlStats, portStats});
 	})
 }
@@ -143,7 +157,25 @@ function _getPredictionDetailForAdmin(advisorId, category, masterAdvisorId, pred
 				})
 			});
 		}
-	});	
+	})
+	.then(updatedPredictions => {
+		//populate symbol level performance stats
+		return Promise.map(updatedPredictions , function(prediction) {
+			var ticker = _.get(prediction, 'position.security.ticker', '');
+			if (ticker != '') {
+				return Promise.all([
+					DailyContestEntryHelper.getDailyContestEntryPnlStats(advisorId, ticker),
+					DailyContestEntryHelper.getDailyContestEntryPnlStats(masterAdvisorId, ticker)
+				])
+				.then(([tickerRealPnlStats, tickerSimulatedPnlStats]) => {
+					return {...prediction, realPnlStats: tickerRealPnlStats, simulatedPnlStats: tickerSimulatedPnlStats};
+				})
+			} else {
+				return prediction;
+			}
+		});
+	})
+
 }
 
 //User Advisor map and sends updates for all real predictions (sends bulk per advice)
