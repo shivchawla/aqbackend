@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 10:16:25
+* @Last Modified time: 2019-04-04 11:03:44
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -450,17 +450,17 @@ const holidays = [
 
 
 //Test cases
-console.log(`UTC: ${exports.getMarketCloseDateTime()}`);
-console.log(`UTC: ${exports.getMarketOpenDateTime()}`);
-console.log(`UTC: ${exports.getMarketOpen()}`);
-console.log(`UTC: ${exports.getMarketClose()}`);
+// console.log(`UTC: ${exports.getMarketCloseDateTime()}`);
+// console.log(`UTC: ${exports.getMarketOpenDateTime()}`);
+// console.log(`UTC: ${exports.getMarketOpen()}`);
+// console.log(`UTC: ${exports.getMarketClose()}`);
 // console.log(_isBeforeMarketClose());
 // console.log(_isAfterMarketOpen());
 
-console.log(`Local: ${exports.getMarketCloseDateTimeLocal()}`);
-console.log(`Local: ${exports.getMarketOpenDateTimeLocal()}`);
-console.log(`Local: ${exports.getMarketOpenLocal()}`);
-console.log(`Local: ${exports.getMarketCloseLocal()}`);
+// console.log(`Local: ${exports.getMarketCloseDateTimeLocal()}`);
+// console.log(`Local: ${exports.getMarketOpenDateTimeLocal()}`);
+// console.log(`Local: ${exports.getMarketOpenLocal()}`);
+// console.log(`Local: ${exports.getMarketCloseLocal()}`);
 
 
 
