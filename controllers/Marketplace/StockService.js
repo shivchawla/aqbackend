@@ -114,7 +114,9 @@ module.exports.getStocks = function(args, res, next) {
 			])
 			.then(([shortable, real])=> {
 				if (populate) {
-					return SecurityHelper.getStockLatestDetail(security).then(detail => {return {...security, shortable, real, detail}; }); 	
+					return SecurityHelper.getStockLatestDetail(security).then(detail => {
+						return {...security, shortable, real, ...detail}
+					}); 	
 				} else {
 					return security;
 				}
