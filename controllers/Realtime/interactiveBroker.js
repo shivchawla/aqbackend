@@ -208,13 +208,22 @@ class InteractiveBroker {
     static placeOrderInternal(orderId, contract, config) {
         return new Promise((resolve, reject) => {
             initializeCallback(orderId, resolve, reject);
-            const ibInstance = self.interactiveBroker;
+            const ibInstance = this.interactiveBroker;
             ibInstance.placeOrder(orderId, contract, config)
-            .then(() => {
-                RedisBrokerController.updateOrderToClientMap(orderId, serverPort);
-            })
+            BrokerRedisController.updateOrderToClientMap(orderId, serverPort);
+            setTimeout(() => resolve(true), 1000);
         });
     }
+
+    // static cancelOrderInternal(orderId) {
+    //     return new Promise((resolve, reject) => {
+    //         console.log('Cancelling Order  Internal ', orderId);
+    //         initializeCallback(orderId, resolve, reject);
+    //         const ibInstance = this.interactiveBroker;
+    //         ibInstance.cancelOrder(orderId)
+    //         //BrokerRedisController.updateOrderToClientMap(orderId, serverPort);
+    //     });
+    // }
 
     static placeOrder({
             stock, 
@@ -273,26 +282,29 @@ class InteractiveBroker {
 
                     const bracketOrderConfig = self.bracketOrder(type, quantity, price, profitLimitPrice, stopLossPrice, bracketFirstOrderType);
 
-                    return Promise((resolve, reject) => {
+                    return new Promise((resolve, reject) => {
                         return Promise.all([
-                            this.placeOrderInternal(parentId, ibStock, {...bracketOrderConfig.parentOrder, tif}),
-                            this.placeOrderInternal(profitOrderId, ibStock, {...bracketOrderConfig.profitOrder, parentId, tif}),
-                            this.placeOrderInternal(stopLossOrderId, ibStock, {...bracketOrderConfig.stopLossOrder, parentId, tif})
+                            self.placeOrderInternal(parentId, ibStock, {...bracketOrderConfig.parentOrder, tif}),
+                            self.placeOrderInternal(profitOrderId, ibStock, {...bracketOrderConfig.profitOrder, parentId, tif}),
+                            self.placeOrderInternal(stopLossOrderId, ibStock, {...bracketOrderConfig.stopLossOrder, parentId, tif})
                         ])
                         .then(() => {
                             //if call orders are successful
                             resolve(true);
                         })
-                        .catch(err => {
+                        .catch(errP => {
                             console.log("Error in one of the legs of bracket orders");
-                            console.log("Cancelling all legs");
+                            console.log("Cancelling all legs", errP.message);
 
                             //What to do when place order fails
                             return Promise.map(orderIds, function(orderId) {
-                                return this.cancelOrder(orderId);
+                                return self.cancelOrder(orderId)
                             })
                             .then(() => {
-                                reject(err);
+                                reject(errP);
+                            })
+                            .catch(errC2 => {
+                                reject(errP);
                             })
                         })
                     })
@@ -300,23 +312,23 @@ class InteractiveBroker {
                 
                 else if (orderType === 'limit') {
                     const limitOrderConfig = ibInstance.order.limit(type, quantity, price);
-                    this.placeOrderInternal(orderIds[0], ibStock, {...limitOrderConfig, tif});
+                    return this.placeOrderInternal(orderIds[0], ibStock, {...limitOrderConfig, tif});
                 } 
                 
                 else if (orderType === 'market') {
                     const marketOrderConfig = ibInstance.order.market(type, quantity);
-                    this.placeOrderInternal(orderIds[0], ibStock, {...marketOrderConfig, tif});
+                    return this.placeOrderInternal(orderIds[0], ibStock, {...marketOrderConfig, tif});
                 }
 
                 else if (orderType === 'stopLimit') {
                     const stopLimitOrderConfig = ibInstance.order.stopLimit(type, quantity, price);
-                    this.placeOrderInternal(orderIds[0], ibStock, {...stopLimitOrderConfig, tif});
+                    return this.placeOrderInternal(orderIds[0], ibStock, {...stopLimitOrderConfig, tif});
                 }
 
                 else if (orderType === 'marketClose') {
                     let goodAfterTime = DateHelper.convertLocaTimeToIndiaTz(DateHelper.getMarketCloseDateTime().subtract(5, 'minutes')).format('YYYYMMDD HH:mm:ss');
                     let marketCloseOrderConfig = ibInstance.order.market(type, quantity, true, goodAfterTime);
-                    this.placeOrderInternal(orderIds[0], ibStock, {...marketCloseOrderConfig, tif});
+                    return this.placeOrderInternal(orderIds[0], ibStock, {...marketCloseOrderConfig, tif});
                 }
 
                 else if (orderType === 'marketIfTouched') {
@@ -329,7 +341,7 @@ class InteractiveBroker {
                         tif
                     };
 
-                    this.placeOrderInternal(orderIds[0], ibStock, marketIfTouchedOrderConfig);
+                    return this.placeOrderInternal(orderIds[0], ibStock, marketIfTouchedOrderConfig);
                 }
                 
                 else {
@@ -412,7 +424,7 @@ class InteractiveBroker {
     static cancelOrder(orderId) {
         return new Promise((resolve, reject) => {
             try {
-                initalizeCallBack(orderId, resolve, reject);
+                initializeCallback(orderId, resolve, reject);
                 // Getting the interactive broker instance
                 const ibInstance = this.interactiveBroker;
                 ibInstance.cancelOrder(orderId)
@@ -473,7 +485,7 @@ InteractiveBroker.interactiveBroker.on('openOrder', (orderId, contract, order, o
     .then(() => {
         var resolve = _.get(promises, `${orderId}.resolve`, null);
         if (resolve) {
-            delete promises[reqId];
+            delete promises[orderId];
             resolve({orderId, contract, order, orderState});
         }
     })
