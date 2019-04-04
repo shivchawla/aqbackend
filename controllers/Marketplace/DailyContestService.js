@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 11:00:09
+* @Last Modified time: 2019-04-04 12:15:58
 */
 
 'use strict';
@@ -161,31 +161,12 @@ module.exports.getRealTradePredictions = (args, res, next) => {
 	return Promise.resolve()
 	.then(() => {
 		if (isAdmin) {
-			return DailyContestEntryHelper.getAllRealTradePredictions(advisorId, date, {active, category});
+			return 	DailyContestEntryHelper.getAllRealTradePredictions(advisorId, date, {active, category});
 		}
 		else {
 			APIError.throwJsonError({message: "Not authorized!!"});
 		}
 			
-	})
-	.then(realPredictions => {
-		return Promise.map(realPredictions, function(prediction) {
-			var ticker = _.get(prediction, 'position.security.ticker', '');
-
-			return Promise.all([
-				DailyContestEntryHelper.getDailyContestEntryPnlStats(advisorId, ticker),
-				DailyContestEntryHelper.getDailyContestEntryPnlStats(masterAdvisorId, ticker),
-				BrokerRedisController.getPredictionStatus(prediction.advisor._id, prediction._id),
-				BrokerRedisController.getPredictionActivity(prediction.advisor._id, prediction._id)
-			])
-			.then(([tickerRealPnlStats, tickerSimulatedPnlStats, status, activity]) => {
-				prediction.tradeActivity = prediction.tradeActivity.concat(_.get(activity, 'tradeActivity', []));
-				prediction.orderActivity = prediction.orderActivity.concat(_.get(activity, 'orderActivity', []));
-				prediction.activity = activity
-
-				return {...prediction, current: status, tickerRealPnlStats, simulatedPnlStats: tickerSimulatedPnlStats};
-			})
-		});
 	})
 	.then(realPredictions => {
 		return res.status(200).send(realPredictions);

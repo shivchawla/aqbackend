@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-02 23:38:40
+* @Last Modified time: 2019-04-04 12:15:40
 */
 
 'use strict';
@@ -26,10 +26,11 @@ const DailyContestEntryPerformanceModel = require('../../models/Marketplace/Dail
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 
 const PredictionRealtimeController = require('../Realtime/predictionControl');
+const BrokerRedisController = require('../Realtime/brokerRedisControl');
 
 const RedisUtils = require('../../utils/RedisUtils');
 
-const RECENT_ADVISORS_QUEUE = "recent_advisor_queue";
+const RECENT_ADVISORS_QUEUE = `recent_advisor_queue_${process.env.NODE_ENV}`;
 
 var redisClient;
 
@@ -1134,7 +1135,6 @@ function _computeUpdatedPredictions(predictions, date) {
 				.then(updatedCallPricePrediction => {
 					var _partialUpdatedPositions = updatedCallPricePrediction ? [updatedCallPricePrediction.position] : [prediction.position];
 					
-
 					//Check whether the predcition needs any price update
 					//Based on success status
 					var success = _.get(prediction, 'status.profitTarget', false) && moment(date).isSame(moment(prediction.status.date));
@@ -1590,7 +1590,22 @@ module.exports.getAllRealTradePredictions = function(advisorId, date, options) {
 
 					return exports.getPredictionsForDate(advisorId, date, {category, active, priceUpdate: true})
 					.then(predictions => {
-						return predictions.map(item => {return {...item, advisor: _.pick(masterAdvisor, ['_id', 'user'])};})
+
+						return Promise.map(predictions, function(prediction) {
+							return Promise.all([
+								DailyContestEntryHelper.getDailyContestEntryPnlStats(advisorId, ticker),
+								DailyContestEntryHelper.getDailyContestEntryPnlStats(masterAdvisor._id, ticker),
+								BrokerRedisController.getPredictionStatus(masterAdvisor._id, prediction._id),
+								BrokerRedisController.getPredictionActivity(masterAdvisor._id, prediction._id)
+							])
+							.then(([tickerRealPnlStats, tickerSimulatedPnlStats, status, activity]) => {
+								prediction.tradeActivity = prediction.tradeActivity.concat(_.get(activity, 'tradeActivity', []));
+								prediction.orderActivity = prediction.orderActivity.concat(_.get(activity, 'orderActivity', []));
+								prediction.activity = activity;
+
+								return {...prediction, current: status, realPnlStats: tickerRealPnlStats, simulatedPnlStats: tickerSimulatedPnlStats, advisor: _.pick(masterAdvisor, ['_id', 'user'])};
+							})
+						})
 					})
 				}	
 			})
