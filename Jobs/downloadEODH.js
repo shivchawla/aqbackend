@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 19:09:29
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 13:14:46
+* @Last Modified time: 2019-04-04 22:45:49
 */
 
 'use strict';
@@ -92,12 +92,12 @@ function downloadEODHRealtimeForNifty500Stocks() {
 
 if (config.get('jobsPort') === serverPort) {
 	
-	const scheduleUpdateCallPriceEODH = `20 */1 ${DateHelper.getMarketOpenHour()}-${DateHelper.getMarketCloseHour()} * * 1-5`;
+	const scheduleUpdateCallPriceEODH = `20 */1 ${DateHelper.getMarketOpenHourLocal()}-${DateHelper.getMarketCloseHourLocal()} * * 1-5`;
 	schedule.scheduleJob(scheduleUpdateCallPriceEODH, function() { 
 		if (!DateHelper.isHoliday()) {
 			Promise.resolve()
 			.then(() => {
-				if (DateHelper.isMarketTrading(0, -1)) {
+				if (DateHelper.isMarketTrading(0, -5)) {
 					Promise.all([
 						SecurityHelper.updateIndexRealtimeQuotesFromNifty(),
 						downnloadEODHRealtimeForActivePredictions()

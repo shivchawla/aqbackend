@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-28 22:56:31
+* @Last Modified time: 2019-04-04 22:48:54
 */
 
 'use strict';
@@ -46,16 +46,16 @@ if (config.get('jobsPort') === serverPort) {
  //    	}
 	// });
 
-	const scheduleMarketOpenTime = `${DateHelper.getMarketOpenMinute()} ${DateHelper.getMarketOpenHour()} * * 1-5`;
+	const scheduleMarketOpenTime = `${DateHelper.getMarketOpenMinuteLocal()} ${DateHelper.getMarketOpenHourLocal()} * * 1-5`;
 	schedule.scheduleJob(scheduleMarketOpenTime, function() { 
 		winnersUpdated = false;
 	});
 
 	//Run the job sequence every 30 minutes from one hour before market open to one hour after market close
-	const scheduleCheckPredictionTarget = `*/30 ${DateHelper.getMarketOpenHour() - 1}-${DateHelper.getMarketCloseHour() + 1} * * 1-5`;
+	const scheduleCheckPredictionTarget = `*/30 ${DateHelper.getMarketOpenHourLocal() - 1}-${DateHelper.getMarketCloseHourLocal() + 1} * * 1-5`;
 	schedule.scheduleJob(scheduleCheckPredictionTarget, function() {   	
     	
-    	if (!DateHelper.isHoliday()) {
+    	if (!DateHelper.isHoliday() && DateHelper.isMarketTrading(0, -40)) {
 
 	    	DailyContestEntryHelper.checkForPredictionTarget()
 	    	.then(() => {
@@ -101,9 +101,9 @@ if (config.get('jobsPort') === serverPort) {
 		}
 	});
 
-	const scheduleUpdateCallPrice = `*/5 ${DateHelper.getMarketOpenHour() - 1}-${DateHelper.getMarketCloseHour() + 1} * * 1-5`;
+	const scheduleUpdateCallPrice = `*/5 ${DateHelper.getMarketOpenHourLocal() - 1}-${DateHelper.getMarketCloseHourLocal() + 1} * * 1-5`;
 	schedule.scheduleJob(scheduleUpdateCallPrice, function() { 
-		if (!DateHelper.isHoliday()) {
+		if (!DateHelper.isHoliday() && DateHelper.isMarketTrading(0, -30)) {
 	    	DailyContestEntryHelper.updateCallPriceForPredictions()
 	    	.then(() => {
 	    		DailyContestEntryHelper.checkPredictionTriggers();
@@ -111,9 +111,9 @@ if (config.get('jobsPort') === serverPort) {
     	}
 	});
 
-	const scheduleUpdateCallPriceEODH = `20 */1 ${DateHelper.getMarketOpenHour() - 1}-${DateHelper.getMarketCloseHour() + 1} * * 1-5`;
+	const scheduleUpdateCallPriceEODH = `20 */1 ${DateHelper.getMarketOpenHourLocal() - 1}-${DateHelper.getMarketCloseHourLocal() + 1} * * 1-5`;
 	schedule.scheduleJob(scheduleUpdateCallPriceEODH, function() { 
-		if (!DateHelper.isHoliday()) {
+		if (!DateHelper.isHoliday() && DateHelper.isMarketTrading(0, -5)) {
 	    	DailyContestEntryHelper.updateCallPriceForPredictionsFromEODH()
 	    	.then(() => {
 	    		DailyContestEntryHelper.checkPredictionTriggers();
