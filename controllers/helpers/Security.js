@@ -1302,7 +1302,7 @@ module.exports.isShortable = function(security) {
 };
 
 module.exports.isTradeable = function(security) {
-	return notAllowedForTradeSecurities.indeOf(security.ticker) == -1;
+	return notAllowedForTradeSecurities.indexOf(security.ticker) == -1;
 };
 
 return Promise.all([
