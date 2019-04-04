@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 13:06:28
+* @Last Modified time: 2019-04-04 15:14:16
 */
 
 'use strict';
@@ -114,7 +114,7 @@ module.exports.getStocks = function(args, res, next) {
 			])
 			.then(([shortable, real])=> {
 				if (populate) {
-					return SecurityHelper.getStockLatestDetail(security).then(detail => {return {security: {...security, shortable, real}, detail}}); 	
+					return SecurityHelper.getStockLatestDetail(security).then(detail => {return {...security, shortable, real, detail}; }); 	
 				} else {
 					return security;
 				}
