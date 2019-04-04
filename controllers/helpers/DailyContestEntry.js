@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 12:15:40
+* @Last Modified time: 2019-04-04 12:21:30
 */
 
 'use strict';
@@ -1592,9 +1592,11 @@ module.exports.getAllRealTradePredictions = function(advisorId, date, options) {
 					.then(predictions => {
 
 						return Promise.map(predictions, function(prediction) {
+							var ticker = _.get(prediction, 'position.security.ticker', '');
+
 							return Promise.all([
-								DailyContestEntryHelper.getDailyContestEntryPnlStats(advisorId, ticker),
-								DailyContestEntryHelper.getDailyContestEntryPnlStats(masterAdvisor._id, ticker),
+								exports.getDailyContestEntryPnlStats(advisorId, ticker),
+								exports.getDailyContestEntryPnlStats(masterAdvisor._id, ticker),
 								BrokerRedisController.getPredictionStatus(masterAdvisor._id, prediction._id),
 								BrokerRedisController.getPredictionActivity(masterAdvisor._id, prediction._id)
 							])
