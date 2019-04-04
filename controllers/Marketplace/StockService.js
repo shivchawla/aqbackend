@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 15:14:16
+* @Last Modified time: 2019-04-04 18:45:25
 */
 
 'use strict';
@@ -70,11 +70,10 @@ module.exports.getStockDetail = function(args, res, next) {
 		if(field == "priceHistory") {
 			return SecurityHelper.getStockPriceHistory(security, startDate, endDate);
 		} else if (field == "intraDay") {
-			return SecurityHelper.getStockIntradayHistory(security, startDate)
+			return SecurityHelper.getStockIntradayHistory(security)
 			.then(intraDayDetail => {
 				const intradayHistory = _.get(intraDayDetail, 'intradayHistory', [])
 				.map(item => {return _.pick(item, ['datetime', 'close'])})
-				.filter(item => {return moment(item.datetime).isBefore(moment(DateHelper.getMarketCloseDateTime(startDate)))});
 				return {...intraDayDetail, intradayHistory};
 			});
 		} else if (field == "staticPerformance") {

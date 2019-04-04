@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 13:16:49
+* @Last Modified time: 2019-04-04 19:44:28
 */
 
 'use strict';
@@ -198,9 +198,11 @@ function _computeStockIntradayHistory(security, date) {
 
 		Promise.resolve()
 		.then(() => {
-			if (DateHelper.isMarketTrading(1, -5)) {
+			//Check if current time is after asked market open (in order to fetch correct data)
+			//Data fetched before market open belongs to data from last day
+			if (moment().isAfter(DateHelper.getMarketOpenDateTime(date)) && !DateHelper.isHoliday(date)) {
 				
-				setTimeout(function() {reject(new Error("Ib timed out"))}, 2000);
+				setTimeout(function() {reject(new Error("Ib timed out"))}, 5000);
 
 				return InteractiveBroker.requestIntradayHistoricalData(security.ticker, {isIndex})
 			} else {
@@ -210,13 +212,20 @@ function _computeStockIntradayHistory(security, date) {
 		.then(data => {
 
 			if (data.length > 0) {
-				//Update the time Z format
-				data = data.map(item => {
+
+				//Give out data in between asked date marke hours
+				let mktOpen = DateHelper.getMarketOpenDateTime(date);
+				let mktClose = DateHelper.getMarketCloseDateTime(date);
+				
+				let fData = data
+				.map(item => {
+					//Update the time Z format
 					const convertedTime = DateHelper.convertIndianTimeInLocalTz(item.datetime, 'yyyymmdd HH:mm:ss').add(1,'minute').startOf('minute').toISOString();
 					return {...item, datetime: convertedTime};
-				})
+				}) //resultant data should be after 
+				.filter(item => {return !moment(item.datetime).isAfter(mktClose) && moment(item.datetime).isAfter(mktOpen);});
 
-				let redisData = data.map(item => {
+				let redisData = fData.map(item => {
 					return JSON.stringify(item);
 				});
 
@@ -229,7 +238,7 @@ function _computeStockIntradayHistory(security, date) {
 					return RedisUtils.expireKeyInRedis(getRedisClient(), redisSetKey, Math.floor(nextMarketOpen.valueOf()/1000));
 				})
 				.then(() => {
-					resolve(data.sort((a,b) => {return moment(a.datetime).isBefore(b.datetime) ? -1 : 1;}));
+					resolve(fData.sort((a,b) => {return moment(a.datetime).isBefore(b.datetime) ? -1 : 1;}));
 				})
 			} else {
 				return RedisUtils.getSetDataFromRedis(getRedisClient(), redisSetKey)
@@ -536,8 +545,7 @@ function _getIntradayHistory(security, date) {
 
 		if (updateRequired) {
 			return _computeStockIntradayHistory(security, date)
-			.then(intradayHistory => {
-				
+			.then(intradayHistory => {	
 				return SecurityIntradayHistoryModel.updateHistory(query, intradayHistory, {upsert: true, new: true});
 			})
 		} else {
@@ -973,11 +981,11 @@ module.exports.getRealTimeStockHistoricalDetail = function(security, minute) {
 * Function to get intraday history of stock (fetch from IB if not available)
 */
 module.exports.getStockIntradayHistory = function(security, date) {
+
+	//Get last date if date is not available
+	date = !date && moment.utc().isAfter(DateHelper.getMarketOpenDateTime()) && !DateHelper.isHoliday() ? DateHelper.getCurrentDate() : DateHelper.getPreviousNonHolidayWeekday();
+
 	return new Promise(resolve => {
-		var query = {'security.ticker': security.ticker,
-						'security.exchange': security.exchange ? security.exchange : "NSE",
-						'security.securityType': security.securityType ? security.securityType : "EQ",
-						'security.country': security.country ? security.country : "IN"};
 
 		return Promise.all([
 			_getIntradayHistory(security, date),
@@ -994,6 +1002,8 @@ module.exports.getStockIntradayHistory = function(security, date) {
 	});
 };
 
+
+//NOT IN USE
 module.exports.getStockIntervalDetail = function(security, startDateTime, endDateTime) {
 	var startDateEODTime = DateHelper.getMarketCloseDateTime(startDateTime);
 	var isStartDateTimeBeforeMarketClose = moment(startDateTime).isBefore(startDateEODTime);
