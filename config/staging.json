@@ -64,7 +64,8 @@
     "contest_entry_update_template_id":"f492cb51-afd3-407e-8816-6ad47bcf3476",
     "validate_advice_full": true,
 
-    "daily_contest_winner_template_id": "d3465847-b751-4c61-b182-99b481b25810",
+    "daily_contest_day_winner_template_id": "d3465847-b751-4c61-b182-99b481b25810",
+    "daily_contest_week_winner_template_id":"c2d8fcff-90d0-4ad8-886e-82ad3c24b997",
     "daily_contest_summary_digest_template_id":"3b4a8d0e-8be3-48b9-8442-df937c48be4e",
     
     "app_client_id": "290564807736-i54kun2iuoneavbe24bto7ok7fdb2ejp.apps.googleusercontent.com",

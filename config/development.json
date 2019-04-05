@@ -70,6 +70,9 @@
     "validate_advice_full": true,
     "validate_contest_entry_full": false,
 
+    "daily_contest_day_winner_template_id": "d3465847-b751-4c61-b182-99b481b25810",
+    "daily_contest_week_winner_template_id":"c2d8fcff-90d0-4ad8-886e-82ad3c24b997",
+
     "mongo_db":"aimsquant_develop",
     "mongo_user":"app_server_develop",
     "mongo_pass":"pwd_app_server_develop!",
