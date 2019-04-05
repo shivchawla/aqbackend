@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 21:51:04
+* @Last Modified time: 2019-04-05 10:52:03
 */
 
 'use strict';
@@ -390,9 +390,9 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				} 
 
 				if (investment > 0 && target < 1.015*latestPrice) {
-					APIError.throwJsonError({message:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% higher than call price`});
+					APIError.throwJsonError({message:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% higher than call price`});
 				} else if (investment < 0 && target > 1.015*latestPrice) {
-					APIError.throwJsonError({message:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.5% lower than call price`});
+					APIError.throwJsonError({message:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% lower than call price`});
 				}
 				return;
 			} else {

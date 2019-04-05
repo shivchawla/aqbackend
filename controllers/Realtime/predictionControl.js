@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 21:13:05
+* @Last Modified time: 2019-04-05 11:30:47
 */
 'use strict';
 const config = require('config');
@@ -120,7 +120,6 @@ function _sendAllPredictionUpdates() {
 	})
 	.catch(err => {
 		console.log("Error. _sendAllPredictionUpdates: ", err.message);
-		throw(err);
 	})
 }
 
@@ -372,7 +371,7 @@ function _handleRealPredictionSubscription(req, res) {
 
 module.exports.sendAllUpdates = function() {
 	return _sendAllPredictionUpdates();
-};
+}
 
 
 /*
@@ -382,7 +381,6 @@ module.exports.sendUserUpdates = function(userId) {
 	return _sendUserUpdates(userId)
 	.catch(err => {
 		console.log("Error. sendUserUpdates: ", err.message);
-		throw(err);
 	})
 };
 
