@@ -209,9 +209,9 @@ function _sendAdminRealPredictionUpdates(subscription, incomingAdvisorId, incomi
 						AdvisorModel.fetchAdvisor({_id: masterAdvisorId}, {fields: '_id user'}),
 						DailyContestEntryHelper.getPortfolioStatsForDate(advisorId, date)
 					])
-					.then(([predictions, masterAdvisor, portfolioStats]) => {
-						portfolioStats = portfolioStats;
-						
+					.then(([predictions, masterAdvisor, pStats]) => {
+						portfolioStats = pStats;
+
 						return predictions.map(item => {return {...item, advisor: _.pick(masterAdvisor, ['_id', 'user'])};})
 					})
 				} else {

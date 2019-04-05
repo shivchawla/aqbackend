@@ -1785,7 +1785,7 @@ module.exports.updateLatestPortfolioStatsForAdvisor = function(advisorId, date){
 						numStartedPredictions: startedPredictions.length,
 						numEndedPredictions: endedPredictions.length
 					};
-				
+
 					// resolve(DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date));
 					DailyContestEntryPerformanceModel.updatePortfolioStatsForDate({advisor: advisorId}, updates, date)
 					.then(data => {
@@ -2188,7 +2188,7 @@ module.exports.updateCallPriceForPredictionsFromEODH = function() {
 };
 
 
-module.exports.addPrediction = function(advisorId, prediction, date, masterAdvisorId, userId) {
+module.exports.addPrediction = function(advisorId, prediction, date, masterAdvisorId, userId) {	
 	return new Promise(resolve => {
 	
 		let queueName = `${RECENT_ADVISORS_QUEUE}_${prediction.startDate.toISOString()}`;
@@ -2200,13 +2200,15 @@ module.exports.addPrediction = function(advisorId, prediction, date, masterAdvis
 		])
 		.then(() => {
 			//Run this async and move on 
-			exports.updateLatestPortfolioStatsForAdvisor(advisorId, date)
+			return exports.updateLatestPortfolioStatsForAdvisor(advisorId, date)
 			.then(() => {
 				//Publish that a new prediction has been added (to send updates to linked User/Admin)
 				return RedisUtils.publish(getRedisClient(), `predictionAdded_${process.env.NODE_ENV}`, JSON.stringify({advisorId: masterAdvisorId, userId}));
+			}).then(()=>{
+				resolve();
 			})
 
-			resolve();
+			
 		});
 	});
 };
