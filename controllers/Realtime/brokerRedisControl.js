@@ -500,7 +500,7 @@ function _processOrderStatusEvent(orderStatusDetails) {
                 throw new Error('Skipping orderStatus event');
             }
         } catch (err) {
-            console.log('Error Order Status ', err);
+            console.log('Error Order Status ', err.message);
         }
         
         //Add order activity
