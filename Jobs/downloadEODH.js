@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 19:09:29
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 09:59:57
+* @Last Modified time: 2019-04-05 20:50:53
 */
 
 'use strict';
@@ -97,7 +97,7 @@ if (config.get('jobsPort') === serverPort) {
 		if (!DateHelper.isHoliday() && DateHelper.isMarketTrading(0, -5)) {
 			Promise.resolve()
 			.then(() => {
-				if (DateHelper.isMarketTrading(0, -1)) {
+				if (DateHelper.isMarketTrading(0, -5)) {
 					Promise.all([
 						SecurityHelper.updateIndexRealtimeQuotesFromNifty(),
 						downnloadEODHRealtimeForActivePredictions()

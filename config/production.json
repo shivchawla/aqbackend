@@ -77,7 +77,8 @@
     
     "winner_csv_path":"/home/admin/production/aq-homepage/data/winners.csv",
  
-    "daily_contest_winner_template_id": "d3465847-b751-4c61-b182-99b481b25810",
+    "daily_contest_day_winner_template_id": "d3465847-b751-4c61-b182-99b481b25810",
+    "daily_contest_week_winner_template_id":"c2d8fcff-90d0-4ad8-886e-82ad3c24b997",
     "daily_contest_summary_digest_template_id":"3b4a8d0e-8be3-48b9-8442-df937c48be4e",
     "dailycontest_zero_predictions_advisors_template": "b8e7c257-9039-48b2-89c4-9249334cc800",
 

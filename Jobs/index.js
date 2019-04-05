@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 09:54:09
+* @Last Modified time: 2019-04-05 20:53:43
 */
 
 'use strict';
@@ -111,7 +111,7 @@ if (config.get('jobsPort') === serverPort) {
     	}
 	});
 
-	const scheduleUpdateCallPriceEODH = `20 */1 ${DateHelper.getMarketOpenHour() - 1}-${DateHelper.getMarketCloseHourLocal() + 1} * * 1-5`;
+	const scheduleUpdateCallPriceEODH = `20 */1 ${DateHelper.getMarketOpenHourLocal() - 1}-${DateHelper.getMarketCloseHourLocal() + 1} * * 1-5`;
 	schedule.scheduleJob(scheduleUpdateCallPriceEODH, function() { 
 		if (!DateHelper.isHoliday() && DateHelper.isMarketTrading(0, -1)) {
 	    	DailyContestEntryHelper.updateCallPriceForPredictionsFromEODH()

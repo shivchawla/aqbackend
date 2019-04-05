@@ -4415,6 +4415,11 @@ paths:
         type: string
         format: date 
         required: false
+      - name: weekly
+        in: query
+        description: Weekly flag
+        type: boolean
+        required: false
       responses:
         200:
           description: OK
