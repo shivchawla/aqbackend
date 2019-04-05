@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-05 20:33:49
+* @Last Modified time: 2019-04-05 20:48:31
 */
 
 'use strict';
@@ -687,7 +687,7 @@ module.exports.sendDailyWinnerDigest = function(date, weekly = false) {
                 	
                 	} else if(process.env.NODE_ENV === 'development') {
                         return sendEmail.sendDailyContestWinnerEmail(winnerDigest, 
-                            {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"});
+                            {email:"shivchawla2001@gmail.com", firstName: "Shiv", lastName: "Chawla"}, weekly);
                     }
                 });
             })
