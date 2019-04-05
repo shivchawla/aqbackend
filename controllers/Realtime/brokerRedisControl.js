@@ -179,7 +179,7 @@ module.exports.addLatestBarData = function(ticker, latestBarData) {
 };
 
 module.exports.processIBEvents = function() {
-    
+
     let ibEvent;
     return  Promise.resolve()
     .then(() => {
@@ -264,7 +264,7 @@ module.exports.getHistoricalData = function(reqId, data) {
 
 
 function _processOpenOrderEvent(openOrderDetails) {
-    
+
     let advisorId = null;
     let predictionId = null;
     let quantity;
@@ -389,7 +389,9 @@ function _processOpenOrderEvent(openOrderDetails) {
     })
     .then(redisOrderStatusByPrediction => {
         let orderStatusByPrediction;
-        
+        if (status === 'PreSubmitted') {
+            throw new Error("Not updating current.orderActivity for status: PreSubmitted");
+        }
         const openOrderInstance = {
             orderId, // Current orderId after get the next valid order id
             activeStatus: status != 'Filled',
