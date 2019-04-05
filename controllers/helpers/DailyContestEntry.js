@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 21:48:37
+* @Last Modified time: 2019-04-05 19:34:17
 */
 
 'use strict';
@@ -1955,7 +1955,9 @@ module.exports.checkForPredictionTarget = function() {
 									var target = item.target;
 
 									var startDate = _getEffectiveStartDate(item);
-									var extremePricesSinceStartDate = _getExtremePrices(securityDetail.intradayHistory, startDate);
+									var intradayHistoryPrices = securityDetail.intradayHistory || [];
+
+									var extremePricesSinceStartDate = _getExtremePrices(intradayHistoryPrices, startDate);
 
 									var highPrice = _.get(extremePricesSinceStartDate, 'high.price', -Infinity);
 									var highPriceDateTime = _.get(extremePricesSinceStartDate, 'high.datetime', null);
@@ -1986,7 +1988,17 @@ module.exports.checkForPredictionTarget = function() {
 								 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
 								 		item.status.trueDate = successDateTime;
 
-								 		item.position.lastPrice = target;
+								 		//Carefully use target
+								 		//if target is hit at open, then it's not target but price at open
+								 		//but which price at open - OPEN?
+								 		if (moment(successDateTime).isSame(DateHelper.getMarketOpenDateTime().add(1, 'minute')) && intradayHistoryPrices.length > 0) {
+								 			var dayOpenPrice = intradayHistoryPrices[0].open;
+								 			item.position.lastPrice = (investment > 0 && dayOpenPrice < target) || 
+								 							(investment < 0 && dayOpenPrice > target) ? dayOpenPrice : target;
+								 		} else {
+								 			item.position.lastPrice = target;	
+								 		}
+								 		
 								 	}
 								 	else if (stopLossFailure) {
 								 		item.status.price = investment > 0 ? lowPrice : highPrice;
@@ -1995,7 +2007,17 @@ module.exports.checkForPredictionTarget = function() {
 								 		item.status.date = DateHelper.getMarketCloseDateTime(new Date());
 								 		item.status.trueDate = stopLossFailureDateTime;
 
-								 		item.position.lastPrice = stopLossPrice;
+								 		//Carefully use stoploss
+								 		//if stoploss is hit at open, then it's not target but the "price at open"
+								 		//but which price at open - OPEN?
+								 		if (moment(stopLossFailureDateTime).isSame(DateHelper.getMarketOpenDateTime().add(1, 'minute')) && intradayHistoryPrices.length > 0) {
+								 			var dayOpenPrice = intradayHistoryPrices[0].open;
+								 			item.position.lastPrice = (investment > 0 && dayOpenPrice < stopLossPrice) || 
+								 							(investment < 0 && dayOpenPrice > stopLossPrice) ? dayOpenPrice : stopLossPrice;
+								 		} else {
+								 			item.position.lastPrice = stopLossPrice;	
+								 		}
+
 								 	}
 
 								 	return success || stopLossFailure;
@@ -2442,6 +2464,7 @@ module.exports.updateManuallyExitedPredictionsForLastPrice = function(date) {
 					var ticker = _.get(prediction, 'position.security.ticker', "");
 					var trueEndDateTime = _.get(prediction, 'status.trueDate', null);
 					var manualExit = _.get(prediction, 'status.manualExit', false);
+					var investment = _.get(prediction, 'position.investment', 0);
 					
 					var lastPrice = _.get(prediction, 'position.lastPrice', 0);
 
@@ -2453,20 +2476,78 @@ module.exports.updateManuallyExitedPredictionsForLastPrice = function(date) {
 							var relevantIntradayHistory = intradayHistory.filter(item => {return moment(item.datetime).isAfter(moment(trueEndDateTime))});
 
 							if (relevantIntradayHistory.length > 0 && moment(relevantIntradayHistory[0].datetime).isAfter(moment(trueEndDateTime))) {
-								var price = relevantIntradayHistory[0].close || 0;
+								var exitPrice = _.get(relevantIntradayHistory,'[0].close', 0);
 								
-								if (price) { //Check if price is non-zero or not null
-									console.log(`Populating Last price for ${advisorId}/${ticker} at ${Date()}`);
-									prediction.position.lastPrice = price;
+								if (exitPrice) { //Check if price is non-zero or not null
+									
+									var stopLossPrice = _getStopLossPrice(prediction);
+									
+									//Day's open price
+									var dayOpenPrice = _.get(intradayHistory, '[0].open', 0);
 
+									//Before populating the exit price, check if it already hit stop-loss
+									//at day's open or otherwise (as stoploss check is delayed)
+									//and user can exit in the meantime
+									if (investment > 0 && exitPrice < stopLossPrice) {
+										
+										var priceHistoryBelowStopLoss = intradayHistory.filter(item => {
+											return item.close <= stopLossPrice;})
+
+										var stopLossTime = _.get(priceHistoryBelowStopLoss, '[0].datetime',  null);
+
+										//If Day's open is less than stoplos
+										//stoploss happens at day's open
+										if(dayOpenPrice && dayOpenPrice < stopLossPrice) {
+											prediction.position.lastPrice = dayOpenPrice;
+											prediction.status.manualExit = false;
+											prediction.status.stopLoss = true;
+											prediction.status.trueDate = DateHelper.getMarketOpenDateTime();
+
+										} else {
+											prediction.position.lastPrice = stopLossPrice;
+											prediction.status.manualExit = false;
+											prediction.status.stopLoss = true;
+											prediction.status.trueDate = stopLossTime;
+										}
+
+									} else if (investment < 0 && exitPrice > stopLossPrice) {
+
+										var priceHistoryAboveStopLoss = intradayHistory.filter(item => {
+											return item.close >= stopLossPrice;})
+
+										var stopLossTime = _.get(priceHistoryAboveStopLoss,'[0].datetime', null)
+
+										//If Day's open is greater than stoploss (investment < 0)
+										//stoploss happens at day's open
+										if (dayOpenPrice && dayOpenPrice > stopLossPrice) {
+											prediction.position.lastPrice = dayOpenPrice;
+											prediction.status.manualExit = false;
+											prediction.status.stopLoss = true;
+											prediction.status.trueDate = DateHelper.getMarketOpenDateTime();
+
+										} else {
+											prediction.position.lastPrice = stopLossPrice;
+											prediction.status.manualExit = false;
+											prediction.status.stopLoss = true;
+											prediction.status.trueDate = stopLossTime;
+										}
+
+									} else {
+										console.log(`Populating Last price for ${advisorId}/${ticker} at ${Date()}`);
+										prediction.position.lastPrice = exitPrice;
+									}
+									
 									return new Promise(resolve => {
 										DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction)
 										.then(() => {
-											resolve(AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction));
+											return AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction);
+										})
+										.then(() => {
+											resolve();
 										})
 										.catch(err => {
 											console.log(`updateManuallyExitedPredictionsForLastPrice(): Error updating prediction/account for ${advisorId}`);
-											console.log(err.message);
+											console.log(err);
 											resolve(null);
 										});
 									});
