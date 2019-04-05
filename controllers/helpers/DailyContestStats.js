@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-20 10:31:46
+* @Last Modified time: 2019-04-05 17:21:18
 */
 
 'use strict';
@@ -146,7 +146,12 @@ function _computeWeeklyContestWinners(date) {
 			})
 			.then(pnlStatsForAllAdvisors => {
 				return pnlStatsForAllAdvisors
-				.filter(item => {return item.pnlStats.pnlPct > MIN_WEEKLY_PCT_CHANGE && item.pnlStats.activeDays > MIN_WEEKLY_ACTIVE_DAYS})			
+				.filter(item => {	
+					return item.pnlStats.pnlPct > MIN_WEEKLY_PCT_CHANGE && 
+						item.pnlStats.activeDays > MIN_WEEKLY_ACTIVE_DAYS	&&
+						item.pnlStats.netTotal > 1000 &&
+						item.pnlStats.netTotalLastWeek >= 1000;
+				})								
 				.sort((a,b) => {return a.pnlStats.pnlPct > b.pnlStats.pnlPct ? -1 : 1})
 				.slice(0, WEEKLY_PRIZES.length)
 				.map((item, index) => {item.rank = index+1; return item;});
