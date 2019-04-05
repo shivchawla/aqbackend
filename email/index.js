@@ -433,7 +433,7 @@ module.exports.sendDailyContestSummaryDigest = function(summaryDigest, userDetai
         return sgMail.send(msg);
 };
 
-module.exports.sendDailyContestWinnerEmail = function(winnerDetail, userDetails) {
+module.exports.sendDailyContestWinnerEmail = function(winnerDetail, userDetails, weekly = false) {
    const userFullName = _.startCase(_.toLower(userDetails.firstName + ' '+userDetails.lastName));
    const msg = {
             to: [{
@@ -441,7 +441,7 @@ module.exports.sendDailyContestWinnerEmail = function(winnerDetail, userDetails)
                 name: userFullName
             }],
             from: {name: "AdviceQube", email:"contest@adviceqube.com"},
-            templateId: config.get('daily_contest_winner_template_id'),
+            templateId: weekly ? config.get('daily_contest_week_winner_template_id') : config.get('daily_contest_day_winner_template_id'),
             substitutions: {
                 userFullName,
                 ...winnerDetail
@@ -450,3 +450,4 @@ module.exports.sendDailyContestWinnerEmail = function(winnerDetail, userDetails)
 
         return sgMail.send(msg);
 }
+

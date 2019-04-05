@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-20 10:31:46
+* @Last Modified time: 2019-04-05 20:26:18
 */
 
 'use strict';
@@ -654,31 +654,31 @@ module.exports.sendSummaryDigest = function(date) {
     })
 };
 
-module.exports.sendDailyWinnerDigest = function(date) {
+module.exports.sendDailyWinnerDigest = function(date, weekly = false) {
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date).toDate();
 
-	return DailyContestStatsModel.fetchContestStats(date, {fields: 'topStocks dailyWinners'})
+	return DailyContestStatsModel.fetchContestStats(date, {fields: 'topStocks dailyWinners weeklyWinners'})
 	.then(contestStats => {
 		if (contestStats) {
-			var winners = contestStats.dailyWinners;
+			var winners = weekly ? contestStats.weeklyWinners : contestStats.dailyWinners;
 			
 			var leaderboardUrl = `${config.get('hostname')}/dailycontest/leaderboard?date=${moment(date).format("YYYY-MM-DD")}`;
 			var submitPredictionUrl = `${config.get('hostname')}/dailycontest/stockpredictions`;
 
-			var dailyPrizesForDate = _getDailyPrizes(date);
+			var prizesForDate = weekly ? _getWeeklyPrizes(date) : _getDailyPrizes(date);
 
 			return Promise.mapSeries(winners, function(winner) {
 				let winnerDigest = {leaderboardUrl, submitPredictionUrl,
 					pnlPct: `${(_.get(winner,'pnlStats.pnlPct')*100).toFixed(2)}%`, 
 					rank: winner.rank,
-					prizeMoney: winner.rank <= dailyPrizesForDate.length ? dailyPrizesForDate[winner.rank - 1] : 0,
+					prizeMoney: winner.rank <= prizesForDate.length ? prizesForDate[winner.rank - 1] : 0,
 					dailyContestDate: moment(date).format("Do MMM YYYY")};
 				
 				return _getUserDetail(winner.advisor)
                 .then(user => {
                 
                     if (process.env.NODE_ENV === 'production') {
-                    	return sendEmail.sendDailyContestWinnerEmail(winnerDigest, user);
+                    	return sendEmail.sendDailyContestWinnerEmail(winnerDigest, user, weekly);
                 	
                 	} else if(process.env.NODE_ENV === 'development') {
                         return sendEmail.sendDailyContestWinnerEmail(winnerDigest, 

@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-02 10:39:13
+* @Last Modified time: 2019-04-05 20:24:37
 */
 
 'use strict';
@@ -1095,11 +1095,12 @@ module.exports.sendEmailToDailyContestWinners = function(args, res, next) {
     const userEmail = _.get(args.user, 'email', null);
     const admins = config.get('admin_user');
     const date = _.get(args, 'date.value', null);
+    const weekly = _.get(args, 'weekly.value', false);
 
     Promise.resolve(true)
     .then(() => {
         if (admins.indexOf(userEmail) !== -1){ // user is admin and can send email
-            return DailyContestStatsHelper.sendDailyWinnerDigest(date);
+            return DailyContestStatsHelper.sendDailyWinnerDigest(date, weekly);
         } else {
             APIError.throwJsonError({message: "User not authorized to send email"});
         }
