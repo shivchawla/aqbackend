@@ -6,6 +6,8 @@ using TimeSeries
 using BufferedStreams
 using Logging
 using Dates
+using MarketTechnicals
+using Statistics
 
 using BackTester: Performance, Returns, Drawdown, Ratios, Deviation, PortfolioStats, TradeBar
 using BackTester: serialize

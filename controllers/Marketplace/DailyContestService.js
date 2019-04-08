@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-08 12:38:32
+* @Last Modified time: 2019-04-08 13:36:21
 */
 
 'use strict';
@@ -351,8 +351,8 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		
 		return Promise.all([
 			SecurityHelper.getStockLatestDetail(prediction.position.security),
-			SecurityHelper.getRealtimeQuote(`${prediction.position.security.ticker}`)
-			Securityhelper.getStockAtr(prediction.position.security)
+			SecurityHelper.getRealtimeQuote(`${prediction.position.security.ticker}`),
+			SecurityHelper.getStockAtr(prediction.position.security)
 		])
 		.then(([securityDetail, realTimeQuote, atrDetail]) => {
 			latestPrice = _.get(realTimeQuote, 'close', 0) || _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
