@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-08 13:36:21
+* @Last Modified time: 2019-04-08 13:52:24
 */
 
 'use strict';
@@ -398,9 +398,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				}
 
 				//Add ATR info to prediction
-				if (isRealPrediction) {
-					prediction.atr = _.get(atrDetail, 'atr', 0.0);
-				}
+				prediction.atr = _.get(atrDetail, 'atr', 0.0);
 
 				return;
 			} else {
