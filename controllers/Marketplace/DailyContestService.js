@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-08 16:51:14
+* @Last Modified time: 2019-04-08 19:05:14
 */
 
 'use strict';
@@ -320,8 +320,14 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	const isRealPrediction = _.get(prediction, 'real', false);
 	let masterAdvisorId; 
 
-	return Promise.resolve()
-	.then(() => {
+	var security = _.get(prediction, 'position.security', {});
+
+	return SecurityHelper.isTradeable(security)
+	.then(allowed => {
+		if(isRealPrediction && !allowed) {
+			APIError.throwJsonError({message: `Real prediction in ${security.ticker} is not allowed`});
+		}
+
 		// Conditional items are only allowed during market open hours
 		if (!isConditional && !DateHelper.isMarketTrading()) {
 			APIError.throwJsonError({message: 'Market is closed! Only conditional predictions allowed'});
