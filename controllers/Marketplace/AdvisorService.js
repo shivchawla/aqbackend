@@ -568,7 +568,14 @@ module.exports.fetchAdvisorByName = function(args, res, next) {
         return Promise.map(users, user => {
             return AdvisorModel.fetchAdvisor({user: user._id, isMasterAdvisor: true}, {fields: '_id user allocation'})
             .then(advisor => {
-                return {...advisor.toObject()};
+                const requiredAdvisorObject = advisor.toObject();
+                const allocationStatus = _.get(requiredAdvisorObject, 'allocation.status', false);
+
+                if (!allocationStatus) {
+                    delete requiredAdvisorObject.allocation;
+                }
+
+                return requiredAdvisorObject;
             })
         })
     })
