@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 19:44:28
+* @Last Modified time: 2019-04-08 11:39:13
 */
 
 'use strict';
@@ -983,7 +983,7 @@ module.exports.getRealTimeStockHistoricalDetail = function(security, minute) {
 module.exports.getStockIntradayHistory = function(security, date) {
 
 	//Get last date if date is not available
-	date = !date && moment.utc().isAfter(DateHelper.getMarketOpenDateTime()) && !DateHelper.isHoliday() ? DateHelper.getCurrentDate() : DateHelper.getPreviousNonHolidayWeekday();
+	date = moment.utc().isAfter(DateHelper.getMarketOpenDateTime(date)) && !DateHelper.isHoliday(date) ? DateHelper.getCurrentDate() : DateHelper.getPreviousNonHolidayWeekday() 
 
 	return new Promise(resolve => {
 
