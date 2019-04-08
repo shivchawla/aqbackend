@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-11-02 12:58:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-05 11:30:47
+* @Last Modified time: 2019-04-08 10:18:25
 */
 'use strict';
 const config = require('config');
@@ -90,7 +90,7 @@ function _sendUserUpdates(userId) {
 		let subscription = subscriptions[subscriberId];
 		
 		if (subscription && subscription.errorCount > MAX_ERROR_COUNT) {
-			console.log("Deleting subscriber from list. WS connection is invalid for ${MAX_ERROR_COUNT} attmept")
+			console.log(`Deleting subscriber from list. WS connection is invalid for ${MAX_ERROR_COUNT} attmept`)
 			delete predictionSubscribers[userId][subscriberId];
 			return;
 		} else {

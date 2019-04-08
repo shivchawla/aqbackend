@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-18 18:33:05
+* @Last Modified time: 2019-04-08 12:36:42
 */
 
 
@@ -167,6 +167,11 @@ const Prediction = new Schema({
 	},
 
 	adminModifications: [Schema.Types.Mixed],
+
+	atr: {
+		type: Number,
+		default: 0.0
+	}
 });
 
 const DailyContestEntry = new Schema({  

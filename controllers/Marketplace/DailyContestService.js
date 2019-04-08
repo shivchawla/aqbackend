@@ -2,11 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-<<<<<<< HEAD
-* @Last Modified time: 2019-04-05 10:52:03
-=======
-* @Last Modified time: 2019-04-05 20:24:37
->>>>>>> release
+* @Last Modified time: 2019-04-08 19:05:14
 */
 
 'use strict';
@@ -54,12 +50,13 @@ function _populateWinners(winners, user) {
 
 			const requiredFirstName = shouldNotShowFunnyName ? _.get(requiredUser, 'firstName', '') : funnyFirstName
 			const requiredLastName = shouldNotShowFunnyName ? _.get(requiredUser, 'lastName', '') : funnyLastName;
+			const requiredUserEmail = _.get(requiredUser, 'email', null);
 
 			requiredUser = {
 				...requiredUser,
 				firstName: requiredFirstName,
 				lastName: requiredLastName,
-				email: userEmail
+				email: requiredUserEmail
 			};
 
 			if (!isAdmin) {
@@ -323,8 +320,14 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	const isRealPrediction = _.get(prediction, 'real', false);
 	let masterAdvisorId; 
 
-	return Promise.resolve()
-	.then(() => {
+	var security = _.get(prediction, 'position.security', {});
+
+	return SecurityHelper.isTradeable(security)
+	.then(allowed => {
+		if(isRealPrediction && !allowed) {
+			APIError.throwJsonError({message: `Real prediction in ${security.ticker} is not allowed`});
+		}
+
 		// Conditional items are only allowed during market open hours
 		if (!isConditional && !DateHelper.isMarketTrading()) {
 			APIError.throwJsonError({message: 'Market is closed! Only conditional predictions allowed'});
@@ -354,9 +357,10 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		
 		return Promise.all([
 			SecurityHelper.getStockLatestDetail(prediction.position.security),
-			SecurityHelper.getRealtimeQuote(`${prediction.position.security.ticker}`)
+			SecurityHelper.getRealtimeQuote(`${prediction.position.security.ticker}`),
+			SecurityHelper.getStockAtr(prediction.position.security)
 		])
-		.then(([securityDetail, realTimeQuote]) => {
+		.then(([securityDetail, realTimeQuote, atrDetail]) => {
 			latestPrice = _.get(realTimeQuote, 'close', 0) || _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
 			if (latestPrice != 0) {
 
@@ -398,6 +402,26 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				} else if (investment < 0 && target > 1.015*latestPrice) {
 					APIError.throwJsonError({message:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% lower than call price`});
 				}
+
+				//Add ATR info to prediction
+				var atr = _.get(atrDetail, 'atr', 0.0);
+				prediction.atr = atr;
+
+				//In case of real prediction, add the modified stoploss/profit-target
+				//Target = 2*ATR
+				//Stoploss = Min(6%, 2*ATR)
+				if (isRealPrediction) {
+					//Use latestprice for NOW based predictions for computing modified SL/PT
+					var tempAvgPrice = isConditional ? avgPrice : latestPrice;
+					var mStopLoss = investment > 0 ? 
+						Math.min(tempAvgPrice - 2*atr, 0.94*tempAvgPrice) : 
+						Math.max(tempAvgPrice + 2*atr, 1.06*tempAvgPrice);
+
+					var mTarget = investment > 0 ? tempAvgPrice + 2*atr : tempAvgPrice - 2*atr;
+
+					prediction.adminModifications = [{stopLoss: mStopLoss, target: mTarget}];
+				}
+
 				return;
 			} else {
 				console.log("Create Prediction: Price not found");

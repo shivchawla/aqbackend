@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-07-01 12:45:08
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-04 18:45:25
+* @Last Modified time: 2019-04-08 14:18:46
 */
 
 'use strict';
@@ -111,10 +111,10 @@ module.exports.getStocks = function(args, res, next) {
 				SecurityHelper.isShortable(security),
 				SecurityHelper.isTradeable(security)
 			])
-			.then(([shortable, real])=> {
+			.then(([shortable, allowed])=> {
 				if (populate) {
 					return SecurityHelper.getStockLatestDetail(security).then(detail => {
-						return {...security, shortable, real, ...detail}
+						return {...security, shortable, allowed, ...detail}
 					}); 	
 				} else {
 					return security;

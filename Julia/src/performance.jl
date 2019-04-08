@@ -702,14 +702,29 @@ function get_stock_intraday_history(security::Security, date::Date)
     )
 end
 
-function track_stock_intraday_detail(security::Security)
-    
+function track_stock_intraday_detail(security::Security)  
     return track_intraday_prices(security.symbol.ticker)
 end
 
 function untrack_stock_intraday_detail()
-    
     return untrack_intraday_prices()
+end
+
+function computeStockATR(security_dict::Dict{String, Any}, date::DateTime = now(), horizon::Int = 10)
+    (valid, security) = _validate_security(security_dict)
+            
+    if valid
+        ticker = security.symbol.ticker
+
+        cP = YRead.history([ticker], "Close", :Day, horizon + 10, date, strict = false)
+        lP = YRead.history([ticker], "Low", :Day, horizon + 10, date, strict = false)
+        hP = YRead.history([ticker], "High", :Day, horizon + 10, date, strict = false)
+        
+        hlc = rename(merge(merge(cP, hP), lP), [:Close, :High, :Low])
+        avTR = atr(hlc, horizon)
+        return avTR != nothing && length(values(avTR)) > 0 ? mean(values(avTR)) : nothing
+    end
+
 end
 
 

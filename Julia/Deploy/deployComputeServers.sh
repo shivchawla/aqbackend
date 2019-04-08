@@ -1,7 +1,7 @@
 # @Author: Shiv Chawla
 # @Date:   2019-02-12 17:35:04
 # @Last Modified by:   Shiv Chawla
-# @Last Modified time: 2019-02-12 17:44:03
+# @Last Modified time: 2019-04-08 13:11:22
 
 env="develop"
 ports_production="6001 6002 6003 6004 6005 6006"
@@ -27,6 +27,16 @@ if [ -z "$2" ]
         
 else
     ports="$2"
+fi
+
+
+if [ -z "$3" ]
+  then
+    echo "No ports supplied"
+    echo "Defaulting: ${address}" 
+        
+else
+    address="$3"
 fi
 
 
