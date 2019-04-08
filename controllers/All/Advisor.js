@@ -56,3 +56,6 @@ module.exports.getAdvisorsWithAllocation = function(req, res, next) {
     Advisor.getAdvisorsWithAllocation(req.swagger.params, res, next);
 };
 
+module.exports.getAdvisorAllocation = function(req, res, next) {
+    Advisor.getAdvisorAllocation(req.swagger.params, res, next);
+}

@@ -1443,6 +1443,36 @@ paths:
         400:
           description: "Not Authorized"
       x-swagger-router-controller: "Advisor"
+
+  /advisor/{advisorId}/allocation:
+    get:
+      tags:
+      - advisor
+      summary: get the allocation for a particular advisor
+      description: get the allocation object for a particular advisor
+      operationId: getAdvisorAllocation
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: string
+        required: true
+      - name: advisorId
+        in: path
+        required: true
+        description: id of the advisor
+        type: string
+      
+      responses:
+        200:
+          description: "updated advisor profile"
+        400:
+          description: "Not Authorized"
+          schema:
+            $ref: "#/definitions/Error"
+      x-swagger-router-controller: "Advisor"
       
   /advisor/{advisorId}:
     get:

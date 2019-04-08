@@ -588,6 +588,37 @@ module.exports.fetchAdvisorByName = function(args, res, next) {
 	})
 }
 
+module.exports.getAdvisorAllocation = function(args, res, next) {
+    const user = _.get(args, 'user', {});
+    const userId = _.get(user, '_id', '').toString();
+    const userEmail = _.get(user, 'email', null);
+    const advisorId = _.get(args, 'advisorId.value', null);
+    const isAdmin = config.get('admin_user').indexOf(userEmail) > -1;
+
+    // If admin or advisor.userId === userId
+    AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id user allocation'})
+    .then(advisor => {
+        const advisorUserId = _.get(advisor, 'user._id', '').toString();
+
+        if (isAdmin || (userId === advisorUserId)) {
+            const requiredAdvisorObject = advisor.toObject();
+            const allocationStatus = _.get(requiredAdvisorObject, 'allocation.status', false);
+
+            if (!allocationStatus) {
+                return res.status(400).send({message: 'User not allocated'});
+            }
+
+            return res.status(200).send(advisor.toObject());
+        } else {
+            return res.status(400).send({message: 'User not allowed for this operation'});
+        }
+    })
+    .catch(err => {
+        console.log('Error ', err.message);
+        return res.status(400).send({message: err.message});
+    });
+}
+
 function farfuture() {
 	return new Date(2200, 1, 1);
 }
