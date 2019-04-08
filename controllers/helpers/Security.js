@@ -1359,6 +1359,6 @@ return Promise.all([
 ])
 .then(([shortableUniverse, nonTradeableUniverse])  => {
 	shortableSecurities = shortableUniverse;
-	notAllowedForTradeSecurities.concat(nonTradeableUniverse);
+	notAllowedForTradeSecurities = notAllowedForTradeSecurities.concat(nonTradeableUniverse);
 })
 
