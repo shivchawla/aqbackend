@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-08 13:52:24
+* @Last Modified time: 2019-04-08 16:51:14
 */
 
 'use strict';
@@ -398,7 +398,23 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				}
 
 				//Add ATR info to prediction
-				prediction.atr = _.get(atrDetail, 'atr', 0.0);
+				var atr = _.get(atrDetail, 'atr', 0.0);
+				prediction.atr = atr;
+
+				//In case of real prediction, add the modified stoploss/profit-target
+				//Target = 2*ATR
+				//Stoploss = Min(6%, 2*ATR)
+				if (isRealPrediction) {
+					//Use latestprice for NOW based predictions for computing modified SL/PT
+					var tempAvgPrice = isConditional ? avgPrice : latestPrice;
+					var mStopLoss = investment > 0 ? 
+						Math.min(tempAvgPrice - 2*atr, 0.94*tempAvgPrice) : 
+						Math.max(tempAvgPrice + 2*atr, 1.06*tempAvgPrice);
+
+					var mTarget = investment > 0 ? tempAvgPrice + 2*atr : tempAvgPrice - 2*atr;
+
+					prediction.adminModifications = [{stopLoss: mStopLoss, target: mTarget}];
+				}
 
 				return;
 			} else {
