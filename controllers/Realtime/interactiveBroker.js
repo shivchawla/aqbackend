@@ -209,7 +209,13 @@ class InteractiveBroker {
         return new Promise((resolve, reject) => {
             initializeCallback(orderId, resolve, reject);
             const ibInstance = this.interactiveBroker;
-            ibInstance.placeOrder(orderId, contract, config)
+
+            if (process.env.NODE_ENV == 'production') {
+                ibInstance.placeOrder(orderId, contract, {...config, account: config.get('ib_real_account')})    
+            } else {
+                ibInstance.placeOrder(orderId, contract, config)    
+            }
+            
             BrokerRedisController.updateOrderToClientMap(orderId, serverPort);
             setTimeout(() => resolve(true), 1000);
         });

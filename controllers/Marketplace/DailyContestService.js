@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-08 20:45:10
+* @Last Modified time: 2019-04-08 20:57:55
 */
 
 'use strict';
@@ -333,7 +333,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			APIError.throwJsonError({message: 'Market is closed! Only conditional predictions allowed'});
 		}
 		
-		if (process.env.NODE_ENV == 'production' && !DateHelper.isMarketTrading(15, 15) && entryPredictions.filter(item => item.real).length > 0) {
+		if (process.env.NODE_ENV == 'production' && !DateHelper.isMarketTrading(15, 15)) {
 		 	APIError.throwJsonError({message: "Market is closed!! Real trades are allowed only between 9:30 AM to 3:15 PM!!"})
 		}
 	})
