@@ -18,11 +18,11 @@ function _populateWatchlistDetail(watchlist) {
 			SecurityHelper.isShortable(security),
 			SecurityHelper.isTradeable(security)
 		])
-		.then(([detailRT, detailEOD, shortable, real]) => {
+		.then(([detailRT, detailEOD, shortable, allowed]) => {
 
 			var eodLatestDetail = _.get(detailEOD, 'latestDetail', {}); 
 			var rtLatestDetail = _.get(detailRT, 'latestDetail', {});
-			return Object.assign(security, {realtime: rtLatestDetail, eod: eodLatestDetail, shortable, real});
+			return Object.assign(security, {realtime: rtLatestDetail, eod: eodLatestDetail, shortable, allowed});
 		})
 	})
 	.then(detailForWatchlist => {
