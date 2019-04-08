@@ -54,12 +54,13 @@ function _populateWinners(winners, user) {
 
 			const requiredFirstName = shouldNotShowFunnyName ? _.get(requiredUser, 'firstName', '') : funnyFirstName
 			const requiredLastName = shouldNotShowFunnyName ? _.get(requiredUser, 'lastName', '') : funnyLastName;
+			const requiredUserEmail = _.get(requiredUser, 'email', null);
 
 			requiredUser = {
 				...requiredUser,
 				firstName: requiredFirstName,
 				lastName: requiredLastName,
-				email: userEmail
+				email: requiredUserEmail
 			};
 
 			if (!isAdmin) {

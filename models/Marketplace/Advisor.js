@@ -241,7 +241,7 @@ Advisor.statics.fetchAdvisor = function(query, options) {
 	}
 
     if(options.fields && options.fields.indexOf('user') !==-1) {
-        q = q.populate('user', 'firstName lastName');
+        q = q.populate('user', 'firstName lastName email');
     }
 
 	if((options.fields && options.fields.indexOf('advices')) || !options.fields) {
