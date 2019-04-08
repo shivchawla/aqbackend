@@ -317,6 +317,19 @@ function handleRequest(parsemsg::Dict{String, Any})
             parsemsg["output"] = ""
             parsemsg["output"] = untrack_stock_intraday_detail()
 
+        elseif action == "compute_stock_atr"
+            date = DateTime(parsemsg["date"], jsdateformat)
+            horizon = parsemsg["horizon"]
+
+            parsemsg["output"] = ""
+            atr = computeStockATR(parsemsg["security"], date, horizon)
+
+            if atr == nothing
+              parsemsg["error"] = "Empty ATR"
+            else 
+              parsemsg["output"] = atr  
+            end
+
         elseif action == "compute_stock_rolling_performance"
             parsemsg["output"] = ""
 

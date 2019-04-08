@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-08 11:39:13
+* @Last Modified time: 2019-04-08 12:41:03
 */
 
 'use strict';
@@ -137,6 +137,19 @@ function _computeStockPriceHistory(security, field) {
 		var msg = JSON.stringify({action:"compute_stock_price_history", 
             						security: security,
             						field: !field ? "Close" : field});
+         	
+     	WSHelper.handleMktRequest(msg, resolve, reject);
+
+    });
+};
+
+function _computeStockAtr(security, date = null, horizon = 10) {
+	return new Promise((resolve, reject) => {
+
+		var msg = JSON.stringify({action:"compute_stock_atr", 
+            						security: security,
+            						date: DateHelper.getDate(date),
+            						horizon: horizon});
          	
      	WSHelper.handleMktRequest(msg, resolve, reject);
 
@@ -1003,6 +1016,28 @@ module.exports.getStockIntradayHistory = function(security, date) {
 };
 
 
+module.exports.getStockAtr = function(security, date) {
+	//Get last date if date is not available
+	date = moment.utc().isAfter(DateHelper.getMarketOpenDateTime(date)) && !DateHelper.isHoliday(date) ? DateHelper.getCurrentDate() : DateHelper.getPreviousNonHolidayWeekday() 
+
+	return new Promise(resolve => {
+
+		return Promise.all([
+			_computeStockAtr(security, date),
+			_getSecurityDetail(security)
+		])
+		.then(([atr, securityDetail]) => {
+			security.detail = securityDetail;
+			resolve(Object.assign({}, security, {atr: atr}));
+		})
+		.catch(err => {
+			console.log(err.message);
+			resolve(Object.assign({}, security, {atr: 0}));
+		})
+	});
+};
+
+
 //NOT IN USE
 module.exports.getStockIntervalDetail = function(security, startDateTime, endDateTime) {
 	var startDateEODTime = DateHelper.getMarketCloseDateTime(startDateTime);
@@ -1326,3 +1361,4 @@ return Promise.all([
 	shortableSecurities = shortableUniverse;
 	notAllowedForTradeSecurities.concat(nonTradeableUniverse);
 })
+

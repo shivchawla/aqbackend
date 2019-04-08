@@ -2,11 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-<<<<<<< HEAD
-* @Last Modified time: 2019-04-05 10:52:03
-=======
-* @Last Modified time: 2019-04-05 20:24:37
->>>>>>> release
+* @Last Modified time: 2019-04-08 12:38:32
 */
 
 'use strict';
@@ -356,8 +352,9 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		return Promise.all([
 			SecurityHelper.getStockLatestDetail(prediction.position.security),
 			SecurityHelper.getRealtimeQuote(`${prediction.position.security.ticker}`)
+			Securityhelper.getStockAtr(prediction.position.security)
 		])
-		.then(([securityDetail, realTimeQuote]) => {
+		.then(([securityDetail, realTimeQuote, atrDetail]) => {
 			latestPrice = _.get(realTimeQuote, 'close', 0) || _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
 			if (latestPrice != 0) {
 
@@ -399,6 +396,12 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				} else if (investment < 0 && target > 1.015*latestPrice) {
 					APIError.throwJsonError({message:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% lower than call price`});
 				}
+
+				//Add ATR info to prediction
+				if (isRealPrediction) {
+					prediction.atr = _.get(atrDetail, 'atr', 0.0);
+				}
+
 				return;
 			} else {
 				console.log("Create Prediction: Price not found");
