@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-08 19:05:14
+* @Last Modified time: 2019-04-08 20:45:10
 */
 
 'use strict';
@@ -322,7 +322,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 	var security = _.get(prediction, 'position.security', {});
 
-	return SecurityHelper.isTradeable(security)
+	return Promise.resolve(SecurityHelper.isTradeable(security))
 	.then(allowed => {
 		if(isRealPrediction && !allowed) {
 			APIError.throwJsonError({message: `Real prediction in ${security.ticker} is not allowed`});
