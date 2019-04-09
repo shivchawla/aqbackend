@@ -652,12 +652,12 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 
 				return Promise.all([
 					acccountUpdateRequired ? AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction) : null,
-					isRealPrediction ? PredictionRealtimeController.sendAdminUpdates(masterAdvisorId, prediction._id) : null
+					isRealPrediction ? PredictionRealtimeController.sendAdminUpdates(masterAdvisorId, prediction._id.toString()) : null
 				]);	
 			})
 
 		} else {
-			APIError.throwJsonError({message: "Prediction not found"});
+			APIError.throwJsonError({message: "Exit Prediction: Prediction not found"});
 		}
 	})
 	.then(() => {
@@ -759,6 +759,7 @@ module.exports.updateSkipStatusPrediction = (args, res, next) => {
 	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
 
 	let allocationAdvisorId;
+	let requiredMasterAdvisor = null;
 
 	return Promise.resolve()
 	.then(() => {
@@ -769,6 +770,7 @@ module.exports.updateSkipStatusPrediction = (args, res, next) => {
 		return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'})
 	})
 	.then(masterAdvisor => {
+		requiredMasterAdvisor = masterAdvisor;
 		if (masterAdvisor && _.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
 			allocationAdvisorId = masterAdvisor.allocation.advisor;
 
@@ -788,6 +790,11 @@ module.exports.updateSkipStatusPrediction = (args, res, next) => {
 			DailyContestEntryModel.addAdminActivityForPrediction({advisor: allocationAdvisorId}, predictionId, adminActivity),
 			DailyContestEntryModel.updateReadStatus({advisor: allocationAdvisorId}, predictionId, true)
 		]);
+	})
+	.then(() => {
+		const masterAdvisorId = _.get(requiredMasterAdvisor, '_id', null);
+
+		return PredictionRealtimeController.sendAdminUpdates(masterAdvisorId, predictionId);
 	})
 	.then(() => {
 		return res.status(200).send('Success');
