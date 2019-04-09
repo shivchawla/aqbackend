@@ -9,6 +9,8 @@ const _ = require('lodash');
 const UserModel = require('../models/user');
 const Promise = require('bluebird');
 
+const {sendElasticEmail} = require('./elastic');
+
 var replaceAll = function(str, find, replace) {
     return str.replace(new RegExp(find, 'g'), replace);
 }
@@ -60,7 +62,8 @@ module.exports.sendActivationEmail = function(res, userDetails, source) {
         },
     };
 
-    return _sendMail(res, msg, {email: userDetails.email, name: userFullName});
+    // return _sendMail(res, msg, {email: userDetails.email, name: userFullName});
+    return sendElasticEmail(res, msg, {email: userDetails.email, name: userFullName});
 };
 
 module.exports.resetSuccessEmail = function(res, userDetails, source) {
@@ -83,7 +86,8 @@ module.exports.resetSuccessEmail = function(res, userDetails, source) {
         },
     };
 
-    return _sendMail(res, msg);
+    // return _sendMail(res, msg);
+    return sendElasticEmail(res, msg);
 };
 
 module.exports.sendForgotEmail = function(res, userDetails, source) {
@@ -109,7 +113,8 @@ module.exports.sendForgotEmail = function(res, userDetails, source) {
         },
     };
 
-    return _sendMail(res, msg);
+    // return _sendMail(res, msg);
+    return sendElasticEmail(res, msg);
 
 };
 
@@ -136,7 +141,8 @@ module.exports.welcomeEmail = function(res, userDetails, source, redirect = true
             ? config.get(`activation_url.${src}`)
             : null;
 
-    return _sendMail(res, msg, {redirectUrl});
+    // return _sendMail(res, msg, {redirectUrl});
+    return sendElasticEmail(res, msg, {redirectUrl});
 };
 
 module.exports.sendFeedbackEmail = function(res, args) {
@@ -148,7 +154,8 @@ module.exports.sendFeedbackEmail = function(res, args) {
         html: args.body.value.feedback,
     };
 
-    return _sendMail(res, msg);
+    // return _sendMail(res, msg);
+    return sendElasticEmail(res, msg);
 
 };
 
@@ -297,7 +304,8 @@ module.exports.sendTemplateEmail = function(templateId, substitutions, receiver,
         },
     };
 
-    return sgMail.send(msg);
+    // return sgMail.send(msg);
+    return sendElasticEmail(null, msg);
     
 };
 
@@ -336,7 +344,8 @@ module.exports.sendAdviceStatusEmail = function(adviceDetails, userDetails) {
         },
     };
 
-    return sgMail.send(msg);
+    // return sgMail.send(msg);
+    return sendElasticEmail(null, msg);
 };
 
 /*
@@ -376,7 +385,8 @@ module.exports.sendContestStatusEmail = function(contestEntryDetails, userDetail
         },
     };
 
-    return sgMail.send(msg);
+    // return sgMail.send(msg);
+    return sendElasticEmail(null, msg);
 };
 
 module.exports.sendPerformanceDigest = function(performanceDetail, userDetails) {
@@ -394,7 +404,8 @@ module.exports.sendPerformanceDigest = function(performanceDetail, userDetails) 
             },
         };
 
-        return sgMail.send(msg);
+    // return sgMail.send(msg);
+    return sendElasticEmail(null, msg);
 };
 
 module.exports.sendContestWinnerEmail = function(winnerDetail, userDetails) {
@@ -412,7 +423,8 @@ module.exports.sendContestWinnerEmail = function(winnerDetail, userDetails) {
             },
         };
 
-        return sgMail.send(msg);
+    // return sgMail.send(msg);
+    return sendElasticEmail(null, msg);
 };
 
 module.exports.sendDailyContestSummaryDigest = function(summaryDigest, userDetails) {
@@ -430,7 +442,8 @@ module.exports.sendDailyContestSummaryDigest = function(summaryDigest, userDetai
             },
         };
 
-        return sgMail.send(msg);
+    // return sgMail.send(msg);
+    return sendElasticEmail(null, msg);
 };
 
 module.exports.sendDailyContestWinnerEmail = function(winnerDetail, userDetails, weekly = false) {
@@ -448,6 +461,7 @@ module.exports.sendDailyContestWinnerEmail = function(winnerDetail, userDetails,
             },
         };
 
-        return sgMail.send(msg);
+    // return sgMail.send(msg);
+    return sendElasticEmail(null, msg);
 }
 
