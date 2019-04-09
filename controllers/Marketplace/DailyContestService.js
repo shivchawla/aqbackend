@@ -652,12 +652,12 @@ module.exports.exitDailyContestPrediction = (args, res, next) => {
 
 				return Promise.all([
 					acccountUpdateRequired ? AdvisorHelper.updateAdvisorAccountCredit(advisorId, prediction) : null,
-					isRealPrediction ? PredictionRealtimeController.sendAdminUpdates(masterAdvisorId, prediction._id) : null
+					isRealPrediction ? PredictionRealtimeController.sendAdminUpdates(masterAdvisorId, prediction._id.toString()) : null
 				]);	
 			})
 
 		} else {
-			APIError.throwJsonError({message: "Prediction not found"});
+			APIError.throwJsonError({message: "Exit Prediction: Prediction not found"});
 		}
 	})
 	.then(() => {
