@@ -41,7 +41,7 @@ module.exports.sendElasticEmail = (res = null, msg, obj) => {
     const template = _.get(msg, 'templateId', '');
 
     const url = `https://api.elasticemail.com/v2/email/send?apikey=${elasticEmailApiKey}&from=${from}&fromName=${fromName}&to=${to}&template=${template}&${substitutionString}`;
-
+    
     axios({
         method: 'POST',
         url
@@ -70,7 +70,6 @@ module.exports.sendElasticEmail = (res = null, msg, obj) => {
     });
 }
 
-exports.sendElasticEmail({}, message, {});
 // https://api.elasticemail.com/v2/email/send?apikey=9053bb8a-90c8-4b4a-959f-ae5401b86ed5 
 // &from=contest@adviceqube.com&fromName=AdviceQube&to=sauravbiswas16294@gmail.com&subject=Allocation worth Rs. 10 Lacs awarded: AdviceQube
 // &template=Test TEmpalte&merge_userFullName=Saurav Biswas
