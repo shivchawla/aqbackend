@@ -42,7 +42,7 @@ module.exports.sendElasticEmail = (res = null, msg, obj) => {
 
     const url = `https://api.elasticemail.com/v2/email/send?apikey=${elasticEmailApiKey}&from=${from}&fromName=${fromName}&to=${to}&template=${template}&${substitutionString}`;
     
-    axios({
+    return axios({
         method: 'POST',
         url
     })
