@@ -1461,7 +1461,7 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 	const priceUpdate = _.get(options, 'priceUpdate', true);
 	
 	//TO match with flag triggered in DB (means prediction was active)
-	const fetchOptions = {active: _.get(options, 'active', true)};
+	const fetchOptions = {active: _.get(options, 'active', null)};
 
 	let updatedPredictions;
 	return Promise.resolve()

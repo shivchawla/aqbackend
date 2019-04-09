@@ -3916,7 +3916,6 @@ paths:
         in: query
         type: boolean
         description: active status of prediction
-        default: true
 
       responses:
         200:

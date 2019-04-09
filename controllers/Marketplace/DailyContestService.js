@@ -31,22 +31,37 @@ const PredictionRealtimeController = require('../Realtime/predictionControl');
 const BrokerRedisController = require('../Realtime/brokerRedisControl');
 const funnyNames = require('../../constants/funnyNames');
 
+function generateRandomIndexes() {
+	const randomArray = [];
+	const max = 30;
+	const min = 0;
+	for (var i = 0; i < 9; i++) {		
+		const randomIndex = Math.floor(Math.random() * (max - min + 1)) + min;
+		randomArray.push(randomIndex);
+	}
+
+	return _.uniq(randomArray);
+}
 
 function _populateWinners(winners, user) {
 	const userId = _.get(user, '_id', null);
 	const userEmail = _.get(user, 'email', null);
 	const isAdmin = config.get('admin_user').indexOf(userEmail) > -1;
+	// Generates an array of random indexes to access the funnyNames
+	const randomIndexes = generateRandomIndexes();
 
 	return Promise.map(winners, function(winner, index) {
 		return AdvisorModel.fetchAdvisor({_id: winner.advisor}, {fields: 'user'})
 		.then(populatedAdvisor => {
 			let requiredUser = populatedAdvisor.user.toObject();
 			const advisorUserId = _.get(requiredUser, '_id', null);
+			const randomIndex = randomIndexes[index];
 
-			const funnyName = funnyNames[index].split(' ');
-			const funnyFirstName = funnyName[0] || 'Funny';
-			const funnyLastName = funnyName[1] || 'Yo';
-			const shouldNotShowFunnyName = true; //userId === advisorUserId || isAdmin;
+			const funnyName = funnyNames[randomIndex].split(' ');
+			const funnyFirstName = funnyName[0].toUpperCase() || 'Funny';
+			const funnyLastName = funnyName[1].toUpperCase() || 'Yo';
+			const shouldNotShowFunnyName = userId === advisorUserId || isAdmin;
+			// const shouldNotShowFunnyName = true; //userId === advisorUserId || isAdmin;
 
 			const requiredFirstName = shouldNotShowFunnyName ? _.get(requiredUser, 'firstName', '') : funnyFirstName
 			const requiredLastName = shouldNotShowFunnyName ? _.get(requiredUser, 'lastName', '') : funnyLastName;
