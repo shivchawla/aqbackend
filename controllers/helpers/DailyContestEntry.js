@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-05 19:34:17
+* @Last Modified time: 2019-04-09 12:01:02
 */
 
 'use strict';
@@ -2076,7 +2076,7 @@ module.exports.checkForPredictionExpiry = function() {
 		return DailyContestEntryModel.fetchDistinctAdvisors()
 		.then(advisors => {
 			return Promise.mapSeries(advisors, function(advisorId) {
-				return exports.getPredictionsForDate(advisorId, date, {category: "ended", priceUpdate: false})
+				return exports.getPredictionsForDate(advisorId, date, {category: "ended", priceUpdate: false, active: null})
 				.then(endedPredictions => {
 					return Promise.mapSeries(endedPredictions, function(item) {
 
