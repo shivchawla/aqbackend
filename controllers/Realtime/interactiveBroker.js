@@ -205,15 +205,15 @@ class InteractiveBroker {
         }
     }
 
-    static placeOrderInternal(orderId, contract, config) {
+    static placeOrderInternal(orderId, contract, orderConfig) {
         return new Promise((resolve, reject) => {
             initializeCallback(orderId, resolve, reject);
             const ibInstance = this.interactiveBroker;
 
             if (process.env.NODE_ENV == 'production') {
-                ibInstance.placeOrder(orderId, contract, {...config, account: config.get('ib_real_account')})    
+                ibInstance.placeOrder(orderId, contract, {...orderConfig, account: config.get('ib_real_account')})    
             } else {
-                ibInstance.placeOrder(orderId, contract, config)    
+                ibInstance.placeOrder(orderId, contract, orderConfig)    
             }
             
             BrokerRedisController.updateOrderToClientMap(orderId, serverPort);
