@@ -7,34 +7,36 @@
     "sendgrid_key":"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",
     "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv",
 
+    "elasticemail_key":"9053bb8a-90c8-4b4a-959f-ae5401b86ed5",
+
     "activation_email_template_id" :{
-        "adviceqube": "957ed889-0141-41d5-b192-588d4df89d09",
+        "adviceqube": "ActivationEmail",
         "aimsquant":""
     },
 
     "reset_password_template_id" :{
-        "adviceqube": "8bdad2e4-56e2-4a8e-b618-0fca30bdfabe",
+        "adviceqube": "PasswordReset",
         "aimsquant" : ""
     },
 
     "forgot_password_template_id" : {
-        "adviceqube": "19065ebf-c290-413c-94f2-7e804043ba58",
+        "adviceqube": "ForgotPassword",
         "aimsquant" :""
     },
 
     "welcome_template_id" :{
-        "adviceqube": "1a9b11ec-1697-4caa-b17b-59b976b12977",
+        "adviceqube": "WelcomeEmail",
         "aimsquant": ""
     },
 
     "account_activation_api_url": {
-        "aimsquant": "http://developapi.aimsquant.com/api/v2/user/activate?code=${code}",
-        "adviceqube": "http://developapi.aimsquant.com/api/v2/user/activate?code=${code}"
+        "aimsquant": "http://developapi.adviceqube.com/api/v2/user/activate?code=${code}",
+        "adviceqube": "http://developapi.adviceqube.com/api/v2/user/activate?code=${code}"
     },
 
     "reset_password_api_url": {
-        "aimsquant": "http://developapi.aimsquant.com/api/v2/user/resetpage?code=${code}&source=${src}",
-        "adviceqube": "http://developapi.aimsquant.com/api/v2/user/resetpage?code=${code}&source=${src}"
+        "aimsquant": "http://developapi.adviceqube.com/api/v2/user/resetpage?code=${code}&source=${src}",
+        "adviceqube": "http://developapi.adviceqube.com/api/v2/user/resetpage?code=${code}&source=${src}"
     },
 
     "sender_details": {
@@ -57,21 +59,14 @@
         "adviceqube": "http://localhost:3000/authMessage?mode=resetComplete"
     },
 
-    "advice_rejection_template_id": "9e1ade09-91f9-4c2d-a207-9eef637820b5",
-    "advice_approval_template_id": "0d823e51-6135-4a27-8bc2-cb77436462a2",
-    "advice_request_approval_template_id": "816ee533-6f18-4cad-b019-86f35d8a023a",
-    "contest_entry_successful_template_id": "3675409c-c7cd-4360-ab03-230334597c06",
-    "contest_entry_withdrawal_template_id":"d542bbc0-6595-4cd6-bd96-62407ae7e0f1",
-    "contest_entry_removal_template_id":"4c0305aa-a3cb-45e6-a4f8-2d7534af2c4a",
-    "contest_entry_update_template_id":"f492cb51-afd3-407e-8816-6ad47bcf3476",
     "email_unsubscribe_url": "http://localhost:3000/authMessage?mode=unsubscribe&type=${type}",
     "request_unsubscribe_url": "http://developapi.adviceqube.com/api/v2/user/unsubscribe?email=${email}&code=${code}&type=${type}",
 
     "validate_advice_full": true,
     "validate_contest_entry_full": false,
 
-    "daily_contest_day_winner_template_id": "d3465847-b751-4c61-b182-99b481b25810",
-    "daily_contest_week_winner_template_id":"c2d8fcff-90d0-4ad8-886e-82ad3c24b997",
+    "daily_contest_day_winner_template_id": "DailyContestDayWinner",
+    "daily_contest_week_winner_template_id":"DailyContestWeekWinner",
 
     "mongo_db":"aimsquant_develop",
     "mongo_user":"app_server_develop",

@@ -9,6 +9,8 @@ const _ = require('lodash');
 const UserModel = require('../models/user');
 const Promise = require('bluebird');
 
+const {sendElasticEmail} = require('./elastic');
+
 var replaceAll = function(str, find, replace) {
     return str.replace(new RegExp(find, 'g'), replace);
 }
@@ -60,7 +62,8 @@ module.exports.sendActivationEmail = function(res, userDetails, source) {
         },
     };
 
-    return _sendMail(res, msg, {email: userDetails.email, name: userFullName});
+    // return _sendMail(res, msg, {email: userDetails.email, name: userFullName});
+    return sendElasticEmail(res, msg, {email: userDetails.email, name: userFullName});
 };
 
 module.exports.resetSuccessEmail = function(res, userDetails, source) {
@@ -83,7 +86,8 @@ module.exports.resetSuccessEmail = function(res, userDetails, source) {
         },
     };
 
-    return _sendMail(res, msg);
+    // return _sendMail(res, msg);
+    return sendElasticEmail(res, msg);
 };
 
 module.exports.sendForgotEmail = function(res, userDetails, source) {
@@ -109,7 +113,8 @@ module.exports.sendForgotEmail = function(res, userDetails, source) {
         },
     };
 
-    return _sendMail(res, msg);
+    // return _sendMail(res, msg);
+    return sendElasticEmail(res, msg);
 
 };
 
@@ -136,7 +141,8 @@ module.exports.welcomeEmail = function(res, userDetails, source, redirect = true
             ? config.get(`activation_url.${src}`)
             : null;
 
-    return _sendMail(res, msg, {redirectUrl});
+    // return _sendMail(res, msg, {redirectUrl});
+    return sendElasticEmail(res, msg, {redirectUrl});
 };
 
 module.exports.sendFeedbackEmail = function(res, args) {
@@ -148,7 +154,8 @@ module.exports.sendFeedbackEmail = function(res, args) {
         html: args.body.value.feedback,
     };
 
-    return _sendMail(res, msg);
+    // return _sendMail(res, msg);
+    return sendElasticEmail(res, msg);
 
 };
 
@@ -184,39 +191,18 @@ module.exports.threadReplyEmail = function(threadDetails) {
             var followerFullName = follower.firstName.trim() +' '+ follower.lastName.trim();
             var _t = template.replace('followerFullName', followerFullName);
 
-            var request = sg.emptyRequest({
-                method: 'POST',
-                path: '/v3/mail/send',
-                body: {
-                    personalizations: [
-                        {
-                            to: [
-                                {
-                                    email: follower.email,
-                                },
-                            ],
-                            subject: `Re:[AimsQuant] ${slicedTitle}`,
-                        },
-                    ],
-                    from: {
-                        email: 'no-reply@aimsquant.com',
-                        name:`${replyUserFullName}`,
-                    },
-                    content: [
-                        {
-                            type: 'text/html',
-                            value: _t,
-                        },
-                    ],
+            const msg = {
+                to: [{
+                    email: follower.email
+                }],
+                from: {
+                    email: 'no-reply@aimsquant.com',
+                    name:`${replyUserFullName}`,
                 },
-            });
-            sg.API(request, function(err, response) {
-                if (err) {
-                    console.log('There was an error sending the email');
-                    return;
-                }
-                console.log('Email Sent');
-            });
+                bodyHtml: _t,
+                subject: `Re:[AimsQuant] ${slicedTitle}`
+            };
+            sendElasticEmail(null, msg);
         }
     });
 
@@ -237,41 +223,18 @@ module.exports.sendInfoEmail = function(details) {
     receivers.forEach(receiver => {
         var receiverFullName = receiver.firstName.trim() + ' ' + receiver.lastName.trim();
         var _t = template.replace('receiverFullName', receiverFullName);
-
-        var request = sg.emptyRequest({
-            method: 'POST',
-            path: '/v3/mail/send',
-            body: {
-                personalizations: [
-                    {
-                        to: [{
-                                email:receiver.email,
-                            },
-                        ],
-                        subject: `[AimsQuant] ${details.subject}`,
-                    },
-                ],
-                from: {
-                    email: 'shiv.chawla@aimsquant.com',
-                    name: 'Shiv Chawla',
-                },
-                content: [
-                    {
-                        type: 'text/html',                       
-                        value: _t,
-                    },
-                ],
+        const msg = {
+            to: [{
+                email:receiver.email,
+            }],
+            from: {
+                email: 'shiv.chawla@aimsquant.com',
+                name: 'Shiv Chawla',
             },
-        });
-
-        sg.API(request, function(err, response) {
-            if (err) {
-                console.log('There was an error sending the email');
-                return;
-            }
-
-            console.log('Email Sent');
-        });
+            bodyHtml: _t,
+            subject: `[AimsQuant] ${details.subject}`
+        };
+        sendElasticEmail(null, msg);
     });
 
  };
@@ -297,7 +260,8 @@ module.exports.sendTemplateEmail = function(templateId, substitutions, receiver,
         },
     };
 
-    return sgMail.send(msg);
+    // return sgMail.send(msg);
+    return sendElasticEmail(null, msg);
     
 };
 
@@ -336,7 +300,8 @@ module.exports.sendAdviceStatusEmail = function(adviceDetails, userDetails) {
         },
     };
 
-    return sgMail.send(msg);
+    // return sgMail.send(msg);
+    return sendElasticEmail(null, msg);
 };
 
 /*
@@ -376,7 +341,8 @@ module.exports.sendContestStatusEmail = function(contestEntryDetails, userDetail
         },
     };
 
-    return sgMail.send(msg);
+    // return sgMail.send(msg);
+    return sendElasticEmail(null, msg);
 };
 
 module.exports.sendPerformanceDigest = function(performanceDetail, userDetails) {
@@ -394,7 +360,8 @@ module.exports.sendPerformanceDigest = function(performanceDetail, userDetails) 
             },
         };
 
-        return sgMail.send(msg);
+    // return sgMail.send(msg);
+    return sendElasticEmail(null, msg);
 };
 
 module.exports.sendContestWinnerEmail = function(winnerDetail, userDetails) {
@@ -412,7 +379,8 @@ module.exports.sendContestWinnerEmail = function(winnerDetail, userDetails) {
             },
         };
 
-        return sgMail.send(msg);
+    // return sgMail.send(msg);
+    return sendElasticEmail(null, msg);
 };
 
 module.exports.sendDailyContestSummaryDigest = function(summaryDigest, userDetails) {
@@ -430,7 +398,8 @@ module.exports.sendDailyContestSummaryDigest = function(summaryDigest, userDetai
             },
         };
 
-        return sgMail.send(msg);
+    // return sgMail.send(msg);
+    return sendElasticEmail(null, msg);
 };
 
 module.exports.sendDailyContestWinnerEmail = function(winnerDetail, userDetails, weekly = false) {
@@ -448,6 +417,7 @@ module.exports.sendDailyContestWinnerEmail = function(winnerDetail, userDetails,
             },
         };
 
-        return sgMail.send(msg);
+    // return sgMail.send(msg);
+    return sendElasticEmail(null, msg);
 }
 
