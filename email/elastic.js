@@ -38,10 +38,24 @@ module.exports.sendElasticEmail = (res = null, msg, obj) => {
     
     const from = _.get(msg, 'from.email', 'contest@adviceqube.com');
     const fromName = _.get(msg, 'from.name', 'AdviceQube');
-    const template = _.get(msg, 'templateId', '');
+    const template = _.get(msg, 'templateId', null);
+    const bodyHtml = _.get(msg, 'bodyHtml', null);
+    const subject = _.get(msg, 'subject', null);
     const isTransactional = true;
 
-    const url = `https://api.elasticemail.com/v2/email/send?apikey=${elasticEmailApiKey}&isTransactional=${isTransactional}&from=${from}&fromName=${fromName}&to=${to}&template=${template}&${substitutionString}`;
+    let url = `https://api.elasticemail.com/v2/email/send?apikey=${elasticEmailApiKey}&isTransactional=${isTransactional}&from=${from}&fromName=${fromName}&to=${to}&${substitutionString}`;
+    
+    if (template !== null) {
+        url = `${url}&template=${template}`
+    }
+
+    if (bodyHtml !== null) {
+        url = `${url}&bodyHtml=${bodyHtml}`;
+    }
+
+    if (subject !== null) {
+        url = `${url}&subject=${subject}`;
+    }
     
     return axios({
         method: 'POST',

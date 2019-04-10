@@ -191,39 +191,18 @@ module.exports.threadReplyEmail = function(threadDetails) {
             var followerFullName = follower.firstName.trim() +' '+ follower.lastName.trim();
             var _t = template.replace('followerFullName', followerFullName);
 
-            var request = sg.emptyRequest({
-                method: 'POST',
-                path: '/v3/mail/send',
-                body: {
-                    personalizations: [
-                        {
-                            to: [
-                                {
-                                    email: follower.email,
-                                },
-                            ],
-                            subject: `Re:[AimsQuant] ${slicedTitle}`,
-                        },
-                    ],
-                    from: {
-                        email: 'no-reply@aimsquant.com',
-                        name:`${replyUserFullName}`,
-                    },
-                    content: [
-                        {
-                            type: 'text/html',
-                            value: _t,
-                        },
-                    ],
+            const msg = {
+                to: [{
+                    email: follower.email
+                }],
+                from: {
+                    email: 'no-reply@aimsquant.com',
+                    name:`${replyUserFullName}`,
                 },
-            });
-            sg.API(request, function(err, response) {
-                if (err) {
-                    console.log('There was an error sending the email');
-                    return;
-                }
-                console.log('Email Sent');
-            });
+                bodyHtml: _t,
+                subject: `Re:[AimsQuant] ${slicedTitle}`
+            };
+            sendElasticEmail(null, msg);
         }
     });
 
@@ -244,41 +223,18 @@ module.exports.sendInfoEmail = function(details) {
     receivers.forEach(receiver => {
         var receiverFullName = receiver.firstName.trim() + ' ' + receiver.lastName.trim();
         var _t = template.replace('receiverFullName', receiverFullName);
-
-        var request = sg.emptyRequest({
-            method: 'POST',
-            path: '/v3/mail/send',
-            body: {
-                personalizations: [
-                    {
-                        to: [{
-                                email:receiver.email,
-                            },
-                        ],
-                        subject: `[AimsQuant] ${details.subject}`,
-                    },
-                ],
-                from: {
-                    email: 'shiv.chawla@aimsquant.com',
-                    name: 'Shiv Chawla',
-                },
-                content: [
-                    {
-                        type: 'text/html',                       
-                        value: _t,
-                    },
-                ],
+        const msg = {
+            to: [{
+                email:receiver.email,
+            }],
+            from: {
+                email: 'shiv.chawla@aimsquant.com',
+                name: 'Shiv Chawla',
             },
-        });
-
-        sg.API(request, function(err, response) {
-            if (err) {
-                console.log('There was an error sending the email');
-                return;
-            }
-
-            console.log('Email Sent');
-        });
+            bodyHtml: _t,
+            subject: `[AimsQuant] ${details.subject}`
+        };
+        sendElasticEmail(null, msg);
     });
 
  };
