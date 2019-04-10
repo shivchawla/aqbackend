@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-29 09:15:44
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-08 12:41:03
+* @Last Modified time: 2019-04-10 08:44:15
 */
 
 'use strict';
@@ -1032,7 +1032,7 @@ module.exports.getStockAtr = function(security, date) {
 		})
 		.catch(err => {
 			console.log(err.message);
-			resolve(Object.assign({}, security, {atr: 0}));
+			resolve(Object.assign({}, security, {atr: null}));
 		})
 	});
 };

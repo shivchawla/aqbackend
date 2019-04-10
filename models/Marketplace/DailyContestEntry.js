@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 18:46:30
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-08 12:36:42
+* @Last Modified time: 2019-04-10 08:52:20
 */
 
 
@@ -169,8 +169,8 @@ const Prediction = new Schema({
 	adminModifications: [Schema.Types.Mixed],
 
 	atr: {
-		type: Number,
-		default: 0.0
+		latest: {type: Number, default: 0},
+		average: {type: Number, default: 0}
 	}
 });
 

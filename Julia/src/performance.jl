@@ -722,7 +722,8 @@ function computeStockATR(security_dict::Dict{String, Any}, date::DateTime = now(
         
         hlc = rename(merge(merge(cP, hP), lP), [:Close, :High, :Low])
         avTR = atr(hlc, horizon)
-        return avTR != nothing && length(values(avTR)) > 0 ? mean(values(avTR)) : nothing
+        return avTR != nothing && length(values(avTR)) > 0 ? 
+            Dict("average" => mean(values(avTR)), "latest" => values(avTR)[end]) : nothing
     end
 
 end
