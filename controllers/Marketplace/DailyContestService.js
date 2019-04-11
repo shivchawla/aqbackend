@@ -438,7 +438,11 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 					var mTarget = investment > 0 ? tempAvgPrice + 2*atr : tempAvgPrice - 2*atr;
 
-					prediction.adminModifications = [{stopLoss: mStopLoss, target: mTarget}];
+					prediction.adminModifications = [{
+						stopLoss: mStopLoss, 
+						target: mTarget,
+						date: new Date()
+					}];
 				}
 
 				return;
