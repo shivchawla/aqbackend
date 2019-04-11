@@ -233,7 +233,7 @@ function _computeStockIntradayHistory(security, date) {
 				let fData = data
 				.map(item => {
 					//Update the time Z format
-					const convertedTime = DateHelper.convertIndianTimeInLocalTz(item.datetime, 'yyyymmdd HH:mm:ss').add(1,'minute').startOf('minute').toISOString();
+					const convertedTime = DateHelper.convertIndianTimeInLocalTz(item.datetime, 'YYYYMMDD HH:mm:ss').add(1,'minute').startOf('minute').toISOString();
 					return {...item, datetime: convertedTime};
 				}) //resultant data should be after 
 				.filter(item => {return !moment(item.datetime).isAfter(mktClose) && moment(item.datetime).isAfter(mktOpen);});
@@ -730,7 +730,7 @@ module.exports.getRealtimeQuoteFromIB = function(ticker, isIndex = false) {
 		.then(([quotesData, securityDetail]) => {
 			if (quotesData && quotesData.length > 0) {
 				quotesData = quotesData.map(item => {
-					const convertedTime = DateHelper.convertIndianTimeInLocalTz(item.datetime, 'yyyymmdd HH:mm:ss').add(1, 'minute').startOf('minute').toISOString();
+					const convertedTime = DateHelper.convertIndianTimeInLocalTz(item.datetime, 'YYYYMMDD HH:mm:ss').add(1, 'minute').startOf('minute').toISOString();
 					return {...item, datetime: convertedTime};
 				}).sort((a,b) => { return moment(a.datetime).isAfter(a.datetime) ? -1 : 1;});
 

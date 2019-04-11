@@ -164,7 +164,7 @@ module.exports.getPredictionActivity = function(advisorId, predictionId) {
 };
 
 module.exports.addLatestBarData = function(ticker, latestBarData) {
-    const convertedTime = DateHelper.convertIndianTimeInLocalTz(latestBarData.datetime, 'yyyymmdd HH:mm:ss').endOf('minute').set({millisecond:0}).toISOString();
+    const convertedTime = DateHelper.convertIndianTimeInLocalTz(latestBarData.datetime, 'YYYYMMDD HH:mm:ss').endOf('minute').set({millisecond:0}).toISOString();
     latestBarData = {...latestBarData, datetime: convertedTime};
 
     //Update the data in redis
