@@ -163,50 +163,41 @@ module.exports.threadReplyEmail = function(threadDetails) {
 
     var replyUser = threadDetails.lastCommentedUser;
     var replyUserFullName = replyUser.firstName.trim() + ' ' + replyUser.lastName.trim();
-    var homeLink = config.get('hostname');
-    var postLink = `${homeLink}/#/dashboard/community/${threadDetails._id}`;
-    var unfollowLink = `${homeLink}/?unfollow=1#/dashboard/community/${threadDetails._id}`;
-    var template = fs.readFileSync(__dirname + '/../views/threadReplyEmail.html').toString();
-    template = template.replace('replyUserFullName', replyUserFullName);
-    template = template.replace('postTitle', threadDetails.title);
-    template = template.replace('postFirstLine', truncate(threadDetails.markdownText, {length: 300, excludes: 'img'}));
-    template = template.replace(/postLink/g, postLink);
-    template = template.replace(/homeLink/g, homeLink);
-    template = template.replace(/unfollowLink/g, unfollowLink);
-
-    /**
-     * bcc email array should be in the form: [
-     {
-         "email": "sam.doe@example.com",
-         "name": "Sam Doe"
-     }
-     ]
-     * @type {*|SendGrid.Rest.Request}
-     */
+    var homeUrl = config.get('research_hostname');
+    var postUrl = `${homeUrl}/community/${threadDetails._id}`;
+    var threadId = threadDetails._id;
+    var unsubscribeUrl = eval('`' + config.get('request_thread_unsubscribe_url') + '`');
+    
+    var substitutions = {
+        replyUserFullName,
+        postTitle: threadDetails.title,
+        postFirstLine: truncate(threadDetails.markdownText, {length: 300, excludes: 'img'}),
+        postUrl,
+        unsubscribeUrl
+    };
 
     var slicedTitle = threadDetails.title.slice(0, 60); 
     
-    threadDetails.followers.forEach(follower => {
+    return Promise.map(threadDetails.followers, function(follower) {
         if(threadDetails.lastCommentedUser._id != follower._id) {
             var followerFullName = follower.firstName.trim() +' '+ follower.lastName.trim();
-            var _t = template.replace('followerFullName', followerFullName);
-
+           
             const msg = {
                 to: [{
                     email: follower.email
                 }],
                 from: {
-                    email: 'no-reply@aimsquant.com',
+                    email: 'no-reply@adviceqube.com',
                     name:`${replyUserFullName}`,
                 },
-                bodyHtml: _t,
-                subject: `Re:[AimsQuant] ${slicedTitle}`
+                templateId:config.get('community_reply_thread_template_id'),
+                subject: `Re:[AdviceQube] ${slicedTitle}`,
+                substitutions: {...substitutions, replyUserFullName}
             };
-            sendElasticEmail(null, msg);
+            
+            return sendElasticEmail(null, msg);
         }
     });
-
-    return;
 };
 
 /*

@@ -2,6 +2,7 @@
     //"hostname": ["https://develop.adviceqube.com", "https://quant-develop.adviceqube.com", "http://localhost:3000", "http://localhost:3001"],
     
     "hostname": "https://develop.adviceqube.com",
+    "research_hostname": "https://quant-develop.adviceqube.com",
     "first_party_hosts": ["https://develop.adviceqube.com", "https://quant-develop.adviceqube.com", "http://localhost:3000", "http://localhost:3001"],
 
     "sendgrid_key":"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",
@@ -61,12 +62,15 @@
 
     "email_unsubscribe_url": "http://localhost:3000/authMessage?mode=unsubscribe&type=${type}",
     "request_unsubscribe_url": "http://developapi.adviceqube.com/api/v2/user/unsubscribe?email=${email}&code=${code}&type=${type}",
+    "request_thread_unsubscribe_url": "http://developapi.adviceqube.com/api/v2/thread/${threadId}/follow",
 
     "validate_advice_full": true,
     "validate_contest_entry_full": false,
 
+    "community_reply_thread_template_id":"ReplyThread",
     "daily_contest_day_winner_template_id": "DailyContestDayWinner",
     "daily_contest_week_winner_template_id":"DailyContestWeekWinner",
+    "daily_contest_summary_digest_template_id":"DailyContestSummary",
 
     "mongo_db":"aimsquant_develop",
     "mongo_user":"app_server_develop",
