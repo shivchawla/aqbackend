@@ -52,7 +52,7 @@ function _populateWinners(winners, user) {
 
 	return Promise.map(winners, function(winner, index) {
 		return AdvisorModel.fetchAdvisor({_id: winner.advisor}, {fields: 'user'})
-		.then(populatedAdvisor => {
+		.then(populatedAdvisor => {			
 			let requiredUser = populatedAdvisor.user.toObject();
 			const advisorUserId = _.get(requiredUser, '_id', null);
 			const randomIndex = randomIndexes[index];
@@ -60,7 +60,7 @@ function _populateWinners(winners, user) {
 			const funnyName = funnyNames[randomIndex].split(' ');
 			const funnyFirstName = funnyName[0].toUpperCase() || 'Funny';
 			const funnyLastName = funnyName[1].toUpperCase() || 'Yo';
-			const shouldNotShowFunnyName = userId === advisorUserId || isAdmin;
+			const shouldNotShowFunnyName = userId.toString() === advisorUserId.toString() || isAdmin;
 			// const shouldNotShowFunnyName = true; //userId === advisorUserId || isAdmin;
 
 			const requiredFirstName = shouldNotShowFunnyName ? _.get(requiredUser, 'firstName', '') : funnyFirstName
@@ -71,7 +71,8 @@ function _populateWinners(winners, user) {
 				...requiredUser,
 				firstName: requiredFirstName,
 				lastName: requiredLastName,
-				email: requiredUserEmail
+				email: requiredUserEmail,
+				isUser: userId.toString() === advisorUserId.toString()
 			};
 
 			if (!isAdmin) {
