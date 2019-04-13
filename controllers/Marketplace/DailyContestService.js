@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-10 08:58:44
+* @Last Modified time: 2019-04-13 11:50:53
 */
 
 'use strict';
@@ -1388,16 +1388,16 @@ module.exports.modifyOrderForPrediction = function(args, res, next ) {
 			// Placing the order in the market
 			// Adding admin activity to the prediction
 			return Promise.all([
-				InteractiveBroker.modifyOrder(orderParams),
+				BrokerRedisController.modifyOrderRequest(orderParams, "modify"),
 				DailyContestEntryModel.addAdminActivityForPrediction({advisor: allocationAdvisorId}, predictionId, adminActivity),
-			])
+			]);
 			
 		} else {
 			APIError.throwJsonError({message: "Prediction not found"});
 		}
 	})
 	.then(([success]) => {
-		return res.status(200).send("Order placed successfully");
+		return res.status(200).send("Order modified successfully");
 	})
 	.catch(err => {
 		console.log('Error ', err);
@@ -1435,7 +1435,7 @@ module.exports.cancelOrderForPrediction = function(args, res, next ) {
 		};
 		
 		return Promise.all([
-			InteractiveBroker.cancelOrder(Number(orderId)),
+			BrokerRedisController.modifyOrderRequest({orderId}, "cancel"),
 			DailyContestEntryModel.addAdminActivityForPrediction({advisor: allocationAdvisorId}, predictionId, adminActivity)
 		]);
 	})
