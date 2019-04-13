@@ -177,7 +177,7 @@ module.exports.threadReplyEmail = function(threadDetails) {
     };
 
     var slicedTitle = threadDetails.title.slice(0, 60); 
-    
+
     return Promise.map(threadDetails.followers, function(follower) {
         if(threadDetails.lastCommentedUser._id != follower._id) {
             var followerFullName = follower.firstName.trim() +' '+ follower.lastName.trim();
