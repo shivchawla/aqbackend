@@ -946,11 +946,13 @@ module.exports.getStockDetailEOD = function(security, date) {
 module.exports.getStockLatestDetail = function(security) {
 	return Promise.all([
 		exports.getStockLatestDetailByType(security, "EOD"),
-		exports.getStockLatestDetailByType(security, "RT")
+		exports.getStockLatestDetailByType(security, "RT"),
+		exports.isShortable(security),
+		exports.isTradeable(security)
 	])
-	.then(([detailEOD, detailRT]) => {
+	.then(([detailEOD, detailRT, shortable, allowed]) => {
 		var rtLatestDetail = _.get(detailRT, 'latestDetail', {});
-		return Object.assign(detailEOD, {latestDetailRT: rtLatestDetail});
+		return Object.assign(detailEOD, {latestDetailRT: rtLatestDetail, shortable, allowed});
 	});
 };
 
