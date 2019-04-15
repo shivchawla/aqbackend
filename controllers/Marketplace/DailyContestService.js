@@ -7,6 +7,7 @@
 
 'use strict';
 const _ = require('lodash');
+const moment = require('moment');
 const Promise = require('bluebird');
 var redis = require('redis');
 var path = require('path');
@@ -889,9 +890,19 @@ module.exports.addAdminModificationsToPrediction = (args, res, next) => {
 * Get daily contest winners
 */
 module.exports.getDailyContestWinners = (args, res, next) => {
+	const timeFormat = 'HH:mm:ss', dateFormat = 'YYYY-MM-DD';
+
 	const _d = _.get(args, 'date.value', '');
 	const _dd = _d == "" || !_d ? DateHelper.getCurrentDate() : DateHelper.getDate(_d);
 	const date = DateHelper.getMarketCloseDateTime(_dd);
+	const currentDateInstance = DateHelper.getCurrentIndiaDateTime();
+	const marketCloseTime = DateHelper.getMarketCloseDateTimeLocal().format(timeFormat);
+
+	const currentIndianTime = currentDateInstance.format(timeFormat);
+	const currentDate = currentDateInstance.format('YYYY-MM-DD');
+
+	const selectedDate = date.format(dateFormat);
+
 	const user = _.get(args, 'user', null);
 	return DailyContestStatsModel.fetchContestStats(date, {fields:'dailyWinners weeklyWinners'})
 	.then(statsForDate => {
@@ -905,7 +916,15 @@ module.exports.getDailyContestWinners = (args, res, next) => {
 	})
 	.catch(err => {
 		console.log('Error ', err.message);
-		return res.status(400).send({message: err.message});	
+		if (selectedDate === currentDate) {
+			if (moment(currentIndianTime, timeFormat).isSameOrBefore(moment(marketCloseTime, timeFormat))) {
+				return res.status(400).send({message: 'Winners will be announced after market closes.'})
+			} else {
+				return res.status(400).send({message: 'Winners will be announced soon.'})
+			}
+		} else {
+			return res.status(400).send({message: `No winners for ${moment(selectedDate).format("Do MMM `YY")}.`});	
+		}		
 	})
 };
 
