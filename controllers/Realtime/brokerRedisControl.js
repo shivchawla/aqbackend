@@ -293,10 +293,12 @@ module.exports.modifyOrderRequest = function(orderParams, requestType="modify") 
 
             console.log(`Client: ${clientId} found for OrderId: ${orderId}`);
 
-            let channel = requestType == "modify" ? 
-                    `modifyOrder_${process.env.NODE_ENV}` : 
-                        requestType == "cancel" ?
-                            `cancelOrder_${process.env.NODE_ENV}` : "";
+            // let channel = requestType == "modify" ? 
+            //         `modifyOrder_${process.env.NODE_ENV}` : 
+            //             requestType == "cancel" ?
+            //                 `cancelOrder_${process.env.NODE_ENV}` : "";
+
+            let channel = `modifyOrder_${process.env.NODE_ENV}`;
 
             if (channel == "") {
                 throw new Error(`Invalid request type for order modification [OrderId: ${orderId} & requestType: ${requestType}]`);

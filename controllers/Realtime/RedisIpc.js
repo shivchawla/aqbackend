@@ -66,8 +66,9 @@ function manageSubscriptions() {
 
 		RedisUtils.subscribe(redisSubscriber, `predictionAdded_${process.env.NODE_ENV}`);
 
-	  	RedisUtils.subscribe(redisSubscriber, `modifyOrder_${process.env.NODE_ENV}_complete`);
+		RedisUtils.subscribe(redisSubscriber, `modifyOrder_${process.env.NODE_ENV}_complete`);
 
+		RedisUtils.subscribe(redisSubscriber, `modifyOrder_${process.env.NODE_ENV}`);		
 	});
 
 	redisSubscriber.on("message", function(channel, message) {
