@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-09 12:01:02
+* @Last Modified time: 2019-04-15 23:33:47
 */
 
 'use strict';
@@ -1223,9 +1223,9 @@ function _computeTotalPnlStats(advisorId, date, options) {
 
 function _computeTotalPnlStatsForAll(advisorId, date) {
 	return Promise.all([
-		_computeTotalPnlStats(advisorId, date, {category: "started"}),
-		_computeTotalPnlStats(advisorId, date, {category: "all"}),
-		_computeTotalPnlStats(advisorId, date, {category: "ended"})
+		_computeTotalPnlStats(advisorId, date, {category: "started", active: true}),
+		_computeTotalPnlStats(advisorId, date, {category: "all", active: true}),
+		_computeTotalPnlStats(advisorId, date, {category: "ended", active: true})
 	])
 	.then(([startedPredictionsTotalPnl, allPredictionsTotalPnl, endedPredictionsTotalPnl]) => {
 		return {
@@ -1238,6 +1238,7 @@ function _computeTotalPnlStatsForAll(advisorId, date) {
 
 function _computeDailyPnlStats(advisorId, date, options) {
 
+	//Why default category is 
 	const category = _.get(options, 'category', "all");
 
 	let yesterday = moment(date).subtract(1, 'days').toDate();
@@ -1292,9 +1293,9 @@ function _computeDailyPnlStats(advisorId, date, options) {
 
 function _computeDailyPnlStatsForAll(advisorId, date) {
 	return Promise.all([
-		_computeDailyPnlStats(advisorId, date, {category: "started"}),
-		_computeDailyPnlStats(advisorId, date, {category: "all"}),
-		_computeDailyPnlStats(advisorId, date, {category: "ended"})
+		_computeDailyPnlStats(advisorId, date, {category: "started", active: true}),
+		_computeDailyPnlStats(advisorId, date, {category: "all", active: true}),
+		_computeDailyPnlStats(advisorId, date, {category: "ended", active: true})
 	])
 	.then(([startedPredictionsDailyPnl, allPredictionsDailyPnl, endedPredictionsDailyPnl]) => {
 		return {

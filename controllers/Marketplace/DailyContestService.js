@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-13 11:50:53
+* @Last Modified time: 2019-04-15 23:32:35
 */
 
 'use strict';
@@ -232,7 +232,7 @@ module.exports.getDailyContestPnlForDate = (args, res, next) => {
 				}
 			}
 
-			return DailyContestEntryHelper.getPnlStatsForDate(advisorId, date, {category});
+			return DailyContestEntryHelper.getPnlStatsForDate(advisorId, date, {category, active: true});
 		} else if(!advisor) {
 			APIError.throwJsonError({message: "Not a valid user"});
 		} else {
