@@ -427,7 +427,7 @@ class InteractiveBroker {
         });
     }
 
-    static cancelOrder(orderId) {
+    static cancelOrder({orderId}) {
         return new Promise((resolve, reject) => {
             try {
                 initializeCallback(orderId, resolve, reject);
@@ -532,12 +532,22 @@ InteractiveBroker.interactiveBroker.on('contractDetails', (reqId, contract) => {
 });
 
 InteractiveBroker.interactiveBroker.on('error', (errMsg, data) => {
+    console.log('IB Error ', errMsg);
+    const isCancelled = JSON.stringify(errMsg.message).indexOf('Order Canceled') > -1;
     const reqId = _.get(data, 'id', null);
     if (reqId) {
-        var reject = _.get(promises, `${reqId}.reject`, null);
-        if(reject) {
-            delete promises[reqId];
-            reject(new Error(errMsg));
+        if (isCancelled) {
+            var resolve = _.get(promises, `${reqId}.resolve`, null);
+            if (resolve) {
+                delete promises[reqId];
+                resolve({orderId: reqId, message: 'Cancelled Successfully'});
+            }
+        } else {
+            var reject = _.get(promises, `${reqId}.reject`, null);
+            if(reject) {
+                delete promises[reqId];
+                reject(new Error(errMsg));
+            }
         }
     }
 
