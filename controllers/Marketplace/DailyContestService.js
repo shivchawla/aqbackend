@@ -912,6 +912,10 @@ module.exports.getDailyContestWinners = (args, res, next) => {
 		]);
 	})
 	.then(([populatedDailyWinners, populatedWeeklyWinners]) => {
+		if (populatedDailyWinners.length === 0 && populatedWeeklyWinners.length === 0) {
+			throw new Error('No Data Found');
+		}
+
 		return res.status(200).send({dailyWinners: populatedDailyWinners, weeklyWinners: populatedWeeklyWinners});
 	})
 	.catch(err => {
