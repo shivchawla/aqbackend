@@ -72,6 +72,7 @@
     "daily_contest_day_winner_template_id": "DailyContestDayWinner",
     "daily_contest_week_winner_template_id":"DailyContestWeekWinner",
     "daily_contest_summary_digest_template_id":"DailyContestSummary",
+    "daily_contest_zero_predictions_advisors_template":"DailyContestZeroPredictionsMotivation",
 
     "mongo_db":"aimsquant_prod",
     "mongo_user":"app_server_prod",
@@ -147,6 +148,7 @@
     "ib_tws_port": 5002,
     "node_ib_event_port": 3002,
     "ib_real_account":"U2859508",
+    "order_automated": true,
 
     "realtime_EODH_quote_url":"https://eodhistoricaldata.com/api/real-time/${ticker}?api_token=5b87e1823a5034.40596433&fmt=json&s=${otherTickers}"
 }
