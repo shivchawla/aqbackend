@@ -191,8 +191,8 @@ module.exports.threadReplyEmail = function(threadDetails) {
                     name:`${replyUserFullName}`,
                 },
                 templateId:config.get('community_reply_thread_template_id'),
-                subject: `Re:[AdviceQube] ${slicedTitle}`,
-                substitutions: {...substitutions, replyUserFullName}
+                subject: `Comment:[AdviceQube] ${slicedTitle}`,
+                substitutions: {...substitutions, followerFullName}
             };
             
             return sendElasticEmail(null, msg);
