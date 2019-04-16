@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-15 23:33:47
+* @Last Modified time: 2019-04-16 17:21:54
 */
 
 'use strict';
@@ -1145,6 +1145,7 @@ function _computeUpdatedPredictions(predictions, date) {
 					var expired = _.get(prediction, 'status.expired', false) || moment(_.get(prediction, 'endDate', null)).isBefore(moment.utc());
 					var endedInTime = expired && moment(date).isSame(moment(prediction.endDate));
 
+					 
 					if (success) {
 						
 						updatedCallPricePrediction.position.lastPrice = updatedCallPricePrediction.target;
@@ -1164,9 +1165,13 @@ function _computeUpdatedPredictions(predictions, date) {
 						//But if price is not available, then move to next step and return current price
 						return [updatedCallPricePrediction.position];	
 					} else {
+						
+						//Initialize the lastprice to be zero
+						updatedCallPricePrediction.position.lastPrice = 0;
+
 						//Why use Julia here at all.
 						return _partialUpdatedPositions;
-						//return _updatePositionsForPrice(_partialUpdatedPositions, date);
+						
 					}
 				})
 				.then(updatedPositions => {
