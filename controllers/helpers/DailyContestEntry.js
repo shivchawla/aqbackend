@@ -1509,7 +1509,22 @@ module.exports.getPredictionsForDate = function(advisorId, date, options) {
 		} else {
 			return partiallyUpdatedPredictionsWith;
 		}
-	});
+	})
+	.then(updatedPredictions => {
+		return Promise.map(updatedPredictions, prediction => {
+			let securityDetail = _.get(prediction, 'position.security', {});
+
+			return Promise.all([
+				SecurityHelper.isShortable(securityDetail),
+				SecurityHelper.isTradeable(securityDetail)
+			])
+			.then(([shortable, allowed]) => {
+				securityDetail = Object.assign(securityDetail, {shortable, allowed});
+				var updatedPosition = Object.assign(prediction.position, {security: securityDetail});
+				return Object.assign(prediction, {position: updatedPosition});
+			})
+		})
+	})
 };
 
 module.exports.getPredictionById = function(advisorId, predictionId, options) {
