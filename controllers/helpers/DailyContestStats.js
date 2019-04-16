@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-05 20:52:15
+* @Last Modified time: 2019-04-15 17:31:58
 */
 
 'use strict';
@@ -92,6 +92,9 @@ function _computeDailyContestWinners(date) {
 			.then(([pnlStatsForAdvisor, allPredictions]) => {
 				var allPredictionsPnlStats =  _.get(pnlStatsForAdvisor, 'detail.daily.all.net', {});
 				
+				//Should the daily winners be based on total pnl or average pnlpct of the picks??
+				//Update the rule accordingly (PENDING)
+
 				var pnlPct = _.get(allPredictionsPnlStats, 'pnlPct', 0);
 				var cost = _.get(allPredictionsPnlStats, 'cost', 0);
 				var profitFactor = _.get(allPredictionsPnlStats, 'profitFactor', 0);
