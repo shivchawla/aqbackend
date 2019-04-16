@@ -2239,18 +2239,23 @@ module.exports.addPrediction = function(advisorId, prediction, date, masterAdvis
 		let queueName = `${RECENT_ADVISORS_QUEUE}_${prediction.startDate.toISOString()}`;
 		
 		Promise.all([
-			DailyContestEntryModel.addEntryPrediction({advisor: advisorId, date: date}, prediction, {new:false, upsert: true, fields:'_id'}),
+			DailyContestEntryModel.addEntryPrediction({advisor: advisorId, date: date}, prediction, {new:true, upsert: true, fields:'_id predictions'}),
 			DateHelper.isMarketTrading() ? RedisUtils.addSetDataToRedis(getRedisClient(), queueName, advisorId.toString()) : null,
 			AdvisorHelper.updateAdvisorAccountDebit(advisorId, [prediction]),
 		])
-		.then(() => {
+		.then(([updatedAdvisor]) => {
+			const predictions = _.get(updatedAdvisor, `predictions`, []);
+			let requiredPrediction = null;
+			if (predictions.length > 0 ) {
+				requiredPrediction = predictions[predictions.length - 1];
+			}
 			//Run this async and move on 
 			return exports.updateLatestPortfolioStatsForAdvisor(advisorId, date)
 			.then(() => {
 				//Publish that a new prediction has been added (to send updates to linked User/Admin)
 				return RedisUtils.publish(getRedisClient(), `predictionAdded_${process.env.NODE_ENV}`, JSON.stringify({advisorId: masterAdvisorId, userId}));
 			}).then(()=>{
-				resolve();
+				resolve(requiredPrediction);
 			})
 
 			

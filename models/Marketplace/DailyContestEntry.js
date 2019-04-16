@@ -200,7 +200,7 @@ DailyContestEntry.statics.fetchPredictionById = function(query, predictionId) {
 	.then(contestEntry => {
 		if (contestEntry) {
 			var predictionIds = contestEntry.predictions.map(item => item._id.toString());
-
+			
 			var idx = predictionIds.indexOf(predictionId);
 
 			if (idx != -1) {

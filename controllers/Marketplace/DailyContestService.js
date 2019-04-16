@@ -336,6 +336,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 	const isRealPrediction = _.get(prediction, 'real', false);
 	let masterAdvisorId; 
+	let allocationAdvisorId;
 
 	var security = _.get(prediction, 'position.security', {});
 
@@ -462,7 +463,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 
 		return AdvisorModel.fetchAdvisor(masterAdvisorSelection, {fields: '_id account allocation'})
 		.then(masterAdvisor => {
-
+			allocationAdvisorId = _.get(masterAdvisor, 'allocation.advisor', '').toString();
 			//Get master advisor id (used later when sending updates)
 			masterAdvisorId = masterAdvisor._id.toString();
 
@@ -591,7 +592,58 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			APIError.throwJsonError({message: "Adjusted prediciton is NULL/invalid"});
 		}
 	})
-	.then(() => {
+	.then(prediction => {
+		const predictionId = _.get(prediction, '_id', '').toString();
+		return DailyContestEntryHelper.getPredictionById(allocationAdvisorId, predictionId);
+	})
+	.then(prediction => {
+		// This flag shouldn't be used, this is only for testing purposes
+		let orderAutomated = false;
+		try {
+			orderAutomated = config.get('order_automated');
+			console.log(orderAutomated);			
+		} catch(err) {
+
+		}
+		if (orderAutomated) {
+			console.log('Order will be placed');
+		} else {
+			console.log('Order will not be placed');
+		}
+		const predictionId = _.get(prediction, '_id', null);
+		const predictionTarget = _.get(prediction, 'target', 0);
+		const predictionStopLoss = _.get(prediction, 'stopLoss', 0);
+		const predictionQuantity = _.get(prediction, 'position.quantity', 0);
+		const predictionAvgPrice = _.get(prediction, 'position.avgPrice', 0);
+		const isReal = _.get(prediction, 'real', false);
+
+		if (predictionId) {
+			// Order params for placing order
+			const ibOrderParams ={
+				bracketFirstOrderType: 'MARKET',
+				stock: prediction.position.security.ticker,
+				type: 'BUY',
+				quantity: predictionQuantity,
+				price: predictionAvgPrice,
+				orderType: 'bracket',
+				stopLossPrice: predictionStopLoss,
+				profitLimitPrice: predictionTarget,
+				predictionId: (predictionId || '').toString(),
+				advisorId: (masterAdvisorId || '').toString()
+			};
+			
+			// If not a conditional order, place order
+			if (!isConditional && orderAutomated && isReal) {
+				InteractiveBroker.placeOrder(ibOrderParams)
+				.then(() => {
+					console.log('Order Placed');
+				})
+				.catch(err => {
+					console.log('Error while placing order ', err.message);
+				})
+
+			}
+		}
 		return res.status(200).send("Predictions updated successfully");
 	})
 	.catch(err => {
