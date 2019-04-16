@@ -884,8 +884,6 @@ module.exports.addAdminModificationsToPrediction = (args, res, next) => {
 	})
 };
 
-
-
 /*
 * Get daily contest winners
 */
@@ -1484,4 +1482,62 @@ module.exports.getHistoricalDataForStock = function(args, res, next) {
 	.catch(err => {
 		return res.status(400).send(err.message);
 	});
+}
+
+module.exports.updateRealPrediction = function(args, res, next) {
+	const userEmail = _.get(args, 'user.email', null);
+	const isAdmin = config.get('admin_user').indexOf(userEmail) > -1;
+	const data = _.get(args, 'body.value', {});
+	const advisorId = _.get(data, 'advisorId', null);
+	const predictionId =  _.get(data, 'predictionId', null);
+	const avgPrice = _.get(data, 'avgPrice', 0);
+
+	let allocationAdvisorId = null;
+
+	Promise.resolve()
+	.then(() => {
+		if (!isAdmin) {
+			APIError.throwJsonError({message: "User not authorized"});
+		}
+
+		return AdvisorModel.fetchAdvisor({_id: advisorId, isMasterAdvisor: true}, {fields: '_id allocation'});
+	})
+	.then(masterAdvisor => {
+		const allocationStatus = _.get(masterAdvisor, 'allocation.status', false);
+		allocationAdvisorId = _.get(masterAdvisor, 'allocation.advisor', null);
+
+		if (!allocationStatus && !allocationAdvisorId) {
+			APIError.throwJsonError({message: "Advisor doesn't have real prediction status"});
+		}
+
+		return DailyContestEntryModel.fetchPredictionById({advisor: allocationAdvisorId}, predictionId);
+	})
+	.then(prediction => {
+		if (!prediction) {
+			APIError.throwJsonError({message: "Prediction not found"});
+		}
+
+		const adminActivity = {
+			message: 'Average price updated',
+			activityType: 'UPDATED AVG. PRICE',
+			obj: {}
+		};
+		console.log('Prediction Position ', prediction.position);
+		prediction.position.avgPrice = avgPrice;
+		console.log('Prediction Position ', prediction.position);
+
+		return Promise.all([
+			DailyContestEntryModel.updatePrediction({advisor: allocationAdvisorId}, prediction),
+			DailyContestEntryModel.addAdminActivityForPrediction({advisor: allocationAdvisorId}, predictionId, adminActivity)
+		]);
+	})
+	.then(updated => {
+		PredictionRealtimeController.sendAdminUpdates(advisorId, predictionId);
+
+		return res.status(200).send({message: 'Avg. Price updated successfully'});
+	})
+	.catch(err => {
+		return res.status(400).send(err.message);
+	})
+
 }

@@ -3879,6 +3879,34 @@ paths:
           description: 'Invalid Input'
       x-swagger-router-controller: "DailyContest"
 
+  /dailycontest/realprediction/update:
+    put:
+      tags:
+      - dailycontest
+      summary: update the real prediction
+      description: update the real prediction only by admin
+      operationId: updateRealPrediction
+      security: 
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        description: modifications required
+        required: true
+        schema:
+          $ref: "#/definitions/RealPredictionModification"
+      responses:
+        200:
+          description: OK
+        400:
+          description: 'Invalid Input'
+      x-swagger-router-controller: "DailyContest"
+
 
   /dailycontest/realpredictions:
     get:
@@ -5507,8 +5535,6 @@ definitions:
       message:
         type: string
 
-        
-
   AdminModification:
     type: object
     required:
@@ -5524,3 +5550,19 @@ definitions:
         format: uuid
       modification:
         type: object
+
+  RealPredictionModification:
+    type: object
+    required:
+      - predictionId
+      - advisorId
+      - avgPrice
+    properties:
+      predictionId:
+        type: string
+        format: uuid
+      advisorId:
+        type: string
+        format: uuid
+      avgPrice:
+        type: number

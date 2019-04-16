@@ -106,3 +106,7 @@ module.exports.getHistoricalDataForStock = (req, res, next) => {
 module.exports.modifyOrderForPrediction = (req, res, next) => {
     DailyContest.modifyOrderForPrediction(req.swagger.params, res, next);
 }
+
+module.exports.updateRealPrediction = (req, res, next) => {
+    DailyContest.updateRealPrediction(req.swagger.params, res, next);
+}

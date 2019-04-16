@@ -1106,7 +1106,7 @@ function _updatePositionsForPrice(positions, date, type) {
 };
 
 function _computeUpdatedPredictions(predictions, date) {
-	
+
 	return Promise.resolve()
 	.then(() => {
 		if (predictions.length > 0) {  	
@@ -1560,7 +1560,9 @@ module.exports.getPredictionById = function(advisorId, predictionId, options) {
 		if (priceUpdate) {
 			return SecurityHelper.getStockDetail(security, date)
 			.then(securityDetail => {
-				var updatedPosition = {...updatedPredictionsWithLastPrice[0].position, security: securityDetail};
+				let lastPrice = updatedPredictionsWithLastPrice[0].position.lastPrice || _.get(securityDetail, 'latestDetailRT.close', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
+				var updatedPosition = {...updatedPredictionsWithLastPrice[0].position, lastPrice, security: securityDetail};
+				
 				return {...updatedPredictionsWithLastPrice[0], position: updatedPosition};
 			})
 		} else {
