@@ -67,7 +67,7 @@
     "request_unsubscribe_url": "https://api.adviceqube.com/api/v2/user/unsubscribe?email=${email}&code=${code}&type=${type}",
        
     "winners_not_allowed":["shivchawla2001@gmail.com", "saru.sreyo@gmail.com", "sauravbiswas16294@gmail.com", "sauravdroid16@gmail.com","saurav.aimsquant@gmail.com"],
-    "winner_csv_path":"/home/admin/production/aq-homepage/data/winners.csv",
+    "winner_csv_path":"/home/admin/production/static/aq-homepage/data/winners.csv",
  
     "daily_contest_day_winner_template_id": "DailyContestDayWinner",
     "daily_contest_week_winner_template_id":"DailyContestWeekWinner",

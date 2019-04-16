@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-01 14:00:03
+* @Last Modified time: 2019-04-13 11:52:07
 */
 
 const redis = require('redis');
@@ -30,8 +30,20 @@ let EVENT_PROCESS_FLAG = false;
 const ValidIdKey = `ValidId_${process.env.NODE_ENV}`;
 const processIBEventsChannel = `processIBEvents_${process.env.NODE_ENV}`;
 
+const ORDER_TO_CLIENT_MAP = `orderToClientMap_${process.env.NODE_ENV}`; 
+
 //Temporary hash to send order submitted from the program (may or may not hit IB servers)
 const TEMP_ORDER_TO_PREDICTION_SET = `orderToPredictionSet_${process.env.NODE_ENV}`;
+
+let promises = {};
+
+function initializeCallback(reqId, resolve, reject) {
+    promises[reqId] = {resolve, reject};
+}
+
+function deleteCallback(reqId) {
+    delete promises[reqId]; 
+}
 
 function getRedisClient() {
 	if (!redisClient || !redisClient.connected) {
@@ -48,7 +60,7 @@ function getRedisClient() {
 }
 
 module.exports.updateOrderToClientMap = function(orderId, clientId) {
-    return RedisUtils.addSetDataToRedis(getRedisClient(), `clientToOrderMap_${clientId}_${process.env.NODE_ENV}`, orderId);
+    return RedisUtils.insertIntoRedis(getRedisClient(), ORDER_TO_CLIENT_MAP, orderId, clientId);
 };
 
 module.exports.setValidId = function(validId) {
@@ -260,6 +272,66 @@ module.exports.getHistoricalData = function(reqId, data) {
     .then(([data,]) => {
         return data;
     })
+}
+
+module.exports.modifyOrderRequest = function(orderParams, requestType="modify") {
+    var orderId = _.get(orderParams, 'orderId', null);
+
+    return new Promise((resolve, reject) => {
+        
+        initializeCallback(orderId, resolve, reject);  
+
+        return Promise.resolve()
+        .then(() => {
+            if(orderId) {
+                return RedisUtils.getFromRedis(getRedisClient(), ORDER_TO_CLIENT_MAP, orderId)
+            } else {
+                throw new Error("Invalid orderId while canceling/modifying order");
+            }
+        })
+        .then(clientId => {   
+
+            console.log(`Client: ${clientId} found for OrderId: ${orderId}`);
+
+            // let channel = requestType == "modify" ? 
+            //         `modifyOrder_${process.env.NODE_ENV}` : 
+            //             requestType == "cancel" ?
+            //                 `cancelOrder_${process.env.NODE_ENV}` : "";
+
+            let channel = `modifyOrder_${process.env.NODE_ENV}`;
+
+            if (channel == "") {
+                throw new Error(`Invalid request type for order modification [OrderId: ${orderId} & requestType: ${requestType}]`);
+            }
+
+            RedisUtils.publish(getRedisClient(), channel, JSON.stringify({...orderParams, clientId, requestType}));
+        })
+        .catch(err => {
+            deleteCallback(orderId);
+            reject(err);
+        });
+    })
+};
+
+module.exports.handleOrderModificationCompleteResponse = function(response) {
+    let orderId = _.get(response, 'orderId', null);
+    let error = _.get(response, 'error', null);
+
+    if (orderId && error) {
+        let reject = _.get(promises, `${orderId}.reject`, null);
+        if (reject) {
+            deleteCallback(orderId);
+            reject(error)
+        }
+    }
+
+    if (orderId && !error) {
+        let resolve = _.get(promises, `${orderId}.resolve`, null);
+        if (resolve) {
+            deleteCallback(orderId);
+            resolve(true);
+        } 
+    }
 }
 
 
