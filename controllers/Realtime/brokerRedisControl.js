@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-03-16 13:33:59
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-13 11:52:07
+* @Last Modified time: 2019-04-16 18:19:40
 */
 
 const redis = require('redis');
@@ -290,13 +290,7 @@ module.exports.modifyOrderRequest = function(orderParams, requestType="modify") 
             }
         })
         .then(clientId => {   
-
             console.log(`Client: ${clientId} found for OrderId: ${orderId}`);
-
-            // let channel = requestType == "modify" ? 
-            //         `modifyOrder_${process.env.NODE_ENV}` : 
-            //             requestType == "cancel" ?
-            //                 `cancelOrder_${process.env.NODE_ENV}` : "";
 
             let channel = `modifyOrder_${process.env.NODE_ENV}`;
 
@@ -317,21 +311,40 @@ module.exports.handleOrderModificationCompleteResponse = function(response) {
     let orderId = _.get(response, 'orderId', null);
     let error = _.get(response, 'error', null);
 
-    if (orderId && error) {
-        let reject = _.get(promises, `${orderId}.reject`, null);
-        if (reject) {
-            deleteCallback(orderId);
-            reject(error)
+    return Promise.resolve()
+    .then(() => {
+        if (orderId && error) {
+            let reject = _.get(promises, `${orderId}.reject`, null);
+            if (reject) {
+                deleteCallback(orderId);
+                reject(error)
+            }
         }
-    }
 
-    if (orderId && !error) {
-        let resolve = _.get(promises, `${orderId}.resolve`, null);
-        if (resolve) {
-            deleteCallback(orderId);
-            resolve(true);
-        } 
-    }
+        if (orderId && !error) {
+            let resolve = _.get(promises, `${orderId}.resolve`, null);
+            if (resolve) {
+                deleteCallback(orderId);
+                resolve(true);
+            } 
+        }
+    })
+    .then(() => {
+        return RedisUtils.getFromRedis(getRedisClient(), TEMP_ORDER_TO_PREDICTION_SET, orderId)
+    })
+    .then(redisOrderToPredictionKey => {
+        if (redisOrderToPredictionKey) {
+            var orderToPredictionKey = JSON.parse(redisOrderToPredictionKey);
+
+            //Get Advisor and Prediction from the redis dictionary
+            advisorId = _.get(orderToPredictionKey, 'advisorId', null);
+            predictionId = _.get(orderToPredictionKey, 'predictionId', null);
+
+            if(advisorId && predictionId) {
+                return PredictionRealtimeController.sendAdminUpdates(advisorId, predictionId);
+            }
+        }
+    })
 }
 
 
