@@ -57,6 +57,8 @@
         "adviceqube": "https://staging.adviceqube.com/authMessage?mode=resetPassword"
     },
 
+    "request_unsubscribe_url": "https://stagingapi.adviceqube.com/api/v2/user/unsubscribe?email=${email}&code=${code}&type=${type}",
+
     "daily_contest_day_winner_template_id": "DailyContestDayWinner",
     "daily_contest_week_winner_template_id":"DailyContestWeekWinner",
     "daily_contest_summary_digest_template_id":"DailyContestSummary",
@@ -111,6 +113,7 @@
     "ib_tws_host": "207.180.248.10",
     "ib_tws_port": 4002,
     "node_ib_event_port": 7001,
+    "order_automated": false,
 
     "realtime_EODH_quote_url":"https://eodhistoricaldata.com/api/real-time/${ticker}?api_token=5b87e1823a5034.40596433&fmt=json&s=${otherTickers}"
 }
