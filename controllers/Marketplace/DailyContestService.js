@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-15 23:32:35
+* @Last Modified time: 2019-04-18 10:39:26
 */
 
 'use strict';
@@ -563,18 +563,18 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		var existingPredictionsInTicker = activePredictions.filter(item => {return item.position.security.ticker == ticker;});
 		var newPredictionsInTicker = prediction.position.security.ticker == ticker ? [prediction] : [];
 
-		let netInvestmentForTicker = _.sum(existingPredictionsInTicker.map(activePrediction => {
+		let grossInvestmentForTicker = _.sum(existingPredictionsInTicker.map(activePrediction => {
 			const predictionInvestment = _.get(activePrediction, 'position.investment', 0);
-			return predictionInvestment;		
+			return Math.abs(predictionInvestment);		
 		}));
 
-		netInvestmentForTicker = netInvestmentForTicker + investmentInput;
+		grossInvestmentForTicker = grossInvestmentForTicker + Math.abs(investmentInput);
 		
-		if (tenPercentagePortfolioValue !== 0 &&  netInvestmentForTicker > tenPercentagePortfolioValue) {
+		if (tenPercentagePortfolioValue !== 0 &&  grossInvestmentForTicker > tenPercentagePortfolioValue) {
 			APIError.throwJsonError({message: `Limit exceeded: Can't invest more than 10% of your portfolio in a single stock. Stock (${ticker})`});
 		}
 
-		if (existingPredictionsInTicker.length + newPredictionsInTicker > 3 && !isRealPrediction) {
+		if (existingPredictionsInTicker.length + newPredictionsInTicker.length > 3 && !isRealPrediction) {
 			APIError.throwJsonError({message: `Limit exceeded: Can't add more than 3 prediction for one stock (${ticker})`});
 		}
 
@@ -617,57 +617,50 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		}
 	})
 	.then(prediction => {
-		const predictionId = _.get(prediction, '_id', '').toString();
-		return DailyContestEntryHelper.getPredictionById(allocationAdvisorId, predictionId);
-	})
-	.then(prediction => {
-		// This flag shouldn't be used, this is only for testing purposes
 		let orderAutomated = false;
-		try {
-			orderAutomated = config.get('order_automated');
-			console.log(orderAutomated);			
-		} catch(err) {
+		orderAutomated = config.get('order_automated');
 
-		}
-		if (orderAutomated) {
-			console.log('Order will be placed');
-		} else {
-			console.log('Order will not be placed');
-		}
-		const predictionId = _.get(prediction, '_id', null);
-		const predictionTarget = _.get(prediction, 'target', 0);
-		const predictionStopLoss = _.get(prediction, 'stopLoss', 0);
-		const predictionQuantity = _.get(prediction, 'position.quantity', 0);
-		const predictionAvgPrice = _.get(prediction, 'position.avgPrice', 0);
-		const isReal = _.get(prediction, 'real', false);
-
-		if (predictionId) {
-			// Order params for placing order
-			const ibOrderParams ={
-				bracketFirstOrderType: 'MARKET',
-				stock: prediction.position.security.ticker,
-				type: 'BUY',
-				quantity: predictionQuantity,
-				price: predictionAvgPrice,
-				orderType: 'bracket',
-				stopLossPrice: predictionStopLoss,
-				profitLimitPrice: predictionTarget,
-				predictionId: (predictionId || '').toString(),
-				advisorId: (masterAdvisorId || '').toString()
-			};
+		if (!isConditional && orderAutomated && isRealPrediction && userAutomated) {
+			const predictionId = _.get(prediction, '_id', '').toString();
 			
-			// If not a conditional order, place order
-			if (!isConditional && orderAutomated && isReal && userAutomated) {
-				InteractiveBroker.placeOrder(ibOrderParams)
-				.then(() => {
-					console.log('Order Placed');
-				})
-				.catch(err => {
-					console.log('Error while placing order ', err.message);
-				})
+			return DailyContestEntryHelper.getPredictionById(allocationAdvisorId, predictionId)
+			.then(prediction => {
+			
+				const predictionId = _.get(prediction, '_id', null);
+				const predictionTarget = _.get(prediction, 'target', 0);
+				const predictionStopLoss = _.get(prediction, 'stopLoss', 0);
+				const predictionQuantity = _.get(prediction, 'position.quantity', 0);
+				const predictionAvgPrice = _.get(prediction, 'position.avgPrice', 0);
 
-			}
+				if (predictionId) {
+					// Order params for placing order
+					const ibOrderParams ={
+						bracketFirstOrderType: 'MARKET',
+						stock: prediction.position.security.ticker,
+						type: 'BUY',
+						quantity: predictionQuantity,
+						price: predictionAvgPrice,
+						orderType: 'bracket',
+						stopLossPrice: predictionStopLoss,
+						profitLimitPrice: predictionTarget,
+						predictionId: (predictionId || '').toString(),
+						advisorId: (masterAdvisorId || '').toString()
+					};
+					
+		
+					InteractiveBroker.placeOrder(ibOrderParams)
+					.then(() => {
+						console.log('Order Placed');
+					})
+					.catch(err => {
+						console.log('Error while placing order ', err.message);
+					})
+
+				}
+			})
 		}
+	})
+	.then(() => {
 		return res.status(200).send("Predictions updated successfully");
 	})
 	.catch(err => {
