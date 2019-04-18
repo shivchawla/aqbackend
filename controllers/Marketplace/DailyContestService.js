@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-15 23:32:35
+* @Last Modified time: 2019-04-18 10:16:23
 */
 
 'use strict';
@@ -539,18 +539,18 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		var existingPredictionsInTicker = activePredictions.filter(item => {return item.position.security.ticker == ticker;});
 		var newPredictionsInTicker = prediction.position.security.ticker == ticker ? [prediction] : [];
 
-		let netInvestmentForTicker = _.sum(existingPredictionsInTicker.map(activePrediction => {
+		let grossInvestmentForTicker = _.sum(existingPredictionsInTicker.map(activePrediction => {
 			const predictionInvestment = _.get(activePrediction, 'position.investment', 0);
-			return predictionInvestment;		
+			return Math.abs(predictionInvestment);		
 		}));
 
-		netInvestmentForTicker = netInvestmentForTicker + investmentInput;
+		grossInvestmentForTicker = grossInvestmentForTicker + Math.abs(investmentInput);
 		
-		if (tenPercentagePortfolioValue !== 0 &&  netInvestmentForTicker > tenPercentagePortfolioValue) {
+		if (tenPercentagePortfolioValue !== 0 &&  grossInvestmentForTicker > tenPercentagePortfolioValue) {
 			APIError.throwJsonError({message: `Limit exceeded: Can't invest more than 10% of your portfolio in a single stock. Stock (${ticker})`});
 		}
 
-		if (existingPredictionsInTicker.length + newPredictionsInTicker > 3 && !isRealPrediction) {
+		if (existingPredictionsInTicker.length + newPredictionsInTicker.length > 3 && !isRealPrediction) {
 			APIError.throwJsonError({message: `Limit exceeded: Can't add more than 3 prediction for one stock (${ticker})`});
 		}
 
