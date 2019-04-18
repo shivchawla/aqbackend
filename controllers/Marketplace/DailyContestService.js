@@ -337,6 +337,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	const isRealPrediction = _.get(prediction, 'real', false);
 	let masterAdvisorId; 
 	let allocationAdvisorId;
+	let userAutomated = false;
 
 	var security = _.get(prediction, 'position.security', {});
 
@@ -472,6 +473,8 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				const maxInvestment = _.get(masterAdvisor, 'allocation.maxInvestment', 50) * 1000;
 
 				const minInvestment = _.get(masterAdvisor, 'allocation.minInvestment', 10) * 1000;
+
+				userAutomated = _.get(masterAdvisor, 'allocation.automated', false);
 
 				const notAllowedStocks = _.get(masterAdvisor, 'allocation.notAllowedStocks', []);
 
@@ -654,7 +657,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 			};
 			
 			// If not a conditional order, place order
-			if (!isConditional && orderAutomated && isReal) {
+			if (!isConditional && orderAutomated && isReal && userAutomated) {
 				InteractiveBroker.placeOrder(ibOrderParams)
 				.then(() => {
 					console.log('Order Placed');

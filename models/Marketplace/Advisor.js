@@ -159,7 +159,8 @@ const Advisor = new Schema({
         allowedInvestments: Array,
         maxInvestment: Number,
         minInvestment: Number,
-        notAllowedStocks: Array
+        notAllowedStocks: Array,
+        automated: Boolean
     },
     
     allocationHistory: [{
@@ -389,6 +390,10 @@ Advisor.statics.updateAllocationAmount = function(query, updates) {
 
 Advisor.statics.addNotAllowedStock = function(query, stock, options) {
     return this.findOneAndUpdate(query, {$addToSet: {'allocation.notAllowedStocks': stock}}, options)
+}
+
+Advisor.statics.updateAutomatedFlag = function(query, automatedFlag, options) {
+    return this.findOneAndUpdate(query, {$set: {'allocation.automated': automatedFlag}}, options);
 }
 
 Advisor.statics.fetchDistinctAdvisors = function(query, disabled = false) {

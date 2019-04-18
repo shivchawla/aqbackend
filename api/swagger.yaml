@@ -1654,6 +1654,34 @@ paths:
         200:
           description: OK
       x-swagger-router-controller: "Advisor"
+
+  /advisor/{advisorId}/updateAutomated:
+    post: 
+      tags:
+      - 'advisor'
+      summary: Updates the automated flag
+      description: Updates the automated flag for an advisor's allocation
+      operationId: updateAutomatedFlag
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: advisorId
+        in: path
+        type: string
+        required: true
+      - name: automated
+        in: query
+        type: boolean
+        required: true
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advisor"
       
 
   /advisor/{advisorId}/updatecash:
@@ -5352,6 +5380,7 @@ definitions:
       - notes
       - maxInvestment
       - minInvestment
+      - automated
     properties:
       cash:
         type: number
@@ -5367,6 +5396,9 @@ definitions:
         type: array
         items:
           type: number
+      automated:
+        type: boolean
+        default: false
       allowedInvestments:
         type: array
         default: [10, 25, 50]

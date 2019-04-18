@@ -54,8 +54,10 @@ module.exports.allocateAdvisor = function(args, res, next) {
     const cash = _.get(args, 'body.value.cash', 0);
     const notes = _.get(args, 'body.value.notes', "");
     const allowedInvestments = _.get(args, 'body.value.allowedInvestments', []);
+    const notAllowedStocks = _.get(args, 'body.value.notAllowedStocks', []);
     const maxInvestment = _.get(args, 'body.value.maxInvestment', 50);
     const minInvestment = _.get(args, 'body.value.minInvestment', 10);
+    const automated = _.get(args, 'automated.value', false);
 
     let masterAdvisor;
     return Promise.resolve()
@@ -104,7 +106,9 @@ module.exports.allocateAdvisor = function(args, res, next) {
                 advisor: allocatationAdvisor._id, notes,
                 allowedInvestments,
                 maxInvestment,
-                minInvestment
+                minInvestment,
+                automated,
+                notAllowedStocks
             };
             return AdvisorModel.addAllocation({_id: masterAdvisor._id}, allocation);     
         } else {
@@ -233,6 +237,46 @@ module.exports.updateAdvisorAllocationStatus = function(args, res, next) {
         return res.status(400).send(err.message);
     });
 };
+
+module.exports.updateAutomatedFlag = function(args, res, next) {
+    const advisorId = _.get(args, 'advisorId.value', null);
+    const userEmail = _.get(args, 'user.email', null);
+    const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+    const automatedFlag = _.get(args, 'automated.value', false);
+
+    return Promise.resolve()
+    .then(() => {
+        if (isAdmin) {
+            return AdvisorModel.fetchAdvisor({_id:advisorId}, {fields:'user isMasterAdvisor allocation'})
+        } else {
+            APIError.throwJsonError({message: "Not authorized to update status!!"});
+        }
+    })    
+    .then(masterAdvisor => {
+
+        if(!masterAdvisor) {
+            APIError.throwJsonError({advisor: advisorId, message:"Advisor not found"});
+        }
+    
+        if (!masterAdvisor.isMasterAdvisor) {
+            APIError.throwJsonError({message: "Not the master advisor! Operation not allowed"});
+        }
+
+        if (!_.get(masterAdvisor, 'allocation.advisor', null)) {
+            APIError.throwJsonError({message: "No allocation found for advisor"});
+        }
+
+        return AdvisorModel.updateAutomatedFlag({_id: masterAdvisor._id}, automatedFlag, {new: true, upsert: true, fields:'_id allocation'});
+        
+    })
+    .then(() => {
+        return res.status(200).send('Successfully updated automated flag');
+    })
+    .catch(err => {
+        console.log('Error ', err.message);
+        return res.status(400).send(err.message);
+    })
+}
 
 module.exports.addNotAllowedStock = function(args, res, next) {
     const userEmail = _.get(args, 'user.email', null);
