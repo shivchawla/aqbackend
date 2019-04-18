@@ -17,6 +17,7 @@ const AdviceModel = require('../../models/Marketplace/Advice');
 
 const PortfolioHelper = require("../helpers/Portfolio");
 const AdviceHelper = require("../helpers/Advice");
+const SecurityHelper = require('../helpers/Security');
 const HelperFunctions = require("../helpers");
 const APIError = require('../../utils/error');
 const DailyContestEntryHelper = require("../helpers/DailyContestEntry");
@@ -54,6 +55,7 @@ module.exports.allocateAdvisor = function(args, res, next) {
     const notes = _.get(args, 'body.value.notes', "");
     const allowedInvestments = _.get(args, 'body.value.allowedInvestments', []);
     const maxInvestment = _.get(args, 'body.value.maxInvestment', 50);
+    const minInvestment = _.get(args, 'body.value.minInvestment', 10);
 
     let masterAdvisor;
     return Promise.resolve()
@@ -101,7 +103,8 @@ module.exports.allocateAdvisor = function(args, res, next) {
                 status: true, 
                 advisor: allocatationAdvisor._id, notes,
                 allowedInvestments,
-                maxInvestment
+                maxInvestment,
+                minInvestment
             };
             return AdvisorModel.addAllocation({_id: masterAdvisor._id}, allocation);     
         } else {
@@ -230,6 +233,63 @@ module.exports.updateAdvisorAllocationStatus = function(args, res, next) {
         return res.status(400).send(err.message);
     });
 };
+
+module.exports.addNotAllowedStock = function(args, res, next) {
+    const userEmail = _.get(args, 'user.email', null);
+    const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+    const advisorId = _.get(args, 'advisorId.value', null);
+    const stock = _.get(args, 'stock.value', null);
+    let masterAdvisorId;
+
+    return Promise.resolve()
+    .then(() => {
+        console.log('Yo');
+        if (isAdmin) {
+            return AdvisorModel.fetchAdvisor({_id:advisorId}, {fields:'user isMasterAdvisor allocation'})
+        } else {
+            APIError.throwJsonError({message: "Not authorized to update not allowed stock!!"});
+        }
+    })
+    .then(masterAdvisor => {
+        console.log('Master advisor ', masterAdvisor);
+        if(!masterAdvisor) {
+            APIError.throwJsonError({advisor: advisorId, message:"Advisor not found"});
+        }
+
+        if (!masterAdvisor.isMasterAdvisor) {
+            APIError.throwJsonError({message: "Not the master advisor! Operation not allowed"});
+        }
+
+        if (!_.get(masterAdvisor, 'allocation.advisor', null)) {
+            APIError.throwJsonError({message: "No allocation found for advisor"});
+        }
+
+        masterAdvisorId = _.get(masterAdvisor, '_id', '').toString();
+
+        const security = {
+            country: 'IN',
+            exchange: 'NSE',
+            securityType: 'EQ',
+            ticker: stock
+        };
+        
+        return SecurityHelper.validateSecurity(security)
+    })
+    .then(isValidSecurity => {
+        if (!isValidSecurity) {
+            APIError.throwJsonError({message: "Not a valid security"});
+        }
+
+        return AdvisorModel.addNotAllowedStock({_id: masterAdvisorId, isMasterAdvisor: true}, stock, {new:true, upsert: true, fields:'_id allocation'})
+    })
+    .then(() => {
+        return res.status(200).send('Successfully added to now allowed stocks');
+    })
+    .catch(err => {
+        console.log('Error ', err.message);
+        return res.status(400).send(err.message);
+    })
+}
 
 module.exports.getAdvisorsWithAllocation = function(args, res, next) {
     const userEmail = _.get(args, 'user.email', null);

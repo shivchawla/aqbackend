@@ -1627,6 +1627,35 @@ paths:
           description: OK
       x-swagger-router-controller: "Advisor"
 
+  /advisor/{advisorId}/notAllowedStock:
+    post: 
+      tags:
+      - 'advisor'
+      summary: Adds not allowed stock to the advisor's allocation
+      description: Adds not allowed stock to the advisor's allocation
+      operationId: addNotAllowedStock
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: advisorId
+        in: path
+        type: string
+        required: true
+      - name: stock
+        in: query
+        type: string
+        required: true
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advisor"
+      
+
   /advisor/{advisorId}/updatecash:
     put:
       tags:
@@ -5322,6 +5351,7 @@ definitions:
       - cash
       - notes
       - maxInvestment
+      - minInvestment
     properties:
       cash:
         type: number
@@ -5330,6 +5360,13 @@ definitions:
       maxInvestment:
         type: number
         default: 50
+      minInvestment:
+        type: number
+        default: 10
+      notAllowedStocks:
+        type: array
+        items:
+          type: number
       allowedInvestments:
         type: array
         default: [10, 25, 50]

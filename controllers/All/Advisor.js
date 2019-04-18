@@ -58,4 +58,8 @@ module.exports.getAdvisorsWithAllocation = function(req, res, next) {
 
 module.exports.getAdvisorAllocation = function(req, res, next) {
     Advisor.getAdvisorAllocation(req.swagger.params, res, next);
-}
+};
+
+module.exports.addNotAllowedStock = function(req, res, next) {
+    Advisor.addNotAllowedStock(req.swagger.params, res, next);
+};
