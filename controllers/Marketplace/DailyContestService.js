@@ -32,6 +32,12 @@ const PredictionRealtimeController = require('../Realtime/predictionControl');
 const BrokerRedisController = require('../Realtime/brokerRedisControl');
 const funnyNames = require('../../constants/funnyNames');
 
+function roundOffForIb (value) {
+	value = Number(value);
+        
+    return Math.round(value * 20) / 20;
+}
+
 function generateRandomIndexes() {
 	const randomArray = [];
 	const max = 30;
@@ -639,10 +645,10 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 						stock: prediction.position.security.ticker,
 						type: 'BUY',
 						quantity: predictionQuantity,
-						price: predictionAvgPrice,
+						price: roundOffForIb(predictionAvgPrice),
 						orderType: 'bracket',
-						stopLossPrice: predictionStopLoss,
-						profitLimitPrice: predictionTarget,
+						stopLossPrice: roundOffForIb(predictionStopLoss),
+						profitLimitPrice: roundOffForIb(predictionTarget),
 						predictionId: (predictionId || '').toString(),
 						advisorId: (masterAdvisorId || '').toString()
 					};
