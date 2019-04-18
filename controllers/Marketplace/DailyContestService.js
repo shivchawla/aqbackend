@@ -471,6 +471,27 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 				// Checking if investment is not greater than the maxInvestment
 				const maxInvestment = _.get(masterAdvisor, 'allocation.maxInvestment', 50) * 1000;
 
+				const minInvestment = _.get(masterAdvisor, 'allocation.minInvestment', 10) * 1000;
+
+				const notAllowedStocks = _.get(masterAdvisor, 'allocation.notAllowedStocks', []);
+
+				if (notAllowedStocks.length > 0) {
+					const ticker = prediction.position.security.ticker;
+					const isFoundInNotAllowedStocks = notAllowedStocks.indexOf(ticker) > -1;
+
+					if (isFoundInNotAllowedStocks) {
+						APIError.throwJsonError({message: `Real Prediction not allowed for ${ticker}!!`})
+					}
+				}
+
+				if (isConditional && avgPrice > 0 && quantity * avgPrice < minInvestment) {
+					APIError.throwJsonError({message: `Effective investment in real trade must be greater than ${minInvestment}!!`})
+				}
+
+				if (!isConditional && latestPrice > 0 && quantity * latestPrice < minInvestment) {
+					APIError.throwJsonError({message: `Effective investment in real trade must be greater than ${minInvestment}!!`})
+				}
+
 				if (isConditional && avgPrice > 0 && quantity * avgPrice > maxInvestment) {
 					APIError.throwJsonError({message: `Effective investment in real trade must be less than ${maxInvestment}!!`})
 				}
