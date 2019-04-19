@@ -330,7 +330,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 	const userEmail = _.get(args, 'user.email', null);
 	const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
 	var prediction = _.get(args, 'body.value', null);
-	let investment, quantity, latestPrice, avgPrice;
+	let investment, quantity, latestPrice, avgPrice, changePct;
 
 	let validStartDate = DailyContestEntryHelper.getValidStartDate();
 	
@@ -387,6 +387,8 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		])
 		.then(([securityDetail, realTimeQuote, atrDetail]) => {
 			latestPrice = _.get(realTimeQuote, 'close', 0) || _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
+			changePct = _.get(realTimeQuote, 'change_p', 0) || _.get(securityDetail, 'latestDetailRT.change_p', 0) || _.get(securityDetail, 'latestDetail.ChangePct', 0);
+			
 			if (latestPrice != 0) {
 
 				//Investment is modified downstream so can't be const
@@ -426,6 +428,10 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 					APIError.throwJsonError({message:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% higher than call price`});
 				} else if (investment < 0 && target > 1.015*latestPrice) {
 					APIError.throwJsonError({message:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% lower than call price`});
+				}
+
+				if (Math.abs(changePct) > 0.05) {
+					APIError.throwJsonError('To avoid speculative bets, change above 5% is not allowed.');
 				}
 
 				//Add ATR info to prediction
