@@ -339,6 +339,12 @@ Advisor.statics.addAllocation = function(query, allocation) {
     return this.findOneAndUpdate(query, {$set: {allocation}});
 }
 
+Advisor.statics.updateAllocation = function(query, allocationUpdates, updates) {
+    const requiredUpdates = convertToMongoUpdate('allocation', allocationUpdates);
+    
+    return this.findOneAndUpdate(query, {$set: requiredUpdates}, updates);
+}
+
 Advisor.statics.updateAllocationStatus = function(query, updates) {
     return this.findOne(query, {allocation: 1})
     .then(advisor => {
@@ -410,6 +416,15 @@ function farfuture() {
 
 function lessthan(d1, d2) {
 	return d1.getTime() < d2.getTime();
+}
+
+function convertToMongoUpdate(key, updates) {
+    let requiredObj = {};
+    _.keys(updates).forEach(keyItem => {
+        requiredObj = {...requiredObj, [`${key}.${keyItem}`]: updates[keyItem]};
+    });
+
+    return requiredObj;
 }
 
 const AdvisorModel = mongoose.model('Advisor', Advisor);

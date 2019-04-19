@@ -184,6 +184,23 @@ module.exports.updateAdvisorAllocationAmount = function(args, res, next) {
     });
 };
 
+module.exports.updateAllocationForAdvisor = function(args, res, next) {
+    const modifications = _.get(args, 'body.value.modifications', {});
+
+    getValidMasterAdvisor(args)
+    .then(masterAdvisor => {
+        const masterAdvisorId = _.get(masterAdvisor, '_id', null);
+
+        return AdvisorModel.updateAllocation({_id: masterAdvisorId}, modifications, {new: true, upsert: true, fields: '_id allocation'});
+    })
+    .then(() => {
+        return res.status(200).send({message: 'Successfully Updated'});
+    })
+    .catch(err => {
+        return res.status(400).send(err.message);
+    });
+}
+
 module.exports.updateAdvisorAllocationStatus = function(args, res, next) {
     const advisorId = _.get(args, 'advisorId.value', null);
     const userId = _.get(args, 'user._id', null);
@@ -295,7 +312,6 @@ module.exports.addNotAllowedStock = function(args, res, next) {
         }
     })
     .then(masterAdvisor => {
-        console.log('Master advisor ', masterAdvisor);
         if(!masterAdvisor) {
             APIError.throwJsonError({advisor: advisorId, message:"Advisor not found"});
         }
@@ -721,6 +737,37 @@ module.exports.getAdvisorAllocation = function(args, res, next) {
         console.log('Error ', err.message);
         return res.status(400).send({message: err.message});
     });
+}
+
+function getValidMasterAdvisor(args) {
+    const advisorId = _.get(args, 'advisorId.value', null);
+    const userEmail = _.get(args, 'user.email', null);
+    const isAdmin = config.get('admin_user').indexOf(userEmail) !== -1;
+
+    return Promise.resolve()
+    .then(() => {
+        if (isAdmin) {
+            return AdvisorModel.fetchAdvisor({_id:advisorId}, {fields:'user isMasterAdvisor allocation'})
+        } else {
+            APIError.throwJsonError({message: "Not authorized to update status!!"});
+        }
+    })    
+    .then(masterAdvisor => {
+        if(!masterAdvisor) {
+            APIError.throwJsonError({advisor: advisorId, message:"Advisor not found"});
+        }
+    
+        if (!masterAdvisor.isMasterAdvisor) {
+            APIError.throwJsonError({message: "Not the master advisor! Operation not allowed"});
+        }
+
+        if (!_.get(masterAdvisor, 'allocation.advisor', null)) {
+            APIError.throwJsonError({message: "No allocation found for advisor"});
+        }
+
+        return masterAdvisor;
+        
+    })
 }
 
 function farfuture() {

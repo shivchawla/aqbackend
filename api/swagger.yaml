@@ -1627,6 +1627,34 @@ paths:
           description: OK
       x-swagger-router-controller: "Advisor"
 
+    put:
+      tags:
+      - 'advisor'
+      summary: Update the allocation for an advisor
+      description: Update the allocation for an advisor
+      operationId: updateAllocationForAdvisor
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: advisorId
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/AllocationModification'
+      responses:
+        200:
+          description: OK
+      x-swagger-router-controller: "Advisor"
+
   /advisor/{advisorId}/notAllowedStock:
     post: 
       tags:
@@ -5395,7 +5423,7 @@ definitions:
       notAllowedStocks:
         type: array
         items:
-          type: number
+          type: string
       automated:
         type: boolean
         default: false
@@ -5635,3 +5663,9 @@ definitions:
         format: uuid
       avgPrice:
         type: number
+
+  AllocationModification:
+    type: object
+    properties:
+      modifications:
+        type: object

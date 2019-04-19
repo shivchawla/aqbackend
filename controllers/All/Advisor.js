@@ -67,3 +67,7 @@ module.exports.addNotAllowedStock = function(req, res, next) {
 module.exports.updateAutomatedFlag = function(req, res, next) {
     Advisor.updateAutomatedFlag(req.swagger.params, res, next);
 };
+
+module.exports.updateAllocationForAdvisor = function(req, res, next) {
+    Advisor.updateAllocationForAdvisor(req.swagger.params, res, next);
+};
