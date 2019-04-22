@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2017-02-24 12:32:46
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-05 17:12:36
+* @Last Modified time: 2019-04-22 19:19:03
 */
 'use strict';
 
@@ -140,7 +140,8 @@ const Advisor = new Schema({
     account: Account,
 
     disabled: {
-        type: Boolean
+        type: Boolean,
+        default: false,
     },
 
     isMasterAdvisor: {type:Boolean, default: false},

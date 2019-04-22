@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-16 17:21:54
+* @Last Modified time: 2019-04-22 20:20:36
 */
 
 'use strict';
@@ -1192,7 +1192,6 @@ function _computeUpdatedPredictions(predictions, date) {
 };
 
 function _computeTotalPnlStats(advisorId, date, options) {
-	const category = _.get(options, 'category', "all");
 
 	return exports.getPredictionsForDate(advisorId, date, options)
 	.then(predictions => {
@@ -1243,12 +1242,9 @@ function _computeTotalPnlStatsForAll(advisorId, date) {
 
 function _computeDailyPnlStats(advisorId, date, options) {
 
-	//Why default category is 
-	const category = _.get(options, 'category', "all");
-
 	let yesterday = moment(date).subtract(1, 'days').toDate();
 
-	return exports.getPredictionsForDate(advisorId, date, {category})
+	return exports.getPredictionsForDate(advisorId, date, options)
 	.then(updatedPredictions => {
 
 		//BUT THE updated predictions have Call price as of beginning of prediction
@@ -1417,7 +1413,7 @@ module.exports.getTotalPnlStats = function(advisorId, date, options) {
 				case "started" : return _.get(pnlStats, 'detail.cumulative.started', null); break;
 			}
 		} else {
-			return _computeTotalPnlStats(advisorId, date, options);
+			return _computeTotalPnlStats(advisorId, date, {...options, category});
 		}
 	});	
 };
@@ -1434,7 +1430,7 @@ module.exports.getDailyPnlStats = function(advisorId, date, options) {
 				case "started" : return _.get(pnlStats, 'detail.daily.started', null); break;
 			}
 		} else {
-			return _computeDailyPnlStats(advisorId, date, options);
+			return _computeDailyPnlStats(advisorId, date, {...options, category});
 		}
 	});
 };
@@ -1658,7 +1654,7 @@ module.exports.getContestEntryForUser = function(userId) {
 module.exports.updateAdvisorLatestPnlStats = function(advisorId, date){
 	date = DateHelper.getMarketCloseDateTime(!date ? DateHelper.getCurrentDate() : date);
 
-	return	exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false})
+	return	exports.getPredictionsForDate(advisorId, date, {category: "all", priceUpdate: false, active: true})
 	.then(activePredictions => {
 		
 		if (activePredictions.length > 0) {
@@ -2734,16 +2730,28 @@ module.exports.checkPredictionTriggers = function(date) {
 										}
 										
 										if (idx != -1) {
+
 											console.log(`Prediction Triggered for Advisor: ${advisorId} & predictionId: ${prediction._id}`);
 
 											prediction.triggered.date = date;
-											prediction.triggered.trueDate = moment(relevantIntradayHistory[idx].datetime).add(1, 'minute').startOf('minute').toDate();
+											prediction.triggered.trueDate = moment(relevantIntradayHistory[idx].datetime).startOf('minute').toDate();
 											prediction.triggered.status = true;
 
 											//If the condition triggers ar market open, update the average price
 											if (moment(prediction.triggered.trueDate).isSame(DateHelper.getMarketOpenDateTime(date).add(1, 'minute'))) {
-												console.log(`Prediction triggered at Day's Open. Resetting average price!!`);
-												prediction.position.avgPrice = relevantIntradayHistory[idx].close;
+												var marketOpenBarClosePrice = relevantIntradayHistory[idx].close;
+												var target = _.get(prediction, 'target', 0.0);
+												
+												if ((investment > 0 && marketOpenBarClosePrice > target) || (investment < 0 && marketOpenBarClosePrice < target)) {
+													console.log("Unsetting triggered status!! Open price beyond target");
+													_.unset(prediction, 'triggered.date');
+													_.unset(prediction, 'triggered.trueDate'); 
+													prediction.triggered.status = false;
+												} else {
+
+													console.log(`Prediction triggered at Day's Open. Resetting average price!!`);
+													prediction.position.avgPrice = marketOpenBarClosePrice;
+												}
 											}
 
 											return DailyContestEntryModel.updatePrediction({advisor: advisorId}, prediction);
