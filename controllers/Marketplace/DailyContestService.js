@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-22 18:11:26
+* @Last Modified time: 2019-04-22 18:27:20
 */
 
 'use strict';
@@ -363,7 +363,7 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		}
 
 		var endDate = _.get(prediction, 'endDate', null);
-		var startDate = _.get(predidction, 'startDate', null);
+		var startDate = _.get(prediction, 'startDate', null);
 
 		if (startDate && endDate){
 			var tradingDays = DateHelper.getTradingDays(startDate, endDate);
