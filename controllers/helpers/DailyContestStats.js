@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-15 17:31:58
+* @Last Modified time: 2019-04-22 16:16:46
 */
 
 'use strict';
@@ -29,9 +29,9 @@ const DailyContestEntryPerformanceModel = require('../../models/Marketplace/Dail
 const MIN_DAILY_PCT_CHANGE = 0.005;
 const MIN_WEEKLY_PCT_CHANGE = 0.01;
 const MIN_MONTHLY_PCT_CHANGE = 0.01;
-const MIN_WEEKLY_ACTIVE_DAYS = 3;
+const MIN_WEEKLY_ACTIVE_DAYS = 4;
 
-const MIN_DAILY_UNIQ_PREDICTIONS = 3;
+const MIN_DAILY_UNIQ_PREDICTIONS = 6;
 
 const DAILY_PRIZES_OLD = [100, 100, 100, 100, 100];
 const DAILY_PRIZES = [100, 75, 50];
