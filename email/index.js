@@ -412,3 +412,27 @@ module.exports.sendDailyContestWinnerEmail = function(winnerDetail, userDetails,
     return sendElasticEmail(null, msg);
 }
 
+module.exports.sendJobCompletionEmail = function(res = null, message) {
+    return new Promise((resolve, reject) => {
+        try {
+            var src = "aimsquant";
+            var senderDetails = config.get(`sender_details.${src}`);
+    
+            const msg = {
+                to: [{
+                    email: 'saru.sreyo@gmail.com',
+                    name: 'Saurav Biswas'
+                }],
+                from: senderDetails,
+                ...message
+            };
+            _sendMail(res, msg)
+            .then(() => {
+                resolve(true)
+            })
+            .catch(err => reject(err));
+        } catch(err) {
+            reject(err);
+        }
+    })
+}

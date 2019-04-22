@@ -21,6 +21,7 @@ const DailyContestEntryHelper = require('../controllers/helpers/DailyContestEntr
 const DailyContestEntryModel = require('../models/Marketplace/DailyContestEntry');
 const PredictionRealtimeController = require('../controllers/Realtime/predictionControl');
 const MktPlaceController = require('../controllers/Realtime/mktPlaceControl');
+const {sendJobCompletionEmail} = require('../email');
 const SecurityHelper = require('../controllers/helpers/Security');
 const RedisUtils = require('../utils/RedisUtils');
 
@@ -106,9 +107,19 @@ if (config.get('jobsPort') === serverPort) {
 			    		DailyContestEntryHelper.updateCallPriceForPredictionsFromEODH()
 		    		})
 			    	.then(() => {
+						const message = {
+							subject: 'SUCCESS: ALL EODH REALTIME DATA FOR ACTIVE PREDICTIONS UPDATED',
+							text: 'downnloadEODHRealtimeForActivePredictions() successfully updated, DailyContestEntryHelper.updateCallPriceForPredictionsFromEODH() successfully updated'
+						};
+						sendJobCompletionEmail(null, message);
 			    		RedisUtils.publish(getRedisClient(), `sendRealtimeUpdates_${process.env.NODE_ENV}`, 1)
 					})
 					.catch(err => {
+						const message = {
+							subject: 'ERROR: ALL EODH REALTIME DATA FOR ACTIVE PREDICTIONS',
+							text: `Error: ${err.message}`
+						}; 
+						sendJobCompletionEmail(null, message);
 						console.log("scheduleUpdateCallPriceEODH: ", err.message);
 					})
 		    	}

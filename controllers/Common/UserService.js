@@ -11,6 +11,7 @@ const {OAuth2Client} = require('google-auth-library');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const InvestorModel = require('../../models/Marketplace/Investor');
 const APIError = require('../../utils/error');
+const {sendJobCompletionEmail} = require('../../email');
 const CLIENT_ID = config.get('app_client_id');
 const _ = require('lodash');
 
@@ -513,6 +514,14 @@ module.exports.userGoogleLogin = function(args, res, next) {
         console.log(err)
         res.status(400).send({error: err})
     });
+}
+
+exports.sendJobCompletionEmail = function(args, res, next) {
+    const body = _.get(args, 'body', {});
+    const subject = _.get(body, 'subject', 'Subject');
+    const text = _.get(body, 'text', 'Job successfully completed');
+
+    sendJobCompletionEmail(res, {subject, text});
 }
 
 async function verify(token, CLIENT_ID) {

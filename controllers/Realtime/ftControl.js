@@ -12,6 +12,7 @@ const Promise = require('bluebird');
 const _ = require('lodash');
 const APIError = require('../../utils/error');
 const DateHelper = require('../../utils/Date');
+const {sendJobCompletionEmail} = require('../../email');
 
 const FORWARDTEST_QUEUE = `backtest-request-queue-${process.env.NODE_ENV}`;
 const THIS_PROCESS_FORWARDTEST_SET = `forwardtest-request-set-${serverPort}`;
@@ -22,7 +23,21 @@ var schedulerString = config.get('ft_second') + " " + config.get('ft_minute') + 
 
 if (serverPort == config.get('jobsPort')) {
     schedule.scheduleJob(schedulerString, function() {
-        runAllForwardTests();
+        runAllForwardTests()
+        .then(() => {
+            const message = {
+                subject: 'SUCCESS: ALL FORWARD TEST',
+                message: 'runAllForwardTests() successfully completed'
+            }
+            sendJobCompletionEmail(null, message);
+        })
+        .catch(err => {
+            const message = {
+                subject: 'EROR: ALL FORWARD TEST',
+                message: `runAllForwardTests(), ${JSON.stringify(err.message)}`
+            }
+            sendJobCompletionEmail(null, message);
+        })
     });
 
     setTimeout(reSubscribeAfterConnection, 5000);

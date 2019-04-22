@@ -1306,9 +1306,6 @@ module.exports.updateStockList = function() {
 			//ADDING CONCURRENCY TO LIMIT SIMULTAENOUS EXECUTION LIMIT to 4
 		}, {concurrency: 4});
 	})
-	.catch(err => {
-		console.log(err);
-	})
 };
 
 module.exports.updateRealtimePrices = function(fname, type) {

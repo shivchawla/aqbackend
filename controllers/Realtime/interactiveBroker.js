@@ -9,6 +9,7 @@ const serverPort = require('../../index').serverPort;
 
 const BrokerRedisController = require('./brokerRedisControl');
 const DateHelper = require('../../utils/Date');
+const {sendJobCompletionEmail} = require('../../email');
 
 const ibTickers = require('../../documents/ibTickers.json');
 const indices = require('../../documents/indices.json');
@@ -580,7 +581,21 @@ if (config.get('node_ib_event_port') == serverPort) {
     //Process IB events only when market is open (only on single port)
     schedule.scheduleJob("*/1 * * * 1-5", function() {
         if (DateHelper.isMarketTrading()) {
-            return BrokerRedisController.processIBEvents();
+            return BrokerRedisController.processIBEvents()
+            .then(() => {
+                const message = {
+                    subject: 'SUCCESS: PROCESSED EVENTS',
+                    text: 'BrokerRedisController.processIBEvents() successfully completed'
+                };
+                sendJobCompletionEmail(null, message);
+            })
+            .catch(err => {
+                const message = {
+                    subject: 'ERROR: PROCESSED EVENTS',
+                    text: `BrokerRedisController.processIBEvents(), ${JSON.stringify(err.message)}`
+                };
+                sendJobCompletionEmail(null, message);
+            })
         }
     });
 }

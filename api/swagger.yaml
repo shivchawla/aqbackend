@@ -392,6 +392,33 @@ paths:
         400:
           description: Error Sending Email
 
+  /user/sendJobCompletionEmail:
+    post:
+      tags:
+      - "user"
+      summary: send emails after a job completion for admin
+      description: sends job completion email
+      operationId: sendJobCompletionEmail
+      security:
+      - api_key: []
+      parameters:
+      - name: "aimsquant-token"
+        in: "header"
+        description: "auth token"
+        type: "string"
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+           $ref: '#/definitions/JobCompletion'
+      x-swagger-router-controller: "User"
+      responses:
+        200:
+          description: OK
+        400:
+          description: Error Sending Email
+
   /user/updateToken:
     put:
       tags:
@@ -5669,3 +5696,13 @@ definitions:
     properties:
       modifications:
         type: object
+
+  JobCompletion:
+    type: object
+    properties:
+      text:
+        type: string
+      subject:
+        type: string
+      html:
+        type: string

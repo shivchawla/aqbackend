@@ -17,27 +17,75 @@ const AdhocJobs = require('../controllers/helpers/AdhocJobs');
 const FormatJobs = require('../controllers/helpers/FormatDataJobs');
 const EODHJobs = require('./downloadEODH');
 const DateHelper = require('../utils/Date');
+const {sendJobCompletionEmail} = require('../email');
 
 const schedule = require('node-schedule');
 const config = require('config');
 const moment = require('moment-timezone');
 
 const serverPort = require('../index').serverPort;
+const ibTickers = require('../documents/ibTickers.json');
+
 
 var winnersUpdated = false;
 
 if (config.get('jobsPort') === serverPort) {
 	
 	// schedule.scheduleJob("0 23 * * *", function() {
+	// 	SecurityHelper.updateStockList()
+	// 	.then(() => {
+	// 		const message = {
+	// 			subject: 'SUCCESS: UPDATED STOCK LIST',
+	// 			text: 'SecurityHelper.updateStockList() successfully completed'
+	// 		};
+	// 		sendJobCompletionEmail(null, message);
+	// 	})
+	// 	.catch(err => {
+	// 		const message = {
+	// 			subject: 'ERROR: UPDATE STOCK LIST',
+	// 			text: `SecurityHelper.updateStockList(), ${JSON.stringify(err.message)}`
+	// 		};
+	// 		sendJobCompletionEmail(null, message);
+	// 	})
+	// });
+	// schedule.scheduleJob("0 23 * * *", function() {
 	//     SecurityHelper.updateStockList();
 	// });
 
 	schedule.scheduleJob("30 18 * * *", function() {
-	    BacktestHelper.resetBacktestCounter()
+		BacktestHelper.resetBacktestCounter()
+		.then(() => {
+			const message = {
+				subject: 'SUCCESS: RESET BACKTEST COUNTER',
+				text: 'BacktestHelper.resetBacktestCounter() successfully completed'
+			};
+			sendJobCompletionEmail(null, message);
+		})
+		.catch(err => {
+			const message = {
+				subject: 'ERROR: RESET BACKTEST COUNTER',
+				text: `BacktestHelper.resetBacktestCounter(), ${JSON.stringify(err.message)}`
+			};
+			sendJobCompletionEmail(null, message);
+		});
 	});
 
 	schedule.scheduleJob("30 22 * * *", function() {
-	    PortfolioHelper.updateAllPortfoliosForSplitsAndDividends();
+		PortfolioHelper.updateAllPortfoliosForSplitsAndDividends()
+		.then(() => {
+			const message = {
+				subject: 'SUCCESS: UPDATE ALL PORTFOLIOS FOR SPLITS AND DIVIDENDS',
+				text: 'PortfolioHelper.updateAllPortfoliosForSplitsAndDividends() successfully completed'
+			};
+			sendJobCompletionEmail(null, message);
+		})
+		.catch(err => {
+			const message = {
+				subject: 'SUCCESS: UPDATE ALL PORTFOLIOS FOR SPLITS AND DIVIDENDS',
+				text: `PortfolioHelper.updateAllPortfoliosForSplitsAndDividends(), ${JSON.stringify(err.message)}`
+			};
+			sendJobCompletionEmail(null, message);
+		});
 	});
 
 	// schedule.scheduleJob("30 13 * * 1-5", function() {
@@ -93,9 +141,19 @@ if (config.get('jobsPort') === serverPort) {
 		        }
 			})
 			.then(() => {
+				const message = {
+					subject: 'SUCCESS: SCHEDULE CHECK PREDICTION TARGET',
+					message: 'scheduleCheckPredictionTarget, successfully completed'
+				};
+				sendJobCompletionEmail(null, message);
 				DailyContestEntryHelper.checkAdvisorInvestmentSum();
 			})
 			.catch(err => {
+				const message = {
+					subject: 'ERROR: SCHEDULE CHECK PREDICTION TARGET',
+					message: `scheduleCheckPredictionTarget, ${err.message}`
+				};
+				sendJobCompletionEmail(null, message);
 				console.log(err.message);
 			});
 		}
@@ -106,8 +164,20 @@ if (config.get('jobsPort') === serverPort) {
 		if (!DateHelper.isHoliday() && DateHelper.isMarketTrading(0, -30)) {
 	    	DailyContestEntryHelper.updateCallPriceForPredictions()
 	    	.then(() => {
+				const message = {
+					subject: 'SUCCESS: SCHEDULE UPDATE CALL PRICE',
+					message: 'scheduleUpdateCallPrice, successfully completed'
+				};
+				sendJobCompletionEmail(null, message);
 	    		DailyContestEntryHelper.checkPredictionTriggers();
-	    	})
+			})
+			.catch(err => {
+				const message = {
+					subject: 'ERROR: SCHEDULE UPDATE CALL PRICE',
+					message: `scheduleUpdateCallPrice, ${err.message}`
+				};
+				sendJobCompletionEmail(null, message);
+			})
     	}
 	});
 
@@ -116,8 +186,20 @@ if (config.get('jobsPort') === serverPort) {
 		if (!DateHelper.isHoliday() && DateHelper.isMarketTrading(0, -1)) {
 	    	DailyContestEntryHelper.updateCallPriceForPredictionsFromEODH()
 	    	.then(() => {
+				const message = {
+					subject: 'SUCCESS: SCHEDULE UPDATE CALL PRICE EODH',
+					message: 'scheduleUpdateCallPriceEODH, successfully completed'
+				};
+				sendJobCompletionEmail(null, message);
 	    		DailyContestEntryHelper.checkPredictionTriggers();
-	    	})
+			})
+			.catch(err => {
+				const message = {
+					subject: 'ERROR: SCHEDULE UPDATE CALL PRICE EODH',
+					message: `scheduleUpdateCallPriceEODH, ${err.message}`
+				};
+				sendJobCompletionEmail(null, message);
+			})
     	}
 	});
 	
@@ -125,3 +207,7 @@ if (config.get('jobsPort') === serverPort) {
 }
 
 
+module.exports.writeContractDetailToFile = contractDetails => {
+	console.log('Writing to contract-details.json');
+	fs.writeFileSync('contract-details.json', JSON.stringify(contractDetails));
+}
