@@ -63,7 +63,6 @@ module.exports.sendActivationEmail = function(res, userDetails, source) {
     };
 
     return _sendMail(res, msg, {email: userDetails.email, name: userFullName});
-    // return sendElasticEmail(res, msg, {email: userDetails.email, name: userFullName});
 };
 
 module.exports.resetSuccessEmail = function(res, userDetails, source) {
@@ -87,7 +86,6 @@ module.exports.resetSuccessEmail = function(res, userDetails, source) {
     };
 
     return _sendMail(res, msg);
-    // return sendElasticEmail(res, msg);
 };
 
 module.exports.sendForgotEmail = function(res, userDetails, source) {
@@ -114,7 +112,6 @@ module.exports.sendForgotEmail = function(res, userDetails, source) {
     };
 
     return _sendMail(res, msg);
-    // return sendElasticEmail(res, msg);
 
 };
 
@@ -142,7 +139,6 @@ module.exports.welcomeEmail = function(res, userDetails, source, redirect = true
             : null;
 
     return _sendMail(res, msg, {redirectUrl});
-    // return sendElasticEmail(res, msg, {redirectUrl});
 };
 
 module.exports.sendFeedbackEmail = function(res, args) {
@@ -155,7 +151,6 @@ module.exports.sendFeedbackEmail = function(res, args) {
     };
 
     return _sendMail(res, msg);
-    // return sendElasticEmail(res, msg);
 
 };
 
@@ -195,7 +190,7 @@ module.exports.threadReplyEmail = function(threadDetails) {
                 substitutions: {...substitutions, followerFullName}
             };
             
-            return sendElasticEmail(null, msg);
+            return sgMail.send(msg);
         }
     });
 };
@@ -225,7 +220,9 @@ module.exports.sendInfoEmail = function(details) {
             bodyHtml: _t,
             subject: `[AimsQuant] ${details.subject}`
         };
-        sendElasticEmail(null, msg);
+
+        return sgMail.send(msg);
+        
     });
 
  };
@@ -252,7 +249,6 @@ module.exports.sendTemplateEmail = function(templateId, substitutions, receiver,
     };
 
     return sgMail.send(msg);
-    // return sendElasticEmail(null, msg);
     
 };
 
@@ -292,7 +288,6 @@ module.exports.sendAdviceStatusEmail = function(adviceDetails, userDetails) {
     };
 
     return sgMail.send(msg);
-    // return sendElasticEmail(null, msg);
 };
 
 /*
@@ -333,7 +328,6 @@ module.exports.sendContestStatusEmail = function(contestEntryDetails, userDetail
     };
 
     return sgMail.send(msg);
-    // return sendElasticEmail(null, msg);
 };
 
 module.exports.sendPerformanceDigest = function(performanceDetail, userDetails) {
@@ -352,7 +346,6 @@ module.exports.sendPerformanceDigest = function(performanceDetail, userDetails) 
         };
 
     return sgMail.send(msg);
-    // return sendElasticEmail(null, msg);
 };
 
 module.exports.sendContestWinnerEmail = function(winnerDetail, userDetails) {
@@ -370,8 +363,7 @@ module.exports.sendContestWinnerEmail = function(winnerDetail, userDetails) {
             },
         };
 
-    // return sgMail.send(msg);
-    return sendElasticEmail(null, msg);
+    return sgMail.send(msg);
 };
 
 module.exports.sendDailyContestSummaryDigest = function(summaryDigest, userDetails) {
@@ -389,8 +381,7 @@ module.exports.sendDailyContestSummaryDigest = function(summaryDigest, userDetai
             },
         };
 
-    // return sgMail.send(msg);
-    return sendElasticEmail(null, msg);
+    return sgMail.send(msg);
 };
 
 module.exports.sendDailyContestWinnerEmail = function(winnerDetail, userDetails, weekly = false) {
@@ -408,7 +399,6 @@ module.exports.sendDailyContestWinnerEmail = function(winnerDetail, userDetails,
             },
         };
 
-    // return sgMail.send(msg);
-    return sendElasticEmail(null, msg);
+    return sgMail.send(msg);
 }
 
