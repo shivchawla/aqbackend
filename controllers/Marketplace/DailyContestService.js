@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-07 17:57:48
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-18 10:39:26
+* @Last Modified time: 2019-04-22 18:11:26
 */
 
 'use strict';
@@ -361,11 +361,23 @@ module.exports.updateDailyContestPredictions = (args, res, next) => {
 		if (process.env.NODE_ENV == 'production' && !DateHelper.isMarketTrading(15, 15) && isRealPrediction) {
 		 	APIError.throwJsonError({message: "Market is closed!! Real trades are allowed only between 9:30 AM to 3:15 PM!!"})
 		}
+
+		var endDate = _.get(prediction, 'endDate', null);
+		var startDate = _.get(predidction, 'startDate', null);
+
+		if (startDate && endDate){
+			var tradingDays = DateHelper.getTradingDays(startDate, endDate);
+			if (tradingDays > 15) {
+				APIError.throwJsonError({message: "Horizon must be less than or equal to 15 days"});
+			}
+		} else {
+			APIError.throwJsonError({message: "Invalid dates"});
+		}
 	})
 	.then(() => {		
 
 		if (!isRealPrediction) {
-			investment = _.get(prediction, 'position.investment', 0);
+			investment = _.get(prediction, 'position.investment', 0)
 			//Check if investment amount is either 10, 25, 50, 75 or 100K for unreal predictions
 			//
 			var valid = [10, 25, 50, 75, 100].indexOf(Math.abs(investment)) !=- 1;
