@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2019-01-04 09:50:36
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-03-13 20:18:14
+* @Last Modified time: 2019-04-22 21:01:00
 */
 
 'use strict';
@@ -114,7 +114,7 @@ function checkSumAdvisorAccount(update=false) {
 						var effectiveStartDate = DateHelper.getMarketCloseDateTime(_.get(prediction, 'conditional', false) ? prediction.triggered.trueDate : prediction.startDate);
 
 						var equity = investment;
-						if (effectiveStartDate && !moment(effectiveStartDate).isAfter(date)) {
+						if (effectiveStartDate && !moment(effectiveStartDate).isAfter(date) && _.get(prediction, 'triggered.status', false)) {
 							equity = avgPrice > 0 && lastPrice > 0 ? investment*(lastPrice/avgPrice) : investment;	
 						}
 
