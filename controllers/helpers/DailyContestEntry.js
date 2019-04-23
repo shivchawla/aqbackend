@@ -2762,3 +2762,351 @@ module.exports.checkPredictionTriggers = function(date) {
 		});
 	})
 };
+
+module.exports.processRedisPredictions = redisPredictions => {
+	return redisPredictions.map(prediction => JSON.parse(prediction));
+}
+
+module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = false) => {
+	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
+	let investment, quantity, latestPrice, avgPrice, changePct;
+	// Investment obtained from the frontend
+	let investmentInput = 0;
+	
+	var security = _.get(prediction, 'position.security', {});
+	const isRealPrediction = _.get(prediction, 'real', false);
+
+	const conditionalType = _.get(prediction, 'conditionalType', 'NOW');
+	const isConditional = conditionalType.toUpperCase() !== 'NOW';
+	
+	let allocationAdvisorId;
+	let masterAdvisorId;
+	let validStartDate = exports.getValidStartDate();
+
+	return Promise.resolve(SecurityHelper.isTradeable(security))
+	.then(allowed => {
+		if(isRealPrediction && !allowed) {
+			APIError.throwJsonError({message: `Real prediction in ${security.ticker} is not allowed`});
+		}
+
+		// Conditional items are only allowed during market open hours
+		if (!isConditional && !DateHelper.isMarketTrading()) {
+			APIError.throwJsonError({message: 'Market is closed! Only conditional predictions allowed'});
+		}
+		
+		if (process.env.NODE_ENV == 'production' && !DateHelper.isMarketTrading(15, 15) && isRealPrediction) {
+		 	APIError.throwJsonError({message: "Market is closed!! Real trades are allowed only between 9:30 AM to 3:15 PM!!"})
+		}
+	})
+	.then(() => {
+		if (!isRealPrediction) {
+			investment = _.get(prediction, 'position.investment', 0);
+
+			//Check if investment amount is either 10, 25, 50, 75 or 100K for unreal predictions
+			var valid = [10, 25, 50, 75, 100].indexOf(Math.abs(investment)) !=- 1;
+
+			if(!valid) {
+				APIError.throwJsonError({message: "Invalid investment value - Virtual Prediction"});
+			} else{
+				return true;
+			}
+		}
+	})
+	.then(() => {
+		return Promise.all([
+			SecurityHelper.getStockLatestDetail(prediction.position.security),
+			SecurityHelper.getRealtimeQuote(`${prediction.position.security.ticker}`),
+		])
+		.then(([securityDetail, realTimeQuote]) => {
+			latestPrice = _.get(realTimeQuote, 'close', 0) || _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
+			changePct = _.get(realTimeQuote, 'change_p', 0) || _.get(securityDetail, 'latestDetailRT.change_p', 0) || _.get(securityDetail, 'latestDetail.ChangePct', 0);
+			
+			if (latestPrice != 0) {
+
+				//Investment is modified downstream so can't be const
+				investment = _.get(prediction, 'position.investment', 0);
+				quantity = _.get(prediction, 'position.quantity', 0);
+
+				if (isRealPrediction && (investment != 0 || quantity <= 0)) {
+					APIError.throwJsonError({message: "Must provide zero investment and positive quantity (LONG) for real trades!!"})
+				}
+
+				const isConditional = _.get(prediction, "conditionalType", "NOW") != "NOW"
+				avgPrice = _.get(prediction, 'position.avgPrice', 0);
+
+				//Computed investment must be divided by 1000 to match internal units
+				investment = investment || parseFloat(((isConditional ? quantity*avgPrice : quantity*latestPrice)/1000).toFixed(2));
+				investmentInput = investment;
+				//Mark the real investment at the latest price as well (execution price may be different)
+				//(now this could be not true but let's keep things for simple for now)
+				prediction.position.investment = investment
+
+				if (isRealPrediction && investment < 0) {
+					APIError.throwJsonError({message: "Only LONG prediction are allowed for real trades!!"})	
+				}
+				
+				const target = prediction.target;
+				const stopLoss = _.get(prediction, 'stopLoss', 0);
+
+				if (stopLoss == 0) {
+					APIError.throwJsonError({message: "Stoploss must be non-zero"});
+				} else if (investment > 0 &&  (stopLoss > latestPrice || stopLoss > target)) {
+					APIError.throwJsonError({message: "Inaccurate Stoploss!! Must be lower than the call price"});
+				} else if (investment < 0 &&  (stopLoss < latestPrice || stopLoss < target)) {
+					APIError.throwJsonError({message: "Inaccurate Stoploss!! Must be higher than the call price"});
+				} 
+
+				if (investment > 0 && target < 1.015*latestPrice) {
+					APIError.throwJsonError({message:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% higher than call price`});
+				} else if (investment < 0 && target > 1.015*latestPrice) {
+					APIError.throwJsonError({message:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% lower than call price`});
+				}
+
+				if (Math.abs(changePct) > 0.05) {
+					APIError.throwJsonError('To avoid speculative bets, change above 5% is not allowed.');
+				}
+
+				return;
+			} else {
+				console.log("Create Prediction: Price not found");
+				return; 
+			}
+		})
+	})
+	.then(() => {
+		let masterAdvisorSelection = {user: userId, isMasterAdvisor: true};
+		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
+			masterAdvisorSelection = {_id: advisorId};
+		}
+
+		return AdvisorModel.fetchAdvisor(masterAdvisorSelection, {fields: '_id account allocation'})
+		.then(masterAdvisor => {
+			allocationAdvisorId = _.get(masterAdvisor, 'allocation.advisor', '').toString();
+			//Get master advisor id (used later when sending updates)
+			masterAdvisorId = masterAdvisor._id.toString();
+
+			if (isRealPrediction) {
+				// Checking if investment is not greater than the maxInvestment
+				const maxInvestment = _.get(masterAdvisor, 'allocation.maxInvestment', 50) * 1000;
+
+				const minInvestment = _.get(masterAdvisor, 'allocation.minInvestment', 10) * 1000;
+
+				userAutomated = _.get(masterAdvisor, 'allocation.automated', false);
+
+				const notAllowedStocks = _.get(masterAdvisor, 'allocation.notAllowedStocks', []);
+
+				if (notAllowedStocks.length > 0) {
+					const ticker = prediction.position.security.ticker;
+					const isFoundInNotAllowedStocks = notAllowedStocks.indexOf(ticker) > -1;
+
+					if (isFoundInNotAllowedStocks) {
+						APIError.throwJsonError({message: `Real Prediction not allowed for ${ticker}!!`})
+					}
+				}
+
+				if (isConditional && avgPrice > 0 && quantity * avgPrice < minInvestment) {
+					APIError.throwJsonError({message: `Effective investment in real trade must be greater than ${minInvestment}!!`})
+				}
+
+				if (!isConditional && latestPrice > 0 && quantity * latestPrice < minInvestment) {
+					APIError.throwJsonError({message: `Effective investment in real trade must be greater than ${minInvestment}!!`})
+				}
+
+				if (isConditional && avgPrice > 0 && quantity * avgPrice > maxInvestment) {
+					APIError.throwJsonError({message: `Effective investment in real trade must be less than ${maxInvestment}!!`})
+				}
+
+				if (!isConditional && latestPrice > 0 && quantity * latestPrice > maxInvestment) {
+					APIError.throwJsonError({message: `Effective investment in real trade must be less than ${maxInvestment}!!`})
+				}
+
+				if (_.get(masterAdvisor, 'allocation.status', false) && _.get(masterAdvisor, 'allocation.advisor', null)) {
+					return AdvisorModel.fetchAdvisor({_id: masterAdvisor.allocation.advisor}, {fields: '_id account'}) 
+				}
+			} else {
+				return masterAdvisor;
+			}
+		})
+	})
+	.then(effectiveAdvisor => {
+		if (effectiveAdvisor) {
+
+			//Choose advisor based on prediction type (Assing advisorId)
+			advisorId = effectiveAdvisor._id;
+
+			var liquidCash = _.get(effectiveAdvisor, 'account.liquidCash', 0);
+
+			var investmentRequired = Math.abs(_.get(prediction, 'position.investment', 0));
+
+			if (liquidCash < investmentRequired) {
+				if (isRealPrediction) {
+					APIError.throwJsonError({message: `Insufficient funds to create real trades!!`});
+				} else {
+					APIError.throwJsonError({message: `Insufficient funds to create predictions!!`});	
+				}
+				
+			}
+
+			return Promise.all([
+				exports.getPredictionsForDate(advisorId, validStartDate, {category: "all", priceUpdate: false, active: null}),
+				exports.getPortfolioStatsForDate(advisorId, date),
+				AdvisorModel.fetchAdvisor({_id: advisorId}, {fields: 'account'})
+			]);
+			
+		} else {
+			if(isRealPrediction) {
+				APIError.throwJsonError({message: "Not authorized to make real predictions"});
+			} else {
+				APIError.throwJsonError({message: "Not a valid user"});
+			}
+		}
+	})
+	.then(([activePredictions, portfolioStats, advisor]) => {
+		const portfolioValue = _.get(portfolioStats, 'netTotal', 0) || 
+				(_.get(advisor, 'account.liquidCash', 0) + _.get(advisor, 'account.investment', 0));
+
+		const tenPercentagePortfolioValue = 0.1005 * portfolioValue;
+
+		activePredictions = activePredictions.filter(item => {
+			var completeStatus = _.get(item, 'status.profitTarget', false) ||  
+				_.get(item, 'status.stopLoss', false) ||  
+				_.get(item, 'status.manualExit', false) ||  
+				_.get(item, 'status.expired', false);
+
+				return !completeStatus; 
+		});
+
+		var ticker = _.get(prediction, 'position.security.ticker', "");
+		var existingPredictionsInTicker = activePredictions.filter(item => {return item.position.security.ticker == ticker;});
+		var newPredictionsInTicker = prediction.position.security.ticker == ticker ? [prediction] : [];
+
+		let grossInvestmentForTicker = _.sum(existingPredictionsInTicker.map(activePrediction => {
+			const predictionInvestment = _.get(activePrediction, 'position.investment', 0);
+			return Math.abs(predictionInvestment);		
+		}));
+
+		grossInvestmentForTicker = grossInvestmentForTicker + Math.abs(investmentInput);
+		
+		if (tenPercentagePortfolioValue !== 0 &&  grossInvestmentForTicker > tenPercentagePortfolioValue) {
+			APIError.throwJsonError({message: `Limit exceeded: Can't invest more than 10% of your portfolio in a single stock. Stock (${ticker})`});
+		}
+
+		if (existingPredictionsInTicker.length + newPredictionsInTicker.length > 3 && !isRealPrediction) {
+			APIError.throwJsonError({message: `Limit exceeded: Can't add more than 3 prediction for one stock (${ticker})`});
+		}
+
+		if (existingPredictionsInTicker.length + newPredictionsInTicker.length > 1 && isRealPrediction) {
+			APIError.throwJsonError({message: `Limit exceeded: Can't add more than 1 real trade for one stock (${ticker})`});
+		}
+
+		return; 
+	})
+	.then(() => {
+		
+		if (DateHelper.compareDates(prediction.endDate, prediction.startDate) == 1) {
+			
+			prediction.startDate = validStartDate;
+			prediction.endDate = DateHelper.getMarketCloseDateTime(DateHelper.getNextNonHolidayWeekday(prediction.endDate, 0));
+			prediction.modified = 1;
+			prediction.nonMarketHoursFlag = DateHelper.isHoliday() || !DateHelper.isMarketTrading();
+			prediction.createdDate = new Date();
+			
+			//Stop-loss type for old predictions was empty;
+			prediction.stopLossType = "NOTIONAL";
+
+			var isConditional = prediction.conditionalType != "NOW" && prediction.position.avgPrice != 0; 
+
+			//Set trigger
+			prediction = {...prediction, conditional:isConditional, triggered: {status: !isConditional}, conditionalPrice: isConditional ? prediction.position.avgPrice : 0, conditionalType: isConditional ? prediction.conditionalType : ""};
+
+			return prediction;
+
+		} else {
+			console.log("Invalid prediction");
+			return null;
+		}
+	})
+	.then(adjustedPrediction => {
+		if (adjustedPrediction) {
+			return exports.addPrediction(advisorId, adjustedPrediction, DateHelper.getMarketCloseDateTime(validStartDate), masterAdvisorId, userId)
+		} else {
+			APIError.throwJsonError({message: "Adjusted prediciton is NULL/invalid"});
+		}
+	})
+}
+
+module.exports.processThirdPartyPredictions = (predictions, isReal = false) => Promise.map(predictions, prediction => {
+	const dateFormat = 'YYYY-MM-DD';
+	const horizon = _.get(prediction, 'horizon', isReal ? 2 : 1);
+	const startDate = moment().format(dateFormat);
+	const endDate = moment(DateHelper.getNextNonHolidayWeekday(startDate, Number(horizon))).format(dateFormat);
+	
+	const ticker = _.get(prediction, 'symbol', '');
+	const security = {
+		ticker,
+		securityType: 'EQ',
+		country: 'IN',
+		exchange: 'NSE'
+	};
+
+	const action = _.get(prediction, 'action', 'BUY');
+	const investmentMultiplier = action.toUpperCase() === 'BUY' ? 1 : -1;
+	const investment = investmentMultiplier * 10;
+	const target = _.get(prediction, 'target', 0);
+	const stopLoss = _.get(prediction, 'stopLoss', 0);
+
+	const adjustedPrediction = {
+		conditionalType: 'CROSS',
+		endDate,
+		startDate,
+		real: false,
+		target,
+		stopLoss,
+		position: {
+			avgPrice: 0,
+			investment,
+			quantity: 0,
+			security
+		}
+	};
+
+	return adjustedPrediction;
+});
+
+module.exports.foundPredictionInRedis = (prediction, redisPredictions = []) => {
+	const dateFormat = 'YYYY-MM-DD';
+	const predictionSymbol = _.get(prediction, 'position.security.ticker', '');
+	const predictionTarget = _.get(prediction, 'target', 0);
+	const predictionStopLoss = _.get(prediction, 'stopLoss', 0);
+	let predictionStartDate = _.get(prediction, 'startDate', null);
+	let predictionEndDate = _.get(prediction, 'endDate', null);
+	predictionStartDate = moment(predictionStartDate).format(dateFormat);
+	predictionEndDate = moment(predictionEndDate).format(dateFormat);
+
+	const filteredPredictions = redisPredictions.filter(redisPrediction => {
+		const redisPredictionSymbol = _.get(redisPrediction, 'position.security.ticker', '');
+		const redisPredictionTarget = _.get(redisPrediction, 'target', 0);
+		const redisPredictionStopLoss = _.get(redisPrediction, 'stopLoss', 0);
+		let redisPredictionStartDate = _.get(redisPrediction, 'startDate', null);
+		let redisPredictionEndDate = _.get(redisPrediction, 'endDate', null);
+		redisPredictionStartDate = moment(redisPredictionStartDate).format(dateFormat);
+		redisPredictionEndDate = moment(redisPredictionEndDate).format(dateFormat);
+
+		console.log('Prediction StartDate ', predictionStartDate);
+		console.log('redisPredictionStartDate ', redisPredictionStartDate);
+
+		if (
+			redisPredictionSymbol === predictionSymbol &&
+			predictionTarget === redisPredictionTarget &&
+			predictionStopLoss === redisPredictionStopLoss &&
+			predictionStartDate === redisPredictionStartDate &&
+			predictionEndDate === redisPredictionEndDate
+		) {
+			return true
+		} else {
+			return false;
+		}
+	});
+
+	return filteredPredictions.length > 0;
+}

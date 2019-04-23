@@ -1,76 +1,93 @@
 const config = require('config');
+var redis = require('redis');
 const Promise = require('bluebird');
 const _ = require('lodash');
 
+const UserModel = require('../models/user');
+const AdvisorModel = require('../models/Marketplace/Advisor');
+const DailyContestEntryHelper = require('../controllers/helpers/DailyContestEntry');
+const RedisUtils = require('../utils/RedisUtils');
 const scrapeKotak = require('../utils/scrapeKotak');
 const scrapeMotilalOswal = require('../utils/scrapeMotilalOswal');
 const scrapeInvestmentGuru = require('../utils/scrapeInvestmentGuru');
-const {processThirdPartyPredictions, createPrediction} = require('../controllers/Marketplace/DailyContestService');
-const {kotaklUser, motilalOswalUser} = require('../constants/scrapingUsers');
+const {userDetails} = require('../constants/scrapingUsers');
 
-module.exports.createPredictionsForMotilalOswal = () => {
-    console.log('Motilal Oswal predictions download started');
-    const userId = _.get(motilalOswalUser, 'userId', null);
-    const advisorId = _.get(motilalOswalUser, 'advisorId', null);
+let redisClient;
 
-    scrapeMotilalOswal()
-    .then(predictions => processThirdPartyPredictions(predictions))
-    .then(predictions => {
-        return Promise.map(predictions, prediction => {
-            return createPrediction(prediction, userId, advisorId);
-        })
-        .catch(err => {
-            console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker'), err.message);
-        })
-    })
+function getRedisClient() {
+	if (!redisClient || !redisClient.connected) {
+        var redisPwd = config.get('node_redis_pass');
+
+        if (redisPwd != "") {
+            redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});
+        } else {
+            redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'));
+        }
+    }
+
+    return redisClient; 
+}
+
+module.exports.getAllPredictionsFromThirdParty = function() {
+    return Promise.all([
+        exports.createPredictionsFromThirdParty('kotak'),
+        exports.createPredictionsFromThirdParty('motilalOswal')
+        
+    ])
     .then(() => {
-        console.log('Created Motilal Oswal Predictions');
+        console.log('Donwloaded All Data');
     })
 }
 
-module.exports.createPredictionsForKotak = () => {
-    console.log('Kotak Securities predictions download started');
-    const userId = _.get(kotaklUser, 'userId', null);
-    const advisorId = _.get(kotaklUser, 'advisorId', null);
+module.exports.createPredictionsFromThirdParty = function(source) {
+    console.log(`${source} predictions download started`);
+    console.log('Source ', source);
 
-    scrapeKotak()
-    .then(predictions => processThirdPartyPredictions(predictions))
-    .then(predictions => {
-        return Promise.map(predictions, prediction => {
-            return createPrediction(prediction, userId, advisorId);
-        })
-        .catch(err => {
-            console.log('Error createPrediction ', err.message);
-        })
-    })
-    .then(() => {
-        console.log('Created Kotak Securities Predictions');
-    })
-}
-
-module.exports.createPredictionsForInvestmentGuru = () => {
-    console.log('Investment Guru predictions download started');
-    // The logic to get advisorId and userID should be different for investment guru
-    let originalPredictions = [];
+    let userId = null;
+    let advisorId = null;
     
-    scrapeInvestmentGuru()
-    .then(predictions => {
-        originalPredictions = predictions;
-        return processThirdPartyPredictions(predictions)
-    })
-    .then(predictions => {
-        return Promise.map(predictions, (prediction, index) => {
-            const advisorName = originalPredictions[index].advisorName;
-            console.log('Advisor name ', advisorName);
-            console.log(prediction);
-            // Using the advisor name as the key, the advisorId and the predictionId can be obtained
-            // return createPrediction(prediction, userId, advisorId);
-        })
-        .catch(err => {
-            console.log('Error createPrediction ', err.message);
-        })
+    const requiredUserEmail = userDetails[source].email;
+    const requiredPromiseRequest = source === 'kotak' ? scrapeKotak : scrapeMotilalOswal;
+    
+    return UserModel.fetchUser({email: requiredUserEmail, disabled: false})
+    .then(user => {
+		user = user.toObject();
+		userId = _.get(user, '_id', '').toString();
+
+		return AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {insert: true})
+	})
+	.then(advisor => {
+		advisor = advisor.toObject();
+		advisorId = _.get(advisor, '_id', '').toString();
+	})
+    .then(() => requiredPromiseRequest())
+    .then(predictions => Promise.all([
+		DailyContestEntryHelper.processThirdPartyPredictions(predictions),
+		RedisUtils.getRangeFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
+	]))
+	.then(([predictions, redisPredictions]) => {
+		redisPredictions = redisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(redisPredictions) : [];
+
+		return Promise.map(predictions, prediction => {
+			if (!DailyContestEntryHelper.foundPredictionInRedis(prediction, redisPredictions)) {
+				return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), userId, advisorId)
+				.then(() => {
+					// Should add to redis
+					RedisUtils.pushToRangeRedis(getRedisClient(), `${source}_prediction`, JSON.stringify(prediction));
+				})
+				.catch(err => {
+					console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker'), err.message);
+				})
+			} else {
+				console.log('Prediction Found'); 
+				return Promise.resolve(true);
+			}
+		})
     })
     .then(() => {
-        console.log('Created Investment Guru Predictions');
+        console.log(`Created ${source}  Predictions`);
+    })
+    .catch(() => {
+
     })
 }
