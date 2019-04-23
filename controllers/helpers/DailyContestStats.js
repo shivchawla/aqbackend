@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-23 12:59:31
+* @Last Modified time: 2019-04-23 16:12:46
 */
 
 'use strict';
@@ -87,7 +87,7 @@ function _computeDailyContestWinners(date) {
 			
             return Promise.all([
             	DailyContestEntryPerformanceModel.fetchPnlStatsForDate({advisor: advisorId}, date),
-            	DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {priceUpdate: false, category: "all"})
+            	DailyContestEntryHelper.getPredictionsForDate(advisorId, date, {priceUpdate: false, category: "all", active: true})
         	])
 			.then(([pnlStatsForAdvisor, allPredictions]) => {
 				var allPredictionsPnlStats =  _.get(pnlStatsForAdvisor, 'detail.daily.all.net', {});
