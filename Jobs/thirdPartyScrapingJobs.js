@@ -49,17 +49,22 @@ module.exports.createPredictionsForKotak = () => {
 }
 
 module.exports.createPredictionsForInvestmentGuru = () => {
-    console.log('Kotak Securities predictions download started');
+    console.log('Investment Guru predictions download started');
     // The logic to get advisorId and userID should be different for investment guru
-    const kotaklUser = config.get('kotaklUser');
-    const userId = _.get(kotaklUser, 'userId', null);
-    const advisorId = _.get(kotaklUser, 'advisorId', null);
-
+    let originalPredictions = [];
+    
     scrapeInvestmentGuru()
-    .then(predictions => processThirdPartyPredictions(predictions))
     .then(predictions => {
-        return Promise.map(predictions, prediction => {
-            return createPrediction(prediction, userId, advisorId);
+        originalPredictions = predictions;
+        return processThirdPartyPredictions(predictions)
+    })
+    .then(predictions => {
+        return Promise.map(predictions, (prediction, index) => {
+            const advisorName = originalPredictions[index].advisorName;
+            console.log('Advisor name ', advisorName);
+            console.log(prediction);
+            // Using the advisor name as the key, the advisorId and the predictionId can be obtained
+            // return createPrediction(prediction, userId, advisorId);
         })
         .catch(err => {
             console.log('Error createPrediction ', err.message);
