@@ -17,6 +17,7 @@ const AdhocJobs = require('../controllers/helpers/AdhocJobs');
 const FormatJobs = require('../controllers/helpers/FormatDataJobs');
 const EODHJobs = require('./downloadEODH');
 const DateHelper = require('../utils/Date');
+const {createPredictionsForKotak, createPredictionsForMotilalOswal} = require('./thirdPartyScrapingJobs');
 
 const schedule = require('node-schedule');
 const config = require('config');
