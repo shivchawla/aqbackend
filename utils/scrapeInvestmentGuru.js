@@ -2,7 +2,7 @@ const Nightmare = require('nightmare');
 const cheerio = require('cheerio');
 const _ = require('lodash');
 
-const nightmare = new Nightmare({show: true});
+const nightmare = new Nightmare({show: false});
 const url = 'http://www.investmentguruindia.com/intradaytips?page=1&per_page=100&autorefresh=off';
 
 module.exports = () => new Promise((resolve, reject) => {
@@ -26,14 +26,15 @@ const getPredictionData = html => {
     let data = [];
     $('div.gepl_box').each((row, rawElement) => {
         const predictionText = $(rawElement).find('p:nth-child(2)').text();
-        const prediction = processPredictionText(predictionText);
+        const advisorName = $(rawElement).find('div.gspl_right h2 a').text();
+        const prediction = processPredictionText(predictionText, advisorName);
         data.push(prediction);
     });
 
     return filterCorrectPredictions(data);
 };
 
-const processPredictionText = predictionText => {
+const processPredictionText = (predictionText, advisorName) => {
     predictionText = predictionText.replace(/[".]/g, "");
     predictionText = predictionText.split(' ');
 
@@ -87,7 +88,8 @@ const processPredictionText = predictionText => {
         target,
         action,
         symbol,
-        recomdPrice
+        recomdPrice,
+        advisorName
     };
 }
 
