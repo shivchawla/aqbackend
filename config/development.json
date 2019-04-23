@@ -8,25 +8,23 @@
     "sendgrid_key":"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",
     "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv",
 
-    "elasticemail_key":"9053bb8a-90c8-4b4a-959f-ae5401b86ed5",
-
     "activation_email_template_id" :{
-        "adviceqube": "ActivationEmail",
+        "adviceqube": "957ed889-0141-41d5-b192-588d4df89d09",
         "aimsquant":""
     },
 
     "reset_password_template_id" :{
-        "adviceqube": "PasswordReset",
+        "adviceqube": "8bdad2e4-56e2-4a8e-b618-0fca30bdfabe",
         "aimsquant" : ""
     },
 
     "forgot_password_template_id" : {
-        "adviceqube": "ForgotPassword",
+        "adviceqube": "19065ebf-c290-413c-94f2-7e804043ba58",
         "aimsquant" :""
     },
 
     "welcome_template_id" :{
-        "adviceqube": "WelcomeEmail",
+        "adviceqube": "1a9b11ec-1697-4caa-b17b-59b976b12977",
         "aimsquant": ""
     },
 
@@ -68,9 +66,11 @@
     "validate_contest_entry_full": false,
 
     "community_reply_thread_template_id":"ReplyThread",
-    "daily_contest_day_winner_template_id": "DailyContestDayWinner",
-    "daily_contest_week_winner_template_id":"DailyContestWeekWinner",
-    "daily_contest_summary_digest_template_id":"DailyContestSummary",
+    "dailycontest_day_winner_template_id": "d3465847-b751-4c61-b182-99b481b25810",
+    "dailycontest_week_winner_template_id":"c2d8fcff-90d0-4ad8-886e-82ad3c24b997",
+    "dailycontest_summary_digest_template_id": "3b4a8d0e-8be3-48b9-8442-df937c48be4e",
+    "dailycontest_zero_predictions_advisors_template":"b8e7c257-9039-48b2-89c4-9249334cc800",
+    "dailycontest_low_predictions_advisors_template":"1c6e306b-3c3e-4925-b26f-f0e8e7705a55",
 
     "mongo_db":"aimsquant_develop",
     "mongo_user":"app_server_develop",
