@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-23 12:45:28
+* @Last Modified time: 2019-04-23 12:59:31
 */
 
 'use strict';
@@ -604,7 +604,7 @@ module.exports.sendTemplateEmailToParticipants = function(emailType) {
 				return _getContestAdvisors({allPredictionsMin: 5, successRateMin: 0.5});
 				break;
 
-			default: templateId = config.get('dailycontest_all_advisors_template'); return _getContestAdvisors(); break;
+			default: templateId = config.get('dailycontest_all_advisors_template'); return []; break;
 		}
 	})
 	.then(filteredAdvisorsWithDetail => {
