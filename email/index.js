@@ -374,7 +374,7 @@ module.exports.sendDailyContestSummaryDigest = function(summaryDigest, userDetai
                 name: userFullName
             }],
             from: {name: "AdviceQube", email:"contest@adviceqube.com"},
-            templateId: config.get('daily_contest_summary_digest_template_id'),
+            templateId: config.get('dailycontest_summary_digest_template_id'),
             substitutions: {
                 userFullName,
                 ...summaryDigest
@@ -392,7 +392,7 @@ module.exports.sendDailyContestWinnerEmail = function(winnerDetail, userDetails,
                 name: userFullName
             }],
             from: {name: "AdviceQube", email:"contest@adviceqube.com"},
-            templateId: weekly ? config.get('daily_contest_week_winner_template_id') : config.get('daily_contest_day_winner_template_id'),
+            templateId: weekly ? config.get('dailycontest_week_winner_template_id') : config.get('dailycontest_day_winner_template_id'),
             substitutions: {
                 userFullName,
                 ...winnerDetail

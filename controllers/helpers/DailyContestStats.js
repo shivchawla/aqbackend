@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-10-29 15:21:17
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-22 16:16:46
+* @Last Modified time: 2019-04-23 12:45:28
 */
 
 'use strict';
@@ -486,6 +486,19 @@ function _getAdvisorLatestPerformance(advisorId) {
 	});
 }
 
+
+function _getContestAdvisorsWithActivePredictions() {
+	return _getUniqueMasterAdvisorWithContestEntries()
+	.then(distinctAdvisors => {
+		return Promise.map(distinctAdvisors, function(advisorId) {
+			return DailyContestEntryHelper.getPredictionsForDate(advisorId, null, {category: "all", priceUpdate: false, active: true})
+			.then(predictions => {
+				return {advisorId, currentPredictionCount: predictions.length}
+			});
+		})
+	})
+}
+
 function _getContestAdvisors(options) {
 	return _getUniqueMasterAdvisorWithContestEntries()
 	.then(distinctAdvisors => {
@@ -563,9 +576,17 @@ module.exports.sendTemplateEmailToParticipants = function(emailType) {
 				return _getContestAdvisors({allPredictionsMax: 0});
 				break;
 
+			case "lowActivePrediction":
+				templateId = config.get('dailycontest_low_predictions_advisors_template'); 
+				return _getContestAdvisorsWithActivePredictions()
+				.then(countPredictionsByAdvisor => {
+					return countPredictionsByAdvisor.filter(item =>  {return item.currentPredictionCount > 1 && item.currentPredictionCount < MIN_DAILY_UNIQ_PREDICTIONS})
+				})	
+				break;
+
 			case "lowProfitabilityLowPredictions": 
 				templateId = config.get('dailycontest_low_profitability_low_predictions_advisors_template'); 
-				return _getContestAdvisors({allPredictionsMin: 1, allPredictionsMax: 5, successRateMax: 0.5});
+				return _getContestAdvisors({allPredictionsMin: 1, allPredictionsMax: 6, successRateMax: 0.5});
 				break;	
 
 			case "highProfitabilityLowPredictions": 
@@ -590,8 +611,10 @@ module.exports.sendTemplateEmailToParticipants = function(emailType) {
 		return Promise.mapSeries(filteredAdvisorsWithDetail, function(item) {
 			let advisorId = item.advisorId;
 			
+			let requiredActivePredictions = Math.max(MIN_DAILY_UNIQ_PREDICTIONS - _.get(item, 'currentPredictionCount', 0), 0);
+
 			var submitPredictionUrl = `${config.get('hostname')}/dailycontest/stockpredictions`;
-			const motivationDigest = {requiredPredictions: 30, requiredProfitability: 60, requiredAvgReturn:1.5, ...item, submitPredictionUrl};
+			const motivationDigest = {...item, requiredActivePredictions, requiredPredictions: 30, requiredProfitability: 60, requiredAvgReturn:1.5, submitPredictionUrl};
 			
 			return _getUserDetail(advisorId)
 			.then(userDetail => {
