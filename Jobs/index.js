@@ -33,6 +33,9 @@ if (config.get('jobsPort') === serverPort) {
 	// schedule.scheduleJob("0 23 * * *", function() {
 	//     SecurityHelper.updateStockList();
 	// });
+	schedule.scheduleJob("*/1 * * * 1-5", function() {
+		getAllPredictionsFromThirdParty();
+	})
 
 	schedule.scheduleJob("30 18 * * *", function() {
 	    BacktestHelper.resetBacktestCounter()
