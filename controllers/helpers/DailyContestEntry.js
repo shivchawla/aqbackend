@@ -3064,7 +3064,7 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false) => P
 	const stopLoss = _.get(prediction, 'stopLoss', 0);
 
 	const adjustedPrediction = {
-		conditionalType: 'CROSS',
+		conditionalType: 'NOW',
 		endDate,
 		startDate,
 		real: false,
