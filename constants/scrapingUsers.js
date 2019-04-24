@@ -6,7 +6,7 @@ module.exports.userDetails = {
         email: 'govinda4404@gmail.com'
     },
     kotakFundamental: {
-        email: 'sauravdroid16@gmail.com'
+        email: 'kotakf4404@gmail.com'
     },
     shareKhan: {
         email: 'sharekhan4404@gmail.com'
