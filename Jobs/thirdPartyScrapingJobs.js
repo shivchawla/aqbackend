@@ -33,9 +33,9 @@ function getRedisClient() {
 module.exports.getAllPredictionsFromThirdParty = function() {
     return Promise.all([
         exports.createPredictionsFromThirdParty('kotak'),
-        exports.createPredictionsFromThirdParty('motilalOswal'),
-        exports.createPredictionsFromThirdParty('shareKhan'),
-        exports.createPredictionsFromThirdParty('edelweiss')
+        // exports.createPredictionsFromThirdParty('motilalOswal'),
+        // exports.createPredictionsFromThirdParty('shareKhan'),
+        // exports.createPredictionsFromThirdParty('edelweiss')
     ])
     .then(() => {
         console.log('Donwloaded All Data');
@@ -81,32 +81,35 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 		advisorId = _.get(advisor, '_id', '').toString();
 	})
     .then(() => requiredPromiseRequest())
-    .then(predictions => Promise.all([
-		DailyContestEntryHelper.processThirdPartyPredictions(predictions),
-		RedisUtils.getRangeFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
-	]))
-	.then(([predictions, redisPredictions]) => {
-		redisPredictions = redisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(redisPredictions) : [];
+    .then(predictions => {
+        console.log('Predictions ', predictions);
+    })
+    // .then(predictions => Promise.all([
+	// 	DailyContestEntryHelper.processThirdPartyPredictions(predictions),
+	// 	RedisUtils.getRangeFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
+	// ]))
+	// .then(([predictions, redisPredictions]) => {
+	// 	redisPredictions = redisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(redisPredictions) : [];
 
-		return Promise.map(predictions, prediction => {
-			if (!DailyContestEntryHelper.foundPredictionInRedis(prediction, redisPredictions)) {
-				return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), userId, advisorId)
-				.then(() => {
-					// Should add to redis
-					RedisUtils.pushToRangeRedis(getRedisClient(), `${source}_prediction`, JSON.stringify(prediction));
-				})
-				.catch(err => {
-					console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker'), err.message);
-				})
-			} else {
-				console.log('Prediction Found'); 
-				return Promise.resolve(true);
-			}
-		})
-    })
-    .then(() => {
-        console.log(`Created ${source}  Predictions`);
-    })
+	// 	return Promise.map(predictions, prediction => {
+	// 		if (!DailyContestEntryHelper.foundPredictionInRedis(prediction, redisPredictions)) {
+	// 			return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), userId, advisorId)
+	// 			.then(() => {
+	// 				// Should add to redis
+	// 				RedisUtils.pushToRangeRedis(getRedisClient(), `${source}_prediction`, JSON.stringify(prediction));
+	// 			})
+	// 			.catch(err => {
+	// 				console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker'), err.message);
+	// 			})
+	// 		} else {
+	// 			console.log('Prediction Found'); 
+	// 			return Promise.resolve(true);
+	// 		}
+	// 	})
+    // })
+    // .then(() => {
+    //     console.log(`Created ${source}  Predictions`);
+    // })
     .catch(() => {
 
     })
