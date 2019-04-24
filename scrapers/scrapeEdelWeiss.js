@@ -2,35 +2,39 @@
  * This file crwals EDELWEISS and gets the data in the required format
  */
 
-const Nightmare = require('nightmare');
+const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
 const _ = require('lodash');
 
-const nightmare = new Nightmare({
-    show: false,
-    loadTimeout: 10 * 1000,
-    width: 1200,
-    height: 900
-});
 const url = 'https://www.edelweiss.in/oyo/equity/top-market-and-stock-recommendations/equity?redirectParam=EQ,Short%20term';
 
-module.exports = () => {
-    return new Promise((resolve, reject) => {
-        nightmare
-        .goto(url)
-        .wait('body')
-        .evaluate(() => document.querySelector('body').innerHTML)
-        .end()
-        .then(response => {
-            resolve(getPredictionData(response));
-        })
-        .catch(err => {
-            console.log('Error ', err);
-            reject(err);
+module.exports = () => new Promise(async (resolve, reject) => {
+    try {
+        const browser = await puppeteer.launch({
+            headless: true,
+            args: [
+                '--no-sandbox', 
+                '--disable-setuid-sandbox',
+            ],
         });
-    })
-}
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1200, height: 900 });
+        await page.goto(url, {waitUntil: 'networkidle2'});
 
+        const body = await page.evaluate(() => {
+            return document.querySelector('body').innerHTML;
+        });
+
+        resolve(getPredictionData(body));
+
+        await browser.close();
+
+    } catch(err) {
+        console.log('Error ', err.message);
+        reject(err);
+    }
+})
+ 
 const getPredictionData = html => {
     const $ = cheerio.load(html);
     let data = [];
