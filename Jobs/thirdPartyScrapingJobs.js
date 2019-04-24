@@ -56,7 +56,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
             requiredPromiseRequest = scrapeKotak;
             break;
         case 'motilalOswal':
-            requiredPromiseRequest = scrapeMotilalOswall
+            requiredPromiseRequest = scrapeMotilalOswal
             break;
         case 'shareKhan':
             requiredPromiseRequest = scrapeShareKhan;
