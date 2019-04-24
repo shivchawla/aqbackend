@@ -121,7 +121,7 @@ const keyKVP = {
 const processInternalData = (data, type = null) => {
     let target = _.get(data, 'target', '0');
     let currentPrice = _.get(data, 'currentPrice', '0');
-    let recomdPrice = _.get(data, 'recomdPrice', 0);
+    let recomdPrice = _.get(data, 'recomdPrice', '0');
     let stopLoss = _.get(data, 'stopLoss', '0');
     let marketCap = _.get(data, 'marketCap', '0');
 
