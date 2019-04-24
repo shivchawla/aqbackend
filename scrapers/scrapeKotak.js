@@ -145,7 +145,6 @@ const processInternalData = (data, type = null) => {
 }
 
 const convertToNumber = inputString => {
-    console.log(inputString, typeof inputString);
     inputString = inputString.replace(/[",]/g, "");
 
     return Number(inputString);
