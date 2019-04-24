@@ -110,3 +110,7 @@ module.exports.modifyOrderForPrediction = (req, res, next) => {
 module.exports.updateRealPrediction = (req, res, next) => {
     DailyContest.updateRealPrediction(req.swagger.params, res, next);
 }
+
+module.exports.getThirdPartyPredictions = (req, res, next) => {
+    DailyContest.getThirdPartyPredictions(req.swagger.params, res, next);
+}

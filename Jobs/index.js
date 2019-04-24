@@ -17,6 +17,7 @@ const AdhocJobs = require('../controllers/helpers/AdhocJobs');
 const FormatJobs = require('../controllers/helpers/FormatDataJobs');
 const EODHJobs = require('./downloadEODH');
 const DateHelper = require('../utils/Date');
+const {getAllPredictionsFromThirdParty} = require('./thirdPartyScrapingJobs');
 
 const schedule = require('node-schedule');
 const config = require('config');
@@ -25,6 +26,7 @@ const moment = require('moment-timezone');
 const serverPort = require('../index').serverPort;
 
 var winnersUpdated = false;
+// getAllPredictionsFromThirdParty();
 
 if (config.get('jobsPort') === serverPort) {
 	

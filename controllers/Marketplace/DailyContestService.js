@@ -19,18 +19,41 @@ const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
 const InteractiveBroker = require('../Realtime/interactiveBroker');
 const ibTickers = require('../../documents/ibTickers.json');
+const RedisUtils = require('../../utils/RedisUtils');
 
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 const AdvisorModel = require('../../models/Marketplace/Advisor');
+const UserModel = require('../../models/user');
 const DailyContestEntryHelper = require('../helpers/DailyContestEntry');
+
 const DailyContestStatsHelper = require('../helpers/DailyContestStats');
 const SecurityHelper = require('../helpers/Security');
 const AdvisorHelper = require('../helpers/Advisor');
 const PredictionRealtimeController = require('../Realtime/predictionControl');
 const BrokerRedisController = require('../Realtime/brokerRedisControl');
 const funnyNames = require('../../constants/funnyNames');
+const {userDetails} = require('../../constants/scrapingUsers');
+
+const scrapeKotak = require('../../scrapers/scrapeKotak');
+const scrapeMotialOswal = require('../../scrapers/scrapeMotilalOswal');
+
+let redisClient;
+
+function getRedisClient() {
+	if (!redisClient || !redisClient.connected) {
+        var redisPwd = config.get('node_redis_pass');
+
+        if (redisPwd != "") {
+            redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});
+        } else {
+            redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'));
+        }
+    }
+
+    return redisClient; 
+}
 
 function roundOffForIb (value) {
 	value = Number(value);
@@ -1633,4 +1656,66 @@ module.exports.updateRealPrediction = function(args, res, next) {
 		return res.status(400).send(err.message);
 	})
 
+}
+
+module.exports.getThirdPartyPredictions = (args, res, next) => {
+	const source = _.get(args, 'source.value', null);
+	let requiredPromiseRequest = null;
+	let userId = null;
+	let advisorId = null;
+	let numOriginalPredictions, numCreatedPredictions = 0;
+
+	requiredPromiseRequest = source === 'kotak' ? scrapeKotak : scrapeMotialOswal;
+	const requiredUserEmail = source === 'kotak' ? userDetails.kotak.email : userDetails.motilalOswal.email;
+
+	Promise.resolve()
+	.then(() => UserModel.fetchUser({email: requiredUserEmail, disabled: false}))
+	.then(user => {
+		user = user.toObject();
+		userId = _.get(user, '_id', '').toString();
+
+		return AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {insert: true})
+	})
+	.then(advisor => {
+		advisor = advisor.toObject();
+		advisorId = _.get(advisor, '_id', '').toString();
+	})
+	.then(() => requiredPromiseRequest())
+	.then(predictions => Promise.all([
+		DailyContestEntryHelper.processThirdPartyPredictions(predictions),
+		RedisUtils.getRangeFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
+	]))
+	.then(([predictions, redisPredictions]) => {
+		numOriginalPredictions = predictions.length;
+		redisPredictions = redisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(redisPredictions) : [];
+
+		// return res.status(200).send(redisPredictions);
+		return Promise.map(predictions, prediction => {
+			if (!DailyContestEntryHelper.foundPredictionInRedis(prediction, redisPredictions)) {
+				return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), userId, advisorId)
+				.then(() => {
+					// Should add to redis
+					RedisUtils.pushToRangeRedis(getRedisClient(), `${source}_prediction`, JSON.stringify(prediction));
+					numCreatedPredictions++;
+				})
+				.catch(err => {
+					console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker'), err.message);
+				})
+			} else {
+				console.log('Prediction Found');
+				return Promise.resolve(true);
+			}
+		})
+	})
+	.then(predictions => {
+		if (numCreatedPredictions === numOriginalPredictions) {
+			return res.status(200).send('All Predictions Created Successfully');
+		} else {
+			return res.status(200).send(`${numCreatedPredictions} out of ${numOriginalPredictions} predictions created`);
+		}
+	})
+	.catch(err => {
+		console.log('Error getThirdPartyPredictions', err.message);
+		return res.status(400).send(err.message);
+	})
 }
