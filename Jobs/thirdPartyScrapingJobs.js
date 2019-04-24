@@ -33,9 +33,10 @@ function getRedisClient() {
 module.exports.getAllPredictionsFromThirdParty = function() {
     return Promise.all([
         exports.createPredictionsFromThirdParty('kotak'),
-        // exports.createPredictionsFromThirdParty('motilalOswal'),
-        // exports.createPredictionsFromThirdParty('shareKhan'),
-        // exports.createPredictionsFromThirdParty('edelweiss')
+        exports.createPredictionsFromThirdParty('kotakFundamental'),
+        exports.createPredictionsFromThirdParty('motilalOswal'),
+        exports.createPredictionsFromThirdParty('shareKhan'),
+        exports.createPredictionsFromThirdParty('edelweiss')
     ])
     .then(() => {
         console.log('Donwloaded All Data');
@@ -48,6 +49,10 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 
     let userId = null;
     let advisorId = null;
+    const type = source === 'kotakFundamental' ? 'fundamental' : 'technical';
+
+    // Type is only required for kotak right now
+    // Since it has fundamental and technical
     
     const requiredUserEmail = userDetails[source].email;
     let requiredPromiseRequest = null;
@@ -80,7 +85,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 		advisor = advisor.toObject();
 		advisorId = _.get(advisor, '_id', '').toString();
 	})
-    .then(() => requiredPromiseRequest())
+    .then(() => requiredPromiseRequest(type))
     .then(predictions => Promise.all([
         DailyContestEntryHelper.processThirdPartyPredictions(predictions)
         .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions)),

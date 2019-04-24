@@ -6,10 +6,24 @@ const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
 const _ = require('lodash');
 
-const url = 'https://www.kotaksecurities.com/ksweb/ResearchCall/Technical';
+const technicalUrl = 'https://www.kotaksecurities.com/ksweb/ResearchCall/Technical';
+const fundamentalUrl = 'https://www.kotaksecurities.com/ksweb/ResearchCall/Fundamental';
 
-module.exports = () => new Promise(async (resolve, reject) => {
+module.exports = (type = null) => new Promise(async (resolve, reject) => {
     try {
+        let url = null;
+        switch(type) {
+            case 'technical':
+                url = technicalUrl;
+                break;
+            case 'fundamental':
+                url = fundamentalUrl;
+                break;
+            default:
+                url = technicalUrl;
+                break;
+        }
+
         const browser = await puppeteer.launch({
             headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -21,7 +35,7 @@ module.exports = () => new Promise(async (resolve, reject) => {
             return document.querySelector('body').innerHTML;
         });
 
-        resolve(getPredictionData(body));
+        resolve(getPredictionData(body, type));
 
         await browser.close();
 
@@ -31,7 +45,7 @@ module.exports = () => new Promise(async (resolve, reject) => {
     }
 })
 
-const getPredictionData = html => {
+const getPredictionData = (html, type = null) => {
     const $ = cheerio.load(html);
     let data = [];
     $('div.mdi-border').each((row, raw_element) => {
@@ -86,7 +100,7 @@ const getPredictionData = html => {
             }
         });
         // Pushing each individual card data for a particular symbol
-        data.push(processInternalData(internalData));
+        data.push(processInternalData(internalData, type));
     });
 
     return data;
@@ -104,16 +118,22 @@ const keyKVP = {
 };
 
 // Process internal data to the correct fornats where required
-const processInternalData = data => {
-    let target = _.get(data, 'target', 0);
-    let currentPrice = _.get(data, 'currentPrice', 0);
-    let stopLoss = _.get(data, 'stopLoss', 0);
-    let marketCap = _.get(data, 'marketCap', 0);
+const processInternalData = (data, type = null) => {
+    let target = _.get(data, 'target', '0');
+    let currentPrice = _.get(data, 'currentPrice', '0');
+    let recomdPrice = _.get(data, 'recomdPrice', 0);
+    let stopLoss = _.get(data, 'stopLoss', '0');
+    let marketCap = _.get(data, 'marketCap', '0');
 
     target = convertToNumber(target);
     currentPrice = convertToNumber(currentPrice);
     stopLoss = convertToNumber(stopLoss);
     marketCap = convertToNumber(marketCap);
+    recomdPrice = convertToNumber(recomdPrice);
+
+    if (type === 'fundamental') {
+        stopLoss = recomdPrice - (0.05 * recomdPrice);
+    }
 
     return {
         ...data,
@@ -125,6 +145,7 @@ const processInternalData = data => {
 }
 
 const convertToNumber = inputString => {
+    console.log(inputString, typeof inputString);
     inputString = inputString.replace(/[",]/g, "");
 
     return Number(inputString);
