@@ -36,8 +36,8 @@ const BrokerRedisController = require('../Realtime/brokerRedisControl');
 const funnyNames = require('../../constants/funnyNames');
 const {userDetails} = require('../../constants/scrapingUsers');
 
-const scrapeKotak = require('../../utils/scrapeKotak');
-const scrapeMotialOswal = require('../../utils/scrapeMotilalOswal');
+const scrapeKotak = require('../../scrapers/scrapeKotak');
+const scrapeMotialOswal = require('../../scrapers/scrapeMotilalOswal');
 
 let redisClient;
 

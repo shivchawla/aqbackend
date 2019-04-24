@@ -7,9 +7,11 @@ const UserModel = require('../models/user');
 const AdvisorModel = require('../models/Marketplace/Advisor');
 const DailyContestEntryHelper = require('../controllers/helpers/DailyContestEntry');
 const RedisUtils = require('../utils/RedisUtils');
-const scrapeKotak = require('../utils/scrapeKotak');
-const scrapeMotilalOswal = require('../utils/scrapeMotilalOswal');
-const scrapeInvestmentGuru = require('../utils/scrapeInvestmentGuru');
+const scrapeKotak = require('../scrapers/scrapeKotak');
+const scrapeMotilalOswal = require('../scrapers/scrapeMotilalOswal');
+const scrapeShareKhan = require('../scrapers/scrapeShareKhan');
+const scrapeEdelweiss = require('../scrapers/scrapeEdelWeiss');
+const scrapeInvestmentGuru = require('../scrapers/scrapeInvestmentGuru');
 const {userDetails} = require('../constants/scrapingUsers');
 
 let redisClient;
@@ -31,8 +33,9 @@ function getRedisClient() {
 module.exports.getAllPredictionsFromThirdParty = function() {
     return Promise.all([
         exports.createPredictionsFromThirdParty('kotak'),
-        exports.createPredictionsFromThirdParty('motilalOswal')
-        
+        exports.createPredictionsFromThirdParty('motilalOswal'),
+        exports.createPredictionsFromThirdParty('shareKhan'),
+        exports.createPredictionsFromThirdParty('edelweiss')
     ])
     .then(() => {
         console.log('Donwloaded All Data');
@@ -47,7 +50,24 @@ module.exports.createPredictionsFromThirdParty = function(source) {
     let advisorId = null;
     
     const requiredUserEmail = userDetails[source].email;
-    const requiredPromiseRequest = source === 'kotak' ? scrapeKotak : scrapeMotilalOswal;
+    let requiredPromiseRequest = null;
+    switch(source) {
+        case 'kotak':
+            requiredPromiseRequest = scrapeKotak;
+            break;
+        case 'motilalOswal':
+            requiredPromiseRequest = scrapeMotilalOswall
+            break;
+        case 'shareKhan':
+            requiredPromiseRequest = scrapeShareKhan;
+            break;
+        case 'edelweiss':
+            requiredPromiseRequest = scrapeEdelweiss;
+            break;
+        default:
+            requiredPromiseRequest = scrapeKotak;
+            break;
+    }
     
     return UserModel.fetchUser({email: requiredUserEmail, disabled: false})
     .then(user => {

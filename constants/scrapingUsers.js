@@ -14,5 +14,11 @@ module.exports.userDetails = {
     },
     kotak: {
         email: 'sauravbiswas16294@gmail.com'
+    },
+    shareKhan: {
+        email: 'saurav.aimsquant@gmail.com'
+    },
+    edelweiss: {
+        email: 'jonneystar@gmail.com'
     }
 }

@@ -26,7 +26,7 @@ const moment = require('moment-timezone');
 const serverPort = require('../index').serverPort;
 
 var winnersUpdated = false;
-getAllPredictionsFromThirdParty();
+// getAllPredictionsFromThirdParty();
 
 if (config.get('jobsPort') === serverPort) {
 	
