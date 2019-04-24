@@ -33,9 +33,9 @@ function getRedisClient() {
 module.exports.getAllPredictionsFromThirdParty = function() {
     return Promise.all([
         exports.createPredictionsFromThirdParty('kotak'),
-        exports.createPredictionsFromThirdParty('motilalOswal'),
-        exports.createPredictionsFromThirdParty('shareKhan'),
-        exports.createPredictionsFromThirdParty('edelweiss')
+        // exports.createPredictionsFromThirdParty('motilalOswal'),
+        // exports.createPredictionsFromThirdParty('shareKhan'),
+        // exports.createPredictionsFromThirdParty('edelweiss')
     ])
     .then(() => {
         console.log('Donwloaded All Data');
@@ -82,9 +82,10 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 	})
     .then(() => requiredPromiseRequest())
     .then(predictions => Promise.all([
-		DailyContestEntryHelper.processThirdPartyPredictions(predictions),
+        DailyContestEntryHelper.processThirdPartyPredictions(predictions)
+        .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions)),
 		RedisUtils.getRangeFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
-	]))
+    ]))
 	.then(([predictions, redisPredictions]) => {
         console.log('Predictions ', predictions);
 		redisPredictions = redisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(redisPredictions) : [];

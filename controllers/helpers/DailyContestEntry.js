@@ -3118,3 +3118,14 @@ module.exports.foundPredictionInRedis = (prediction, redisPredictions = []) => {
 
 	return filteredPredictions.length > 0;
 }
+
+module.exports.filterPredictionsForToday = (predictions = []) => {
+	const dateFormat = 'YYYY-MM-DD';
+	const currentDate = moment().format(dateFormat);
+
+	return predictions.filter(prediction => {
+		const predictionStartDate = _.get(prediction, 'startDate', null);
+
+		return predictionStartDate === currentDate;
+	})
+}
