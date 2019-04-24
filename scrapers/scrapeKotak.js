@@ -2,30 +2,31 @@
  * This file crwals KOTAK SECURITIES and gets the data in the required format
  */
 
-const Nightmare = require('nightmare');
+const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
 const _ = require('lodash');
 
-const nightmare = new Nightmare({show: false});
 const url = 'https://www.kotaksecurities.com/ksweb/ResearchCall/Technical';
 
-module.exports = () => {
-    return new Promise((resolve, reject) => {
-        // Request using nightmare
-        nightmare
-        .goto(url)
-        .wait('body')
-        .evaluate(() => document.querySelector('body').innerHTML)
-        .end()
-        .then(response => {
-            resolve(getPredictionData(response));
-        })
-        .catch(err => {
-            console.log('Error ', err);
-            reject(err);
+module.exports = () => new Promise(async (resolve, reject) => {
+    try {
+        const browser = await puppeteer.launch();
+        const page = await browser.newPage();
+        await page.goto(url, {waitUntil: 'networkidle2'});
+
+        const body = await page.evaluate(() => {
+            return document.querySelector('body').innerHTML;
         });
-    })
-}
+
+        resolve(getPredictionData(body));
+
+        await browser.close();
+
+    } catch(err) {
+        console.log('Error ', err.message);
+        reject(err);
+    }
+})
 
 const getPredictionData = html => {
     const $ = cheerio.load(html);
