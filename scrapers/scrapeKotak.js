@@ -73,7 +73,10 @@ const getPredictionData = (html, type = null) => {
 
         const name = $(raw_element).find('span.listview-symbol').text();
         const industry = $(raw_element).find('div.mdl-card__title span span:nth-child(2)').text();
-        const action = $(raw_element).find('div.mdl-card__menuM button.rcaction:nth-child(3)').text();
+        let action = $(raw_element).find('div.mdl-card__menuM button.rcaction:nth-child(3)').text();
+        if (type === 'fundamental') {
+            action = $(raw_element).find('div.mdl-card__menuM button:nth-child(4)').text();
+        }
         let internalData = {
             symbol,
             predictionText: weirdFormat,
@@ -114,7 +117,7 @@ const keyKVP = {
     'potential return': 'potentialReturn',
     'status': 'status',
     'accrued return': 'accruedReturn',
-    'market cap(in cr.)': 'marketCap'
+    'market cap(in cr.)': 'marketCap' 
 };
 
 // Process internal data to the correct fornats where required
@@ -124,6 +127,7 @@ const processInternalData = (data, type = null) => {
     let recomdPrice = _.get(data, 'recomdPrice', '0');
     let stopLoss = _.get(data, 'stopLoss', '0');
     let marketCap = _.get(data, 'marketCap', '0');
+    let action = _.get(data, 'action', 'Buy');
 
     target = convertToNumber(target);
     currentPrice = convertToNumber(currentPrice);
@@ -132,7 +136,11 @@ const processInternalData = (data, type = null) => {
     recomdPrice = convertToNumber(recomdPrice);
 
     if (type === 'fundamental') {
-        stopLoss = recomdPrice - (0.05 * recomdPrice);
+        if (action.toUpperCase() === 'BUY') {
+            stopLoss = recomdPrice - (0.05 * recomdPrice);
+        } else {
+            stopLoss = recomdPrice + (0.05 * recomdPrice);
+        }
     }
 
     return {
