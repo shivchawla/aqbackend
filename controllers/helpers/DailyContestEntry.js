@@ -3064,7 +3064,7 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false) => P
 	const stopLoss = _.get(prediction, 'stopLoss', 0);
 
 	const adjustedPrediction = {
-		conditionalType: 'NOW', 
+		conditionalType: 'NOW',
 		endDate,
 		startDate,
 		real: false,
@@ -3099,9 +3099,6 @@ module.exports.foundPredictionInRedis = (prediction, redisPredictions = []) => {
 		let redisPredictionEndDate = _.get(redisPrediction, 'endDate', null);
 		redisPredictionStartDate = moment(redisPredictionStartDate).format(dateFormat);
 		redisPredictionEndDate = moment(redisPredictionEndDate).format(dateFormat);
-
-		console.log('Prediction StartDate ', predictionStartDate);
-		console.log('redisPredictionStartDate ', redisPredictionStartDate);
 
 		if (
 			redisPredictionSymbol === predictionSymbol &&

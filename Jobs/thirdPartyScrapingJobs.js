@@ -88,7 +88,8 @@ module.exports.createPredictionsFromThirdParty = function(source) {
     .then(predictions => Promise.all([
         DailyContestEntryHelper.processThirdPartyPredictions(predictions)
         .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions)),
-		RedisUtils.getRangeFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
+		// RedisUtils.getRangeFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
+		RedisUtils.getSetDataFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
     ]))
 	.then(([predictions, redisPredictions]) => {
 		redisPredictions = redisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(redisPredictions) : [];
@@ -98,7 +99,8 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 				return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), userId, advisorId)
 				.then(() => {
 					// Should add to redis
-					RedisUtils.pushToRangeRedis(getRedisClient(), `${source}_prediction`, JSON.stringify(prediction));
+					// RedisUtils.pushToRangeRedis(getRedisClient(), `${source}_prediction`, JSON.stringify(prediction));
+					RedisUtils.addSetDataToRedis(getRedisClient(), `${source}_prediction`, JSON.stringify(prediction));
 				})
 				.catch(err => {
 					console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker'), err.message);
