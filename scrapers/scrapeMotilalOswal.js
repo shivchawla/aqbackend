@@ -62,9 +62,11 @@ const getPredictionData = html => {
 
 const getSymbol = inputString => {
     // "Redirect2Trade('NSE','DCBBANK','0','214.35','BUY','0','0','EQ');"
-    // We choose 15 as the start index since we don't want the method name and the first paranthesis
-    // We choose myString.length - 2 since we dont't the ; and )
-    let arguments = inputString.slice(15, inputString.length - 2);
+    // We choose the string between the open and close paranthesis
+    const openParaIndex = inputString.indexOf('(');
+    const closeParaIndex = inputString.indexOf(')');
+
+    let arguments = inputString.slice(openParaIndex + 1, closeParaIndex);
 
     // Replacing all the single quotes from the string
     arguments = arguments.replace(/["']/g, "");
