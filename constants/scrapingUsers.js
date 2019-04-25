@@ -13,5 +13,8 @@ module.exports.userDetails = {
     },
     edelweiss: {
         email: 'sameerk4404@gmail.com'
+    },
+    investmentGuru: {
+        email: 'shaunak1105@gmail.com'
     }
 }

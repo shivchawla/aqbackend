@@ -36,7 +36,8 @@ module.exports.getAllPredictionsFromThirdParty = function() {
         exports.createPredictionsFromThirdParty('kotakFundamental'),
         exports.createPredictionsFromThirdParty('motilalOswal'),
         exports.createPredictionsFromThirdParty('shareKhan'),
-        exports.createPredictionsFromThirdParty('edelweiss')
+        exports.createPredictionsFromThirdParty('edelweiss'),
+        exports.createPredictionsFromThirdParty('investmentGuru'),
     ])
     .then(() => {
         console.log('Donwloaded All Data');
@@ -68,6 +69,9 @@ module.exports.createPredictionsFromThirdParty = function(source) {
         case 'edelweiss':
             requiredPromiseRequest = scrapeEdelweiss;
             break;
+        case 'investmentGuru':
+            requiredPromiseRequest = scrapeInvestmentGuru;
+            break;
         default:
             requiredPromiseRequest = scrapeKotak;
             break;
@@ -87,9 +91,8 @@ module.exports.createPredictionsFromThirdParty = function(source) {
     .then(() => requiredPromiseRequest(type))
     .then(predictions => Promise.all([
         DailyContestEntryHelper.processThirdPartyPredictions(predictions)
-        .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions)),
-		// RedisUtils.getRangeFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
-		RedisUtils.getSetDataFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
+            .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions)),
+        RedisUtils.getSetDataFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
     ]))
 	.then(([predictions, redisPredictions]) => {
 		redisPredictions = redisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(redisPredictions) : [];
@@ -97,7 +100,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 		return Promise.map(predictions, prediction => {
 			if (!DailyContestEntryHelper.foundPredictionInRedis(prediction, redisPredictions)) {
 				return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), userId, advisorId)
-				.then(() => {
+				.then(() => { 
 					// Should add to redis
 					// RedisUtils.pushToRangeRedis(getRedisClient(), `${source}_prediction`, JSON.stringify(prediction));
 					RedisUtils.addSetDataToRedis(getRedisClient(), `${source}_prediction`, JSON.stringify(prediction));

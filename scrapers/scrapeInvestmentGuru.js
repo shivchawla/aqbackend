@@ -1,111 +1,67 @@
-const Nightmare = require('nightmare');
+const puppeteer = require('puppeteer');
+const moment = require('moment');
 const cheerio = require('cheerio');
 const _ = require('lodash');
 
-const nightmare = new Nightmare({show: false});
+const choiceParser = require('./ig-parsers/choiceInternational');
+const geplParser = require('./ig-parsers/geplCapital');
+const hemSecuritiesParser = require('./ig-parsers/hemSecurities');
+const kifsTradeParser = require('./ig-parsers/kifsTrade');
+
 const url = 'http://www.investmentguruindia.com/intradaytips?page=1&per_page=100&autorefresh=off';
 
-module.exports = () => new Promise((resolve, reject) => {
-    // Request using nightmare
-    nightmare
-    .goto(url)
-    .wait('body')
-    .evaluate(() => document.querySelector('body').innerHTML)
-    .end()
-    .then(response => {
-        resolve(getPredictionData(response));
-    })
-    .catch(err => {
-        console.log('Error ', err);
+
+module.exports = () => new Promise(async (resolve, reject) => {
+    console.log('Investment Guru called');
+    try {
+        const browser = await puppeteer.launch();
+        const page = await browser.newPage();
+        await page.goto(url, {waitUntil: 'networkidle2'});
+
+        const body = await page.evaluate(() => {
+            return document.querySelector('body').innerHTML;
+        });
+
+        resolve(getPredictionData(body));
+
+        await browser.close();
+
+    } catch(err) {
+        console.log('Error ', err.message);
         reject(err);
-    });
-})
+    } 
+});
 
 const getPredictionData = html => {
     const $ = cheerio.load(html);
     let data = [];
+    console.log('getPredictionData investment guru called'); 
     $('div.gepl_box').each((row, rawElement) => {
         const predictionText = $(rawElement).find('p:nth-child(2)').text();
         const advisorName = $(rawElement).find('div.gspl_right h2 a').text();
-        const prediction = processPredictionText(predictionText, advisorName);
+        let date = $(rawElement).find('div.gspl_right p').text();
+        const currentDate = moment().format('DD/MM/YYYY');
+        const isToday = date.indexOf(currentDate) > -1;
+
+        if (!isToday) {
+            return null;
+        }
+
+        let prediction = null;
+        if (advisorName.toLowerCase() === 'choice international ltd') {
+            prediction = choiceParser(predictionText, advisorName);
+        } else if (advisorName.toLowerCase() === 'gepl capital') {
+            prediction = geplParser(predictionText, advisorName);
+        } else if (advisorName.toLowerCase() === 'hem securities ltd') {
+            prediction = hemSecuritiesParser(predictionText, advisorName);
+        } else if (advisorName.toLowerCase() === 'kifs trade capital') {
+            prediction = kifsTradeParser(predictionText, advisorName);
+        }
+        
+        
         data.push(prediction);
     });
+    data = data.filter(item => item !== null);
 
-    return filterCorrectPredictions(data);
+    return data;
 };
-
-const processPredictionText = (predictionText, advisorName) => {
-    predictionText = predictionText.replace(/[".]/g, "");
-    predictionText = predictionText.split(' ');
-
-    let symbol = '';
-    const stopLossIndex = predictionText.indexOf('SL') > -1 
-        ? predictionText.indexOf('SL')
-        : predictionText.indexOf('LOSS');
-    const targetIndex = predictionText.indexOf('TGT') > -1 
-        ? predictionText.indexOf('TGT')
-        : predictionText.indexOf('TARGET');
-    const recomdPriceIndex = predictionText.indexOf('@') > -1 
-        ? predictionText.indexOf('@')
-        : predictionText.indexOf('AT');
-
-    const buyRegExp = /Buy/i;
-    const sellRegExp = /Sell/i;
-
-    const buyIndex = _.findIndex(predictionText, item => item.search(buyRegExp) > -1);
-    const sellIndex = _.findIndex(predictionText, item => item.search(sellRegExp) > -1);
-
-    if (buyIndex > -1) {
-        symbol = predictionText[buyIndex + 1];
-    } else {
-        symbol = predictionText[sellIndex + 1];
-    }
-
-    const action = buyIndex > 0 ? 'BUY' : 'SELL';
-    let stopLoss = stopLossIndex > - 1 ? predictionText[stopLossIndex + 1] : null;
-    let target = targetIndex > -1 ?  predictionText[targetIndex + 1] : null;
-    let recomdPrice = recomdPriceIndex > -1 ? predictionText[recomdPriceIndex + 1] : null;
-
-    try {
-        if (stopLoss) {
-            stopLoss = stopLoss.match(/\d+/g).map(Number);
-            stopLoss = stopLoss[0];
-        }
-
-        if (target) {
-            target = target.match(/\d+/g).map(Number);
-            target = target[0];
-        }
-
-        if (recomdPrice) {
-            recomdPrice = recomdPrice.match(/\d+/g).map(Number);
-            recomdPrice = recomdPrice[0];
-        }
-    } catch(err) {}
-
-    return {
-        stopLoss,
-        target,
-        action,
-        symbol,
-        recomdPrice,
-        advisorName
-    };
-}
-
-const filterCorrectPredictions = predictions => {
-    return predictions.filter(prediction => {
-        return (
-            prediction.stopLoss !== null && !checkIfNotNumber(prediction.stopLoss) &&
-            prediction.target !== null && !checkIfNotNumber(prediction.target) &&
-            prediction.action !== null && 
-            prediction.symbol !== null
-        );
-    })
-}
-
-const checkIfNotNumber = value => {
-    const num = Number(value);
-
-    return _.isNaN(num);
-}
