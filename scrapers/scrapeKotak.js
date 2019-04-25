@@ -5,6 +5,7 @@
 const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
 const _ = require('lodash');
+const moment = require('moment');
 
 const technicalUrl = 'https://www.kotaksecurities.com/ksweb/ResearchCall/Technical';
 const fundamentalUrl = 'https://www.kotaksecurities.com/ksweb/ResearchCall/Fundamental';
@@ -46,6 +47,8 @@ module.exports = (type = null) => new Promise(async (resolve, reject) => {
 })
 
 const getPredictionData = (html, type = null) => {
+    const dateFormat = 'YYYY-MM-DD';
+    const readFormat = 'MM/DD/YYYY h:mm:ss A';
     const $ = cheerio.load(html);
     let data = [];
     $('div.mdi-border').each((row, raw_element) => {
@@ -64,6 +67,8 @@ const getPredictionData = (html, type = null) => {
         // Getting the index for days the horizon is in the index before that
         const daysIndex = weirdFormatArray.indexOf('Days');
         const horizon = daysIndex > -1 ? weirdFormatArray[daysIndex - 1] : 2;
+        let startDate = $(raw_element).find('div.mdl-card__actions div.RecoDate span').text();
+        startDate = moment(startDate, readFormat).format(dateFormat);
 
         if (buyIndex > -1) {
             symbol = weirdFormatArray[buyIndex + 1];
@@ -83,6 +88,7 @@ const getPredictionData = (html, type = null) => {
             name,
             action,
             industry,
+            startDate,
             horizon: Number(horizon)
         };
 
@@ -105,6 +111,7 @@ const getPredictionData = (html, type = null) => {
         // Pushing each individual card data for a particular symbol
         data.push(processInternalData(internalData, type));
     });
+    data = data.filter(dataItem => dataItem.startDate === moment().format(dateFormat));
 
     return data;
 }

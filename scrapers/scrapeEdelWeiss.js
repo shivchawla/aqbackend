@@ -5,6 +5,7 @@
 const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
 const _ = require('lodash');
+const moment = require('moment');
 
 const url = 'https://www.edelweiss.in/oyo/equity/top-market-and-stock-recommendations/equity?redirectParam=EQ,Short%20term';
 
@@ -41,6 +42,8 @@ const getPredictionData = html => {
     $('div.table div.schemesBlock').each((row, rawElement) => {
 
         const symbol = $(rawElement).find('div.trw div.stock-name a label:nth-child(2)').text();
+        let startDate = $(rawElement).find('div.trw div.reco-date label').text();
+        startDate = getStartDate(startDate);
         let target = $(rawElement).find('div.trw label.target-price label:nth-child(2) label').text();
         if (target.length === 0) {
             target = $(rawElement).find('div.trw label.target-price label:nth-child(1) label').text();
@@ -56,6 +59,7 @@ const getPredictionData = html => {
 
         const internalData = {
             symbol,
+            startDate,
             stopLoss: convertToNumber(stopLoss),
             target: convertToNumber(target),
             horizon: 1,
@@ -63,6 +67,13 @@ const getPredictionData = html => {
         };
         data.push(internalData);
     });
+    data = data.filter(dataItem => {
+        const dateFormat = 'DD MMM YYYY';
+        const startDate = moment(dataItem.startDate, dateFormat).format(dateFormat);
+        const currentDate = moment().format(dateFormat);
+
+        return startDate === currentDate;
+    })
     data = data.filter(dataItem => {
         return dataItem.action.toUpperCase() === 'BUY' || dataItem.action.toUpperCase() === 'SELL';
     });
@@ -74,4 +85,18 @@ const convertToNumber = inputString => {
     inputString = inputString.replace(/[",]/g, "");
 
     return Number(inputString);
+}
+
+const getStartDate = startDate => {
+    startDate = startDate.trim();
+    startDate = startDate.replace(/["\n]/g, "");
+    startDate = startDate.replace(/\s+/g,' ');
+    startDate = startDate.split(' ');
+    const date = startDate[0];
+    const month = startDate[1];
+    const year = startDate[2];
+
+    startDate = `${date} ${month} ${year}`;
+
+    return startDate;
 }
