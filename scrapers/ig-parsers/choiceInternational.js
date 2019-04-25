@@ -1,4 +1,5 @@
 const _ = require('lodash');
+const {userDetails} = require('../../constants/scrapingUsers');
 
 module.exports = (predictionText, advisorName = '') => {
     const predictionTextArray = predictionText.split(' ');
@@ -67,6 +68,8 @@ module.exports = (predictionText, advisorName = '') => {
         symbol,
         stopLoss,
         target,
-        advisorName
+        advisorName,
+        email: userDetails.choiceInternational.email,
+        source: 'choiceInternational'
     }
 }

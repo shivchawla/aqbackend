@@ -75,17 +75,17 @@ module.exports.createPredictionsFromThirdParty = function(source) {
         default:
             requiredPromiseRequest = scrapeKotak;
             break;
-    }
+    }    
     
     return UserModel.fetchUser({email: requiredUserEmail, disabled: false})
     .then(user => {
-		user = user.toObject();
+        user = user.toObject();
 		userId = _.get(user, '_id', '').toString();
 
 		return AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {insert: true})
 	})
 	.then(advisor => {
-		advisor = advisor.toObject();
+        advisor = advisor.toObject();
 		advisorId = _.get(advisor, '_id', '').toString();
 	})
     .then(() => requiredPromiseRequest(type))
@@ -96,8 +96,22 @@ module.exports.createPredictionsFromThirdParty = function(source) {
     ]))
 	.then(([predictions, redisPredictions]) => {
 		redisPredictions = redisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(redisPredictions) : [];
+		return Promise.map(predictions, async prediction => {
+            const email = _.get(prediction, 'email', null);
+            source = _.get(prediction, 'source', null) || source;
+            if (email !== null) {
+                const thirdPartyUser = await getUserInfo(email);
+                if (thirdPartyUser !== null) {
+                    advisorId = thirdPartyUser.advisorId;
+                    userId = thirdPartyUser.userId;
+                }
 
-		return Promise.map(predictions, prediction => {
+                if (source !== null) {
+                    const newRedisPredictions = await RedisUtils.getSetDataFromRedis(getRedisClient(), `${source}_prediction`, 0, -1);
+                    redisPredictions = newRedisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(newRedisPredictions) : [];
+                }
+            }
+            
 			if (!DailyContestEntryHelper.foundPredictionInRedis(prediction, redisPredictions)) {
 				return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), userId, advisorId)
 				.then(() => { 
@@ -121,3 +135,25 @@ module.exports.createPredictionsFromThirdParty = function(source) {
         console.log('Error createPredictionsFromThirdParty ', err.message);
     })
 }
+
+const getUserInfo = email => new Promise((resolve, reject) => {
+    let userId = null;
+    let advisorId = null;
+
+    UserModel.fetchUser({email, disabled: false})
+    .then(user => {
+        user = user.toObject();
+		userId = _.get(user, '_id', '').toString();
+
+		return AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {insert: true})
+    })
+    .then(advisor => {
+		advisor = advisor.toObject();
+        advisorId = _.get(advisor, '_id', '').toString();
+        
+        resolve({advisorId, userId});
+    })
+    .catch(() => {
+        resolve(null);
+    });
+})

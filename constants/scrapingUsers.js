@@ -16,5 +16,17 @@ module.exports.userDetails = {
     },
     investmentGuru: {
         email: 'shaunak1105@gmail.com'
+    },
+    choiceInternational: {
+        email: 'sonusinghkvs111@gmail.com'
+    },
+    geplCapital: {
+        email: 'anurag12singh@gmail.com'
+    },
+    hemSecurities: {
+        email: 'alok2599@gmail.com'
+    },
+    kifsTrade: {
+        email: 'kishlaya.j@gmail.com'
     }
 }

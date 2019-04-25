@@ -1,4 +1,5 @@
 const _ = require('lodash');
+const {userDetails} = require('../../constants/scrapingUsers');
 
 // BUY DRREDDY(CASH) 2852, STOP LOSS 2838, TARGET 2910, 2930 (1-2 DAYS) 
 // BUY CIPLA(CASH) ABOVE 572, STOP LOSS 554, TARGETS 590, 615 & 624 (3-5 DAYS)
@@ -31,6 +32,8 @@ module.exports = (predictionText, advisorName = '') => {
         symbol,
         stopLoss,
         target,
-        advisorName
+        advisorName,
+        email: userDetails.hemSecurities.email,
+        source: 'hemSecurities'
     };
 }

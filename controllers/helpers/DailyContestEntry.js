@@ -3090,7 +3090,9 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false) => P
 		stopLossDiff: _.get(prediction, 'stopLossDiff', 0),
 		targetDiff: _.get(prediction, 'targetDiff', 0),
 		recommendedPrice: _.get(prediction, 'recommendedPrice', 0),
-		shouldCalculateDiff: _.get(prediction, 'shouldCalculateDiff', false)
+		shouldCalculateDiff: _.get(prediction, 'shouldCalculateDiff', false),
+		email: _.get(prediction, 'email', null),
+		source: _.get(prediction, 'source', null)
 	};
 
 	return adjustedPrediction;

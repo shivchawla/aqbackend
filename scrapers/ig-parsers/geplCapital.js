@@ -1,4 +1,5 @@
 const _ = require('lodash');
+const {userDetails} = require('../../constants/scrapingUsers');
 
 module.exports = (predictionText, advisorName = '') => {    
     // Replace all commas
@@ -49,6 +50,8 @@ module.exports = (predictionText, advisorName = '') => {
         symbol,
         stopLoss,
         target,
-        advisorName
+        advisorName,
+        email: userDetails.geplCapital.email,
+        source: 'geplCapital'
     }
 }
