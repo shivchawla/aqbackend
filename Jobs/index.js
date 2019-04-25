@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-05 20:53:43
+* @Last Modified time: 2019-04-24 20:03:44
 */
 
 'use strict';
@@ -26,17 +26,13 @@ const moment = require('moment-timezone');
 const serverPort = require('../index').serverPort;
 
 var winnersUpdated = false;
-// getAllPredictionsFromThirdParty();
 
 if (config.get('jobsPort') === serverPort) {
 	
 	// schedule.scheduleJob("0 23 * * *", function() {
 	//     SecurityHelper.updateStockList();
 	// });
-	schedule.scheduleJob("*/1 * * * 1-5", function() {
-		getAllPredictionsFromThirdParty();
-	})
-
+	
 	schedule.scheduleJob("30 18 * * *", function() {
 	    BacktestHelper.resetBacktestCounter()
 	});
@@ -126,6 +122,13 @@ if (config.get('jobsPort') === serverPort) {
     	}
 	});
 	
+
+	const scheduleScrapeWeb = `*/1 ${DateHelper.getMarketOpenHourLocal() - 1}-${DateHelper.getMarketCloseHourLocal() + 1} * * 1-5`;
+	schedule.scheduleJob(scheduleScrapeWeb, function() { 
+		if (!DateHelper.isHoliday() && DateHelper.isMarketTrading()) {
+			getAllPredictionsFromThirdParty();
+    	}
+	});
 
 }
 
