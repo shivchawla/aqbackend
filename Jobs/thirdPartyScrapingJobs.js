@@ -45,7 +45,6 @@ module.exports.getAllPredictionsFromThirdParty = function() {
 
 module.exports.createPredictionsFromThirdParty = function(source) {
     console.log(`${source} predictions download started`);
-    console.log('Source ', source);
 
     let userId = null;
     let advisorId = null;
@@ -92,7 +91,6 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 		RedisUtils.getRangeFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
     ]))
 	.then(([predictions, redisPredictions]) => {
-        console.log('Predictions ', predictions);
 		redisPredictions = redisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(redisPredictions) : [];
 
 		return Promise.map(predictions, prediction => {

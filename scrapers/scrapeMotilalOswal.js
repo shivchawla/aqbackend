@@ -4,6 +4,7 @@
 
 const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
+const moment = require('moment');
 
 const url = 'https://www.motilaloswal.com/stock-advice.aspx';
 
@@ -48,6 +49,12 @@ const getPredictionData = html => {
         const internalData = {symbol, name, recomdPrice, recomdDate, cmp, target, stopLoss, action};
 
         data.push(internalData);
+    });
+    data = data.filter(dataItem => {
+        const dateFormat = 'DD-MMM';
+        const recomdDate = moment(dataItem.recomdDate, dateFormat).format(dateFormat);
+
+        return recomdDate === moment().format(dateFormat);
     });
 
     return data;
