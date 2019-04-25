@@ -64,6 +64,11 @@ const getPredictionData = (html, type = null) => {
         // Check for sell index
         const sellIndex = weirdFormatArray.indexOf('SELL');
 
+        // If KALRT(Kotak Alert) is present only then the prediction should be added 
+        // Check if KALRT present
+        const kalrtRegExp = /KALRT/i;
+        const isAlert = weirdFormat.search(kalrtRegExp) > -1;
+
         // Getting the index for days the horizon is in the index before that
         const daysIndex = weirdFormatArray.indexOf('Days');
         const horizon = daysIndex > -1 ? weirdFormatArray[daysIndex - 1] : 2;
@@ -84,6 +89,7 @@ const getPredictionData = (html, type = null) => {
         }
         let internalData = {
             symbol,
+            isAlert,
             predictionText: weirdFormat,
             name,
             action,
@@ -111,6 +117,7 @@ const getPredictionData = (html, type = null) => {
         // Pushing each individual card data for a particular symbol
         data.push(processInternalData(internalData, type));
     });
+    data = data.filter(dataItem => dataItem.isAlert);
     data = data.filter(dataItem => dataItem.startDate === moment().format(dateFormat));
 
     return data;
