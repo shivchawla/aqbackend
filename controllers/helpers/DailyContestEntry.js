@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-22 20:20:36
+* @Last Modified time: 2019-04-25 11:20:16
 */
 
 'use strict';
@@ -2489,10 +2489,15 @@ module.exports.updateManuallyExitedPredictionsForLastPrice = function(date) {
 					var trueEndDateTime = _.get(prediction, 'status.trueDate', null);
 					var manualExit = _.get(prediction, 'status.manualExit', false);
 					var investment = _.get(prediction, 'position.investment', 0);
-					
+					var isTriggered = _.get(prediction, 'triggered.status', false);
 					var lastPrice = _.get(prediction, 'position.lastPrice', 0);
-
-					if (manualExit && trueEndDateTime && lastPrice == 0) {
+                    
+                    //Check if it's--
+                    //1. Manual Exit
+                    //2. Has exit time
+                    //3. last price is not populated
+                    //4. Prediction was triggered (otherwise it's already handled)
+					if (manualExit && trueEndDateTime && lastPrice == 0 && isTriggered) {
 						return SecurityHelper.getStockIntradayHistory({ticker: ticker}, trueEndDateTime)
 						.then(securityDetail => {
 							var intradayHistory = _.get(securityDetail, 'intradayHistory', []);
