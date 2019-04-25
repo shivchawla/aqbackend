@@ -3073,8 +3073,8 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false) => P
 		endDate,
 		startDate,
 		real: false,
-		target,
-		stopLoss,
+		target: Number(target),
+		stopLoss: Number(stopLoss),
 		position: {
 			avgPrice: 0,
 			investment,

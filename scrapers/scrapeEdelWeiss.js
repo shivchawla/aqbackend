@@ -89,8 +89,8 @@ const convertToNumber = inputString => {
 
 const getStartDate = startDate => {
     startDate = startDate.trim();
-    startDate = startDate.replace(/["\n]/g, "");
-    startDate = startDate.replace(/\s+/g,' ');
+    startDate = startDate.replace(/["\n]/g, ""); // Removing new lines
+    startDate = startDate.replace(/\s+/g,' '); // Removing extra spaces
     startDate = startDate.split(' ');
     const date = startDate[0];
     const month = startDate[1];
