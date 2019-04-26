@@ -3142,9 +3142,21 @@ module.exports.filterPredictionsForToday = (predictions = []) => {
 	const dateFormat = 'YYYY-MM-DD';
 	const currentDate = moment().format(dateFormat);
 
-	return predictions.filter(prediction => {
+	return Promise.filter(predictions, prediction => {
 		const predictionStartDate = _.get(prediction, 'startDate', null);
 
 		return predictionStartDate === currentDate;
+	})
+}
+
+module.exports.ignoreNiftyBanlPredictions = (predictions = []) => {
+	return Promise.filter(predictions, prediction => {
+		const ticker = _.get(prediction, 'position.security.ticker', '');
+
+		if (ticker.toLowerCase() === 'niftybank' || ticker.toLowerCase() === 'banknifty') {
+			return false;
+		}
+
+		return false;
 	})
 }
