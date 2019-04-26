@@ -30,15 +30,15 @@ module.exports.userDetails = {
         email: 'kifs4404@gmail.com'
     },
     lkpSecurities: {
-        email: 'meetsuddi@gmail.con'
+        email: 'lkpatel4404@gmail.com'
     },
     mansukhSecurities: {
-        email: 'ganesh.rs@gmail.com'
+        email: 'mansig4404@gmail.com'
     },
     missMeena: {
-        email: 'aamin25@gmail.com'
+        email: 'meenab4404@gmail.com'
     },
     tradeBulls: {
-        email: 'rahulngupta@gmail.com'
+        email: 'tradeb4404@gmail.com'
     }
 }
