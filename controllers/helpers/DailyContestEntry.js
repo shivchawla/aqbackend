@@ -3157,6 +3157,6 @@ module.exports.ignoreNiftyBanlPredictions = (predictions = []) => {
 			return false;
 		}
 
-		return false;
+		return true;
 	})
 }
