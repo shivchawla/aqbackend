@@ -12,6 +12,7 @@ const tradeBullsParser = require('./ig-parsers/tradeBulls');
 const mansukhSecuritiesParser = require('./ig-parsers/mansukhSecurities');
 const missMeenaParser = require('./ig-parsers/missMeena');
 const religareParser = require('./ig-parsers/religare');
+const venturaParser = require('./ig-parsers/ventura');
 
 const url = 'http://www.investmentguruindia.com/intradaytips?page=1&per_page=100&autorefresh=off';
 
@@ -78,8 +79,9 @@ const getPredictionData = html => {
             prediction  = missMeenaParser(predictionText, advisorName);
         } else if (advisorName.toLowerCase() === 'religare securities limited') {
             prediction  = religareParser(predictionText, advisorName);
+        } else if (advisorName.toLowerCase() === 'ventura securities ltd') {
+            prediction  = venturaParser(predictionText, advisorName);
         }
-        
         
         data.push(prediction);
     });
