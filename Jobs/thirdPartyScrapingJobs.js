@@ -91,7 +91,8 @@ module.exports.createPredictionsFromThirdParty = function(source) {
     .then(() => requiredPromiseRequest(type))
     .then(predictions => Promise.all([
         DailyContestEntryHelper.processThirdPartyPredictions(predictions)
-            .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions)),
+            .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions))
+            .then(predictions => DailyContestEntryHelper.ignoreNiftyBanlPredictions(predictions)),
         RedisUtils.getSetDataFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
     ]))
 	.then(([predictions, redisPredictions]) => {
