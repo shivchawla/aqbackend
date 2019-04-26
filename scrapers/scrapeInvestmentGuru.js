@@ -11,6 +11,7 @@ const lkpSecuritiesParser = require('./ig-parsers/lkpSecurities');
 const tradeBullsParser = require('./ig-parsers/tradeBulls');
 const mansukhSecuritiesParser = require('./ig-parsers/mansukhSecurities');
 const missMeenaParser = require('./ig-parsers/missMeena');
+const religareParser = require('./ig-parsers/religare');
 
 const url = 'http://www.investmentguruindia.com/intradaytips?page=1&per_page=100&autorefresh=off';
 
@@ -44,11 +45,15 @@ const getPredictionData = html => {
     let data = [];
     console.log('getPredictionData investment guru called'); 
     $('div.gepl_box').each((row, rawElement) => {
-        const predictionText = $(rawElement).find('p:nth-last-child(2)').text();
+        let predictionText = $(rawElement).find('p:nth-last-child(2)').text();
         const advisorName = $(rawElement).find('div.gspl_right h2 a').text();
         let date = $(rawElement).find('div.gspl_right p').text();
         const currentDate = moment().format('DD/MM/YYYY');
         const isToday = date.indexOf(currentDate) > -1;
+
+        if (advisorName.toLowerCase() === 'religare securities limited') {
+            predictionText = getPredictionTextForReligare($, rawElement);
+        }
 
         if (!isToday) {
             return null;
@@ -71,6 +76,8 @@ const getPredictionData = html => {
             prediction  = mansukhSecuritiesParser(predictionText, advisorName);
         } else if (advisorName.toLowerCase() === 'ms meeta bhayani') {
             prediction  = missMeenaParser(predictionText, advisorName);
+        } else if (advisorName.toLowerCase() === 'religare securities limited') {
+            prediction  = religareParser(predictionText, advisorName);
         }
         
         
@@ -80,3 +87,14 @@ const getPredictionData = html => {
 
     return data;
 };
+
+getPredictionTextForReligare = ($, rawElement) => {
+    const strategyRegExp = /Strategy/i;
+    const predictionText = $(rawElement).find('p:nth-last-child(3)').text();
+
+    if (predictionText.search(strategyRegExp) > -1) {
+        return predictionText;
+    } else {
+        return $(rawElement).find('p:nth-child(3)').text();;
+    }
+}

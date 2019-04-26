@@ -2,6 +2,9 @@ const config = require('config');
 var redis = require('redis');
 const Promise = require('bluebird');
 const _ = require('lodash');
+var path = require('path');
+var fs = require('fs');
+var csv = require('fast-csv');
 
 const UserModel = require('../models/user');
 const AdvisorModel = require('../models/Marketplace/Advisor');
@@ -15,6 +18,7 @@ const scrapeInvestmentGuru = require('../scrapers/scrapeInvestmentGuru');
 const {userDetails} = require('../constants/scrapingUsers');
 
 let redisClient;
+const predictionsFilePath = `${path.dirname(require.main.filename)}/examples/thirdPartyPredictions.csv`
 
 function getRedisClient() {
 	if (!redisClient || !redisClient.connected) {
@@ -98,7 +102,6 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 	.then(([predictions, redisPredictions]) => {
 		redisPredictions = redisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(redisPredictions) : [];
 		return Promise.map(predictions, async prediction => {
-            
             const email = _.get(prediction, 'email', null);
             const newSource = _.get(prediction, 'source', null) || source;
             
@@ -132,10 +135,11 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 				return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId)
 				.then(() => { 
                     console.log('Advisor Id ', newAdvisorId, newUserId);
-					// Should add to redis
+                    // Should add to redis 
                     console.log(`Prediction Created ${prediction.position.security.ticker} - ${newSource}`);
                     RedisUtils.addSetDataToRedis(getRedisClient(), `${newSource}_prediction`, JSON.stringify(prediction));
-                    
+                    writePredictionToCsv(predictionsFilePath, prediction);
+                                        
                     return Promise.resolve(true);
                 })
 				.catch(err => {
@@ -179,3 +183,41 @@ const getUserInfo = email => new Promise((resolve, reject) => {
         resolve(null);
     });
 })
+
+
+const writePredictionToCsv = (path, prediction) => {
+	const csvStream = csv
+		.createWriteStream({headers: true, flags: 'a'})
+		.transform(function(row, next){
+			setImmediate(function(){
+				// this should be same as the object structure
+				next(null, {
+					advisor: row.advisor, 
+					ticker: row.ticker,
+					target: row.target,
+					stopLoss: row.stopLoss,
+					startDate: row.startDate,
+					endDate: row.endDate,
+				});
+			});;
+		});
+        
+	const writableStream = fs.createWriteStream(path, {flags: 'a'});		
+	writableStream.on("finish", function(){
+		console.log("Written to file"); 
+	});
+	csvStream.pipe(writableStream);
+	csvStream.write(convertPredictionToCsvFormat(prediction));
+	csvStream.end();
+}
+
+const convertPredictionToCsvFormat = (prediction, source = '') => {
+    return {
+        advisor: prediction.source || source,
+        ticker: prediction.position.security.ticker,
+        target: prediction.target,
+        stopLoss: prediction.stopLoss,
+        startDate: prediction.startDate,
+        endDate: prediction.endDate
+    }
+}
