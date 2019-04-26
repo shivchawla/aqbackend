@@ -40,7 +40,7 @@ const getPredictionData = html => {
     let data = [];
     console.log('getPredictionData investment guru called'); 
     $('div.gepl_box').each((row, rawElement) => {
-        const predictionText = $(rawElement).find('p:nth-child(2)').text();
+        const predictionText = $(rawElement).find('p:nth-last-child(2)').text();
         const advisorName = $(rawElement).find('div.gspl_right h2 a').text();
         let date = $(rawElement).find('div.gspl_right p').text();
         const currentDate = moment().format('DD/MM/YYYY');
