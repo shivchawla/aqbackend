@@ -36,7 +36,7 @@ module.exports.userDetails = {
         email: 'mansig4404@gmail.com'
     },
     missMeena: {
-        email: 'meena4404@gmail.com'
+        email: 'meenab4404@gmail.com'
     },
     tradeBulls: {
         email: 'tradeb4404@gmail.com'
