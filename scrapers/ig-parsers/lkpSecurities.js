@@ -4,24 +4,24 @@ const {userDetails} = require('../../constants/scrapingUsers');
 module.exports = (predictionText, advisorName = '') => {
     const predictionTextArray = predictionText.split(' ');
 
-    // Replace all commas
-    predictionText = predictionText.replace(/[",]/g, "");
-
-    // Check for ellipsis
-    const ellipsisRegExp = /(^|[^.])\.{4}(?!\.)/
-    const isEllipsisFound = predictionText.search(ellipsisRegExp) > -1;
-
-    // Check for future
-    const futureRegExp = /Fut/i
-    const isFutureFound = predictionText.search(futureRegExp) > -1;
-
     // Checking for PE
     const isPEFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'pe') > -1;
 
     // Checking for CE
     const isCEFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'ce') > -1;
 
-    // Check for exit
+    // Replace all commas
+    predictionText = predictionText.replace(/[",]/g, "");
+
+    // Checking for ellipsis
+    const ellipsisRegExp = /(^|[^.])\.{4}(?!\.)/
+    const isEllipsisFound = predictionText.search(ellipsisRegExp) > -1;
+
+    // Checking for future
+    const futureRegExp = /Fut/i
+    const isFutureFound = predictionText.search(futureRegExp) > -1;
+
+    // Checking for Exit
     const exitRegExp = /Exit/i
     const isExitFound = predictionText.search(exitRegExp) > -1;
 
@@ -35,7 +35,6 @@ module.exports = (predictionText, advisorName = '') => {
     const sellRegExp = /Sell/i
     const isSellFound = predictionText.search(sellRegExp) > -1;
 
-    // IF buy or sell not found then it should not be added
     if (!isBuyFound && !isSellFound) {
         return null;
     }
@@ -45,15 +44,20 @@ module.exports = (predictionText, advisorName = '') => {
     const targetIndex = _.findIndex(predictionTextArray, item => {
         return item.toLowerCase() === 'target' || item.toLowerCase() === 'tgt';
     });
-    const target = targetIndex > -1 ? predictionTextArray[targetIndex + 1] : 0;
+    let target = targetIndex > -1 ? predictionTextArray[targetIndex + 1] : 0;
+    target = target.split('/')[0];
 
     const stopLossIndex = _.findIndex(predictionTextArray, item => {
         return item.toLowerCase() === 'sl' || item.toLowerCase() === 'stoploss';
     });
-    const stopLoss = stopLossIndex > -1 ? predictionTextArray[stopLossIndex + 1] : 0;
 
-    // If symbol is CASTROL IND then the second element is not cmp or near therefore those two items should be added
-    // Else only the first word gets added
+    let stopLoss = 0;
+    if (predictionTextArray[stopLossIndex + 1].toLowerCase() === 'above' || predictionTextArray[stopLossIndex + 1].toLowerCase() === 'below') {
+        stopLoss = predictionTextArray[stopLossIndex + 2];
+    } else {
+        stopLoss = predictionTextArray[stopLossIndex + 1];
+    }
+
     let symbol = null;
     let actionIndex = -2;
     if (isBuyFound) {
@@ -63,12 +67,12 @@ module.exports = (predictionText, advisorName = '') => {
         const sellIndex = _.findIndex(predictionTextArray, item => item.toUpperCase() === 'SELL');
         actionIndex = sellIndex;
     }
-    
-    // The second element after buy is not "CMP" or "near" that's why it's part of the symbol
-    if (predictionTextArray[actionIndex + 2].toLowerCase() !== 'cmp' && predictionTextArray[actionIndex + 2].toLowerCase() !== 'near'){
-        symbol = predictionTextArray[actionIndex + 1] + predictionTextArray[actionIndex + 2];
-    } else {
-        symbol = predictionTextArray[actionIndex + 1];
+    symbol = predictionTextArray[actionIndex + 1];
+
+    const daysIndex = _.findIndex(predictionTextArray, item => (item.toUpperCase() === 'DAYS' || item.toUpperCase() === 'WEEKLY'));
+
+    if (daysIndex > -1) {
+        symbol = predictionTextArray[daysIndex + 1];
     }
 
     return {
@@ -77,7 +81,7 @@ module.exports = (predictionText, advisorName = '') => {
         stopLoss,
         target,
         advisorName,
-        email: userDetails.kifsTrade.email,
-        source: 'kifsTrade'
+        email: userDetails.lkpSecurities.email,
+        source: 'lkpSecurities'
     }
 }

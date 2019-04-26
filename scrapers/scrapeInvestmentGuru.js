@@ -7,6 +7,10 @@ const choiceParser = require('./ig-parsers/choiceInternational');
 const geplParser = require('./ig-parsers/geplCapital');
 const hemSecuritiesParser = require('./ig-parsers/hemSecurities');
 const kifsTradeParser = require('./ig-parsers/kifsTrade');
+const lkpSecuritiesParser = require('./ig-parsers/lkpSecurities');
+const tradeBullsParser = require('./ig-parsers/tradeBulls');
+const mansukhSecuritiesParser = require('./ig-parsers/mansukhSecurities');
+const missMeenaParser = require('./ig-parsers/missMeena');
 
 const url = 'http://www.investmentguruindia.com/intradaytips?page=1&per_page=100&autorefresh=off';
 
@@ -59,6 +63,14 @@ const getPredictionData = html => {
             prediction = hemSecuritiesParser(predictionText, advisorName);
         } else if (advisorName.toLowerCase() === 'kifs trade capital') {
             prediction = kifsTradeParser(predictionText, advisorName);
+        } else if (advisorName.toLowerCase() === 'lkp securities') {
+            prediction = lkpSecuritiesParser(predictionText, advisorName);
+        } else if (advisorName.toLowerCase() === 'tradebulls securities (p) ltd') {
+            prediction  = tradeBullsParser(predictionText, advisorName);
+        } else if (advisorName.toLowerCase() === 'mansukh securities & finance ltd') {
+            prediction  = mansukhSecuritiesParser(predictionText, advisorName);
+        } else if (advisorName.toLowerCase() === 'ms meeta bhayani') {
+            prediction  = missMeenaParser(predictionText, advisorName);
         }
         
         
