@@ -2796,6 +2796,13 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 	let masterAdvisorId;
 	let validStartDate = exports.getValidStartDate();
 
+	let target = prediction.target;
+	let stopLoss = _.get(prediction, 'stopLoss', 0);
+	let recommendedPrice = _.get(prediction, 'recommendedPrice', 0);
+	const shouldCalculateDiff = _.get(prediction, 'shouldCalculateDiff', false);
+	const stopLossDiff = _.get(prediction, 'stopLossDiff', 0);
+	const targetDiff = _.get(prediction, 'targetDiff', 0);
+
 	return Promise.resolve(SecurityHelper.isTradeable(security))
 	.then(allowed => {
 		if(isRealPrediction && !allowed) {
@@ -2834,6 +2841,13 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 			latestPrice = _.get(realTimeQuote, 'close', 0) || _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
 			changePct = _.get(realTimeQuote, 'change_p', 0) || _.get(securityDetail, 'latestDetailRT.change_p', 0) || _.get(securityDetail, 'latestDetail.ChangePct', 0);
 			
+			if (shouldCalculateDiff) {
+				stopLoss = stopLossDiff !== 0 ? (latestPrice * stopLossDiff) + stopLoss : stopLoss;
+				target = targetDiff !== 0 ? (latestPrice * targetDiff) + target : target;
+				target = Number(target.toFixed(2));
+				stopLoss = Number(stopLoss.toFixed(2));
+			}
+
 			if (latestPrice != 0) {
 
 				//Investment is modified downstream so can't be const
@@ -2858,14 +2872,11 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 					APIError.throwJsonError({message: "Only LONG prediction are allowed for real trades!!"})	
 				}
 				
-				const target = prediction.target;
-				const stopLoss = _.get(prediction, 'stopLoss', 0);
-
 				if (stopLoss == 0) {
 					APIError.throwJsonError({message: "Stoploss must be non-zero"});
 				} else if (investment > 0 &&  (stopLoss > latestPrice || stopLoss > target)) {
-					APIError.throwJsonError({message: "Inaccurate Stoploss!! Must be lower than the call price"});
-				} else if (investment < 0 &&  (stopLoss < latestPrice || stopLoss < target)) {
+					APIError.throwJsonError({message: `Inaccurate Stoploss!! Must be lower than the call price Stop Loss ${stopLoss}, latestPrice ${latestPrice} target ${target}`});
+					// console.log(`Stop Loss ${stopLoss}, latestPrice ${latestPrice} target ${target}`);				} else if (investment < 0 &&  (stopLoss < latestPrice || stopLoss < target)) {
 					APIError.throwJsonError({message: "Inaccurate Stoploss!! Must be higher than the call price"});
 				} 
 
@@ -3069,7 +3080,7 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false) => P
 	const stopLoss = _.get(prediction, 'stopLoss', 0);
 
 	const adjustedPrediction = {
-		conditionalType: 'NOW', 
+		conditionalType: 'NOW',
 		endDate,
 		startDate,
 		real: false,
@@ -3080,7 +3091,13 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false) => P
 			investment,
 			quantity: 0,
 			security
-		}
+		},
+		stopLossDiff: _.get(prediction, 'stopLossDiff', 0),
+		targetDiff: _.get(prediction, 'targetDiff', 0),
+		recommendedPrice: _.get(prediction, 'recommendedPrice', 0),
+		shouldCalculateDiff: _.get(prediction, 'shouldCalculateDiff', false),
+		email: _.get(prediction, 'email', null),
+		source: _.get(prediction, 'source', null)
 	};
 
 	return adjustedPrediction;
@@ -3104,9 +3121,6 @@ module.exports.foundPredictionInRedis = (prediction, redisPredictions = []) => {
 		let redisPredictionEndDate = _.get(redisPrediction, 'endDate', null);
 		redisPredictionStartDate = moment(redisPredictionStartDate).format(dateFormat);
 		redisPredictionEndDate = moment(redisPredictionEndDate).format(dateFormat);
-
-		console.log('Prediction StartDate ', predictionStartDate);
-		console.log('redisPredictionStartDate ', redisPredictionStartDate);
 
 		if (
 			redisPredictionSymbol === predictionSymbol &&

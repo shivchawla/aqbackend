@@ -13,5 +13,20 @@ module.exports.userDetails = {
     },
     edelweiss: {
         email: 'sameerk4404@gmail.com'
+    },
+    investmentGuru: {
+        email: 'iguru4404@gmail.com'
+    },
+    choiceInternational: {
+        email: 'charui4404@gmail.com'
+    },
+    geplCapital: {
+        email: 'gepl4404@gmail.com'
+    },
+    hemSecurities: {
+        email: 'hem4404@gmail.com'
+    },
+    kifsTrade: {
+        email: 'kifs4404@gmail.com'
     }
 }

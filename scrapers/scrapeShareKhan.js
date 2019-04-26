@@ -38,35 +38,39 @@ const getPredictionData = html => {
     $('div.loderTable table tbody tr').each((row, rawElement) => {
         const symbol = $(rawElement).find('td:nth-child(1) span span:nth-child(1) b').text();
         const action = $(rawElement).find('td:nth-child(2) a').text();
-        const currentPrice = $(rawElement).find('td:nth-child(5)').text();
-        const targetOne = $(rawElement).find('td:nth-child(6)').text();
-        const targetTwo = $(rawElement).find('td:nth-child(7)').text();
+        const product = $(rawElement).find('td:nth-child(3)').text();
+        let currentPrice = $(rawElement).find('td:nth-child(5)').text();
+        let targetOne = $(rawElement).find('td:nth-child(6)').text();
+        let recommendedPrice = $(rawElement).find('td:nth-child(4)').text();
         const horizon = 5;
-        const stopLoss = $(rawElement).find('td:nth-child(8)').text();
+        let stopLoss = $(rawElement).find('td:nth-child(8)').text();
+        const allowed = product.toLocaleLowerCase() !== 'derivative idea';
+        currentPrice = convertToNumber(currentPrice);
+        targetOne = convertToNumber(targetOne);
+        stopLoss = convertToNumber(stopLoss);
+        recommendedPrice = convertToNumber(recommendedPrice);
+
+        const stopLossDiff = (stopLoss - recommendedPrice) / recommendedPrice;
+        const targetDiff = (targetOne - recommendedPrice) / recommendedPrice;
         
         const shareKhanPredictionOne = {
             symbol,
             action,
-            currentPrice: convertToNumber(currentPrice),
-            target: convertToNumber(targetOne),
+            currentPrice,
+            target: targetOne,
             horizon,
-            stopLoss: convertToNumber(stopLoss),
-            advisorName: 'ShareKhanOne'
-        };
-
-        const shareKhanPredictionTwo = {
-            symbol,
-            action,
-            currentPrice: convertToNumber(currentPrice),
-            target: convertToNumber(targetTwo),
-            horizon,
-            stopLoss: convertToNumber(stopLoss),
-            advisorName: 'ShareKhanTwo'
-        };
+            stopLoss,
+            advisorName: 'ShareKhanOne',
+            allowed,
+            stopLossDiff,
+            targetDiff,
+            shouldCalculateDiff: true,
+            recommendedPrice
+        }; 
 
         data.push(shareKhanPredictionOne);
-        data.push(shareKhanPredictionTwo);
     });
+    data = data.filter(item => item.allowed);
 
     return data;
 }

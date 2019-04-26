@@ -36,7 +36,8 @@ module.exports.getAllPredictionsFromThirdParty = function() {
         exports.createPredictionsFromThirdParty('kotakFundamental'),
         exports.createPredictionsFromThirdParty('motilalOswal'),
         exports.createPredictionsFromThirdParty('shareKhan'),
-        exports.createPredictionsFromThirdParty('edelweiss')
+        exports.createPredictionsFromThirdParty('edelweiss'),
+        exports.createPredictionsFromThirdParty('investmentGuru'),
     ])
     .then(() => {
         console.log('Donwloaded All Data');
@@ -68,37 +69,55 @@ module.exports.createPredictionsFromThirdParty = function(source) {
         case 'edelweiss':
             requiredPromiseRequest = scrapeEdelweiss;
             break;
+        case 'investmentGuru':
+            requiredPromiseRequest = scrapeInvestmentGuru;
+            break;
         default:
             requiredPromiseRequest = scrapeKotak;
             break;
-    }
+    }    
     
     return UserModel.fetchUser({email: requiredUserEmail, disabled: false})
     .then(user => {
-		user = user.toObject();
+        user = user.toObject();
 		userId = _.get(user, '_id', '').toString();
 
 		return AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {insert: true})
 	})
 	.then(advisor => {
-		advisor = advisor.toObject();
+        advisor = advisor.toObject();
 		advisorId = _.get(advisor, '_id', '').toString();
 	})
     .then(() => requiredPromiseRequest(type))
     .then(predictions => Promise.all([
         DailyContestEntryHelper.processThirdPartyPredictions(predictions)
-        .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions)),
-		RedisUtils.getRangeFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
+            .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions)),
+        RedisUtils.getSetDataFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
     ]))
 	.then(([predictions, redisPredictions]) => {
 		redisPredictions = redisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(redisPredictions) : [];
+		return Promise.map(predictions, async prediction => {
+            const email = _.get(prediction, 'email', null);
+            source = _.get(prediction, 'source', null) || source;
+            if (email !== null) {
+                const thirdPartyUser = await getUserInfo(email);
+                if (thirdPartyUser !== null) {
+                    advisorId = thirdPartyUser.advisorId;
+                    userId = thirdPartyUser.userId;
+                }
 
-		return Promise.map(predictions, prediction => {
+                if (source !== null) {
+                    const newRedisPredictions = await RedisUtils.getSetDataFromRedis(getRedisClient(), `${source}_prediction`, 0, -1);
+                    redisPredictions = newRedisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(newRedisPredictions) : [];
+                }
+            }
+            
 			if (!DailyContestEntryHelper.foundPredictionInRedis(prediction, redisPredictions)) {
 				return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), userId, advisorId)
-				.then(() => {
+				.then(() => { 
 					// Should add to redis
-					RedisUtils.pushToRangeRedis(getRedisClient(), `${source}_prediction`, JSON.stringify(prediction));
+					// RedisUtils.pushToRangeRedis(getRedisClient(), `${source}_prediction`, JSON.stringify(prediction));
+					RedisUtils.addSetDataToRedis(getRedisClient(), `${source}_prediction`, JSON.stringify(prediction));
 				})
 				.catch(err => {
 					console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker'), err.message);
@@ -116,3 +135,25 @@ module.exports.createPredictionsFromThirdParty = function(source) {
         console.log('Error createPredictionsFromThirdParty ', err.message);
     })
 }
+
+const getUserInfo = email => new Promise((resolve, reject) => {
+    let userId = null;
+    let advisorId = null;
+
+    UserModel.fetchUser({email, disabled: false})
+    .then(user => {
+        user = user.toObject();
+		userId = _.get(user, '_id', '').toString();
+
+		return AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {insert: true})
+    })
+    .then(advisor => {
+		advisor = advisor.toObject();
+        advisorId = _.get(advisor, '_id', '').toString();
+        
+        resolve({advisorId, userId});
+    })
+    .catch(() => {
+        resolve(null);
+    });
+})
