@@ -112,12 +112,13 @@ module.exports.createPredictionsFromThirdParty = function(source) {
                     redisPredictions = newRedisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(newRedisPredictions) : [];
                 }
             }
-            
+
+            prediction = _.omit(prediction, ['source', 'email']);
 			if (!DailyContestEntryHelper.foundPredictionInRedis(prediction, redisPredictions)) {
 				return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), userId, advisorId)
 				.then(() => { 
 					// Should add to redis
-					// RedisUtils.pushToRangeRedis(getRedisClient(), `${source}_prediction`, JSON.stringify(prediction));
+                    // RedisUtils.pushToRangeRedis(getRedisClient(), `${source}_prediction`, JSON.stringify(prediction));
 					RedisUtils.addSetDataToRedis(getRedisClient(), `${source}_prediction`, JSON.stringify(prediction));
 				})
 				.catch(err => {
