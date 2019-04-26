@@ -15,18 +15,18 @@ module.exports.userDetails = {
         email: 'sameerk4404@gmail.com'
     },
     investmentGuru: {
-        email: 'shaunak1105@gmail.com'
+        email: 'iguru4404@gmail.com'
     },
     choiceInternational: {
-        email: 'sonusinghkvs111@gmail.com'
+        email: 'charui4404@gmail.com'
     },
     geplCapital: {
-        email: 'anurag12singh@gmail.com'
+        email: 'gepl4404@gmail.com'
     },
     hemSecurities: {
-        email: 'alok2599@gmail.com'
+        email: 'hem4404@gmail.com'
     },
     kifsTrade: {
-        email: 'kishlaya.j@gmail.com'
+        email: 'kifs4404@gmail.com'
     }
 }
