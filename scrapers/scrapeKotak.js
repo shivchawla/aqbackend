@@ -81,12 +81,15 @@ const getPredictionData = (html, type = null) => {
             symbol = weirdFormatArray[sellIndex + 1];
         }
 
-        const name = $(raw_element).find('span.listview-symbol').text();
+        const name = $(raw_element).find('span.listview-symbol').text().trim();
         const industry = $(raw_element).find('div.mdl-card__title span span:nth-child(2)').text();
         let action = $(raw_element).find('div.mdl-card__menuM button.rcaction:nth-child(3)').text();
         if (type === 'fundamental') {
             action = $(raw_element).find('div.mdl-card__menuM button:nth-child(4)').text();
         }
+        
+        symbol = isAlert ? symbol : name;
+
         let internalData = {
             symbol,
             isAlert,
@@ -117,7 +120,6 @@ const getPredictionData = (html, type = null) => {
         // Pushing each individual card data for a particular symbol
         data.push(processInternalData(internalData, type));
     });
-    data = data.filter(dataItem => dataItem.isAlert);
     data = data.filter(dataItem => dataItem.startDate === moment().format(dateFormat));
 
     return data;

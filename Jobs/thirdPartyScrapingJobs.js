@@ -98,17 +98,22 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 	.then(([predictions, redisPredictions]) => {
 		redisPredictions = redisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(redisPredictions) : [];
 		return Promise.map(predictions, async prediction => {
+            
             const email = _.get(prediction, 'email', null);
             const newSource = _.get(prediction, 'source', null) || source;
+            
             let newAdvisorId = advisorId;
             let newUserId = userId;
             let newRedisPredictions = redisPredictions;
+            
             console.log('3rd Party email ', email);
             console.log('3rd Party source ', newSource, prediction.position.security.ticker);
+            
             // If email is present in the prediction then it should created with required user's advisorId and 
             // userId obtained from the email
             if (email !== null) { 
                 const thirdPartyUser = await getUserInfo(email);
+                
                 if (thirdPartyUser !== null) {
                     newAdvisorId = thirdPartyUser.advisorId;
                     newUserId = thirdPartyUser.userId;
@@ -122,6 +127,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
             }
 
             prediction = _.omit(prediction, ['source', 'email']);
+
 			if (!DailyContestEntryHelper.foundPredictionInRedis(prediction, newRedisPredictions)) {
 				return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId)
 				.then(() => { 
@@ -134,11 +140,13 @@ module.exports.createPredictionsFromThirdParty = function(source) {
                 })
 				.catch(err => {
                     console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker', null), newSource, err.message);
+                    
                     return Promise.resolve(true);
 				})
 			} else {
 				console.log('Prediction Found', _.get(prediction, 'position.security.ticker', null), newSource); 
-				return Promise.resolve(true);
+                
+                return Promise.resolve(true);
 			}
 		})
     })
