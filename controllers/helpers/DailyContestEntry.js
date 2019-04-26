@@ -3059,13 +3059,29 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 	})
 }
 
-module.exports.processThirdPartyPredictions = (predictions, isReal = false) => Promise.map(predictions, prediction => {
+module.exports.processThirdPartyPredictions = (predictions, isReal = false) => Promise.map(predictions, async prediction => {
 	const dateFormat = 'YYYY-MM-DD';
 	const horizon = _.get(prediction, 'horizon', isReal ? 2 : 1);
 	const startDate = moment().format(dateFormat);
 	const endDate = moment(DateHelper.getNextNonHolidayWeekday(startDate, Number(horizon))).format(dateFormat);
 	
-	const ticker = _.get(prediction, 'symbol', '');
+	let ticker = _.get(prediction, 'symbol', '');
+
+	const searchStockList = await SecurityHelper.getStockList(ticker, {universe: null, sector: null, industry: null});
+	
+	if (searchStockList.length === 0) {
+		console.log('Ticker not found ', ticker);
+		return null
+	} else {
+		if (searchStockList.length > 1) {
+			console.log('Multiple Tickers found for ', ticker);
+		}
+		const stock = searchStockList[0];
+		const stockTicker = _.get(stock, 'detail.NSE_ID', null);
+		ticker = stockTicker;
+	}
+
+	// Searching for symbol here
 	const security = {
 		ticker,
 		securityType: 'EQ',

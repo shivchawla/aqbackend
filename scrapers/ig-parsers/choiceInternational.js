@@ -7,6 +7,9 @@ module.exports = (predictionText, advisorName = '') => {
     // Replace all commas
     predictionText = predictionText.replace(/[",]/g, "");
 
+    // Replace &nbsp;
+    predictionText = predictionText.replace(/\u00a0/g, " ");
+
     // Checking for ellipsis
     const ellipsisRegExp = /(^|[^.])\.{4}(?!\.)/
     const isEllipsisFound = predictionText.search(ellipsisRegExp) > -1;
@@ -19,13 +22,11 @@ module.exports = (predictionText, advisorName = '') => {
     const futureRegExp = /Fut/i
     const isFutureFound = predictionText.search(futureRegExp) > -1;
 
-    // Checking for CE
-    const ceRegExp = /CE/i
-    const isCEFound = predictionText.search(ceRegExp) > -1;
+    // Checking for PE
+    const isPEFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'pe') > -1;
 
     // Checking for CE
-    const peRegExp = /PE/i
-    const isPEFound = predictionText.search(peRegExp) > -1;
+    const isCEFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'ce') > -1;
 
     // Checking for Exit
     const exitRegExp = /Exit/i

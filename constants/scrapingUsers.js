@@ -28,5 +28,17 @@ module.exports.userDetails = {
     },
     kifsTrade: {
         email: 'kifs4404@gmail.com'
+    },
+    lkpSecurities: {
+        email: 'meetsuddi@gmail.con'
+    },
+    mansukhSecurities: {
+        email: 'ganesh.rs@gmail.com'
+    },
+    missMeena: {
+        email: 'aamin25@gmail.com'
+    },
+    tradeBulls: {
+        email: 'rahulngupta@gmail.com'
     }
 }

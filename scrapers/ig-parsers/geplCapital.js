@@ -7,13 +7,11 @@ module.exports = (predictionText, advisorName = '') => {
 
     const predictionTextArray = predictionText.split(' ');
 
-    // Checking for CE
-    const ceRegExp = /CE/i
-    const isCEFound = predictionText.search(ceRegExp) > -1;
+    // Checking for PE
+    const isPEFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'pe') > -1;
 
     // Checking for CE
-    const peRegExp = /PE/i
-    const isPEFound = predictionText.search(peRegExp) > -1;
+    const isCEFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'ce') > -1;
 
     if (isCEFound || isPEFound) {
         return null
