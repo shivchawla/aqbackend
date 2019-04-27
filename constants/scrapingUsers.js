@@ -40,5 +40,11 @@ module.exports.userDetails = {
     },
     tradeBulls: {
         email: 'tradeb4404@gmail.com'
+    },
+    religare: {
+        email: 'ravishg4404@gmail.com'
+    },
+    ventura: {
+        email: 'ventura4404@gmail.com'
     }
 }
