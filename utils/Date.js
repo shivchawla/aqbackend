@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-27 14:33:10
+* @Last Modified time: 2019-04-27 14:52:12
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -405,7 +405,7 @@ module.exports.getEndOfWeek = function(date) {
 	date = moment(date).endOf('week').toDate();
 
 	while(exports.isHoliday(date)) {
-		date = date.setDate(date.getDate() - 1); 
+		date = moment(date).subtract(1, 'day');
 	}	
 	
 	return date;
@@ -417,7 +417,7 @@ module.exports.getEndOfLastWeek = function(date) {
 	date = moment(date).subtract(1, 'week').endOf('week').toDate();
 
 	while(exports.isHoliday(date)) {
-		date = date.setDate(date.getDate() - 1); 
+		date = moment(date).subtract(1, 'day');
 	}	
 	
 	return date;
