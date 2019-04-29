@@ -28,5 +28,6 @@ module.exports = [
     "Mustached puffbird",
     "Wizard Cow",
     "Danger Noodle",
-    "Star Rabbit"
+    "Star Rabbit",
+    "Tyrannosaurus Deer"
 ];

@@ -16,6 +16,7 @@ const scrapeShareKhan = require('../scrapers/scrapeShareKhan');
 const scrapeEdelweiss = require('../scrapers/scrapeEdelWeiss');
 const scrapeInvestmentGuru = require('../scrapers/scrapeInvestmentGuru');
 const scrapeMoneyControl = require('../scrapers/scrapeMoneyControl');
+const scrapeEconomicTimes = require('../scrapers/scrapeEconomicTimes');
 const {userDetails} = require('../constants/scrapingUsers');
 
 let redisClient;
@@ -43,7 +44,8 @@ module.exports.getAllPredictionsFromThirdParty = function() {
         exports.createPredictionsFromThirdParty('shareKhan'),
         exports.createPredictionsFromThirdParty('edelweiss'),
         exports.createPredictionsFromThirdParty('investmentGuru'),
-        exports.createPredictionsFromThirdParty('moneyControl')
+        exports.createPredictionsFromThirdParty('moneyControl'),
+        exports.createPredictionsFromThirdParty('economicTimes')
     ])
     .then(() => {
         console.log('Donwloaded All Data');
@@ -81,6 +83,9 @@ module.exports.createPredictionsFromThirdParty = function(source) {
         case 'moneyControl':
             requiredPromiseRequest = scrapeMoneyControl;
             break;
+        case 'economicTimes':
+            requiredPromiseRequest = scrapeEconomicTimes;
+            break;
         default:
             requiredPromiseRequest = scrapeKotak;
             break;
@@ -101,7 +106,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
     .then(predictions => Promise.all([
         DailyContestEntryHelper.processThirdPartyPredictions(predictions)
             .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions))
-            .then(predictions => DailyContestEntryHelper.ignoreNiftyBanlPredictions(predictions)),
+            .then(predictions => DailyContestEntryHelper.ignoreNiftyBankPredictions(predictions)),
         RedisUtils.getSetDataFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
     ]))
 	.then(([predictions, redisPredictions]) => {
