@@ -2799,6 +2799,8 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 	let target = prediction.target;
 	let stopLoss = _.get(prediction, 'stopLoss', 0);
 	let recommendedPrice = _.get(prediction, 'recommendedPrice', 0);
+	
+	const initializeStopLoss = _.get(prediction, 'initializeStopLoss', false);
 	const shouldCalculateDiff = _.get(prediction, 'shouldCalculateDiff', false);
 	const stopLossDiff = _.get(prediction, 'stopLossDiff', 0);
 	const targetDiff = _.get(prediction, 'targetDiff', 0);
@@ -2838,9 +2840,16 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 			SecurityHelper.getRealtimeQuote(`${prediction.position.security.ticker}`),
 		])
 		.then(([securityDetail, realTimeQuote]) => {
-			latestPrice = _.get(realTimeQuote, 'close', 0) || _.get(securityDetail, 'latestDetailRT.current', 0) || _.get(securityDetail, 'latestDetail.Close', 0);
-			changePct = _.get(realTimeQuote, 'change_p', 0) || _.get(securityDetail, 'latestDetailRT.change_p', 0) || _.get(securityDetail, 'latestDetail.ChangePct', 0);
+			latestPrice = (_.get(realTimeQuote, 'close', 0) && typeof _.get(realTimeQuote, 'close', 0) === 'number') 
+				|| (_.get(securityDetail, 'latestDetailRT.current', 0) && typeof _.get(securityDetail, 'latestDetailRT.current', 0) === 'number') 
+				|| _.get(securityDetail, 'latestDetail.Close', 0);
 			
+				changePct = (_.get(realTimeQuote, 'change_p', 0) && typeof _.get(realTimeQuote, 'change_p', 0) === 'number')
+				|| (_.get(securityDetail, 'latestDetailRT.change_p', 0) && typeof _.get(securityDetail, 'latestDetailRT.change_p', 0) === 'number') 
+				|| _.get(securityDetail, 'latestDetail.ChangePct', 0);
+
+			stopLoss = initializeStopLoss ? latestPrice : stopLoss;
+
 			if (shouldCalculateDiff) {
 				stopLoss = stopLossDiff !== 0 ? (latestPrice * stopLossDiff) + stopLoss : stopLoss;
 				target = targetDiff !== 0 ? (latestPrice * targetDiff) + target : target;
@@ -3096,7 +3105,7 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false) => P
 	const stopLoss = _.get(prediction, 'stopLoss', 0);
 
 	const adjustedPrediction = {
-		conditionalType: 'NOW',
+		conditionalType: 'CROSS',
 		endDate,
 		startDate,
 		real: false,
@@ -3113,7 +3122,8 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false) => P
 		recommendedPrice: _.get(prediction, 'recommendedPrice', 0),
 		shouldCalculateDiff: _.get(prediction, 'shouldCalculateDiff', false),
 		email: _.get(prediction, 'email', null),
-		source: _.get(prediction, 'source', null)
+		source: _.get(prediction, 'source', null),
+		initializeStopLoss: _.get(prediction, 'initializeStopLoss', false)
 	};
 
 	return adjustedPrediction;

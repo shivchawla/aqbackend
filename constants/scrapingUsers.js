@@ -61,5 +61,53 @@ module.exports.userDetails = {
     },
     sudarshanSukhani: {
         email: null
+    },
+    economicTimes: {
+        email: 'mysandz@gmail.com'
+    },
+    emkayGlobal: {
+        email: null
+    },
+    prabhudashLill: {
+        email: null
+    },
+    phillipCapital: {
+        email: null
+    },
+    hdfcSecurities: {
+        email: null
+    },
+    manasJaiswal: {
+        email: null
+    },
+    drCkNaryan: {
+        email: null
+    },
+    kunalBothra: {
+        email: null
+    },
+    elaraCapital: {
+        email: null
+    },
+    nirmalBangSecurities: {
+        email: null
+    },
+    kotakInstitutional: {
+        email: null
+    },
+    relianceSecurities: {
+        email: null
+    },
+    iciciSecurities: {
+        email: null
+    },
+    anandRathi: {
+        email: null
+    },
+    nooreshMerani: {
+        email: null
+    },
+    vaishaliParekh: {
+        email: null
     }
 }

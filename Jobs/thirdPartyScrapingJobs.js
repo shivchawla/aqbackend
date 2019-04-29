@@ -16,6 +16,7 @@ const scrapeShareKhan = require('../scrapers/scrapeShareKhan');
 const scrapeEdelweiss = require('../scrapers/scrapeEdelWeiss');
 const scrapeInvestmentGuru = require('../scrapers/scrapeInvestmentGuru');
 const scrapeMoneyControl = require('../scrapers/scrapeMoneyControl');
+const scrapeEconomicTimes = require('../scrapers/scrapeEconomicTimes');
 const {userDetails} = require('../constants/scrapingUsers');
 
 let redisClient;
@@ -43,7 +44,8 @@ module.exports.getAllPredictionsFromThirdParty = function() {
         exports.createPredictionsFromThirdParty('shareKhan'),
         exports.createPredictionsFromThirdParty('edelweiss'),
         exports.createPredictionsFromThirdParty('investmentGuru'),
-        exports.createPredictionsFromThirdParty('moneyControl')
+        exports.createPredictionsFromThirdParty('moneyControl'),
+        exports.createPredictionsFromThirdParty('economicTimes')
     ])
     .then(() => {
         console.log('Donwloaded All Data');
@@ -80,6 +82,9 @@ module.exports.createPredictionsFromThirdParty = function(source) {
             break;
         case 'moneyControl':
             requiredPromiseRequest = scrapeMoneyControl;
+            break;
+        case 'economicTimes':
+            requiredPromiseRequest = scrapeEconomicTimes;
             break;
         default:
             requiredPromiseRequest = scrapeKotak;
