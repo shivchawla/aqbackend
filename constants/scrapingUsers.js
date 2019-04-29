@@ -46,5 +46,20 @@ module.exports.userDetails = {
     },
     ventura: {
         email: 'ventura4404@gmail.com'
+    },
+    moneyControl: {
+        email: null
+    },
+    mitesshthakkar: {
+        email: null
+    },
+    prakashgaba: {
+        email: null
+    },
+    ashwanigujral: {
+        email: null
+    },
+    sudarshanSukhani: {
+        email: null
     }
 }
