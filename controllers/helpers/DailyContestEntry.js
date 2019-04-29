@@ -3175,7 +3175,7 @@ module.exports.filterPredictionsForToday = (predictions = []) => {
 	})
 }
 
-module.exports.ignoreNiftyBanlPredictions = (predictions = []) => {
+module.exports.ignoreNiftyBankPredictions = (predictions = []) => {
 	return Promise.filter(predictions, prediction => {
 		const ticker = _.get(prediction, 'position.security.ticker', '');
 
