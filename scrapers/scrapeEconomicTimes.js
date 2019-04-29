@@ -35,12 +35,10 @@ module.exports = () => new Promise(async (resolve, reject) => {
 });
 
 const getPredictionData = (html) => {
-    const dateFormat = 'D MMM, YYYY'
+    const dateFormat = 'D MMM, YYYY';
     const $ = cheerio.load(html);
     let data = [];
-    let index = 0;
     $('div.eachStory').each((row, rawElement) => {
-        index++;
         const currentDate = moment().format(dateFormat);
         const date = $(rawElement).find('time').text();
         if (moment(currentDate, dateFormat).isSame(date, dateFormat)) {
@@ -99,7 +97,10 @@ const parsePrediction = predictionText => {
         target,
         stopLoss,
         advisor,
-        email
+        email,
+        initializeStopLoss: true,
+        stopLossDiff: action === 'BUY' ? -0.05 : 0.05,
+        shouldCalculateDiff: true
     }
 }
 
