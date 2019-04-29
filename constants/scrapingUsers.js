@@ -66,48 +66,48 @@ module.exports.userDetails = {
         email: 'mysandz@gmail.com'
     },
     emkayGlobal: {
-        email: null
+        email: 'psethi@gmail.com'
     },
     prabhudashLill: {
-        email: null
+        email: 'sanket.abhyankar@gmail.com'
     },
     phillipCapital: {
-        email: null
+        email: 'yaduraj1993@gmail.com'
     },
     hdfcSecurities: {
-        email: null
+        email: 'kuchanamaharsh@iitj.ac.in'
     },
     manasJaiswal: {
-        email: null
+        email: 'arbaazdossani@gmail.com'
     },
     drCkNaryan: {
-        email: null
+        email: 'jain.iitk@gmail.com'
     },
     kunalBothra: {
-        email: null
+        email: 'virlimohit@gmail.com'
     },
     elaraCapital: {
-        email: null
+        email: 'nirajk42@gmail.com'
     },
     nirmalBangSecurities: {
-        email: null
+        email: 'ravpritpal.kohli@gmail.com'
     },
     kotakInstitutional: {
-        email: null
+        email: 'ksaxena837@gmail.com'
     },
     relianceSecurities: {
-        email: null
+        email: 'arindameducationusc@gmail.com'
     },
     iciciSecurities: {
-        email: null
+        email: 'im4whatsapp@gmail.com'
     },
     anandRathi: {
-        email: null
+        email: 'palakagarwal672@gmail.com'
     },
     nooreshMerani: {
-        email: null
+        email: 'volatile.star1@gmail.com'
     },
     vaishaliParekh: {
-        email: null
+        email: 'prodiptag@gmail.com'
     }
 }
