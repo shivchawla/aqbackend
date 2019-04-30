@@ -2840,16 +2840,15 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 			SecurityHelper.getRealtimeQuote(`${prediction.position.security.ticker}`),
 		])
 		.then(([securityDetail, realTimeQuote]) => {
-			latestPrice = (_.get(realTimeQuote, 'close', 0) && typeof _.get(realTimeQuote, 'close', 0) === 'number') 
-				|| (_.get(securityDetail, 'latestDetailRT.current', 0) && typeof _.get(securityDetail, 'latestDetailRT.current', 0) === 'number') 
+			latestPrice = _.get(realTimeQuote, 'close', 0) 
+				|| _.get(securityDetail, 'latestDetailRT.current', 0) 
 				|| _.get(securityDetail, 'latestDetail.Close', 0);
 			
-				changePct = (_.get(realTimeQuote, 'change_p', 0) && typeof _.get(realTimeQuote, 'change_p', 0) === 'number')
-				|| (_.get(securityDetail, 'latestDetailRT.change_p', 0) && typeof _.get(securityDetail, 'latestDetailRT.change_p', 0) === 'number') 
+				changePct = _.get(realTimeQuote, 'change_p', 0)
+				|| _.get(securityDetail, 'latestDetailRT.change_p', 0) 
 				|| _.get(securityDetail, 'latestDetail.ChangePct', 0);
 
 			stopLoss = initializeStopLoss ? latestPrice : stopLoss;
-
 			if (shouldCalculateDiff) {
 				stopLoss = stopLossDiff !== 0 ? (latestPrice * stopLossDiff) + stopLoss : stopLoss;
 				target = targetDiff !== 0 ? (latestPrice * targetDiff) + target : target;
