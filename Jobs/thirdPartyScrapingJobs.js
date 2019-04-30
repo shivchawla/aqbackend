@@ -53,6 +53,7 @@ module.exports.getAllPredictionsFromThirdParty = function() {
 }
 
 module.exports.createPredictionsFromThirdParty = function(source) {
+    const redisEnvironment = process.env.NODE_ENV;
     console.log(`${source} predictions download started`);
 
     let userId = null;
@@ -107,7 +108,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
         DailyContestEntryHelper.processThirdPartyPredictions(predictions)
             .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions))
             .then(predictions => DailyContestEntryHelper.ignoreNiftyBankPredictions(predictions)),
-        RedisUtils.getSetDataFromRedis(getRedisClient(), `${source}_prediction`, 0, -1)
+        RedisUtils.getSetDataFromRedis(getRedisClient(), `${redisEnvironment}_${source}_prediction`, 0, -1)
     ]))
 	.then(([predictions, redisPredictions]) => {
 		redisPredictions = redisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(redisPredictions) : [];
@@ -134,7 +135,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 
                 if (newSource !== null) {
                     console.log(`source_prediction ${newSource}_prediction`)
-                    const requiredRedisPredictions = await RedisUtils.getSetDataFromRedis(getRedisClient(), `${newSource}_prediction`, 0, -1);
+                    const requiredRedisPredictions = await RedisUtils.getSetDataFromRedis(getRedisClient(), `${redisEnvironment}_${newSource}_prediction`, 0, -1);
                     newRedisPredictions = requiredRedisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(requiredRedisPredictions) : [];
                 }
             }
@@ -147,7 +148,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
                     console.log('Advisor Id ', newAdvisorId, newUserId);
                     // Should add to redis 
                     console.log(`Prediction Created ${prediction.position.security.ticker} - ${newSource}`);
-                    RedisUtils.addSetDataToRedis(getRedisClient(), `${newSource}_prediction`, JSON.stringify(prediction));
+                    RedisUtils.addSetDataToRedis(getRedisClient(), `${redisEnvironment}_${newSource}_prediction`, JSON.stringify(prediction));
                     writePredictionToCsv(predictionsFilePath, prediction);
                                         
                     return Promise.resolve(true);
