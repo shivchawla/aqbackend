@@ -39,10 +39,9 @@ const getPredictionData = (html) => {
     const $ = cheerio.load(html);
     let data = [];
     $('div.eachStory').each((row, rawElement) => {
-        const currentDate = moment().format(dateFormat);
         const date = $(rawElement).find('time').text();
-        const dateRegExp = /hour/i;
-        if (moment(currentDate, dateFormat).isSame(date, dateFormat) || date.search(dateRegExp) > -1) {
+        const dateRegExp = /ago/i;
+        if (isTodayDate(date) || date.search(dateRegExp) > -1) {
             const predictionText = $(rawElement).find('h3').text();
             data.push(parsePrediction(predictionText));
         }
@@ -212,4 +211,21 @@ const getAdvisor = advisorName => {
     } else {
         return 'economicTimes';
     }
+}
+
+const isTodayDate = (receivedDate) => {
+    const dateFormat = 'D MMM, YYYY';
+    const currentDay = moment().format('D');
+    const currentMonth = moment().format('MMM');
+    const currentYear = moment().format('YYYY');
+
+    const currentDayRegExp = new RegExp(currentDay);
+    const currentMonthRegExp = new RegExp(currentMonth);
+    const currentYearRegExp = new RegExp(currentYear);
+
+    const isEquals = receivedDate.search(currentDayRegExp) > -1
+    && receivedDate.search(currentMonthRegExp) > -1
+    && receivedDate.search(currentYearRegExp) > -1;
+
+    return isEquals;
 }
