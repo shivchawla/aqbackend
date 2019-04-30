@@ -3192,6 +3192,10 @@ module.exports.filterPredictionsForToday = (predictions = []) => {
 module.exports.ignoreNiftyBankPredictions = (predictions = []) => {
 	return Promise.filter(predictions, prediction => {
 		const ticker = _.get(prediction, 'position.security.ticker', '');
+		if (ticker == null) {
+			return false;
+		}
+		
 		if (ticker.toLowerCase() === 'niftybank' || ticker.toLowerCase() === 'banknifty') {
 			return false;
 		}
