@@ -3093,7 +3093,7 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false, sour
 	searchArray = searchArray.reverse();
 	
 	let searchStockList = await exports.searchMultipleTickers(searchArray);
-	searchStockList = _.merge(...searchStockList)
+	searchStockList = _.union(...searchStockList)
 	
 	if (searchStockList.length === 0) {
 		console.log('Ticker not found ', ticker);
