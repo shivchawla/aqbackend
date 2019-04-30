@@ -41,7 +41,8 @@ const getPredictionData = (html) => {
     $('div.eachStory').each((row, rawElement) => {
         const currentDate = moment().format(dateFormat);
         const date = $(rawElement).find('time').text();
-        if (moment(currentDate, dateFormat).isSame(date, dateFormat)) {
+        const dateRegExp = /hour/i;
+        if (moment(currentDate, dateFormat).isSame(date, dateFormat) || date.search(dateRegExp) > -1) {
             const predictionText = $(rawElement).find('h3').text();
             data.push(parsePrediction(predictionText));
         }
