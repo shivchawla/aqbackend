@@ -3089,9 +3089,7 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false) => P
 
 	searchArray = searchArray.reverse();
 	
-	// const searchStockList = await SecurityHelper.getStockList(ticker, {universe: null, sector: null, industry: null});
 	let searchStockList = await exports.searchMultipleTickers(searchArray);
-	// searchStockList = Array.prototype.concat.apply([...searchStockList]);
 	searchStockList = _.merge(...searchStockList)
 	
 	if (searchStockList.length === 0) {
@@ -3193,9 +3191,7 @@ module.exports.filterPredictionsForToday = (predictions = []) => {
 
 module.exports.ignoreNiftyBankPredictions = (predictions = []) => {
 	return Promise.filter(predictions, prediction => {
-		console.log(prediction.position.security);
 		const ticker = _.get(prediction, 'position.security.ticker', '');
-		console.log('Ticker ', ticker);
 		if (ticker.toLowerCase() === 'niftybank' || ticker.toLowerCase() === 'banknifty') {
 			return false;
 		}
