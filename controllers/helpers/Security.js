@@ -1172,7 +1172,7 @@ module.exports.getStockList = function(search, options) {
 			q1Queries = q1Queries.concat({'security.ticker': {$regex: startWithSearch, $options: "i"}});
 		});
 
-		q1 = {$or: q1Queries};
+		var q1 = {$or: q1Queries};
 
 		//CAN be improved to first match in ticker and then
 		
