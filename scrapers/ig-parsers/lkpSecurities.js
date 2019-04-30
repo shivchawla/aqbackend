@@ -21,11 +21,16 @@ module.exports = (predictionText, advisorName = '') => {
     const futureRegExp = /Fut/i
     const isFutureFound = predictionText.search(futureRegExp) > -1;
 
+    // Checking for intraday
+    const intradayRegExp = /INTRADAY/i;
+    const intradayRefExpSpaced = /INTRA DAY/i;
+    const isIntraDayFound = predictionText.search(intradayRegExp) > -1 || predictionText.search(intradayRefExpSpaced) > -1
+
     // Checking for Exit
     const exitRegExp = /Exit/i
     const isExitFound = predictionText.search(exitRegExp) > -1;
 
-    if (isEllipsisFound || isFutureFound || isExitFound || isPEFound || isCEFound) {
+    if (isEllipsisFound || isExitFound || isPEFound || isCEFound) {
         return null;
     }
 
@@ -80,8 +85,12 @@ module.exports = (predictionText, advisorName = '') => {
         symbol,
         stopLoss,
         target,
+        horizon: isIntraDayFound ? 0 : 1, 
         advisorName,
         email: userDetails.lkpSecurities.email,
-        source: 'lkpSecurities'
+        source: 'lkpSecurities',
+        stopLossDiff: action === 'BUY' ? -0.05 : 0.05,
+        targetDiff: action === 'BUY' ? 0.05 : -0.05,
+        shouldCalculateDiff: isFutureFound,
     }
 }
