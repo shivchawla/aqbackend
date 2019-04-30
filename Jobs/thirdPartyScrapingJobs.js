@@ -15,7 +15,7 @@ const scrapeMotilalOswal = require('../scrapers/scrapeMotilalOswal');
 const scrapeShareKhan = require('../scrapers/scrapeShareKhan');
 const scrapeEdelweiss = require('../scrapers/scrapeEdelWeiss');
 const scrapeInvestmentGuru = require('../scrapers/scrapeInvestmentGuru');
-const scrapeMoneyControl = require('../scrapers/scrapeMoneyControl');
+const scrapeMoneyControl = require('../scrapers/scrapeMoneyControl'); 
 const scrapeEconomicTimes = require('../scrapers/scrapeEconomicTimes');
 const {userDetails} = require('../constants/scrapingUsers');
 
@@ -105,7 +105,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 	})
     .then(() => requiredPromiseRequest(type))
     .then(predictions => Promise.all([
-        DailyContestEntryHelper.processThirdPartyPredictions(predictions)
+        DailyContestEntryHelper.processThirdPartyPredictions(predictions, false, source)
             .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions))
             .then(predictions => DailyContestEntryHelper.ignoreNiftyBankPredictions(predictions)),
         RedisUtils.getSetDataFromRedis(getRedisClient(), `${redisEnvironment}_${source}_prediction`, 0, -1)
@@ -140,7 +140,15 @@ module.exports.createPredictionsFromThirdParty = function(source) {
                 }
             }
 
-            prediction = _.omit(prediction, ['source', 'email']);
+            prediction = _.omit(prediction, [
+                'source', 
+                'email', 
+                'stopLossDiff', 
+                'targetDiff', 
+                'recommendedPrice',
+                'shouldCalculateDiff',
+                'initializeStopLoss'
+            ]);
 
 			if (!DailyContestEntryHelper.foundPredictionInRedis(prediction, newRedisPredictions)) {
 				return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId)

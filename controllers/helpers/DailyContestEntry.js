@@ -3076,7 +3076,7 @@ module.exports.searchMultipleTickers = searchArray => {
 	})
 }
 
-module.exports.processThirdPartyPredictions = (predictions, isReal = false) => Promise.map(predictions, async prediction => {
+module.exports.processThirdPartyPredictions = (predictions, isReal = false, source = null) => Promise.map(predictions, async prediction => {
 	const dateFormat = 'YYYY-MM-DD';
 	const horizon = _.get(prediction, 'horizon', isReal ? 2 : 1);
 	const startDate = moment().format(dateFormat);
@@ -3140,8 +3140,11 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false) => P
 		shouldCalculateDiff: _.get(prediction, 'shouldCalculateDiff', false),
 		email: _.get(prediction, 'email', null),
 		source: _.get(prediction, 'source', null),
-		initializeStopLoss: _.get(prediction, 'initializeStopLoss', false)
+		initializeStopLoss: _.get(prediction, 'initializeStopLoss', false) 
+		// When adding extra items it should also be added in omit for thirdPartyScraping Jobs
 	};
+	console.log(`${source} - Un Formatted Prediction `, prediction);
+	console.log(`${source} - Formatted Prediction `, adjustedPrediction);
 
 	return adjustedPrediction;
 });
