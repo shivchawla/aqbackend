@@ -4,7 +4,11 @@ const _ = require('lodash');
 const cheerio = require('cheerio');
 const {userDetails} = require('../constants/scrapingUsers');
 
-const url = 'https://www.google.com/search?rlz=1C5CHFA_enIN695IN695&ei=jfXDXJeRFs7erQG3mLiACg&q=top+buy+and+sell+ideas+moneycontrol&oq=Top+buy+and+sell+ideas+m&gs_l=psy-ab.1.0.0.5162.5985..7187...1.0..0.185.267.1j1......0....1..gws-wiz.kPk87Ro7of0';
+const month = moment().format('MMM');
+const year = moment().format('YYYY');
+const day = moment().format('DD');
+
+const url = `https://www.google.com/search?rlz=1C5CHFA_enIN695IN695&ei=jsfHXNmhM4XRvgSQ1IqYCg&q=top+buy+and+sell+ideas+moneycontrol+April+30+2019&oq=top+buy+and+sell+ideas+moneycontrol+${month}+${day}+${year}&gs_l=psy-ab.3...186546.187338..187646...0.0..0.154.539.2j3......0....1..gws-wiz.......0i71j35i302i39j33i21j33i160.Xjl6eMiGZYY`;
 
 module.exports = () => new Promise(async (resolve, reject) => {
     try {
