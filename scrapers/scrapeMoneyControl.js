@@ -8,8 +8,6 @@ const month = moment().format('MMM');
 const year = moment().format('YYYY');
 const day = moment().format('DD');
 
-const url = `https://www.google.com/search?q=top+buy+and+sell+ideas+moneycontrol+${month}+${day}+${year}`;
-
 module.exports = () => new Promise(async (resolve, reject) => {
     try {
         const browser = await puppeteer.launch({
@@ -20,16 +18,13 @@ module.exports = () => new Promise(async (resolve, reject) => {
             ],
         });
         const page = await browser.newPage();
-        await page.goto(url, {
-            waitUntil: 'networkidle2'
-        });
-
-        const googleBody = await page.evaluate(() => {
+        await page.goto('https://www.moneycontrol.com/news/expertadvice-250.html', {waitUntil: 'networkidle0'});
+        
+        const moneyControlListBody = await page.evaluate(() => {
             return document.querySelector('body').innerHTML;
         });
 
-        const nextUrl = getMoneyControlUrl(googleBody);
-
+        const nextUrl = getMoneyControlUrl(moneyControlListBody);
         await page.goto(nextUrl, {
             waitUntil: 'networkidle2'
         });
@@ -50,9 +45,17 @@ module.exports = () => new Promise(async (resolve, reject) => {
 const getMoneyControlUrl = html => {
     const $ = cheerio.load(html);
     let urls = [];
-    $('div.srg').each((row, rawElement) => {
-        const url = $('div.rc div.r a').attr('href');
-        urls.push(url);
+    $('ul#cagetory li.clearfix').each((row, rawElement) => {
+        const date = $(rawElement).find('span').text();
+        if (isTodayDate(date)) {
+            const header = $(rawElement).find('h2').text();
+            const topBuySellRegExp = /top buy and sell ideas/i;
+
+            if (header.search(topBuySellRegExp) > -1) {
+                const url = $(rawElement).find('h2 a').attr('href');
+                urls.push(url);
+            }
+        }
     });
 
     return urls[0];
@@ -158,4 +161,21 @@ const getAdvisor = advisor => {
     } else {
         return {user: 'moneycontrol', email: userDetails.moneyControl.email};
     }
+}
+
+const isTodayDate = (receivedDate) => {
+    const dateFormat = 'D MMM, YYYY';
+    const currentDay = moment().format('D');
+    const currentMonth = moment().format('MMM');
+    const currentYear = moment().format('YYYY');
+
+    const currentDayRegExp = new RegExp(currentDay);
+    const currentMonthRegExp = new RegExp(currentMonth);
+    const currentYearRegExp = new RegExp(currentYear);
+
+    const isEquals = receivedDate.search(currentDayRegExp) > -1
+    && receivedDate.search(currentMonthRegExp) > -1
+    && receivedDate.search(currentYearRegExp) > -1;
+
+    return isEquals;
 }
