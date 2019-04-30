@@ -48,66 +48,66 @@ module.exports.userDetails = {
         email: 'ventura4404@gmail.com'
     },
     moneyControl: {
-        email: null
+        email: "moneycontrol4404@gmail.com"
     },
     mitesshthakkar: {
-        email: null
+        email: "mridult4404@gmail.com"
     },
     prakashgaba: {
-        email: null
+        email: "premg4404@gmail.com"
     },
     ashwanigujral: {
-        email: null
+        email: "ashokg4404@gmail.com"
     },
     sudarshanSukhani: {
-        email: null
+        email: "simrans4404@gmail.com"
     },
     economicTimes: {
-        email: 'mysandz@gmail.com'
+        email: 'economictimes4404@gmail.com'
     },
     emkayGlobal: {
-        email: 'psethi@gmail.com'
+        email: 'emkayg4404@gmail.com'
     },
     prabhudashLill: {
-        email: 'sanket.abhyankar@gmail.com'
+        email: 'prabhudhasl4404@gmail.com'
     },
     phillipCapital: {
-        email: 'yaduraj1993@gmail.com'
+        email: 'phillipc4404@gmail.com'
     },
     hdfcSecurities: {
-        email: 'kuchanamaharsh@iitj.ac.in'
+        email: 'hdfc4404@gmail.com'
     },
     manasJaiswal: {
-        email: 'arbaazdossani@gmail.com'
+        email: 'mayankj4404@gmail.com'
     },
     drCkNaryan: {
-        email: 'jain.iitk@gmail.com'
+        email: 'hardiks4404@gmail.com'
     },
     kunalBothra: {
-        email: 'virlimohit@gmail.com'
+        email: 'kishanb4404@gmail.com'
     },
     elaraCapital: {
-        email: 'nirajk42@gmail.com'
+        email: 'elarac4404@gmail.com'
     },
     nirmalBangSecurities: {
-        email: 'ravpritpal.kohli@gmail.com'
+        email: 'nirmalb4404@gmail.com'
     },
     kotakInstitutional: {
-        email: 'ksaxena837@gmail.com'
+        email: 'ksaxena4404@gmail.com'
     },
     relianceSecurities: {
-        email: 'arindameducationusc@gmail.com'
+        email: 'reliances4404@gmail.com'
     },
     iciciSecurities: {
-        email: 'im4whatsapp@gmail.com'
+        email: 'icicis4404@gmail.com'
     },
     anandRathi: {
-        email: 'palakagarwal672@gmail.com'
+        email: 'anandr4404@gmail.com'
     },
     nooreshMerani: {
-        email: 'volatile.star1@gmail.com'
+        email: 'nooreshm4404@gmail.com'
     },
     vaishaliParekh: {
-        email: 'prodiptag@gmail.com'
+        email: 'vaishalp4404@gmail.com'
     }
 }
