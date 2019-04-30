@@ -39,9 +39,8 @@ const getPredictionData = (html) => {
     const $ = cheerio.load(html);
     let data = [];
     $('div.eachStory').each((row, rawElement) => {
-        const currentDate = moment().format(dateFormat);
         const date = $(rawElement).find('time').text();
-        const dateRegExp = /hour/i;
+        const dateRegExp = /ago/i;
         if (isTodayDate(date) || date.search(dateRegExp) > -1) {
             const predictionText = $(rawElement).find('h3').text();
             data.push(parsePrediction(predictionText));
