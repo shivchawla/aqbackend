@@ -8,7 +8,7 @@ const month = moment().format('MMM');
 const year = moment().format('YYYY');
 const day = moment().format('DD');
 
-const url = `https://www.google.com/search?rlz=1C5CHFA_enIN695IN695&ei=jsfHXNmhM4XRvgSQ1IqYCg&q=top+buy+and+sell+ideas+moneycontrol+April+30+2019&oq=top+buy+and+sell+ideas+moneycontrol+${month}+${day}+${year}&gs_l=psy-ab.3...186546.187338..187646...0.0..0.154.539.2j3......0....1..gws-wiz.......0i71j35i302i39j33i21j33i160.Xjl6eMiGZYY`;
+const url = `https://www.google.com/search?q=top+buy+and+sell+ideas+moneycontrol+${month}+${day}+${year}`;
 
 module.exports = () => new Promise(async (resolve, reject) => {
     try {
