@@ -1138,11 +1138,11 @@ module.exports.getStockList = function(search, options) {
 	const skip = _.get(options, 'skip', 0);
 	const limit = _.get(options, 'limit', 10);
 
-	// Update multword search key words in into array
-	var searchKeywords = search.split(" ")
-	var searchArray = searchKeywords.map((keyword, index) => {
-				var k = []; k = k.concat(searchKeywords.slice(0, index + 1)); return k.join(" ")
-			});
+	// // Update multword search key words in into array
+	// var searchKeywords = search.split(" ")
+	// var searchArray = searchKeywords.map((keyword, index) => {
+	// 			var k = []; k = k.concat(searchKeywords.slice(0, index + 1)); return k.join(" ")
+	// 		});
 
 	const exclude = _.get(options, 'exclude', []);
 
@@ -1165,27 +1165,34 @@ module.exports.getStockList = function(search, options) {
 
 		//Populate stocks that can be shorted
 		shortableUniverseList = sUniverseList;
+		var startWithSearch = `(^${search}.*)$`; 
+		var q1 = {'security.ticker': {$regex: startWithSearch, $options: "i"}};
 
-		var q1Queries = [];
-		searchArray.forEach(searchItem => {
-			var startWithSearch = `(^${searchItem}.*)$`; 
-			q1Queries = q1Queries.concat({'security.ticker': {$regex: startWithSearch, $options: "i"}});
-		});
-
-		var q1 = {$or: q1Queries};
-
-		//CAN be improved to first match in ticker and then
+		//CAN be improved to first match in ticker and then 
+		var containsSearch = `^(.*?(${search})[^$]*)$`;
+		var q21 = {'security.ticker': {$regex: containsSearch, $options: "i"}};
+		var q22 = {'security.detail.Nse_Name': {$regex: containsSearch, $options: "i"}};
 		
-		var q21Queries = [];
-		var q22Queries = [];
-		searchArray.forEach(searchItem => { 
-			var containsSearch = `^(.*?(${searchItem})[^$]*)$`;
-			q21Queries = q21Queries.concat({'security.ticker': {$regex: containsSearch, $options: "i"}});
-			q22Queries = q22Queries.concat({'security.detail.Nse_Name': {$regex: containsSearch, $options: "i"}});
-		});
+		// var q1Queries = [];
+		// searchArray.forEach(searchItem => {
+		// 	var startWithSearch = `(^${searchItem}.*)$`; 
+		// 	q1Queries = q1Queries.concat({'security.ticker': {$regex: startWithSearch, $options: "i"}});
+		// });
 
-		var q21 = {$or: q21Queries};
-		var q22 = {$or: q22Queries};
+		// var q1 = {$or: q1Queries};
+
+		// //CAN be improved to first match in ticker and then
+		
+		// var q21Queries = [];
+		// var q22Queries = [];
+		// searchArray.forEach(searchItem => { 
+		// 	var containsSearch = `^(.*?(${searchItem})[^$]*)$`;
+		// 	q21Queries = q21Queries.concat({'security.ticker': {$regex: containsSearch, $options: "i"}});
+		// 	q22Queries = q22Queries.concat({'security.detail.Nse_Name': {$regex: containsSearch, $options: "i"}});
+		// });
+
+		// var q21 = {$or: q21Queries};
+		// var q22 = {$or: q22Queries};
 
 		var nostartwithCNX = "^((?!^CNX).)*$"
 	    var q3 = {'security.ticker': {$regex: nostartwithCNX}};

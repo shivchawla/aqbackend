@@ -3067,6 +3067,12 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 	})
 }
 
+module.exports.searchMultipleTickers = searchArray => {
+	return Promise.map(searchArray, ticker => {
+		return SecurityHelper.getStockList(ticker, {universe: null, sector: null, industry: null});
+	})
+}
+
 module.exports.processThirdPartyPredictions = (predictions, isReal = false) => Promise.map(predictions, async prediction => {
 	const dateFormat = 'YYYY-MM-DD';
 	const horizon = _.get(prediction, 'horizon', isReal ? 2 : 1);
@@ -3074,8 +3080,19 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false) => P
 	const endDate = moment(DateHelper.getNextNonHolidayWeekday(startDate, Number(horizon))).format(dateFormat);
 	
 	let ticker = _.get(prediction, 'symbol', '');
+	const searchKeywords = ticker.split(' ');
+	let searchArray = searchKeywords.map((keyword, index) => {
+		var k = []; 
+		k = k.concat(searchKeywords.slice(0, index + 1)); 
+		return k.join(" ");
+	});
 
-	const searchStockList = await SecurityHelper.getStockList(ticker, {universe: null, sector: null, industry: null});
+	searchArray = searchArray.reverse();
+	
+	// const searchStockList = await SecurityHelper.getStockList(ticker, {universe: null, sector: null, industry: null});
+	let searchStockList = await exports.searchMultipleTickers(searchArray);
+	// searchStockList = Array.prototype.concat.apply([...searchStockList]);
+	searchStockList = _.merge(...searchStockList)
 	
 	if (searchStockList.length === 0) {
 		console.log('Ticker not found ', ticker);
@@ -3176,8 +3193,9 @@ module.exports.filterPredictionsForToday = (predictions = []) => {
 
 module.exports.ignoreNiftyBankPredictions = (predictions = []) => {
 	return Promise.filter(predictions, prediction => {
+		console.log(prediction.position.security);
 		const ticker = _.get(prediction, 'position.security.ticker', '');
-
+		console.log('Ticker ', ticker);
 		if (ticker.toLowerCase() === 'niftybank' || ticker.toLowerCase() === 'banknifty') {
 			return false;
 		}
