@@ -136,7 +136,8 @@ const parsePrediction = (predictionText, advisor, email = null) => {
         stopLoss,
         target,
         advisor,
-        email
+        email,
+        source: advisor
     }
 }
 

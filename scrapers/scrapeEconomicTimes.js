@@ -101,7 +101,8 @@ const parsePrediction = predictionText => {
         email,
         initializeStopLoss: true,
         stopLossDiff: action === 'BUY' ? -0.05 : 0.05,
-        shouldCalculateDiff: true
+        shouldCalculateDiff: true,
+        source: advisor
     }
 }
 
