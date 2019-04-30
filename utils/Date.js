@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-03-31 19:38:33
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-27 14:52:12
+* @Last Modified time: 2019-04-29 09:46:02
 */
 const moment = require('moment-timezone');
 const indiaTimeZone = "Asia/Kolkata";
@@ -441,6 +441,7 @@ const holidays = [
 	"2019-04-14",
 	"2019-04-17",
 	"2019-04-19",
+	"2019-04-29",
 	"2019-05-01",
 	"2019-06-05",
 	"2019-08-12",
