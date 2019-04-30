@@ -2,7 +2,7 @@ const _ = require('lodash');
 const {userDetails} = require('../../constants/scrapingUsers');
 
 module.exports = (predictionText, advisorName = '') => {
-    const predictionTextArray = predictionText.split(' ');
+    const predictionTextArray = predictionText.split(/(\s+)/).filter(item => item.trim().length > 0);
 
     // Replace all commas
     predictionText = predictionText.replace(/[",]/g, "");
