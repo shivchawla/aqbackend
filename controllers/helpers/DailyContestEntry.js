@@ -2856,6 +2856,9 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 				stopLoss = Number(stopLoss.toFixed(2));
 			}
 
+			prediction.stopLoss = stopLoss;
+			prediction.target = target;
+
 			if (latestPrice != 0) {
 
 				//Investment is modified downstream so can't be const
