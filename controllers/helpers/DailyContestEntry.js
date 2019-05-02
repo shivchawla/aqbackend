@@ -3230,14 +3230,14 @@ module.exports.filterPredictionsForToday = (predictions = []) => {
 	})
 }
 
-module.exports.ignoreNiftyBankPredictions = (predictions = []) => {
+module.exports.ignoreNiftyPredictions = (predictions = []) => {
 	return Promise.filter(predictions, prediction => {
 		const ticker = _.get(prediction, 'position.security.ticker', '');
 		if (ticker == null) {
 			return false;
 		}
 		
-		if (ticker.toLowerCase() === 'niftybank' || ticker.toLowerCase() === 'banknifty') {
+		if (ticker.toLowerCase() === 'niftybank' || ticker.toLowerCase() === 'banknifty' || ticker.search(/nifty/i) > -1) {
 			return false;
 		}
 
