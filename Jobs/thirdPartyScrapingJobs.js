@@ -114,7 +114,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 		redisPredictions = redisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(redisPredictions) : [];
 		return Promise.map(predictions, async prediction => {
             const email = _.get(prediction, 'email', null);
-            const newSource = _.get(prediction, 'source', null) || source;
+            const newSource = _.get(prediction, 'source', source);
             
             let newAdvisorId = advisorId;
             let newUserId = userId;
@@ -136,7 +136,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
                 if (newSource !== null) {
                     console.log(`source_prediction ${redisEnvironment}_${newSource}_prediction`);
                     const requiredRedisPredictions = await RedisUtils.getSetDataFromRedis(getRedisClient(), `${redisEnvironment}_${newSource}_prediction`, 0, -1);
-                    newRedisPredictions = requiredRedisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(requiredRedisPredictions) : [];
+                    newRedisPredictions = requiredRedisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(requiredRedisPredictions) : newRedisPredictions;
                 }
             }
 
