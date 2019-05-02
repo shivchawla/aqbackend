@@ -3175,6 +3175,15 @@ module.exports.foundPredictionInRedis = (prediction, redisPredictions = []) => {
 		redisPredictionStartDate = moment(redisPredictionStartDate).format(dateFormat);
 		redisPredictionEndDate = moment(redisPredictionEndDate).format(dateFormat);
 
+		console.log('Type Target Prediction ', typeof predictionTarget);
+		console.log('Type Target Redis Prediction ', typeof predictionTarget);
+		console.log('Type Stop Loss Prediction ', typeof predictionStopLoss);
+		console.log('Type Stop Loss Redis Prediction ', typeof redisPredictionStopLoss);
+		console.log('Start Date Prediction ', predictionStartDate);
+		console.log('Start Date Redis Prediction ', redisPredictionStartDate);
+		console.log('End Date Prediction ', predictionEndDate);
+		console.log('End Date Loss Redis Prediction ', redisPredictionEndDate);
+
 		if (
 			redisPredictionSymbol === predictionSymbol &&
 			predictionTarget === redisPredictionTarget &&
