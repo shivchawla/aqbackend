@@ -3159,8 +3159,8 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false, sour
 module.exports.foundPredictionInRedis = (prediction, redisPredictions = []) => {
 	const dateFormat = 'YYYY-MM-DD';
 	const predictionSymbol = _.get(prediction, 'position.security.ticker', '');
-	const predictionTarget = _.get(prediction, 'target', 0);
-	const predictionStopLoss = _.get(prediction, 'stopLoss', 0);
+	const predictionTarget = Number(_.get(prediction, 'target', 0));
+	const predictionStopLoss = Number(_.get(prediction, 'stopLoss', 0));
 	let predictionStartDate = _.get(prediction, 'startDate', null);
 	let predictionEndDate = _.get(prediction, 'endDate', null);
 	predictionStartDate = moment(predictionStartDate).format(dateFormat);
@@ -3168,21 +3168,12 @@ module.exports.foundPredictionInRedis = (prediction, redisPredictions = []) => {
 
 	const filteredPredictions = redisPredictions.filter(redisPrediction => {
 		const redisPredictionSymbol = _.get(redisPrediction, 'position.security.ticker', '');
-		const redisPredictionTarget = _.get(redisPrediction, 'target', 0);
-		const redisPredictionStopLoss = _.get(redisPrediction, 'stopLoss', 0);
+		const redisPredictionTarget = Number(_.get(redisPrediction, 'target', 0));
+		const redisPredictionStopLoss = Number(_.get(redisPrediction, 'stopLoss', 0));
 		let redisPredictionStartDate = _.get(redisPrediction, 'startDate', null);
 		let redisPredictionEndDate = _.get(redisPrediction, 'endDate', null);
 		redisPredictionStartDate = moment(redisPredictionStartDate).format(dateFormat);
 		redisPredictionEndDate = moment(redisPredictionEndDate).format(dateFormat);
-
-		console.log('Type Target Prediction ', typeof predictionTarget);
-		console.log('Type Target Redis Prediction ', typeof predictionTarget);
-		console.log('Type Stop Loss Prediction ', typeof predictionStopLoss);
-		console.log('Type Stop Loss Redis Prediction ', typeof redisPredictionStopLoss);
-		console.log('Start Date Prediction ', predictionStartDate);
-		console.log('Start Date Redis Prediction ', redisPredictionStartDate);
-		console.log('End Date Prediction ', predictionEndDate);
-		console.log('End Date Loss Redis Prediction ', redisPredictionEndDate);
 
 		if (
 			redisPredictionSymbol === predictionSymbol &&
