@@ -49,7 +49,7 @@ const getPredictionData = html => {
         let predictionText = $(rawElement).find('p:nth-last-child(2)').text();
         const advisorName = $(rawElement).find('div.gspl_right h2 a').text();
         let date = $(rawElement).find('div.gspl_right p').text();
-        const currentDate = moment().format('DD/MM/YYYY');
+        const currentDate = moment().format('D/MM/YYYY');
         const isToday = date.indexOf(currentDate) > -1;
 
         if (advisorName.toLowerCase() === 'religare securities limited') {
