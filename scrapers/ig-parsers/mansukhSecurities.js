@@ -55,7 +55,7 @@ module.exports = (predictionText, advisorName = '') => {
             return item.toLowerCase() === 'target' || item.toLowerCase() === 'tgt';
         });
         let target = targetIndex > -1 ? predictionTextArray[targetIndex + 1] : 0;
-        target = target.split('-')[0];
+        target = target ? 0 : target.split('-')[0];
 
         const stopLossIndex = _.findIndex(predictionTextArray, item => {
             return item.toLowerCase() === 'sl' || item.toLowerCase() === 'stoploss';

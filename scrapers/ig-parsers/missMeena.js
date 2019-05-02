@@ -58,7 +58,7 @@ module.exports = (predictionText, advisorName = '') => {
         const targetRegExp = /tgt@/i;
         const targetIndex = _.findIndex(predictionTextArray, item => item.search(targetRegExp) > -1);
         let target = predictionTextArray[targetIndex];
-        target = target.split('@')[1].split('_')[0];
+        target = target ? 0 : target.split('@')[1].split('_')[0];
 
         const stopLossRegExp = /sl@/i;
         const stopLossIndex = _.findIndex(predictionTextArray, item => item.search(stopLossRegExp) > -1);
