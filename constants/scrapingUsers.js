@@ -98,8 +98,17 @@ module.exports.userDetails = {
     relianceSecurities: {
         email: 'reliances4404@gmail.com'
     },
+    axisSecurities: {
+        email: 'akhileshs4404@gmail.com'
+    },
     iciciSecurities: {
         email: 'icicis4404@gmail.com'
+    },
+    jmFinancial: {
+        email: 'jmfinancial4404@gmail.com'
+    },
+    smcGlobal :{
+        email: 'smcglobal4404@gmail.com'
     },
     anandRathi: {
         email: 'anandr4404@gmail.com'
@@ -109,5 +118,29 @@ module.exports.userDetails = {
     },
     vaishaliParekh: {
         email: 'vaishalp4404@gmail.com'
+    },
+    mustafaNadeem: {
+        email:'mustafa4404@gmail.com'
+    },
+    mazharMohammad: {
+        email: 'mazharm4404@gmail.com'
+    },
+    shabbirKayyumi: {
+        email: 'shabbirk4404@gmail.com'
+    },
+    hadrienMandonca: {
+        email: 'himeshm4404@gmail.com'
+    },
+    shitijGandhi: {
+        email: 'shaunakg4404@gmail.com'
+    },
+    adityaAgarwal: {
+        email: 'adarsha4404@gmail.com'    
+    },
+    jayThakkar: {
+        email: 'jayt4404@gmail.com'
+    },
+    manavChopra: {
+        email: 'manavc4404@gmail.com'
     }
 }

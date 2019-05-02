@@ -187,8 +187,16 @@ const getAdvisor = advisorName => {
             advisor: 'iciciSecurities'
         },
         {
-            name: 'ICICI Securities',
-            advisor: 'iciciSecurities'
+            name: 'Axis Securities',
+            advisor: 'axisSecurities'
+        },
+        {
+            name: 'JM Financial',
+            advisor: 'jmFinancial'
+        },
+        {
+            name: 'SMC Global Securities',
+            advisor:'smcGlobal'
         },
         {
             name: 'Anand Rathi',
@@ -201,6 +209,38 @@ const getAdvisor = advisorName => {
         {
             name: 'Vaishali Parekh',
             advisor: 'vaishaliParekh'
+        },
+        {
+            name: 'Mustafa Nadeem',
+            advisor: 'mustafaNadeem'
+        },
+        {
+            name: 'Mazhar Mohammad',
+            advisor: 'mazharMohammad'
+        },
+        {
+            name: 'Shabbir Kayyumi',
+            advisor: 'shabbirKayyumi'
+        },
+        {
+            name: 'Hadrien Mandonca',
+            advisor: 'hadrienMandonca'
+        },
+        {
+            name: 'Shitij Gandhi',
+            advisor: 'shitijGandhi'
+        },
+        {
+            name: 'Aditya Agarwala',
+            advisor: 'adityaAgarwal'
+        },
+        {
+            name: 'Jay Thakkar',
+            advisor: 'jayThakkar'
+        },
+        {
+            name: 'Manav Chopra',
+            advisor: 'manavChopra'
         }
     ];
 
