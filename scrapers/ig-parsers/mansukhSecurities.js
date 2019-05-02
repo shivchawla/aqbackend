@@ -43,7 +43,7 @@ module.exports = (predictionText, advisorName = '') => {
 
         if (isEllipsisFound || isExitFound || isPEFound || isCEFound || isPutFound || isCallFound || isBookFound) {
             return null;
-        }
+        } 
 
         const buyRegExp = /Buy/i
         const isBuyFound = predictionText.search(buyRegExp) > -1;
@@ -60,8 +60,8 @@ module.exports = (predictionText, advisorName = '') => {
         const targetIndex = _.findIndex(predictionTextArray, item => {
             return item.toLowerCase() === 'target' || item.toLowerCase() === 'tgt';
         });
-        let target = targetIndex > -1 ? predictionTextArray[targetIndex + 1] : 0;
-        target = target ? 0 : target.split('-')[0];
+        let target = targetIndex > -1 ? predictionTextArray[targetIndex + 1] : '0';
+        target = target.split('-')[0];
 
         const stopLossIndex = _.findIndex(predictionTextArray, item => {
             return item.toLowerCase() === 'sl' || item.toLowerCase() === 'stoploss';
@@ -103,6 +103,7 @@ module.exports = (predictionText, advisorName = '') => {
             stopLossDiff: action === 'BUY' ? -0.05 : 0.05,
             targetDiff: action === 'BUY' ? 0.05 : -0.05,
             shouldCalculateDiff: isFutureFound,
+            initializeStopLoss: isNaN(Number(stopLoss)) 
         };
     } catch (err) {
         return null;

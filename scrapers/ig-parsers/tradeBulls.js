@@ -61,8 +61,8 @@ module.exports = (predictionText, advisorName = '') => {
         const targetRegExp = /TRGT-/i;
         const targetIndex = _.findIndex(predictionTextArray, item => item.search(targetRegExp) > -1);
 
-        let target = targetIndex > -1 ? predictionTextArray[targetIndex] : 0;
-        target = target ? 0 : target.split('-')[1];
+        let target = targetIndex > -1 ? predictionTextArray[targetIndex] : '0';
+        target = target.split('-')[1];
 
         const stopLossRegExp = /SL-/i;
         const stopLossIndex = _.findIndex(predictionTextArray, item => item.search(stopLossRegExp) > -1);
