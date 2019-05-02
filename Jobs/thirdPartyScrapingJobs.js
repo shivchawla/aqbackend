@@ -149,7 +149,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
                 'shouldCalculateDiff',
                 'initializeStopLoss'
             ]);
-
+            console.log('Redis predictions ', newRedisPredictions);
 			if (!DailyContestEntryHelper.foundPredictionInRedis(prediction, newRedisPredictions)) {
 				return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId)
 				.then(() => { 
