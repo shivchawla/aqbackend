@@ -14,6 +14,9 @@ module.exports = (predictionText, advisorName = '') => {
     // Checking for CE
     const isCEFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'ce') > -1;
 
+    // Checking for CALL
+    const isCallFound = _.findIndex(predictionTextArray, item => item.search() === 'call') > -1;
+
     // Checking for future
     const futureRegExp = /Fut/i
     const isFutureFound = predictionText.search(futureRegExp) > -1;
@@ -23,7 +26,7 @@ module.exports = (predictionText, advisorName = '') => {
     const intradayRefExpSpaced = /INTRA DAY/i;
     const isIntraDayFound = predictionText.search(intradayRegExp) > -1 || predictionText.search(intradayRefExpSpaced) > -1
 
-    if (isCEFound || isPEFound) {
+    if (isCEFound || isPEFound || isCallFound) {
         return null
     }
 

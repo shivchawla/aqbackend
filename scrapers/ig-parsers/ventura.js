@@ -14,6 +14,9 @@ module.exports = (predictionText, advisorName = '') => {
         // Checking for CE
         const isCEFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'ce') > -1;
 
+        // Checking for CALL
+        const isCallFound = _.findIndex(predictionTextArray, item => item.search() === 'call') > -1;
+
         const profitRegExp = /Profit/i
         // Checling for book profit
         const isProfitFound = _.findIndex(predictionTextArray, item => item.search(profitRegExp) > -1) > -1;
@@ -38,7 +41,7 @@ module.exports = (predictionText, advisorName = '') => {
         const exitRegExp = /Exit/i
         const isExitFound = predictionText.search(exitRegExp) > -1;
 
-        if (isEllipsisFound || isExitFound || isPEFound || isCEFound || isProfitFound) {
+        if (isEllipsisFound || isExitFound || isPEFound || isCEFound || isProfitFound || isCallFound) {
             return null;
         }
 

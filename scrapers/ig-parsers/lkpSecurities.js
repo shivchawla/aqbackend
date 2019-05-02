@@ -13,6 +13,9 @@ module.exports = (predictionText, advisorName = '') => {
         // Checking for CE
         const isCEFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'ce') > -1;
 
+        // Checking for CALL
+        const isCallFound = _.findIndex(predictionTextArray, item => item.search() === 'call') > -1;
+
         // Replace all commas
         predictionText = predictionText.replace(/[",]/g, "");
 
@@ -33,7 +36,7 @@ module.exports = (predictionText, advisorName = '') => {
         const exitRegExp = /Exit/i
         const isExitFound = predictionText.search(exitRegExp) > -1;
 
-        if (isEllipsisFound || isExitFound || isPEFound || isCEFound) {
+        if (isEllipsisFound || isExitFound || isPEFound || isCEFound || isCallFound) {
             return null;
         }
 
