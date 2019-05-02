@@ -17,7 +17,7 @@ module.exports = (predictionText, advisorName = '') => {
         const isCEFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'ce') > -1;
         
         // Checking for CALL
-        const isCallFound = _.findIndex(predictionTextArray, item => item.search() === 'call') > -1;
+        const isCallFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'call') > -1;
 
         // Checking for modify
         const isModifyFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'modify') > -1;
