@@ -22,7 +22,6 @@ const {userDetails} = require('../constants/scrapingUsers');
 const DateHelper = require('../utils/Date');
 
 let redisClient;
-const predictionsFilePath = `${path.dirname(require.main.filename)}/examples/thirdPartyPredictions.csv`
 
 function getRedisClient() {
 	if (!redisClient || !redisClient.connected) {
@@ -38,7 +37,7 @@ function getRedisClient() {
     return redisClient; 
 }
 
-module.exports.getAllPredictionsFromThirdParty = function() {
+module.exports.getAllPredictionsFromThirdParty = function() { 
     return Promise.all([
         exports.createPredictionsFromThirdParty('kotak'), 
         exports.createPredictionsFromThirdParty('kotakFundamental'),
@@ -110,14 +109,13 @@ module.exports.createPredictionsFromThirdParty = function(source) {
         return Promise.all([
             DailyContestEntryHelper.processThirdPartyPredictions(predictions, false, source)
                 .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions))
-                .then(predictions => DailyContestEntryHelper.ignoreNiftyBankPredictions(predictions)),
+                .then(predictions => DailyContestEntryHelper.ignoreNiftyPredictions(predictions)),
             // Storing redis for the parent source
             DailyContestEntryHelper.addRawPredictionsToRedis(getRedisClient(), predictions, source)
         ]);
 
     })
 	.then(([predictions, rawPredictions]) => {
-        writePredictionsToCsv(predictionsFilePath, rawPredictions);
 		return Promise.map(predictions, async prediction => {
             const email = _.get(prediction, 'email', null);
             const newSource = _.get(prediction, 'source', null) || source;
@@ -190,62 +188,3 @@ const getUserInfo = email => new Promise((resolve, reject) => {
         resolve(null);
     });
 })
-
-
-const writePredictionsToCsv = (path, predictions) => new Promise((resolve, reject) => { 
-    try {
-        const csvStream = csv
-            .createWriteStream({headers: true})
-            .transform(function(row, next){
-                setImmediate(function(){
-                    // this should be same as the object structure
-                    next(null, {
-                        advisor: row.advisor, 
-                        ticker: row.ticker,
-                        target: row.target,
-                        stopLoss: row.stopLoss,
-                        startDate: row.startDate,
-                        endDate: row.endDate,
-                    });
-                });;
-            });
-            
-        const writableStream = fs.createWriteStream(path);		
-        writableStream.on("finish", function(){
-            console.log("Written to file"); 
-            resolve(true);
-        });
-        csvStream.pipe(writableStream);
-        predictions.forEach(prediction => {
-            csvStream.write(convertPredictionToCsvFormat(prediction));
-        })
-        csvStream.end();
-    } catch(err) {
-        console.log('File Error ', err);
-        reject(err);
-    }
-})
-
-const convertPredictionToCsvFormat = (prediction, source = '') => {
-    const dateFormat = 'YYYY-MM-DD';
-    const horizon = _.get(prediction, 'horizon', 'NA');
-    const startDate = moment().format(dateFormat);
-    let ticker = _.get(prediction, 'symbol', '');
-    const target = _.get(prediction, 'target', 0);
-    const stopLoss = _.get(prediction, 'stopLoss', 0);
-    const action = _.get(prediction, 'action', 'BUY');
-
-	const endDate = horizon === 0 
-		? startDate 
-		: moment(DateHelper.getNextNonHolidayWeekday(startDate, Number(horizon))).format(dateFormat);
-    return {
-        advisor: _.get(prediction, 'source', null) || source,
-        ticker: ticker,
-        target: target,
-        stopLoss: stopLoss,
-        startDate: startDate,
-        endDate: endDate,
-        horizon,
-        action
-    }
-}
