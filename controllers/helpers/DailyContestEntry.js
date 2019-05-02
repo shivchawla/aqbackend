@@ -3081,6 +3081,16 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 	})
 	.then(adjustedPrediction => {
 		if (adjustedPrediction) {
+			adjustedPrediction = _.omit(adjustedPrediction, [
+                'source', 
+                'email', 
+                'stopLossDiff', 
+                'targetDiff', 
+                'recommendedPrice',
+                'shouldCalculateDiff',
+                'initializeStopLoss'
+            ]);
+			console.log('Prediction to be created ', adjustedPrediction);
 			return exports.addPrediction(advisorId, adjustedPrediction, DateHelper.getMarketCloseDateTime(validStartDate), masterAdvisorId, userId)
 		} else {
 			APIError.throwJsonError({message: "Adjusted prediciton is NULL/invalid"});

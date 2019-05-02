@@ -137,16 +137,6 @@ module.exports.createPredictionsFromThirdParty = function(source) {
                 }
             }
 
-            prediction = _.omit(prediction, [
-                'source', 
-                'email', 
-                'stopLossDiff', 
-                'targetDiff', 
-                'recommendedPrice',
-                'shouldCalculateDiff',
-                'initializeStopLoss'
-            ]);
-
             return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId)
             .then(prediction => {
                 console.log(`Prediction Created ${prediction.position.security.ticker} - ${newSource}`);
