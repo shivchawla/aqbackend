@@ -1,5 +1,6 @@
 const config = require('config');
 var redis = require('redis');
+const moment = require('moment');
 const Promise = require('bluebird');
 const _ = require('lodash');
 var path = require('path');
@@ -18,6 +19,7 @@ const scrapeInvestmentGuru = require('../scrapers/scrapeInvestmentGuru');
 const scrapeMoneyControl = require('../scrapers/scrapeMoneyControl'); 
 const scrapeEconomicTimes = require('../scrapers/scrapeEconomicTimes');
 const {userDetails} = require('../constants/scrapingUsers');
+const DateHelper = require('../utils/Date');
 
 let redisClient;
 const predictionsFilePath = `${path.dirname(require.main.filename)}/examples/thirdPartyPredictions.csv`
@@ -38,7 +40,7 @@ function getRedisClient() {
 
 module.exports.getAllPredictionsFromThirdParty = function() {
     return Promise.all([
-        exports.createPredictionsFromThirdParty('kotak'),
+        exports.createPredictionsFromThirdParty('kotak'), 
         exports.createPredictionsFromThirdParty('kotakFundamental'),
         exports.createPredictionsFromThirdParty('motilalOswal'),
         exports.createPredictionsFromThirdParty('shareKhan'),
@@ -104,21 +106,24 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 		advisorId = _.get(advisor, '_id', '').toString();
 	})
     .then(() => requiredPromiseRequest(type))
-    .then(predictions => Promise.all([
-        DailyContestEntryHelper.processThirdPartyPredictions(predictions, false, source)
-            .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions))
-            .then(predictions => DailyContestEntryHelper.ignoreNiftyBankPredictions(predictions)),
-        RedisUtils.getSetDataFromRedis(getRedisClient(), `${redisEnvironment}_${source}_prediction`, 0, -1)
-    ]))
-	.then(([predictions, redisPredictions]) => {
-		redisPredictions = redisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(redisPredictions) : [];
+    .then(predictions => {
+        return Promise.all([
+            DailyContestEntryHelper.processThirdPartyPredictions(predictions, false, source)
+                .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions))
+                .then(predictions => DailyContestEntryHelper.ignoreNiftyBankPredictions(predictions)),
+            // Storing redis for the parent source
+            DailyContestEntryHelper.addRawPredictionsToRedis(getRedisClient(), predictions, source)
+        ]);
+
+    })
+	.then(([predictions, rawPredictions]) => {
+        writePredictionsToCsv(predictionsFilePath, rawPredictions);
 		return Promise.map(predictions, async prediction => {
             const email = _.get(prediction, 'email', null);
-            const newSource = _.get(prediction, 'source', source);
+            const newSource = _.get(prediction, 'source', null) || source;
             
             let newAdvisorId = advisorId;
             let newUserId = userId;
-            let newRedisPredictions = redisPredictions;
             
             console.log('3rd Party email ', email);
             console.log('3rd Party source ', newSource, prediction.position.security.ticker); 
@@ -132,12 +137,6 @@ module.exports.createPredictionsFromThirdParty = function(source) {
                     newAdvisorId = thirdPartyUser.advisorId;
                     newUserId = thirdPartyUser.userId;
                 }
-
-                if (newSource !== null) {
-                    console.log(`source_prediction ${redisEnvironment}_${newSource}_prediction`);
-                    const requiredRedisPredictions = await RedisUtils.getSetDataFromRedis(getRedisClient(), `${redisEnvironment}_${newSource}_prediction`, 0, -1);
-                    newRedisPredictions = requiredRedisPredictions !== null ? DailyContestEntryHelper.processRedisPredictions(requiredRedisPredictions) : newRedisPredictions;
-                }
             }
 
             prediction = _.omit(prediction, [
@@ -149,28 +148,17 @@ module.exports.createPredictionsFromThirdParty = function(source) {
                 'shouldCalculateDiff',
                 'initializeStopLoss'
             ]);
-            console.log('Redis predictions ', newRedisPredictions);
-			if (!DailyContestEntryHelper.foundPredictionInRedis(prediction, newRedisPredictions)) {
-				return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId)
-				.then(() => { 
-                    console.log('Advisor Id ', newAdvisorId, newUserId);
-                    // Should add to redis 
-                    console.log(`Prediction Created ${prediction.position.security.ticker} - ${newSource}`);
-                    RedisUtils.addSetDataToRedis(getRedisClient(), `${redisEnvironment}_${newSource}_prediction`, JSON.stringify(prediction));
-                    writePredictionToCsv(predictionsFilePath, prediction);
-                                        
-                    return Promise.resolve(true);
-                })
-				.catch(err => {
-                    console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker', null), newSource, err.message);
-                    
-                    return Promise.resolve(true);
-				})
-			} else {
-				console.log('Prediction Found', _.get(prediction, 'position.security.ticker', null), newSource); 
+
+            return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId)
+            .then(prediction => {
+                console.log(`Prediction Created ${prediction.position.security.ticker} - ${newSource}`);
+                Promise.resolve(true)
+            })
+            .catch(err => {
+                console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker', null), newSource, err.message);
                 
                 return Promise.resolve(true);
-			}
+            })
 		})
     })
     .then(() => {
@@ -204,39 +192,60 @@ const getUserInfo = email => new Promise((resolve, reject) => {
 })
 
 
-const writePredictionToCsv = (path, prediction) => {
-	const csvStream = csv
-		.createWriteStream({headers: true, flags: 'a'})
-		.transform(function(row, next){
-			setImmediate(function(){
-				// this should be same as the object structure
-				next(null, {
-					advisor: row.advisor, 
-					ticker: row.ticker,
-					target: row.target,
-					stopLoss: row.stopLoss,
-					startDate: row.startDate,
-					endDate: row.endDate,
-				});
-			});;
-		});
-        
-	const writableStream = fs.createWriteStream(path, {flags: 'a'});		
-	writableStream.on("finish", function(){
-		console.log("Written to file"); 
-	});
-	csvStream.pipe(writableStream);
-	csvStream.write(convertPredictionToCsvFormat(prediction));
-	csvStream.end();
-}
+const writePredictionsToCsv = (path, predictions) => new Promise((resolve, reject) => { 
+    try {
+        const csvStream = csv
+            .createWriteStream({headers: true})
+            .transform(function(row, next){
+                setImmediate(function(){
+                    // this should be same as the object structure
+                    next(null, {
+                        advisor: row.advisor, 
+                        ticker: row.ticker,
+                        target: row.target,
+                        stopLoss: row.stopLoss,
+                        startDate: row.startDate,
+                        endDate: row.endDate,
+                    });
+                });;
+            });
+            
+        const writableStream = fs.createWriteStream(path);		
+        writableStream.on("finish", function(){
+            console.log("Written to file"); 
+            resolve(true);
+        });
+        csvStream.pipe(writableStream);
+        predictions.forEach(prediction => {
+            csvStream.write(convertPredictionToCsvFormat(prediction));
+        })
+        csvStream.end();
+    } catch(err) {
+        console.log('File Error ', err);
+        reject(err);
+    }
+})
 
 const convertPredictionToCsvFormat = (prediction, source = '') => {
+    const dateFormat = 'YYYY-MM-DD';
+    const horizon = _.get(prediction, 'horizon', 'NA');
+    const startDate = moment().format(dateFormat);
+    let ticker = _.get(prediction, 'symbol', '');
+    const target = _.get(prediction, 'target', 0);
+    const stopLoss = _.get(prediction, 'stopLoss', 0);
+    const action = _.get(prediction, 'action', 'BUY');
+
+	const endDate = horizon === 0 
+		? startDate 
+		: moment(DateHelper.getNextNonHolidayWeekday(startDate, Number(horizon))).format(dateFormat);
     return {
-        advisor: prediction.source || source,
-        ticker: prediction.position.security.ticker,
-        target: prediction.target,
-        stopLoss: prediction.stopLoss,
-        startDate: prediction.startDate,
-        endDate: prediction.endDate
+        advisor: _.get(prediction, 'source', null) || source,
+        ticker: ticker,
+        target: target,
+        stopLoss: stopLoss,
+        startDate: startDate,
+        endDate: endDate,
+        horizon,
+        action
     }
 }

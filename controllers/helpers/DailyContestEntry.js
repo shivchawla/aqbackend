@@ -2850,7 +2850,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 				|| _.get(securityDetail, 'latestDetail.ChangePct', 0);
 
 			recommendedPrice = recommendedPrice !== 0 ? recommendedPrice : latestPrice;
-			stopLoss = initializeStopLoss ? recommendedPrice : stopLoss;
+			stopLoss = initializeStopLoss ? recommendedPrice : stopLoss; 
 			
 			if (shouldCalculateDiff) {
 				stopLoss = stopLossDiff !== 0 ? (recommendedPrice * stopLossDiff) + stopLoss : stopLoss;
@@ -3067,6 +3067,16 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 		}
 	})
 	.then(adjustedPrediction => {
+		return exports.getPredictionsForDate(advisorId, validStartDate, {category: "started", priceUpdate: false, active: null})
+		.then(predictions => {
+			if (exports.foundPredictionForAdvisor(adjustedPrediction, predictions)) {
+				APIError.throwJsonError({message: "Duplicate Predictions"});
+			}
+
+			return adjustedPrediction;
+		})
+	})
+	.then(adjustedPrediction => {
 		if (adjustedPrediction) {
 			return exports.addPrediction(advisorId, adjustedPrediction, DateHelper.getMarketCloseDateTime(validStartDate), masterAdvisorId, userId)
 		} else {
@@ -3129,7 +3139,7 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false, sour
 	const stopLoss = _.get(prediction, 'stopLoss', 0);
 
 	const adjustedPrediction = {
-		conditionalType: 'NOW',
+		conditionalType: 'NOW', 
 		endDate,
 		startDate,
 		real: false,
@@ -3156,7 +3166,7 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false, sour
 	return adjustedPrediction;
 });
 
-module.exports.foundPredictionInRedis = (prediction, redisPredictions = []) => {
+module.exports.foundPredictionForAdvisor = (prediction, redisPredictions = []) => {
 	const dateFormat = 'YYYY-MM-DD';
 	const predictionSymbol = _.get(prediction, 'position.security.ticker', '');
 	const predictionTarget = Number(_.get(prediction, 'target', 0));
@@ -3190,6 +3200,24 @@ module.exports.foundPredictionInRedis = (prediction, redisPredictions = []) => {
 
 	return filteredPredictions.length > 0;
 }
+
+module.exports.addRawPredictionsToRedis = (redisClient, predictions, source) => new Promise(async (resolve, reject) => {
+	try {
+		const redisEnvironment = process.env.NODE_ENV;
+		const redisKey = `${redisEnvironment}_raw_${source}_prediction`;
+		const storedPredictions = await RedisUtils.getSetDataFromRedis(redisClient, redisKey, 0, -1);
+	
+		predictions.forEach(prediction  => {
+			if (!exports.foundPredictionForAdvisor(prediction, storedPredictions)) {
+				RedisUtils.addSetDataToRedis(redisClient, redisKey, JSON.stringify(prediction));
+			}
+		});
+	
+		resolve(predictions);		
+	} catch(err) {
+		reject(err);
+	}
+})
 
 module.exports.filterPredictionsForToday = (predictions = []) => {
 	const dateFormat = 'YYYY-MM-DD';
