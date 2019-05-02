@@ -3,7 +3,7 @@ const {userDetails} = require('../../constants/scrapingUsers');
 
 module.exports = (predictionText, advisorName = '') => {
     const predictionTextArray = predictionText.split(/(\s+)/).filter(item => item.trim().length > 0);
-
+    
     // Replace all commas
     predictionText = predictionText.replace(/[",]/g, "");
 
@@ -32,7 +32,12 @@ module.exports = (predictionText, advisorName = '') => {
     const exitRegExp = /Exit/i
     const isExitFound = predictionText.search(exitRegExp) > -1;
 
-    if (isEllipsisFound || isFutureFound || isExitFound || isThreeEllipsisFound || isCEFound || isPEFound) {
+    // Checking for intraday
+    const intradayRegExp = /INTRADAY/i;
+    const intradayRefExpSpaced = /INTRA DAY/i;
+    const isIntraDayFound = predictionText.search(intradayRegExp) > -1 || predictionText.search(intradayRefExpSpaced) > -1
+
+    if (isEllipsisFound || isExitFound || isThreeEllipsisFound || isCEFound || isPEFound) {
         return null;
     }
 
@@ -70,7 +75,11 @@ module.exports = (predictionText, advisorName = '') => {
         stopLoss,
         target,
         advisorName,
+        horizon: isIntraDayFound ? 0 : 1, 
         email: userDetails.choiceInternational.email,
-        source: 'choiceInternational'
+        source: 'choiceInternational',
+        stopLossDiff: action === 'BUY' ? -0.05 : 0.05,
+        targetDiff: action === 'BUY' ? 0.05 : -0.05,
+        shouldCalculateDiff: isFutureFound,
     }
 }

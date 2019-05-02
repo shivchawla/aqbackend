@@ -15,6 +15,11 @@ module.exports = (predictionText, advisorName = '') => {
     const futureRegExp = /Fut/i
     const isFutureFound = predictionText.search(futureRegExp) > -1;
 
+    // Checking for intraday
+    const intradayRegExp = /INTRADAY/i;
+    const intradayRefExpSpaced = /INTRA DAY/i;
+    const isIntraDayFound = predictionText.search(intradayRegExp) > -1 || predictionText.search(intradayRefExpSpaced) > -1
+
     // Checking for PE
     const isPEFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'pe') > -1;
 
@@ -25,7 +30,7 @@ module.exports = (predictionText, advisorName = '') => {
     const exitRegExp = /Exit/i
     const isExitFound = predictionText.search(exitRegExp) > -1;
 
-    if (isEllipsisFound || isFutureFound || isExitFound || isPEFound || isCEFound) {
+    if (isEllipsisFound || isExitFound || isPEFound || isCEFound) {
         return null;
     }
 
@@ -76,8 +81,12 @@ module.exports = (predictionText, advisorName = '') => {
         symbol,
         stopLoss,
         target,
+        horizon: isIntraDayFound ? 0 : 1, 
         advisorName,
         email: userDetails.kifsTrade.email,
-        source: 'kifsTrade'
+        source: 'kifsTrade',
+        stopLossDiff: action === 'BUY' ? -0.05 : 0.05,
+        targetDiff: action === 'BUY' ? 0.05 : -0.05,
+        shouldCalculateDiff: isFutureFound,
     }
 }

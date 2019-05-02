@@ -1,7 +1,8 @@
 const _ = require('lodash');
 const {userDetails} = require('../../constants/scrapingUsers');
 
-module.exports = (predictionText, advisorName = '') => {    
+module.exports = (predictionText, advisorName = '') => {
+    let horizon = 1;
     // Replace all commas
     predictionText = predictionText.replace(/[",]/g, "");
 
@@ -12,6 +13,15 @@ module.exports = (predictionText, advisorName = '') => {
 
     // Checking for CE
     const isCEFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'ce') > -1;
+
+    // Checking for future
+    const futureRegExp = /Fut/i
+    const isFutureFound = predictionText.search(futureRegExp) > -1;
+
+    // Checking for intraday
+    const intradayRegExp = /INTRADAY/i;
+    const intradayRefExpSpaced = /INTRA DAY/i;
+    const isIntraDayFound = predictionText.search(intradayRegExp) > -1 || predictionText.search(intradayRefExpSpaced) > -1
 
     if (isCEFound || isPEFound) {
         return null
@@ -48,8 +58,12 @@ module.exports = (predictionText, advisorName = '') => {
         symbol,
         stopLoss,
         target,
+        horizon: isIntraDayFound ? 0 : 1, 
         advisorName,
         email: userDetails.geplCapital.email,
-        source: 'geplCapital'
+        source: 'geplCapital',
+        stopLossDiff: action === 'BUY' ? -0.05 : 0.05,
+        targetDiff: action === 'BUY' ? 0.05 : -0.05,
+        shouldCalculateDiff: isFutureFound,
     }
 }

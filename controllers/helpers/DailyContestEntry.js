@@ -2799,6 +2799,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 	let target = prediction.target;
 	let stopLoss = _.get(prediction, 'stopLoss', 0);
 	let recommendedPrice = _.get(prediction, 'recommendedPrice', 0);
+	const isIntraDay = prediction.startDate == prediction.endDate;
 	
 	const initializeStopLoss = _.get(prediction, 'initializeStopLoss', false);
 	const shouldCalculateDiff = _.get(prediction, 'shouldCalculateDiff', false);
@@ -2848,10 +2849,12 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 				|| _.get(securityDetail, 'latestDetailRT.change_p', 0) 
 				|| _.get(securityDetail, 'latestDetail.ChangePct', 0);
 
-			stopLoss = initializeStopLoss ? latestPrice : stopLoss;
+			recommendedPrice = recommendedPrice !== 0 ? recommendedPrice : latestPrice;
+			stopLoss = initializeStopLoss ? recommendedPrice : stopLoss;
+			
 			if (shouldCalculateDiff) {
-				stopLoss = stopLossDiff !== 0 ? (latestPrice * stopLossDiff) + stopLoss : stopLoss;
-				target = targetDiff !== 0 ? (latestPrice * targetDiff) + target : target;
+				stopLoss = stopLossDiff !== 0 ? (recommendedPrice * stopLossDiff) + stopLoss : stopLoss;
+				target = targetDiff !== 0 ? (recommendedPrice * targetDiff) + target : target;
 				target = Number(target.toFixed(2));
 				stopLoss = Number(stopLoss.toFixed(2));
 			}
@@ -2891,10 +2894,12 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 					APIError.throwJsonError({message: "Inaccurate Stoploss!! Must be higher than the call price"});
 				} 
 
-				if (investment > 0 && target < 1.015*latestPrice) {
-					APIError.throwJsonError({message:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% higher than call price`});
-				} else if (investment < 0 && target > 1.015*latestPrice) {
-					APIError.throwJsonError({message:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% lower than call price`});
+				if (!isIntraDay) {
+					if (investment > 0 && target < 1.015*latestPrice) {
+						APIError.throwJsonError({message:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% higher than call price`});
+					} else if (investment < 0 && target > 1.015*latestPrice) {
+						APIError.throwJsonError({message:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% lower than call price`});
+					}
 				}
 
 				if (Math.abs(changePct) > 0.05) {
@@ -3037,8 +3042,8 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 		return; 
 	})
 	.then(() => {
-		
-		if (DateHelper.compareDates(prediction.endDate, prediction.startDate) == 1) {
+		const requiredDateComparisonValue = isIntraDay ? 0 : 1
+		if (DateHelper.compareDates(prediction.endDate, prediction.startDate) == requiredDateComparisonValue) {
 			
 			prediction.startDate = validStartDate;
 			prediction.endDate = DateHelper.getMarketCloseDateTime(DateHelper.getNextNonHolidayWeekday(prediction.endDate, 0));
@@ -3076,11 +3081,13 @@ module.exports.searchMultipleTickers = searchArray => {
 	})
 }
 
-module.exports.processThirdPartyPredictions = (predictions, isReal = false) => Promise.map(predictions, async prediction => {
+module.exports.processThirdPartyPredictions = (predictions, isReal = false, source = null) => Promise.map(predictions, async prediction => {
 	const dateFormat = 'YYYY-MM-DD';
 	const horizon = _.get(prediction, 'horizon', isReal ? 2 : 1);
 	const startDate = moment().format(dateFormat);
-	const endDate = moment(DateHelper.getNextNonHolidayWeekday(startDate, Number(horizon))).format(dateFormat);
+	const endDate = horizon === 0 
+		? startDate 
+		: moment(DateHelper.getNextNonHolidayWeekday(startDate, Number(horizon))).format(dateFormat);
 	
 	let ticker = _.get(prediction, 'symbol', '');
 	const searchKeywords = ticker.split(' ');
@@ -3093,7 +3100,7 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false) => P
 	searchArray = searchArray.reverse();
 	
 	let searchStockList = await exports.searchMultipleTickers(searchArray);
-	searchStockList = _.merge(...searchStockList)
+	searchStockList = _.union(...searchStockList)
 	
 	if (searchStockList.length === 0) {
 		console.log('Ticker not found ', ticker);
@@ -3140,8 +3147,11 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false) => P
 		shouldCalculateDiff: _.get(prediction, 'shouldCalculateDiff', false),
 		email: _.get(prediction, 'email', null),
 		source: _.get(prediction, 'source', null),
-		initializeStopLoss: _.get(prediction, 'initializeStopLoss', false)
+		initializeStopLoss: _.get(prediction, 'initializeStopLoss', false) 
+		// When adding extra items it should also be added in omit for thirdPartyScraping Jobs
 	};
+	console.log(`${source} - Un Formatted Prediction `, prediction);
+	console.log(`${source} - Formatted Prediction `, adjustedPrediction);
 
 	return adjustedPrediction;
 });

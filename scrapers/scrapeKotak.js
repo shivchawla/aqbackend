@@ -83,9 +83,9 @@ const getPredictionData = (html, type = null) => {
 
         const name = $(raw_element).find('span.listview-symbol').text().trim();
         const industry = $(raw_element).find('div.mdl-card__title span span:nth-child(2)').text();
-        let action = $(raw_element).find('div.mdl-card__menuM button.rcaction:nth-child(3)').text();
+        let action = $(raw_element).find('div.mdl-card__menuM button.rcaction:last-child').text();
         if (type === 'fundamental') {
-            action = $(raw_element).find('div.mdl-card__menuM button:nth-child(4)').text();
+            action = $(raw_element).find('div.mdl-card__menuM button:last-child').text();
         }
         
         symbol = isAlert ? symbol : name;
