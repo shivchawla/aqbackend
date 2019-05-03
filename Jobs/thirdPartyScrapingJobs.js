@@ -158,7 +158,7 @@ function addRawPredictionsToRedis(predictions, source) {
             const storedPredictions = await RedisUtils.getSetDataFromRedis(getRedisClient(), redisKey, 0, -1);
         
             var newPredictions = predictions.filter(prediction => {
-                return !DailyContestEntryHelper.foundPredictionForAdvisor(prediction, storedPredictions);
+                return !DailyContestEntryHelper.foundPredictionForAdvisor(prediction, storedPredictions, {compareTickerOnly: true});
             });
 
             const predictionsFilePath = `${path.dirname(require.main.filename)}/examples/${source}_predictions.csv`
