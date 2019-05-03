@@ -13,6 +13,9 @@ const schedule = require('node-schedule');
 const config = require('config');
 const redis = require('redis');
 const axios = require('axios');
+var path = require('path');
+var fs = require('fs');
+var csv = require('fast-csv');
 
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
@@ -2850,7 +2853,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 				|| _.get(securityDetail, 'latestDetail.ChangePct', 0);
 
 			recommendedPrice = recommendedPrice !== 0 ? recommendedPrice : latestPrice;
-			stopLoss = initializeStopLoss ? recommendedPrice : stopLoss;
+			stopLoss = initializeStopLoss ? recommendedPrice : stopLoss; 
 			
 			if (shouldCalculateDiff) {
 				stopLoss = stopLossDiff !== 0 ? (recommendedPrice * stopLossDiff) + stopLoss : stopLoss;
@@ -2889,16 +2892,16 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 				if (stopLoss == 0) {
 					APIError.throwJsonError({message: "Stoploss must be non-zero"});
 				} else if (investment > 0 &&  (stopLoss > latestPrice || stopLoss > target)) {
-					APIError.throwJsonError({message: `Inaccurate Stoploss!! Must be lower than the call price Stop Loss ${stopLoss}, latestPrice ${latestPrice} target ${target}`});
+					APIError.throwJsonError({message: `Inaccurate Stoploss!! Must be lower than the call price Stop Loss ${stopLoss}, call price ${latestPrice} target ${target}`});
 					// console.log(`Stop Loss ${stopLoss}, latestPrice ${latestPrice} target ${target}`);				} else if (investment < 0 &&  (stopLoss < latestPrice || stopLoss < target)) {
-					APIError.throwJsonError({message: "Inaccurate Stoploss!! Must be higher than the call price"});
+					APIError.throwJsonError({message: `Inaccurate Stoploss!! Must be higher than the call price - ${latestPrice}`});
 				} 
 
 				if (!isIntraDay) {
 					if (investment > 0 && target < 1.015*latestPrice) {
-						APIError.throwJsonError({message:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% higher than call price`});
+						APIError.throwJsonError({message:`Long Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% higher than call price - ${latestPrice}`});
 					} else if (investment < 0 && target > 1.015*latestPrice) {
-						APIError.throwJsonError({message:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% lower than call price`});
+						APIError.throwJsonError({message:`Short Prediction (${prediction.position.security.ticker}): Target price of ${target} must be at-least 1.0% lower than call price - ${latestPrice}`});
 					}
 				}
 
@@ -3067,7 +3070,27 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 		}
 	})
 	.then(adjustedPrediction => {
+		return exports.getPredictionsForDate(advisorId, validStartDate, {category: "started", priceUpdate: false, active: null})
+		.then(predictions => {
+			if (exports.foundPredictionForAdvisor(adjustedPrediction, predictions)) {
+				APIError.throwJsonError({message: "Duplicate Predictions"});
+			}
+
+			return adjustedPrediction;
+		})
+	})
+	.then(adjustedPrediction => {
 		if (adjustedPrediction) {
+			adjustedPrediction = _.omit(adjustedPrediction, [
+                'source', 
+                'email', 
+                'stopLossDiff', 
+                'targetDiff', 
+                'recommendedPrice',
+                'shouldCalculateDiff',
+                'initializeStopLoss'
+            ]);
+			console.log('Prediction to be created ', adjustedPrediction);
 			return exports.addPrediction(advisorId, adjustedPrediction, DateHelper.getMarketCloseDateTime(validStartDate), masterAdvisorId, userId)
 		} else {
 			APIError.throwJsonError({message: "Adjusted prediciton is NULL/invalid"});
@@ -3129,7 +3152,7 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false, sour
 	const stopLoss = _.get(prediction, 'stopLoss', 0);
 
 	const adjustedPrediction = {
-		conditionalType: 'NOW',
+		conditionalType: 'NOW', 
 		endDate,
 		startDate,
 		real: false,
@@ -3156,11 +3179,11 @@ module.exports.processThirdPartyPredictions = (predictions, isReal = false, sour
 	return adjustedPrediction;
 });
 
-module.exports.foundPredictionInRedis = (prediction, redisPredictions = []) => {
+module.exports.foundPredictionForAdvisor = (prediction, redisPredictions = []) => {
 	const dateFormat = 'YYYY-MM-DD';
 	const predictionSymbol = _.get(prediction, 'position.security.ticker', '');
-	const predictionTarget = _.get(prediction, 'target', 0);
-	const predictionStopLoss = _.get(prediction, 'stopLoss', 0);
+	const predictionTarget = Number(_.get(prediction, 'target', 0));
+	const predictionStopLoss = Number(_.get(prediction, 'stopLoss', 0));
 	let predictionStartDate = _.get(prediction, 'startDate', null);
 	let predictionEndDate = _.get(prediction, 'endDate', null);
 	predictionStartDate = moment(predictionStartDate).format(dateFormat);
@@ -3168,8 +3191,8 @@ module.exports.foundPredictionInRedis = (prediction, redisPredictions = []) => {
 
 	const filteredPredictions = redisPredictions.filter(redisPrediction => {
 		const redisPredictionSymbol = _.get(redisPrediction, 'position.security.ticker', '');
-		const redisPredictionTarget = _.get(redisPrediction, 'target', 0);
-		const redisPredictionStopLoss = _.get(redisPrediction, 'stopLoss', 0);
+		const redisPredictionTarget = Number(_.get(redisPrediction, 'target', 0));
+		const redisPredictionStopLoss = Number(_.get(redisPrediction, 'stopLoss', 0));
 		let redisPredictionStartDate = _.get(redisPrediction, 'startDate', null);
 		let redisPredictionEndDate = _.get(redisPrediction, 'endDate', null);
 		redisPredictionStartDate = moment(redisPredictionStartDate).format(dateFormat);
@@ -3191,6 +3214,29 @@ module.exports.foundPredictionInRedis = (prediction, redisPredictions = []) => {
 	return filteredPredictions.length > 0;
 }
 
+module.exports.addRawPredictionsToRedis = (redisClient, predictions, source) => new Promise(async (resolve, reject) => {
+	try {
+		const redisEnvironment = process.env.NODE_ENV;
+		const redisKey = `${redisEnvironment}_raw_${source}_prediction`;
+		const storedPredictions = await RedisUtils.getSetDataFromRedis(redisClient, redisKey, 0, -1);
+	
+		predictions = predictions.filter(prediction  => {
+			if (!exports.foundPredictionForAdvisor(prediction, storedPredictions)) {
+				RedisUtils.addSetDataToRedis(redisClient, redisKey, JSON.stringify(prediction));
+				return true;
+			}
+		});
+	
+		resolve(predictions);
+		
+		// Resolving before writing to CSV since we don't want to wait for the writing to complete
+		const predictionsFilePath = `${path.dirname(require.main.filename)}/examples/${source}_predictions.csv`
+		writePredictionsToCsv(predictionsFilePath, predictions);
+	} catch(err) {
+		reject(err);
+	}
+})
+
 module.exports.filterPredictionsForToday = (predictions = []) => {
 	const dateFormat = 'YYYY-MM-DD';
 	const currentDate = moment().format(dateFormat);
@@ -3202,17 +3248,75 @@ module.exports.filterPredictionsForToday = (predictions = []) => {
 	})
 }
 
-module.exports.ignoreNiftyBankPredictions = (predictions = []) => {
+module.exports.ignoreNiftyPredictions = (predictions = []) => {
 	return Promise.filter(predictions, prediction => {
 		const ticker = _.get(prediction, 'position.security.ticker', '');
 		if (ticker == null) {
 			return false;
 		}
 		
-		if (ticker.toLowerCase() === 'niftybank' || ticker.toLowerCase() === 'banknifty') {
+		if (ticker.toLowerCase() === 'niftybank' || ticker.toLowerCase() === 'banknifty' || ticker.search(/nifty/i) > -1) {
 			return false;
 		}
 
 		return true;
 	})
+}
+
+const writePredictionsToCsv = (path, predictions) => new Promise((resolve, reject) => {
+    try {
+        const csvStream = csv
+            .createWriteStream({headers: true})
+            .transform(function(row, next){
+                setImmediate(function(){
+                    // this should be same as the object structure
+                    next(null, {
+                        advisor: row.advisor, 
+                        ticker: row.ticker,
+                        target: row.target,
+                        stopLoss: row.stopLoss,
+                        startDate: row.startDate,
+                        endDate: row.endDate,
+                    });
+                });;
+            });
+            
+        const writableStream = fs.createWriteStream(path);		
+        writableStream.on("finish", function(){
+            console.log("Written to file"); 
+            resolve(true);
+        });
+        csvStream.pipe(writableStream);
+        predictions.forEach(prediction => {
+            csvStream.write(convertPredictionToCsvFormat(prediction));
+        })
+        csvStream.end();
+    } catch(err) {
+        console.log('File Error ', err);
+        reject(err);
+    }
+})
+
+const convertPredictionToCsvFormat = (prediction, source = '') => {
+    const dateFormat = 'YYYY-MM-DD';
+    const horizon = _.get(prediction, 'horizon', 'NA');
+    const startDate = moment().format(dateFormat);
+    let ticker = _.get(prediction, 'symbol', '');
+    const target = _.get(prediction, 'target', 0);
+    const stopLoss = _.get(prediction, 'stopLoss', 0);
+    const action = _.get(prediction, 'action', 'BUY');
+
+	const endDate = horizon === 0 
+		? startDate 
+		: moment(DateHelper.getNextNonHolidayWeekday(startDate, Number(horizon))).format(dateFormat);
+    return {
+        advisor: _.get(prediction, 'source', null) || source,
+        ticker: ticker,
+        target: target,
+        stopLoss: stopLoss,
+        startDate: startDate,
+        endDate: endDate,
+        horizon,
+        action
+    }
 }

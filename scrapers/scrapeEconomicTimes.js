@@ -28,6 +28,7 @@ module.exports = () => new Promise(async (resolve, reject) => {
     
         const body = await page.evaluate(() => document.querySelector('body').innerHTML);
         resolve(getPredictionData(body));
+        await browser.close();
     } catch (err) {
         console.log('Error ', err.message);
         reject(err);

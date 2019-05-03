@@ -11,6 +11,12 @@ module.exports = (predictionText, advisorName = '') => {
         // Checking for CE
         const isCEFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'ce') > -1;
 
+        // Checking for CALL
+        const isCallFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'call') > -1;
+
+        // Checking for book
+        const isBookFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'book') > -1;
+
         // Replace all commas
         predictionText = predictionText.replace(/[",]/g, "");
 
@@ -35,9 +41,9 @@ module.exports = (predictionText, advisorName = '') => {
         const exitRegExp = /Exit/i
         const isExitFound = predictionText.search(exitRegExp) > -1;
 
-        if (isEllipsisFound || isExitFound || isPEFound || isCEFound || isPutFound) {
+        if (isEllipsisFound || isExitFound || isPEFound || isCEFound || isPutFound || isCallFound || isBookFound) {
             return null;
-        }
+        } 
 
         const buyRegExp = /Buy/i
         const isBuyFound = predictionText.search(buyRegExp) > -1;
@@ -54,7 +60,7 @@ module.exports = (predictionText, advisorName = '') => {
         const targetIndex = _.findIndex(predictionTextArray, item => {
             return item.toLowerCase() === 'target' || item.toLowerCase() === 'tgt';
         });
-        let target = targetIndex > -1 ? predictionTextArray[targetIndex + 1] : 0;
+        let target = targetIndex > -1 ? predictionTextArray[targetIndex + 1] : '0';
         target = target.split('-')[0];
 
         const stopLossIndex = _.findIndex(predictionTextArray, item => {
@@ -97,6 +103,7 @@ module.exports = (predictionText, advisorName = '') => {
             stopLossDiff: action === 'BUY' ? -0.05 : 0.05,
             targetDiff: action === 'BUY' ? 0.05 : -0.05,
             shouldCalculateDiff: isFutureFound,
+            initializeStopLoss: isNaN(Number(stopLoss)) 
         };
     } catch (err) {
         return null;

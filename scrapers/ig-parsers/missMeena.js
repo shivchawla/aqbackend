@@ -17,6 +17,9 @@ module.exports = (predictionText, advisorName = '') => {
         // Checking for CE
         const isCEFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'ce') > -1;
 
+        // Checking for CALL
+        const isCallFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'call') > -1;
+
         // Checking for ellipsis
         const ellipsisRegExp = /(^|[^.])\.{4}(?!\.)/
         const isEllipsisFound = predictionText.search(ellipsisRegExp) > -1;
@@ -38,7 +41,7 @@ module.exports = (predictionText, advisorName = '') => {
         const exitRegExp = /Exit/i
         const isExitFound = predictionText.search(exitRegExp) > -1;
 
-        if (isEllipsisFound || isExitFound || isPEFound || isCEFound || isPutFound) {
+        if (isEllipsisFound || isExitFound || isPEFound || isCEFound || isPutFound || isCallFound) {
             return null;
         }
 

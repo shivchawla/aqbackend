@@ -15,6 +15,9 @@ module.exports = (predictionText, advisorName = '') => {
 
         // Checking for CE
         const isCEFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'ce') > -1;
+        
+        // Checking for CALL
+        const isCallFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'call') > -1;
 
         // Checking for modify
         const isModifyFound = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'modify') > -1;
@@ -39,7 +42,7 @@ module.exports = (predictionText, advisorName = '') => {
         const exitRegExp = /Exit/i
         const isExitFound = predictionText.search(exitRegExp) > -1;
 
-        if (isEllipsisFound || isExitFound || isPEFound || isCEFound || isModifyFound || isBookFound) {
+        if (isEllipsisFound || isExitFound || isPEFound || isCEFound || isModifyFound || isBookFound || isCallFound) {
             return null;
         }
 
@@ -58,7 +61,7 @@ module.exports = (predictionText, advisorName = '') => {
         const targetRegExp = /TRGT-/i;
         const targetIndex = _.findIndex(predictionTextArray, item => item.search(targetRegExp) > -1);
 
-        let target = targetIndex > -1 ? predictionTextArray[targetIndex] : 0;
+        let target = targetIndex > -1 ? predictionTextArray[targetIndex] : '0';
         target = target.split('-')[1];
 
         const stopLossRegExp = /SL-/i;
