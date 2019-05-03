@@ -37,21 +37,253 @@ function getRedisClient() {
     return redisClient; 
 }
 
-module.exports.getAllPredictionsFromThirdParty = function() { 
-    return Promise.all([
-        exports.createPredictionsFromThirdParty('kotak'), 
-        exports.createPredictionsFromThirdParty('kotakFundamental'),
-        exports.createPredictionsFromThirdParty('motilalOswal'),
-        exports.createPredictionsFromThirdParty('shareKhan'),
-        exports.createPredictionsFromThirdParty('edelweiss'),
-        exports.createPredictionsFromThirdParty('investmentGuru'),
-        exports.createPredictionsFromThirdParty('moneyControl'),
-        exports.createPredictionsFromThirdParty('economicTimes')
-    ])
-    .then(() => {
-        console.log('Donwloaded All Data');
+function filterPredictionsForToday(predictions = []) => {
+    const dateFormat = 'YYYY-MM-DD';
+    const currentDate = moment().format(dateFormat);
+
+    return Promise.filter(predictions, prediction => {
+        const predictionStartDate = _.get(prediction, 'startDate', null);
+
+        return predictionStartDate === currentDate;
     })
 }
+
+function ignoreNiftyPredictions(predictions = []) => {
+    return Promise.filter(predictions, prediction => {
+        const ticker = _.get(prediction, 'position.security.ticker', '');
+        if (ticker == null) {
+            return false;
+        }
+        
+        if (ticker.toLowerCase() === 'niftybank' || ticker.toLowerCase() === 'banknifty' || ticker.search(/nifty/i) > -1) {
+            return false;
+        }
+
+        return true;
+    })
+}
+
+function processThirdPartyPredictions(predictions, isReal = false, source = null) {
+
+    return Promise.map(predictions, async prediction => {
+        const dateFormat = 'YYYY-MM-DD';
+        const horizon = _.get(prediction, 'horizon', isReal ? 2 : 1);
+        const startDate = moment().format(dateFormat);
+        const endDate = horizon === 0 
+            ? startDate 
+            : moment(DateHelper.getNextNonHolidayWeekday(startDate, Number(horizon))).format(dateFormat);
+        
+        let ticker = _.get(prediction, 'symbol', '');
+        const searchKeywords = ticker.split(' ');
+        let searchArray = searchKeywords.map((keyword, index) => {
+            var k = []; 
+            k = k.concat(searchKeywords.slice(0, index + 1)); 
+            return k.join(" ");
+        });
+
+        searchArray = searchArray.reverse();
+        
+        let searchStockList = await exports.searchMultipleTickers(searchArray);
+        searchStockList = _.union(...searchStockList)
+        
+        if (searchStockList.length === 0) {
+            console.log('Ticker not found ', ticker);
+            return null
+        } else {
+            if (searchStockList.length > 1) {
+                console.log('Multiple Tickers found for ', ticker);
+            }
+            const stock = searchStockList[0];
+            const stockTicker = _.get(stock, 'detail.NSE_ID', null);
+            ticker = stockTicker;
+        }
+
+        // Searching for symbol here
+        const security = {
+            ticker,
+            securityType: 'EQ',
+            country: 'IN',
+            exchange: 'NSE'
+        };
+
+        const action = _.get(prediction, 'action', 'BUY');
+        const investmentMultiplier = action.toUpperCase() === 'BUY' ? 1 : -1;
+        const investment = investmentMultiplier * 10;
+        const target = _.get(prediction, 'target', 0);
+        const stopLoss = _.get(prediction, 'stopLoss', 0);
+
+        const adjustedPrediction = {
+            conditionalType: 'NOW', 
+            endDate,
+            startDate,
+            real: false,
+            target: Number(target),
+            stopLoss: Number(stopLoss),
+            position: {
+                avgPrice: 0,
+                investment,
+                quantity: 0,
+                security
+            },
+            stopLossDiff: _.get(prediction, 'stopLossDiff', 0),
+            targetDiff: _.get(prediction, 'targetDiff', 0),
+            recommendedPrice: _.get(prediction, 'recommendedPrice', 0),
+            shouldCalculateDiff: _.get(prediction, 'shouldCalculateDiff', false),
+            email: _.get(prediction, 'email', null),
+            source: _.get(prediction, 'source', null),
+            initializeStopLoss: _.get(prediction, 'initializeStopLoss', false) 
+            // When adding extra items it should also be added in omit for thirdPartyScraping Jobs
+        };
+        console.log(`${source} - Un Formatted Prediction `, prediction);
+        console.log(`${source} - Formatted Prediction `, adjustedPrediction);
+
+        return adjustedPrediction;
+    })
+    .then(predictions => filterPredictionsForToday(predictions))
+    .then(predictions => ignoreNiftyPredictions(predictions))
+}
+
+function foundPredictionForAdvisor = (prediction, redisPredictions = []) => {
+    const dateFormat = 'YYYY-MM-DD';
+    const predictionSymbol = _.get(prediction, 'position.security.ticker', '');
+    const predictionTarget = Number(_.get(prediction, 'target', 0));
+    const predictionStopLoss = Number(_.get(prediction, 'stopLoss', 0));
+    let predictionStartDate = _.get(prediction, 'startDate', null);
+    let predictionEndDate = _.get(prediction, 'endDate', null);
+    predictionStartDate = moment(predictionStartDate).format(dateFormat);
+    predictionEndDate = moment(predictionEndDate).format(dateFormat);
+
+    const filteredPredictions = redisPredictions.filter(redisPrediction => {
+        const redisPredictionSymbol = _.get(redisPrediction, 'position.security.ticker', '');
+        const redisPredictionTarget = Number(_.get(redisPrediction, 'target', 0));
+        const redisPredictionStopLoss = Number(_.get(redisPrediction, 'stopLoss', 0));
+        let redisPredictionStartDate = _.get(redisPrediction, 'startDate', null);
+        let redisPredictionEndDate = _.get(redisPrediction, 'endDate', null);
+        redisPredictionStartDate = moment(redisPredictionStartDate).format(dateFormat);
+        redisPredictionEndDate = moment(redisPredictionEndDate).format(dateFormat);
+
+        if (
+            redisPredictionSymbol === predictionSymbol &&
+            predictionTarget === redisPredictionTarget &&
+            predictionStopLoss === redisPredictionStopLoss &&
+            predictionStartDate === redisPredictionStartDate &&
+            predictionEndDate === redisPredictionEndDate
+        ) {
+            return true
+        } else {
+            return false;
+        }
+    });
+
+    return filteredPredictions.length > 0;
+}
+
+function addRawPredictionsToRedis(predictions, source) => new Promise(async (resolve, reject) => {
+    try {
+        const redisEnvironment = process.env.NODE_ENV;
+        const redisKey = `${redisEnvironment}_raw_${source}_prediction`;
+        const storedPredictions = await RedisUtils.getSetDataFromRedis(getRedisClient(), redisKey, 0, -1);
+    
+        var newPredictions = predictions.filter(prediction => {
+            return !foundPredictionForAdvisor(prediction, storedPredictions);
+        });
+
+        const predictionsFilePath = `${path.dirname(require.main.filename)}/examples/${source}_predictions.csv`
+
+        return Promise.all([
+            Promise.map(newPredictions, function(prediction) => {
+                RedisUtils.addSetDataToRedis(getRedisClient(), redisKey, JSON.stringify(prediction))}),
+
+            writePredictionsToCsv(predictionsFilePath, newPredictions)
+        ])
+        .then(([]) => {
+            resolve(newPredictions)
+        })
+
+    } catch(err) {
+        reject(err);
+    }
+})
+
+const writePredictionsToCsv = (path, predictions) => new Promise((resolve, reject) => {
+    try {
+        const csvStream = csv
+            .createWriteStream({headers: true})
+            .transform(function(row, next){
+                setImmediate(function(){
+                    // this should be same as the object structure
+                    next(null, {
+                        advisor: row.advisor, 
+                        ticker: row.ticker,
+                        target: row.target,
+                        stopLoss: row.stopLoss,
+                        startDate: row.startDate,
+                        endDate: row.endDate,
+                    });
+                });;
+            });
+            
+        const writableStream = fs.createWriteStream(path);        
+        writableStream.on("finish", function(){
+            console.log("Written to file"); 
+            resolve(true);
+        });
+        csvStream.pipe(writableStream);
+        predictions.forEach(prediction => {
+            csvStream.write(convertPredictionToCsvFormat(prediction));
+        })
+        csvStream.end();
+    } catch(err) {
+        console.log('File Error ', err);
+        reject(err);
+    }
+})
+
+const convertPredictionToCsvFormat = (prediction, source = '') => {
+    const dateFormat = 'YYYY-MM-DD';
+    const horizon = _.get(prediction, 'horizon', 'NA');
+    const startDate = moment().format(dateFormat);
+    let ticker = _.get(prediction, 'symbol', '');
+    const target = _.get(prediction, 'target', 0);
+    const stopLoss = _.get(prediction, 'stopLoss', 0);
+    const action = _.get(prediction, 'action', 'BUY');
+
+    const endDate = horizon === 0 
+        ? startDate 
+        : moment(DateHelper.getNextNonHolidayWeekday(startDate, Number(horizon))).format(dateFormat);
+    return {
+        advisor: _.get(prediction, 'source', null) || source,
+        ticker: ticker,
+        target: target,
+        stopLoss: stopLoss,
+        startDate: startDate,
+        endDate: endDate,
+        horizon,
+        action
+    }
+}
+
+const getUserInfo = email => new Promise((resolve, reject) => {
+    let userId = null;
+    let advisorId = null;
+
+    UserModel.fetchUser({email, disabled: false})
+    .then(user => {
+        user = user.toObject();
+        userId = _.get(user, '_id', '').toString();
+
+        return AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {insert: true})
+    })
+    .then(advisor => {
+        advisor = advisor.toObject();
+        advisorId = _.get(advisor, '_id', '').toString();
+        
+        resolve({advisorId, userId});
+    })
+    .catch(() => {
+        resolve(null);
+    });
+})
 
 module.exports.createPredictionsFromThirdParty = function(source) {
     const redisEnvironment = process.env.NODE_ENV;
@@ -107,11 +339,9 @@ module.exports.createPredictionsFromThirdParty = function(source) {
     .then(() => requiredPromiseRequest(type))
     .then(predictions => {
         return Promise.all([
-            DailyContestEntryHelper.processThirdPartyPredictions(predictions, false, source)
-                .then(predictions => DailyContestEntryHelper.filterPredictionsForToday(predictions))
-                .then(predictions => DailyContestEntryHelper.ignoreNiftyPredictions(predictions)),
+            processThirdPartyPredictions(predictions, false, source)
             // Storing redis for the parent source
-            DailyContestEntryHelper.addRawPredictionsToRedis(getRedisClient(), predictions, source)
+            addRawPredictionsToRedis(predictions, source)
         ]);
 
     })
@@ -157,24 +387,18 @@ module.exports.createPredictionsFromThirdParty = function(source) {
     })
 }
 
-const getUserInfo = email => new Promise((resolve, reject) => {
-    let userId = null;
-    let advisorId = null;
-
-    UserModel.fetchUser({email, disabled: false})
-    .then(user => {
-        user = user.toObject();
-		userId = _.get(user, '_id', '').toString();
-
-		return AdvisorModel.fetchAdvisor({user: userId, isMasterAdvisor: true}, {insert: true})
+module.exports.getAllPredictionsFromThirdParty = function() { 
+    return Promise.all([
+        exports.createPredictionsFromThirdParty('kotak'), 
+        exports.createPredictionsFromThirdParty('kotakFundamental'),
+        exports.createPredictionsFromThirdParty('motilalOswal'),
+        exports.createPredictionsFromThirdParty('shareKhan'),
+        exports.createPredictionsFromThirdParty('edelweiss'),
+        exports.createPredictionsFromThirdParty('investmentGuru'),
+        exports.createPredictionsFromThirdParty('moneyControl'),
+        exports.createPredictionsFromThirdParty('economicTimes')
+    ])
+    .then(() => {
+        console.log('Donwloaded All Data');
     })
-    .then(advisor => {
-		advisor = advisor.toObject();
-        advisorId = _.get(advisor, '_id', '').toString();
-        
-        resolve({advisorId, userId});
-    })
-    .catch(() => {
-        resolve(null);
-    });
-})
+}
