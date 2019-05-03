@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-05-03 11:57:15
+* @Last Modified time: 2019-05-03 14:17:05
 */
 
 'use strict';
@@ -3095,7 +3095,9 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 	})
 }
 
-module.exports.foundPredictionForAdvisor = function(prediction, redisPredictions = []) {
+module.exports.foundPredictionForAdvisor = function(prediction, redisPredictions = [], options = {}) {
+    const compareTickerOnly = _.get(options, 'compareTickerOnly', false);
+
     const dateFormat = 'YYYY-MM-DD';
     const predictionSymbol = _.get(prediction, 'position.security.ticker', '');
     const predictionTarget = Number(_.get(prediction, 'target', 0));
@@ -3114,8 +3116,11 @@ module.exports.foundPredictionForAdvisor = function(prediction, redisPredictions
         redisPredictionStartDate = moment(redisPredictionStartDate).format(dateFormat);
         redisPredictionEndDate = moment(redisPredictionEndDate).format(dateFormat);
 
-        if (
-            redisPredictionSymbol === predictionSymbol &&
+        if (compareTickerOnly && redisPredictionSymbol === predictionSymbol &&  
+        	predictionStartDate === redisPredictionStartDate &&
+            predictionEndDate === redisPredictionEndDate) {
+        	return true;
+        } else if (!compareTickerOnly && redisPredictionSymbol === predictionSymbol && 
             predictionTarget === redisPredictionTarget &&
             predictionStopLoss === redisPredictionStopLoss &&
             predictionStartDate === redisPredictionStartDate &&
@@ -3129,5 +3134,4 @@ module.exports.foundPredictionForAdvisor = function(prediction, redisPredictions
 
     return filteredPredictions.length > 0;
 }
-
 
