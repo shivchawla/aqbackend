@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-25 11:20:16
+* @Last Modified time: 2019-05-03 11:57:15
 */
 
 'use strict';
@@ -13,9 +13,6 @@ const schedule = require('node-schedule');
 const config = require('config');
 const redis = require('redis');
 const axios = require('axios');
-var path = require('path');
-var fs = require('fs');
-var csv = require('fast-csv');
 
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
@@ -3098,225 +3095,39 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 	})
 }
 
-module.exports.searchMultipleTickers = searchArray => {
-	return Promise.map(searchArray, ticker => {
-		return SecurityHelper.getStockList(ticker, {universe: null, sector: null, industry: null});
-	})
-}
-
-module.exports.processThirdPartyPredictions = (predictions, isReal = false, source = null) => Promise.map(predictions, async prediction => {
-	const dateFormat = 'YYYY-MM-DD';
-	const horizon = _.get(prediction, 'horizon', isReal ? 2 : 1);
-	const startDate = moment().format(dateFormat);
-	const endDate = horizon === 0 
-		? startDate 
-		: moment(DateHelper.getNextNonHolidayWeekday(startDate, Number(horizon))).format(dateFormat);
-	
-	let ticker = _.get(prediction, 'symbol', '');
-	const searchKeywords = ticker.split(' ');
-	let searchArray = searchKeywords.map((keyword, index) => {
-		var k = []; 
-		k = k.concat(searchKeywords.slice(0, index + 1)); 
-		return k.join(" ");
-	});
-
-	searchArray = searchArray.reverse();
-	
-	let searchStockList = await exports.searchMultipleTickers(searchArray);
-	searchStockList = _.union(...searchStockList)
-	
-	if (searchStockList.length === 0) {
-		console.log('Ticker not found ', ticker);
-		return null
-	} else {
-		if (searchStockList.length > 1) {
-			console.log('Multiple Tickers found for ', ticker);
-		}
-		const stock = searchStockList[0];
-		const stockTicker = _.get(stock, 'detail.NSE_ID', null);
-		ticker = stockTicker;
-	}
-
-	// Searching for symbol here
-	const security = {
-		ticker,
-		securityType: 'EQ',
-		country: 'IN',
-		exchange: 'NSE'
-	};
-
-	const action = _.get(prediction, 'action', 'BUY');
-	const investmentMultiplier = action.toUpperCase() === 'BUY' ? 1 : -1;
-	const investment = investmentMultiplier * 10;
-	const target = _.get(prediction, 'target', 0);
-	const stopLoss = _.get(prediction, 'stopLoss', 0);
-
-	const adjustedPrediction = {
-		conditionalType: 'NOW', 
-		endDate,
-		startDate,
-		real: false,
-		target: Number(target),
-		stopLoss: Number(stopLoss),
-		position: {
-			avgPrice: 0,
-			investment,
-			quantity: 0,
-			security
-		},
-		stopLossDiff: _.get(prediction, 'stopLossDiff', 0),
-		targetDiff: _.get(prediction, 'targetDiff', 0),
-		recommendedPrice: _.get(prediction, 'recommendedPrice', 0),
-		shouldCalculateDiff: _.get(prediction, 'shouldCalculateDiff', false),
-		email: _.get(prediction, 'email', null),
-		source: _.get(prediction, 'source', null),
-		initializeStopLoss: _.get(prediction, 'initializeStopLoss', false) 
-		// When adding extra items it should also be added in omit for thirdPartyScraping Jobs
-	};
-	console.log(`${source} - Un Formatted Prediction `, prediction);
-	console.log(`${source} - Formatted Prediction `, adjustedPrediction);
-
-	return adjustedPrediction;
-});
-
-module.exports.foundPredictionForAdvisor = (prediction, redisPredictions = []) => {
-	const dateFormat = 'YYYY-MM-DD';
-	const predictionSymbol = _.get(prediction, 'position.security.ticker', '');
-	const predictionTarget = Number(_.get(prediction, 'target', 0));
-	const predictionStopLoss = Number(_.get(prediction, 'stopLoss', 0));
-	let predictionStartDate = _.get(prediction, 'startDate', null);
-	let predictionEndDate = _.get(prediction, 'endDate', null);
-	predictionStartDate = moment(predictionStartDate).format(dateFormat);
-	predictionEndDate = moment(predictionEndDate).format(dateFormat);
-
-	const filteredPredictions = redisPredictions.filter(redisPrediction => {
-		const redisPredictionSymbol = _.get(redisPrediction, 'position.security.ticker', '');
-		const redisPredictionTarget = Number(_.get(redisPrediction, 'target', 0));
-		const redisPredictionStopLoss = Number(_.get(redisPrediction, 'stopLoss', 0));
-		let redisPredictionStartDate = _.get(redisPrediction, 'startDate', null);
-		let redisPredictionEndDate = _.get(redisPrediction, 'endDate', null);
-		redisPredictionStartDate = moment(redisPredictionStartDate).format(dateFormat);
-		redisPredictionEndDate = moment(redisPredictionEndDate).format(dateFormat);
-
-		if (
-			redisPredictionSymbol === predictionSymbol &&
-			predictionTarget === redisPredictionTarget &&
-			predictionStopLoss === redisPredictionStopLoss &&
-			predictionStartDate === redisPredictionStartDate &&
-			predictionEndDate === redisPredictionEndDate
-		) {
-			return true
-		} else {
-			return false;
-		}
-	});
-
-	return filteredPredictions.length > 0;
-}
-
-module.exports.addRawPredictionsToRedis = (redisClient, predictions, source) => new Promise(async (resolve, reject) => {
-	try {
-		const redisEnvironment = process.env.NODE_ENV;
-		const redisKey = `${redisEnvironment}_raw_${source}_prediction`;
-		const storedPredictions = await RedisUtils.getSetDataFromRedis(redisClient, redisKey, 0, -1);
-	
-		predictions = predictions.filter(prediction  => {
-			if (!exports.foundPredictionForAdvisor(prediction, storedPredictions)) {
-				RedisUtils.addSetDataToRedis(redisClient, redisKey, JSON.stringify(prediction));
-				return true;
-			}
-		});
-	
-		resolve(predictions);
-		
-		// Resolving before writing to CSV since we don't want to wait for the writing to complete
-		const predictionsFilePath = `${path.dirname(require.main.filename)}/examples/${source}_predictions.csv`
-		writePredictionsToCsv(predictionsFilePath, predictions);
-	} catch(err) {
-		reject(err);
-	}
-})
-
-module.exports.filterPredictionsForToday = (predictions = []) => {
-	const dateFormat = 'YYYY-MM-DD';
-	const currentDate = moment().format(dateFormat);
-
-	return Promise.filter(predictions, prediction => {
-		const predictionStartDate = _.get(prediction, 'startDate', null);
-
-		return predictionStartDate === currentDate;
-	})
-}
-
-module.exports.ignoreNiftyPredictions = (predictions = []) => {
-	return Promise.filter(predictions, prediction => {
-		const ticker = _.get(prediction, 'position.security.ticker', '');
-		if (ticker == null) {
-			return false;
-		}
-		
-		if (ticker.toLowerCase() === 'niftybank' || ticker.toLowerCase() === 'banknifty' || ticker.search(/nifty/i) > -1) {
-			return false;
-		}
-
-		return true;
-	})
-}
-
-const writePredictionsToCsv = (path, predictions) => new Promise((resolve, reject) => {
-    try {
-        const csvStream = csv
-            .createWriteStream({headers: true})
-            .transform(function(row, next){
-                setImmediate(function(){
-                    // this should be same as the object structure
-                    next(null, {
-                        advisor: row.advisor, 
-                        ticker: row.ticker,
-                        target: row.target,
-                        stopLoss: row.stopLoss,
-                        startDate: row.startDate,
-                        endDate: row.endDate,
-                    });
-                });;
-            });
-            
-        const writableStream = fs.createWriteStream(path);		
-        writableStream.on("finish", function(){
-            console.log("Written to file"); 
-            resolve(true);
-        });
-        csvStream.pipe(writableStream);
-        predictions.forEach(prediction => {
-            csvStream.write(convertPredictionToCsvFormat(prediction));
-        })
-        csvStream.end();
-    } catch(err) {
-        console.log('File Error ', err);
-        reject(err);
-    }
-})
-
-const convertPredictionToCsvFormat = (prediction, source = '') => {
+module.exports.foundPredictionForAdvisor = function(prediction, redisPredictions = []) {
     const dateFormat = 'YYYY-MM-DD';
-    const horizon = _.get(prediction, 'horizon', 'NA');
-    const startDate = moment().format(dateFormat);
-    let ticker = _.get(prediction, 'symbol', '');
-    const target = _.get(prediction, 'target', 0);
-    const stopLoss = _.get(prediction, 'stopLoss', 0);
-    const action = _.get(prediction, 'action', 'BUY');
+    const predictionSymbol = _.get(prediction, 'position.security.ticker', '');
+    const predictionTarget = Number(_.get(prediction, 'target', 0));
+    const predictionStopLoss = Number(_.get(prediction, 'stopLoss', 0));
+    let predictionStartDate = _.get(prediction, 'startDate', null);
+    let predictionEndDate = _.get(prediction, 'endDate', null);
+    predictionStartDate = moment(predictionStartDate).format(dateFormat);
+    predictionEndDate = moment(predictionEndDate).format(dateFormat);
 
-	const endDate = horizon === 0 
-		? startDate 
-		: moment(DateHelper.getNextNonHolidayWeekday(startDate, Number(horizon))).format(dateFormat);
-    return {
-        advisor: _.get(prediction, 'source', null) || source,
-        ticker: ticker,
-        target: target,
-        stopLoss: stopLoss,
-        startDate: startDate,
-        endDate: endDate,
-        horizon,
-        action
-    }
+    const filteredPredictions = redisPredictions.filter(redisPrediction => {
+        const redisPredictionSymbol = _.get(redisPrediction, 'position.security.ticker', '');
+        const redisPredictionTarget = Number(_.get(redisPrediction, 'target', 0));
+        const redisPredictionStopLoss = Number(_.get(redisPrediction, 'stopLoss', 0));
+        let redisPredictionStartDate = _.get(redisPrediction, 'startDate', null);
+        let redisPredictionEndDate = _.get(redisPrediction, 'endDate', null);
+        redisPredictionStartDate = moment(redisPredictionStartDate).format(dateFormat);
+        redisPredictionEndDate = moment(redisPredictionEndDate).format(dateFormat);
+
+        if (
+            redisPredictionSymbol === predictionSymbol &&
+            predictionTarget === redisPredictionTarget &&
+            predictionStopLoss === redisPredictionStopLoss &&
+            predictionStartDate === redisPredictionStartDate &&
+            predictionEndDate === redisPredictionEndDate
+        ) {
+            return true
+        } else {
+            return false;
+        }
+    });
+
+    return filteredPredictions.length > 0;
 }
+
+
