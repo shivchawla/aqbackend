@@ -37,7 +37,7 @@ function getRedisClient() {
     return redisClient; 
 }
 
-function filterPredictionsForToday(predictions = []) => {
+function filterPredictionsForToday(predictions = []) {
     const dateFormat = 'YYYY-MM-DD';
     const currentDate = moment().format(dateFormat);
 
@@ -48,7 +48,7 @@ function filterPredictionsForToday(predictions = []) => {
     })
 }
 
-function ignoreNiftyPredictions(predictions = []) => {
+function ignoreNiftyPredictions(predictions = []) {
     return Promise.filter(predictions, prediction => {
         const ticker = _.get(prediction, 'position.security.ticker', '');
         if (ticker == null) {
@@ -143,7 +143,7 @@ function processThirdPartyPredictions(predictions, isReal = false, source = null
     .then(predictions => ignoreNiftyPredictions(predictions))
 }
 
-function foundPredictionForAdvisor = (prediction, redisPredictions = []) => {
+function foundPredictionForAdvisor(prediction, redisPredictions = []) {
     const dateFormat = 'YYYY-MM-DD';
     const predictionSymbol = _.get(prediction, 'position.security.ticker', '');
     const predictionTarget = Number(_.get(prediction, 'target', 0));
@@ -178,32 +178,34 @@ function foundPredictionForAdvisor = (prediction, redisPredictions = []) => {
     return filteredPredictions.length > 0;
 }
 
-function addRawPredictionsToRedis(predictions, source) => new Promise(async (resolve, reject) => {
-    try {
-        const redisEnvironment = process.env.NODE_ENV;
-        const redisKey = `${redisEnvironment}_raw_${source}_prediction`;
-        const storedPredictions = await RedisUtils.getSetDataFromRedis(getRedisClient(), redisKey, 0, -1);
-    
-        var newPredictions = predictions.filter(prediction => {
-            return !foundPredictionForAdvisor(prediction, storedPredictions);
-        });
+function addRawPredictionsToRedis(predictions, source) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const redisEnvironment = process.env.NODE_ENV;
+            const redisKey = `${redisEnvironment}_raw_${source}_prediction`;
+            const storedPredictions = await RedisUtils.getSetDataFromRedis(getRedisClient(), redisKey, 0, -1);
+        
+            var newPredictions = predictions.filter(prediction => {
+                return !foundPredictionForAdvisor(prediction, storedPredictions);
+            });
 
-        const predictionsFilePath = `${path.dirname(require.main.filename)}/examples/${source}_predictions.csv`
+            const predictionsFilePath = `${path.dirname(require.main.filename)}/examples/${source}_predictions.csv`
 
-        return Promise.all([
-            Promise.map(newPredictions, function(prediction) => {
-                RedisUtils.addSetDataToRedis(getRedisClient(), redisKey, JSON.stringify(prediction))}),
+            return Promise.all([
+                Promise.map(newPredictions, function(prediction) => {
+                    RedisUtils.addSetDataToRedis(getRedisClient(), redisKey, JSON.stringify(prediction))}),
 
-            writePredictionsToCsv(predictionsFilePath, newPredictions)
-        ])
-        .then(([]) => {
-            resolve(newPredictions)
-        })
+                writePredictionsToCsv(predictionsFilePath, newPredictions)
+            ])
+            .then(([]) => {
+                resolve(newPredictions)
+            })
 
-    } catch(err) {
-        reject(err);
-    }
-})
+        } catch(err) {
+            reject(err);
+        }
+    })
+}
 
 const writePredictionsToCsv = (path, predictions) => new Promise((resolve, reject) => {
     try {
@@ -339,7 +341,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
     .then(() => requiredPromiseRequest(type))
     .then(predictions => {
         return Promise.all([
-            processThirdPartyPredictions(predictions, false, source)
+            processThirdPartyPredictions(predictions, false, source),
             // Storing redis for the parent source
             addRawPredictionsToRedis(predictions, source)
         ]);
