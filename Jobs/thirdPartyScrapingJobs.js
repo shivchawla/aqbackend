@@ -166,7 +166,7 @@ function addRawPredictionsToRedis(predictions, source) {
             return Promise.all([
                 Promise.map(newPredictions, function(prediction) {
                     return RedisUtils.addSetDataToRedis(getRedisClient(), redisKey, JSON.stringify(prediction))
-                }),
+                })
                 //writePredictionsToCsv(predictionsFilePath, newPredictions)
             ])
             .then(([]) => {

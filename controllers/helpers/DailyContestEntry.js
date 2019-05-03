@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-05-03 11:50:57
+* @Last Modified time: 2019-05-03 11:57:15
 */
 
 'use strict';
@@ -3093,7 +3093,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 			APIError.throwJsonError({message: "Adjusted prediciton is NULL/invalid"});
 		}
 	})
-
+}
 
 module.exports.foundPredictionForAdvisor = function(prediction, redisPredictions = []) {
     const dateFormat = 'YYYY-MM-DD';
@@ -3128,8 +3128,6 @@ module.exports.foundPredictionForAdvisor = function(prediction, redisPredictions
     });
 
     return filteredPredictions.length > 0;
-}
-
 }
 
 
