@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-05-03 11:03:31
+* @Last Modified time: 2019-05-03 11:50:57
 */
 
 'use strict';
@@ -3093,12 +3093,43 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 			APIError.throwJsonError({message: "Adjusted prediciton is NULL/invalid"});
 		}
 	})
+
+
+module.exports.foundPredictionForAdvisor = function(prediction, redisPredictions = []) {
+    const dateFormat = 'YYYY-MM-DD';
+    const predictionSymbol = _.get(prediction, 'position.security.ticker', '');
+    const predictionTarget = Number(_.get(prediction, 'target', 0));
+    const predictionStopLoss = Number(_.get(prediction, 'stopLoss', 0));
+    let predictionStartDate = _.get(prediction, 'startDate', null);
+    let predictionEndDate = _.get(prediction, 'endDate', null);
+    predictionStartDate = moment(predictionStartDate).format(dateFormat);
+    predictionEndDate = moment(predictionEndDate).format(dateFormat);
+
+    const filteredPredictions = redisPredictions.filter(redisPrediction => {
+        const redisPredictionSymbol = _.get(redisPrediction, 'position.security.ticker', '');
+        const redisPredictionTarget = Number(_.get(redisPrediction, 'target', 0));
+        const redisPredictionStopLoss = Number(_.get(redisPrediction, 'stopLoss', 0));
+        let redisPredictionStartDate = _.get(redisPrediction, 'startDate', null);
+        let redisPredictionEndDate = _.get(redisPrediction, 'endDate', null);
+        redisPredictionStartDate = moment(redisPredictionStartDate).format(dateFormat);
+        redisPredictionEndDate = moment(redisPredictionEndDate).format(dateFormat);
+
+        if (
+            redisPredictionSymbol === predictionSymbol &&
+            predictionTarget === redisPredictionTarget &&
+            predictionStopLoss === redisPredictionStopLoss &&
+            predictionStartDate === redisPredictionStartDate &&
+            predictionEndDate === redisPredictionEndDate
+        ) {
+            return true
+        } else {
+            return false;
+        }
+    });
+
+    return filteredPredictions.length > 0;
 }
 
-module.exports.searchMultipleTickers = searchArray => {
-	return Promise.map(searchArray, ticker => {
-		return SecurityHelper.getStockList(ticker, {universe: null, sector: null, industry: null});
-	})
 }
 
 

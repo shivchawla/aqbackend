@@ -10,6 +10,7 @@ var csv = require('fast-csv');
 const UserModel = require('../models/user');
 const AdvisorModel = require('../models/Marketplace/Advisor');
 const DailyContestEntryHelper = require('../controllers/helpers/DailyContestEntry');
+const SecurityHelper = require('../controllers/helpers/Security');
 const RedisUtils = require('../utils/RedisUtils');
 const scrapeKotak = require('../scrapers/scrapeKotak');
 const scrapeMotilalOswal = require('../scrapers/scrapeMotilalOswal');
@@ -63,6 +64,12 @@ function ignoreNiftyPredictions(predictions = []) {
     })
 }
 
+function searchMultipleTickers(searchArray) {
+    return Promise.map(searchArray, ticker => {
+        return SecurityHelper.getStockList(ticker, {universe: null, sector: null, industry: null});
+    })
+}
+
 function processThirdPartyPredictions(predictions, isReal = false, source = null) {
 
     return Promise.map(predictions, async prediction => {
@@ -83,7 +90,7 @@ function processThirdPartyPredictions(predictions, isReal = false, source = null
 
         searchArray = searchArray.reverse();
         
-        let searchStockList = await exports.searchMultipleTickers(searchArray);
+        let searchStockList = await searchMultipleTickers(searchArray);
         searchStockList = _.union(...searchStockList)
         
         if (searchStockList.length === 0) {
@@ -143,41 +150,6 @@ function processThirdPartyPredictions(predictions, isReal = false, source = null
     .then(predictions => ignoreNiftyPredictions(predictions))
 }
 
-function foundPredictionForAdvisor(prediction, redisPredictions = []) {
-    const dateFormat = 'YYYY-MM-DD';
-    const predictionSymbol = _.get(prediction, 'position.security.ticker', '');
-    const predictionTarget = Number(_.get(prediction, 'target', 0));
-    const predictionStopLoss = Number(_.get(prediction, 'stopLoss', 0));
-    let predictionStartDate = _.get(prediction, 'startDate', null);
-    let predictionEndDate = _.get(prediction, 'endDate', null);
-    predictionStartDate = moment(predictionStartDate).format(dateFormat);
-    predictionEndDate = moment(predictionEndDate).format(dateFormat);
-
-    const filteredPredictions = redisPredictions.filter(redisPrediction => {
-        const redisPredictionSymbol = _.get(redisPrediction, 'position.security.ticker', '');
-        const redisPredictionTarget = Number(_.get(redisPrediction, 'target', 0));
-        const redisPredictionStopLoss = Number(_.get(redisPrediction, 'stopLoss', 0));
-        let redisPredictionStartDate = _.get(redisPrediction, 'startDate', null);
-        let redisPredictionEndDate = _.get(redisPrediction, 'endDate', null);
-        redisPredictionStartDate = moment(redisPredictionStartDate).format(dateFormat);
-        redisPredictionEndDate = moment(redisPredictionEndDate).format(dateFormat);
-
-        if (
-            redisPredictionSymbol === predictionSymbol &&
-            predictionTarget === redisPredictionTarget &&
-            predictionStopLoss === redisPredictionStopLoss &&
-            predictionStartDate === redisPredictionStartDate &&
-            predictionEndDate === redisPredictionEndDate
-        ) {
-            return true
-        } else {
-            return false;
-        }
-    });
-
-    return filteredPredictions.length > 0;
-}
-
 function addRawPredictionsToRedis(predictions, source) {
     return new Promise(async (resolve, reject) => {
         try {
@@ -186,16 +158,16 @@ function addRawPredictionsToRedis(predictions, source) {
             const storedPredictions = await RedisUtils.getSetDataFromRedis(getRedisClient(), redisKey, 0, -1);
         
             var newPredictions = predictions.filter(prediction => {
-                return !foundPredictionForAdvisor(prediction, storedPredictions);
+                return !DailyContestEntryHelper.foundPredictionForAdvisor(prediction, storedPredictions);
             });
 
             const predictionsFilePath = `${path.dirname(require.main.filename)}/examples/${source}_predictions.csv`
 
             return Promise.all([
-                Promise.map(newPredictions, function(prediction) => {
-                    RedisUtils.addSetDataToRedis(getRedisClient(), redisKey, JSON.stringify(prediction))}),
-
-                writePredictionsToCsv(predictionsFilePath, newPredictions)
+                Promise.map(newPredictions, function(prediction) {
+                    return RedisUtils.addSetDataToRedis(getRedisClient(), redisKey, JSON.stringify(prediction))
+                }),
+                //writePredictionsToCsv(predictionsFilePath, newPredictions)
             ])
             .then(([]) => {
                 resolve(newPredictions)
@@ -343,7 +315,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
         return Promise.all([
             processThirdPartyPredictions(predictions, false, source),
             // Storing redis for the parent source
-            addRawPredictionsToRedis(predictions, source)
+            // addRawPredictionsToRedis(predictions, source)
         ]);
 
     })
