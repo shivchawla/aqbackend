@@ -75,6 +75,7 @@ module.exports = (predictionText, advisorName = '') => {
         }
 
         let symbol = null;
+        let symbolIndex = null;
         let actionIndex = -2;
         if (isBuyFound) {
             const buyIndex = _.findIndex(predictionTextArray, item => item.toUpperCase() === 'BUY');
@@ -83,12 +84,28 @@ module.exports = (predictionText, advisorName = '') => {
             const sellIndex = _.findIndex(predictionTextArray, item => item.toUpperCase() === 'SELL');
             actionIndex = sellIndex;
         }
-        symbol = predictionTextArray[actionIndex + 1];
+
+        symbolIndex = actionIndex + 1;
+        symbol = predictionTextArray[symbolIndex];
 
         const daysIndex = _.findIndex(predictionTextArray, item => (item.toUpperCase() === 'DAYS' || item.toUpperCase() === 'WEEKLY'));
 
         if (daysIndex > -1) {
-            symbol = predictionTextArray[daysIndex + 1];
+            symbolIndex = daysIndex + 1;
+            symbol = predictionTextArray[symbolIndex];
+        }
+
+        if (isFutureFound) {
+            const futureIndex = _.findIndex(predictionTextArray, item => item.toLowerCase() === 'fut');
+            symbol = predictionTextArray.slice(actionIndex + 1, futureIndex).join(' ');
+        } else {
+            let iteratorIndex = symbolIndex;
+            let symbolArr = [];
+            while(isNaN(Number(predictionTextArray[iteratorIndex]))) {
+              symbolArr.push(predictionTextArray[iteratorIndex]);
+              iteratorIndex++;
+            }
+            symbol = symbolArr.join(' ');
         }
 
         return {
