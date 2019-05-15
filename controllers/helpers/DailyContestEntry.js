@@ -2893,7 +2893,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 					APIError.throwJsonError({message: "Stoploss must be non-zero"});
 				} else if (investment > 0 &&  (stopLoss > latestPrice || stopLoss > target)) {
 					APIError.throwJsonError({message: `Inaccurate Stoploss!! Must be lower than the call price Stop Loss ${stopLoss}, call price ${latestPrice} target ${target}`});
-					// console.log(`Stop Loss ${stopLoss}, latestPrice ${latestPrice} target ${target}`);				} else if (investment < 0 &&  (stopLoss < latestPrice || stopLoss < target)) {
+				} else if (investment < 0 &&  (stopLoss < latestPrice || stopLoss < target)) {
 					APIError.throwJsonError({message: `Inaccurate Stoploss!! Must be higher than the call price - ${latestPrice}`});
 				} 
 
