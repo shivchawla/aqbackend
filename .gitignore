@@ -7,3 +7,4 @@ Julia/connection.json
 controllers/Realtime/nse_15min_token_develop
 package-lock.json
 examples/winners.csv
+*.csv
