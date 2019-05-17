@@ -141,8 +141,8 @@ function processThirdPartyPredictions(predictions, isReal = false, source = null
             initializeStopLoss: _.get(prediction, 'initializeStopLoss', false) 
             // When adding extra items it should also be added in omit for thirdPartyScraping Jobs
         };
-        console.log(`${source} - Un Formatted Prediction `, prediction);
-        console.log(`${source} - Formatted Prediction `, adjustedPrediction);
+        // console.log(`${source} - Un Formatted Prediction `, prediction);
+        // console.log(`${source} - Formatted Prediction `, adjustedPrediction);
 
         return adjustedPrediction;
     })

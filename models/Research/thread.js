@@ -66,7 +66,12 @@ const Thread = new Schema({
     },
     replies: [EmbedThread],
     createdAt: Date,
-    updatedAt: Date
+    updatedAt: Date,
+    
+    hide: {
+        type: Boolean,
+        default: false
+    }
 });
 
 Thread.index({
