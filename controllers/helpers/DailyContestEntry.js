@@ -19,6 +19,7 @@ const APIError = require('../../utils/error');
 const WSHelper = require('./WSHelper');
 const SecurityHelper = require('./Security');
 const AdvisorHelper = require('./Advisor');
+const InteractiveBroker = require('../Realtime/interactiveBroker');
 
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
@@ -2780,11 +2781,25 @@ module.exports.processRedisPredictions = redisPredictions => {
 	return redisPredictions.map(prediction => JSON.parse(prediction));
 }
 
-module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = false) => {
+module.exports.getNumSharesFromInvestment = (notional, lastPrice, maxInvestmentValue = 50) => {
+    const ceilValue = Math.ceil(notional / lastPrice);
+    const floorValue = Math.floor(notional / lastPrice);
+    if (
+        (ceilValue * lastPrice) < Math.min((maxInvestmentValue * 1000), 1.05 * notional) ||
+        (floorValue * lastPrice) < 10000
+    ) {
+        return ceilValue;
+    }
+
+    return floorValue;
+}
+
+module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = false, placeOrder = false) => {
 	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 	let investment, quantity, latestPrice, avgPrice, changePct;
 	// Investment obtained from the frontend
 	let investmentInput = 0;
+	let allocationAdvisorId;
 	
 	var security = _.get(prediction, 'position.security', {});
 	const isRealPrediction = _.get(prediction, 'real', false);
@@ -2792,7 +2807,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 	const conditionalType = _.get(prediction, 'conditionalType', 'NOW');
 	const isConditional = conditionalType.toUpperCase() !== 'NOW';
 	
-	let allocationAdvisorId;
+	let userAutomated = false;
 	let masterAdvisorId;
 	let validStartDate = exports.getValidStartDate();
 
@@ -2915,23 +2930,21 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 	})
 	.then(() => {
 		let masterAdvisorSelection = {user: userId, isMasterAdvisor: true};
-		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
-			masterAdvisorSelection = {_id: advisorId};
-		}
+		// if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
+		// 	masterAdvisorSelection = {_id: advisorId};
+		// }
 
 		return AdvisorModel.fetchAdvisor(masterAdvisorSelection, {fields: '_id account allocation'})
 		.then(masterAdvisor => {
 			allocationAdvisorId = _.get(masterAdvisor, 'allocation.advisor', '').toString();
 			//Get master advisor id (used later when sending updates)
 			masterAdvisorId = masterAdvisor._id.toString();
-
 			if (isRealPrediction) {
+				userAutomated = _.get(masterAdvisor, 'allocation.automated', false);
 				// Checking if investment is not greater than the maxInvestment
 				const maxInvestment = _.get(masterAdvisor, 'allocation.maxInvestment', 50) * 1000;
 
 				const minInvestment = _.get(masterAdvisor, 'allocation.minInvestment', 10) * 1000;
-
-				userAutomated = _.get(masterAdvisor, 'allocation.automated', false);
 
 				const notAllowedStocks = _.get(masterAdvisor, 'allocation.notAllowedStocks', []);
 
@@ -3069,7 +3082,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 	.then(adjustedPrediction => {
 		return exports.getPredictionsForDate(advisorId, validStartDate, {category: "started", priceUpdate: false, active: null})
 		.then(predictions => {
-			if (exports.foundPredictionForAdvisor(adjustedPrediction, predictions)) {
+			if (exports.foundPredictionForAdvisor(adjustedPrediction, predictions, {compareTickerOnly: true})) {
 				APIError.throwJsonError({message: "Duplicate Predictions"});
 			}
 
@@ -3085,7 +3098,8 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
                 'targetDiff', 
                 'recommendedPrice',
                 'shouldCalculateDiff',
-                'initializeStopLoss'
+				'initializeStopLoss',
+				'latestPrice'
             ]);
 			console.log('Prediction to be created ', adjustedPrediction);
 			return exports.addPrediction(advisorId, adjustedPrediction, DateHelper.getMarketCloseDateTime(validStartDate), masterAdvisorId, userId)
@@ -3093,7 +3107,85 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 			APIError.throwJsonError({message: "Adjusted prediciton is NULL/invalid"});
 		}
 	})
+	.then(prediction => {
+		let orderAutomated = config.get('order_automated');
+
+		if (orderAutomated && userAutomated && placeOrder) {
+		// if (!isConditional && orderAutomated && userAutomated && placeOrder) {
+			const predictionId = _.get(prediction, '_id', null);
+			const predictionTarget = _.get(prediction, 'target', 0);
+			const predictionStopLoss = _.get(prediction, 'stopLoss', 0);
+			const predictionQuantity = _.get(prediction, 'position.quantity', 0);
+			const predictionAvgPrice = _.get(prediction, 'position.avgPrice', 0);
+			const predictionInvestment = _.get(prediction, 'position.investment', 0);
+			const symbol = _.get(prediction, 'position.security.ticker', null);
+
+			return exports.getDailyContestStats(symbol, userId)
+			.then(predictionStats => {
+				// We can use the predictionStats to check if we want to place the order
+				if (predictionId && predictionInvestment > 0) {
+					console.log('Order Will be placed to Interactive Broker');
+					// Order params for placing order
+					const ibOrderParams ={
+						bracketFirstOrderType: 'MARKET',
+						stock: symbol,
+						type: 'BUY',
+						quantity: predictionQuantity,
+						price: roundOffForIb(predictionAvgPrice),
+						orderType: 'bracket',
+						stopLossPrice: roundOffForIb(predictionStopLoss),
+						profitLimitPrice: roundOffForIb(predictionTarget),
+						predictionId: (predictionId || '').toString(),
+						advisorId: (masterAdvisorId || '').toString()
+					};					
+		
+					return InteractiveBroker.placeOrder(ibOrderParams)
+					.then(() => {
+						console.log('Order Placed');
+					})
+					.catch(err => {
+						console.log('Error while placing order ', err.message);
+					})
+	
+				}
+			})
+		}
+
+		return prediction;
+	})
 }
+
+module.exports.getDailyContestStats = (symbol, userId) => new Promise((resolve, reject) => {
+	const category = 'general';
+	let horizon = null;
+
+	return Promise.resolve()
+	.then(() => {
+		let advisorSelection = {user: userId, isMasterAdvisor: true};
+			
+		return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id allocation'});		
+	})
+	.then(masterAdvisor => {
+		if (masterAdvisor) {
+			let advisorId = masterAdvisor._id.toString();
+
+			switch(category) {
+				case "general" : return exports.getDailyContestEntryPnlStats(advisorId, symbol, horizon); 
+				case "prediction" : return exports.getDailyContestEntryPnlStats(advisorId, symbol, horizon); break;
+				case "pnl" : return exports.getDailyContestEntryPnlStats(advisorId, horizon); break;
+			}
+		} else {
+			APIError.throwJsonError({message: "Not a valid user"});
+		} 
+	})	
+	.then(stats => {
+		resolve(stats);
+	})
+	.catch(err => {
+		console.log('Error: getDailyContestStats ', err.message);
+		reject(err.message);
+	});
+});
 
 module.exports.foundPredictionForAdvisor = function(prediction, redisPredictions = [], options = {}) {
     const compareTickerOnly = _.get(options, 'compareTickerOnly', false);
@@ -3135,3 +3227,8 @@ module.exports.foundPredictionForAdvisor = function(prediction, redisPredictions
     return filteredPredictions.length > 0;
 }
 
+function roundOffForIb (value) {
+	value = Number(value);
+        
+    return Math.round(value * 20) / 20;
+}
