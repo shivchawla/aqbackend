@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-05-03 14:17:05
+* @Last Modified time: 2019-05-17 17:08:15
 */
 
 'use strict';
@@ -3101,7 +3101,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 				'initializeStopLoss',
 				'latestPrice'
             ]);
-			console.log('Prediction to be created ', adjustedPrediction);
+			// console.log('Prediction to be created ', adjustedPrediction);
 			return exports.addPrediction(advisorId, adjustedPrediction, DateHelper.getMarketCloseDateTime(validStartDate), masterAdvisorId, userId)
 		} else {
 			APIError.throwJsonError({message: "Adjusted prediciton is NULL/invalid"});
