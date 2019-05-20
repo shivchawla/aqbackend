@@ -3109,7 +3109,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 	.then(prediction => {
 		let orderAutomated = config.get('order_automated');
 
-		if (orderAutomated && userAutomated && placeOrder) {
+		if (orderAutomated && userAutomated && placeOrder && investment > 0) {
 		// if (!isConditional && orderAutomated && userAutomated && placeOrder) {
 			const predictionId = _.get(prediction, '_id', null);
 			const predictionTarget = _.get(prediction, 'target', 0);
