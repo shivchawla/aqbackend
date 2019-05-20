@@ -19,7 +19,7 @@ const scrapeEdelweiss = require('../scrapers/scrapeEdelWeiss');
 const scrapeInvestmentGuru = require('../scrapers/scrapeInvestmentGuru');
 const scrapeMoneyControl = require('../scrapers/scrapeMoneyControl'); 
 const scrapeEconomicTimes = require('../scrapers/scrapeEconomicTimes');
-const {userDetails, aggregationUser, zeroHorizonAggregationUser} = require('../constants/scrapingUsers');
+const {userDetails, aggregationUser, zeroHorizonAggregationUser, oppositeAggregationUser, oppositeZeroHorizonAggregationUser} = require('../constants/scrapingUsers');
 const DateHelper = require('../utils/Date');
 
 let redisClient;
@@ -332,6 +332,12 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 
             const zeroAggUserId = _.get(zeroHorizonAggregationUser, 'userId', null);
             const zeroAggAdvisorId = _.get(zeroHorizonAggregationUser, 'advisorId', null);
+
+            const oppAggUserId = _.get(oppositeAggregationUser, 'userId', null);
+            const oppAggAdvisorId = _.get(oppositeAggregationUser, 'advisorId', null);
+
+            const oppZeroAggUserId = _.get(oppositeZeroHorizonAggregationUser, 'userId', null);
+            const oppZeroAggAdvisorId = _.get(oppositeZeroHorizonAggregationUser, 'advisorId', null);
             
             let newAdvisorId = advisorId;
             let newUserId = userId;
@@ -353,6 +359,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
                 }
             }
             
+            // Original Prediction
             const adjustedAggregationPrediction = {
                 ...prediction, 
                 real: true,
@@ -363,6 +370,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
                 }
             };
 
+            // Original Prediction with zero horizon
             const adjustedAggregationPredictionForZeroHorizon = {
                 ...prediction, 
                 real: true,
@@ -374,6 +382,33 @@ module.exports.createPredictionsFromThirdParty = function(source) {
                 endDate: prediction.startDate // setting horizon as 0, i.e same start date and end date
             };
 
+            // Inversed prediction
+            const adjustedInverseAggPrediction = {
+                ...prediction,
+                real: true,
+                position: {
+                    ...prediction.position,
+                    investment: 0,
+                    quantity: -1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser),
+                    target: prediction.stopLoss,
+                    stopLoss: prediction.target
+                }
+            }
+
+            // Inversed Prediction with zero horizon
+            const adjustedInverseZeroHorizonAggPrediction = {
+                ...prediction,
+                real: true,
+                position: {
+                    ...prediction.position,
+                    investment: 0,
+                    quantity: -1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser),
+                    target: prediction.stopLoss,
+                    stopLoss: prediction.target
+                },
+                endDate: prediction.startDate // setting horizon as 0, i.e same start date and end date
+            }
+
             return Promise.all([
                 DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId),
                 (aggUserId && aggAdvisorId) !== null
@@ -381,6 +416,12 @@ module.exports.createPredictionsFromThirdParty = function(source) {
                     : null,
                 (zeroAggUserId && zeroAggAdvisorId) !== null
                     ? DailyContestEntryHelper.createPrediction(adjustedAggregationPredictionForZeroHorizon, zeroAggUserId, zeroAggAdvisorId, false, true)
+                    : null,
+                (oppAggUserId && oppAggAdvisorId) !== null
+                    ? DailyContestEntryHelper.createPrediction(adjustedInverseAggPrediction, oppAggUserId, oppAggAdvisorId, false, true, true)
+                    : null,
+                (oppZeroAggUserId && oppZeroAggAdvisorId) !== null
+                    ? DailyContestEntryHelper.createPrediction(adjustedInverseZeroHorizonAggPrediction, oppZeroAggUserId, oppZeroAggAdvisorId, false, true, true)
                     : null
             ])
             .then(([createdPrediction, aggCreatedPrediction]) => {

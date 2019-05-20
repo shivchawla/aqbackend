@@ -2793,7 +2793,7 @@ module.exports.getNumSharesFromInvestment = (notional, lastPrice, maxInvestmentV
     return floorValue;
 }
 
-module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = false, placeOrder = false) => {
+module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = false, placeOrder = false, allowNegativeQty = false) => {
 	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 	let investment, quantity, latestPrice, avgPrice, changePct;
 	// Investment obtained from the frontend
@@ -2882,7 +2882,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 				investment = _.get(prediction, 'position.investment', 0);
 				quantity = _.get(prediction, 'position.quantity', 0);
 
-				if (isRealPrediction && (investment != 0 || quantity <= 0)) {
+				if (isRealPrediction && !allowNegativeQty && (investment != 0 || quantity <= 0)) {
 					APIError.throwJsonError({message: "Must provide zero investment and positive quantity (LONG) for real trades!!"})
 				}
 
@@ -2896,7 +2896,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 				//(now this could be not true but let's keep things for simple for now)
 				prediction.position.investment = investment
 
-				if (isRealPrediction && investment < 0) {
+				if (isRealPrediction && !allowNegativeQty && investment < 0) {
 					APIError.throwJsonError({message: "Only LONG prediction are allowed for real trades!!"})	
 				}
 				
