@@ -2793,7 +2793,7 @@ module.exports.getNumSharesFromInvestment = (notional, lastPrice, maxInvestmentV
     return floorValue;
 }
 
-module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = false, placeOrder = false, allowNegativeQty = false) => {
+module.exports.createPrediction = (prediction, userId, advisorId, placeOrder = false, allowNegativeQty = false, ibPositions = []) => {
 	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 	let investment, quantity, latestPrice, avgPrice, changePct;
 	// Investment obtained from the frontend
@@ -3108,8 +3108,11 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 	})
 	.then(prediction => {
 		let orderAutomated = config.get('order_automated');
+		const symbol = _.get(prediction, 'position.security.ticker', null);
+		ibPositions = ibPositions.map(position => position.symbol);
+		const isFoundInIB = _.findIndex(ibPositions, position => position === symbol) > -1;
 
-		if (orderAutomated && userAutomated && placeOrder && investment > 0) {
+		if (orderAutomated && userAutomated && placeOrder && investment > 0 && !isFoundInIB) {
 		// if (!isConditional && orderAutomated && userAutomated && placeOrder) {
 			const predictionId = _.get(prediction, '_id', null);
 			const predictionTarget = _.get(prediction, 'target', 0);
@@ -3117,7 +3120,6 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 			const predictionQuantity = _.get(prediction, 'position.quantity', 0);
 			const predictionAvgPrice = latestPrice;
 			const predictionInvestment = _.get(prediction, 'position.investment', 0);
-			const symbol = _.get(prediction, 'position.security.ticker', null);
 
 			return exports.getDailyContestStats(symbol, userId)
 			.then(predictionStats => {

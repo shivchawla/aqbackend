@@ -268,7 +268,7 @@ const getUserInfo = email => new Promise((resolve, reject) => {
     });
 })
 
-module.exports.createPredictionsFromThirdParty = function(source) {
+module.exports.createPredictionsFromThirdParty = function(source, ibPositions= []) {
     const redisEnvironment = process.env.NODE_ENV;
     console.log(`${source} predictions download started`);
 
@@ -418,16 +418,16 @@ module.exports.createPredictionsFromThirdParty = function(source) {
             return Promise.all([
                 DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId),
                 (aggUserId && aggAdvisorId) !== null
-                    ? DailyContestEntryHelper.createPrediction(adjustedAggregationPrediction, aggUserId, aggAdvisorId, false, true)
+                    ? DailyContestEntryHelper.createPrediction(adjustedAggregationPrediction, aggUserId, aggAdvisorId, true, false, ibPositions)
                     : null,
                 (zeroAggUserId && zeroAggAdvisorId) !== null
-                    ? DailyContestEntryHelper.createPrediction(adjustedAggregationPredictionForZeroHorizon, zeroAggUserId, zeroAggAdvisorId, false, true)
+                    ? DailyContestEntryHelper.createPrediction(adjustedAggregationPredictionForZeroHorizon, zeroAggUserId, zeroAggAdvisorId, true, false, ibPositions)
                     : null,
                 (oppAggUserId && oppAggAdvisorId) !== null
-                    ? DailyContestEntryHelper.createPrediction(adjustedInverseAggPrediction, oppAggUserId, oppAggAdvisorId, false, true, true)
+                    ? DailyContestEntryHelper.createPrediction(adjustedInverseAggPrediction, oppAggUserId, oppAggAdvisorId, true, true, ibPositions)
                     : null,
                 (oppZeroAggUserId && oppZeroAggAdvisorId) !== null
-                    ? DailyContestEntryHelper.createPrediction(adjustedInverseZeroHorizonAggPrediction, oppZeroAggUserId, oppZeroAggAdvisorId, false, true, true)
+                    ? DailyContestEntryHelper.createPrediction(adjustedInverseZeroHorizonAggPrediction, oppZeroAggUserId, oppZeroAggAdvisorId, true, true, ibPositions)
                     : null
             ])
             .then(([createdPrediction, aggCreatedPrediction]) => {
@@ -457,16 +457,18 @@ module.exports.createPredictionsFromThirdParty = function(source) {
     })
 }
 
-module.exports.getAllPredictionsFromThirdParty = function() { 
+module.exports.getAllPredictionsFromThirdParty = async function() { 
+    const currentPositions = await SecurityHelper.getCurrentIBPositions();
+
     return Promise.all([
-        exports.createPredictionsFromThirdParty('kotak'), 
-        exports.createPredictionsFromThirdParty('kotakFundamental'),
-        exports.createPredictionsFromThirdParty('motilalOswal'),
-        exports.createPredictionsFromThirdParty('shareKhan'),
-        exports.createPredictionsFromThirdParty('edelweiss'),
-        exports.createPredictionsFromThirdParty('investmentGuru'),
-        exports.createPredictionsFromThirdParty('moneyControl'),
-        exports.createPredictionsFromThirdParty('economicTimes')
+        exports.createPredictionsFromThirdParty('kotak', currentPositions), 
+        exports.createPredictionsFromThirdParty('kotakFundamental', currentPositions),
+        exports.createPredictionsFromThirdParty('motilalOswal', currentPositions),
+        exports.createPredictionsFromThirdParty('shareKhan', currentPositions),
+        exports.createPredictionsFromThirdParty('edelweiss', currentPositions),
+        exports.createPredictionsFromThirdParty('investmentGuru', currentPositions),
+        exports.createPredictionsFromThirdParty('moneyControl', currentPositions),
+        exports.createPredictionsFromThirdParty('economicTimes', currentPositions)
     ])
     .then(() => {
         console.log('Donwloaded All Data');
