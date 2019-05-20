@@ -19,7 +19,7 @@ const scrapeEdelweiss = require('../scrapers/scrapeEdelWeiss');
 const scrapeInvestmentGuru = require('../scrapers/scrapeInvestmentGuru');
 const scrapeMoneyControl = require('../scrapers/scrapeMoneyControl'); 
 const scrapeEconomicTimes = require('../scrapers/scrapeEconomicTimes');
-const {userDetails, aggregationUser} = require('../constants/scrapingUsers');
+const {userDetails, aggregationUser, zeroHorizonAggregationUser} = require('../constants/scrapingUsers');
 const DateHelper = require('../utils/Date');
 
 let redisClient;
@@ -329,6 +329,9 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 
             const aggUserId = _.get(aggregationUser, 'userId', null);
             const aggAdvisorId = _.get(aggregationUser, 'advisorId', null);
+
+            const zeroAggUserId = _.get(zeroHorizonAggregationUser, 'userId', null);
+            const zeroAggAdvisorId = _.get(zeroHorizonAggregationUser, 'advisorId', null);
             
             let newAdvisorId = advisorId;
             let newUserId = userId;
@@ -360,10 +363,24 @@ module.exports.createPredictionsFromThirdParty = function(source) {
                 }
             };
 
+            const adjustedAggregationPredictionForZeroHorizon = {
+                ...prediction, 
+                real: true,
+                position: {
+                    ...prediction.position,
+                    investment: 0,
+                    quantity: DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser)
+                },
+                endDate: prediction.startDate // setting horizon as 0, i.e same start date and end date
+            };
+
             return Promise.all([
                 DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId),
                 (aggUserId && aggAdvisorId) !== null
                     ? DailyContestEntryHelper.createPrediction(adjustedAggregationPrediction, aggUserId, aggAdvisorId, false, true)
+                    : null,
+                (zeroAggUserId && zeroAggAdvisorId) !== null
+                    ? DailyContestEntryHelper.createPrediction(adjustedAggregationPredictionForZeroHorizon, zeroAggUserId, zeroAggAdvisorId, false, true)
                     : null
             ])
             .then(([createdPrediction, aggCreatedPrediction]) => {
