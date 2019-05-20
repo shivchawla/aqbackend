@@ -1381,6 +1381,10 @@ module.exports.isTradeable = function(security) {
 	return notAllowedForTradeSecurities.indexOf(security.ticker) == -1;
 };
 
+module.exports.placeOrder = function(orderParams) {
+	return InteractiveBroker.placeOrder(orderParams);
+}
+
 return Promise.all([
 	exports.getShortableUniverse(),
 	exports.getNonTradeableUniverse()

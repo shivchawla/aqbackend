@@ -17,14 +17,13 @@ const axios = require('axios');
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
 const WSHelper = require('./WSHelper');
-const SecurityHelper = require('./Security');
 const AdvisorHelper = require('./Advisor');
-const InteractiveBroker = require('../Realtime/interactiveBroker');
 
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
+const SecurityHelper = require('./Security');
 
 const PredictionRealtimeController = require('../Realtime/predictionControl');
 const BrokerRedisController = require('../Realtime/brokerRedisControl');
@@ -3116,7 +3115,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 			const predictionTarget = _.get(prediction, 'target', 0);
 			const predictionStopLoss = _.get(prediction, 'stopLoss', 0);
 			const predictionQuantity = _.get(prediction, 'position.quantity', 0);
-			const predictionAvgPrice = _.get(prediction, 'position.avgPrice', 0);
+			const predictionAvgPrice = latestPrice;
 			const predictionInvestment = _.get(prediction, 'position.investment', 0);
 			const symbol = _.get(prediction, 'position.security.ticker', null);
 
@@ -3124,7 +3123,6 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 			.then(predictionStats => {
 				// We can use the predictionStats to check if we want to place the order
 				if (predictionId && predictionInvestment > 0) {
-					console.log('Order Will be placed to Interactive Broker');
 					// Order params for placing order
 					const ibOrderParams ={
 						bracketFirstOrderType: 'MARKET',
@@ -3137,9 +3135,10 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 						profitLimitPrice: roundOffForIb(predictionTarget),
 						predictionId: (predictionId || '').toString(),
 						advisorId: (masterAdvisorId || '').toString()
-					};					
+					};		
+					console.log('Order Will be placed to Interactive Broker ', ibOrderParams);
 		
-					return InteractiveBroker.placeOrder(ibOrderParams)
+					return SecurityHelper.placeOrder(ibOrderParams)
 					.then(() => {
 						console.log('Order Placed');
 					})
