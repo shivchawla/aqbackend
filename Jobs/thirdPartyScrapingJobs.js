@@ -318,7 +318,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
         return Promise.all([
             processThirdPartyPredictions(predictions, false, source),
             // Storing redis for the parent source
-            // addRawPredictionsToRedis(predictions, source)
+            addRawPredictionsToRedis(predictions, source)
         ]);
 
     })
@@ -408,3 +408,29 @@ module.exports.getAllPredictionsFromThirdParty = function() {
         console.log('Donwloaded All Data');
     })
 }
+
+const deleteRawPredictionsFromRedis = () => {
+    const client = getRedisClient();
+    const redisEnvironment = process.env.NODE_ENV;
+    const rawPredictionRegex = new RegExp(`${redisEnvironment}_(.*)_prediction`);
+    const rawPredictionKeys = [];
+    client.keys('*', (err, keys) => {
+        if (!err) {
+            keys.map(key => {
+                const success = rawPredictionRegex.test(key);
+                if (success) {
+                    rawPredictionKeys.push(key);
+                }
+            });
+            client.del(rawPredictionKeys, (err, o) => {
+                if (!err) {
+                    console.log('Error Occured while deleting raw prediction keys', err.message);
+                } else {
+                    console.log('Successfully deleted the raw prediction keys');
+                }
+            });
+        } else {
+            console.log('Error occured while getting redis keys')
+        }
+    });
+};
