@@ -19,7 +19,13 @@ const scrapeEdelweiss = require('../scrapers/scrapeEdelWeiss');
 const scrapeInvestmentGuru = require('../scrapers/scrapeInvestmentGuru');
 const scrapeMoneyControl = require('../scrapers/scrapeMoneyControl'); 
 const scrapeEconomicTimes = require('../scrapers/scrapeEconomicTimes');
-const {userDetails, aggregationUser, zeroHorizonAggregationUser, oppositeAggregationUser, oppositeZeroHorizonAggregationUser} = require('../constants/scrapingUsers');
+const {
+    userDetails, 
+    aggregationUser, 
+    zeroHorizonAggregationUser, 
+    oppositeAggregationUser, 
+    oppositeZeroHorizonAggregationUser,
+} = require('../constants/scrapingUsers');
 const DateHelper = require('../utils/Date');
 
 let redisClient;
