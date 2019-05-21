@@ -368,22 +368,26 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
             // Original Prediction
             const adjustedAggregationPrediction = {
                 ...prediction, 
-                real: true,
+                real: aggregationUser.real,
                 position: {
                     ...prediction.position,
-                    investment: 0,
-                    quantity: DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser)
+                    investment: aggregationUser.real ? 0 : investment,
+                    quantity: aggregationUser.real 
+                        ? DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser)
+                        : 0
                 }
             };
 
             // Original Prediction with zero horizon
             const adjustedAggregationPredictionForZeroHorizon = {
                 ...prediction, 
-                real: true,
+                real: zeroHorizonAggregationUser.real,
                 position: {
                     ...prediction.position,
-                    investment: 0,
-                    quantity: DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser)
+                    investment: zeroHorizonAggregationUser.real ? 0 : investment,
+                    quantity: zeroHorizonAggregationUser.real 
+                        ? DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser)
+                        : 0
                 },
                 endDate: prediction.startDate // setting horizon as 0, i.e same start date and end date
             };
@@ -391,11 +395,13 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
             // Inversed prediction
             const adjustedInverseAggPrediction = {
                 ...prediction,
-                real: true,
+                real: oppositeAggregationUser.real,
                 position: {
                     ...prediction.position,
-                    investment: 0,
-                    quantity: -1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser),
+                    investment: oppositeAggregationUser.real ? 0 : (-1 * investment),
+                    quantity: oppositeAggregationUser.real 
+                        ? (-1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser))
+                        : 0,
                     target: prediction.stopLoss,
                     stopLoss: prediction.target
                 }
@@ -404,11 +410,13 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
             // Inversed Prediction with zero horizon
             const adjustedInverseZeroHorizonAggPrediction = {
                 ...prediction,
-                real: true,
+                real: oppositeZeroHorizonAggregationUser.real,
                 position: {
                     ...prediction.position,
-                    investment: 0,
-                    quantity: -1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser),
+                    investment: oppositeZeroHorizonAggregationUser.real ? 0 : (-1 * investment),
+                    quantity: oppositeZeroHorizonAggregationUser.real 
+                        ? (-1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser))
+                        : 0,
                     target: prediction.stopLoss,
                     stopLoss: prediction.target
                 },
