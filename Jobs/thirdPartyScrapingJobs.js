@@ -438,7 +438,7 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                     ? DailyContestEntryHelper.createPrediction(adjustedInverseZeroHorizonAggPrediction, oppZeroAggUserId, oppZeroAggAdvisorId, true, true, ibPositions)
                     : null
             ])
-            .then(([createdPrediction, aggCreatedPrediction]) => {
+            .then(([createdPrediction, aggCreatedPrediction, oppositePredictions, zeroHorizonOppPrediction]) => {
                 console.log('createdPrediction ', createdPrediction);
                 console.log(`Prediction Created ${createdPrediction.position.security.ticker} - ${newSource}`);
 
@@ -446,6 +446,14 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                     console.log('Prediction created for aggregation user');
                 } else {
                     console.log('Prediction not created for aggregation user. Please provide userId and advisorId for the same');
+                }
+
+                if (oppositePredictions) {
+                    console.log('Opposite Predictions Created');
+                }
+
+                if (zeroHorizonOppPrediction) {
+                    console.log('Zero Horizon, Opposite Predictions Created');
                 }
 
                 return Promise.resolve(true);
