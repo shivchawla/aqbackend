@@ -3121,42 +3121,39 @@ module.exports.createPrediction = (prediction, userId, advisorId, placeOrder = f
 			const predictionAvgPrice = latestPrice;
 			const predictionInvestment = _.get(prediction, 'position.investment', 0);
 
-			return exports.getDailyContestStats(symbol, userId)
-			.then(predictionStats => {
-				// We can use the predictionStats to check if we want to place the order
-				if (predictionId && predictionInvestment > 0) {
-					// Order params for placing order
-					const ibOrderParams ={
-						bracketFirstOrderType: 'MARKET',
-						stock: symbol,
-						type: 'BUY',
-						quantity: predictionQuantity,
-						price: roundOffForIb(predictionAvgPrice),
-						orderType: 'bracket',
-						stopLossPrice: roundOffForIb(predictionStopLoss),
-						profitLimitPrice: roundOffForIb(predictionTarget),
-						predictionId: (predictionId || '').toString(),
-						advisorId: (masterAdvisorId || '').toString()
-					};		
-					console.log('Order Will be placed to Interactive Broker ', ibOrderParams);
-		
-					return SecurityHelper.placeOrder(ibOrderParams)
-					.then(() => {
-						console.log('Order Placed');
-					})
-					.catch(err => {
-						console.log('Error while placing order ', err.message);
-					})
+			// We can use the predictionStats to check if we want to place the order
+			if (predictionId && predictionInvestment > 0) {
+				// Order params for placing order
+				const ibOrderParams ={
+					bracketFirstOrderType: 'MARKET',
+					stock: symbol,
+					type: 'BUY',
+					quantity: predictionQuantity,
+					price: roundOffForIb(predictionAvgPrice),
+					orderType: 'bracket',
+					stopLossPrice: roundOffForIb(predictionStopLoss),
+					profitLimitPrice: roundOffForIb(predictionTarget),
+					predictionId: (predictionId || '').toString(),
+					advisorId: (masterAdvisorId || '').toString()
+				};		
+				console.log('Order Will be placed to Interactive Broker ', ibOrderParams);
 	
-				}
-			})
+				return SecurityHelper.placeOrder(ibOrderParams)
+				.then(() => {
+					console.log('Order Placed');
+				})
+				.catch(err => {
+					console.log('Error while placing order ', err.message);
+				})
+
+			}
 		}
 
 		return prediction;
 	})
 }
 
-module.exports.getDailyContestStats = (symbol, userId) => new Promise((resolve, reject) => {
+module.exports.getDailyContestStats = (symbol = null, userId) => new Promise((resolve, reject) => {
 	const category = 'general';
 	let horizon = null;
 
