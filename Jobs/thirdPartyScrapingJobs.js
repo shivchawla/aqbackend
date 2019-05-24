@@ -25,7 +25,8 @@ const {
     zeroHorizonAggregationUser, 
     oppositeAggregationUser, 
     oppositeZeroHorizonAggregationUser,
-    pnlAggUser
+    pnlAggUser,
+    stockMovementAggUser
 } = require('../constants/scrapingUsers');
 const DateHelper = require('../utils/Date');
 
@@ -347,6 +348,9 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
 
             const pnlAggUserId = _.get(pnlAggUser, 'userId', null);
             const pnlAggAdvisorId = _.get(pnlAggUser, 'advisorId', null);
+
+            const stockMovementAggUserId = _.get(stockMovementAggUser, 'userId', null);
+            const stockMovementAggAdvisorId = _.get(stockMovementAggUser, 'advisorId', null);
             
             let newAdvisorId = advisorId;
             let newUserId = userId;
@@ -470,6 +474,8 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                         }
                     }
 
+            const stockMovementPrediction = getPredictionOnStockMovement(prediction, stockMovementAggUser.real, maxInvestmentForAggUser);
+
             return Promise.all([
                 DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId),
                 (aggUserId && aggAdvisorId) !== null
@@ -486,6 +492,9 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                     :   null,
                 (pnlAggUserId && pnlAggAdvisorId) !== null
                     ?   DailyContestEntryHelper.createPrediction(adjustedPnlPrediction, pnlAggUserId, pnlAggAdvisorId, pnlAggUser.real, true, ibPositions)
+                    :   null,
+                (stockMovementAggUserId && stockMovementAggAdvisorId) !== null
+                    ?   DailyContestEntryHelper.createPrediction(stockMovementPrediction, stockMovementAggUserId, stockMovementAggAdvisorId, stockMovementAggUser.real, true, ibPositions)
                     :   null
             ])
             .then(([createdPrediction, aggCreatedPrediction, oppositePredictions, zeroHorizonOppPrediction]) => {
@@ -525,9 +534,10 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
 
 module.exports.getAllPredictionsFromThirdParty = async function() { 
     const currentPositions = await SecurityHelper.getCurrentIBPositions();
+    // const currentPositions = [];
 
     return Promise.all([
-        exports.createPredictionsFromThirdParty('kotak', currentPositions), 
+        exports.createPredictionsFromThirdParty('kotak', currentPositions),
         exports.createPredictionsFromThirdParty('kotakFundamental', currentPositions),
         exports.createPredictionsFromThirdParty('motilalOswal', currentPositions),
         exports.createPredictionsFromThirdParty('shareKhan', currentPositions),
@@ -539,6 +549,58 @@ module.exports.getAllPredictionsFromThirdParty = async function() {
     .then(() => {
         console.log('Donwloaded All Data');
     })
+}
+
+const getPredictionOnStockMovement = async (prediction, real, maxInvestment) => {
+    const symbol = prediction.position.security.ticker;
+    const stockDetail = await SecurityHelper.getStockDetail(prediction.position.security, prediction.startDate);
+    const openPrice = _.get(stockDetail, 'latestDetail.Open', 0);
+    const prevClose = _.get(stockDetail, 'latestDetailRT.previousClose', 0);
+    const stockLatestPrice = _.get(stockDetail, 'latestDetailRT.close', null) || _.get(stockDetail, 'latestDetail.Close', 0);
+    const investment = 10000;
+    const isBuy = prediction.position.investment > 0;
+
+    // Original Prediction
+    const adjustedAggPrediction = {
+        ...prediction, 
+        real,
+        position: {
+            ...prediction.position,
+            investment: real ? 0 : 10,
+            quantity: real 
+                ? DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestment)
+                : 0
+        }
+    };
+
+    // Inversed prediction
+    const adjustedInverseAggPrediction = {
+        ...prediction,
+        real,
+        position: {
+            ...prediction.position,
+            investment: real ? 0 : (-1 * 10),
+            quantity: real 
+                ? (-1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestment))
+                : 0,
+            target: prediction.stopLoss,
+            stopLoss: prediction.target
+        }
+    };
+
+    if (openPrice > prevClose) {
+        if (isBuy) {
+            return adjustedAggPrediction;
+        }
+
+        return adjustedInverseAggPrediction;
+    } else {
+        if (!isBuy) {
+            return adjustedAggPrediction;
+        }
+
+        return adjustedInverseAggPrediction;
+    }
 }
 
 const deleteRawPredictionsFromRedis = () => {
