@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-02-28 10:55:24
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-04-29 22:17:05
+* @Last Modified time: 2019-05-21 15:46:21
 */
 
 'use strict';
@@ -80,7 +80,8 @@ if (config.get('jobsPort') === serverPort) {
 	    	.then(() => {
 	    		DailyContestStatsHelper.updateContestTopStocks();
 			})
-			.then(() => {
+			//Undo contest - 21/05/2019
+			/*.then(() => {
 				//If time after market close (+ 30 minutes), update the winners as well
 				const marketCloseDateTimeOffset = DateHelper.getMarketCloseDateTime().add(30, 'minutes');
 				if (moment().isAfter(marketCloseDateTimeOffset) && !winnersUpdated) { 
@@ -92,7 +93,7 @@ if (config.get('jobsPort') === serverPort) {
 		        		winnersUpdated = true;
 		        	});
 		        }
-			})
+			})*/
 			.then(() => {
 				DailyContestEntryHelper.checkAdvisorInvestmentSum();
 			})
