@@ -19,7 +19,15 @@ const scrapeEdelweiss = require('../scrapers/scrapeEdelWeiss');
 const scrapeInvestmentGuru = require('../scrapers/scrapeInvestmentGuru');
 const scrapeMoneyControl = require('../scrapers/scrapeMoneyControl'); 
 const scrapeEconomicTimes = require('../scrapers/scrapeEconomicTimes');
-const {userDetails} = require('../constants/scrapingUsers');
+const {
+    userDetails, 
+    aggregationUser, 
+    zeroHorizonAggregationUser, 
+    oppositeAggregationUser, 
+    oppositeZeroHorizonAggregationUser,
+    pnlAggUser,
+    stockMovementAggUser
+} = require('../constants/scrapingUsers');
 const DateHelper = require('../utils/Date');
 
 let redisClient;
@@ -70,8 +78,7 @@ function searchMultipleTickers(searchArray) {
     })
 }
 
-function processThirdPartyPredictions(predictions, isReal = false, source = null) {
-
+async function processThirdPartyPredictions(predictions, isReal = false, source = null) {
     return Promise.map(predictions, async prediction => {
         const dateFormat = 'YYYY-MM-DD';
         const horizon = _.get(prediction, 'horizon', isReal ? 2 : 1);
@@ -112,6 +119,8 @@ function processThirdPartyPredictions(predictions, isReal = false, source = null
             country: 'IN',
             exchange: 'NSE'
         };
+        const securityLatestDetail = await SecurityHelper.getStockLatestDetail(security);
+        const latestPrice = _.get(securityLatestDetail, 'latestDetailRT.close', null) || _.get(securityLatestDetail, 'latestDetailRT.Close', 0);
 
         const action = _.get(prediction, 'action', 'BUY');
         const investmentMultiplier = action.toUpperCase() === 'BUY' ? 1 : -1;
@@ -123,7 +132,7 @@ function processThirdPartyPredictions(predictions, isReal = false, source = null
             conditionalType: 'NOW', 
             endDate,
             startDate,
-            real: false,
+            real: isReal,
             target: Number(target),
             stopLoss: Number(stopLoss),
             position: {
@@ -138,11 +147,12 @@ function processThirdPartyPredictions(predictions, isReal = false, source = null
             shouldCalculateDiff: _.get(prediction, 'shouldCalculateDiff', false),
             email: _.get(prediction, 'email', null),
             source: _.get(prediction, 'source', null),
-            initializeStopLoss: _.get(prediction, 'initializeStopLoss', false) 
+            initializeStopLoss: _.get(prediction, 'initializeStopLoss', false),
+            latestPrice
             // When adding extra items it should also be added in omit for thirdPartyScraping Jobs
         };
-        // console.log(`${source} - Un Formatted Prediction `, prediction);
-        // console.log(`${source} - Formatted Prediction `, adjustedPrediction);
+        console.log(`${source} - Un Formatted Prediction `, prediction);
+        console.log(`${source} - Formatted Prediction `, adjustedPrediction);
 
         return adjustedPrediction;
     })
@@ -259,7 +269,7 @@ const getUserInfo = email => new Promise((resolve, reject) => {
     });
 })
 
-module.exports.createPredictionsFromThirdParty = function(source) {
+module.exports.createPredictionsFromThirdParty = function(source, ibPositions= []) {
     const redisEnvironment = process.env.NODE_ENV;
     console.log(`${source} predictions download started`);
 
@@ -315,7 +325,7 @@ module.exports.createPredictionsFromThirdParty = function(source) {
         return Promise.all([
             processThirdPartyPredictions(predictions, false, source),
             // Storing redis for the parent source
-            // addRawPredictionsToRedis(predictions, source)
+            addRawPredictionsToRedis(predictions, source)
         ]);
 
     })
@@ -323,12 +333,50 @@ module.exports.createPredictionsFromThirdParty = function(source) {
 		return Promise.map(predictions, async prediction => {
             const email = _.get(prediction, 'email', null);
             const newSource = _.get(prediction, 'source', null) || source;
+
+            const aggUserId = _.get(aggregationUser, 'userId', null);
+            const aggAdvisorId = _.get(aggregationUser, 'advisorId', null);
+
+            const zeroAggUserId = _.get(zeroHorizonAggregationUser, 'userId', null);
+            const zeroAggAdvisorId = _.get(zeroHorizonAggregationUser, 'advisorId', null);
+
+            const oppAggUserId = _.get(oppositeAggregationUser, 'userId', null);
+            const oppAggAdvisorId = _.get(oppositeAggregationUser, 'advisorId', null);
+
+            const oppZeroAggUserId = _.get(oppositeZeroHorizonAggregationUser, 'userId', null);
+            const oppZeroAggAdvisorId = _.get(oppositeZeroHorizonAggregationUser, 'advisorId', null);
+
+            const pnlAggUserId = _.get(pnlAggUser, 'userId', null);
+            const pnlAggAdvisorId = _.get(pnlAggUser, 'advisorId', null);
+
+            const stockMovementAggUserId = _.get(stockMovementAggUser, 'userId', null);
+            const stockMovementAggAdvisorId = _.get(stockMovementAggUser, 'advisorId', null);
             
             let newAdvisorId = advisorId;
             let newUserId = userId;
+            const maxInvestmentForAggUser = 50; // Max investment for the aggregation user
+            const investment = 10000; // Investing Rs 10000 in every prediction
+            const stockLatestPrice = _.get(prediction, 'latestPrice', 0);
             
             console.log('3rd Party email ', email);
-            console.log('3rd Party source ', newSource, prediction.position.security.ticker); 
+            console.log('3rd Party source ', newSource, prediction.position.security.ticker);
+            const symbol = prediction.position.security.ticker;
+
+            // Getting avgPnl for the user for the particular symbol
+            let avgPnl = null;
+            try {
+                const symbolDailyContestStats = await DailyContestEntryHelper.getDailyContestStats(symbol, pnlAggUserId);
+                avgPnl = _.get(symbolDailyContestStats, 'total.net.avgPnl', null);
+                
+                // Getting avgPnl for that user
+                if (avgPnl == null) {
+                    const pnlStats = await DailyContestEntryHelper.getDailyContestStats(null, pnlAggUserId);
+                    avgPnl = _.get(pnlStats, 'total.net.avgPnl', 0);
+                }
+            } catch (err) {
+                avgPnl = 0;
+            }
+
             
             // If email is present in the prediction then it should created with required user's advisorId and 
             // userId obtained from the email
@@ -340,11 +388,134 @@ module.exports.createPredictionsFromThirdParty = function(source) {
                     newUserId = thirdPartyUser.userId;
                 }
             }
+            
+            // Original Prediction
+            const adjustedAggregationPrediction = {
+                ...prediction, 
+                real: aggregationUser.real,
+                position: {
+                    ...prediction.position,
+                    investment: aggregationUser.real ? 0 : 10,
+                    quantity: aggregationUser.real 
+                        ? DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser)
+                        : 0
+                }
+            };
 
-            return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId)
-            .then(prediction => {
-                console.log(`Prediction Created ${prediction.position.security.ticker} - ${newSource}`);
-                Promise.resolve(true)
+            // Original Prediction with zero horizon
+            const adjustedAggregationPredictionForZeroHorizon = {
+                ...prediction, 
+                real: zeroHorizonAggregationUser.real,
+                position: {
+                    ...prediction.position,
+                    investment: zeroHorizonAggregationUser.real ? 0 : 10,
+                    quantity: zeroHorizonAggregationUser.real 
+                        ? DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser)
+                        : 0
+                },
+                endDate: prediction.startDate // setting horizon as 0, i.e same start date and end date
+            };
+
+            // Inversed prediction
+            const adjustedInverseAggPrediction = {
+                ...prediction,
+                real: oppositeAggregationUser.real,
+                position: {
+                    ...prediction.position,
+                    investment: oppositeAggregationUser.real ? 0 : (-1 * 10),
+                    quantity: oppositeAggregationUser.real 
+                        ? (-1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser))
+                        : 0,
+                    target: prediction.stopLoss,
+                    stopLoss: prediction.target
+                }
+            }
+
+            // Inversed Prediction with zero horizon
+            const adjustedInverseZeroHorizonAggPrediction = {
+                ...prediction,
+                real: oppositeZeroHorizonAggregationUser.real,
+                position: {
+                    ...prediction.position,
+                    investment: oppositeZeroHorizonAggregationUser.real ? 0 : (-1 * 10),
+                    quantity: oppositeZeroHorizonAggregationUser.real 
+                        ? (-1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser))
+                        : 0,
+                    target: prediction.stopLoss,
+                    stopLoss: prediction.target
+                },
+                endDate: prediction.startDate // setting horizon as 0, i.e same start date and end date
+            }
+
+            // Prediction based on avgPnl
+            const adjustedPnlPrediction = avgPnl >= 0 
+                ?   {
+                        ...prediction, 
+                        real: pnlAggUser.real,
+                        position: {
+                            ...prediction.position,
+                            investment: pnlAggUser.real ? 0 : 10,
+                            quantity: pnlAggUser.real 
+                                ? DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser)
+                                : 0
+                        }
+                    }
+                :   {
+                        ...prediction,
+                        real: pnlAggUser.real,
+                        position: {
+                            ...prediction.position,
+                            investment: pnlAggUser.real ? 0 : (-1 * 10),
+                            quantity: pnlAggUser.real 
+                                ? (-1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser))
+                                : 0,
+                            target: prediction.stopLoss,
+                            stopLoss: prediction.target
+                        }
+                    }
+
+            const stockMovementPrediction = getPredictionOnStockMovement(prediction, stockMovementAggUser.real, maxInvestmentForAggUser);
+
+            return Promise.all([
+                DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId),
+                (aggUserId && aggAdvisorId) !== null
+                    ?   DailyContestEntryHelper.createPrediction(adjustedAggregationPrediction, aggUserId, aggAdvisorId, true, false, ibPositions)
+                    :   null,
+                (zeroAggUserId && zeroAggAdvisorId) !== null
+                    ?   DailyContestEntryHelper.createPrediction(adjustedAggregationPredictionForZeroHorizon, zeroAggUserId, zeroAggAdvisorId, true, false, ibPositions)
+                    :   null,
+                (oppAggUserId && oppAggAdvisorId) !== null
+                    ?   DailyContestEntryHelper.createPrediction(adjustedInverseAggPrediction, oppAggUserId, oppAggAdvisorId, true, true, ibPositions)
+                    :   null,
+                (oppZeroAggUserId && oppZeroAggAdvisorId) !== null
+                    ?   DailyContestEntryHelper.createPrediction(adjustedInverseZeroHorizonAggPrediction, oppZeroAggUserId, oppZeroAggAdvisorId, true, true, ibPositions)
+                    :   null,
+                (pnlAggUserId && pnlAggAdvisorId) !== null
+                    ?   DailyContestEntryHelper.createPrediction(adjustedPnlPrediction, pnlAggUserId, pnlAggAdvisorId, pnlAggUser.real, true, ibPositions)
+                    :   null,
+                (stockMovementAggUserId && stockMovementAggAdvisorId) !== null
+                    ?   DailyContestEntryHelper.createPrediction(stockMovementPrediction, stockMovementAggUserId, stockMovementAggAdvisorId, stockMovementAggUser.real, true, ibPositions)
+                    :   null
+            ])
+            .then(([createdPrediction, aggCreatedPrediction, oppositePredictions, zeroHorizonOppPrediction]) => {
+                console.log('createdPrediction ', createdPrediction);
+                console.log(`Prediction Created ${createdPrediction.position.security.ticker} - ${newSource}`);
+
+                if (aggCreatedPrediction) {
+                    console.log('Prediction created for aggregation user');
+                } else {
+                    console.log('Prediction not created for aggregation user. Please provide userId and advisorId for the same');
+                }
+
+                if (oppositePredictions) {
+                    console.log('Opposite Predictions Created');
+                }
+
+                if (zeroHorizonOppPrediction) {
+                    console.log('Zero Horizon, Opposite Predictions Created');
+                }
+
+                return Promise.resolve(true);
             })
             .catch(err => {
                 console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker', null), newSource, err.message);
@@ -361,18 +532,99 @@ module.exports.createPredictionsFromThirdParty = function(source) {
     })
 }
 
-module.exports.getAllPredictionsFromThirdParty = function() { 
+module.exports.getAllPredictionsFromThirdParty = async function() { 
+    const currentPositions = await SecurityHelper.getCurrentIBPositions();
+    // const currentPositions = [];
+
     return Promise.all([
-        exports.createPredictionsFromThirdParty('kotak'), 
-        exports.createPredictionsFromThirdParty('kotakFundamental'),
-        exports.createPredictionsFromThirdParty('motilalOswal'),
-        exports.createPredictionsFromThirdParty('shareKhan'),
-        exports.createPredictionsFromThirdParty('edelweiss'),
-        exports.createPredictionsFromThirdParty('investmentGuru'),
-        exports.createPredictionsFromThirdParty('moneyControl'),
-        exports.createPredictionsFromThirdParty('economicTimes')
+        exports.createPredictionsFromThirdParty('kotak', currentPositions),
+        exports.createPredictionsFromThirdParty('kotakFundamental', currentPositions),
+        exports.createPredictionsFromThirdParty('motilalOswal', currentPositions),
+        exports.createPredictionsFromThirdParty('shareKhan', currentPositions),
+        exports.createPredictionsFromThirdParty('edelweiss', currentPositions),
+        exports.createPredictionsFromThirdParty('investmentGuru', currentPositions),
+        exports.createPredictionsFromThirdParty('moneyControl', currentPositions),
+        exports.createPredictionsFromThirdParty('economicTimes', currentPositions)
     ])
     .then(() => {
         console.log('Donwloaded All Data');
     })
 }
+
+const getPredictionOnStockMovement = async (prediction, real, maxInvestment) => {
+    const symbol = prediction.position.security.ticker;
+    const stockDetail = await SecurityHelper.getStockDetail(prediction.position.security, prediction.startDate);
+    const openPrice = _.get(stockDetail, 'latestDetail.Open', 0);
+    const prevClose = _.get(stockDetail, 'latestDetailRT.previousClose', 0);
+    const stockLatestPrice = _.get(stockDetail, 'latestDetailRT.close', null) || _.get(stockDetail, 'latestDetail.Close', 0);
+    const investment = 10000;
+    const isBuy = prediction.position.investment > 0;
+
+    // Original Prediction
+    const adjustedAggPrediction = {
+        ...prediction, 
+        real,
+        position: {
+            ...prediction.position,
+            investment: real ? 0 : 10,
+            quantity: real 
+                ? DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestment)
+                : 0
+        }
+    };
+
+    // Inversed prediction
+    const adjustedInverseAggPrediction = {
+        ...prediction,
+        real,
+        position: {
+            ...prediction.position,
+            investment: real ? 0 : (-1 * 10),
+            quantity: real 
+                ? (-1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestment))
+                : 0,
+            target: prediction.stopLoss,
+            stopLoss: prediction.target
+        }
+    };
+
+    if (openPrice > prevClose) {
+        if (isBuy) {
+            return adjustedAggPrediction;
+        }
+
+        return adjustedInverseAggPrediction;
+    } else {
+        if (!isBuy) {
+            return adjustedAggPrediction;
+        }
+
+        return adjustedInverseAggPrediction;
+    }
+}
+
+const deleteRawPredictionsFromRedis = () => {
+    const client = getRedisClient();
+    const redisEnvironment = process.env.NODE_ENV;
+    const rawPredictionRegex = new RegExp(`${redisEnvironment}_(.*)_prediction`);
+    const rawPredictionKeys = [];
+    client.keys('*', (err, keys) => {
+        if (!err) {
+            keys.map(key => {
+                const success = rawPredictionRegex.test(key);
+                if (success) {
+                    rawPredictionKeys.push(key);
+                }
+            });
+            client.del(rawPredictionKeys, (err, o) => {
+                if (!err) {
+                    console.log('Error Occured while deleting raw prediction keys', err.message);
+                } else {
+                    console.log('Successfully deleted the raw prediction keys');
+                }
+            });
+        } else {
+            console.log('Error occured while getting redis keys')
+        }
+    });
+};

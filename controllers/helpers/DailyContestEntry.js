@@ -17,13 +17,13 @@ const axios = require('axios');
 const DateHelper = require('../../utils/Date');
 const APIError = require('../../utils/error');
 const WSHelper = require('./WSHelper');
-const SecurityHelper = require('./Security');
 const AdvisorHelper = require('./Advisor');
 
 const AdvisorModel = require('../../models/Marketplace/Advisor');
 const DailyContestEntryModel = require('../../models/Marketplace/DailyContestEntry');
 const DailyContestEntryPerformanceModel = require('../../models/Marketplace/DailyContestEntryPerformance');
 const DailyContestStatsModel = require('../../models/Marketplace/DailyContestStats');
+const SecurityHelper = require('./Security');
 
 const PredictionRealtimeController = require('../Realtime/predictionControl');
 const BrokerRedisController = require('../Realtime/brokerRedisControl');
@@ -2780,11 +2780,25 @@ module.exports.processRedisPredictions = redisPredictions => {
 	return redisPredictions.map(prediction => JSON.parse(prediction));
 }
 
-module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = false) => {
+module.exports.getNumSharesFromInvestment = (notional, lastPrice, maxInvestmentValue = 50) => {
+    const ceilValue = Math.ceil(notional / lastPrice);
+    const floorValue = Math.floor(notional / lastPrice);
+    if (
+        (ceilValue * lastPrice) < Math.min((maxInvestmentValue * 1000), 1.05 * notional) ||
+        (floorValue * lastPrice) < 10000
+    ) {
+        return ceilValue;
+    }
+
+    return floorValue;
+}
+
+module.exports.createPrediction = (prediction, userId, advisorId, placeOrder = false, allowNegativeQty = false, ibPositions = []) => {
 	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 	let investment, quantity, latestPrice, avgPrice, changePct;
 	// Investment obtained from the frontend
 	let investmentInput = 0;
+	let allocationAdvisorId;
 	
 	var security = _.get(prediction, 'position.security', {});
 	const isRealPrediction = _.get(prediction, 'real', false);
@@ -2792,7 +2806,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 	const conditionalType = _.get(prediction, 'conditionalType', 'NOW');
 	const isConditional = conditionalType.toUpperCase() !== 'NOW';
 	
-	let allocationAdvisorId;
+	let userAutomated = false;
 	let masterAdvisorId;
 	let validStartDate = exports.getValidStartDate();
 
@@ -2868,7 +2882,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 				investment = _.get(prediction, 'position.investment', 0);
 				quantity = _.get(prediction, 'position.quantity', 0);
 
-				if (isRealPrediction && (investment != 0 || quantity <= 0)) {
+				if (isRealPrediction && !allowNegativeQty && (investment != 0 || quantity <= 0)) {
 					APIError.throwJsonError({message: "Must provide zero investment and positive quantity (LONG) for real trades!!"})
 				}
 
@@ -2882,7 +2896,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 				//(now this could be not true but let's keep things for simple for now)
 				prediction.position.investment = investment
 
-				if (isRealPrediction && investment < 0) {
+				if (isRealPrediction && !allowNegativeQty && investment < 0) {
 					APIError.throwJsonError({message: "Only LONG prediction are allowed for real trades!!"})	
 				}
 				
@@ -2915,23 +2929,21 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 	})
 	.then(() => {
 		let masterAdvisorSelection = {user: userId, isMasterAdvisor: true};
-		if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
-			masterAdvisorSelection = {_id: advisorId};
-		}
+		// if (advisorId !== null && (advisorId || '').trim().length > 0 && isAdmin) {
+		// 	masterAdvisorSelection = {_id: advisorId};
+		// }
 
 		return AdvisorModel.fetchAdvisor(masterAdvisorSelection, {fields: '_id account allocation'})
 		.then(masterAdvisor => {
 			allocationAdvisorId = _.get(masterAdvisor, 'allocation.advisor', '').toString();
 			//Get master advisor id (used later when sending updates)
 			masterAdvisorId = masterAdvisor._id.toString();
-
 			if (isRealPrediction) {
+				userAutomated = _.get(masterAdvisor, 'allocation.automated', false);
 				// Checking if investment is not greater than the maxInvestment
 				const maxInvestment = _.get(masterAdvisor, 'allocation.maxInvestment', 50) * 1000;
 
 				const minInvestment = _.get(masterAdvisor, 'allocation.minInvestment', 10) * 1000;
-
-				userAutomated = _.get(masterAdvisor, 'allocation.automated', false);
 
 				const notAllowedStocks = _.get(masterAdvisor, 'allocation.notAllowedStocks', []);
 
@@ -3085,7 +3097,8 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
                 'targetDiff', 
                 'recommendedPrice',
                 'shouldCalculateDiff',
-                'initializeStopLoss'
+				'initializeStopLoss',
+				'latestPrice'
             ]);
 			// console.log('Prediction to be created ', adjustedPrediction);
 			return exports.addPrediction(advisorId, adjustedPrediction, DateHelper.getMarketCloseDateTime(validStartDate), masterAdvisorId, userId)
@@ -3093,7 +3106,84 @@ module.exports.createPrediction = (prediction, userId, advisorId, isAdmin = fals
 			APIError.throwJsonError({message: "Adjusted prediciton is NULL/invalid"});
 		}
 	})
+	.then(prediction => {
+		let orderAutomated = config.get('order_automated');
+		const symbol = _.get(prediction, 'position.security.ticker', null);
+		ibPositions = ibPositions.map(position => position.symbol);
+		const isFoundInIB = _.findIndex(ibPositions, position => position === symbol) > -1;
+
+		if (orderAutomated && userAutomated && placeOrder && investment > 0 && !isFoundInIB) {
+		// if (!isConditional && orderAutomated && userAutomated && placeOrder) {
+			const predictionId = _.get(prediction, '_id', null);
+			const predictionTarget = _.get(prediction, 'target', 0);
+			const predictionStopLoss = _.get(prediction, 'stopLoss', 0);
+			const predictionQuantity = _.get(prediction, 'position.quantity', 0);
+			const predictionAvgPrice = latestPrice;
+			const predictionInvestment = _.get(prediction, 'position.investment', 0);
+
+			// We can use the predictionStats to check if we want to place the order
+			if (predictionId && predictionInvestment > 0) {
+				// Order params for placing order
+				const ibOrderParams ={
+					bracketFirstOrderType: 'MARKET',
+					stock: symbol,
+					type: 'BUY',
+					quantity: predictionQuantity,
+					price: roundOffForIb(predictionAvgPrice),
+					orderType: 'bracket',
+					stopLossPrice: roundOffForIb(predictionStopLoss),
+					profitLimitPrice: roundOffForIb(predictionTarget),
+					predictionId: (predictionId || '').toString(),
+					advisorId: (masterAdvisorId || '').toString()
+				};		
+				console.log('Order Will be placed to Interactive Broker ', ibOrderParams);
+	
+				return SecurityHelper.placeOrder(ibOrderParams)
+				.then(() => {
+					console.log('Order Placed');
+				})
+				.catch(err => {
+					console.log('Error while placing order ', err.message);
+				})
+
+			}
+		}
+
+		return prediction;
+	})
 }
+
+module.exports.getDailyContestStats = (symbol = null, userId) => new Promise((resolve, reject) => {
+	const category = 'general';
+	let horizon = null;
+
+	return Promise.resolve()
+	.then(() => {
+		let advisorSelection = {user: userId, isMasterAdvisor: true};
+			
+		return AdvisorModel.fetchAdvisor(advisorSelection, {fields: '_id allocation'});		
+	})
+	.then(masterAdvisor => {
+		if (masterAdvisor) {
+			let advisorId = masterAdvisor._id.toString();
+
+			switch(category) {
+				case "general" : return exports.getDailyContestEntryPnlStats(advisorId, symbol, horizon); 
+				case "prediction" : return exports.getDailyContestEntryPnlStats(advisorId, symbol, horizon); break;
+				case "pnl" : return exports.getDailyContestEntryPnlStats(advisorId, horizon); break;
+			}
+		} else {
+			APIError.throwJsonError({message: "Not a valid user"});
+		} 
+	})	
+	.then(stats => {
+		resolve(stats);
+	})
+	.catch(err => {
+		console.log('Error: getDailyContestStats ', err.message);
+		reject(err.message);
+	});
+});
 
 module.exports.foundPredictionForAdvisor = function(prediction, redisPredictions = [], options = {}) {
     const compareTickerOnly = _.get(options, 'compareTickerOnly', false);
@@ -3135,3 +3225,8 @@ module.exports.foundPredictionForAdvisor = function(prediction, redisPredictions
     return filteredPredictions.length > 0;
 }
 
+function roundOffForIb (value) {
+	value = Number(value);
+        
+    return Math.round(value * 20) / 20;
+}

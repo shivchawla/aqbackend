@@ -26,6 +26,14 @@ function deleteCallback(reqId) {
 }
 
 class InteractiveBroker {
+    constructor() {
+        currentPositions = [];
+    }
+
+    static getCurrentPositions() {
+        return this.currentPositions;
+    }
+
     static connect() {
         try {
             const ibInstance = this.interactiveBroker;   
@@ -72,6 +80,28 @@ class InteractiveBroker {
             .catch(err => {
                 deleteCallback(requestId);
                 reject(err.message);    
+            })
+        })
+    }
+
+    static requestPositions() {
+        const self = this;
+        let requestId = null;
+        this.currentPositions = [];
+
+        return new Promise((resolve, reject) => {
+            self.getNextRequestId()
+            .then(reqId => {
+                requestId = reqId;
+
+                // Getting the interactive broker instance
+                const ibInstance = self.interactiveBroker;
+                initializeCallback(reqId, resolve, reject);
+                ibInstance.reqPositionsMulti(reqId, "DU1393655", "");
+            })
+            .catch(err => {
+                deleteCallback(requestId);
+                reject(err.message);
             })
         })
     }
@@ -575,6 +605,17 @@ InteractiveBroker.interactiveBroker.on('nextValidId', (reqId)  => {
     })
 })
 
+InteractiveBroker.interactiveBroker.on('positionMulti', function (reqId, account, modelCode, contract, pos, avgCost) {
+    InteractiveBroker.currentPositions.push({contract, position: pos, avgCost});
+});
+
+InteractiveBroker.interactiveBroker.on('positionMultiEnd', (reqId) => {
+    var resolve = _.get(promises, `${reqId}.resolve`, null);
+    if (resolve) {
+        delete promises[reqId];
+        resolve(InteractiveBroker.getCurrentPositions());
+    }
+});
 
 if (config.get('node_ib_event_port') == serverPort) {
     //Process IB events only when market is open (only on single port)

@@ -276,7 +276,7 @@ function runForwardTest(forwardtestId) {
             req.requestTime = (new Date()).getTime();
 
             // userId of the requesting user
-            req.userId = st.user._id;
+            req.userId = ft.user._id;
 
             // Date range for the simulation
             req.date_range = new Date(bt.settings.endDate) - new Date(bt.settings.startDate);
