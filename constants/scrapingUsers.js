@@ -1,23 +1,30 @@
 module.exports.userDetails = {
     motilalOswal: {
+        name: "Mukesj Jain",
         email: 'mukeshj4404@gmail.com'
     },
     kotak: {
+        name: "Govind Ahuja",
         email: 'govinda4404@gmail.com'
     },
     kotakFundamental: {
+        name: "Faiz Kotak",
         email: 'kotakf4404@gmail.com'
     },
     shareKhan: {
+        name: "Shreya Khanduri",
         email: 'sharekhan4404@gmail.com'
     },
     edelweiss: {
+        name: "Sameer Kanwal",
         email: 'sameerk4404@gmail.com'
     },
     investmentGuru: {
+        name: 
         email: 'iguru4404@gmail.com'
     },
     choiceInternational: {
+        name: "Charu Iyengar",
         email: 'charui4404@gmail.com'
     },
     geplCapital: {
@@ -142,5 +149,41 @@ module.exports.userDetails = {
     },
     manavChopra: {
         email: 'manavc4404@gmail.com'
-    }
+    },
+    aggregationUser: {
+        name: "Amar Aggarwal",
+        email: "amaragg4404@gmail.com",
+        userId: "5cebbce88f2fdc7cedcd065f",
+        advisorId: "5cebc0182ef7fb088c4aa0eb",
+    },
+    zeroHorizonAggregationUser: {
+        name: "Zoya Aggarwal",
+        email: "zoyagg4404@gmail.com",
+        userId: "5cebbdfb8f2fdc7cedcd06ba",
+        advisorId: "5cebc07a2ef7fb088c4aa314",
+    }, 
+    oppositeAggregationUser: {
+        name: "Om Aggarwal",
+        email: "omagg4404@gmail.com",
+        userId: "5cebbe3ffbad0e7ce176343e",
+        advisorId: "5cebc0972ef7fb088c4aa452",
+    },
+    oppositeZeroHorizonAggregationUser: {
+        name: "OZ Aggarwal",
+        email: "ozagg4404@gmail.com",
+        userId: "5cebbedf8f2fdc7cedcd0727",
+        advisorId: "5cebc0c42ef7fb088c4aa62f" 
+    },
+    pnlAggUser: {
+        name: "PN Aggarwal",
+        email: "pnagg4404@gmail.com",
+        userId: "5cebbf00fbad0e7ce17634ab",
+        advisorId: "5cebc0ef2ef7fb088c4aa8bb",
+    },
+    stockMovementAggUser: {
+        name: "ST Aggarwal",
+        email: "stagg4404@gmail.com",
+        userId: "5cebbf326acb7a7ce6217557",
+        advisorId: "5cebc1122ef7fb088c4aa9fd",
+    },
 }
