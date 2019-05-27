@@ -20,7 +20,6 @@ module.exports.userDetails = {
         email: 'sameerk4404@gmail.com'
     },
     investmentGuru: {
-        name: 
         email: 'iguru4404@gmail.com'
     },
     choiceInternational: {
