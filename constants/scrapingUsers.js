@@ -179,10 +179,22 @@ module.exports.userDetails = {
         userId: "5cebbf00fbad0e7ce17634ab",
         advisorId: "5cebc0ef2ef7fb088c4aa8bb",
     },
+    pnlZeroHorizonAggUser: {
+        name: "PNZ Aggarwal",
+        email: "pnagg4404@gmail.com",
+        userId: "5cebdf0010a2e51d5acf3b7c",
+        advisorId: "5cebdfab2ef7fb088c4bacb5",
+    },
     stockMovementAggUser: {
         name: "ST Aggarwal",
         email: "stagg4404@gmail.com",
         userId: "5cebbf326acb7a7ce6217557",
         advisorId: "5cebc1122ef7fb088c4aa9fd",
     },
+    stockMovementZeroHorizonAggUser: {
+        name: "STZ Aggarwal",
+        email: "stagg4404@gmail.com",
+        userId: "5cebdeeb2e6a081d6611c460",
+        advisorId: "5cebdfb42ef7fb088c4bad94",
+    }
 }
