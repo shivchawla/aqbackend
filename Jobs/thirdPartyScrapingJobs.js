@@ -26,7 +26,9 @@ const {
     oppositeAggregationUser, 
     oppositeZeroHorizonAggregationUser,
     pnlAggUser,
-    stockMovementAggUser
+    pnlZeroHorizonAggUser,
+    stockMovementAggUser,
+    stockMovementZeroHorizonAggUser
 } = require('../constants/scrapingUsers');
 const DateHelper = require('../utils/Date');
 
@@ -364,19 +366,19 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
             const investment = 10000; // Investing Rs 10000 in every prediction
             const stockLatestPrice = _.get(prediction, 'latestPrice', 0);
             
-            // console.log('3rd Party email ', email);
-            // console.log('3rd Party source ', newSource, prediction.position.security.ticker);
+            console.log('3rd Party email ', email);
+            console.log('3rd Party source ', newSource, prediction.position.security.ticker);
             const symbol = prediction.position.security.ticker;
 
             // Getting avgPnl for the user for the particular symbol
             let avgPnl = null;
             try {
-                const symbolDailyContestStats = await DailyContestEntryHelper.getDailyContestStats(symbol, pnlAggUserId);
+                const symbolDailyContestStats = await DailyContestEntryHelper.getDailyContestStats(symbol, newUserId);
                 avgPnl = _.get(symbolDailyContestStats, 'total.net.avgPnl', null);
                 
                 // Getting avgPnl for that user
                 if (avgPnl == null) {
-                    const pnlStats = await DailyContestEntryHelper.getDailyContestStats(null, pnlAggUserId);
+                    const pnlStats = await DailyContestEntryHelper.getDailyContestStats(null, newUserId);
                     avgPnl = _.get(pnlStats, 'total.net.avgPnl', 0);
                 }
             } catch (err) {
@@ -432,9 +434,11 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                     quantity: oppositeAggregationUser.real 
                         ? (-1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser))
                         : 0,
-                    target: prediction.stopLoss,
-                    stopLoss: prediction.target
-                }
+                },
+                target: prediction.stopLoss,
+                stopLoss: prediction.target,   
+                targetDiff: prediction.stopLossDiff,
+                stopLossDiff: prediction.targetDiff     
             }
 
             // Inversed Prediction with zero horizon
@@ -446,10 +450,12 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                     investment: oppositeZeroHorizonAggregationUser.real ? 0 : (-1 * prediction.position.investment),
                     quantity: oppositeZeroHorizonAggregationUser.real 
                         ? (-1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser))
-                        : 0,
-                    target: prediction.stopLoss,
-                    stopLoss: prediction.target
+                        : 0
                 },
+                target: prediction.stopLoss,
+                stopLoss: prediction.target,
+                targetDiff: prediction.stopLossDiff,
+                stopLossDiff: prediction.targetDiff,     
                 endDate: prediction.startDate // setting horizon as 0, i.e same start date and end date
             }
 
@@ -464,34 +470,10 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                             quantity: pnlAggUser.real 
                                 ? DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser)
                                 : 0
-                        }
-                    }
-                :   {
-                        ...prediction,
-                        real: pnlAggUser.real,
-                        position: {
-                            ...prediction.position,
-                            investment: pnlAggUser.real ? 0 : (-1 * 10),
-                            quantity: pnlAggUser.real 
-                                ? (-1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser))
-                                : 0,
-                            target: prediction.stopLoss,
-                            stopLoss: prediction.target
-                        }
-                    }
-            //Same as above but with zero horizon
-            const adjustedPnlZeroHorizonPrediction = avgPnl >= 0 
-                ?   {
-                        ...prediction, 
-                        real: pnlAggUser.real,
-                        position: {
-                            ...prediction.position,
-                            investment: pnlAggUser.real ? 0 : 10,
-                            quantity: pnlAggUser.real 
-                                ? DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser)
-                                : 0
                         },
-                        endDate: prediction.startDate
+                        targetDiff: 0.05,
+                        stopLossDiff: -0.05,
+                        shouldCalculateDiff: true
 
                     }
                 :   {
@@ -503,21 +485,60 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                             quantity: pnlAggUser.real 
                                 ? (-1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser))
                                 : 0,
-                            target: prediction.stopLoss,
-                            stopLoss: prediction.target
                         },
+                        targetDiff: -0.05,
+                        stopLossDiff: 0.05,
+                        shouldCalculateDiff: true
+                    }
+
+            //Same as above but with zero horizon
+            const adjustedPnlZeroHorizonPrediction = avgPnl >= 0 
+                ?   {
+                        ...prediction, 
+                        real: pnlZeroHorizonAggUser.real,
+                        position: {
+                            ...prediction.position,
+                            investment: pnlZeroHorizonAggUser.real ? 0 : 10,
+                            quantity: pnlZeroHorizonAggUser.real 
+                                ? DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser)
+                                : 0
+                        },
+                        targetDiff: 0.02,
+                        stopLossDiff: -0.02,
+                        shouldCalculateDiff: true,
+                        endDate: prediction.startDate
+
+                    }
+                :   {
+                        ...prediction,
+                        real: pnlZeroHorizonAggUser.real,
+                        position: {
+                            ...prediction.position,
+                            investment: pnlZeroHorizonAggUser.real ? 0 : (-1 * 10),
+                            quantity: pnlZeroHorizonAggUser.real 
+                                ? (-1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser))
+                                : 0,
+                        
+                        },
+                        targetDiff: -0.02,
+                        stopLossDiff: 0.02,
+                        shouldCalculateDiff: true,
                         endDate: prediction.startDate
                     }
 
 
             const stockMovementPrediction = getPredictionOnStockMovement(prediction, stockMovementAggUser.real, maxInvestmentForAggUser);
             const stockMovementZeroHorizonPrediction = {
-                ...getPredictionOnStockMovement(prediction, stockMovementZeroHorizonAggUser.real, maxInvestmentForAggUser)
+                ...getPredictionOnStockMovement(prediction, stockMovementZeroHorizonAggUser.real, maxInvestmentForAggUser, true)
                 , endDate: prediction.startDate};
 
-            return Promise.all([
-                DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId),
-                (aggUserId && aggAdvisorId) !== null
+            return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId)
+            .then(createdPrediction => {
+                // console.log('createdPrediction ', createdPrediction);
+                console.log(`Prediction Created ${createdPrediction.position.security.ticker} - ${newSource}`);
+                console.log("Creating Aggregated predictions");
+
+                return Promise.all([(aggUserId && aggAdvisorId) !== null
                     ?   DailyContestEntryHelper.createPrediction(adjustedAggregationPrediction, aggUserId, aggAdvisorId, true, false, ibPositions)
                     :   null,
                 (zeroAggUserId && zeroAggAdvisorId) !== null
@@ -541,31 +562,30 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                 (stockMovementZeroHorizonAggUserId && stockMovementZeroHorizonAggAdvisorId) !== null
                     ?   DailyContestEntryHelper.createPrediction(stockMovementZeroHorizonPrediction, stockMovementZeroHorizonAggUserId, stockMovementZeroHorizonAggAdvisorId, stockMovementZeroHorizonAggUser.real, true, ibPositions)
                     :   null
-            ])
-            .then(([createdPrediction, aggCreatedPrediction, oppositePrediction, zeroHorizonOppPrediction]) => {
-                console.log('createdPrediction ', createdPrediction);
-                console.log(`Prediction Created ${createdPrediction.position.security.ticker} - ${newSource}`);
+                ])
+                .then(([aggCreatedPrediction, oppositePrediction, zeroHorizonOppPrediction]) => {
+                    
+                    if (aggCreatedPrediction) {
+                        console.log('Prediction created for aggregation user');
+                    } else {
+                        console.log('Prediction not created for aggregation user. Please provide userId and advisorId for the same');
+                    }
 
-                if (aggCreatedPrediction) {
-                    console.log('Prediction created for aggregation user');
-                } else {
-                    console.log('Prediction not created for aggregation user. Please provide userId and advisorId for the same');
-                }
+                    if (oppositePrediction) {
+                        console.log('Opposite Predictions Created');
+                    }
 
-                if (oppositePrediction) {
-                    console.log('Opposite Predictions Created');
-                }
+                    if (zeroHorizonOppPrediction) {
+                        console.log('Zero Horizon, Opposite Predictions Created');
+                    }
 
-                if (zeroHorizonOppPrediction) {
-                    console.log('Zero Horizon, Opposite Predictions Created');
-                }
-
-                return Promise.resolve(true);
-            })
-            .catch(err => {
-                console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker', null), newSource, err.message);
-                
-                return Promise.resolve(true);
+                    return Promise.resolve(true);
+                })
+                .catch(err => {
+                    console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker', null), newSource, err.message);
+                    
+                    return Promise.resolve(true);
+                })
             })
 		})
     })
@@ -578,8 +598,8 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
 }
 
 module.exports.getAllPredictionsFromThirdParty = async function() { 
-    const currentPositions = await SecurityHelper.getCurrentIBPositions();
-    // const currentPositions = [];
+    // const currentPositions = await SecurityHelper.getCurrentIBPositions();
+    const currentPositions = [];
 
     return Promise.all([
         exports.createPredictionsFromThirdParty('kotak', currentPositions),
@@ -594,19 +614,22 @@ module.exports.getAllPredictionsFromThirdParty = async function() {
     .then(() => {
         console.log('Donwloaded All Data');
     })
+    .catch(err => {
+        console.log(err);
+    })
 }
 
-const getPredictionOnStockMovement = async (prediction, real, maxInvestment) => {
+const getPredictionOnStockMovement = async (prediction, real, maxInvestment, intraday = false) => {
     const symbol = prediction.position.security.ticker;
     const stockDetail = await SecurityHelper.getStockDetail(prediction.position.security, prediction.startDate);
-    const openPrice = _.get(stockDetail, 'latestDetail.Open', 0);
+    const openPrice = _.get(stockDetail, 'latestDetailRT.open', 0);
     const prevClose = _.get(stockDetail, 'latestDetailRT.previousClose', 0);
     const stockLatestPrice = _.get(stockDetail, 'latestDetailRT.close', null) || _.get(stockDetail, 'latestDetail.Close', 0);
     const investment = 10000;
     const isBuy = prediction.position.investment > 0;
 
     // Original Prediction
-    const adjustedAggPrediction = {
+    const adjustedBuyPrediction = {
         ...prediction, 
         real,
         position: {
@@ -615,37 +638,42 @@ const getPredictionOnStockMovement = async (prediction, real, maxInvestment) => 
             quantity: real 
                 ? DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestment)
                 : 0
-        }
+        },
+        targetDiff: intraday ? 0.02 : 0.05,
+        stopLossDiff: intraday ? -0.02 : -0.05,
+        shouldCalculateDiff: true,
     };
 
     // Inversed prediction
-    const adjustedInverseAggPrediction = {
+    const adjustedSellPrediction = {
         ...prediction,
         real,
         position: {
             ...prediction.position,
-            investment: real ? 0 : (-1 * 10),
+            investment: real ? 0 : -10,
             quantity: real 
                 ? (-1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestment))
                 : 0,
-            target: prediction.stopLoss,
-            stopLoss: prediction.target
+            targetDiff: intraday ? -0.02 : -0.05,
+            stopLossDiff: intraday ? 0.02 : 0.05,
+            shouldCalculateDiff: true,
         }
     };
 
-    if (openPrice > prevClose) {
-        if (isBuy) {
-            return adjustedAggPrediction;
-        }
-
-        return adjustedInverseAggPrediction;
+    if (isBuy) {
+        if (openPrice > prevClose) {
+            return adjustedBuyPrediction;
+        } else {
+            return adjustedSellPrediction
+        }    
     } else {
-        if (!isBuy) {
-            return adjustedAggPrediction;
+        if (openPrice < prevClose) {
+            return adjustedSellPrediction;
+        } else {
+            return adjustedBuyPrediction
         }
-
-        return adjustedInverseAggPrediction;
-    }
+    } 
+    
 }
 
 const deleteRawPredictionsFromRedis = () => {

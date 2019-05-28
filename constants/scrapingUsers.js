@@ -148,53 +148,61 @@ module.exports.userDetails = {
     },
     manavChopra: {
         email: 'manavc4404@gmail.com'
-    },
-    aggregationUser: {
-        name: "Amar Aggarwal",
-        email: "amaragg4404@gmail.com",
-        userId: "5cebbce88f2fdc7cedcd065f",
-        advisorId: "5cebc0182ef7fb088c4aa0eb",
-    },
-    zeroHorizonAggregationUser: {
-        name: "Zoya Aggarwal",
-        email: "zoyagg4404@gmail.com",
-        userId: "5cebbdfb8f2fdc7cedcd06ba",
-        advisorId: "5cebc07a2ef7fb088c4aa314",
-    }, 
-    oppositeAggregationUser: {
-        name: "Om Aggarwal",
-        email: "omagg4404@gmail.com",
-        userId: "5cebbe3ffbad0e7ce176343e",
-        advisorId: "5cebc0972ef7fb088c4aa452",
-    },
-    oppositeZeroHorizonAggregationUser: {
-        name: "OZ Aggarwal",
-        email: "ozagg4404@gmail.com",
-        userId: "5cebbedf8f2fdc7cedcd0727",
-        advisorId: "5cebc0c42ef7fb088c4aa62f" 
-    },
-    pnlAggUser: {
-        name: "PN Aggarwal",
-        email: "pnagg4404@gmail.com",
-        userId: "5cebbf00fbad0e7ce17634ab",
-        advisorId: "5cebc0ef2ef7fb088c4aa8bb",
-    },
-    pnlZeroHorizonAggUser: {
-        name: "PNZ Aggarwal",
-        email: "pnagg4404@gmail.com",
-        userId: "5cebdf0010a2e51d5acf3b7c",
-        advisorId: "5cebdfab2ef7fb088c4bacb5",
-    },
-    stockMovementAggUser: {
-        name: "ST Aggarwal",
-        email: "stagg4404@gmail.com",
-        userId: "5cebbf326acb7a7ce6217557",
-        advisorId: "5cebc1122ef7fb088c4aa9fd",
-    },
-    stockMovementZeroHorizonAggUser: {
-        name: "STZ Aggarwal",
-        email: "stagg4404@gmail.com",
-        userId: "5cebdeeb2e6a081d6611c460",
-        advisorId: "5cebdfb42ef7fb088c4bad94",
     }
-}
+};
+
+module.exports.aggregationUser = {
+    name: "Amar Aggarwal",
+    email: "amaragg4404@gmail.com",
+    userId: "5cebbce88f2fdc7cedcd065f",
+    advisorId: "5cebc0182ef7fb088c4aa0eb",
+};
+
+module.exports.zeroHorizonAggregationUser = {
+    name: "Zoya Aggarwal",
+    email: "zoyagg4404@gmail.com",
+    userId: "5cebbdfb8f2fdc7cedcd06ba",
+    advisorId: "5cebc07a2ef7fb088c4aa314",
+};
+
+module.exports.oppositeAggregationUser = {
+    name: "Om Aggarwal",
+    email: "omagg4404@gmail.com",
+    userId: "5cebbe3ffbad0e7ce176343e",
+    advisorId: "5cebc0972ef7fb088c4aa452",
+};
+
+module.exports.oppositeZeroHorizonAggregationUser = {
+    name: "OZ Aggarwal",
+    email: "ozagg4404@gmail.com",
+    userId: "5cebbedf8f2fdc7cedcd0727",
+    advisorId: "5cebc0c42ef7fb088c4aa62f" 
+};
+
+module.exports.pnlAggUser = {
+    name: "PN Aggarwal",
+    email: "pnagg4404@gmail.com",
+    userId: "5cebbf00fbad0e7ce17634ab",
+    advisorId: "5cebc0ef2ef7fb088c4aa8bb",
+};
+
+module.exports.pnlZeroHorizonAggUser = {
+    name: "PNZ Aggarwal",
+    email: "pnagg4404@gmail.com",
+    userId: "5cebdf0010a2e51d5acf3b7c",
+    advisorId: "5cebdfab2ef7fb088c4bacb5",
+};
+
+module.exports.stockMovementAggUser = {
+    name: "ST Aggarwal",
+    email: "stagg4404@gmail.com",
+    userId: "5cebbf326acb7a7ce6217557",
+    advisorId: "5cebc1122ef7fb088c4aa9fd",
+};
+
+module.exports.stockMovementZeroHorizonAggUser = {
+    name: "STZ Aggarwal",
+    email: "stagg4404@gmail.com",
+    userId: "5cebdeeb2e6a081d6611c460",
+    advisorId: "5cebdfb42ef7fb088c4bad94",
+};
