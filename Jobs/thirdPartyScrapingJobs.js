@@ -526,11 +526,11 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                         endDate: prediction.startDate
                     }
 
-
-            const stockMovementPrediction = getPredictionOnStockMovement(prediction, stockMovementAggUser.real, maxInvestmentForAggUser);
+            const stockMovementPrediction = await getPredictionOnStockMovement(prediction, stockMovementAggUser.real, maxInvestmentForAggUser);
+            const _tsp = await getPredictionOnStockMovement(prediction, stockMovementZeroHorizonAggUser.real, maxInvestmentForAggUser, true);
             const stockMovementZeroHorizonPrediction = {
-                ...getPredictionOnStockMovement(prediction, stockMovementZeroHorizonAggUser.real, maxInvestmentForAggUser, true)
-                , endDate: prediction.startDate};
+                ..._tsp,
+                endDate: prediction.startDate};
 
             return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId)
             .then(createdPrediction => {
@@ -652,10 +652,10 @@ const getPredictionOnStockMovement = async (prediction, real, maxInvestment, int
             quantity: real 
                 ? (-1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestment))
                 : 0,
-            targetDiff: intraday ? -0.02 : -0.05,
-            stopLossDiff: intraday ? 0.02 : 0.05,
-            shouldCalculateDiff: true,
-        }
+        },
+        targetDiff: intraday ? -0.02 : -0.05,
+        stopLossDiff: intraday ? 0.02 : 0.05,
+        shouldCalculateDiff: true,
     };
 
     if (isBuy) {

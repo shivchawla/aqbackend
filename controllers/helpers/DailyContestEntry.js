@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-05-17 17:08:15
+* @Last Modified time: 2019-05-28 14:36:04
 */
 
 'use strict';
@@ -3180,7 +3180,7 @@ module.exports.getDailyContestStats = (symbol = null, userId) => new Promise((re
 		resolve(stats);
 	})
 	.catch(err => {
-		console.log('Error: getDailyContestStats ', err.message);
+		// console.log('Error: getDailyContestStats ', err.message);
 		reject(err.message);
 	});
 });
