@@ -153,8 +153,9 @@ async function processThirdPartyPredictions(predictions, isReal = false, source 
             latestPrice
             // When adding extra items it should also be added in omit for thirdPartyScraping Jobs
         };
-        console.log(`${source} - Un Formatted Prediction `, prediction);
-        console.log(`${source} - Formatted Prediction `, adjustedPrediction);
+        
+        // console.log(`${source} - Un Formatted Prediction `, prediction);
+        // console.log(`${source} - Formatted Prediction `, adjustedPrediction);
 
         return adjustedPrediction;
     })
@@ -366,8 +367,8 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
             const investment = 10000; // Investing Rs 10000 in every prediction
             const stockLatestPrice = _.get(prediction, 'latestPrice', 0);
             
-            console.log('3rd Party email ', email);
-            console.log('3rd Party source ', newSource, prediction.position.security.ticker);
+            // console.log('3rd Party email ', email);
+            // console.log('3rd Party source ', newSource, prediction.position.security.ticker);
             const symbol = prediction.position.security.ticker;
 
             // Getting avgPnl for the user for the particular symbol
@@ -507,7 +508,6 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                         stopLossDiff: -0.02,
                         shouldCalculateDiff: true,
                         endDate: prediction.startDate
-
                     }
                 :   {
                         ...prediction,
@@ -534,7 +534,6 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
 
             return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId)
             .then(createdPrediction => {
-                // console.log('createdPrediction ', createdPrediction);
                 console.log(`Prediction Created ${createdPrediction.position.security.ticker} - ${newSource}`);
                 console.log("Creating Aggregated predictions");
 
@@ -563,7 +562,7 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                     ?   DailyContestEntryHelper.createPrediction(stockMovementZeroHorizonPrediction, stockMovementZeroHorizonAggUserId, stockMovementZeroHorizonAggAdvisorId, stockMovementZeroHorizonAggUser.real, true, ibPositions)
                     :   null
                 ])
-                .then(([aggCreatedPrediction, oppositePrediction, zeroHorizonOppPrediction]) => {
+               /*.then(([aggCreatedPrediction, oppositePrediction, zeroHorizonOppPrediction]) => {
                     
                     if (aggCreatedPrediction) {
                         console.log('Prediction created for aggregation user');
@@ -580,10 +579,9 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                     }
 
                     return Promise.resolve(true);
-                })
+                })*/
                 .catch(err => {
                     console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker', null), newSource, err.message);
-                    
                     return Promise.resolve(true);
                 })
             })
