@@ -156,6 +156,7 @@ module.exports.aggregationUser = {
     email: "amaragg4404@gmail.com",
     userId: "5cebbce88f2fdc7cedcd065f",
     advisorId: "5cebc0182ef7fb088c4aa0eb",
+    real:false,
 };
 
 module.exports.zeroHorizonAggregationUser = {
@@ -163,6 +164,7 @@ module.exports.zeroHorizonAggregationUser = {
     email: "zoyagg4404@gmail.com",
     userId: "5cebbdfb8f2fdc7cedcd06ba",
     advisorId: "5cebc07a2ef7fb088c4aa314",
+    real:false,
 };
 
 module.exports.oppositeAggregationUser = {
@@ -170,13 +172,15 @@ module.exports.oppositeAggregationUser = {
     email: "omagg4404@gmail.com",
     userId: "5cebbe3ffbad0e7ce176343e",
     advisorId: "5cebc0972ef7fb088c4aa452",
+    real:false,
 };
 
 module.exports.oppositeZeroHorizonAggregationUser = {
     name: "OZ Aggarwal",
     email: "ozagg4404@gmail.com",
     userId: "5cebbedf8f2fdc7cedcd0727",
-    advisorId: "5cebc0c42ef7fb088c4aa62f" 
+    advisorId: "5cebc0c42ef7fb088c4aa62f",
+    real:false, 
 };
 
 module.exports.pnlAggUser = {
@@ -184,6 +188,7 @@ module.exports.pnlAggUser = {
     email: "pnagg4404@gmail.com",
     userId: "5cebbf00fbad0e7ce17634ab",
     advisorId: "5cebc0ef2ef7fb088c4aa8bb",
+    real:false,
 };
 
 module.exports.pnlZeroHorizonAggUser = {
@@ -191,6 +196,7 @@ module.exports.pnlZeroHorizonAggUser = {
     email: "pnagg4404@gmail.com",
     userId: "5cebdf0010a2e51d5acf3b7c",
     advisorId: "5cebdfab2ef7fb088c4bacb5",
+    real:false,
 };
 
 module.exports.stockMovementAggUser = {
@@ -198,6 +204,7 @@ module.exports.stockMovementAggUser = {
     email: "stagg4404@gmail.com",
     userId: "5cebbf326acb7a7ce6217557",
     advisorId: "5cebc1122ef7fb088c4aa9fd",
+    real:false,
 };
 
 module.exports.stockMovementZeroHorizonAggUser = {
@@ -205,4 +212,5 @@ module.exports.stockMovementZeroHorizonAggUser = {
     email: "stagg4404@gmail.com",
     userId: "5cebdeeb2e6a081d6611c460",
     advisorId: "5cebdfb42ef7fb088c4bad94",
+    real:false,
 };
