@@ -593,7 +593,7 @@ function _createPrediction(prediction, userId, advisorId, options) {
     return Promise.resolve()
     .then(() => {
         if (userId && advisorId) {
-            DailyContestEntryHelper.createPrediction(prediction, userId, advisorId, options)
+            return DailyContestEntryHelper.createPrediction(prediction, userId, advisorId, options)
         }    
     })
     .catch(err => {
