@@ -427,11 +427,14 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                 real: zeroHorizonAggregationUser.real,
                 position: {
                     ...prediction.position,
-                    investment: zeroHorizonAggregationUser.real ? 0 : 10,
+                    investment: zeroHorizonAggregationUser.real ? 0 : prediction.position.investment,
                     quantity: zeroHorizonAggregationUser.real 
                         ? DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser)
                         : 0
                 },
+                targetDiff: prediction.position.investment > 0 ? 0.015 : -0.015,
+                stopLossDiff: prediction.position.investment > 0 ? -0.02 : 0.02,
+                shouldCalculateDiff: true,
                 endDate: prediction.startDate // setting horizon as 0, i.e same start date and end date
             };
 
@@ -465,8 +468,9 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                 },
                 target: prediction.stopLoss,
                 stopLoss: prediction.target,
-                targetDiff: prediction.stopLossDiff,
-                stopLossDiff: prediction.targetDiff,     
+                targetDiff: prediction.position.investment > 0 ? -0.015 : 0.015,
+                stopLossDiff: prediction.position.investment > 0 ? 0.02 : -0.02,
+                shouldCalculateDiff: true,
                 endDate: prediction.startDate // setting horizon as 0, i.e same start date and end date
             }
 
@@ -514,7 +518,7 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                                 ? DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestmentForAggUser)
                                 : 0
                         },
-                        targetDiff: 0.02,
+                        targetDiff: 0.015,
                         stopLossDiff: -0.02,
                         shouldCalculateDiff: true,
                         endDate: prediction.startDate
@@ -530,7 +534,7 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                                 : 0,
                         
                         },
-                        targetDiff: -0.02,
+                        targetDiff: -0.015,
                         stopLossDiff: 0.02,
                         shouldCalculateDiff: true,
                         endDate: prediction.startDate
@@ -644,7 +648,7 @@ const getPredictionOnStockMovement = async (prediction, real, maxInvestment, int
                 ? DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestment)
                 : 0
         },
-        targetDiff: intraday ? 0.02 : 0.05,
+        targetDiff: intraday ? 0.015 : 0.05,
         stopLossDiff: intraday ? -0.02 : -0.05,
         shouldCalculateDiff: true,
     };
@@ -660,7 +664,7 @@ const getPredictionOnStockMovement = async (prediction, real, maxInvestment, int
                 ? (-1 * DailyContestEntryHelper.getNumSharesFromInvestment(investment, stockLatestPrice, maxInvestment))
                 : 0,
         },
-        targetDiff: intraday ? -0.02 : -0.05,
+        targetDiff: intraday ? -0.015 : -0.05,
         stopLossDiff: intraday ? 0.02 : 0.05,
         shouldCalculateDiff: true,
     };
