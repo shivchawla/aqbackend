@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-05-29 10:59:08
+* @Last Modified time: 2019-05-29 11:46:48
 */
 
 'use strict';
@@ -2868,7 +2868,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, placeOrder = f
 			
 			if (shouldCalculateDiff) {
 				stopLoss = stopLossDiff !== 0 ? recommendedPrice * (1+stopLossDiff) : stopLoss;
-				target = targetDiff !== 0 ? recommendedPrice * (1+targetDiff) + recommendedPrice : target;
+				target = targetDiff !== 0 ? recommendedPrice * (1+targetDiff) + recomme : target;
 				target = Number(target.toFixed(2));
 				stopLoss = Number(stopLoss.toFixed(2));
 			}
@@ -2897,15 +2897,15 @@ module.exports.createPrediction = (prediction, userId, advisorId, placeOrder = f
 				prediction.position.investment = investment
 
 				if (isRealPrediction && !allowNegativeQty && investment < 0) {
-					APIError.throwJsonError({message: "Only LONG prediction are allowed for real trades!!"})	
+					APIError.throwJsonError({message: "Only LONG prediction are allowed for real trades!! ${prediction.position.security.ticker}"})	
 				}
 				
 				if (stopLoss == 0) {
-					APIError.throwJsonError({message: "Stoploss must be non-zero"});
+					APIError.throwJsonError({message: "Stoploss must be non-zero (${prediction.position.security.ticker})"});
 				} else if (investment > 0 &&  (stopLoss > latestPrice || stopLoss > target)) {
-					APIError.throwJsonError({message: `Inaccurate Stoploss!! Must be lower than the call price Stop Loss ${stopLoss}, call price ${latestPrice} target ${target}`});
+					APIError.throwJsonError({message: `Inaccurate Stoploss (${prediction.position.security.ticker})!! Must be lower than the call price Stop Loss ${stopLoss}, call price ${latestPrice} target ${target}`});
 				} else if (investment < 0 &&  (stopLoss < latestPrice || stopLoss < target)) {
-					APIError.throwJsonError({message: `Inaccurate Stoploss!! Must be higher than the call price - ${latestPrice}`});
+					APIError.throwJsonError({message: `Inaccurate Stoploss(${prediction.position.security.ticker})!! Must be higher than the call price - ${latestPrice}`});
 				} 
 
 				if (!isIntraDay) {
@@ -2917,7 +2917,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, placeOrder = f
 				}
 
 				if (Math.abs(changePct) > 0.05) {
-					APIError.throwJsonError('To avoid speculative bets, change above 5% is not allowed.');
+					APIError.throwJsonError(`To avoid speculative bets, change above 5% is not allowed (${prediction.position.security.ticker})`);
 				}
 
 				return;
@@ -2992,9 +2992,9 @@ module.exports.createPrediction = (prediction, userId, advisorId, placeOrder = f
 
 			if (liquidCash < investmentRequired) {
 				if (isRealPrediction) {
-					APIError.throwJsonError({message: `Insufficient funds to create real trades!!`});
+					APIError.throwJsonError({message: `Insufficient funds to create real trades (${prediction.position.security.ticker})!!`});
 				} else {
-					APIError.throwJsonError({message: `Insufficient funds to create predictions!!`});	
+					APIError.throwJsonError({message: `Insufficient funds to create predictions (${prediction.position.security.ticker})!!`});	
 				}
 				
 			}
@@ -3082,7 +3082,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, placeOrder = f
 		return exports.getPredictionsForDate(advisorId, validStartDate, {category: "started", priceUpdate: false, active: null})
 		.then(predictions => {
 			if (exports.foundPredictionForAdvisor(adjustedPrediction, predictions, {compareTickerOnly: true})) {
-				APIError.throwJsonError({message: "Duplicate Predictions"});
+				APIError.throwJsonError({message: `Duplicate Predictions: ${prediction.position.security.ticker}`});
 			}
 
 			return adjustedPrediction;
@@ -3103,7 +3103,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, placeOrder = f
 			// console.log('Prediction to be created ', adjustedPrediction);
 			return exports.addPrediction(advisorId, adjustedPrediction, DateHelper.getMarketCloseDateTime(validStartDate), masterAdvisorId, userId)
 		} else {
-			APIError.throwJsonError({message: "Adjusted prediciton is NULL/invalid"});
+			APIError.throwJsonError({message: "Adjusted prediciton is NULL/invalid (${prediction.position.security.ticker})"});
 		}
 	})
 	.then(prediction => {

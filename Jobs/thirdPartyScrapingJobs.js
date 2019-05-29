@@ -400,7 +400,7 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
 
 
             //Fix the original prediction for broken stoploss/target
-            if (isNaN(prediction.stopLoss) || isNaN(prediction.target)) {
+            if (isNaN(prediction.stopLoss) || isNaN(prediction.target) || prediction.stopLoss == 0 || prediction.target == 0) {
                 const investment = prediction.position.investment;
                 prediction.stopLossDiff = investment > 0 ? -0.04 : 0.04;
                 prediction.targetDiff = investment > 0 ? 0.02 : -0.02;
