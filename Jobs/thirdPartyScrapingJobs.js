@@ -542,58 +542,41 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                 ..._tsp,
                 endDate: prediction.startDate};
 
-            return DailyContestEntryHelper.createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId)
-            .then(createdPrediction => {
-                console.log(`Prediction Created ${createdPrediction.position.security.ticker} - ${newSource}`);
-                console.log("Creating Aggregated predictions");
+            const options = {placeOrder: false, allowNegativeQty: true, ibPositions};
+            
+            return Promise.all([
+                _createPrediction(_.cloneDeep(prediction), newUserId, newAdvisorId, options),
+                _createPrediction(adjustedAggregationPrediction, aggUserId, aggAdvisorId, options),
+                _createPrediction(adjustedAggregationPredictionForZeroHorizon, zeroAggUserId, zeroAggAdvisorId, options),
+                _createPrediction(adjustedInverseAggPrediction, oppAggUserId, oppAggAdvisorId, options),
+                _createPrediction(adjustedInverseZeroHorizonAggPrediction, oppZeroHorizonAggUserId, oppZeroHorizonAggAdvisorId, options),
+                _createPrediction(adjustedPnlPrediction, pnlAggUserId, pnlAggAdvisorId, options),
+                _createPrediction(adjustedPnlZeroHorizonPrediction, pnlZeroHorizonAggUserId, pnlZeroHorizonAggAdvisorId, options),
+                _createPrediction(stockMovementPrediction, stockMovementAggUserId, stockMovementAggAdvisorId, options),
+                _createPrediction(stockMovementZeroHorizonPrediction, stockMovementZeroHorizonAggUserId, stockMovementZeroHorizonAggAdvisorId, options)
+                
+            ])
+           /*.then(([aggCreatedPrediction, oppositePrediction, zeroHorizonOppPrediction]) => {
+                
+                if (aggCreatedPrediction) {
+                    console.log('Prediction created for aggregation user');
+                } else {
+                    console.log('Prediction not created for aggregation user. Please provide userId and advisorId for the same');
+                }
 
-                return Promise.all([(aggUserId && aggAdvisorId) !== null
-                    ?   DailyContestEntryHelper.createPrediction(adjustedAggregationPrediction, aggUserId, aggAdvisorId, true, false, ibPositions)
-                    :   null,
-                (zeroAggUserId && zeroAggAdvisorId) !== null
-                    ?   DailyContestEntryHelper.createPrediction(adjustedAggregationPredictionForZeroHorizon, zeroAggUserId, zeroAggAdvisorId, true, false, ibPositions)
-                    :   null,
-                (oppAggUserId && oppAggAdvisorId) !== null
-                    ?   DailyContestEntryHelper.createPrediction(adjustedInverseAggPrediction, oppAggUserId, oppAggAdvisorId, true, true, ibPositions)
-                    :   null,
-                (oppZeroHorizonAggUserId && oppZeroHorizonAggAdvisorId) !== null
-                    ?   DailyContestEntryHelper.createPrediction(adjustedInverseZeroHorizonAggPrediction, oppZeroHorizonAggUserId, oppZeroHorizonAggAdvisorId, true, true, ibPositions)
-                    :   null,
-                (pnlAggUserId && pnlAggAdvisorId) !== null
-                    ?   DailyContestEntryHelper.createPrediction(adjustedPnlPrediction, pnlAggUserId, pnlAggAdvisorId, pnlAggUser.real, true, ibPositions)
-                    :   null,
-                (pnlZeroHorizonAggUserId && pnlZeroHorizonAggAdvisorId) !== null
-                    ?   DailyContestEntryHelper.createPrediction(adjustedPnlZeroHorizonPrediction, pnlZeroHorizonAggUserId, pnlZeroHorizonAggAdvisorId, pnlZeroHorizonAggUser.real, true, ibPositions)
-                    :   null,
-                (stockMovementAggUserId && stockMovementAggAdvisorId) !== null
-                    ?   DailyContestEntryHelper.createPrediction(stockMovementPrediction, stockMovementAggUserId, stockMovementAggAdvisorId, stockMovementAggUser.real, true, ibPositions)
-                    :   null
-                (stockMovementZeroHorizonAggUserId && stockMovementZeroHorizonAggAdvisorId) !== null
-                    ?   DailyContestEntryHelper.createPrediction(stockMovementZeroHorizonPrediction, stockMovementZeroHorizonAggUserId, stockMovementZeroHorizonAggAdvisorId, stockMovementZeroHorizonAggUser.real, true, ibPositions)
-                    :   null
-                ])
-               /*.then(([aggCreatedPrediction, oppositePrediction, zeroHorizonOppPrediction]) => {
-                    
-                    if (aggCreatedPrediction) {
-                        console.log('Prediction created for aggregation user');
-                    } else {
-                        console.log('Prediction not created for aggregation user. Please provide userId and advisorId for the same');
-                    }
+                if (oppositePrediction) {
+                    console.log('Opposite Predictions Created');
+                }
 
-                    if (oppositePrediction) {
-                        console.log('Opposite Predictions Created');
-                    }
+                if (zeroHorizonOppPrediction) {
+                    console.log('Zero Horizon, Opposite Predictions Created');
+                }
 
-                    if (zeroHorizonOppPrediction) {
-                        console.log('Zero Horizon, Opposite Predictions Created');
-                    }
-
-                    return Promise.resolve(true);
-                })*/
-                .catch(err => {
-                    console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker', null), newSource, err.message);
-                    return Promise.resolve(true);
-                })
+                return Promise.resolve(true);
+            })*/
+            .catch(err => {
+                console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker', null), newSource, err.message);
+                return Promise.resolve(true);
             })
 		})
     })
@@ -605,11 +588,25 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
     })
 }
 
+//function to call create prediction and handle error (all above function are called irrespective of error in one promise) 
+function _createPrediction(prediction, userId, advisorId, options) {
+    return Promise.resolve()
+    .then(() => {
+        if (userId && advisorId) {
+            DailyContestEntryHelper.createPrediction(prediction, userId, advisorId, options)
+        }    
+    })
+    .catch(err => {
+        console.log('Error createPrediction ', _.get(prediction, 'position.security.ticker', null), err.message);
+    })
+    
+}
+
 module.exports.getAllPredictionsFromThirdParty = async function() { 
     // const currentPositions = await SecurityHelper.getCurrentIBPositions();
     const currentPositions = [];
 
-    return Promise.all([
+    return Promise.mapSeries([
         exports.createPredictionsFromThirdParty('kotak', currentPositions),
         exports.createPredictionsFromThirdParty('kotakFundamental', currentPositions),
         exports.createPredictionsFromThirdParty('motilalOswal', currentPositions),

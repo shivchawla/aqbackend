@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-05-29 12:04:47
+* @Last Modified time: 2019-05-29 12:52:32
 */
 
 'use strict';
@@ -2793,7 +2793,11 @@ module.exports.getNumSharesFromInvestment = (notional, lastPrice, maxInvestmentV
     return floorValue;
 }
 
-module.exports.createPrediction = (prediction, userId, advisorId, placeOrder = false, allowNegativeQty = false, ibPositions = []) => {
+module.exports.createPrediction = (prediction, userId, advisorId, options = {}) => {
+	const placeOrder = _.get(options, 'placeOrder', false);
+	const allowNegativeQty = _.get(options, 'allowNegativeQty', false);	
+	const ibPositions = _.get(options, 'ibPositions', []);
+
 	const date = DateHelper.getMarketCloseDateTime(DateHelper.getCurrentDate());
 	let investment, quantity, latestPrice, avgPrice, changePct;
 	// Investment obtained from the frontend
