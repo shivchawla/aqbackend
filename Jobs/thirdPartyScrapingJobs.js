@@ -397,6 +397,16 @@ module.exports.createPredictionsFromThirdParty = function(source, ibPositions= [
                     newUserId = thirdPartyUser.userId;
                 }
             }
+
+
+            //Fix the original prediction for broken stoploss/target
+            if (isNaN(prediction.stopLoss) || isNaN(prediction.target)) {
+                const investment = prediction.position.investment;
+                prediction.stopLossDiff = investment > 0 ? -0.04 : 0.04;
+                prediction.targetDiff = investment > 0 ? 0.02 : -0.02;
+                prediction.shouldCalculateDiff = true;
+            }
+
             
             // Original Prediction
             const adjustedAggregationPrediction = {

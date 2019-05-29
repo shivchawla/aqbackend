@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-05-28 14:36:04
+* @Last Modified time: 2019-05-29 10:59:08
 */
 
 'use strict';
@@ -2864,11 +2864,11 @@ module.exports.createPrediction = (prediction, userId, advisorId, placeOrder = f
 				|| _.get(securityDetail, 'latestDetail.ChangePct', 0);
 
 			recommendedPrice = recommendedPrice !== 0 ? recommendedPrice : latestPrice;
-			stopLoss = initializeStopLoss ? recommendedPrice : stopLoss; 
+			// stopLoss = initializeStopLoss &&  stoploss ? recommendedPrice : stopLoss; 
 			
 			if (shouldCalculateDiff) {
-				stopLoss = stopLossDiff !== 0 ? (recommendedPrice * stopLossDiff) + stopLoss : stopLoss;
-				target = targetDiff !== 0 ? (recommendedPrice * targetDiff) + target : target;
+				stopLoss = stopLossDiff !== 0 ? recommendedPrice * (1+stopLossDiff) : stopLoss;
+				target = targetDiff !== 0 ? recommendedPrice * (1+targetDiff) + recommendedPrice : target;
 				target = Number(target.toFixed(2));
 				stopLoss = Number(stopLoss.toFixed(2));
 			}
