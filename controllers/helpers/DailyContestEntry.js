@@ -2,7 +2,7 @@
 * @Author: Shiv Chawla
 * @Date:   2018-09-08 17:38:12
 * @Last Modified by:   Shiv Chawla
-* @Last Modified time: 2019-05-29 11:46:48
+* @Last Modified time: 2019-05-29 12:04:47
 */
 
 'use strict';
@@ -2868,7 +2868,7 @@ module.exports.createPrediction = (prediction, userId, advisorId, placeOrder = f
 			
 			if (shouldCalculateDiff) {
 				stopLoss = stopLossDiff !== 0 ? recommendedPrice * (1+stopLossDiff) : stopLoss;
-				target = targetDiff !== 0 ? recommendedPrice * (1+targetDiff) + recomme : target;
+				target = targetDiff !== 0 ? recommendedPrice * (1+targetDiff) : target;
 				target = Number(target.toFixed(2));
 				stopLoss = Number(stopLoss.toFixed(2));
 			}
