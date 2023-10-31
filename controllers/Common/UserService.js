@@ -3,13 +3,11 @@ const UserModel = require('../../models/user');
 const jwtUtil = require('../../utils/jwttoken');
 const hashUtil = require('../../utils/hashUtil');
 const sendEmail = require('../../email');
-const uuid = require('node-uuid');
+const uuid = require('uuid');
 const config = require('config');
 var request = require('request');
 const Promise = require('bluebird');
 const {OAuth2Client} = require('google-auth-library');
-const AdvisorModel = require('../../models/Marketplace/Advisor');
-const InvestorModel = require('../../models/Marketplace/Investor');
 const APIError = require('../../utils/error');
 const CLIENT_ID = config.get('app_client_id');
 const _ = require('lodash');
@@ -99,28 +97,8 @@ exports.userlogin = function(args, res, next) {
         userDetails = _filterUserCredentials(userDetails);
         userDetails.token = token;
         
-        return Promise.all([
-            InvestorModel.fetchInvestor({user:userDetails._id}, {insert:true}),
-            AdvisorModel.fetchAdvisor({user:userDetails._id, isMasterAdvisor: true}, {insert:true})
-        ]);
-    })
-    .then(([investor, advisor]) => {
         const email = _.get(userDetails, 'email', null);
         const isAdmin = config.get('admin_user').indexOf(email) !== -1;
-        const allowedInvestments = _.get(advisor, 'allocation.allowedInvestments', []);
-        const maxInvestment = _.get(advisor, 'allocation.maxInvestment', 50);
-        const allocationStatus = _.get(advisor, 'allocation.status', false);
-
-        userDetails.investor = investor._id;
-        userDetails.advisor = advisor._id;
-        userDetails.allowedInvestments = allowedInvestments;
-        userDetails.maxInvestment = maxInvestment;
-        userDetails.allocationStatus = allocationStatus;
-
-        if (_.get(advisor, 'allocation.status', false)) {
-            userDetails.allocationAdvisor = advisor.allocation.advisor;
-        }
-
         userDetails.isAdmin = isAdmin;
         res.status(200).json(userDetails);
     })
@@ -485,27 +463,9 @@ module.exports.userGoogleLogin = function(args, res, next) {
         userDetails = _filterUserCredentials(userDetails);
         userDetails.token = token;
         
-        return Promise.all([
-            InvestorModel.fetchInvestor({user:userDetails._id}, {insert:true}),
-            AdvisorModel.fetchAdvisor({user:userDetails._id, isMasterAdvisor: true}, {insert:true})
-        ]);
-    })
-    .then(([investor, advisor]) => {
         const email = _.get(userDetails, 'email', null);
         const isAdmin = config.get('admin_user').indexOf(email) !== -1;
-        const allowedInvestments = _.get(advisor, 'allocation.allowedInvestments', []);
-        const maxInvestment = _.get(advisor, 'allocation.maxInvestment', 50);
-
-        userDetails.investor = investor._id;
-        userDetails.advisor = advisor._id;
-        userDetails.allowedInvestments = allowedInvestments;
-        userDetails.maxInvestment = maxInvestment;
-
-        //Assign allocated advisor (for the master advisor)
-        if (_.get(advisor, 'allocation.status', false)) {
-            userDetails.allocationAdvisor = advisor.allocation.advisor;
-        }
-
+        
         userDetails.isAdmin = isAdmin;
         res.status(200).json(userDetails)
     })

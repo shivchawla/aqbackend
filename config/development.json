@@ -1,9 +1,8 @@
 {
-    //"hostname": ["https://develop.adviceqube.com", "https://quant-develop.adviceqube.com", "http://localhost:3000", "http://localhost:3001"],
     
-    "hostname": "https://develop.adviceqube.com",
-    "research_hostname": "https://quant-develop.adviceqube.com",
-    "first_party_hosts": ["https://develop.adviceqube.com", "https://quant-develop.adviceqube.com", "http://localhost:3000", "http://localhost:3001"],
+    "hostname": "http://localhost:3001",
+    "research_hostname": "http://localhost:3000",
+    "first_party_hosts": ["http://localhost:3000", "http://localhost:3001"],
 
     "sendgrid_key":"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",
     "encoding_key" : "sdfghjkjbvcxdfghjnbvcdftghjmnbv",
@@ -66,11 +65,6 @@
     "validate_contest_entry_full": false,
 
     "community_reply_thread_template_id":"ReplyThread",
-    "dailycontest_day_winner_template_id": "d3465847-b751-4c61-b182-99b481b25810",
-    "dailycontest_week_winner_template_id":"c2d8fcff-90d0-4ad8-886e-82ad3c24b997",
-    "dailycontest_summary_digest_template_id": "3b4a8d0e-8be3-48b9-8442-df937c48be4e",
-    "dailycontest_zero_predictions_advisors_template":"b8e7c257-9039-48b2-89c4-9249334cc800",
-    "dailycontest_low_predictions_advisors_template":"1c6e306b-3c3e-4925-b26f-f0e8e7705a55",
 
     "mongo_db":"aimsquant_develop",
     "mongo_user":"app_server_develop",
@@ -97,38 +91,13 @@
     "jobsPort":5001,
     "send_performance_digest": false,
     
-    "max_dailyentry_changes": 3, 
-    "max_advices_per_advisor":1000,
-    "max_contest_entries_per_advisor":1000,
-
-    "max_subscription_per_investor":100000,
-    "advisor_public_profile_fields":["companyName", "isIndividual", "isCompany", "isRegistered", "registrationNumber", "linkedIn", "facebook", "twitter", "webUrl"],
     "admin_user":["shivchawla2001@gmail.com","saru.sreyo@gmail.com"],
     "admin_followers":["shivchawla2001@gmail.com","saru.sreyo@gmail.com"],
 
-    "winners_not_allowed":["shivchawla2001@gmail.com", "saru.sreyo@gmail.com", "sauravbiswas16294@gmail.com", "sauravdroid16@gmail.com","saurav.aimsquant@gmail.com"],
-    "dummy_advisors":[],
-    "nse_private_key": "nse_15min_token",
-    "nse_host":"121.241.2.65",
-    "nse_port":6010,
-    "nse_user":"AIMSCM15",
-    "nse_maxfilecount":391,
-    "nse_delayinseconds": 10,
-    "nse_reload_file_set":"385,400",
-	
 	"default_backtest_limit": 5,
    
     "ft_second":0,
     "ft_minute":0,
     "ft_hour":7,
-    "ft_port":13000,
-
-    "ib_connect_flag": false,
-    "ib_tws_host": "207.180.248.10",
-    "ib_tws_port": 4002,
-    "node_ib_event_port": 5001,
-    "order_automated": false,
-
-    "realtime_EODH_quote_url":"https://eodhistoricaldata.com/api/real-time/${ticker}?api_token=5b87e1823a5034.40596433&fmt=json&s=${otherTickers}"
-
+    "ft_port":13000
 }

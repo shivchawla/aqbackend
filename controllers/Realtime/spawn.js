@@ -4,9 +4,6 @@ const jwtUtil = require('../../utils/jwttoken');
 const BacktestController = require('./btControl.js');
 const ForwardTestController = require('./ftControl.js');
 
-const MarketDataController = require('./marketDataControl.js');
-const MarketPlaceController = require('./mktPlaceControl.js');
-const PredictionController = require('./predictionControl.js');
 const RedisIpc = require('./RedisIpc');
 
 const UserModel = require('../../models/user');
@@ -88,22 +85,4 @@ exports.handleAction = function(req, res) {
     else if(req.action === 'stop-forwardtest') {
         return ForwardTestController.cancelTest(req.forwardtestId);
     } 
-    else if(req.action === 'subscribe-mktplace') {
-        return MarketPlaceController.handleMktPlaceSubscription(req, res);
-    }
-    else if(req.action === 'unsubscribe-mktplace') {
-        return MarketPlaceController.handleMktPlaceUnsubscription(req, res);
-    }
-    else if(req.action === 'subscribe-prediction') {
-        return PredictionController.handlePredictionSubscription(req, res);
-    }
-    else if(req.action === 'unsubscribe-prediction') {
-        return PredictionController.handlePredictionUnsubscription(req, res);
-    }
-    else if(req.action === 'subscribe-real-prediction-all') {
-        return PredictionController.handleRealPredictionSubscription(req, res);
-    }
-    else if(req.action === 'unsubscribe-real-prediction-all') {
-        return PredictionController.handleRealPredictionUnsubscription(req, res);
-    }
 };

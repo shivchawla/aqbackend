@@ -15,11 +15,7 @@ const homeDir = require('os').homedir();
 
 const APIError = require('../../utils/error');
 const DateHelper = require('../../utils/Date');
-const SecurityHelper = require('../helpers/Security');
-const DailyContestEntryHelper = require('../helpers/DailyContestEntry');
 
-const MktPlaceController = require('./mktPlaceControl.js');
-const PredictionController = require('./predictionControl.js');
 
 //Reload data as soon as (2s delay) server starts
 // setTimeout(function(){reloadData();}, 2000);
@@ -173,20 +169,9 @@ function _getLatestFile(type) {
 function _sendAllUpdates() {
 	return Promise.all([
 		MktPlaceController.sendAllUpdates(),
-		PredictionController.sendAllUpdates()
 	]);
 }
 
-
-function _updateIntradayHistory(fileNumber, fileType) {
-	return SecurityHelper.getIntradaySnapshot(fileNumber, fileType)
-	.then(snapShot => {
-		 var tickers = Object.keys(snapShot);
-		 return Promise.map(tickers, function(ticker) {
-		 	return SecurityHelper.updateIntradayHistory(ticker, snapShot[ticker])
-		 })
-	})
-}
 
 /*
 Reloads the realtime data to Julia in case of backend failure/restart
@@ -252,42 +237,5 @@ function reloadData() {
 				})
 			});
 		}
-	});
-}
-
-/*
-Processes the latest RT data file in the filesystem
-*/
-function processLatestFiles() {
-	//console.log("In Process data")
-	
-	return Promise.all([
-		_getLatestFile("mkt"),
-		_getLatestFile("ind")
-	])
-	.then(([mktFile, indFile]) => {
-		
-		return Promise.all([
-			_updateData(mktFile, "mkt"),
-			_updateData(indFile, "ind")
-		]);
-	})
-	.then(([s1, s2]) => {
-		if (s1 && s2) {
-			return _sendAllUpdates()
-		} 
-		else if (!s1 && !s2){
-			console.log("No Realtime files for Ind/Mkt to use");
-		}
-		else if(!s1) {
-			console.log("No Realtime files for Mkt to use");
-		} 
-		else if (!s2) {
-			console.log("No Realtime files for Ind to use");	
-		}
-	})
-	.catch(err => {
-		console.log("Error downloading Realtime Data")
-		console.log(err.message);
 	});
 }
