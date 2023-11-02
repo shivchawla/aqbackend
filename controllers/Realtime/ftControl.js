@@ -40,9 +40,13 @@ function realtimeOutputChannel(forwardtestId) {
     return `backtest-realtime-${forwardtestId}`;
 }
 
-function getRedisClient() {
+async function getRedisClient() {
     if (!redisClient || !redisClient.connected) {
-        redisClient = redis.createClient(config.get('julia_redis_port'), config.get('julia_redis_host'), {password: config.get('julia_redis_pass')});
+        redisClient = await RedisUtils.createClient({
+            port: config.get('julia_redis_port'), 
+            host: config.get('julia_redis_host'), 
+            password: config.get('julia_redis_pass')
+        });
         
         redisClient.on("ready", function() {
 
@@ -116,14 +120,18 @@ function getRedisClient() {
     return redisClient;
 }
 
-function getRedisSubscriber() {
+async function getRedisSubscriber() {
     if (!redisSubscriber || !redisSubscriber.connected) {
-        redisSubscriber = redis.createClient(config.get('julia_redis_port'), config.get('julia_redis_host'), {password: config.get('julia_redis_pass')});
+        redisSubscriber = await RedisUtils.createClient({
+            port: config.get('julia_redis_port'), 
+            host: config.get('julia_redis_host'), 
+            password: config.get('julia_redis_pass')
+        });
         
-        redisSubscriber.on("ready", function() {
+        redisSubscriber.on("ready", async function() {
 
             // Let's retrieve pending backtest requests from Redis for this process
-            return RedisUtils.getAllFromRedis(getRedisClient(), THIS_PROCESS_FORWARDTEST_SET)
+            return RedisUtils.getAllFromRedis(await getRedisClient(), THIS_PROCESS_FORWARDTEST_SET)
             .then(data => {
                
                 if (!data) {
@@ -132,7 +140,7 @@ function getRedisSubscriber() {
                 }
 
                 //Re-subscribe to the channels
-                return Promise.mapSeries(Object.keys(data), function(key) {
+                return Promise.mapSeries(Object.keys(data), async function(key) {
                     var req = JSON.parse(data[key]);
 
                     var nodePort = req.nodePort;
@@ -145,7 +153,7 @@ function getRedisSubscriber() {
                     }
 
                     //Fetch the status of this backtest, in Completion Set
-                    return RedisUtils.getFromRedis(getRedisClient(), COMPLETE_FORWARDTEST_SET, forwardtestId)
+                    return RedisUtils.getFromRedis(await getRedisClient(), COMPLETE_FORWARDTEST_SET, forwardtestId)
                     .then(found => {
                         if (found) {
                             return saveData(forwardtestId);
@@ -299,12 +307,12 @@ function runAllForwardTests() {
     })
 }
 
-function saveForwardTestRequestInQueue(req, forwardtestId) {
+async function saveForwardTestRequestInQueue(req, forwardtestId) {
     console.log("Adding forward test request to redis queue");
 
     return Promise.all([
-        RedisUtils.pushToRangeRedis(getRedisClient(), FORWARDTEST_QUEUE, JSON.stringify(req)),
-        RedisUtils.insertIntoRedis(getRedisClient(), THIS_PROCESS_FORWARDTEST_SET, forwardtestId, JSON.stringify(req))
+        RedisUtils.pushToRangeRedis(await getRedisClient(), FORWARDTEST_QUEUE, JSON.stringify(req)),
+        RedisUtils.insertIntoRedis(await getRedisClient(), THIS_PROCESS_FORWARDTEST_SET, forwardtestId, JSON.stringify(req))
     ])
     .catch(err => {
         console.error(err);
@@ -358,15 +366,15 @@ function saveData(forwardtestId) {
     return new Promise(resolve => {
     //Fetch all the data from the redis Queue "backtest-final-${forwardtestId}"
         Promise.resolve()
-        .then(() => {
+        .then(async () => {
             if (!_.get(juliaError, forwardtestId, false)) {
-                return RedisUtils.getRangeFromRedis(getRedisClient(), finalOutputChannel(forwardtestId), 0 , -1);
+                return RedisUtils.getRangeFromRedis(await getRedisClient(), finalOutputChannel(forwardtestId), 0 , -1);
             } else {
                 throw new Error ("Julia Error");
             }
         }).
-        then(() => {
-            return RedisUtils.getRangeFromRedis(getRedisClient(), finalOutputChannel(forwardtestId), 0 , -1);
+        then(async () => {
+            return RedisUtils.getRangeFromRedis(await getRedisClient(), finalOutputChannel(forwardtestId), 0 , -1);
         })
         .then(data => {
 
@@ -421,20 +429,20 @@ function saveData(forwardtestId) {
             resolve(true);
         });
     })
-    .then(() => {
+    .then(async () => {
         //remove julia error status
         delete juliaError[forwardtestId];
         
         // Delete this backtest from redis (from this process SET)
         return Promise.all([
-            RedisUtils.deleteFromRedis(getRedisClient(), THIS_PROCESS_FORWARDTEST_SET, forwardtestId),
-            RedisUtils.deleteFromRedis(getRedisClient(), COMPLETE_FORWARDTEST_SET, forwardtestId)
+            RedisUtils.deleteFromRedis(await getRedisClient(), THIS_PROCESS_FORWARDTEST_SET, forwardtestId),
+            RedisUtils.deleteFromRedis(await getRedisClient(), COMPLETE_FORWARDTEST_SET, forwardtestId)
         ])
-        .then(() => {
+        .then(async() => {
             
             //Expire the channels
-            RedisUtils.setDataExpiry(getRedisClient(), realtimeOutputChannel(forwardtestId), 20);
-            RedisUtils.setDataExpiry(getRedisClient(), finalOutputChannel(forwardtestId), 1);
+            RedisUtils.setDataExpiry(await getRedisClient(), realtimeOutputChannel(forwardtestId), 20);
+            RedisUtils.setDataExpiry(await getRedisClient(), finalOutputChannel(forwardtestId), 1);
 
             //Unsubscribe the channels
             RedisUtils.unsubscribe(getRedisSubscriber(), realtimeOutputChannel(forwardtestId));

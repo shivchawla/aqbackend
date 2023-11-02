@@ -21,15 +21,13 @@ const RedisUtils = require('../utils/RedisUtils');
 
 var redisClient;
 
-function getRedisClient() {
+async function getRedisClient() {
 	if (!redisClient || !redisClient.connected) {
-		var redisPwd = config.get('node_redis_pass');
-
-		if (redisPwd != "") {
-        	redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});
-    	} else {
-    		redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'));
-    	}
+		redisClient = await RedisUtils.createClient({
+            port: config.get('julia_redis_port'), 
+            host: config.get('julia_redis_host'), 
+            password: config.get('julia_redis_pass')
+        });
     }
 
     return redisClient; 

@@ -19,16 +19,13 @@ const _ = require('lodash');
 
 var redisClient;
 
-function getRedisClient() {
+async function getRedisClient() {
     if (!redisClient || !redisClient.connected) {
-
-        let redisPwd = config.get('node_redis_pass');
-        if (redisPwd != "") {
-            redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});  
-        } else {
-            redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'));  
-        }
-
+        redisClient = await RedisUtils.createClient({
+            port: config.get('node_redis_port'), 
+            host: config.get('node_redis_host'), 
+            password: config.get('node_redis_pass')
+        });
         RedisUtils.insertKeyValue(redisClient, `numFailedRequests-${serverPort}`, 0);    
     }
 

@@ -1,6 +1,17 @@
 const config = require('config');
 var redis = require('redis');
 
+async function createClient({port, host, password=""}) {
+    client = await redis.createClient({
+        socket: {port, host}, 
+        ...password!="" && {password}
+    })
+    .on("error", (error) => console.error(`Error Redis: ${error}`))
+    .connect()
+
+    return client
+}
+
 function getAllFromRedis(client, masterKey) {
     return client.hGetAll(masterKey);
 }
@@ -76,6 +87,7 @@ function publish(client, channel, message) {
 
 
 module.exports = {
+    createClient,
     getFromRedis,
     insertIntoRedis,
     deleteFromRedis,

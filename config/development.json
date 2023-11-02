@@ -79,9 +79,9 @@
     "node_redis_port":13472,
     "node_redis_host":"127.0.0.1",
     
-    "julia_redis_host":"94.23.0.139",
+    "julia_redis_host":"127.0.0.1",
     "julia_redis_port":13472,
-    "julia_redis_pass":"2d17e4712e29b43b28eaab2b5b1ebd2e3e48b07beb4efaaaffb07e81cbfe87b1",
+    "julia_redis_pass":"",
 
     "max_num_julia_process_user": 1,
     "max_num_julia_process_total": 2,

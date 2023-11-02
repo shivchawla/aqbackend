@@ -15,39 +15,23 @@ const serverPort = require('../../index').serverPort;
 
 const RedisUtils = require('../../utils/RedisUtils');
 
-let redisClient, redisSubscriber;
+let redisSubscriber;
 
-function getRedisSubscriber() {
+async function getRedisSubscriber() {
 	if (!redisSubscriber || !redisSubscriber.connected) {
-		var redisPwd = config.get('node_redis_pass');
-
-		if (redisPwd != "") {
-        	redisSubscriber = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});
-    	} else {
-    		redisSubscriber = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'));
-    	}
+		redisSubscriber = await RedisUtils.createClient({
+            port: config.get('node_redis_port'), 
+            host: config.get('node_redis_host'), 
+            password: config.get('node_redis_pass')
+        });
     }
 
     return redisSubscriber; 
 }
 
-function getRedisClient() {
-	if (!redisClient || !redisClient.connected) {
-		var redisPwd = config.get('node_redis_pass');
+(async() => {
 
-		if (redisPwd != "") {
-        	redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'), {password: redisPwd});
-    	} else {
-    		redisClient = redis.createClient(config.get('node_redis_port'), config.get('node_redis_host'));
-    	}
-    }
-
-    return redisClient; 
-}
-
-function manageSubscriptions() {
-
-	let redisSubscriber = getRedisSubscriber();
+	let redisSubscriber = await getRedisSubscriber();
 
 	redisSubscriber.on('ready', function() {
 		//Subscribe to real time update (ready message)
@@ -55,9 +39,7 @@ function manageSubscriptions() {
 
 	});
 
-}
-
-manageSubscriptions();
+})()
 
 
 

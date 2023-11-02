@@ -51,7 +51,6 @@
   },
   "devDependencies": {
     "eslint": "^3.2.2",
-    "nightmare": "^3.0.1",
-    "puppeteer": "^1.14.0"
+    "nightmare": "^3.0.1"
   }
 }
