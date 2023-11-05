@@ -67,8 +67,8 @@
     "community_reply_thread_template_id":"ReplyThread",
 
     "mongo_db":"aimsquant_develop",
-    "mongo_user":"app_server_develop",
-    "mongo_pass":"pwd_app_server_develop!",
+    "mongo_user":"",
+    "mongo_pass":"",
     "mongo_path":"localhost",
     "mongo_port":25027,
     "mongo_debug":false,
