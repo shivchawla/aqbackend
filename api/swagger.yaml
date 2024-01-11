@@ -26,7 +26,6 @@ tags:
   description: "operations on Julia Notebook" 
 - name: "config"
   description: "getting the static configs"
-
 schemes:
 - "https"
 produces:
@@ -1251,7 +1250,6 @@ paths:
             $ref: "#/definitions/Error"
       x-swagger-router-controller: "Forwardtest"
 
-  
 securityDefinitions:
   api_key:
     type: apiKey
@@ -1365,559 +1363,140 @@ definitions:
       message:
         type: "string"
 
-  Watchlist:
+# strategy definitions
+  Strategy:
     type: object
     required:
-      - name
-      - securities
+    - name
+    - type
+    - description
     properties:
       name:
         type: string
-      securities:
+      type:
+        type: string
+        enum: ['GUI', 'CODE']
+      description:
+        type: string
+      code:
+        type: string
+      entryConditions:
         type: array
         items:
-          $ref: '#/definitions/Security'
-
-  Address:
-    type: object
-    properties:
-      line1:
-        type: string
-        default: ""
-      line2:
-        type: string
-        default: ""
-      line3:
-        type: string
-        default: ""
-      city: 
-        type: string
-        default: ""
-      state: 
-        type: string
-        default: ""
-      pincode: 
-        type: number
-      country:
-        type: string
-        default: "IN"
-
-  ApprovalMessage:
-    type: object
-    required:
-      - message
-      - approved
-      - prohibit
-    properties:
-      message: 
-        type: string
-      approved:
-        type: boolean
-      prohibit:
-        type: boolean
-
-  ApprovalMessageNew:
-    type: object
-    required:
-      - message
-      - status
-    properties:
-      message:
-       type: string
-      status:
-        type: boolean
-      detail:
+          $ref: "#/definitions/TradeCondition"
+      exitConditions:
         type: array
         items:
-          $ref: '#/definitions/Approval'
-      investmentObjective:
-        $ref: '#/definitions/InvestmentObjective'
-  
-  Approval:
-    type: object
-    required:
-      - field
-    properties:
-      field: 
+          $ref: "#/definitions/TradeCondition"
+      entryLogic:
         type: string
-      reason:
-        type: string
-      valid:
-        type: boolean
-        default: false
-      requirements:
-        type: array
-        items: 
-          type: string
-  
-  InvestmentObjective:
-    type: object
-    properties:
-      goal: 
-        type: object
-        $ref: '#/definitions/Goal'
-      sectors: 
-        type: object
-        $ref: '#/definitions/Sectors'
-      portfolioValuation: 
-        type: object
-        $ref: '#/definitions/PortfolioValuation'
-      capitalization: 
-        type: object
-        $ref: '#/definitions/Capitalization'
-      userText: 
-        type: object
-        $ref: '#/definitions/UserText'
-      
-  Goal:
-    type: object
-    required:
-      - field
-    properties: 
-      field:
-        type: string
-      investorType:
-        type: string
-      suitability:
-        type: string
-      valid:
-        type: boolean
-        default: false
-      reason:
-        type: string
-  
-  Sectors:
-    type: object
-    properties:
-      detail:
-        type: array
-        items:
-          type: string
-      valid:
-        type: boolean
-        default: false
-      reason:
-        type: string
-  
-  PortfolioValuation:
-    type: object
-    properties:
-      field:
-        type: string
-        enum: ['Growth', 'Value', 'Blend']
-      valid:
-        type: boolean
-        default: false
-      reason:
-        type: string
-  
-  Capitalization:
-    type: object
-    properties:
-      field:
-        type: string
-        enum: ['Small Cap', 'Mid Cap', 'Large Cap']
-      valid:
-        type: boolean
-        default: false
-      reason:
-        type: string
- 
-  UserText:
-    type: object
-    properties:
-      detail:
-        type: string
-        # default: "Sample Description"
-      valid:
-        type: boolean
-        default: false
-      reason:
-        type: string    
-
-  SocialProfile:
-    type: object
-    properties:
-      url:
-        type: string
-      photoUrl: 
-        type: string
-      userId:
-        type: string
-
-  ContestEntry:
-    type: object
-    required:
-      - name
-      - portfolio
-    properties:
-      name: 
-        type: string
-      portfolio:
-        $ref: "#/definitions/Portfolio"
-
-  Contest:
-    type: object
-    required:
-      - name
-      - startDate
-      - endDate
-      - active
-      - rules
-    properties:
-      name:
-        type: string
-      startDate:
-        type: string
-        format: date
-      endDate:
-        type: string
-        format: date
-      active:
-        type: boolean
-        default: false
-      rules:
-        type: object
-        $ref: '#/definitions/ContestRules'
-  
-  ContestPatch:
-    type: object
-    properties:
-      name:
-        type: string
-      startDate:
-        type: string
-        format: date
-      endDate:
-        type: string
-        format: date
-      active:
-        type: boolean
-        default: true
-      rules:
-        type: object
-        $ref: '#/definitions/ContestRules'
-
-  ContestRules:
-    type: object
-    required:
-      - prize
-      - ruleTemplateFileName
-    properties:
-      prize:
-        type: array
-        items: 
-          $ref: '#/definitions/ContestPrize'
-      ruleTemplateFileName:
-        type: string
-    
-  ContestPrize:
-    type: object
-    required:
-      - rank
-      - value
-    properties: 
-      rank:
-        type: number
-      value:
-        type: number
-
-  StockPrediction:
-    type: object
-    required:
-      - position
-      - startDate
-      - endDate
-      - target
-    properties:
-      position:
-        type: object
-        $ref: '#/definitions/Position'
-      startDate:
-        type: string
-        format: date
-      endDate:
-        type: string
-        format: date
-      target:
-        type: number
-      stopLoss:
-        type: number
-        default: -1
-      conditionalType:
-        type: string
-        default: "NOW"
-        enum: ["NOW", "CROSS", "LIMIT"]
-      real:
-        type: boolean
-        default: false
-    
-
-  AllocationAccount:
-    type: object
-    required:
-      - cash
-      - notes
-      - maxInvestment
-      - minInvestment
-      - automated
-    properties:
-      cash:
-        type: number
-      notes:
-        type: string
-      maxInvestment:
-        type: number
-        default: 50
-      minInvestment:
-        type: number
-        default: 10
-      notAllowedStocks:
-        type: array
-        items:
-          type: string
-      automated:
-        type: boolean
-        default: false
-      allowedInvestments:
-        type: array
-        default: [10, 25, 50]
-        items: 
-          type: number
-
-  UpdateCash:
-    type: object
-    required:
-      - cash
-      - notes
-    properties:
-      cash:
-        type: number
-      notes:
-        type: string
-
-  AllocationStatus:
-    type: object
-    required:
-      - status
-      - notes
-    properties:
-      status:
-        type: boolean
-      notes:
-        type: string
-
-
-  PredictionTradeActivity:
-    type: object
-    required:
-      - predictionId
-      - advisorId
-      - tradeActivity
-    properties:
-      predictionId:
-        type: string
-        format: uuid
-      advisorId: 
-        type: string
-        format: uuid
-      tradeActivity:
-        type: object
-        $ref: '#/definitions/TradeActivity'
-
-  PlaceOrder:
-    type: object
-    required:
-      - predictionId
-      - advisorId
-      - order
-    properties:
-      predictionId:
-        type: string
-        format: uuid
-      advisorId: 
-        type: string
-        format: uuid
-      order:
-        type: object
-        $ref: '#/definitions/Order'
-      message:
-        type: string
-      
-  ModifyOrder:
-    type: object
-    required:
-      - advisorId
-      - orderId
-      - stock
-      - tradeDirection
-      - quantity
-      - price
-      - orderType
-      - predictionId
-    properties:
-      orderId:
-        type: number
-      stock:
+      exitLogic:
         type: string
       tradeDirection:
         type: string
-      quantity:
-        type: number
-      price:
-        type: number
-      orderType:
-        type: string
-      tif:
-        type: string
-      advisorId: 
-        type: string
-        format: uuid
-      predictionId: 
-        type: string
-        format: uuid
 
-
-  CancelOrder:
-    type: object
-    required:
-      - orderId
-      - advisorId
-      - predictionId
-    properties:
-      orderId:
-        type: number
-      advisorId:
-        type: string
-        format: uuid
-      predictionId:
-        type: string
-        format: uuid
-      message:
-        type: string
   
-  Order:
+  TradeCondition:
     type: object
-    required: 
-      - symbol
-      - tradeDirection
-      - quantity
+    required:
+      - indicator1
+      - indicator2
+      - operator
+      - name
     properties:
-      symbol:
+      indicator1:
+        $ref: "#/definitions/TradeIndicator"
+      indicator2:
+        $ref: "#/definitions/TradeIndicator"
+      operator:
         type: string
-      orderType:
+        enum: ["LT", "LTE", "GT", "GTE", "EQ", "CA", "CB"]
+      name:
         type: string
-        enum: ["bracket", "limit", "market", "stopLimit", "marketClose", "marketIfTouched"]
-      quantity:
-        type: number
-      price:
-        type: number
-      tradeDirection:
+
+  TradeIndicator:
+    type: object
+    required:
+      - name
+      - params
+    properties:
+      name:
         type: string
-        enum: ["BUY", "SELL"]
-      bracketFirstOrderType:
+      params:
+        type: object 
+
+
+  BacktestSettings:
+    type: object
+    required:
+      - startDate
+      - endDate
+      - initialCash
+    properties:
+      startDate:
         type: string
-        enum: ["LIMIT", "MARKET"]
-      stopLossPrice:
+      endDate:
+        type: string
+      initialCash:
         type: number
-      profitLimitPrice:
-        type: number
+        format: long
+      universe:
+        type: string
+      advanced:
+        type: string  
+
+  Backtest:
+    type: object
+    required:
+      - settings
+    properties:
+      settings:
+        $ref: "#/definitions/BacktestSettings"
+
+  Forwardtest:
+    type: object
+    required:
+      - strategyId
+      - backtestId
+    properties:
+      strategyId:
+        type: string
+      backtestId:
+        type: string
+
+  Feedback:
+    type: object
+    required:
+    - feedback
+    - subject
+    - from
+    - to
+    properties:
+      feedback:
+        type: string
+      subject:
+        type: string
+      from:
+        type: string
+      to:
+        type: string
+        default: "feedback@aimsquant.com"
   
-  TradeActivity:
+  invite:
     type: object
     required:
-      - date
-      - direction
-      - quantity
-      - price
+    - emailList
     properties:
-      date:
-        type: string
-        format: date
-      direction:
-        type: string
-        default: "BUY"
-        enum: ["BUY", "SELL"]
-      quantity:
-        type: number
-      price:
-        type: number
-      brokermessage:
-        type: object
-      automated:
-        type: boolean
-        default: false
-      notes:
+      emailList:
         type: string
 
-
-  ReadStatus:
+  infoEmail:
     type: object
     required:
-      - predictionId
-      - advisorId
-      - readStatus
+    - templateFileName
+    - subject
     properties:
-      predictionId:
+      templateFileName:
         type: string
-        format: uuid
-      advisorId: 
+      subject:
         type: string
-        format: uuid
-      readStatus:
-        type: string
-        default: "UNREAD" 
-        enum: ["UNREAD", "READ/ACTED", "READ/NOT-ACTED"]
-    
-  SkipStatus:
-    type: object
-    required:
-      - predictionId
-      - advisorId
-    properties:
-      predictionId:
-        type: string
-        format: uuid
-      advisorId:
-        type: string
-        format: uuid
-      message:
-        type: string
-
-  AdminModification:
-    type: object
-    required:
-      - predictionId
-      - advisorId
-      - modification
-    properties:
-      predictionId:
-        type: string
-        format: uuid
-      advisorId: 
-        type: string
-        format: uuid
-      modification:
-        type: object
-
-  RealPredictionModification:
-    type: object
-    required:
-      - predictionId
-      - advisorId
-      - avgPrice
-    properties:
-      predictionId:
-        type: string
-        format: uuid
-      advisorId:
-        type: string
-        format: uuid
-      avgPrice:
-        type: number
-
-  AllocationModification:
-    type: object
-    properties:
-      modifications:
-        type: object
