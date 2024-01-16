@@ -11,11 +11,12 @@ var mongo_pass = config.get('mongo_pass')
 var opt = {
     ...mongo_user!="" && {user: mongo_user},
     ...mongo_pass!="" && {pass: mongo_pass},
+    authSource: 'admin'
 };
 
 console.log(opt)
 
-mongoose.connect(`mongodb://${mongo_host}:${mongo_port}/${mongo_db}`, opt);
+mongoose.connect(`mongodb://${mongo_host}:${mongo_port}/${mongo_db}?authMechanism=DEFAULT`, opt);
 
 mongoose.set('debug', config.get('mongo_debug'));
 module.exports = mongoose;

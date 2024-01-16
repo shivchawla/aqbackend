@@ -9,3 +9,4 @@ package-lock.json
 examples/winners.csv
 *.csv
 config
+.vscode/launch.json

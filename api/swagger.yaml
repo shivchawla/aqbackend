@@ -27,6 +27,7 @@ tags:
 - name: "config"
   description: "getting the static configs"
 schemes:
+- "http"
 - "https"
 produces:
 - "application/json"
