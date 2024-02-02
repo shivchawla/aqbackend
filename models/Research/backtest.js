@@ -105,7 +105,7 @@ const Backtest = new Schema({
 
 Backtest.statics.saveBacktest = function(backtestDetails) {
     const backtest = new this(backtestDetails);
-    return backtest.saveAsync();
+    return backtest.save();
 };
 
 Backtest.statics.fetchBacktest = function(query, options = {}) {
@@ -146,7 +146,7 @@ Backtest.statics.fetchBacktest = function(query, options = {}) {
         q = q.populate('output.tradebook');
     }
   
-    return q.populate('strategy', 'user').execAsync();
+    return q.populate('strategy', 'user').exec();
 
 };
 
@@ -168,18 +168,18 @@ Backtest.statics.fetchBacktests = function(query, options) {
         q = q.sort(options.sort);
     }
 
-    return q.populate('strategy','user').execAsync();
+    return q.populate('strategy','user').exec();
 };
 
 Backtest.statics.findCount = function(query) {
-    return this.countAsync(query);
+    return this.count(query);
 };
 
 Backtest.statics.removeAllBack = function(query) {
     var q = this.findOne(query)
     .select('output.performance output.logs output.portfolioHistory output.transactionHistory');
 
-    return q.execAsync()
+    return q.exec()
     .then(bt => {
         if(bt) {
             return Promise.all([
@@ -193,7 +193,7 @@ Backtest.statics.removeAllBack = function(query) {
         } 
     })
     .then(([d1, d2, d3, d4, d5]) => {
-        return this.removeAsync(query);
+        return this.remove(query);
     })
     .catch(err => {
         console.log(err);

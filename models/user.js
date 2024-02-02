@@ -95,18 +95,18 @@ User.statics.fetchUser = function(query, options = {}) {
         q = q.select(options.fields);
     }
 
-    return q.execAsync();
+    return q.exec();
 };
 
 User.statics.countUsers = function(query) {
-    return this.countAsync(query);
+    return this.count(query);
 };
 
 User.statics.fetchUsers = function(query, projections, options) {
     return this.find(query, projections)
     .skip(_.get(options, 'skip', 0))
     .limit(_.get(options, 'limit', 10))
-    .execAsync()
+    .exec()
 };
 
 User.statics.updateStatus = function(query, status) {

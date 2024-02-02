@@ -59,7 +59,7 @@ const ForwardTest = new Schema({
 
 ForwardTest.statics.saveForwardTest = function(backtestDetails) {
     const backtest = new this(backtestDetails);
-    return backtest.saveAsync();
+    return backtest.save();
 };
 
 ForwardTest.statics.fetchForwardTest = function(query, options) {
@@ -70,7 +70,7 @@ ForwardTest.statics.fetchForwardTest = function(query, options) {
         q = q.select(options.select);
     }
 
-    return q.populate('strategy', 'user name').execAsync();
+    return q.populate('strategy', 'user name').exec();
 };
 
 ForwardTest.statics.fetchForwardTests = function(query, options) {
@@ -98,15 +98,15 @@ ForwardTest.statics.fetchForwardTests = function(query, options) {
         q = q.sort(options.sort);
     }
 
-    return q.populate('strategy','user').execAsync();
+    return q.populate('strategy','user').exec();
 };
 
 ForwardTest.statics.findCount = function(query) {
-    return this.countAsync(query);
+    return this.count(query);
 };
 
 ForwardTest.statics.removeAllBack = function(query) {
-    return this.removeAsync(query);
+    return this.remove(query);
 };
 
 ForwardTest.statics.updateForwardTest = function(query, updates) {

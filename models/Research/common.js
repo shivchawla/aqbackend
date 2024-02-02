@@ -29,19 +29,19 @@ const TradeBook = new Schema({
 });
 
 Logs.statics.saveLogs = function(logs) {
-    return logs ? (new this({values:logs})).saveAsync() : null;
+    return logs ? (new this({values:logs})).save() : null;
 };
 
 Logs.statics.deleteLogs = function(query) {
-    return this.removeAsync(query);
+    return this.remove(query);
 };
 
 Performance.statics.savePerformance = function(perf) {
-    return perf ? (new this({detail:perf})).saveAsync() : null;
+    return perf ? (new this({detail:perf})).save() : null;
 };
 
 Performance.statics.deletePerformance = function(query) {
-    return this.removeAsync(query);
+    return this.remove(query);
 };
 
 PortfolioHistory.statics.savePortfolioHistory = function(history) {
@@ -63,14 +63,14 @@ PortfolioHistory.statics.savePortfolioHistory = function(history) {
 	for (i=0,j=nHistory.length; i<j; i+=chunk) {
 	    tempArray = nHistory.slice(i,i+chunk);
 	    // do whatever
-	    pArray.push(new Promise((resolve, reject) => { history ? resolve((new this({values:tempArray})).saveAsync()) : reject(null);}))
+	    pArray.push(new Promise((resolve, reject) => { history ? resolve((new this({values:tempArray})).save()) : reject(null);}))
 	}
 
     return Promise.all(pArray);
 };
 
 PortfolioHistory.statics.deletePortfolioHistory = function(query) {
-    return this.removeAsync(query);
+    return this.remove(query);
 }
 
 TransactionHistory.statics.saveTransactionHistory = function(history) {
@@ -92,22 +92,22 @@ TransactionHistory.statics.saveTransactionHistory = function(history) {
 	for (i=0,j=nHistory.length; i<j; i+=chunk) {
 	    tempArray = nHistory.slice(i,i+chunk);
 	    // do whatever
-	    pArray.push(new Promise((resolve, reject) => { history ? resolve((new this({values:tempArray})).saveAsync()) : reject(null);}))
+	    pArray.push(new Promise((resolve, reject) => { history ? resolve((new this({values:tempArray})).save()) : reject(null);}))
 	}
 
     return Promise.all(pArray);
 };
 
 TransactionHistory.statics.deleteTransactionHistory = function(query) {
-    return this.removeAsync(query);
+    return this.remove(query);
 }
 
 TradeBook.statics.saveTradeBook = function(tradebook) {
-    return tradebook ? (new this({detail: tradebook})).saveAsync() : null;
+    return tradebook ? (new this({detail: tradebook})).save() : null;
 };
 
 TradeBook.statics.deleteTradeBook = function(query) {
-    return this.removeAsync(query);
+    return this.remove(query);
 };
 
 

@@ -107,13 +107,13 @@ Strategy.statics.createStrategy = function(inputs) {
         }
 
         const strategy = new this(detail);
-        return strategy.saveAsync();
+        return strategy.save();
     });
 };
 
 Strategy.statics.saveStrategy = function(strategyDetails) {
     const strategy = new this(strategyDetails);
-    return strategy.saveAsync();
+    return strategy.save();
 };
 
 Strategy.statics.fetchStrategy = function(query, options) {
@@ -129,15 +129,15 @@ Strategy.statics.fetchStrategy = function(query, options) {
         q = q.select(options.select);
     }
 
-    return q.populate('user', '_id firstName lastName').execAsync();
+    return q.populate('user', '_id firstName lastName').exec();
 };
 
 Strategy.statics.fetchStrategys = function(query, sort_criteria) {
   
     if(sort_criteria)
-        return this.find(query).sort(sort_criteria).populate('user', '_id firstName lastName').execAsync();
+        return this.find(query).sort(sort_criteria).populate('user', '_id firstName lastName').exec();
     else
-        return this.find(query).populate('user', '_id firstName lastName').execAsync();
+        return this.find(query).populate('user', '_id firstName lastName').exec();
    
 };
 
@@ -150,13 +150,13 @@ Strategy.statics.updateStrategy = function(query, updates) {
                 strategy[key] = updates[key];
             });
             strategy.updatedAt= new Date();
-            return strategy.saveAsync();
+            return strategy.save();
         }
     });
 };
 
 Strategy.statics.deleteStrategy = function(query) {
-    return this.removeAsync(query);
+    return this.remove(query);
 };
 
 const strategyModel = mongoose.model('Strategy', Strategy, 'strategy');

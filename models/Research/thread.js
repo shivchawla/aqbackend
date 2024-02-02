@@ -91,7 +91,7 @@ Thread.statics.saveReply = function(query, replyDetails) {
     .select('title followers lastCommentedUser')
     .populate('lastCommentedUser', '_id firstName lastName')
     .populate('followers', '_id firstName lastName email')
-    .execAsync();
+    .exec();
 };
 
 Thread.statics.saveThread = function(ThreadDetails) {
@@ -108,7 +108,7 @@ Thread.statics.fetchThreads = function(query, options) {
             [options.order_param]: options.order
         })
         .populate('replies.user', '_id firstName lastName').populate('user', '_id firstName lastName')
-        .execAsync()
+        .exec()
         .then((threads) => {
             return this.count(query)
                 .then((count) => {
@@ -158,7 +158,7 @@ Thread.statics.fetchThread = function(query, options) {
 Thread.statics.getFollowers = function(query, limit, skip) {
     return this.find(query,{followers : 1}, { skip: skip, limit: limit })
         .populate('followers', '_id firstName lastName')
-        .execAsync()
+        .exec()
         .then((thread) => {
             return {
                 thread: thread,
